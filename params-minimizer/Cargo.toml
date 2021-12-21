@@ -1,0 +1,36 @@
+[package]
+name = "topos-tce-simulation"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[[bin]]
+name = "tce-params-minimizer"
+path = "src/main.rs"
+
+[dependencies]
+# byteorder = "1.4.3"
+log = "0.4.14"
+clap = { version = "3.0.10", features = ["derive", "env"] }
+tokio = { version = "1.15.0", features = [
+    "io-util",
+    "io-std",
+    "macros",
+    "rt",
+    "rt-multi-thread",
+    "fs",
+    "time",
+    "sync",
+] }
+rand_core = "0.6.0"
+rand_distr = "0.4.3"
+rand = "0.8.5"
+pretty_env_logger = "0.4.0"
+
+# tce dependencies
+tce_net = { package = "topos-tce-node-net", path = "../node/net" }
+tce_api = { package = "topos-tce-node-api", path = "../node/api" }
+tce_store = { package = "topos-tce-node-store", path = "../node/store" }
+tce_trbp = { package = "topos-tce-protocols-reliable-broadcast", path = "../protocols/reliable_broadcast" }
+tce_transport = { package = "topos-tce-protocols-transport", path = "../protocols/transport" }
+tce_uci = { package = "topos-tce-uci", path = "../uci" }

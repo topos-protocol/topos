@@ -1,0 +1,31 @@
+[package]
+name = "topos-tce-node-net"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = 'src/lib.rs'
+
+[dependencies]
+byteorder = "1.4.3"
+transport = { package = "topos-tce-protocols-transport", path = "../../protocols/transport" }
+libp2p = { version = "0.41.0", features = [
+    "tcp-tokio",
+    "dns-tokio",
+] }
+
+log = "0.4.14"
+tokio = { version = "1.15.0", features = [
+    "io-util",
+    "io-std",
+    "macros",
+    "rt",
+    "rt-multi-thread",
+    "fs",
+    "time",
+    "sync",
+] }
+async-trait = "0.1.53"
+rand_core = "0.6.0"
+rand = "0.8.5"

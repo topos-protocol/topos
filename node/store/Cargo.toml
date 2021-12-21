@@ -1,0 +1,19 @@
+[package]
+name = "topos-tce-node-store"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+path = 'src/lib.rs'
+
+[dependencies]
+log = "0.4.14"
+rocksdb = "0.18.0"
+
+# tce dependencies
+tce_uci = { package = "topos-tce-uci", path = "../../uci" }
+tce_trbp = { package = "topos-tce-protocols-reliable-broadcast", path = "../../protocols/reliable_broadcast" }
+bincode = "1.3.3"
+
+[dev-dependencies]
+pretty_env_logger = "0.4.0"
