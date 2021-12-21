@@ -1,0 +1,37 @@
+[package]
+name = "topos-tce-protocols-reliable-broadcast"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = 'src/lib.rs'
+
+[dependencies]
+serde = { version = "1.0.136", features = ["derive"] }
+byteorder = "1.4.3"
+log = "0.4.14"
+opentelemetry = { version = "0.17", default-features = false, features = ["trace", "rt-tokio"] }
+tokio = { version = "1.15.0", features = [
+    "io-util",
+    "io-std",
+    "macros",
+    "rt",
+    "rt-multi-thread",
+    "fs",
+    "time",
+    "sync",
+] }
+rand_distr = "0.4.1"
+rand_core = "0.6.0"
+rand = "0.8.5"
+
+tce_uci = { package = "topos-tce-uci", path = "../../uci" }
+tce_transport = { package = "topos-tce-protocols-transport", path = "../transport"}
+tce_telemetry = { package = "topos-tce-node-telemetry", path = "../../node/telemetry" }
+
+[dev-dependencies]
+pretty_env_logger = "0.4.0"
+
+tce_uci = { package = "topos-tce-uci", path = "../../uci" }
+tce_telemetry = { package = "topos-tce-node-telemetry", path = "../../node/telemetry" }

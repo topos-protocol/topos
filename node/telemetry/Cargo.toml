@@ -1,0 +1,16 @@
+[package]
+name = "topos-tce-node-telemetry"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+path = 'src/lib.rs'
+
+[dependencies]
+lazy_static = "1.4"
+log = "0.4.14"
+opentelemetry = { version = "0.17", default-features = false, features = ["trace", "rt-tokio"] }
+opentelemetry-jaeger = { version = "0.16", features = ["rt-tokio"] }
+libp2p = { version = "0.41.1", features = ["tcp-tokio"] }
+
+tce_uci = { package = "topos-tce-uci", path = "../../uci" }

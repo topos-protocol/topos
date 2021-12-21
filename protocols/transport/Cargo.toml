@@ -1,0 +1,13 @@
+[package]
+name = "topos-tce-protocols-transport"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+path = 'src/lib.rs'
+
+[dependencies]
+serde = { version = "1.0.136", features = ["derive"] }
+
+tce_uci = { package = "topos-tce-uci", path = "../../uci" }
