@@ -1,0 +1,12 @@
+[book]
+language = "en"
+multilingual = false
+src = "src"
+title = "The Topos specification and development internals documentation"
+
+[preprocessor.graphviz]
+command = "mdbook-graphviz"
+[preprocessor.plantuml]
+command = "mdbook-plantuml"
+
+[output.linkcheck]
