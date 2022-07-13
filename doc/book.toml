@@ -8,5 +8,3 @@ title = "The Topos specification and development internals documentation"
 command = "mdbook-graphviz"
 [preprocessor.plantuml]
 command = "mdbook-plantuml"
-
-[output.linkcheck]
