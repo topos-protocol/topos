@@ -39,6 +39,7 @@ COPY ./node/telemetry/Cargo.toml ./node/telemetry/Cargo.toml
 COPY ./protocols/reliable_broadcast/Cargo.toml ./protocols/reliable_broadcast/Cargo.toml
 COPY ./protocols/transport/Cargo.toml ./protocols/transport/Cargo.toml
 COPY ./params-minimizer/Cargo.toml ./params-minimizer/Cargo.toml
+COPY ./cert-spammer/Cargo.toml ./cert-spammer/Cargo.toml
 
 RUN cargo fetch
 

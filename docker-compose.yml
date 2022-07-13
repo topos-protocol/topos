@@ -14,9 +14,9 @@ services:
       tce:
         ipv4_address: 192.168.55.11
     environment:
-      - RUST_LOG=info
+      - RUST_LOG=debug
       - TCE_LOCAL_KS=1 # 12D3KooWPjceQrSwdWXPyLLeABRXmuqt69Rg3sBYbU1Nft9HyQ6X
-      - TCE_JAEGER_AGENT=someshit:6831
+      - TCE_JAEGER_AGENT=nohost:6831
     command: 
       - "./topos-tce-node-app"
   peer2:
@@ -29,13 +29,13 @@ services:
       tce:
         ipv4_address: 192.168.55.12
     environment:
-      - RUST_LOG=info
-      - TCE_LOCAL_KS=2 # 12D3KooWMjhwSh9sJk3H2MjFBtGrp22KRJfj1AFhBS1wpJrBCcJ6
+      - RUST_LOG=debug
       - TCE_BOOT_PEERS=12D3KooWPjceQrSwdWXPyLLeABRXmuqt69Rg3sBYbU1Nft9HyQ6X /dns4/tce-boot-node/tcp/9090
+      - TCE_JAEGER_AGENT=nohost:6831
     command:
       - "./topos-tce-node-app"
     depends_on:
-      - peer1
+      - tce-boot-node
 #  peer3:
 #    build: .
 #    image: ghcr.io/toposware/tce:latest
@@ -47,10 +47,12 @@ services:
 #        ipv4_address: 192.168.55.13
 #    environment:
 #      - RUST_LOG=info
-#      - TCE_LOCAL_KS=3 # 12D3KooWQYhTNQdmr3ArTeUHRYzFg94BKyTkoWBDWez9kSCVe2Xo
-#      - TCE_BOOT_PEERS=12D3KooWPjceQrSwdWXPyLLeABRXmuqt69Rg3sBYbU1Nft9HyQ6X /ip4/192.168.55.11/tcp/9090
+#      - TCE_BOOT_PEERS=12D3KooWPjceQrSwdWXPyLLeABRXmuqt69Rg3sBYbU1Nft9HyQ6X /dns4/tce-boot-node/tcp/9090
+#      - TCE_JAEGER_AGENT=nohost:6831
 #    command:
 #      - "./topos-tce-node-app"
+#    depends_on:
+#      - tce-boot-node
 #  peer4:
 #    build: .
 #    image: ghcr.io/toposware/tce:latest
@@ -62,10 +64,12 @@ services:
 #        ipv4_address: 192.168.55.14
 #    environment:
 #      - RUST_LOG=info
-#      - TCE_LOCAL_KS=4 # 12D3KooWLJtG8fd2hkQzTn96MrLvThmnNQjTUFZwGEsLRz5EmSzc
-#      - TCE_BOOT_PEERS=12D3KooWPjceQrSwdWXPyLLeABRXmuqt69Rg3sBYbU1Nft9HyQ6X /ip4/192.168.55.11/tcp/9090
+#      - TCE_BOOT_PEERS=12D3KooWPjceQrSwdWXPyLLeABRXmuqt69Rg3sBYbU1Nft9HyQ6X /dns4/tce-boot-node/tcp/9090
+#      - TCE_JAEGER_AGENT=nohost:6831
 #    command:
 #      - "./topos-tce-node-app"
+#    depends_on:
+#      - tce-boot-node
 #  peer5:
 #    build: .
 #    image: ghcr.io/toposware/tce:latest
@@ -77,7 +81,9 @@ services:
 #        ipv4_address: 192.168.55.15
 #    environment:
 #      - RUST_LOG=info
-#      - TCE_LOCAL_KS=5 # 12D3KooWSHj3RRbBjD15g6wekV8y3mm57Pobmps2g2WJm6F67Lay
-#      - TCE_BOOT_PEERS=12D3KooWPjceQrSwdWXPyLLeABRXmuqt69Rg3sBYbU1Nft9HyQ6X /ip4/192.168.55.11/tcp/9090
+#      - TCE_BOOT_PEERS=12D3KooWPjceQrSwdWXPyLLeABRXmuqt69Rg3sBYbU1Nft9HyQ6X /dns4/tce-boot-node/tcp/9090
+#      - TCE_JAEGER_AGENT=nohost:6831
 #    command:
 #      - "./topos-tce-node-app"
+#    depends_on:
+#      - tce-boot-node
