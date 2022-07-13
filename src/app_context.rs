@@ -213,6 +213,7 @@ impl AppContext {
     }
 
     async fn on_net_event(&mut self, evt: NetworkEvents) {
+        log::debug!("on_net_event ({:?}", &evt);
         match evt {
             NetworkEvents::KadPeersChanged { new_peers } => {
                 //  notify the protocol

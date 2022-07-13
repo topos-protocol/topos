@@ -10,6 +10,7 @@ use crate::app_context::AppContext;
 use libp2p::{Multiaddr, PeerId};
 
 use tce_store::{Store, StoreConfig};
+use tce_transport::ReliableBroadcastParams;
 use tce_trbp::mem_store::TrbMemStore;
 
 #[tokio::main]
@@ -23,19 +24,23 @@ async fn main() {
     // launch data store
     log::info!(
         "Storage: {}",
-        if args.ram_storage { "RAM" } else { "RocksDB" }
+        if let Some(db_path) = args.db_path.clone() {
+            format!("RocksDB: {}", &db_path).into()
+        } else {
+            "RAM".to_string()
+        }
     );
     let config = ReliableBroadcastConfig {
-        store: if args.ram_storage {
-            // Use in RAM storage
-            Box::new(TrbMemStore::new(Vec::new()))
-        } else {
+        store: if let Some(db_path) = args.db_path.clone() {
             // Use RocksDB
             Box::new(Store::new(StoreConfig {
-                db_path: args.db_path.clone(),
+                db_path: db_path.clone(),
             }))
+        } else {
+            // Use in RAM storage
+            Box::new(TrbMemStore::new(Vec::new()))
         },
-        params: Default::default(),
+        params: args.trbp_params.clone(),
         my_peer_id: "main".to_string(),
     };
 
@@ -89,12 +94,9 @@ pub struct AppArgs {
     /// Local peer key-pair (in base64 format)
     #[clap(long, env = "TCE_LOCAL_KEYPAIR")]
     pub local_key_pair: Option<String>,
-    /// Storage database path, if not set current dir is used
+    /// Storage database path, if not set RAM storage is used
     #[clap(long, env = "TCE_DB_PATH")]
     pub db_path: Option<String>,
-    /// Use storage in RAM without the default RocksDB
-    #[clap(long, env = "TCE_RAM_STORAGE")]
-    pub ram_storage: bool,
     /// Socket of the Jaeger agent endpoint
     #[clap(long, default_value = "127.0.0.1:6831", env = "TCE_JAEGER_AGENT")]
     pub jaeger_agent: String,

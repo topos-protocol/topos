@@ -3336,6 +3336,7 @@ dependencies = [
 name = "topos-tce-protocols-transport"
 version = "0.1.0"
 dependencies = [
+ "clap",
  "serde",
  "topos-tce-uci",
 ]

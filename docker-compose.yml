@@ -1,83 +1,45 @@
-networks:
-  tce:
-    ipam:
-      config:
-        - subnet: 192.168.55.0/24
 services:
-  tce-boot-node:
-    build: .
-    image: ghcr.io/toposware/tce:latest
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: jaeger
+    restart: always
     ports:
-      - "1001:9090"
-      - "8081:8080"
-    networks:
-      tce:
-        ipv4_address: 192.168.55.11
+      - "6831/udp"
+      - "6832/udp"
+      - "16685"
+      - "16686:16686"
+  boot:
+    container_name: boot
+    image: ghcr.io/toposware/tce:tools-ci
+    ports:
+      - "9090"
+      - "8080"
     environment:
-      - RUST_LOG=info
+      - RUST_LOG=debug
+      - RUST_BACKTRACE=full
       - TCE_LOCAL_KS=1 # 12D3KooWPjceQrSwdWXPyLLeABRXmuqt69Rg3sBYbU1Nft9HyQ6X
-      - TCE_JAEGER_AGENT=someshit:6831
-    command: 
-      - "./topos-tce-node-app"
-  peer2:
-    build: .
-    image: ghcr.io/toposware/tce:latest
-    ports:
-      - "1002:9090"
-      - "8082:8080"
-    networks:
-      tce:
-        ipv4_address: 192.168.55.12
-    environment:
-      - RUST_LOG=info
-      - TCE_LOCAL_KS=2 # 12D3KooWMjhwSh9sJk3H2MjFBtGrp22KRJfj1AFhBS1wpJrBCcJ6
-      - TCE_BOOT_PEERS=12D3KooWPjceQrSwdWXPyLLeABRXmuqt69Rg3sBYbU1Nft9HyQ6X /dns4/tce-boot-node/tcp/9090
+      - TCE_JAEGER_AGENT=jaeger:6831
     command:
       - "./topos-tce-node-app"
+  peer:
+    image: ghcr.io/toposware/tce:tools-ci
+    deploy:
+      replicas: 5
+    ports:
+      - "9090"
+      - "8080"
+    environment:
+      - RUST_LOG=debug
+      - TCE_JAEGER_AGENT=jaeger:6831
+      - TCE_BOOT_PEERS=12D3KooWPjceQrSwdWXPyLLeABRXmuqt69Rg3sBYbU1Nft9HyQ6X /dns4/boot/tcp/9090
     depends_on:
-      - peer1
-#  peer3:
-#    build: .
-#    image: ghcr.io/toposware/tce:latest
-#    ports:
-#      - "1003:9090"
-#      - "8083:8080"
-#    networks:
-#      tce:
-#        ipv4_address: 192.168.55.13
-#    environment:
-#      - RUST_LOG=info
-#      - TCE_LOCAL_KS=3 # 12D3KooWQYhTNQdmr3ArTeUHRYzFg94BKyTkoWBDWez9kSCVe2Xo
-#      - TCE_BOOT_PEERS=12D3KooWPjceQrSwdWXPyLLeABRXmuqt69Rg3sBYbU1Nft9HyQ6X /ip4/192.168.55.11/tcp/9090
-#    command:
-#      - "./topos-tce-node-app"
-#  peer4:
-#    build: .
-#    image: ghcr.io/toposware/tce:latest
-#    ports:
-#      - "1004:9090"
-#      - "8084:8080"
-#    networks:
-#      tce:
-#        ipv4_address: 192.168.55.14
-#    environment:
-#      - RUST_LOG=info
-#      - TCE_LOCAL_KS=4 # 12D3KooWLJtG8fd2hkQzTn96MrLvThmnNQjTUFZwGEsLRz5EmSzc
-#      - TCE_BOOT_PEERS=12D3KooWPjceQrSwdWXPyLLeABRXmuqt69Rg3sBYbU1Nft9HyQ6X /ip4/192.168.55.11/tcp/9090
-#    command:
-#      - "./topos-tce-node-app"
-#  peer5:
-#    build: .
-#    image: ghcr.io/toposware/tce:latest
-#    ports:
-#      - "1005:9090"
-#      - "8085:8080"
-#    networks:
-#      tce:
-#        ipv4_address: 192.168.55.15
-#    environment:
-#      - RUST_LOG=info
-#      - TCE_LOCAL_KS=5 # 12D3KooWSHj3RRbBjD15g6wekV8y3mm57Pobmps2g2WJm6F67Lay
-#      - TCE_BOOT_PEERS=12D3KooWPjceQrSwdWXPyLLeABRXmuqt69Rg3sBYbU1Nft9HyQ6X /ip4/192.168.55.11/tcp/9090
-#    command:
-#      - "./topos-tce-node-app"
+      - boot
+  cert-spammer:
+    container_name: spam
+    image: ghcr.io/toposware/cert-spammer:main
+    environment:
+      - RUST_LOG=debug
+      - TARGET_NODE=peer:8080
+    depends_on:
+      - jaeger
+      - peer

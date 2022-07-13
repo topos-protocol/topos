@@ -1,18 +1,30 @@
 //! implementation of Topos Network Transport
 //!
+use clap::Parser;
 use serde::{Deserialize, Serialize};
 use tce_uci::{Certificate, DigestCompressed};
 
 /// Protocol parameters of the TRB
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Clone, Debug, Parser)]
+#[clap(name = "Protocol parameters of the TRB")]
 pub struct ReliableBroadcastParams {
+    /// Echo threshold
+    #[clap(long, default_value_t = 2, env = "TCE_TRBP_ECHO_THRESHOLD")]
     pub echo_threshold: usize,
+    /// Echo sample size
+    #[clap(long, default_value_t = 2, env = "TCE_TRBP_ECHO_SAMPLE_SIZE")]
     pub echo_sample_size: usize,
-
+    /// Ready threshold
+    #[clap(long, default_value_t = 2, env = "TCE_TRBP_READY_THRESHOLD")]
     pub ready_threshold: usize,
+    /// Ready sample size
+    #[clap(long, default_value_t = 2, env = "TCE_TRBP_READY_SAMPLE_SIZE")]
     pub ready_sample_size: usize,
-
+    /// Delivery threshold
+    #[clap(long, default_value_t = 2, env = "TCE_TRBP_DELIVERY_THRESHOLD")]
     pub delivery_threshold: usize,
+    /// Delivery sample size
+    #[clap(long, default_value_t = 2, env = "TCE_TRBP_DELIVERY_SAMPLE_SIZE")]
     pub delivery_sample_size: usize,
 }
 

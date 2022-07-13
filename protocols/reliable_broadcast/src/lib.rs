@@ -30,8 +30,8 @@ pub struct ReliableBroadcastConfig {
     pub my_peer_id: Peer,
 }
 
-#[derive(Debug)]
 /// Thread safe client to the protocol aggregate
+#[derive(Debug)]
 pub struct ReliableBroadcastClient {
     peer_id: String,
     b_aggr: Arc<Mutex<ReliableBroadcast>>,
@@ -47,6 +47,8 @@ impl ReliableBroadcastClient {
     /// New client instances to the same aggregate can be cloned from the returned one.
     /// Aggregate is spawned as new task.
     pub fn new(config: ReliableBroadcastConfig) -> Self {
+        log::info!("new(trbp_params: {:?})", &config.params);
+
         let peer_id = config.my_peer_id.clone();
 
         // Oneshot channel for new sample state (era)
