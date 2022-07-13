@@ -11,6 +11,7 @@ mod discovery_behavior;
 mod transmission_behavior;
 
 use behavior::Behavior;
+use std::time::Duration;
 
 use libp2p::{
     core::upgrade,
@@ -100,6 +101,7 @@ impl NetworkWorker {
                 .upgrade(upgrade::Version::V1)
                 .authenticate(noise::NoiseConfig::xx(noise_keys).into_authenticated())
                 .multiplex(mplex::MplexConfig::new())
+                .timeout(Duration::from_secs(60 * 60 * 2))
                 .boxed();
 
             let mut swarm = {
