@@ -25,7 +25,7 @@ async fn main() {
     log::info!(
         "Storage: {}",
         if let Some(db_path) = args.db_path.clone() {
-            format!("RocksDB: {}", &db_path).into()
+            format!("RocksDB: {}", &db_path)
         } else {
             "RAM".to_string()
         }
@@ -33,9 +33,7 @@ async fn main() {
     let config = ReliableBroadcastConfig {
         store: if let Some(db_path) = args.db_path.clone() {
             // Use RocksDB
-            Box::new(Store::new(StoreConfig {
-                db_path: db_path.clone(),
-            }))
+            Box::new(Store::new(StoreConfig { db_path }))
         } else {
             // Use in RAM storage
             Box::new(TrbMemStore::new(Vec::new()))
