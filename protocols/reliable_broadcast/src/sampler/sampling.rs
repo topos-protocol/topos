@@ -124,7 +124,7 @@ mod should {
 
         let actual = sample_from(&all).unwrap();
 
-        let expected = vec![3, 5, 7];
+        let expected = vec![3, 4, 5];
 
         assert_eq!(expected, actual.value, "{:?}", actual);
     }
