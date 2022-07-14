@@ -5,7 +5,7 @@
 
 use clap::Parser;
 use fastapprox::faster::ln;
-use std::fmt::{self, Debug};
+use std::fmt::Debug;
 use std::fs::File;
 use std::io::{Error, Write};
 use std::sync::Once;
@@ -28,9 +28,17 @@ pub fn sample_lower_bound(n_u: usize) -> usize {
 
 pub fn minimize_params(input: InputConfig) -> Option<SimulationConfig> {
     let n = input.nb_peers as f32;
+
+    // Sample
     let min_sample: usize = 2 * sample_lower_bound(input.nb_peers); // Lower bound
     let max_sample: usize = (n / 4.) as usize; // Upper bound: Quorum size ~ 1/3, in practice hope for 1/4 max
     let sample_candidates = (min_sample..=max_sample).collect::<Vec<_>>();
+
+    // Echo threshold
+    let min_echo_threshold_percent: usize = 50; // Percent as usize to use range
+    let max_echo_threshold_percent: usize = 66; // Percent as usize to use range
+    let echo_threshold_candidates =
+        (min_echo_threshold_percent..=max_echo_threshold_percent).collect::<Vec<_>>();
 
     // binary search but involves heavy run
     // let best_sample_size = sample_candidates.partition_point(|s| viable_run(*s, input.clone()));
@@ -38,9 +46,11 @@ pub fn minimize_params(input: InputConfig) -> Option<SimulationConfig> {
     let mut best_run: Option<SimulationConfig> = None;
     // let's be linear starting by the fast runs
     for s in sample_candidates {
-        if let Some(record) = viable_run(s, &input) {
-            best_run = Some(record);
-            break;
+        for e in &echo_threshold_candidates {
+            if let Some(record) = viable_run(s, (e / 100) as f32, 0.33, 0.66, &input) {
+                best_run = Some(record);
+                break;
+            }
         }
     }
 

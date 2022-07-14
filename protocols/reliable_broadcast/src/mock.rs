@@ -109,10 +109,14 @@ impl SimulationConfig {
     }
 
     pub fn basic_threshold(&mut self) {
+        self.set_threshold(0.66, 0.33, 0.66);
+    }
+
+    pub fn set_threshold(&mut self, e_ratio: f32, r_ratio: f32, d_ratio: f32) {
         let g = |a, b| ((a as f32) * b) as usize;
-        self.params.echo_threshold = g(self.params.echo_sample_size, 0.66);
-        self.params.ready_threshold = g(self.params.ready_sample_size, 0.33);
-        self.params.delivery_threshold = g(self.params.delivery_sample_size, 0.66);
+        self.params.echo_threshold = g(self.params.echo_sample_size, e_ratio);
+        self.params.ready_threshold = g(self.params.ready_sample_size, r_ratio);
+        self.params.delivery_threshold = g(self.params.delivery_sample_size, d_ratio);
     }
 
     #[allow(dead_code)]
@@ -133,13 +137,20 @@ pub fn initialize() {
     });
 }
 
-pub fn viable_run(sample_size: usize, input: &InputConfig) -> Option<SimulationConfig> {
+pub fn viable_run(
+    sample_size: usize,
+    echo_ratio: f32,
+    ready_ratio: f32,
+    deliver_ratio: f32,
+    input: &InputConfig,
+) -> Option<SimulationConfig> {
     let mut config = SimulationConfig {
         input: input.clone(),
         ..Default::default()
     };
     config.set_sample_size(sample_size);
-    config.basic_threshold();
+    config.set_threshold(echo_ratio, ready_ratio, deliver_ratio);
+    //config.params.echo_threshold = echo_threshold;
 
     let rt = Runtime::new().unwrap();
     let current_config = config.clone();
