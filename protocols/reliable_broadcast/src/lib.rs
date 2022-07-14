@@ -26,12 +26,12 @@ pub mod trb_store;
 /// Configuration of TRB implementation
 pub struct ReliableBroadcastConfig {
     pub store: Box<dyn TrbStore + Send>,
-    pub params: ReliableBroadcastParams,
+    pub trbp_params: ReliableBroadcastParams,
     pub my_peer_id: Peer,
 }
 
-#[derive(Debug)]
 /// Thread safe client to the protocol aggregate
+#[derive(Debug)]
 pub struct ReliableBroadcastClient {
     peer_id: String,
     b_aggr: Arc<Mutex<ReliableBroadcast>>,
@@ -47,12 +47,15 @@ impl ReliableBroadcastClient {
     /// New client instances to the same aggregate can be cloned from the returned one.
     /// Aggregate is spawned as new task.
     pub fn new(config: ReliableBroadcastConfig) -> Self {
+        log::info!("new(trbp_params: {:?})", &config.trbp_params);
+
         let peer_id = config.my_peer_id.clone();
 
         // Oneshot channel for new sample state (era)
         let (sample_view_sender, sample_view_receiver) = broadcast::channel::<SampleView>(16);
 
-        let s_w_aggr = PeerSamplingOracle::spawn_new(config.params.clone(), sample_view_sender);
+        let s_w_aggr =
+            PeerSamplingOracle::spawn_new(config.trbp_params.clone(), sample_view_sender);
         let mut s_aggr = s_w_aggr.lock().unwrap();
         let sampling_commands = s_aggr.sampling_commands_channel.clone();
 

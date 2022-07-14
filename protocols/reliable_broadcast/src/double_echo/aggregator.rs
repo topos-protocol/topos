@@ -36,7 +36,7 @@ pub struct ReliableBroadcast {
     pub cert_candidate: HashMap<Certificate, DeliveryState>,
     delivered_pending: HashSet<Certificate>,
     pub all_known_certs: Vec<Certificate>,
-    pub delivery_time: HashMap<CertificateId, (std::time::SystemTime, time::Duration)>,
+    pub delivery_time: HashMap<CertificateId, (time::SystemTime, time::Duration)>,
     current_sample_view: Option<SampleView>,
 }
 
@@ -71,7 +71,7 @@ impl ReliableBroadcast {
             events_subscribers: Vec::new(),
             tx_exit,
             store: config.store,
-            params: config.params.clone(),
+            params: config.trbp_params.clone(),
             cert_candidate: HashMap::new(),
             delivered_pending: HashSet::new(),
             all_known_certs: Vec::new(),
