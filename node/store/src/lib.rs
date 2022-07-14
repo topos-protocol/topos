@@ -24,7 +24,11 @@ pub struct Store {
 
 impl Store {
     pub fn new(config: StoreConfig) -> Self {
-        let db_path = if config.db_path.len() == 0 { "./default_db".into() } else {config.db_path};
+        let db_path = if config.db_path.len() == 0 {
+            "./default_db".into()
+        } else {
+            config.db_path
+        };
         let db = DB::open_default(db_path).unwrap();
         Self { db: Arc::new(db) }
     }

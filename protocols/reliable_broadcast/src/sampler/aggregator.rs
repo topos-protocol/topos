@@ -86,6 +86,7 @@ impl PeerSamplingOracle {
     /// - [TrbpCommands::OnEchoSubscribeReq], [TrbpCommands::OnReadySubscribeReq] - to keep track of Inbound
     /// - [TrbpCommands::OnEchoSubscribeOk], [TrbpCommands::OnReadySubscribeOk] - to keep track of Outbound
     fn on_command(data: Arc<Mutex<PeerSamplingOracle>>, mb_cmd: Option<TrbpCommands>) {
+        log::debug!("on_command(cmd: {:?}", &mb_cmd);
         let mut aggr = data.lock().unwrap();
         match mb_cmd {
             Some(cmd) => {

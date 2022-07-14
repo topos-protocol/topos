@@ -40,7 +40,7 @@ async fn main() {
             // Use in RAM storage
             Box::new(TrbMemStore::new(Vec::new()))
         },
-        params: args.trbp_params.clone(),
+        trbp_params: args.trbp_params.clone(),
         my_peer_id: "main".to_string(),
     };
 

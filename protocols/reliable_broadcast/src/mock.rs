@@ -322,7 +322,7 @@ fn launch_broadcast_protocol_instances(
     for peer in peer_ids {
         let client = ReliableBroadcastClient::new(ReliableBroadcastConfig {
             store: Box::new(TrbMemStore::new(all_subnets.clone())),
-            params: global_trb_params.clone(),
+            trbp_params: global_trb_params.clone(),
             my_peer_id: peer.clone(),
         });
 
