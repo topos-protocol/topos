@@ -135,11 +135,11 @@ impl NetworkBehaviourEventProcess<RequestResponseEvent<TransmissionRequest, Tran
                     let _ = self.on_inbound_response(peer, request_id, response);
                 }
             },
-            RequestResponseEvent::OutboundFailure { .. } => {
-                log::warn!("Outbound failure");
+            RequestResponseEvent::OutboundFailure { peer, request_id: _request_id, error } => {
+                log::warn!("Outbound failure - peer:{:?}, err: {:?}", peer, error);
             }
-            RequestResponseEvent::InboundFailure { .. } => {
-                log::warn!("Inbound failure");
+            RequestResponseEvent::InboundFailure { peer,  request_id: _request_id, error } => {
+                log::warn!("Inbound failure - peer: {:?}, err: {:?}", peer, error);
             }
             RequestResponseEvent::ResponseSent { .. } => {}
         }

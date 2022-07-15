@@ -12,6 +12,7 @@ use libp2p::{
     Multiaddr, NetworkBehaviour, PeerId,
 };
 use std::collections::HashSet;
+use std::time::Duration;
 use tokio::sync::mpsc;
 
 /// Auto discovery behaviour.
@@ -49,7 +50,12 @@ impl DiscoveryBehavior {
         let ident = Identify::new(ident_config);
 
         // kademlia
-        let kad_config = KademliaConfig::default();
+        let kad_config = KademliaConfig::default()
+            .set_protocol_name("/tce-disco/1".as_bytes())
+            .set_replication_interval(Some(Duration::from_secs(30)))
+            .set_publication_interval(Some(Duration::from_secs(30)))
+            .set_provider_publication_interval(Some(Duration::from_secs(30)))
+            .to_owned();
 
         let mut kad =
             Kademlia::with_config(local_peer_id, MemoryStore::new(local_peer_id), kad_config);
@@ -76,6 +82,7 @@ impl DiscoveryBehavior {
     }
 
     fn notify_peers(&mut self) {
+        log::debug!("notify_peers - peers: {:?}", &self.routable_peers);
         let cl_tx = self.tx_events.clone();
         let cl_peers: Vec<PeerId> = Vec::from_iter(self.routable_peers.clone());
         tokio::spawn(async move {
@@ -114,13 +121,15 @@ impl NetworkBehaviourEventProcess<KademliaEvent> for DiscoveryBehavior {
                 old_peer: _,
             } => {
                 log::info!("routing updated: {:?}", peer);
-                self.routable_peers.insert(peer);
-                self.notify_peers();
+                if self.routable_peers.insert(peer) {
+                    self.notify_peers();
+                }
             }
             KademliaEvent::UnroutablePeer { peer } => {
                 log::info!("unroutable peer: {:?}", peer);
-                self.routable_peers.remove(&peer);
-                self.notify_peers();
+                if self.routable_peers.remove(&peer) {
+                    self.notify_peers();
+                }
             }
             _ => {}
         }
