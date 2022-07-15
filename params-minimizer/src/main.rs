@@ -47,8 +47,9 @@ pub fn minimize_params(input: InputConfig) -> Option<SimulationConfig> {
     // let's be linear starting by the fast runs
     for s in sample_candidates {
         for e in &echo_threshold_candidates {
-            if let Some(record) = viable_run(s, (e / 100) as f32, 0.33, 0.66, &input) {
+            if let Some(record) = viable_run(s, ((*e as f32) * 0.01), 0.33, 0.66, &input) {
                 best_run = Some(record);
+                println!("ECHO THRESHOLD : {}", e);
                 break;
             }
         }
