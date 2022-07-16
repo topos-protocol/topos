@@ -223,38 +223,12 @@ impl AppContext {
             NetworkEvents::TransmissionOnReq {
                 from: _,
                 data,
-                respond_to,
             } => {
                 let msg: NetworkMessage = data.into();
                 match msg {
                     NetworkMessage::Cmd(cmd) => {
                         //  redirect
                         let _ = self.trbp_cli.eval(cmd);
-                        let _ = respond_to.send(NetworkMessage::Response(Ok(())).into());
-                    }
-                    _ => {
-                        let _ = respond_to
-                            .send(NetworkMessage::Response(Err("unexpected".to_string())).into());
-                    }
-                }
-            }
-            NetworkEvents::TransmissionOnResp {
-                for_ext_req_id: _,
-                from,
-                data,
-            } => {
-                let msg: NetworkMessage = data.into();
-
-                if let NetworkMessage::Response(res) = msg {
-                    match res {
-                        Ok(_) => {}
-                        Err(str) => {
-                            log::warn!(
-                                "the peer '{}' returned an error: {}",
-                                from.to_base58(),
-                                &str
-                            );
-                        }
                     }
                 }
             }
@@ -269,7 +243,6 @@ impl AppContext {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 enum NetworkMessage {
     Cmd(TrbpCommands),
-    Response(Result<(), String>),
 }
 
 // deserializer

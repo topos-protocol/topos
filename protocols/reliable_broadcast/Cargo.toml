@@ -12,7 +12,7 @@ serde = { version = "1.0.136", features = ["derive"] }
 byteorder = "1.4.3"
 log = "0.4.14"
 opentelemetry = { version = "0.17", default-features = false, features = ["trace", "rt-tokio"] }
-tokio = { version = "1.15.0", features = [
+tokio = { version = "1.20.0", features = [
     "io-util",
     "io-std",
     "macros",

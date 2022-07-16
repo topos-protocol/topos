@@ -23,7 +23,7 @@ use libp2p::{
     Multiaddr, PeerId, Transport,
 };
 
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::{mpsc};
 
 /// Configuration parameters
 pub struct NetworkWorkerConfig {
@@ -52,12 +52,6 @@ pub enum NetworkEvents {
         new_peers: Vec<PeerId>,
     },
     TransmissionOnReq {
-        from: PeerId,
-        data: Vec<u8>,
-        respond_to: oneshot::Sender<Vec<u8>>,
-    },
-    TransmissionOnResp {
-        for_ext_req_id: String,
         from: PeerId,
         data: Vec<u8>,
     },
