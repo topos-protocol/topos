@@ -161,24 +161,9 @@ Code review is an important part of the development process, and as such, certai
 
 **As a reviewer proposing changes, you must request for those changes by choosing "[Request for changes](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/reviewing-changes-in-pull-requests/approving-a-pull-request-with-required-reviews)" when submitting your review.**
 **In particular, you must not Approve the PR before acknowledgement of the changes that you requested.**
-
-#### Conceptual Review
-
-A review can be a conceptual review, where the reviewer leaves a comment
- * `Concept (N)ACK`, meaning "I do (not) agree with the general goal of this pull
-   request",
- * `Approach (N)ACK`, meaning `Concept ACK`, but "I do (not) agree with the
-   approach of this change".
-
-A `NACK` needs to include a rationale why the change is not worthwhile.
-NACKs without accompanying reasoning may be disregarded.
-
 #### Code Review
 
-After conceptual agreement on the change, code review can be provided. A review
-begins with `ACK BRANCH_COMMIT`, where `BRANCH_COMMIT` is the top of the PR
-branch, followed by a description of how the reviewer did the review. The
-following language is used within pull request comments:
+The following language is used within pull request comments:
 
   - "I have tested the code", involving change-specific manual testing in
     addition to running the unit, functional, or fuzz tests, and in case it is
