@@ -4,28 +4,28 @@
 //! Design note - dependency from here to lib's NetworkEvents and NetworkCommands
 //! is intentional.
 //!
-use std::{collections::HashMap, iter};
+use std::iter;
 
 use async_trait::async_trait;
+use libp2p::request_response::RequestResponseConfig;
 use libp2p::{
     futures::{AsyncRead, AsyncWrite, AsyncWriteExt},
-    NetworkBehaviour,
     request_response::{
         ProtocolName, ProtocolSupport, RequestResponse, RequestResponseCodec, RequestResponseEvent,
     },
     request_response::{RequestId, RequestResponseMessage, ResponseChannel},
     swarm::NetworkBehaviourEventProcess,
+    NetworkBehaviour,
 };
-use libp2p::request_response::RequestResponseConfig;
 use tokio::{
-    sync::{mpsc, oneshot},
     sync::mpsc::error::SendError,
     sync::oneshot::error::RecvError,
+    sync::{mpsc, oneshot},
 };
 
 use crate::{
-    NetworkCommands,
-    NetworkEvents, PeerId, upgrade::{read_length_prefixed, write_length_prefixed},
+    upgrade::{read_length_prefixed, write_length_prefixed},
+    NetworkCommands, NetworkEvents, PeerId,
 };
 
 #[derive(NetworkBehaviour)]
@@ -34,8 +34,6 @@ pub(crate) struct TransmissionBehavior {
     pub rr: RequestResponse<TransmissionCodec>,
     #[behaviour(ignore)]
     pub tx_events: mpsc::UnboundedSender<NetworkEvents>,
-    #[behaviour(ignore)]
-    req_ids_to_ext_ids: HashMap<RequestId, String>,
 }
 
 impl TransmissionBehavior {
@@ -48,25 +46,16 @@ impl TransmissionBehavior {
                 RequestResponseConfig::default(),
             ),
             tx_events: events_sender,
-            req_ids_to_ext_ids: HashMap::new(),
         }
     }
 
     /// Executes command
     pub(crate) fn eval(&mut self, cmd: NetworkCommands) {
         match cmd {
-            NetworkCommands::TransmissionReq {
-                ext_req_id,
-                to,
-                data,
-            } => {
+            NetworkCommands::TransmissionReq { to, data } => {
                 for peer_id in to {
-                    //  publish
-                    let req_id = self
-                        .rr
+                    self.rr
                         .send_request(&peer_id, TransmissionRequest(data.clone()));
-                    //  remember each (req_id) vs (ext_req_id)
-                    self.req_ids_to_ext_ids.insert(req_id, ext_req_id.clone());
                 }
             }
         }
@@ -95,7 +84,7 @@ impl TransmissionBehavior {
 }
 
 impl NetworkBehaviourEventProcess<RequestResponseEvent<TransmissionRequest, TransmissionResponse>>
-for TransmissionBehavior
+    for TransmissionBehavior
 {
     fn inject_event(
         &mut self,
@@ -108,21 +97,47 @@ for TransmissionBehavior
                     request,
                     channel,
                 } => {
-                    log::debug!("RequestResponseMessage::Request - peer:{:?}, req: {:?}", &peer, &request);
+                    log::debug!(
+                        "RequestResponseMessage::Request - peer:{:?}, req: {:?}",
+                        &peer,
+                        &request
+                    );
                     let _ = self.on_inbound_request(peer, request_id, request, channel);
                 }
                 RequestResponseMessage::Response {
                     request_id,
                     response,
                 } => {
-                    log::debug!("RequestResponseMessage::Response - req_id: {:?}, resp: {:?}", request_id, response);
+                    log::debug!(
+                        "RequestResponseMessage::Response - req_id: {:?}, resp: {:?}",
+                        request_id,
+                        response
+                    );
                 }
             },
-            RequestResponseEvent::OutboundFailure { peer, request_id, error } => {
-                log::warn!("OutboundFailure - peer:{:?}, req_id: {:?}, err: {:?}", peer, request_id, error);
+            RequestResponseEvent::OutboundFailure {
+                peer,
+                request_id,
+                error,
+            } => {
+                log::warn!(
+                    "OutboundFailure - peer:{:?}, req_id: {:?}, err: {:?}",
+                    peer,
+                    request_id,
+                    error
+                );
             }
-            RequestResponseEvent::InboundFailure { peer, request_id, error } => {
-                log::warn!("InboundFailure - peer: {:?}, req_id: {:?}, err: {:?}", peer, request_id, error);
+            RequestResponseEvent::InboundFailure {
+                peer,
+                request_id,
+                error,
+            } => {
+                log::warn!(
+                    "InboundFailure - peer: {:?}, req_id: {:?}, err: {:?}",
+                    peer,
+                    request_id,
+                    error
+                );
             }
             RequestResponseEvent::ResponseSent { peer, request_id } => {
                 log::debug!("ResponseSent - peer: {:?}, req_id: {:?}", peer, request_id);
@@ -160,8 +175,8 @@ impl RequestResponseCodec for TransmissionCodec {
         _: &Self::Protocol,
         io: &mut T,
     ) -> std::io::Result<Self::Request>
-        where
-            T: AsyncRead + Unpin + Send,
+    where
+        T: AsyncRead + Unpin + Send,
     {
         let vec = read_length_prefixed(io, 1_000_000_000).await?;
         Ok(TransmissionRequest(vec))
@@ -172,8 +187,8 @@ impl RequestResponseCodec for TransmissionCodec {
         _: &Self::Protocol,
         io: &mut T,
     ) -> std::io::Result<Self::Response>
-        where
-            T: AsyncRead + Unpin + Send,
+    where
+        T: AsyncRead + Unpin + Send,
     {
         let vec = read_length_prefixed(io, 1_000_000_000).await?;
         Ok(TransmissionResponse(vec))
@@ -185,8 +200,8 @@ impl RequestResponseCodec for TransmissionCodec {
         io: &mut T,
         req: Self::Request,
     ) -> std::io::Result<()>
-        where
-            T: AsyncWrite + Unpin + Send,
+    where
+        T: AsyncWrite + Unpin + Send,
     {
         write_length_prefixed(io, req.0).await?;
         io.close().await?;
@@ -199,8 +214,8 @@ impl RequestResponseCodec for TransmissionCodec {
         io: &mut T,
         res: Self::Response,
     ) -> std::io::Result<()>
-        where
-            T: AsyncWrite + Unpin + Send,
+    where
+        T: AsyncWrite + Unpin + Send,
     {
         write_length_prefixed(io, res.0).await?;
         io.close().await?;

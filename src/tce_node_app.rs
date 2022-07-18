@@ -101,6 +101,9 @@ pub struct AppArgs {
     /// Testing only - deliver certificate immediately upon submission
     #[clap(long, env = "TCE_TEST_IMMEDIATE_DELIVERY")]
     pub test_immediate_delivery: bool,
+    /// TRBP parameters
+    #[clap(flatten)]
+    pub trbp_params: ReliableBroadcastParams,
 }
 
 impl AppArgs {

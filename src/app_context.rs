@@ -111,7 +111,6 @@ impl AppContext {
             }
             TrbpEvents::EchoSubscribeReq { peers } => {
                 let cmd = NetworkCommands::TransmissionReq {
-                    ext_req_id: "".to_string(),
                     to: peers
                         .iter()
                         .map(|e| PeerId::from_str(e.as_str()).expect("correct peer_id"))
@@ -125,7 +124,6 @@ impl AppContext {
             }
             TrbpEvents::ReadySubscribeReq { peers } => {
                 let cmd = NetworkCommands::TransmissionReq {
-                    ext_req_id: "".to_string(),
                     to: peers
                         .iter()
                         .map(|e| PeerId::from_str(e.as_str()).expect("correct peer_id"))
@@ -140,7 +138,6 @@ impl AppContext {
             TrbpEvents::EchoSubscribeOk { to_peer } => {
                 let to_peer_id = PeerId::from_str(to_peer.as_str()).expect("correct peer_id");
                 let cmd = NetworkCommands::TransmissionReq {
-                    ext_req_id: "".to_string(),
                     to: vec![to_peer_id],
                     data: NetworkMessage::from(TrbpCommands::OnEchoSubscribeOk {
                         from_peer: self.network_worker.my_peer_id.to_base58(),
@@ -152,7 +149,6 @@ impl AppContext {
             TrbpEvents::ReadySubscribeOk { to_peer } => {
                 let to_peer_id = PeerId::from_str(to_peer.as_str()).expect("correct peer_id");
                 let cmd = NetworkCommands::TransmissionReq {
-                    ext_req_id: "".to_string(),
                     to: vec![to_peer_id],
                     data: NetworkMessage::from(TrbpCommands::OnReadySubscribeOk {
                         from_peer: self.network_worker.my_peer_id.to_base58(),
@@ -167,7 +163,6 @@ impl AppContext {
                 digest,
             } => {
                 let cmd = NetworkCommands::TransmissionReq {
-                    ext_req_id: "".to_string(),
                     to: peers
                         .iter()
                         .map(|e| PeerId::from_str(e.as_str()).expect("correct peer_id"))
@@ -178,7 +173,6 @@ impl AppContext {
             }
             TrbpEvents::Echo { peers, cert } => {
                 let cmd = NetworkCommands::TransmissionReq {
-                    ext_req_id: "".to_string(),
                     to: peers
                         .iter()
                         .map(|e| PeerId::from_str(e.as_str()).expect("correct peer_id"))
@@ -193,7 +187,6 @@ impl AppContext {
             }
             TrbpEvents::Ready { peers, cert } => {
                 let cmd = NetworkCommands::TransmissionReq {
-                    ext_req_id: "".to_string(),
                     to: peers
                         .iter()
                         .map(|e| PeerId::from_str(e.as_str()).expect("correct peer_id"))
@@ -220,10 +213,7 @@ impl AppContext {
                     peers: new_peers.iter().map(|e| e.to_base58()).collect(),
                 });
             }
-            NetworkEvents::TransmissionOnReq {
-                from: _,
-                data,
-            } => {
+            NetworkEvents::TransmissionOnReq { from: _, data } => {
                 let msg: NetworkMessage = data.into();
                 match msg {
                     NetworkMessage::Cmd(cmd) => {
