@@ -161,6 +161,7 @@ Code review is an important part of the development process, and as such, certai
 
 **As a reviewer proposing changes, you must request for those changes by choosing "[Request for changes](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/reviewing-changes-in-pull-requests/approving-a-pull-request-with-required-reviews)" when submitting your review.**
 **In particular, you must not Approve the PR before acknowledgement of the changes that you requested.**
+
 #### Code Review
 
 The following language is used within pull request comments:
