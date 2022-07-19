@@ -128,6 +128,10 @@ auditability because merge commits can be assumed to not contain arbitrary code 
 
 After a rebase, reviewers are encouraged to sign off on the force push.
 
+### Merge of the pull request
+
+The [Squash and Merge](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/incorporating-changes-from-a-pull-request/about-pull-request-merges#squash-and-merge-your-pull-request-commits) is used to integrate the changes into the main branch.
+
 Pull Request Philosophy
 -----------------------
 
@@ -157,8 +161,7 @@ behavior of code within the pull request (bugs must be preserved as is).
 
 ### Peer Review
 
-Code review is an important part of the development process, and as such, certain types of pull requests are rejected.
-
+Code review is an important part of the development process.
 **As a reviewer proposing changes, you must request for those changes by choosing "[Request for changes](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/reviewing-changes-in-pull-requests/approving-a-pull-request-with-required-reviews)" when submitting your review.**
 **In particular, you must not Approve the PR before acknowledgement of the changes that you requested.**
 
