@@ -181,7 +181,6 @@ async fn run_instance(simu_config: SimulationConfig) -> Result<(), ()> {
     let trbp_peers = launch_broadcast_protocol_instances(
         all_peer_ids.clone(),
         tx_combined_events,
-        all_subnets.clone(),
         simu_config.params.clone(),
     );
 
@@ -313,7 +312,6 @@ fn launch_simulation_main_loop(
 fn launch_broadcast_protocol_instances(
     peer_ids: Vec<String>,
     tx_combined_events: mpsc::UnboundedSender<(String, TrbpEvents)>,
-    all_subnets: Vec<SubnetId>,
     global_trb_params: ReliableBroadcastParams,
 ) -> Arc<PeersContainer> {
     let mut peers_container = HashMap::<String, Arc<Mutex<ReliableBroadcastClient>>>::new();
@@ -321,8 +319,8 @@ fn launch_broadcast_protocol_instances(
     // create instances
     for peer in peer_ids {
         let client = ReliableBroadcastClient::new(ReliableBroadcastConfig {
-            store: Box::new(TrbMemStore::new(all_subnets.clone())),
-            params: global_trb_params.clone(),
+            store: Box::new(TrbMemStore::new()),
+            trbp_params: global_trb_params.clone(),
             my_peer_id: peer.clone(),
         });
 
@@ -391,10 +389,6 @@ pub async fn handle_peer_event(
                 let cli = w_cli.lock().unwrap();
                 cli.eval(TrbpCommands::OnVisiblePeersChanged {
                     peers: visible_peers.clone(),
-                })?;
-                // very rough, like every node is connected to every other node
-                cli.eval(TrbpCommands::OnConnectedPeersChanged {
-                    peers: visible_peers,
                 })?;
             }
         }

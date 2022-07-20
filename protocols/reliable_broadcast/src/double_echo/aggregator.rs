@@ -89,7 +89,7 @@ impl ReliableBroadcast {
                     }
                     // poll new sample view
                     new_sample_view = sample_view_receiver.recv() => {
-                        Self::new_sample_view(me_cl.clone(), new_sample_view);
+                        Self::on_new_sample_view(me_cl.clone(), new_sample_view);
                     }
                     // exit command
                     Some(_) = rx_exit.recv() => {
@@ -106,10 +106,11 @@ impl ReliableBroadcast {
         aggr.current_sample_view.is_some()
     }
 
-    fn new_sample_view(
+    fn on_new_sample_view(
         data: Arc<Mutex<ReliableBroadcast>>,
         mb_new_view: Result<SampleView, broadcast::error::RecvError>,
     ) {
+        log::info!("on_new_sample_view({:?})", &mb_new_view);
         let mut aggr = data.lock().unwrap();
         if mb_new_view.is_ok() {
             log::trace!("[{:?}] New sample view", aggr.my_peer_id);
@@ -239,7 +240,7 @@ impl ReliableBroadcast {
 
     // pb.Deliver
     fn start_delivery(&mut self, cert: Certificate, digest: DigestCompressed) {
-        log::trace!(
+        log::debug!(
             "🙌 StartDelivery[{:?}]\t Peer:{:?}",
             &cert.id,
             &self.my_peer_id
@@ -348,7 +349,7 @@ impl ReliableBroadcast {
                         )
                     }
                     self.delivered_pending.remove(cert);
-                    log::trace!(
+                    log::debug!(
                         "📝 Accepted[{:?}]\t Peer:{:?}\t Delivery time: {:?}",
                         &cert.id,
                         self.my_peer_id,

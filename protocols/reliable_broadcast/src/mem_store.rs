@@ -15,21 +15,12 @@ pub struct TrbMemStore {
     tracked_digest: HashMap<SubnetId, BTreeSet<CertificateId>>,
     /// Digest received from elsewhere
     received_digest: HashMap<CertificateId, DigestCompressed>,
-    /// List of the subnets that we're part of
-    /// NOTE: Below is for later, for now we're considering
-    /// being part of all subnets, so following digest of everyone
-    followed_subnet: Vec<SubnetId>,
 }
 
 impl TrbMemStore {
-    pub fn new(subnets: Vec<SubnetId>) -> TrbMemStore {
+    pub fn new() -> TrbMemStore {
         let mut store = TrbMemStore::default();
-        store.followed_subnet = subnets;
-        for subnet in &store.followed_subnet {
-            store.tracked_digest.insert(*subnet, BTreeSet::new());
-            store.history.insert(*subnet, BTreeSet::new());
-        }
-        // Add the genesis
+        // Add the genesis cert
         store.all_certs.insert(0, Default::default());
         store
     }
@@ -95,14 +86,13 @@ impl TrbStore for TrbMemStore {
 
     /// Compute and flush the digest for the given subnet
     fn flush_digest_view(&mut self, subnet_id: &SubnetId) -> Option<DigestCompressed> {
-        match self.tracked_digest.get_mut(subnet_id) {
-            Some(current_digest) => {
-                let digest_compressed = Some(current_digest.iter().cloned().collect::<Vec<_>>());
-                current_digest.clear();
-                digest_compressed
-            }
-            _ => None,
-        }
+        let current_digest = self
+            .tracked_digest
+            .entry(subnet_id.clone())
+            .or_insert(BTreeSet::new());
+        let digest_compressed = Some(current_digest.iter().cloned().collect::<Vec<_>>());
+        current_digest.clear();
+        digest_compressed
     }
 
     ///
