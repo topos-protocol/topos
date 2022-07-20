@@ -129,7 +129,12 @@ impl ReliableBroadcastClient {
         subnet_id: SubnetId,
         _from_cert_id: CertificateId,
     ) -> Result<Option<Vec<CertificateId>>, Errors> {
-        let certs = self.b_aggr.lock().unwrap().store.recent_certificates_for_subnet(&subnet_id, 10); //fixme
+        let certs = self
+            .b_aggr
+            .lock()
+            .unwrap()
+            .store
+            .recent_certificates_for_subnet(&subnet_id, 10); //fixme
         Ok(certs)
     }
 

@@ -107,7 +107,10 @@ impl PeerSamplingOracle {
                     TrbpCommands::OnEchoSubscribeOk { from_peer } => {
                         if aggr.echo_pending_subs.remove(&from_peer) {
                             aggr.add_confirmed_peer_to_sample(SampleType::EchoInbound, &from_peer);
-                            log::debug!("on_command - OnEchoSubscribeOk - samples: {:?}", aggr.view);
+                            log::debug!(
+                                "on_command - OnEchoSubscribeOk - samples: {:?}",
+                                aggr.view
+                            );
                         }
                     }
                     TrbpCommands::OnReadySubscribeOk { from_peer } => {

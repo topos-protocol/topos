@@ -74,7 +74,11 @@ impl TrbStore for TrbMemStore {
         unimplemented!();
     }
 
-    fn recent_certificates_for_subnet(&self, subnet_id: &SubnetId, _last_n: u64) -> Option<Vec<CertificateId>> {
+    fn recent_certificates_for_subnet(
+        &self,
+        subnet_id: &SubnetId,
+        _last_n: u64,
+    ) -> Option<Vec<CertificateId>> {
         match self.history.get(subnet_id) {
             Some(subnet_certs) => Some(subnet_certs.iter().cloned().collect::<Vec<_>>()),
             _ => None,

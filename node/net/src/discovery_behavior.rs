@@ -4,13 +4,13 @@ use std::collections::HashSet;
 use std::time::Duration;
 
 use libp2p::{
-    identify::{IdentifyConfig, IdentifyEvent},
     identify::Identify,
-    kad::{KademliaConfig, KademliaEvent},
-    kad::Kademlia,
+    identify::{IdentifyConfig, IdentifyEvent},
     kad::store::MemoryStore,
-    Multiaddr,
-    NetworkBehaviour, PeerId, swarm::NetworkBehaviourEventProcess,
+    kad::Kademlia,
+    kad::{KademliaConfig, KademliaEvent},
+    swarm::NetworkBehaviourEventProcess,
+    Multiaddr, NetworkBehaviour, PeerId,
 };
 use tokio::sync::mpsc;
 
@@ -62,7 +62,11 @@ impl DiscoveryBehavior {
             Kademlia::with_config(local_peer_id, MemoryStore::new(local_peer_id), kad_config);
 
         for known_peer in known_peers {
-            log::info!("Kademlia:  ---- adding peer:{} at {}", &known_peer.0, &known_peer.1);
+            log::info!(
+                "Kademlia:  ---- adding peer:{} at {}",
+                &known_peer.0,
+                &known_peer.1
+            );
             kad.add_address(&known_peer.0, known_peer.1);
         }
 

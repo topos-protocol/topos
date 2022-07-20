@@ -64,7 +64,11 @@ impl TrbStore for Store {
         Ok((vec![], 0u64))
     }
 
-    fn recent_certificates_for_subnet(&self, _subnet_id: &SubnetId, _last_n: u64) -> Option<Vec<CertificateId>> {
+    fn recent_certificates_for_subnet(
+        &self,
+        _subnet_id: &SubnetId,
+        _last_n: u64,
+    ) -> Option<Vec<CertificateId>> {
         unimplemented!("Please prefer TrbMemStore for now");
     }
 

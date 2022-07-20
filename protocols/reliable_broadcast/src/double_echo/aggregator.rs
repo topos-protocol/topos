@@ -112,7 +112,11 @@ impl ReliableBroadcast {
     ) {
         let mut aggr = data.lock().unwrap();
         if mb_new_view.is_ok() {
-            log::debug!("new_sample_view - [{:?}] New sample view: {:?}", aggr.my_peer_id, mb_new_view);
+            log::debug!(
+                "new_sample_view - [{:?}] New sample view: {:?}",
+                aggr.my_peer_id,
+                mb_new_view
+            );
             aggr.current_sample_view = Some(mb_new_view.unwrap());
         } else {
             log::warn!("Failure on the sample view channel");
