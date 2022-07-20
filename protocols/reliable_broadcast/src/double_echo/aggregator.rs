@@ -1,18 +1,21 @@
 //! Protocol implementation guts.
 //!
-use crate::sampler::{SampleType, SampleView};
-use crate::Peer;
-use crate::{trb_store::TrbStore, ReliableBroadcastConfig};
-#[allow(unused)]
-use opentelemetry::KeyValue;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
 use std::sync::{Arc, Mutex};
 use std::time;
-use tce_transport::{ReliableBroadcastParams, TrbpCommands, TrbpEvents};
-use tce_uci::{Certificate, CertificateId, DigestCompressed};
+
+#[allow(unused)]
+use opentelemetry::KeyValue;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
+
+use tce_transport::{ReliableBroadcastParams, TrbpCommands, TrbpEvents};
+use tce_uci::{Certificate, CertificateId, DigestCompressed};
+
+use crate::sampler::{SampleType, SampleView};
+use crate::Peer;
+use crate::{trb_store::TrbStore, ReliableBroadcastConfig};
 
 /// Processing data associated to a Certificate candidate for delivery
 /// Sample repartition, one peer may belongs to multiple samples
@@ -176,9 +179,24 @@ impl ReliableBroadcast {
     /// build initial delivery state
     fn delivery_state_for_new_cert(&mut self) -> Option<DeliveryState> {
         let ds = self.current_sample_view.clone().unwrap().clone();
-        match ds.values().all(|s| !s.is_empty()) {
-            true => Some(ds),
-            false => None,
+
+        // check inbound sets are not empty
+        if ds
+            .get(&SampleType::EchoInbound)
+            .unwrap_or(&mut HashSet::new())
+            .is_empty()
+            || ds
+                .get(&SampleType::ReadyInbound)
+                .unwrap_or(&mut HashSet::new())
+                .is_empty()
+            || ds
+                .get(&SampleType::DeliveryInbound)
+                .unwrap_or(&mut HashSet::new())
+                .is_empty()
+        {
+            None
+        } else {
+            Some(ds)
         }
     }
 
@@ -201,16 +219,29 @@ impl ReliableBroadcast {
         }
 
         // Gossip the certificate to all my peers
-        let curr_view = self.current_sample_view.clone();
-        let connected_peers = curr_view
-            .unwrap()
-            .get_mut(&SampleType::EchoInbound)
+        let sample_view_ref = self.current_sample_view.as_ref().unwrap();
+        // use union of all the Inbound samples (hash set first for uniqueness)
+        let connected_peers = sample_view_ref
+            .get(&SampleType::EchoInbound)
             .unwrap()
             .iter()
+            .chain(
+                sample_view_ref
+                    .get(&SampleType::ReadyInbound)
+                    .unwrap()
+                    .iter(),
+            )
+            .chain(
+                sample_view_ref
+                    .get(&SampleType::DeliveryInbound)
+                    .unwrap()
+                    .iter(),
+            )
             .cloned()
+            .collect::<HashSet<_>>()
+            .into_iter()
             .collect::<Vec<_>>();
 
-        // FIXME: need visibility on the connected peers
         let _ = self.send_out_events(TrbpEvents::Gossip {
             peers: connected_peers, // considered as the G-set for erdos-renyi
             cert: cert.clone(),
