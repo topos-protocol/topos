@@ -50,9 +50,12 @@ impl TrbStore for TrbMemStore {
         Ok(())
     }
 
-    // JAEGER END DELIVERY TRACE [ cert, peer ]
-    fn new_cert_candidate(&mut self, cert: &Certificate, digest: &DigestCompressed) {
-        self.received_digest.insert(cert.id, digest.clone());
+    fn add_cert_in_hist(&mut self, subnet_id: &SubnetId, cert: &Certificate) -> bool {
+        self.all_certs.insert(cert.id.clone(), cert.clone());
+        self.history
+            .entry(subnet_id.clone())
+            .or_default()
+            .insert(cert.id.clone())
     }
 
     fn add_cert_in_digest(&mut self, subnet_id: &SubnetId, cert_id: &CertificateId) -> bool {
@@ -60,14 +63,6 @@ impl TrbStore for TrbMemStore {
             .entry(subnet_id.clone())
             .or_default()
             .insert(cert_id.clone())
-    }
-
-    fn add_cert_in_hist(&mut self, subnet_id: &SubnetId, cert: &Certificate) -> bool {
-        self.all_certs.insert(cert.id.clone(), cert.clone());
-        self.history
-            .entry(subnet_id.clone())
-            .or_default()
-            .insert(cert.id.clone())
     }
 
     fn read_journal(
@@ -79,17 +74,10 @@ impl TrbStore for TrbMemStore {
         unimplemented!();
     }
 
-    fn get_cert(&self, subnet_id: &SubnetId, _last_n: u64) -> Option<Vec<CertificateId>> {
+    fn recent_certificates_for_subnet(&self, subnet_id: &SubnetId, _last_n: u64) -> Option<Vec<CertificateId>> {
         match self.history.get(subnet_id) {
             Some(subnet_certs) => Some(subnet_certs.iter().cloned().collect::<Vec<_>>()),
             _ => None,
-        }
-    }
-
-    fn cert_by_id(&self, cert_id: &CertificateId) -> Result<Option<Certificate>, ()> {
-        match self.all_certs.get(cert_id) {
-            Some(cert) => Ok(Some(cert.clone())),
-            _ => Err(()),
         }
     }
 
@@ -103,6 +91,18 @@ impl TrbStore for TrbMemStore {
             }
             _ => None,
         }
+    }
+
+    fn cert_by_id(&self, cert_id: &CertificateId) -> Result<Option<Certificate>, ()> {
+        match self.all_certs.get(cert_id) {
+            Some(cert) => Ok(Some(cert.clone())),
+            _ => Err(()),
+        }
+    }
+
+    // JAEGER END DELIVERY TRACE [ cert, peer ]
+    fn new_cert_candidate(&mut self, cert: &Certificate, digest: &DigestCompressed) {
+        self.received_digest.insert(cert.id, digest.clone());
     }
 
     ///

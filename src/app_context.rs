@@ -55,7 +55,7 @@ impl AppContext {
                 // protocol
                 Ok(evt) = self.trbp_cli.next_event() => {
                     log::debug!("trbp_cli.next_event(): {:?}", &evt);
-                    self.on_trbp_event(evt).await;
+                    self.on_protocol_event(evt).await;
                 },
 
                 // network
@@ -99,12 +99,11 @@ impl AppContext {
         }
     }
 
-    async fn on_trbp_event(&mut self, evt: TrbpEvents) {
-        log::debug!("on_trbp_event : {:?}", &evt);
+    async fn on_protocol_event(&mut self, evt: TrbpEvents) {
+        log::debug!("on_protocol_event : {:?}", &evt);
         match evt {
             TrbpEvents::NeedPeers => {
-                //todo
-                //  launch kademlia query or get latest known?
+                //todo - launch kademlia query or get latest known?
             }
             TrbpEvents::Broadcast { .. } => {
                 //todo ?

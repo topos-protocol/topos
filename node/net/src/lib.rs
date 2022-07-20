@@ -38,7 +38,7 @@ pub enum NetworkWorkerEvents {}
 
 /// Transport handle
 ///
-/// Communication is made using polling 'next_event()' and pushing commands to 'tx_commands'.
+/// Communication is made using polling [next_event()] and calling [eval()] (pushing commands to 'tx_commands').
 pub struct NetworkWorker {
     pub rx_events: mpsc::UnboundedReceiver<NetworkEvents>,
     pub tx_commands: mpsc::UnboundedSender<NetworkCommands>,
@@ -104,19 +104,19 @@ impl NetworkWorker {
             swarm.listen_on(local_listen_addr).expect("Bind port");
 
             // gossip launch
-            for known_peer in config.known_peers.clone() {
-                log::info!(
-                    "---- adding gossip peer:{} at {}",
-                    &known_peer.0,
-                    &known_peer.1
-                );
-
-                // we need to dial peer so that gossipsub would be aware of it
-                match swarm.dial(known_peer.1.clone()) {
-                    Ok(_) => log::debug!("Dialed {:?}", &known_peer.1),
-                    Err(e) => log::debug!("Dial {:?} failed: {:?}", &known_peer.1, e),
-                }
-            }
+            // for known_peer in config.known_peers.clone() {
+            //     log::info!(
+            //         "---- adding gossip peer:{} at {}",
+            //         &known_peer.0,
+            //         &known_peer.1
+            //     );
+            //
+            //     // we need to dial peer so that gossipsub would be aware of it
+            //     match swarm.dial(known_peer.1.clone()) {
+            //         Ok(_) => log::debug!("Dialed {:?}", &known_peer.1),
+            //         Err(e) => log::debug!("Dial {:?} failed: {:?}", &known_peer.1, e),
+            //     }
+            // }
 
             // networking loop
             loop {

@@ -39,8 +39,6 @@ pub enum TrbpCommands {
     OnBroadcast { cert: Certificate },
     /// We got updated list of visible peers to work with, let protocol do the sampling
     OnVisiblePeersChanged { peers: Vec<String> },
-    /// We got updated list of connected peers to gossip to
-    OnConnectedPeersChanged { peers: Vec<String> },
     /// Given peer sent EchoSubscribe request
     OnEchoSubscribeReq { from_peer: String },
     /// Given peer sent ReadySubscribe request

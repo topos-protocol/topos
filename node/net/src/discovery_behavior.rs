@@ -1,19 +1,20 @@
 //! Kademlia & Identify working together for auto discovery of the nodes
 //!
-use crate::{identity::Keypair, NetworkEvents};
-
-use libp2p::{
-    identify::Identify,
-    identify::{IdentifyConfig, IdentifyEvent},
-    kad::store::MemoryStore,
-    kad::Kademlia,
-    kad::{KademliaConfig, KademliaEvent},
-    swarm::NetworkBehaviourEventProcess,
-    Multiaddr, NetworkBehaviour, PeerId,
-};
 use std::collections::HashSet;
 use std::time::Duration;
+
+use libp2p::{
+    identify::{IdentifyConfig, IdentifyEvent},
+    identify::Identify,
+    kad::{KademliaConfig, KademliaEvent},
+    kad::Kademlia,
+    kad::store::MemoryStore,
+    Multiaddr,
+    NetworkBehaviour, PeerId, swarm::NetworkBehaviourEventProcess,
+};
 use tokio::sync::mpsc;
+
+use crate::{identity::Keypair, NetworkEvents};
 
 /// Auto discovery behaviour.
 ///
@@ -61,7 +62,7 @@ impl DiscoveryBehavior {
             Kademlia::with_config(local_peer_id, MemoryStore::new(local_peer_id), kad_config);
 
         for known_peer in known_peers {
-            log::info!("---- adding peer:{} at {}", &known_peer.0, &known_peer.1);
+            log::info!("Kademlia:  ---- adding peer:{} at {}", &known_peer.0, &known_peer.1);
             kad.add_address(&known_peer.0, known_peer.1);
         }
 
@@ -115,14 +116,17 @@ impl NetworkBehaviourEventProcess<KademliaEvent> for DiscoveryBehavior {
         match event {
             KademliaEvent::RoutingUpdated {
                 peer,
-                is_new_peer: _,
+                is_new_peer,
                 addresses: _,
                 bucket_range: _,
                 old_peer: _,
             } => {
                 log::info!("routing updated: {:?}", peer);
-                if self.routable_peers.insert(peer) {
-                    self.notify_peers();
+                // do the callback AFTER Identify worked (not a newly added peer)
+                if !is_new_peer {
+                    if self.routable_peers.insert(peer) {
+                        self.notify_peers();
+                    }
                 }
             }
             KademliaEvent::UnroutablePeer { peer } => {

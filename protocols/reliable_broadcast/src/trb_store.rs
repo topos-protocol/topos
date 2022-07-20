@@ -26,7 +26,7 @@ pub trait TrbStore {
     ) -> Result<(Vec<Certificate>, u64), ()>;
 
     /// Easy access
-    fn get_cert(&self, subnet_id: &SubnetId, last_n: u64) -> Option<Vec<CertificateId>>;
+    fn recent_certificates_for_subnet(&self, subnet_id: &SubnetId, last_n: u64) -> Option<Vec<CertificateId>>;
 
     /// Compute the digest for a given Subnet
     fn flush_digest_view(&mut self, subnet_id: &SubnetId) -> Option<DigestCompressed>;

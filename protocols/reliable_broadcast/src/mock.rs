@@ -392,10 +392,6 @@ pub async fn handle_peer_event(
                 cli.eval(TrbpCommands::OnVisiblePeersChanged {
                     peers: visible_peers.clone(),
                 })?;
-                // very rough, like every node is connected to every other node
-                cli.eval(TrbpCommands::OnConnectedPeersChanged {
-                    peers: visible_peers,
-                })?;
             }
         }
         TrbpEvents::Broadcast { cert } => {

@@ -15,7 +15,6 @@ pub struct PeerSamplingOracle {
     pub sampling_commands_channel: mpsc::UnboundedSender<TrbpCommands>,
     pub trbp_params: ReliableBroadcastParams,
     pub visible_peers: Vec<Peer>,
-    pub connected_peers: Vec<Peer>,
 
     echo_pending_subs: HashSet<Peer>,
     ready_pending_subs: HashSet<Peer>,
@@ -45,7 +44,6 @@ impl PeerSamplingOracle {
             sampling_commands_channel: s_command_sender,
             trbp_params: params,
             visible_peers: vec![],
-            connected_peers: vec![],
             echo_pending_subs: Default::default(),
             ready_pending_subs: Default::default(),
             delivery_pending_subs: Default::default(),
@@ -98,9 +96,6 @@ impl PeerSamplingOracle {
                             aggr.reset_all_samples();
                         }
                     }
-                    TrbpCommands::OnConnectedPeersChanged { peers } => {
-                        aggr.connected_peers = peers.clone();
-                    }
                     TrbpCommands::OnEchoSubscribeReq { from_peer } => {
                         aggr.add_confirmed_peer_to_sample(SampleType::EchoOutbound, &from_peer);
                         aggr.send_out_events(TrbpEvents::EchoSubscribeOk { to_peer: from_peer });
@@ -112,6 +107,7 @@ impl PeerSamplingOracle {
                     TrbpCommands::OnEchoSubscribeOk { from_peer } => {
                         if aggr.echo_pending_subs.remove(&from_peer) {
                             aggr.add_confirmed_peer_to_sample(SampleType::EchoInbound, &from_peer);
+                            log::debug!("on_command - OnEchoSubscribeOk - samples: {:?}", aggr.view);
                         }
                     }
                     TrbpCommands::OnReadySubscribeOk { from_peer } => {
@@ -169,10 +165,10 @@ impl PeerSamplingOracle {
             return;
         }
 
+        // todo - think about timeouts on Subscribe...
         let stable_view = self.echo_pending_subs.is_empty()
             && self.ready_pending_subs.is_empty()
-            && self.delivery_pending_subs.is_empty()
-            && !self.connected_peers.is_empty();
+            && self.delivery_pending_subs.is_empty();
 
         if stable_view {
             // Attempt to send the new view to the Broadcaster

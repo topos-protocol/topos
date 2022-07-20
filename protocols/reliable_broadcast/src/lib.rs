@@ -103,10 +103,10 @@ impl ReliableBroadcastClient {
             )
         };
         if is_broadcast_related(cmd.clone()) {
-            //log::info!("eval for broadcast {:?}", cmd);
+            log::debug!("eval for broadcast {:?}", cmd);
             self.broadcast_commands.send(cmd).map_err(|err| err.into())
         } else {
-            //log::info!("eval for sampling {:?}", cmd);
+            log::debug!("eval for sampling {:?}", cmd);
             self.sampling_commands.send(cmd).map_err(|err| err.into())
         }
     }
@@ -123,13 +123,13 @@ impl ReliableBroadcastClient {
         Ok(vec![])
     }
 
-    /// delivered certificates for given terminal chain after given certificate
+    /// delivered certificates for given terminal chain after the given certificate
     pub fn delivered_certs_ids(
         &self,
         subnet_id: SubnetId,
         _from_cert_id: CertificateId,
     ) -> Result<Option<Vec<CertificateId>>, Errors> {
-        let certs = self.b_aggr.lock().unwrap().store.get_cert(&subnet_id, 10);
+        let certs = self.b_aggr.lock().unwrap().store.recent_certificates_for_subnet(&subnet_id, 10); //fixme
         Ok(certs)
     }
 
