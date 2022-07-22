@@ -201,7 +201,7 @@ impl ReliableBroadcast {
     }
 
     /// Called to process potentially new certificate:
-    /// - either submitted from API ( [TrbpCommands::Broadcast] command)
+    /// - either submitted from API ( [tce_transport::TrbpCommands::Broadcast] command)
     /// - or received through the gossip (first step of protocol exchange)
     fn dispatch(&mut self, cert: Certificate, digest: DigestCompressed) {
         if self.cert_pre_delivery_check(&cert).is_err() {
@@ -375,7 +375,7 @@ impl ReliableBroadcast {
                             self.my_peer_id.clone(),
                             cert.id,
                             *from,
-                            std::time::SystemTime::now(),
+                            time::SystemTime::now(),
                             Default::default(),
                         )
                     }

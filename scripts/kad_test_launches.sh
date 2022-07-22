@@ -15,4 +15,4 @@ cargo run -- --local-key-seed 3 --tce-local-port 30003 --web-api-local-port 8013
 cargo run -- --local-key-seed 4 --tce-local-port 30004 --web-api-local-port 8014 --db-path "db4" --boot-peers "12D3KooWPjceQrSwdWXPyLLeABRXmuqt69Rg3sBYbU1Nft9HyQ6X /ip4/127.0.0.1/tcp/30001"
 
 # 12D3KooWSHj3RRbBjD15g6wekV8y3mm57Pobmps2g2WJm6F67Lay /ip4/127.0.0.1/tcp/30005
-cargo run -- --local-key-seed 5 --tce-local-port 30005 --web-api-local-port 8015 --db-path "db5" --boot-peers "12D3KooWPjceQrSwdWXPyLLeABRXmuqt69Rg3sBYbU1Nft9HyQ6X /ip4/127.0.0.1/tcp/30001"
+cargo run -- --local-key-seed 5 --tce-local-port 30005 --web-api-local-port 8015 --boot-peers "12D3KooWPjceQrSwdWXPyLLeABRXmuqt69Rg3sBYbU1Nft9HyQ6X /ip4/127.0.0.1/tcp/30001"
