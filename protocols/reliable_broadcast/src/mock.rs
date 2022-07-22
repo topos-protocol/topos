@@ -88,7 +88,7 @@ impl Display for SimulationConfig {
             self.params.echo_sample_size,
             ratio_sample,
             echo_t_ratio,
-            ready_t_ratio,
+            self.params.ready_threshold,
             delivery_t_ratio
         )
     }

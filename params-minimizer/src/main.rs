@@ -40,6 +40,7 @@ pub fn minimize_params(input: InputConfig) -> Option<SimulationConfig> {
     let echo_threshold_candidates =
         (min_echo_threshold_percent..=max_echo_threshold_percent).collect::<Vec<_>>();
 
+    let echo_ready_candidates = (25..=33).collect::<Vec<_>>();
     // binary search but involves heavy run
     // let best_sample_size = sample_candidates.partition_point(|s| viable_run(*s, input.clone()));
 
@@ -47,10 +48,14 @@ pub fn minimize_params(input: InputConfig) -> Option<SimulationConfig> {
     // let's be linear starting by the fast runs
     for s in sample_candidates {
         for e in &echo_threshold_candidates {
-            if let Some(record) = viable_run(s, ((*e as f32) * 0.01), 0.33, 0.66, &input) {
-                best_run = Some(record);
-                println!("ECHO THRESHOLD : {}", e);
-                break;
+            for r in &echo_ready_candidates {
+                if let Some(record) =
+                    viable_run(s, ((*e as f32) * 0.01), ((*r as f32) * 0.01), 0.66, &input)
+                {
+                    best_run = Some(record);
+                    println!("ECHO THRESHOLD : {}", e);
+                    break;
+                }
             }
         }
     }
