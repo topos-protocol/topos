@@ -50,11 +50,8 @@ impl Debug for ReliableBroadcast {
 }
 
 fn sample_consume_peer(peer_to_consume: &String, state: &mut DeliveryState, sample: SampleType) {
-    match state.get_mut(&sample) {
-        Some(peers) => {
-            peers.remove(peer_to_consume);
-        }
-        _ => {}
+    if let Some(peers) = state.get_mut(&sample) {
+        peers.remove(peer_to_consume);
     }
 }
 
@@ -111,9 +108,10 @@ impl ReliableBroadcast {
         mb_new_view: Result<SampleView, broadcast::error::RecvError>,
     ) {
         let mut aggr = data.lock().unwrap();
-        if mb_new_view.is_ok() {
+
+        if let Ok(mb_new_view) = mb_new_view {
             log::trace!("[{:?}] New sample view", aggr.my_peer_id);
-            aggr.current_sample_view = Some(mb_new_view.unwrap());
+            aggr.current_sample_view = Some(mb_new_view);
         } else {
             log::warn!("Failure on the sample view channel");
         }
@@ -164,7 +162,7 @@ impl ReliableBroadcast {
     }
 
     pub fn on_cmd_start_up(&mut self) {
-        let _ = self.send_out_events(TrbpEvents::NeedPeers);
+        self.send_out_events(TrbpEvents::NeedPeers);
     }
 
     pub fn on_cmd_shut_down(&mut self) {
@@ -174,7 +172,7 @@ impl ReliableBroadcast {
 
     /// build initial delivery state
     fn delivery_state_for_new_cert(&mut self) -> Option<DeliveryState> {
-        let ds = self.current_sample_view.clone().unwrap().clone();
+        let ds = self.current_sample_view.clone().unwrap();
         match ds.values().all(|s| !s.is_empty()) {
             true => Some(ds),
             false => None,
@@ -210,7 +208,7 @@ impl ReliableBroadcast {
             .collect::<Vec<_>>();
 
         // FIXME: need visibility on the connected peers
-        let _ = self.send_out_events(TrbpEvents::Gossip {
+        self.send_out_events(TrbpEvents::Gossip {
             peers: connected_peers, // considered as the G-set for erdos-renyi
             cert: cert.clone(),
             digest: digest.clone(),
@@ -224,7 +222,7 @@ impl ReliableBroadcast {
     // entities between tce and subnet network
     // NOTE: We propagate the digest that we received from elsewhere
     fn on_cmd_gossip(&mut self, cert: Certificate, propagated_digest: DigestCompressed) {
-        self.dispatch(cert.clone(), propagated_digest);
+        self.dispatch(cert, propagated_digest);
     }
 
     // Separated from the Gossip handler for more understandable flow
@@ -278,19 +276,15 @@ impl ReliableBroadcast {
     }
 
     fn on_cmd_on_echo(&mut self, from_peer: String, cert: Certificate) {
-        match self.cert_candidate.get_mut(&cert) {
-            Some(state) => sample_consume_peer(&from_peer, state, SampleType::EchoInbound),
-            _ => {}
+        if let Some(state) = self.cert_candidate.get_mut(&cert) {
+            sample_consume_peer(&from_peer, state, SampleType::EchoInbound);
         }
     }
 
     fn on_cmd_on_ready(&mut self, from_peer: String, cert: Certificate) {
-        match self.cert_candidate.get_mut(&cert) {
-            Some(state) => {
-                sample_consume_peer(&from_peer, state, SampleType::ReadyInbound);
-                sample_consume_peer(&from_peer, state, SampleType::DeliveryInbound);
-            }
-            _ => {}
+        if let Some(state) = self.cert_candidate.get_mut(&cert) {
+            sample_consume_peer(&from_peer, state, SampleType::ReadyInbound);
+            sample_consume_peer(&from_peer, state, SampleType::DeliveryInbound);
         }
     }
 
@@ -323,17 +317,17 @@ impl ReliableBroadcast {
 
         if state_modified {
             self.cert_candidate
-                .retain(|c, _| !self.delivered_pending.contains(&c));
+                .retain(|c, _| !self.delivered_pending.contains(c));
 
             let cert_to_pending = self
                 .delivered_pending
                 .iter()
                 .cloned()
-                .filter(|c| self.cert_post_delivery_check(&c).is_ok())
+                .filter(|c| self.cert_post_delivery_check(c).is_ok())
                 .collect::<Vec<_>>();
 
             for cert in &cert_to_pending {
-                if self.store.apply_cert(&cert).is_ok() {
+                if self.store.apply_cert(cert).is_ok() {
                     let mut d = time::Duration::from_millis(0);
                     if let Some((from, duration)) = self.delivery_time.get_mut(&cert.id) {
                         *duration = from.elapsed().unwrap();
@@ -368,14 +362,12 @@ impl ReliableBroadcast {
     /// that is already known as incorrect
     #[allow(dead_code)]
     fn cert_pre_delivery_check(&self, cert: &Certificate) -> Result<(), ()> {
-        match cert.check_signature() {
-            Err(_) => log::error!("Error on the signature"),
-            _ => {}
+        if cert.check_signature().is_err() {
+            log::error!("Error on the signature");
         }
 
-        match cert.check_proof() {
-            Err(_) => log::error!("Error on the proof"),
-            _ => {}
+        if cert.check_proof().is_err() {
+            log::error!("Error on the proof");
         }
 
         Ok(())
@@ -383,15 +375,14 @@ impl ReliableBroadcast {
 
     /// Here comes test that is necessarily done after delivery
     fn cert_post_delivery_check(&self, cert: &Certificate) -> Result<(), ()> {
-        match self.store.check_precedence(cert) {
-            Err(_) => log::warn!("Precedence not yet satisfied {:?}", cert),
-            _ => {}
+        if self.store.check_precedence(cert).is_err() {
+            log::warn!("Precedence not yet satisfied {:?}", cert);
         }
 
-        match self.store.check_digest_inclusion(cert) {
-            Err(_) => log::warn!("Inclusion check not yet satisfied {:?}", cert),
-            _ => {}
+        if self.store.check_digest_inclusion(cert).is_err() {
+            log::warn!("Inclusion check not yet satisfied {:?}", cert);
         }
+
         Ok(())
     }
 }

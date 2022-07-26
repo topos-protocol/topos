@@ -47,10 +47,9 @@ impl ApiWorker {
 
     /// 'Selectable' poll
     pub async fn next_request(&mut self) -> Result<ApiRequests, ()> {
-        let mb_event = self.rx_requests.recv().await;
-        return match mb_event {
+        match self.rx_requests.recv().await {
             Some(e) => Ok(e),
             _ => Err(()),
-        };
+        }
     }
 }

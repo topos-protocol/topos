@@ -62,7 +62,7 @@ impl ReliableBroadcastClient {
 
         let (events_sender, events_rcv) = mpsc::unbounded_channel::<TrbpEvents>();
         b_aggr.events_subscribers.push(events_sender.clone());
-        s_aggr.events_subscribers.push(events_sender.clone());
+        s_aggr.events_subscribers.push(events_sender);
         Self {
             peer_id,
             b_aggr: b_w_aggr.clone(),
@@ -130,8 +130,8 @@ impl ReliableBroadcastClient {
         Ok(certs)
     }
 
-    pub fn cert_by_id(&self, cert_id: CertificateId) -> Result<Option<Certificate>, ()> {
-        return self.b_aggr.lock().unwrap().store.cert_by_id(&cert_id);
+    pub fn cert_by_id(&self, cert_id: CertificateId) -> Result<Option<Certificate>, Errors> {
+        self.b_aggr.lock().unwrap().store.cert_by_id(&cert_id)
     }
 
     pub fn delivery_time(&self) -> Vec<time::Duration> {
@@ -144,7 +144,7 @@ impl ReliableBroadcastClient {
         collected_duration
     }
 
-    pub fn know_all_certs(&self, certs: &Vec<Certificate>) -> bool {
+    pub fn know_all_certs(&self, certs: &[Certificate]) -> bool {
         self.b_aggr
             .lock()
             .unwrap()
@@ -164,7 +164,7 @@ impl Clone for ReliableBroadcastClient {
 
         let (events_sender, events_rcv) = mpsc::unbounded_channel::<TrbpEvents>();
         b_aggr.events_subscribers.push(events_sender.clone());
-        s_aggr.events_subscribers.push(events_sender.clone());
+        s_aggr.events_subscribers.push(events_sender);
         Self {
             peer_id: self.peer_id.to_owned(),
             b_aggr: self.b_aggr.clone(),
@@ -182,6 +182,7 @@ pub enum Errors {
     BadPeers {},
     BadCommand {},
     TokioError {},
+    CertificateNotFound,
 }
 
 impl From<mpsc::error::SendError<TrbpCommands>> for Errors {

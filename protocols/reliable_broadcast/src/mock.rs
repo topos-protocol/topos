@@ -70,12 +70,10 @@ impl Debug for SimulationConfig {
 
 impl SimulationConfig {
     pub fn new(input: InputConfig) -> Self {
-        let me = SimulationConfig {
+        Self {
             input,
             ..Default::default()
-        };
-
-        me
+        }
     }
 
     pub fn set_sample_size(&mut self, s: usize) {
@@ -228,7 +226,7 @@ fn watch_cert_delivered(
                     let mut delivered_all_cert = true;
                     for cert in &certs {
                         if let Ok(Some(delivered)) =
-                            cli.delivered_certs_ids(cert.initial_subnet_id.clone(), cert.id.clone())
+                            cli.delivered_certs_ids(cert.initial_subnet_id, cert.id)
                         {
                             // if something was returned, we'd expect our certificate to be on the list
                             if !delivered.contains(&cert.id) {
@@ -251,6 +249,11 @@ fn watch_cert_delivered(
     });
 }
 
+type SimulationResponse = (
+    mpsc::UnboundedSender<Result<(), ()>>,
+    JoinHandle<Result<(), ()>>,
+);
+
 /// Runs main test loop
 ///
 /// Returns tuple of
@@ -260,15 +263,12 @@ fn watch_cert_delivered(
 fn launch_simulation_main_loop(
     peers_container: Arc<PeersContainer>,
     mut rx_combined_events: mpsc::UnboundedReceiver<(String, TrbpEvents)>,
-) -> (
-    mpsc::UnboundedSender<Result<(), ()>>,
-    JoinHandle<Result<(), ()>>,
-) {
+) -> SimulationResponse {
     // 'exit' command channel & max test duration
     // do tx_exit.send(()) when the condition is met
     let (tx_exit, mut rx_exit) = mpsc::unbounded_channel::<Result<(), ()>>();
     let max_test_duration = time::sleep(MAX_TEST_DURATION);
-    let trbp_peers_2 = peers_container.clone();
+    let trbp_peers_2 = peers_container;
     let main_jh = tokio::spawn(async move {
         tokio::pin!(max_test_duration);
         let peers = trbp_peers_2;
@@ -410,7 +410,7 @@ pub async fn handle_peer_event(
                 let mb_cli = peers_container.get(&*to_peer);
                 if let Some(w_cli) = mb_cli {
                     let cli = w_cli.lock().unwrap();
-                    let _ = cli.eval(TrbpCommands::OnEchoSubscribeReq {
+                    cli.eval(TrbpCommands::OnEchoSubscribeReq {
                         from_peer: from_peer.clone(),
                     })?;
                 }
@@ -428,7 +428,7 @@ pub async fn handle_peer_event(
                 let mb_cli = peers_container.get(&*to_peer);
                 if let Some(w_cli) = mb_cli {
                     let cli = w_cli.lock().unwrap();
-                    let _ = cli.eval(TrbpCommands::OnReadySubscribeReq {
+                    cli.eval(TrbpCommands::OnReadySubscribeReq {
                         from_peer: from_peer.clone(),
                     })?;
                 }
@@ -450,7 +450,7 @@ pub async fn handle_peer_event(
                 let mb_cli = peers_container.get(&*to_peer);
                 if let Some(w_cli) = mb_cli {
                     let cli = w_cli.lock().unwrap();
-                    let _ = cli.eval(TrbpCommands::OnGossip {
+                    cli.eval(TrbpCommands::OnGossip {
                         cert: cert.clone(),
                         digest: digest.clone(),
                     })?;
@@ -462,7 +462,7 @@ pub async fn handle_peer_event(
                 let mb_cli = peers_container.get(&*to_peer);
                 if let Some(w_cli) = mb_cli {
                     let cli = w_cli.lock().unwrap();
-                    let _ = cli.eval(TrbpCommands::OnEcho {
+                    cli.eval(TrbpCommands::OnEcho {
                         from_peer: from_peer.clone(),
                         cert: cert.clone(),
                     })?;
@@ -474,7 +474,7 @@ pub async fn handle_peer_event(
                 let mb_cli = peers_container.get(&*to_peer);
                 if let Some(w_cli) = mb_cli {
                     let cli = w_cli.lock().unwrap();
-                    let _ = cli.eval(TrbpCommands::OnReady {
+                    cli.eval(TrbpCommands::OnReady {
                         from_peer: from_peer.clone(),
                         cert: cert.clone(),
                     })?;

@@ -1,4 +1,4 @@
-use crate::TrbStore;
+use crate::{Errors, TrbStore};
 use std::collections::{BTreeSet, HashMap};
 use tce_uci::{Certificate, CertificateId, DigestCompressed, SubnetId};
 
@@ -23,8 +23,11 @@ pub struct TrbMemStore {
 
 impl TrbMemStore {
     pub fn new(subnets: Vec<SubnetId>) -> TrbMemStore {
-        let mut store = TrbMemStore::default();
-        store.followed_subnet = subnets;
+        let mut store = Self {
+            followed_subnet: subnets,
+            ..Default::default()
+        };
+
         for subnet in &store.followed_subnet {
             store.tracked_digest.insert(*subnet, BTreeSet::new());
             store.history.insert(*subnet, BTreeSet::new());
@@ -37,13 +40,13 @@ impl TrbMemStore {
 
 impl TrbStore for TrbMemStore {
     // JAEGER START DELIVERY TRACE [ cert, peer ]
-    fn apply_cert(&mut self, cert: &Certificate) -> Result<(), ()> {
+    fn apply_cert(&mut self, cert: &Certificate) -> Result<(), Errors> {
         // Add the entry in the history <SubnetId, CertId>
         let _ = self.add_cert_in_hist(&cert.initial_subnet_id, cert);
 
         // Add the cert into the history of each Terminal
         for call in &cert.calls {
-            self.add_cert_in_hist(&call.terminal_subnet_id, &cert);
+            self.add_cert_in_hist(&call.terminal_subnet_id, cert);
             self.add_cert_in_digest(&call.terminal_subnet_id, &cert.id);
         }
 
@@ -57,17 +60,14 @@ impl TrbStore for TrbMemStore {
 
     fn add_cert_in_digest(&mut self, subnet_id: &SubnetId, cert_id: &CertificateId) -> bool {
         self.tracked_digest
-            .entry(subnet_id.clone())
+            .entry(*subnet_id)
             .or_default()
-            .insert(cert_id.clone())
+            .insert(*cert_id)
     }
 
     fn add_cert_in_hist(&mut self, subnet_id: &SubnetId, cert: &Certificate) -> bool {
-        self.all_certs.insert(cert.id.clone(), cert.clone());
-        self.history
-            .entry(subnet_id.clone())
-            .or_default()
-            .insert(cert.id.clone())
+        self.all_certs.insert(cert.id, cert.clone());
+        self.history.entry(*subnet_id).or_default().insert(cert.id)
     }
 
     fn read_journal(
@@ -75,21 +75,20 @@ impl TrbStore for TrbMemStore {
         _subnet_id: SubnetId,
         _from_offset: u64,
         _max_results: u64,
-    ) -> Result<(Vec<Certificate>, u64), ()> {
+    ) -> Result<(Vec<Certificate>, u64), Errors> {
         unimplemented!();
     }
 
     fn get_cert(&self, subnet_id: &SubnetId, _last_n: u64) -> Option<Vec<CertificateId>> {
-        match self.history.get(subnet_id) {
-            Some(subnet_certs) => Some(subnet_certs.iter().cloned().collect::<Vec<_>>()),
-            _ => None,
-        }
+        self.history
+            .get(subnet_id)
+            .map(|subnet_certs| subnet_certs.iter().cloned().collect::<Vec<_>>())
     }
 
-    fn cert_by_id(&self, cert_id: &CertificateId) -> Result<Option<Certificate>, ()> {
+    fn cert_by_id(&self, cert_id: &CertificateId) -> Result<Option<Certificate>, Errors> {
         match self.all_certs.get(cert_id) {
             Some(cert) => Ok(Some(cert.clone())),
-            _ => Err(()),
+            _ => Err(Errors::CertificateNotFound),
         }
     }
 
@@ -108,7 +107,7 @@ impl TrbStore for TrbMemStore {
     ///
     /// Checks
     ///
-    fn check_digest_inclusion(&self, cert: &Certificate) -> Result<(), ()> {
+    fn check_digest_inclusion(&self, cert: &Certificate) -> Result<(), Errors> {
         let received_digest = self.received_digest.get(&cert.id).unwrap();
 
         // Check that all cert in digest are in my history
@@ -118,10 +117,10 @@ impl TrbStore for TrbMemStore {
         Ok(())
     }
 
-    fn check_precedence(&self, cert: &Certificate) -> Result<(), ()> {
+    fn check_precedence(&self, cert: &Certificate) -> Result<(), Errors> {
         match self.cert_by_id(&cert.prev_cert_id) {
             Ok(Some(_)) => Ok(()),
-            _ => Err(()),
+            _ => Err(Errors::CertificateNotFound),
         }
     }
 

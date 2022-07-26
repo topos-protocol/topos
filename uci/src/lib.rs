@@ -48,23 +48,25 @@ impl Certificate {
             id: 0,
             prev_cert_id: prev,
             initial_subnet_id: initial,
-            calls: calls,
+            calls,
         };
 
         cert.id = calculate_hash(&cert);
         cert
     }
 
-    pub fn check_signature(&self) -> Result<(), ()> {
+    pub fn check_signature(&self) -> Result<(), CertificateCheckingError> {
         std::thread::sleep(DUMMY_FROST_VERIF_DELAY);
         Ok(())
     }
 
-    pub fn check_proof(&self) -> Result<(), ()> {
+    pub fn check_proof(&self) -> Result<(), CertificateCheckingError> {
         std::thread::sleep(DUMMY_STARK_DELAY);
         Ok(())
     }
 }
+
+pub enum CertificateCheckingError {}
 
 fn calculate_hash<T: Hash>(t: &T) -> u64 {
     let mut s = DefaultHasher::new();

@@ -96,7 +96,7 @@ impl PeerSamplingOracle {
                         aggr.create_new_sample_view();
                     }
                     TrbpCommands::OnConnectedPeersChanged { peers } => {
-                        aggr.connected_peers = peers.clone();
+                        aggr.connected_peers = peers;
                     }
                     TrbpCommands::OnEchoSubscribeReq { from_peer } => {
                         aggr.add_peer(SampleType::EchoOutbound, &from_peer);
@@ -214,7 +214,7 @@ impl PeerSamplingOracle {
     fn init_delivery_inbound_sample(&mut self) {
         self.delivery_pending_subs.clear();
 
-        let delivery_sizer = |len| min(len, self.trbp_params.delivery_sample_size.clone());
+        let delivery_sizer = |len| min(len, self.trbp_params.delivery_sample_size);
         let delivery_candidates = sample_reduce_from(&self.visible_peers, delivery_sizer)
             .expect("sampling delivery")
             .value;
