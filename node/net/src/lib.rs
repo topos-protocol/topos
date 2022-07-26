@@ -140,7 +140,7 @@ impl NetworkWorker {
                         match command {
                             NetworkCommands::TransmissionReq { .. } => {
                                 let bh = swarm.behaviour_mut();
-                                let _ = bh.transmission.eval(command);
+                                bh.transmission.eval(command);
                             },
                         }
                     },
@@ -167,15 +167,16 @@ impl NetworkWorker {
     /// 'Selectable' events' stream
     pub async fn next_event(&mut self) -> Result<NetworkEvents, ()> {
         let mb_event = self.rx_events.recv().await;
-        return match mb_event {
+        match mb_event {
             Some(e) => Ok(e),
             _ => Err(()),
-        };
+        }
     }
 
     /// build peer_id keys, generate for now - either from the seed or purely random one
     fn local_key_pair(config: &NetworkWorkerConfig) -> identity::Keypair {
-        let id_keys = match config.secret_key_seed {
+        // todo: load from protobuf encoded|base64 encoded config.local_key_pair
+        match config.secret_key_seed {
             Some(seed) => {
                 let mut bytes = [0u8; 32];
                 bytes[0] = seed;
@@ -185,8 +186,6 @@ impl NetworkWorker {
                 identity::Keypair::Ed25519(secret_key.into())
             }
             None => identity::Keypair::generate_ed25519(),
-        };
-        // todo: load from protobuf encoded|base64 encoded config.local_key_pair
-        id_keys
+        }
     }
 }

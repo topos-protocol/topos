@@ -1,6 +1,6 @@
 use rocksdb::{IteratorMode, ReadOptions, DB};
 use std::sync::Arc;
-use tce_trbp::trb_store::TrbStore;
+use tce_trbp::{trb_store::TrbStore, Errors};
 use tce_uci::{Certificate, CertificateId, DigestCompressed, SubnetId};
 
 /// Configuration of RocksDB store
@@ -24,14 +24,14 @@ pub struct Store {
 
 impl Store {
     pub fn new(config: StoreConfig) -> Self {
-        let db_path = config.db_path.unwrap_or("./default_db".into());
+        let db_path = config.db_path.unwrap_or_else(|| "./default_db".into());
         let db = DB::open_default(db_path).unwrap();
         Self { db: Arc::new(db) }
     }
 }
 
 impl TrbStore for Store {
-    fn apply_cert(&mut self, cert: &Certificate) -> Result<(), ()> {
+    fn apply_cert(&mut self, cert: &Certificate) -> Result<(), Errors> {
         self.db
             .put(Self::cert_key(&cert.id), bincode::serialize(&cert).unwrap())
             .expect("db save");
@@ -39,7 +39,7 @@ impl TrbStore for Store {
     }
 
     fn add_cert_in_hist(&mut self, subnet_id: &SubnetId, cert: &Certificate) -> bool {
-        let key = self.new_journal_key(&subnet_id);
+        let key = self.new_journal_key(subnet_id);
         let cert_key = Self::cert_key(&cert.id);
         self.db.put(key, cert_key).expect("db save");
         true
@@ -55,7 +55,7 @@ impl TrbStore for Store {
         _subnet_id: SubnetId,
         _from_offset: u64,
         _max_results: u64,
-    ) -> Result<(Vec<Certificate>, u64), ()> {
+    ) -> Result<(Vec<Certificate>, u64), Errors> {
         //todo
         Ok((vec![], 0u64))
     }
@@ -64,13 +64,11 @@ impl TrbStore for Store {
         unimplemented!("Please prefer TrbMemStore for now");
     }
 
-    fn cert_by_id(&self, cert_id: &CertificateId) -> Result<Option<Certificate>, ()> {
-        let mb_bin_cert = self.db.get(Self::cert_key(&cert_id)).expect("db get");
-        let mb_cert = if let Some(bc) = mb_bin_cert {
-            Some(bincode::deserialize::<Certificate>(bc.as_ref()).expect("Cert deser"))
-        } else {
-            None
-        };
+    fn cert_by_id(&self, cert_id: &CertificateId) -> Result<Option<Certificate>, Errors> {
+        let mb_bin_cert = self.db.get(Self::cert_key(cert_id)).expect("db get");
+        let mb_cert = mb_bin_cert
+            .map(|bc| bincode::deserialize::<Certificate>(bc.as_ref()).expect("Cert deser"));
+
         Ok(mb_cert)
     }
 
@@ -78,14 +76,14 @@ impl TrbStore for Store {
         unimplemented!("Please prefer using the TrbMemStore for now");
     }
 
-    fn check_digest_inclusion(&self, _cert: &Certificate) -> Result<(), ()> {
+    fn check_digest_inclusion(&self, _cert: &Certificate) -> Result<(), Errors> {
         unimplemented!("Please prefer using the TrbMemStore for now");
     }
 
-    fn check_precedence(&self, cert: &Certificate) -> Result<(), ()> {
+    fn check_precedence(&self, cert: &Certificate) -> Result<(), Errors> {
         match self.cert_by_id(&cert.prev_cert_id) {
             Ok(Some(_)) => Ok(()),
-            _ => Err(()),
+            _ => Err(Errors::CertificateNotFound),
         }
     }
 
@@ -126,8 +124,8 @@ impl Store {
         Self::add_offset(&key_prefix, offset)
     }
 
-    fn add_offset(key_prefix: &Vec<u8>, offset: u64) -> Vec<u8> {
-        let mut key = key_prefix.clone();
+    fn add_offset(key_prefix: &[u8], offset: u64) -> Vec<u8> {
+        let mut key = key_prefix.to_owned();
         key.append(&mut format!("{:020}", offset).into_bytes());
         key
     }
@@ -138,10 +136,11 @@ impl Store {
             .split(':')
             .map(|i| i.into())
             .collect::<Vec<String>>();
-        return if parts.len() > 2 {
+
+        if parts.len() > 2 {
             parts[2].parse().unwrap_or(0u64)
         } else {
             0u64
-        };
+        }
     }
 }

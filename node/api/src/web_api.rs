@@ -55,7 +55,8 @@ async fn post_cert(
         rcv.await.expect("sync recv");
         return Ok(to_http_response(Ok::<(), ()>(())));
     }
-    return Ok(bad_request("failed".into()));
+
+    Ok(bad_request("failed".into()))
 }
 
 /// Input of [post]/delivered_certs
@@ -151,7 +152,8 @@ where
             }
         }
     }
-    return Err(());
+
+    Err(())
 }
 
 /// Utility to build up Response from output struct
