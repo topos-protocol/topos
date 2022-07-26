@@ -61,8 +61,8 @@ impl Debug for SimulationConfig {
             r(min_sample, self.input.nb_peers),
             self.params.echo_sample_size,
             ratio_sample,
-            echo_t_ratio,
-            ready_t_ratio,
+            echo_t_ratio,                       
+            self.params.ready_threshold,
             delivery_t_ratio
         )
     }
@@ -174,14 +174,25 @@ fn generate_cert(subnets: &Vec<SubnetId>, nb_cert: usize) -> Vec<Certificate> {
 
     let mut rng = rand::thread_rng();
     let mut gen_cert = || -> Certificate {
+        let mut f: f64 = 0.0;
         let selected_subnet = subnets[rng.gen_range(0..subnets.len())];
         let last_cert_id = nonce_state.get_mut(&selected_subnet).unwrap();
+        if(rng.gen_range(0..subnets.len()) as f64/subnets.len() as f64 > 0.5 && f<0.34 ){
+            let gen_cert = Certificate::new(0, selected_subnet, Default::default());
+            *last_cert_id = gen_cert.id;
+            f=f+ 1 as f64/subnets.len() as f64;
+            gen_cert
+        }
+        else{
         let gen_cert = Certificate::new(*last_cert_id, selected_subnet, Default::default());
         *last_cert_id = gen_cert.id;
-        gen_cert
+        gen_cert}
     };
+    //let mut conflict = gen_cert();
+    let mut certs = (0..nb_cert).map(|_| gen_cert()).collect::<Vec<_>>();
+    //certs[rng.gen_range(0..certs.len())] = conflict;
+    certs
 
-    (0..nb_cert).map(|_| gen_cert()).collect::<Vec<_>>()
 }
 
 fn submit_test_cert(
