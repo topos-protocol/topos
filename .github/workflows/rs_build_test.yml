@@ -1,4 +1,4 @@
-name: Rust
+name: Build and check 
 
 on:
   push:
@@ -8,27 +8,81 @@ on:
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
+
 env:
   CARGO_TERM_COLOR: always
+  RUSTFLAGS: -Dwarnings
+  RUST_BACKTRACE: 1
+  # Change to specific Rust release to pin
+  rust_clippy: 1.62.1
 
 jobs:
-  build:
-    name: Build and Test
-    runs-on: ubuntu-latest
-    container: paritytech/ci-linux:production
+  build_and_test:
+
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - { name: Linux, os: ubuntu-latest, triple: x86_64-unknown-linux-gnu }
+        version:
+          - stable
+          - nightly-2022-07-20
+
+    name: ${{ matrix.version }} - Build and Test
+    runs-on: ${{ matrix.target.os }}
+
     steps:
-      - uses: actions/checkout@v2
-      - name: Build
-        run: RUSTFLAGS='-D warnings' cargo build --verbose
+      - uses: actions/checkout@v3
+      - name: Install Rust ${{ matrix.version }}
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: ${{ matrix.version }}
+            components: 
+            override: true
+
+      - uses: Swatinem/rust-cache@v1
+
       - name: Test
-        run: cargo test --all --verbose
-  clippy:
-    name: Lint and Format
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --workspace
+
+  fmt:
+    name: fmt
     runs-on: ubuntu-latest
-    container: paritytech/ci-linux:production
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
+      - name: Install Rust stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          components: rustfmt
+
+      - uses: Swatinem/rust-cache@v1
+
+      - name: rustfmt
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+
+  clippy:
+    name: clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Rust ${{ env.rust_clippy }}
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ env.rust_clippy }}
+          override: true
+          components: clippy
+      - uses: Swatinem/rust-cache@v1
+
       - name: Clippy
-        run: cargo clippy --all -- -D clippy::suspicious
-      - name: Fmt
-        run: cargo fmt --all --check
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --all
