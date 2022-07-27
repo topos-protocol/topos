@@ -4,7 +4,8 @@
 //!
 
 use clap::Parser;
-use std::fmt::Debug;
+use fastapprox::faster::ln;
+use std::fmt::{self, Debug};
 use std::fs::File;
 use std::io::{Error, Write};
 use std::sync::Once;
@@ -20,8 +21,9 @@ pub fn setup() {
 }
 
 pub fn sample_lower_bound(n_u: usize) -> usize {
-    let k: f32 = 2.;
-    (n_u as f32).log(k) as usize
+    let k: f32 = 10.;
+
+    ln(n_u as f32) as usize
 }
 
 pub fn minimize_params(input: InputConfig) -> Option<SimulationConfig> {
@@ -81,18 +83,19 @@ pub fn main() -> Result<(), Error> {
         nb_certificates: args.nb_certificates,
     };
 
-    let path = "result.csv";
+    let path = "result-ln.csv";
 
     let mut output = File::create(path)?;
-    std::write!(output, "N;S;mean(ms);deviation(ms);E;R;D")?;
+    std::writeln!(output, "N;MS;MS%;E;E%;ET;RT;DT")?;
 
-    let mut network_size = 128;
-    for _ in 0..=10 {
+    let mut network_size = 32;
+    for _ in 0..=60 {
         log::info!("Minimizing for N = {:?}", network_size);
         input_config.nb_peers = network_size;
         match minimize_params(input_config.clone()) {
             Some(best_record) => {
                 log::info!("🥇 Best Values:\t{:?}", best_record);
+                std::writeln!(output, "{}", format!("{}", best_record));
                 // std::writeln!(
                 //     output,
                 //     "{};{};{};{};{};{};{}",
@@ -109,7 +112,11 @@ pub fn main() -> Result<(), Error> {
                 log::error!("Failure");
             }
         }
-        network_size *= 2;
+        match network_size.cmp(&1024) {
+            std::cmp::Ordering::Greater => network_size += 1024,
+            std::cmp::Ordering::Less => network_size *= 2,
+            std::cmp::Ordering::Equal => network_size += 512,
+        }
     }
 
     Ok(())

@@ -4,7 +4,7 @@ use crate::{mem_store::TrbMemStore, ReliableBroadcastClient, ReliableBroadcastCo
 use rand::Rng;
 use rand_distr::Distribution;
 use std::collections::{HashMap, HashSet};
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::sync::{Arc, Mutex};
 use tce_transport::{ReliableBroadcastParams, TrbpCommands, TrbpEvents};
 use tce_uci::*;
@@ -56,6 +56,32 @@ impl Debug for SimulationConfig {
         std::write!(
             f,
             "N={}\t Ω(N)=({}, {}%)\t S=({}, {}%)\t E_t={}%\t R_t={}%\t D_t={}%",
+            self.input.nb_peers,
+            min_sample,
+            r(min_sample, self.input.nb_peers),
+            self.params.echo_sample_size,
+            ratio_sample,
+            echo_t_ratio,
+            ready_t_ratio,
+            delivery_t_ratio
+        )
+    }
+}
+
+impl Display for SimulationConfig {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let r = |a, b| (a as f32) / (b as f32) * 100.;
+        let echo_t_ratio = r(self.params.echo_threshold, self.params.echo_sample_size);
+        let ready_t_ratio = r(self.params.ready_threshold, self.params.ready_sample_size);
+        let delivery_t_ratio = r(
+            self.params.delivery_threshold,
+            self.params.delivery_sample_size,
+        );
+        let ratio_sample = r(self.params.echo_sample_size, self.input.nb_peers);
+        let min_sample = sample_lower_bound(self.input.nb_peers);
+        std::write!(
+            f,
+            "{};{};{};{};{};{};{};{}",
             self.input.nb_peers,
             min_sample,
             r(min_sample, self.input.nb_peers),

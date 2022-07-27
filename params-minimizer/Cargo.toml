@@ -11,6 +11,7 @@ path = "src/main.rs"
 [dependencies]
 # byteorder = "1.4.3"
 log = "0.4.14"
+
 clap = { version = "3.0.10", features = ["derive", "env"] }
 tokio = { version = "1.15.0", features = [
     "io-util",
@@ -26,6 +27,7 @@ rand_core = "0.6.0"
 rand_distr = "0.4.3"
 rand = "0.8.5"
 pretty_env_logger = "0.4.0"
+fastapprox = "0.3.0"
 
 # tce dependencies
 tce_net = { package = "topos-tce-node-net", path = "../node/net" }
