@@ -30,7 +30,7 @@ mod totality {
     fn with_1cert_100nodes() {
         let nb_peers: usize = 100;
         let nb_certificates = 1;
-        let subnets: Vec<SubnetId> = vec![0, 1, 2];
+        let subnets: Vec<SubnetId> = vec![1, 2, 3];
 
         test_totality_boundaries(mock::InputConfig {
             nb_peers,
@@ -43,7 +43,7 @@ mod totality {
     fn with_1cert_1000nodes() {
         let nb_peers: usize = 1000;
         let nb_certificates = 1;
-        let subnets: Vec<SubnetId> = vec![0, 1, 2];
+        let subnets: Vec<SubnetId> = vec![1, 2, 3];
 
         test_totality_boundaries(mock::InputConfig {
             nb_peers,

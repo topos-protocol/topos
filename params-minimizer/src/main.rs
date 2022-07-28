@@ -31,7 +31,6 @@ pub fn minimize_params(input: InputConfig) -> Option<SimulationConfig> {
     let min_sample: usize = 2 * sample_lower_bound(input.nb_peers); // Lower bound
     let max_sample: usize = (n / 4.) as usize; // Upper bound: Quorum size ~ 1/3, in practice hope for 1/4 max
     let sample_candidates = (min_sample..=max_sample).collect::<Vec<_>>();
-
     // Echo threshold
     let min_echo_threshold_percent: usize = 50; // Percent as usize to use range
     let max_echo_threshold_percent: usize = 66; // Percent as usize to use range
