@@ -21,7 +21,7 @@ pub fn setup() {
 }
 
 pub fn sample_lower_bound(n_u: usize) -> usize {
-    let k: f32 = 10.;
+    //let k: f32 = 10.;
 
     ln(n_u as f32) as usize
 }
@@ -50,7 +50,7 @@ pub fn minimize_params(input: InputConfig) -> Option<SimulationConfig> {
         for e in &echo_threshold_candidates {
             for r in &echo_ready_candidates {
                 if let Some(record) =
-                    viable_run(s, ((*e as f32) * 0.01), ((*r as f32) * 0.01), 0.66, &input)
+                    viable_run(s, (*e as f32) * 0.01, (*r as f32) * 0.01, 0.66, &input)
                 {
                     best_run = Some(record);
                     println!("ECHO THRESHOLD : {}", e);
@@ -111,7 +111,7 @@ pub fn main() -> Result<(), Error> {
         match minimize_params(input_config.clone()) {
             Some(best_record) => {
                 log::info!("🥇 Best Values:\t{:?}", best_record);
-                std::writeln!(output, "{}", format!("{}", best_record));
+                std::writeln!(output, "{}", format_args!("{}", best_record)).ok();
                 // std::writeln!(
                 //     output,
                 //     "{};{};{};{};{};{};{}",

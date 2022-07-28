@@ -5,6 +5,9 @@ use rand::Rng;
 use rand_distr::Distribution;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Display, Formatter};
+//use std::fs::File;
+//use std::io::{Error, Write};
+
 use std::sync::{Arc, Mutex};
 use tce_transport::{ReliableBroadcastParams, TrbpCommands, TrbpEvents};
 use tce_uci::*;
@@ -46,7 +49,7 @@ impl Debug for SimulationConfig {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let r = |a, b| (a as f32) / (b as f32) * 100.;
         let echo_t_ratio = r(self.params.echo_threshold, self.params.echo_sample_size);
-        let ready_t_ratio = r(self.params.ready_threshold, self.params.ready_sample_size);
+        //let ready_t_ratio = r(self.params.ready_threshold, self.params.ready_sample_size);
         let delivery_t_ratio = r(
             self.params.delivery_threshold,
             self.params.delivery_sample_size,
@@ -61,7 +64,7 @@ impl Debug for SimulationConfig {
             r(min_sample, self.input.nb_peers),
             self.params.echo_sample_size,
             ratio_sample,
-            echo_t_ratio,                       
+            echo_t_ratio,
             self.params.ready_threshold,
             delivery_t_ratio
         )
@@ -72,7 +75,7 @@ impl Display for SimulationConfig {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let r = |a, b| (a as f32) / (b as f32) * 100.;
         let echo_t_ratio = r(self.params.echo_threshold, self.params.echo_sample_size);
-        let ready_t_ratio = r(self.params.ready_threshold, self.params.ready_sample_size);
+        // let ready_t_ratio = r(self.params.ready_threshold, self.params.ready_sample_size);
         let delivery_t_ratio = r(
             self.params.delivery_threshold,
             self.params.delivery_sample_size,
@@ -165,7 +168,8 @@ pub fn viable_run(
     }
 }
 
-fn generate_cert(subnets: &Vec<SubnetId>, nb_cert: usize) -> Vec<Certificate> {
+// HashMap<SubnetId, Vec<Certificate>>
+fn generate_cert(subnets: &Vec<SubnetId>, nb_cert: usize) -> HashMap<SubnetId, Vec<Certificate>> {
     let mut nonce_state: HashMap<SubnetId, CertificateId> = HashMap::new();
     // Initialize the genesis of all subnets
     for subnet in subnets {
@@ -173,26 +177,62 @@ fn generate_cert(subnets: &Vec<SubnetId>, nb_cert: usize) -> Vec<Certificate> {
     }
 
     let mut rng = rand::thread_rng();
-    let mut gen_cert = || -> Certificate {
-        let mut f: f64 = 0.0;
+    let mut gen_cert = || -> (SubnetId, Certificate) {
         let selected_subnet = subnets[rng.gen_range(0..subnets.len())];
         let last_cert_id = nonce_state.get_mut(&selected_subnet).unwrap();
-        if(rng.gen_range(0..subnets.len()) as f64/subnets.len() as f64 > 0.5 && f<0.34 ){
+        if rng.gen_range(0..10) as f64 / 10.0 > 0.5 {
             let gen_cert = Certificate::new(0, selected_subnet, Default::default());
             *last_cert_id = gen_cert.id;
-            f=f+ 1 as f64/subnets.len() as f64;
-            gen_cert
+            (selected_subnet, gen_cert)
+        } else {
+            let gen_cert = Certificate::new(*last_cert_id, selected_subnet, Default::default());
+            *last_cert_id = gen_cert.id;
+            (selected_subnet, gen_cert)
         }
-        else{
-        let gen_cert = Certificate::new(*last_cert_id, selected_subnet, Default::default());
-        *last_cert_id = gen_cert.id;
-        gen_cert}
     };
-    //let mut conflict = gen_cert();
-    let mut certs = (0..nb_cert).map(|_| gen_cert()).collect::<Vec<_>>();
     //certs[rng.gen_range(0..certs.len())] = conflict;
+    let mut certs: HashMap<SubnetId, Vec<Certificate>> = HashMap::new();
+    for _ in 0..nb_cert {
+        let x = gen_cert();
+        if let std::collections::hash_map::Entry::Vacant(e) = certs.entry(x.0) {
+            let v = vec![x.1];
+            e.insert(v);
+        } else {
+            certs.get_mut(&x.0).unwrap().push(x.1);
+        }
+    }
+    /*let path = "certs.txt";
+    let mut output = File::create(path).unwrap();
+    std::writeln!(output, "{}", format_args!("{:?}", &certs)).ok();*/
     certs
+}
 
+//
+// Subnet 0
+// C00 - C01 - C02 - C03 - C04 - C05
+//              \ C03'
+//
+
+//
+// Subnet 1
+// C10 - C11 - C12 - C13 - C14 - C15
+//              \ C13'
+//
+
+#[test]
+fn test_gen_cert() {
+    let nb_subnet = 100;
+    let nb_cert = 50;
+    let all_subnets: Vec<SubnetId> = (1..=nb_subnet as u64).collect();
+    let cert_list = generate_cert(&all_subnets, nb_cert);
+    let mut conflict: bool = false;
+    for e in cert_list {
+        let hash: HashSet<Certificate> = HashSet::from_iter(e.1.clone());
+        if hash.len() < e.1.len() {
+            conflict = true
+        }
+    }
+    assert!(conflict, r#"No conflicting certificates were found!"#);
 }
 
 fn submit_test_cert(
@@ -230,9 +270,13 @@ async fn run_instance(simu_config: SimulationConfig) -> Result<(), ()> {
         all_subnets.clone(),
         simu_config.params.clone(),
     );
-
     let (tx_exit, main_jh) = launch_simulation_main_loop(trbp_peers.clone(), rx_combined_events);
-    let cert_list = generate_cert(&all_subnets, simu_config.input.nb_certificates);
+    let cert_list = generate_cert(&all_subnets, simu_config.input.nb_certificates)
+        .values()
+        .next()
+        .unwrap()
+        .to_owned();
+
     // submit test certificate
     // and check for the certificate propagation
     submit_test_cert(cert_list.clone(), trbp_peers.clone(), "peer1".to_string());

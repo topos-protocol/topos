@@ -11,7 +11,7 @@ mod totality {
 
         // Should be big enough
         assert!(
-            mock::viable_run(correct_sample, &input).is_some(),
+            mock::viable_run(correct_sample, 0.67, 0.34, 0.67, &input).is_some(),
             "Totality failed, sample size: {}\t nb peers: {}",
             correct_sample,
             input.nb_peers
@@ -19,7 +19,7 @@ mod totality {
 
         // Should be too small
         assert!(
-            mock::viable_run(incorrect_sample, &input).is_none(),
+            mock::viable_run(incorrect_sample, 0.67, 0.34, 0.67, &input).is_none(),
             "Totality must fail, sample_size: {}\t nb peers: {}",
             incorrect_sample,
             input.nb_peers
@@ -30,7 +30,7 @@ mod totality {
     fn with_1cert_100nodes() {
         let nb_peers: usize = 100;
         let nb_certificates = 1;
-        let subnets: Vec<SubnetId> = vec![0, 1, 2];
+        let subnets: Vec<SubnetId> = vec![1, 2, 3];
 
         test_totality_boundaries(mock::InputConfig {
             nb_peers,
@@ -43,7 +43,7 @@ mod totality {
     fn with_1cert_1000nodes() {
         let nb_peers: usize = 1000;
         let nb_certificates = 1;
-        let subnets: Vec<SubnetId> = vec![0, 1, 2];
+        let subnets: Vec<SubnetId> = vec![1, 2, 3];
 
         test_totality_boundaries(mock::InputConfig {
             nb_peers,
