@@ -24,8 +24,8 @@ fn is_running(process: &mut Process) -> bool {
 
 #[derive(Debug, WorldInit)]
 struct World {
-    user: Option<String>,
-    capacity: usize,
+    port: Option<String>,
+    tce_process: Option<Process>,
 }
 
 #[async_trait(?Send)]
@@ -34,20 +34,14 @@ impl cucumber::World for World {
 
     async fn new() -> Result<Self, Self::Error> {
         Ok(Self {
-            user: None,
-            capacity: 0,
+            port: None,
+            tce_process: None,
         })
     }
 }
 
 #[given(expr = "tce node listening {word}")]
 async fn launch_tce_node(w: &mut World, port: String) {
-    sleep(Duration::from_secs(2)).await;
-    // Parameters
-    let endpoint = "health_check";
-    let ip_address = "localhost";
-    let uri = format!("http://{ip_address}:{port}/{endpoint}");
-
     let args = ["--ram-storage", "--web-api-local-port", port.as_str()];
 
     // Given
@@ -59,25 +53,41 @@ async fn launch_tce_node(w: &mut World, port: String) {
 
     assert!(is_running(&mut tce_process));
 
-    // When
+    // Persist the state
+    w.port = Some(port);
+    w.tce_process = Some(tce_process);
+}
+
+#[then(expr = "request to {word} returns status {int}")]
+async fn health_check(w: &mut World, endpoint: String, code: u16) {
+    // Parameters
+    let ip_address = "localhost";
+    let uri = format!(
+        "http://{ip_address}:{}/{}",
+        w.port.as_ref().unwrap(),
+        endpoint
+    );
+
     // Proceed to the health check
     let resp = Client::new().get(uri.parse::<hyper::Uri>().unwrap()).await;
-
-    // Then
-    assert_eq!(resp.unwrap().status(), 200);
+    assert_eq!(resp.unwrap().status(), code);
 
     // Kill the process
-    tce_process.kill().expect("not launched");
+    // w.tce_process
+    //     .as_ref()
+    //     .unwrap()
+    //     .kill()
+    //     .expect("not launched");
 
-    w.user = Some(port);
+    // assert_eq!(w.capacity, 3, "{} isn't full!", w.user.as_ref().unwrap());
 }
 
-#[then("she is full")]
-async fn is_full(w: &mut World) {
-    sleep(Duration::from_secs(2)).await;
+// #[then("request to {endpoint} returns status {code}")]
+// async fn health_check(w: &mut World, endpoint: String, code: String) {
+//     sleep(Duration::from_secs(2)).await;
 
-    assert_eq!(w.capacity, 3, "{} isn't full!", w.user.as_ref().unwrap());
-}
+//     assert_eq!(w.capacity, 3, "{} isn't full!", w.user.as_ref().unwrap());
+// }
 
 #[tokio::main]
 async fn main() {
