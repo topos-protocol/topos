@@ -9,6 +9,14 @@ use std::process::Command;
 /// Path to the binary
 const TCE_BIN: &str = env!("CARGO_BIN_EXE_topos-tce-node-app");
 
+/// Trigger graceful termination to given process
+fn shutdown(process: &Process) {
+    Command::new("kill")
+        .args(["-s", "TERM", process.id().to_string().as_str()])
+        .spawn()
+        .expect("process termination");
+}
+
 /// Check whether given process succeeded to start
 fn is_running(process: &mut Process) -> bool {
     std::thread::sleep(std::time::Duration::from_secs(1));
@@ -72,13 +80,9 @@ async fn health_check(w: &mut World, endpoint: String, code: u16) {
     let resp = Client::new().get(uri.parse::<hyper::Uri>().unwrap()).await;
     assert_eq!(resp.unwrap().status(), code);
 
-    // Kill the process
+    // Terminate
     // TODO: kill needs to be in `After` hook, looks unstable on cucumber-rs
-    w.tce_process
-        .as_mut()
-        .unwrap()
-        .kill()
-        .expect("not launched");
+    shutdown(w.tce_process.as_ref().unwrap());
 }
 
 #[tokio::main]
