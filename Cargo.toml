@@ -39,6 +39,15 @@ tce_telemetry = { package = "topos-tce-node-telemetry", path = "node/telemetry" 
 tce_trbp = { package = "topos-tce-protocols-reliable-broadcast", path = "protocols/reliable_broadcast" }
 tce_transport = { package = "topos-tce-protocols-transport", path = "protocols/transport" }
 
+[dev-dependencies]
+async-trait = "0.1"
+cucumber = "0.13.0"
+futures = "0.3"
+
+[[test]]
+name = "example" # this should be the same as the filename of your test target
+harness = false  # allows Cucumber to print output instead of libtest
+
 [workspace]
 members = [
     "uci",
