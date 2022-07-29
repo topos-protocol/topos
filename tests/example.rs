@@ -73,21 +73,13 @@ async fn health_check(w: &mut World, endpoint: String, code: u16) {
     assert_eq!(resp.unwrap().status(), code);
 
     // Kill the process
-    // w.tce_process
-    //     .as_ref()
-    //     .unwrap()
-    //     .kill()
-    //     .expect("not launched");
-
-    // assert_eq!(w.capacity, 3, "{} isn't full!", w.user.as_ref().unwrap());
+    // TODO: kill needs to be in `After` hook, looks unstable on cucumber-rs
+    w.tce_process
+        .as_mut()
+        .unwrap()
+        .kill()
+        .expect("not launched");
 }
-
-// #[then("request to {endpoint} returns status {code}")]
-// async fn health_check(w: &mut World, endpoint: String, code: String) {
-//     sleep(Duration::from_secs(2)).await;
-
-//     assert_eq!(w.capacity, 3, "{} isn't full!", w.user.as_ref().unwrap());
-// }
 
 #[tokio::main]
 async fn main() {
