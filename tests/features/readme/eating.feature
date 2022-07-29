@@ -1,6 +1,5 @@
-Feature: Eating too much cucumbers may not be good for you
+Feature: TCE Node
 
-    Scenario: Eating a few isn't a problem
-        Given Alice is hungry
-        When she eats 3 cucumbers
-        Then she is full
+    Scenario: TCE Node run and expose health check
+        Given tce node listening 8082
+#Then request to health_check returns status 200

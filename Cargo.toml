@@ -42,7 +42,7 @@ tce_transport = { package = "topos-tce-protocols-transport", path = "protocols/t
 [dev-dependencies]
 async-trait = "0.1"
 cucumber = "0.13.0"
-futures = "0.3"
+hyper = { version = "0.14", features = ["full"] }
 
 [[test]]
 name = "example" # this should be the same as the filename of your test target

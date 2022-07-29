@@ -3571,7 +3571,7 @@ dependencies = [
  "bincode",
  "clap",
  "cucumber",
- "futures",
+ "hyper",
  "lazy_static",
  "libp2p",
  "log",
