@@ -83,5 +83,5 @@ async fn health_check(w: &mut World, endpoint: String, code: u16) {
 
 #[tokio::main]
 async fn main() {
-    World::run("tests/features/readme").await;
+    World::run("tests/features").await;
 }
