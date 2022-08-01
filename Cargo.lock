@@ -3244,7 +3244,7 @@ dependencies = [
 [[package]]
 name = "topos-core"
 version = "0.1.0"
-source = "git+https://github.com/Toposware/topos-core?branch=feat-adding-uci#3afa66b31a3f32f38adacbd3261b4e5a11d91d3d"
+source = "git+https://github.com/Toposware/topos-core?branch=feat-adding-uci#2d12a894ca4bf4ecc6b065bc606e2f61eb649210"
 dependencies = [
  "topos-uci",
 ]
@@ -3378,7 +3378,7 @@ dependencies = [
 [[package]]
 name = "topos-uci"
 version = "0.1.0"
-source = "git+https://github.com/Toposware/topos-core?branch=feat-adding-uci#3afa66b31a3f32f38adacbd3261b4e5a11d91d3d"
+source = "git+https://github.com/Toposware/topos-core?branch=feat-adding-uci#2d12a894ca4bf4ecc6b065bc606e2f61eb649210"
 dependencies = [
  "serde",
 ]
