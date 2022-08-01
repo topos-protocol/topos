@@ -36,6 +36,14 @@ struct World {
     tce_process: Option<Process>,
 }
 
+impl Drop for World {
+    fn drop(&mut self) {
+        if let Some(process) = &self.tce_process {
+            shutdown(process);
+        }
+    }
+}
+
 #[async_trait(?Send)]
 impl cucumber::World for World {
     type Error = Infallible;
@@ -79,10 +87,6 @@ async fn health_check(w: &mut World, endpoint: String, code: u16) {
     // Proceed to the health check
     let resp = Client::new().get(uri.parse::<hyper::Uri>().unwrap()).await;
     assert_eq!(resp.unwrap().status(), code);
-
-    // Terminate
-    // TODO: kill needs to be in `After` hook, looks unstable on cucumber-rs
-    shutdown(w.tce_process.as_ref().unwrap());
 }
 
 #[tokio::main]
