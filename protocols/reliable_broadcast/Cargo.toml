@@ -26,12 +26,11 @@ rand_distr = "0.4.1"
 rand_core = "0.6.0"
 rand = "0.8.5"
 
-tce_uci = { package = "topos-tce-uci", path = "../../uci" }
+topos-core = { git = "https://github.com/Toposware/topos-core", branch = "feat-adding-uci", features = [ "uci" ] }
 tce_transport = { package = "topos-tce-protocols-transport", path = "../transport"}
 tce_telemetry = { package = "topos-tce-node-telemetry", path = "../../node/telemetry" }
 
 [dev-dependencies]
 pretty_env_logger = "0.4.0"
 
-tce_uci = { package = "topos-tce-uci", path = "../../uci" }
 tce_telemetry = { package = "topos-tce-node-telemetry", path = "../../node/telemetry" }

@@ -10,4 +10,4 @@ path = 'src/lib.rs'
 [dependencies]
 serde = { version = "1.0.136", features = ["derive"] }
 
-tce_uci = { package = "topos-tce-uci", path = "../../uci" }
+topos-core = { git = "https://github.com/Toposware/topos-core", branch = "feat-adding-uci", features = [ "uci" ] }

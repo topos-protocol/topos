@@ -1,7 +1,7 @@
 //!
 //! Storage interface required to support TRB
 //!
-use tce_uci::{Certificate, CertificateId, DigestCompressed, SubnetId};
+use topos_core::uci::{Certificate, CertificateId, DigestCompressed, SubnetId};
 
 use crate::Errors;
 

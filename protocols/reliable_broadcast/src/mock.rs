@@ -7,11 +7,11 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
 use std::sync::{Arc, Mutex};
 use tce_transport::{ReliableBroadcastParams, TrbpCommands, TrbpEvents};
-use tce_uci::*;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tokio::time::{self, Duration};
+use topos_core::uci::*;
 
 /// Whether to simulate some random network delay
 const NETWORK_DELAY_SIMULATION: bool = false;

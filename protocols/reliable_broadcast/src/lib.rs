@@ -11,10 +11,10 @@ use sampler::{aggregator::PeerSamplingOracle, SampleView};
 use std::sync::{Arc, Mutex};
 use std::time;
 use tce_transport::{ReliableBroadcastParams, TrbpCommands, TrbpEvents};
-pub use tce_uci;
-use tce_uci::{Certificate, CertificateId, SubnetId};
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
+pub use topos_core::uci;
+use topos_core::uci::{Certificate, CertificateId, SubnetId};
 pub type Peer = String;
 
 pub mod double_echo;

@@ -1,7 +1,7 @@
 use rocksdb::{IteratorMode, ReadOptions, DB};
 use std::sync::Arc;
 use tce_trbp::{trb_store::TrbStore, Errors};
-use tce_uci::{Certificate, CertificateId, DigestCompressed, SubnetId};
+use topos_core::uci::{Certificate, CertificateId, DigestCompressed, SubnetId};
 
 /// Configuration of RocksDB store
 pub struct StoreConfig {

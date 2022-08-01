@@ -32,6 +32,6 @@ tokio = { version = "1.15.0", features = [
     "sync",
 ] }
 
-tce_uci = { package = "topos-tce-uci", path = "../uci" }
+topos-core = { git = "https://github.com/Toposware/topos-core", branch = "feat-adding-uci", features = [ "uci" ] }
 tce_net = { package = "topos-tce-node-net", path = "../node/net" }
 tce_api = { package = "topos-tce-node-api", path = "../node/api" }
