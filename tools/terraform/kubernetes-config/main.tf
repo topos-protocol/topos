@@ -88,48 +88,6 @@ resource "kubernetes_deployment" "bootnode" {
   }
 }
 
-# resource "kubernetes_pod" "bootnode" {
-#   metadata {
-#     name = "tce-boot"
-#     namespace= kubernetes_namespace.namespace.metadata.0.name
-#     labels = {
-#       app = "TCE-Bootnode"
-#     }
-#   }
-#   spec {
-#     image_pull_secrets {
-#       name = kubernetes_secret.secret.metadata.0.name
-#     }
-
-#     container {
-#       image = var.tce_node_image
-#       name  = "tce"
-
-#       port {
-#         name = "tcp"
-#         container_port = "9090"
-#         protocol = "TCP"
-#       }
-
-#       port {
-#         name = "http"
-#         container_port = "8080"
-#         protocol = "TCP"
-#       }
-      
-#       env {
-#         name  = "TCE_LOCAL_KS"
-#         value = 1 # 12D3KooWPjceQrSwdWXPyLLeABRXmuqt69Rg3sBYbU1Nft9HyQ6X
-#       }
-
-#       env {
-#         name  = "TCE_JAEGER_AGENT"
-#         value = var.jaeger_endpoint
-#       }
-#     }
-#   }
-# }
-
 resource "kubernetes_service" "bootnode" {
   metadata {
     name = "tce-boot"
