@@ -1,8 +1,4 @@
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
-    }
-}
+#[cfg(feature = "uci")]
+#[cfg_attr(docsrs, doc(cfg(feature = "uci")))]
+#[doc(inline)]
+pub use topos_uci as uci;

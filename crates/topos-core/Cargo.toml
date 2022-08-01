@@ -6,3 +6,15 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+topos-uci = { path = "../topos-uci", optional = true }
+
+[features]
+default = []
+
+uci = ["topos-uci"]
+
+[package.metadata.docs.rs]
+all-features = true
+# enable unstable features in the documentation
+rustdoc-args = ["--cfg", "docsrs"]
+rustc-args = []
