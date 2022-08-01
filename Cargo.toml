@@ -41,7 +41,6 @@ tce_transport = { package = "topos-tce-protocols-transport", path = "protocols/t
 
 [workspace]
 members = [
-    "uci",
     "node/api",
     "node/net",
     "node/store",

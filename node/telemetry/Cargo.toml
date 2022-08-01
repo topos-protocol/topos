@@ -13,4 +13,4 @@ opentelemetry = { version = "0.17", default-features = false, features = ["trace
 opentelemetry-jaeger = { version = "0.16", features = ["rt-tokio"] }
 libp2p = { version = "0.41.1", features = ["tcp-tokio"] }
 
-topos-core = { git = "https://github.com/Toposware/topos-core", branch = "feat-adding-uci", features = [ "uci" ] }
+topos-core = { git = "https://github.com/Toposware/topos-core", branch = "main", features = ["uci"], version = "0.1.0" }

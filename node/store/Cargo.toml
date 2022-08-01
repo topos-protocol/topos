@@ -11,7 +11,7 @@ log = "0.4.14"
 rocksdb = "0.18.0"
 
 # tce dependencies
-topos-core = { git = "https://github.com/Toposware/topos-core", branch = "feat-adding-uci", features = [ "uci" ] }
+topos-core = { git = "https://github.com/Toposware/topos-core", branch = "main", features = ["uci"], version = "0.1.0" }
 tce_trbp = { package = "topos-tce-protocols-reliable-broadcast", path = "../../protocols/reliable_broadcast" }
 bincode = "1.3.3"
 
