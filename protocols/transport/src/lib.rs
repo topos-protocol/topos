@@ -1,7 +1,7 @@
 //! implementation of Topos Network Transport
 //!
 use serde::{Deserialize, Serialize};
-use tce_uci::{Certificate, DigestCompressed};
+use topos_core::uci::{Certificate, DigestCompressed};
 
 /// Protocol parameters of the TRB
 #[derive(Default, Clone, Debug)]

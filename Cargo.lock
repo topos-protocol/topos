@@ -464,9 +464,9 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "topos-core",
  "topos-tce-node-api",
  "topos-tce-node-net",
- "topos-tce-uci",
 ]
 
 [[package]]
@@ -3564,6 +3564,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "topos-core"
+version = "0.1.0"
+source = "git+https://github.com/Toposware/topos-core?branch=main#4b905168d69e257a4829bfc0dc487d2bc43b8796"
+dependencies = [
+ "topos-uci",
+]
+
+[[package]]
 name = "topos-tce"
 version = "0.1.0"
 dependencies = [
@@ -3598,6 +3606,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "topos-core",
  "topos-tce-protocols-reliable-broadcast",
 ]
 
@@ -3623,8 +3632,8 @@ dependencies = [
  "log",
  "pretty_env_logger",
  "rocksdb",
+ "topos-core",
  "topos-tce-protocols-reliable-broadcast",
- "topos-tce-uci",
 ]
 
 [[package]]
@@ -3636,7 +3645,7 @@ dependencies = [
  "log",
  "opentelemetry",
  "opentelemetry-jaeger",
- "topos-tce-uci",
+ "topos-core",
 ]
 
 [[package]]
@@ -3652,9 +3661,9 @@ dependencies = [
  "rand_distr",
  "serde",
  "tokio",
+ "topos-core",
  "topos-tce-node-telemetry",
  "topos-tce-protocols-transport",
- "topos-tce-uci",
 ]
 
 [[package]]
@@ -3662,7 +3671,7 @@ name = "topos-tce-protocols-transport"
 version = "0.1.0"
 dependencies = [
  "serde",
- "topos-tce-uci",
+ "topos-core",
 ]
 
 [[package]]
@@ -3676,17 +3685,18 @@ dependencies = [
  "rand_core 0.6.3",
  "rand_distr",
  "tokio",
+ "topos-core",
  "topos-tce-node-api",
  "topos-tce-node-net",
  "topos-tce-node-store",
  "topos-tce-protocols-reliable-broadcast",
  "topos-tce-protocols-transport",
- "topos-tce-uci",
 ]
 
 [[package]]
-name = "topos-tce-uci"
+name = "topos-uci"
 version = "0.1.0"
+source = "git+https://github.com/Toposware/topos-core?branch=main#4b905168d69e257a4829bfc0dc487d2bc43b8796"
 dependencies = [
  "serde",
 ]

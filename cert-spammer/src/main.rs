@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use tce_api::web_api::SubmitCertReq;
-use tce_uci::*;
 use tokio::time::{self, Duration};
+use topos_core::uci::*;
 
 /// Standalone generator of certificates.
 /// This utility aims at spamming the TCE,

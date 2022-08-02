@@ -10,9 +10,9 @@ use std::fmt::{Debug, Formatter};
 use std::sync::{Arc, Mutex};
 use std::time;
 use tce_transport::{ReliableBroadcastParams, TrbpCommands, TrbpEvents};
-use tce_uci::{Certificate, CertificateId, DigestCompressed};
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
+use topos_core::uci::{Certificate, CertificateId, DigestCompressed};
 
 /// Processing data associated to a Certificate candidate for delivery
 /// Sample repartition, one peer may belongs to multiple samples

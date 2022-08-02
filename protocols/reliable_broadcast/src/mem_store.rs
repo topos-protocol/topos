@@ -1,6 +1,6 @@
 use crate::{Errors, TrbStore};
 use std::collections::{BTreeSet, HashMap};
-use tce_uci::{Certificate, CertificateId, DigestCompressed, SubnetId};
+use topos_core::uci::{Certificate, CertificateId, DigestCompressed, SubnetId};
 
 /// Store implementation in RAM good enough for functional tests
 /// Might need to split through a new layer of TRBState

@@ -50,7 +50,6 @@ harness = false  # allows Cucumber to print output instead of libtest
 
 [workspace]
 members = [
-    "uci",
     "node/api",
     "node/net",
     "node/store",
