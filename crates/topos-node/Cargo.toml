@@ -1,0 +1,36 @@
+[package]
+name = "topos-node"
+description = "Implementation of the Topos protocol"
+license = "MIT"
+version = "0.1.0"
+authors = ["Toposware Developers <dev@toposware.com>"]
+edition = "2021"
+
+[dependencies]
+serde = { version = "1.0.136", features = ["derive"] }
+bincode = "1.3.3"
+clap = { version = "3.0.10", features = ["derive", "env"] }
+libp2p = { version = "0.41.1", features = ["tcp-tokio"] }
+log = "0.4.14"
+pretty_env_logger = "0.4.0"
+tokio = { version = "1.15.0", features = [
+    "io-util",
+    "io-std",
+    "macros",
+    "rt",
+    "rt-multi-thread",
+    "fs",
+    "time",
+    "sync",
+] }
+
+topos-core = { git = "https://github.com/Toposware/topos-core", branch = "main", features = ["uci"], version = "0.1.0" }
+topos_net = { package = "topos-node-net", path = "../../node/net" }
+topos_api = { package = "topos-node-api", path = "../topos-node-api" }
+#topos_store = { package = "topos-node-store", path = "node/store" }
+topos_core_certification = { package = "topos-core-certification", path = "../../node/core/certification" }
+topos_core_types = { package = "topos-core-types", path = "../../node/core/types" }
+topos_core_runtime_proxy = { package = "topos-core-substrate-runtime-proxy", path = "../../node/core/substrate-runtime-proxy" }
+topos_core_tce_proxy = { package = "topos-core-tce-proxy", path = "../../node/core/tce-proxy" }
+
+
