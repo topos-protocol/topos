@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod totality {
     use std::cmp::min;
-    use tce_uci::SubnetId;
+    use topos_core::uci::SubnetId;
     use topos_tce_protocols_reliable_broadcast::mock;
 
     fn test_totality_boundaries(input: mock::InputConfig) {

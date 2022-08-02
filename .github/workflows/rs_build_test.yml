@@ -33,6 +33,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+      - name: Set git credentials
+        uses: fusion-engineering/setup-git-credentials@v2
+        with:
+          credentials: https://robot-toposware:${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}@github.com
       - name: Install Rust ${{ matrix.version }}
         uses: actions-rs/toolchain@v1
         with:
@@ -73,6 +77,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - name: Set git credentials
+        uses: fusion-engineering/setup-git-credentials@v2
+        with:
+          credentials: https://robot-toposware:${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}@github.com
       - name: Install Rust ${{ env.rust_clippy }}
         uses: actions-rs/toolchain@v1
         with:

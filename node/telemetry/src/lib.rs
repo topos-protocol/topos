@@ -5,7 +5,7 @@ use opentelemetry::{
     global,
     trace::{SpanBuilder, SpanKind, TraceId, Tracer},
 };
-use tce_uci::CertificateId;
+use topos_core::uci::CertificateId;
 
 const JAEGER_HEADER: &str = "topos-trace-id";
 #[allow(unused)]

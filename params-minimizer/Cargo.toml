@@ -33,4 +33,5 @@ tce_api = { package = "topos-tce-node-api", path = "../node/api" }
 tce_store = { package = "topos-tce-node-store", path = "../node/store" }
 tce_trbp = { package = "topos-tce-protocols-reliable-broadcast", path = "../protocols/reliable_broadcast" }
 tce_transport = { package = "topos-tce-protocols-transport", path = "../protocols/transport" }
-tce_uci = { package = "topos-tce-uci", path = "../uci" }
+
+topos-core = { git = "https://github.com/Toposware/topos-core", branch = "main", features = ["uci"], version = "0.1.0" }

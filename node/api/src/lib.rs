@@ -3,8 +3,8 @@
 //! and protocol adapters - json-http, etc
 pub mod web_api;
 
-use tce_trbp::tce_uci::Certificate;
 use tokio::sync::{mpsc, oneshot};
+use topos_core::uci::Certificate;
 
 /// API configuration struct.
 pub struct ApiConfig {

@@ -1,6 +1,6 @@
 use rocksdb::{IteratorMode, Options, ReadOptions, DB};
 use std::sync::Once;
-use tce_uci::Certificate;
+use topos_core::uci::Certificate;
 
 static DB_TEST_SETUP: Once = Once::new();
 

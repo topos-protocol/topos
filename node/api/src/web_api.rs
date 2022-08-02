@@ -12,8 +12,8 @@ use hyper::service::{make_service_fn, service_fn};
 use hyper::{header, Body, Method, Request, Response, Server, StatusCode};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::convert::Infallible;
-use tce_trbp::tce_uci::{Certificate, CertificateId, SubnetId};
 use tokio::sync::{mpsc, oneshot};
+use topos_core::uci::{Certificate, CertificateId, SubnetId};
 
 /// Handler of [get]/health_check
 async fn health_check() -> Result<Response<Body>, Infallible> {
