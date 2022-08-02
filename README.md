@@ -1,12 +1,13 @@
+
 <div id="top"></div>
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
-  <a href="https://toposware.com/">
-    <img src="https://toposware.com/logo.svg" alt="Logo" width="300" height="80">
-  </a>
 
-<h3 align="center">Transmission Control Engine</h3>
+  <img src="./.github/assets/logo.png#gh-light-mode-only" alt="Logo" width="300">
+  <img src="./.github/assets/logo_dark.png#gh-dark-mode-only" alt="Logo" width="300">
+
+  <h3 align="center">Transmission Control Engine</h3>
 
   <p align="center">
     TCE Node Implementation
