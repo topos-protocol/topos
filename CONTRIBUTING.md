@@ -35,6 +35,9 @@ in bar/foo.rs") in which case a single title line is sufficient. Commit messages
 helpful to people reading your code in the future, so explain the reasoning for
 your decisions. Further explanation [here](https://chris.beams.io/posts/git-commit/).
 
+Commit messages should follow the [Conventional commits specification](https://www.conventionalcommits.org/en/v1.0.0/)
+and may use optional scope as defined in next section.
+
 If a particular commit references another issue, please add the reference. For
 example: `refs #1234` or `fixes #4321`. Using the `fixes` or `closes` keywords
 will cause the corresponding issue to be closed when the pull request is merged.
@@ -47,10 +50,15 @@ about Git.
   - Push changes to your branch
   - Create pull request
 
-### Creating the Pull Request
+### Scopes
 
-The title of the pull request should be prefixed by the component or area that
-the pull request affects. Valid areas as:
+Scopes are used to define which component or area if affected by the changes.
+Scopes are optional but recommended if applicable. Some predefined scope exists
+but you can create new if necessary or if no predefined scope match what you are
+changing. By convention it is better to have a single scope but multiple scopes
+can be provided, separated by comma.
+
+Here's a list of predefined scopes:
 
   - `protocol` for changes to protocol critical code
   - `doc` for changes to the documentation
@@ -61,12 +69,19 @@ the pull request affects. Valid areas as:
   - `script` for changes to the scripts and tools
   - `test`, `qa` or `ci` for changes to the unit tests, QA tests or CI code
   - `config` for changes to cargo, toml, crates organization
+  - *package name* for changes related to a particular package
 
-Examples:
+Commit message examples:
 
-    protocol: Fetch the samples from the double echo
-    net: Adapt the peer discovery with kademlia
-    log: Fix typo in log message
+    feat(protocol): Fetch the samples from the double echo
+    fix(net): Adapt the peer discovery with kademlia
+    chore(log): Fix typo in log message
+
+
+### Creating the Pull Request
+
+The title of the pull request should follow the [Conventional commits specification](https://www.conventionalcommits.org/en/v1.0.0/)
+and can define a scope as well (see section above).
 
 The body of the pull request should contain sufficient description of *what* the
 patch does, and even more importantly, *why*, with justification and reasoning.
