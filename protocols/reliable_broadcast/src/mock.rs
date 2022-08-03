@@ -49,7 +49,7 @@ impl Debug for SimulationConfig {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let r = |a, b| (a as f32) / (b as f32) * 100.;
         let echo_t_ratio = r(self.params.echo_threshold, self.params.echo_sample_size);
-        //let ready_t_ratio = r(self.params.ready_threshold, self.params.ready_sample_size);
+
         let delivery_t_ratio = r(
             self.params.delivery_threshold,
             self.params.delivery_sample_size,
@@ -153,7 +153,6 @@ pub fn viable_run(
     };
     config.set_sample_size(sample_size);
     config.set_threshold(echo_ratio, ready_ratio, deliver_ratio);
-    //config.params.echo_threshold = echo_threshold;
 
     let rt = Runtime::new().unwrap();
     let current_config = config.clone();
@@ -168,7 +167,6 @@ pub fn viable_run(
     }
 }
 
-// HashMap<SubnetId, Vec<Certificate>>
 fn generate_cert(subnets: &Vec<SubnetId>, nb_cert: usize) -> HashMap<SubnetId, Vec<Certificate>> {
     let mut nonce_state: HashMap<SubnetId, CertificateId> = HashMap::new();
     // Initialize the genesis of all subnets
@@ -181,8 +179,8 @@ fn generate_cert(subnets: &Vec<SubnetId>, nb_cert: usize) -> HashMap<SubnetId, V
         let selected_subnet = subnets[rng.gen_range(0..subnets.len())];
         let last_cert_id = nonce_state.get_mut(&selected_subnet).unwrap();
         if rng.gen_range(0..10) as f64 / 10.0 > 0.5 {
-            let gen_cert = Certificate::new(0, selected_subnet, Default::default());
-            *last_cert_id = gen_cert.id;
+            let gen_cert = Certificate::new(*last_cert_id, selected_subnet, Default::default());
+            //*last_cert_id = gen_cert.id;
             (selected_subnet, gen_cert)
         } else {
             let gen_cert = Certificate::new(*last_cert_id, selected_subnet, Default::default());
@@ -201,23 +199,9 @@ fn generate_cert(subnets: &Vec<SubnetId>, nb_cert: usize) -> HashMap<SubnetId, V
             certs.get_mut(&x.0).unwrap().push(x.1);
         }
     }
-    /*let path = "certs.txt";
-    let mut output = File::create(path).unwrap();
-    std::writeln!(output, "{}", format_args!("{:?}", &certs)).ok();*/
+
     certs
 }
-
-//
-// Subnet 0
-// C00 - C01 - C02 - C03 - C04 - C05
-//              \ C03'
-//
-
-//
-// Subnet 1
-// C10 - C11 - C12 - C13 - C14 - C15
-//              \ C13'
-//
 
 #[test]
 fn test_gen_cert() {
@@ -271,14 +255,18 @@ async fn run_instance(simu_config: SimulationConfig) -> Result<(), ()> {
         simu_config.params.clone(),
     );
     let (tx_exit, main_jh) = launch_simulation_main_loop(trbp_peers.clone(), rx_combined_events);
-    let cert_list = generate_cert(&all_subnets, simu_config.input.nb_certificates)
-        .values()
-        .next()
-        .unwrap()
-        .to_owned();
+    let all_cert_list = generate_cert(&all_subnets, simu_config.input.nb_certificates);
+    let cert_list_: Vec<Vec<Certificate>> = all_cert_list.into_values().collect();
+    let mut cert_list = Vec::new();
+    for v in &cert_list_ {
+        for e in v {
+            cert_list.push(e.clone());
+        }
+    }
 
     // submit test certificate
     // and check for the certificate propagation
+    watch_certs_consistent(cert_list.clone(), tx_exit.clone());
     submit_test_cert(cert_list.clone(), trbp_peers.clone(), "peer1".to_string());
     watch_cert_delivered(
         trbp_peers.clone(),
@@ -338,6 +326,16 @@ fn watch_cert_delivered(
         // when done call signal to exit
         log::info!("🎉 Totality for all the certificates!");
         let _ = tx_exit.send(Ok(()));
+    });
+}
+
+fn watch_certs_consistent(certs: Vec<Certificate>, tx_exit: mpsc::UnboundedSender<Result<(), ()>>) {
+    tokio::spawn(async move {
+        // when done call signal to exit
+        log::info!("🎉 Consistency for all the certificates!");
+        if certs.len() == HashSet::<Certificate>::from_iter(certs).len() {
+            let _ = tx_exit.send(Ok(()));
+        }
     });
 }
 
