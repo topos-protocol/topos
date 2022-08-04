@@ -37,16 +37,23 @@ pub fn minimize_params(input: InputConfig) -> Option<SimulationConfig> {
     let max_echo_threshold_percent: usize = 66; // Percent as usize to use range
     let echo_threshold_candidates =
         (min_echo_threshold_percent..=max_echo_threshold_percent).collect::<Vec<_>>();
-    let echo_ready_candidates = (25..=30).collect::<Vec<_>>();
+    let ready_threshold_candidates = (25..=30).collect::<Vec<_>>();
 
     let mut best_run: Option<SimulationConfig> = None;
     // let's be linear starting by the fast runs
     for s in sample_candidates {
         for e in &echo_threshold_candidates {
-            for r in &echo_ready_candidates {
-                if let Some(record) =
-                    viable_run(s, (*e as f32) * 0.01, (*r as f32) * 0.01, 0.66, &input)
-                {
+            for r in &ready_threshold_candidates {
+                let echo_threshold = (*e as f32) * 0.01;
+                let ready_threshold = (*r as f32) * 0.01;
+                let delivery_threshold = 0.66;
+                if let Some(record) = viable_run(
+                    s,
+                    echo_threshold,
+                    ready_threshold,
+                    delivery_threshold,
+                    &input,
+                ) {
                     best_run = Some(record);
                     println!("ECHO THRESHOLD : {}", e);
                     break;
