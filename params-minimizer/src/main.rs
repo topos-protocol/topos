@@ -21,11 +21,10 @@ pub fn setup() {
 }
 
 pub fn sample_lower_bound(n_u: usize) -> usize {
-
     ln(n_u as f32) as usize
 }
 
-pub fn minimize_params(input: InputConfig) -> Option<SimulationConfig> {
+pub fn minimize_params(input: InputConfig, params: MetricsCandidates) -> Option<SimulationConfig> {
     let n = input.nb_peers as f32;
 
     // Sample
@@ -33,20 +32,11 @@ pub fn minimize_params(input: InputConfig) -> Option<SimulationConfig> {
     let max_sample: usize = (n / 4.) as usize; // Upper bound: Quorum size ~ 1/3, in practice hope for 1/4 max
     let sample_candidates = (min_sample..=max_sample).collect::<Vec<_>>();
 
-    // Echo threshold
-    let min_echo_threshold_percent: usize = 50; // Percent as usize to use range
-    let max_echo_threshold_percent: usize = 66; // Percent as usize to use range
-    let echo_threshold_candidates =
-        (min_echo_threshold_percent..=max_echo_threshold_percent).collect::<Vec<_>>();
-    let echo_ready_candidates = (25..=30).collect::<Vec<_>>();
-    // binary search but involves heavy run
-    // let best_sample_size = sample_candidates.partition_point(|s| viable_run(*s, input.clone()));
-
     let mut best_run: Option<SimulationConfig> = None;
     // let's be linear starting by the fast runs
     for s in sample_candidates {
-        for e in &echo_threshold_candidates {
-            for r in &echo_ready_candidates {
+        for e in &params.echo_threshold_candidates {
+            for r in &params.echo_ready_candidates {
                 if let Some(record) =
                     viable_run(s, (*e as f32) * 0.01, (*r as f32) * 0.01, 0.66, &input)
                 {
@@ -85,6 +75,18 @@ pub struct AppArgs {
     pub nb_subnets: usize,
 }
 
+pub struct Metrics {
+    pub min_echo_threshold_percent: usize, // Percent as usize to use range
+    pub max_echo_threshold_percent: usize, // Percent as usize to use range
+    pub min_echo_ready_percent: usize,     // Percent as usize to use range
+    pub max_echo_ready_percent: usize,     // Percent as usize to use range
+}
+
+#[derive(Clone)]
+pub struct MetricsCandidates {
+    pub echo_threshold_candidates: Vec<usize>, //Range of possible threshold percent
+    pub echo_ready_candidates: Vec<usize>,     //Range of possible ready percent
+}
 pub fn main() -> Result<(), Error> {
     setup();
     log::info!("Starting minimizer");
@@ -97,6 +99,21 @@ pub fn main() -> Result<(), Error> {
         nb_certificates: args.nb_certificates,
     };
 
+    let metrics = Metrics {
+        min_echo_ready_percent: 25,
+        max_echo_ready_percent: 30,
+        min_echo_threshold_percent: 50,
+        max_echo_threshold_percent: 66,
+    };
+
+    let metrics_candidates = MetricsCandidates {
+        echo_ready_candidates: (metrics.min_echo_ready_percent..=metrics.max_echo_ready_percent)
+            .collect::<Vec<_>>(),
+        echo_threshold_candidates: (metrics.min_echo_threshold_percent
+            ..=metrics.max_echo_threshold_percent)
+            .collect::<Vec<_>>(),
+    };
+
     let path = "result-ln.csv";
 
     let mut output = File::create(path)?;
@@ -106,7 +123,7 @@ pub fn main() -> Result<(), Error> {
     for _ in 0..=60 {
         log::info!("Minimizing for N = {:?}", network_size);
         input_config.nb_peers = network_size;
-        match minimize_params(input_config.clone()) {
+        match minimize_params(input_config.clone(), metrics_candidates.clone()) {
             Some(best_record) => {
                 log::info!("🥇 Best Values:\t{:?}", best_record);
                 std::writeln!(output, "{}", format_args!("{}", best_record)).ok();
