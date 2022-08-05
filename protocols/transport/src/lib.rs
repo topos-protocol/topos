@@ -14,6 +14,8 @@ pub struct ReliableBroadcastParams {
 
     pub delivery_threshold: usize,
     pub delivery_sample_size: usize,
+
+    pub conflict_ratio: f32,
 }
 
 /// Protocol commands

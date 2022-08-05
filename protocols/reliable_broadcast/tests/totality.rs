@@ -11,7 +11,7 @@ mod totality {
 
         // Should be big enough
         assert!(
-            mock::viable_run(correct_sample, 0.67, 0.34, 0.67, &input).is_some(),
+            mock::viable_run(correct_sample, 0.67, 0.34, 0.67, 0.0, &input).is_some(),
             "Totality failed, sample size: {}\t nb peers: {}",
             correct_sample,
             input.nb_peers
@@ -19,7 +19,7 @@ mod totality {
 
         // Should be too small
         assert!(
-            mock::viable_run(incorrect_sample, 0.67, 0.34, 0.67, &input).is_none(),
+            mock::viable_run(incorrect_sample, 0.67, 0.34, 0.67, 0.0, &input).is_none(),
             "Totality must fail, sample_size: {}\t nb peers: {}",
             incorrect_sample,
             input.nb_peers

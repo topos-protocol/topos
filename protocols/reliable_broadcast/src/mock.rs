@@ -112,14 +112,15 @@ impl SimulationConfig {
     }
 
     pub fn basic_threshold(&mut self) {
-        self.set_threshold(0.66, 0.33, 0.66);
+        self.set_threshold(0.66, 0.33, 0.66, 0.0);
     }
 
-    pub fn set_threshold(&mut self, e_ratio: f32, r_ratio: f32, d_ratio: f32) {
+    pub fn set_threshold(&mut self, e_ratio: f32, r_ratio: f32, d_ratio: f32, c_ratio: f32) {
         let g = |a, b| ((a as f32) * b) as usize;
         self.params.echo_threshold = g(self.params.echo_sample_size, e_ratio);
         self.params.ready_threshold = g(self.params.ready_sample_size, r_ratio);
         self.params.delivery_threshold = g(self.params.delivery_sample_size, d_ratio);
+        self.params.conflict_ratio = c_ratio;
     }
 
     #[allow(dead_code)]
@@ -145,6 +146,7 @@ pub fn viable_run(
     echo_ratio: f32,
     ready_ratio: f32,
     deliver_ratio: f32,
+    conflict_ratio: f32,
     input: &InputConfig,
 ) -> Option<SimulationConfig> {
     let mut config = SimulationConfig {
@@ -152,7 +154,7 @@ pub fn viable_run(
         ..Default::default()
     };
     config.set_sample_size(sample_size);
-    config.set_threshold(echo_ratio, ready_ratio, deliver_ratio);
+    config.set_threshold(echo_ratio, ready_ratio, deliver_ratio, conflict_ratio);
 
     let rt = Runtime::new().unwrap();
     let current_config = config.clone();
@@ -167,20 +169,27 @@ pub fn viable_run(
     }
 }
 
-fn generate_cert(subnets: &Vec<SubnetId>, nb_cert: usize) -> HashMap<SubnetId, Vec<Certificate>> {
+fn generate_cert(
+    subnets: &Vec<SubnetId>,
+    nb_cert: usize,
+    conflict_ratio: f32,
+) -> HashMap<SubnetId, Vec<Certificate>> {
     let mut nonce_state: HashMap<SubnetId, CertificateId> = HashMap::new();
     // Initialize the genesis of all subnets
     for subnet in subnets {
         nonce_state.insert(*subnet, 0);
     }
 
+    let mut nbr_conflicts: usize = (nb_cert as f32 * conflict_ratio) as usize;
+
     let mut rng = rand::thread_rng();
     let mut gen_cert = || -> (SubnetId, Certificate) {
         let selected_subnet = subnets[rng.gen_range(0..subnets.len())];
         let last_cert_id = nonce_state.get_mut(&selected_subnet).unwrap();
-        if rng.gen_range(0..10) as f64 / 10.0 > 0.5 {
+        if nbr_conflicts > 0 {
             let gen_cert = Certificate::new(*last_cert_id, selected_subnet, Default::default());
             //*last_cert_id = gen_cert.id;
+            nbr_conflicts -= 1;
             (selected_subnet, gen_cert)
         } else {
             let gen_cert = Certificate::new(*last_cert_id, selected_subnet, Default::default());
@@ -207,8 +216,9 @@ fn generate_cert(subnets: &Vec<SubnetId>, nb_cert: usize) -> HashMap<SubnetId, V
 fn test_gen_cert() {
     let nb_subnet = 100;
     let nb_cert = 50;
+    let conflict_ratio = 0.1;
     let all_subnets: Vec<SubnetId> = (1..=nb_subnet as u64).collect();
-    let cert_list = generate_cert(&all_subnets, nb_cert);
+    let cert_list = generate_cert(&all_subnets, nb_cert, conflict_ratio);
     let mut conflict: bool = false;
     for e in cert_list {
         let hash: HashSet<Certificate> = HashSet::from_iter(e.1.clone());
@@ -255,7 +265,11 @@ async fn run_instance(simu_config: SimulationConfig) -> Result<(), ()> {
         simu_config.params.clone(),
     );
     let (tx_exit, main_jh) = launch_simulation_main_loop(trbp_peers.clone(), rx_combined_events);
-    let all_cert_list = generate_cert(&all_subnets, simu_config.input.nb_certificates);
+    let all_cert_list = generate_cert(
+        &all_subnets,
+        simu_config.input.nb_certificates,
+        simu_config.params.conflict_ratio,
+    );
     let cert_list_: Vec<Vec<Certificate>> = all_cert_list.into_values().collect();
     let mut cert_list = Vec::new();
     for v in &cert_list_ {

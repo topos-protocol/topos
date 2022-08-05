@@ -39,7 +39,7 @@ pub fn minimize_params(input: InputConfig) -> Option<SimulationConfig> {
         (min_echo_threshold_percent..=max_echo_threshold_percent).collect::<Vec<_>>();
 
     let ready_threshold_candidates = (25..=30).collect::<Vec<_>>();
-
+    let conflict_ratio = 0.1;
     let mut best_run: Option<SimulationConfig> = None;
     // let's be linear starting by the fast runs
     for s in sample_candidates {
@@ -53,6 +53,7 @@ pub fn minimize_params(input: InputConfig) -> Option<SimulationConfig> {
                     echo_threshold,
                     ready_threshold,
                     delivery_threshold,
+                    conflict_ratio,
                     &input,
                 ) {
                     best_run = Some(record);
@@ -83,10 +84,10 @@ pub struct AppArgs {
     #[clap(long, default_value_t = 0.3)]
     pub ready_threshold: f32,
     /// How many certificates to process
-    #[clap(long, default_value_t = 1)]
+    #[clap(long, default_value_t = 10)]
     pub nb_certificates: usize,
     /// How many subnets
-    #[clap(long, default_value_t = 1)]
+    #[clap(long, default_value_t = 20)]
     pub nb_subnets: usize,
 }
 
