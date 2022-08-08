@@ -16,7 +16,7 @@ libp2p = { version = "0.41.0", features = [
 ] }
 
 log = "0.4.14"
-tokio = { version = "1.15.0", features = [
+tokio = { version = "1.20.0", features = [
     "io-util",
     "io-std",
     "macros",

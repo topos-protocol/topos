@@ -31,7 +31,6 @@ WORKDIR /src/github.com/toposware/tce
 # fetch and save dependencies as a layer
 #
 COPY ./Cargo.toml ./Cargo.toml
-COPY ./uci/Cargo.toml ./uci/Cargo.toml
 COPY ./node/api/Cargo.toml ./node/api/Cargo.toml
 COPY ./node/net/Cargo.toml ./node/net/Cargo.toml
 COPY ./node/store/Cargo.toml ./node/store/Cargo.toml
@@ -39,6 +38,7 @@ COPY ./node/telemetry/Cargo.toml ./node/telemetry/Cargo.toml
 COPY ./protocols/reliable_broadcast/Cargo.toml ./protocols/reliable_broadcast/Cargo.toml
 COPY ./protocols/transport/Cargo.toml ./protocols/transport/Cargo.toml
 COPY ./params-minimizer/Cargo.toml ./params-minimizer/Cargo.toml
+COPY ./tests ./tests
 
 RUN cargo fetch
 

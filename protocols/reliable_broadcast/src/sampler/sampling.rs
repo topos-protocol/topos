@@ -6,6 +6,7 @@ use rand::distributions::Distribution;
 #[derive(Debug, Eq, PartialEq)]
 pub enum SamplerError {
     ZeroLength,
+    ShortOfInput,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -28,13 +29,17 @@ where
     T: Clone + std::fmt::Debug + Ord,
     F: Fn(usize) -> usize,
 {
-    let len = src.len();
-    if len == 0 {
+    let input_len = src.len();
+    if input_len == 0 {
         return Err(SamplerError::ZeroLength);
     }
-    let sample_size = reducer(len);
+    let sample_size = reducer(input_len);
+    if sample_size > input_len {
+        return Err(SamplerError::ShortOfInput);
+    }
+
     let mut result = Sample {
-        src_len: len,
+        src_len: input_len,
         sample_size,
         value: Vec::with_capacity(sample_size),
     };
@@ -43,16 +48,22 @@ where
     src.sort();
     // Setup the sampling using our rng and a uniform selection
     let mut rng = thread_rng();
+
     // WHy use uniform sampling over simple modulo based
     // https://docs.rs/rand/0.8.5/rand/distributions/uniform/struct.Uniform.html
-    let dist = Uniform::new(0, len); // Uniform::new is exclusive of the upper
-                                     // Track used entries to ensure we don't double select
-    let mut used = vec![false; len];
+    let dist = Uniform::new(0, input_len); // Uniform::new is exclusive of the upper
+                                           // Track used entries to ensure we don't double select
+    let mut used = vec![false; input_len];
     loop {
         // Sample a value from the uniform distribution
-        let idx = dist.sample(&mut rng);
-        if used[idx] {
-            continue;
+        let mut idx = dist.sample(&mut rng);
+        // Find the next unused 'slot'.
+        // Usable when sample_size is close to input_len
+        while used[idx] {
+            idx += 1;
+            if idx >= input_len {
+                idx = 0;
+            }
         }
         used[idx] = true;
         // Push the used value into the result array
@@ -113,7 +124,7 @@ mod should {
 
         let actual = sample_from(&all).unwrap();
 
-        let expected = vec![3, 5, 7];
+        let expected = vec![3, 4, 5];
 
         assert_eq!(expected, actual.value, "{:?}", actual);
     }

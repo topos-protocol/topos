@@ -18,7 +18,7 @@ use libp2p::{
     swarm::NetworkBehaviourEventProcess,
     NetworkBehaviour,
 };
-use std::{collections::HashMap, iter};
+use std::{collections::HashSet, iter};
 use tokio::{
     sync::mpsc::error::SendError,
     sync::oneshot::error::RecvError,
@@ -32,7 +32,7 @@ pub(crate) struct TransmissionBehavior {
     #[behaviour(ignore)]
     pub tx_events: mpsc::UnboundedSender<NetworkEvents>,
     #[behaviour(ignore)]
-    req_ids_to_ext_ids: HashMap<RequestId, String>,
+    req_ids_to_ext_ids: HashSet<RequestId>,
 }
 
 impl TransmissionBehavior {
@@ -45,25 +45,21 @@ impl TransmissionBehavior {
                 Default::default(),
             ),
             tx_events: events_sender,
-            req_ids_to_ext_ids: HashMap::new(),
+            req_ids_to_ext_ids: HashSet::new(),
         }
     }
 
     /// Executes command
     pub(crate) fn eval(&mut self, cmd: NetworkCommands) {
         match cmd {
-            NetworkCommands::TransmissionReq {
-                ext_req_id,
-                to,
-                data,
-            } => {
+            NetworkCommands::TransmissionReq { to, data } => {
                 for peer_id in to {
                     //  publish
                     let req_id = self
                         .rr
                         .send_request(&peer_id, TransmissionRequest(data.clone()));
-                    //  remember each (req_id) vs (ext_req_id)
-                    self.req_ids_to_ext_ids.insert(req_id, ext_req_id.clone());
+                    //  remember each (req_id)
+                    self.req_ids_to_ext_ids.insert(req_id);
                 }
             }
         }
@@ -77,35 +73,24 @@ impl TransmissionBehavior {
         req_payload: TransmissionRequest,
         resp_chan: ResponseChannel<TransmissionResponse>,
     ) -> Result<(), TransmissionInternalErr> {
-        let (tx, rx) = oneshot::channel::<Vec<u8>>();
         self.tx_events.send(NetworkEvents::TransmissionOnReq {
             from: peer,
             data: req_payload.0,
-            respond_to: tx,
         })?;
-        //  wait for response
-        let resp_data = rx.await?;
         //  send the response back, error handled in other event handling branches
         self.rr
-            .send_response(resp_chan, TransmissionResponse(resp_data))?;
+            .send_response(resp_chan, TransmissionResponse(vec![]))?;
         Ok(())
     }
 
     /// Called by handler of inbound response message
     async fn on_inbound_response(
         &mut self,
-        peer: PeerId,
+        _peer: PeerId,
         request_id: RequestId,
-        response: TransmissionResponse,
+        _response: TransmissionResponse,
     ) -> Result<(), TransmissionInternalErr> {
-        if let Some(ext_req_id) = self.req_ids_to_ext_ids.get(&request_id) {
-            self.tx_events.send(NetworkEvents::TransmissionOnResp {
-                for_ext_req_id: ext_req_id.clone(),
-                from: peer,
-                data: response.0,
-            })?;
-            self.req_ids_to_ext_ids.remove(&request_id);
-        } else {
+        if self.req_ids_to_ext_ids.remove(&request_id) {
             return Err(TransmissionInternalErr::ReqNotFound(request_id));
         }
         Ok(())
@@ -135,11 +120,19 @@ impl NetworkBehaviourEventProcess<RequestResponseEvent<TransmissionRequest, Tran
                     let _ = self.on_inbound_response(peer, request_id, response);
                 }
             },
-            RequestResponseEvent::OutboundFailure { .. } => {
-                log::warn!("Outbound failure");
+            RequestResponseEvent::OutboundFailure {
+                peer,
+                request_id: _request_id,
+                error,
+            } => {
+                log::warn!("Outbound failure - peer:{:?}, err: {:?}", peer, error);
             }
-            RequestResponseEvent::InboundFailure { .. } => {
-                log::warn!("Inbound failure");
+            RequestResponseEvent::InboundFailure {
+                peer,
+                request_id: _request_id,
+                error,
+            } => {
+                log::warn!("Inbound failure - peer: {:?}, err: {:?}", peer, error);
             }
             RequestResponseEvent::ResponseSent { .. } => {}
         }
