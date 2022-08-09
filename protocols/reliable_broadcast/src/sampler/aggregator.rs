@@ -147,7 +147,7 @@ impl PeerSamplingOracle {
     fn apply_visible_peers(&mut self, new_peers: Vec<Peer>) -> bool {
         //todo check if some peers disappeared from the sets
         self.visible_peers = new_peers;
-        return true;
+        true
     }
 
     fn reset_inbound_samples(&mut self) {
@@ -249,7 +249,7 @@ impl PeerSamplingOracle {
     fn reset_delivery_inbound_sample(&mut self) {
         self.delivery_pending_subs.clear();
 
-        let delivery_sizer = |len| min(len, self.trbp_params.delivery_sample_size.clone());
+        let delivery_sizer = |len| min(len, self.trbp_params.delivery_sample_size);
         match sample_reduce_from(&self.visible_peers, delivery_sizer) {
             Ok(delivery_candidates) => {
                 log::debug!(

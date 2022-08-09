@@ -127,10 +127,8 @@ impl NetworkBehaviourEventProcess<KademliaEvent> for DiscoveryBehavior {
             } => {
                 log::info!("routing updated: {:?}", peer);
                 // do the callback AFTER Identify worked (not a newly added peer)
-                if !is_new_peer {
-                    if self.routable_peers.insert(peer) {
-                        self.notify_peers();
-                    }
+                if !is_new_peer && self.routable_peers.insert(peer) {
+                    self.notify_peers();
                 }
             }
             KademliaEvent::UnroutablePeer { peer } => {

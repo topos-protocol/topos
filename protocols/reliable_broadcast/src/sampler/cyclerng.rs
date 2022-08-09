@@ -65,7 +65,7 @@ pub mod utils {
     #[allow(dead_code)]
     pub fn convert_bytes_to_u64(data: &[u8]) -> Vec<u64> {
         let mut vec64 = Vec::<u64>::with_capacity(data.len() / 8);
-        LittleEndian::read_u64_into(&data, &mut vec64);
+        LittleEndian::read_u64_into(data, &mut vec64);
         vec64
     }
 }

@@ -425,7 +425,7 @@ pub async fn handle_peer_event(
             if let Some(w_cli) = mb_cli {
                 let cli = w_cli.lock().unwrap();
                 cli.eval(TrbpCommands::OnVisiblePeersChanged {
-                    peers: visible_peers.clone(),
+                    peers: visible_peers,
                 })?;
             }
         }

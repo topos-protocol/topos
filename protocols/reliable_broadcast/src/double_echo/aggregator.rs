@@ -14,7 +14,7 @@ use tce_transport::{ReliableBroadcastParams, TrbpCommands, TrbpEvents};
 use topos_core::uci::{Certificate, CertificateId, DigestCompressed};
 
 use crate::sampler::{SampleType, SampleView};
-use crate::Peer;
+use crate::{sampler, Peer};
 use crate::{trb_store::TrbStore, ReliableBroadcastConfig};
 
 /// Processing data associated to a Certificate candidate for delivery
@@ -112,13 +112,13 @@ impl ReliableBroadcast {
     ) {
         log::info!("on_new_sample_view({:?})", &mb_new_view);
         let mut aggr = data.lock().unwrap();
-        if mb_new_view.is_ok() {
+        if let Ok(new_view) = mb_new_view {
             log::debug!(
                 "new_sample_view - [{:?}] New sample view: {:?}",
                 aggr.my_peer_id,
-                mb_new_view
+                new_view
             );
-            aggr.current_sample_view = Some(mb_new_view.unwrap());
+            aggr.current_sample_view = Some(new_view);
         } else {
             log::warn!("Failure on the sample view channel");
         }
@@ -169,7 +169,7 @@ impl ReliableBroadcast {
     }
 
     pub fn on_cmd_start_up(&mut self) {
-        let _ = self.send_out_events(TrbpEvents::NeedPeers);
+        self.send_out_events(TrbpEvents::NeedPeers);
     }
 
     pub fn on_cmd_shut_down(&mut self) {
@@ -179,20 +179,20 @@ impl ReliableBroadcast {
 
     /// build initial delivery state
     fn delivery_state_for_new_cert(&mut self) -> Option<DeliveryState> {
-        let ds = self.current_sample_view.clone().unwrap().clone();
+        let ds = self.current_sample_view.clone().unwrap();
 
         // check inbound sets are not empty
         if ds
             .get(&SampleType::EchoInbound)
-            .unwrap_or(&mut HashSet::new())
+            .unwrap_or(&HashSet::<sampler::Peer>::new())
             .is_empty()
             || ds
                 .get(&SampleType::ReadyInbound)
-                .unwrap_or(&mut HashSet::new())
+                .unwrap_or(&HashSet::<sampler::Peer>::new())
                 .is_empty()
             || ds
                 .get(&SampleType::DeliveryInbound)
-                .unwrap_or(&mut HashSet::new())
+                .unwrap_or(&HashSet::<sampler::Peer>::new())
                 .is_empty()
         {
             None
@@ -221,7 +221,7 @@ impl ReliableBroadcast {
 
         // Gossip the certificate to all my peers
 
-        let _ = self.send_out_events(TrbpEvents::Gossip {
+        self.send_out_events(TrbpEvents::Gossip {
             peers: self.gossip_peers(), // considered as the G-set for erdos-renyi
             cert: cert.clone(),
             digest: digest.clone(),

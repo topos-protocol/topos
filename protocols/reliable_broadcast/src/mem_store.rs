@@ -23,8 +23,13 @@ pub struct TrbMemStore {
 
 impl TrbMemStore {
     pub fn new(subnets: Vec<SubnetId>) -> TrbMemStore {
-        let mut store = TrbMemStore::default();
-        store.followed_subnet = subnets;
+        let mut store = TrbMemStore {
+            all_certs: Default::default(),
+            history: Default::default(),
+            tracked_digest: Default::default(),
+            received_digest: Default::default(),
+            followed_subnet: subnets,
+        };
         for subnet in &store.followed_subnet {
             store.tracked_digest.insert(*subnet, BTreeSet::new());
             store.history.insert(*subnet, BTreeSet::new());
@@ -43,7 +48,7 @@ impl TrbStore for TrbMemStore {
 
         // Add the cert into the history of each Terminal
         for call in &cert.calls {
-            self.add_cert_in_hist(&call.terminal_subnet_id, &cert);
+            self.add_cert_in_hist(&call.terminal_subnet_id, cert);
             self.add_cert_in_digest(&call.terminal_subnet_id, &cert.id);
         }
 
@@ -51,18 +56,15 @@ impl TrbStore for TrbMemStore {
     }
 
     fn add_cert_in_hist(&mut self, subnet_id: &SubnetId, cert: &Certificate) -> bool {
-        self.all_certs.insert(cert.id.clone(), cert.clone());
-        self.history
-            .entry(subnet_id.clone())
-            .or_default()
-            .insert(cert.id.clone())
+        self.all_certs.insert(cert.id, cert.clone());
+        self.history.entry(*subnet_id).or_default().insert(cert.id)
     }
 
     fn add_cert_in_digest(&mut self, subnet_id: &SubnetId, cert_id: &CertificateId) -> bool {
         self.tracked_digest
-            .entry(subnet_id.clone())
+            .entry(*subnet_id)
             .or_default()
-            .insert(cert_id.clone())
+            .insert(*cert_id)
     }
 
     fn read_journal(
@@ -79,10 +81,9 @@ impl TrbStore for TrbMemStore {
         subnet_id: &SubnetId,
         _last_n: u64,
     ) -> Option<Vec<CertificateId>> {
-        match self.history.get(subnet_id) {
-            Some(subnet_certs) => Some(subnet_certs.iter().cloned().collect::<Vec<_>>()),
-            _ => None,
-        }
+        self.history
+            .get(subnet_id)
+            .map(|subnet_certs| subnet_certs.iter().cloned().collect::<Vec<_>>())
     }
 
     /// Compute and flush the digest for the given subnet
