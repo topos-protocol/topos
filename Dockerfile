@@ -1,7 +1,13 @@
 #
 # Builder
 #
-FROM --platform=linux/amd64 rust:slim-bullseye AS builder
+FROM --platform=linux/amd64 ghcr.io/toposware/topos-ci-docker:master AS builder
+
+ARG PRIV_GH_USER
+ARG PRIV_GH_TOKEN
+
+ENV PRIV_GH_USER ${PRIV_GH_USER}
+ENV PRIV_GH_TOKEN ${PRIV_GH_TOKEN}
 
 RUN rustup toolchain install nightly && \
     rustup default nightly && \
@@ -40,12 +46,12 @@ COPY ./protocols/transport/Cargo.toml ./protocols/transport/Cargo.toml
 COPY ./params-minimizer/Cargo.toml ./params-minimizer/Cargo.toml
 COPY ./tests ./tests
 
-RUN cargo fetch
+RUN . /init.sh && cargo fetch
 
 # sources and build
 #
 COPY ./ .
-RUN cargo build --release
+RUN . /init.sh && cargo build --release
 
 #
 # Final image
