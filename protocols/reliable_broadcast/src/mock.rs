@@ -220,7 +220,6 @@ async fn run_tce_network(simu_config: SimulationConfig) -> Result<(), ()> {
 
     let (tx_exit, main_jh) = launch_simulation_main_loop(trbp_peers.clone(), rx_combined_events);
 
-
     // submit test certificate
     // and check for the certificate propagation
     let cert_list = generate_certs_list(&all_subnets, simu_config.input.nb_certificates);
