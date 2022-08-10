@@ -36,6 +36,9 @@ pub(crate) struct DiscoveryBehavior {
     routable_peers: HashSet<PeerId>,
 }
 
+const TCE_TRANSMISSION_PROTOCOL: &str = "/trbp-transmission/1";
+const TCE_DISCOVERY_PROTOCOL: &str = "/tce-disco/1";
+
 impl DiscoveryBehavior {
     pub(crate) fn new(
         local_key: Keypair,
@@ -46,13 +49,13 @@ impl DiscoveryBehavior {
 
         // identify
         let ident_config =
-            IdentifyConfig::new("/trbp-transmission/1".to_string(), local_key.public())
+            IdentifyConfig::new(TCE_TRANSMISSION_PROTOCOL.to_string(), local_key.public())
                 .with_push_listen_addr_updates(true);
         let ident = Identify::new(ident_config);
 
         // kademlia
         let kad_config = KademliaConfig::default()
-            .set_protocol_name("/tce-disco/1".as_bytes())
+            .set_protocol_name(TCE_DISCOVERY_PROTOCOL.as_bytes())
             .set_replication_interval(Some(Duration::from_secs(30)))
             .set_publication_interval(Some(Duration::from_secs(30)))
             .set_provider_publication_interval(Some(Duration::from_secs(30)))

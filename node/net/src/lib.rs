@@ -103,21 +103,6 @@ impl NetworkWorker {
             // Listen on all interfaces and whatever port the OS assigns
             swarm.listen_on(local_listen_addr).expect("Bind port");
 
-            // gossip launch
-            // for known_peer in config.known_peers.clone() {
-            //     log::info!(
-            //         "---- adding gossip peer:{} at {}",
-            //         &known_peer.0,
-            //         &known_peer.1
-            //     );
-            //
-            //     // we need to dial peer so that gossipsub would be aware of it
-            //     match swarm.dial(known_peer.1.clone()) {
-            //         Ok(_) => log::debug!("Dialed {:?}", &known_peer.1),
-            //         Err(e) => log::debug!("Dial {:?} failed: {:?}", &known_peer.1, e),
-            //     }
-            // }
-
             // networking loop
             loop {
                 tokio::select! {

@@ -28,7 +28,7 @@ use tokio::{
 #[derive(NetworkBehaviour)]
 #[behaviour(event_process = true)]
 pub(crate) struct TransmissionBehavior {
-    pub rr: RequestResponse<TransmissionCodec>,
+    pub req_resp_protocol: RequestResponse<TransmissionCodec>,
     #[behaviour(ignore)]
     pub tx_events: mpsc::UnboundedSender<NetworkEvents>,
     #[behaviour(ignore)]
@@ -39,7 +39,7 @@ impl TransmissionBehavior {
     /// Factory
     pub(crate) fn new(events_sender: mpsc::UnboundedSender<NetworkEvents>) -> Self {
         Self {
-            rr: RequestResponse::new(
+            req_resp_protocol: RequestResponse::new(
                 TransmissionCodec(),
                 iter::once((TransmissionProtocol(), ProtocolSupport::Full)),
                 Default::default(),
@@ -56,7 +56,7 @@ impl TransmissionBehavior {
                 for peer_id in to {
                     //  publish
                     let req_id = self
-                        .rr
+                        .req_resp_protocol
                         .send_request(&peer_id, TransmissionRequest(data.clone()));
                     //  remember each (req_id)
                     self.req_ids_to_ext_ids.insert(req_id);
@@ -78,7 +78,7 @@ impl TransmissionBehavior {
             data: req_payload.0,
         })?;
         //  send the response back, error handled in other event handling branches
-        self.rr
+        self.req_resp_protocol
             .send_response(resp_chan, TransmissionResponse(vec![]))?;
         Ok(())
     }
