@@ -29,17 +29,18 @@ where
     T: Clone + std::fmt::Debug + Ord,
     F: Fn(usize) -> usize,
 {
-    let input_len = src.len();
-    if input_len == 0 {
+    if src.is_empty() {
         return Err(SamplerError::ZeroLength);
     }
-    let sample_size = reducer(input_len);
-    if sample_size > input_len {
+
+    let src_len = src.len();
+    let sample_size = reducer(src_len);
+    if sample_size > src_len {
         return Err(SamplerError::ShortOfInput);
     }
 
     let mut result = Sample {
-        src_len: input_len,
+        src_len,
         sample_size,
         value: Vec::with_capacity(sample_size),
     };
@@ -51,9 +52,9 @@ where
 
     // WHy use uniform sampling over simple modulo based
     // https://docs.rs/rand/0.8.5/rand/distributions/uniform/struct.Uniform.html
-    let dist = Uniform::new(0, input_len); // Uniform::new is exclusive of the upper
-                                           // Track used entries to ensure we don't double select
-    let mut used = vec![false; input_len];
+    let dist = Uniform::new(0, src_len); // Uniform::new is exclusive of the upper
+                                         // Track used entries to ensure we don't double select
+    let mut used = vec![false; src_len];
     loop {
         // Sample a value from the uniform distribution
         let mut idx = dist.sample(&mut rng);
@@ -61,7 +62,7 @@ where
         // Usable when sample_size is close to input_len
         while used[idx] {
             idx += 1;
-            if idx >= input_len {
+            if idx >= src_len {
                 idx = 0;
             }
         }

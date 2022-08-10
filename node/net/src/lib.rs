@@ -58,6 +58,8 @@ pub enum NetworkCommands {
     TransmissionReq { to: Vec<PeerId>, data: Vec<u8> },
 }
 
+const TWO_HOURS: Duration = Duration::from_secs(60 * 60 * 2);
+
 impl NetworkWorker {
     pub fn new(config: NetworkWorkerConfig) -> Self {
         let (tx_events, rx_events) = mpsc::unbounded_channel();
@@ -86,7 +88,7 @@ impl NetworkWorker {
                 .upgrade(upgrade::Version::V1)
                 .authenticate(noise::NoiseConfig::xx(noise_keys).into_authenticated())
                 .multiplex(mplex::MplexConfig::new())
-                .timeout(Duration::from_secs(60 * 60 * 2))
+                .timeout(TWO_HOURS)
                 .boxed();
 
             let mut swarm = {
