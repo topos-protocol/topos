@@ -234,41 +234,44 @@ impl ReliableBroadcast {
     ///
     /// Union of all known peers.
     fn gossip_peers(&self) -> Vec<Peer> {
-        let sample_view_ref = self.current_sample_view.as_ref().unwrap();
-        let connected_peers = sample_view_ref
-            .get(&SampleType::EchoInbound)
-            .unwrap()
-            .iter()
-            .chain(
-                sample_view_ref
-                    .get(&SampleType::ReadyInbound)
-                    .unwrap()
-                    .iter(),
-            )
-            .chain(
-                sample_view_ref
-                    .get(&SampleType::DeliveryInbound)
-                    .unwrap()
-                    .iter(),
-            )
-            .chain(
-                sample_view_ref
-                    .get(&SampleType::EchoOutbound)
-                    .unwrap()
-                    .iter(),
-            )
-            .chain(
-                sample_view_ref
-                    .get(&SampleType::ReadyOutbound)
-                    .unwrap()
-                    .iter(),
-            )
-            .cloned()
-            .collect::<HashSet<_>>()
-            .into_iter()
-            .collect::<Vec<_>>();
+        if let Some(sample_view_ref) = self.current_sample_view.as_ref() {
+            let connected_peers = sample_view_ref
+                .get(&SampleType::EchoInbound)
+                .unwrap()
+                .iter()
+                .chain(
+                    sample_view_ref
+                        .get(&SampleType::ReadyInbound)
+                        .unwrap()
+                        .iter(),
+                )
+                .chain(
+                    sample_view_ref
+                        .get(&SampleType::DeliveryInbound)
+                        .unwrap()
+                        .iter(),
+                )
+                .chain(
+                    sample_view_ref
+                        .get(&SampleType::EchoOutbound)
+                        .unwrap()
+                        .iter(),
+                )
+                .chain(
+                    sample_view_ref
+                        .get(&SampleType::ReadyOutbound)
+                        .unwrap()
+                        .iter(),
+                )
+                .cloned()
+                .collect::<HashSet<_>>()
+                .into_iter()
+                .collect::<Vec<_>>();
 
-        connected_peers
+            connected_peers
+        } else {
+            vec![]
+        }
     }
 
     // Done only by sigma (the sender)
