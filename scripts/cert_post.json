@@ -1,9 +1,0 @@
-{
-    "cert" : {
-        "id": [0,3,4],
-        "prev_cert_id": [],
-        "initial_subnet_id": [0,1,3],
-        "calls": []
-    },
-    "_subnet_id": ""
-}

@@ -5,7 +5,7 @@ use topos_core::uci::{Certificate, CertificateId, DigestCompressed, SubnetId};
 
 /// Configuration of RocksDB store
 pub struct StoreConfig {
-    pub db_path: Option<String>,
+    pub db_path: String,
 }
 
 /// RocksDB based store
@@ -24,8 +24,7 @@ pub struct Store {
 
 impl Store {
     pub fn new(config: StoreConfig) -> Self {
-        let db_path = config.db_path.unwrap_or_else(|| "./default_db".into());
-        let db = DB::open_default(db_path).unwrap();
+        let db = DB::open_default(config.db_path).unwrap();
         Self { db: Arc::new(db) }
     }
 }
@@ -60,8 +59,16 @@ impl TrbStore for Store {
         Ok((vec![], 0u64))
     }
 
-    fn get_cert(&self, _subnet_id: &SubnetId, _last_n: u64) -> Option<Vec<CertificateId>> {
+    fn recent_certificates_for_subnet(
+        &self,
+        _subnet_id: &SubnetId,
+        _last_n: u64,
+    ) -> Option<Vec<CertificateId>> {
         unimplemented!("Please prefer TrbMemStore for now");
+    }
+
+    fn flush_digest_view(&mut self, _subnet_id: &SubnetId) -> Option<DigestCompressed> {
+        unimplemented!("Please prefer using the TrbMemStore for now");
     }
 
     fn cert_by_id(&self, cert_id: &CertificateId) -> Result<Option<Certificate>, Errors> {
@@ -72,7 +79,7 @@ impl TrbStore for Store {
         Ok(mb_cert)
     }
 
-    fn flush_digest_view(&mut self, _subnet_id: &SubnetId) -> Option<DigestCompressed> {
+    fn new_cert_candidate(&mut self, _cert: &Certificate, _digest: &DigestCompressed) {
         unimplemented!("Please prefer using the TrbMemStore for now");
     }
 
@@ -85,10 +92,6 @@ impl TrbStore for Store {
             Ok(Some(_)) => Ok(()),
             _ => Err(Errors::CertificateNotFound),
         }
-    }
-
-    fn new_cert_candidate(&mut self, _cert: &Certificate, _digest: &DigestCompressed) {
-        unimplemented!("Please prefer using the TrbMemStore for now");
     }
 
     fn clone_box(&self) -> Box<dyn TrbStore + Send> {

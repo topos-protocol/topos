@@ -23,11 +23,13 @@ pub struct TrbMemStore {
 
 impl TrbMemStore {
     pub fn new(subnets: Vec<SubnetId>) -> TrbMemStore {
-        let mut store = Self {
+        let mut store = TrbMemStore {
+            all_certs: Default::default(),
+            history: Default::default(),
+            tracked_digest: Default::default(),
+            received_digest: Default::default(),
             followed_subnet: subnets,
-            ..Default::default()
         };
-
         for subnet in &store.followed_subnet {
             store.tracked_digest.insert(*subnet, BTreeSet::new());
             store.history.insert(*subnet, BTreeSet::new());
@@ -53,9 +55,9 @@ impl TrbStore for TrbMemStore {
         Ok(())
     }
 
-    // JAEGER END DELIVERY TRACE [ cert, peer ]
-    fn new_cert_candidate(&mut self, cert: &Certificate, digest: &DigestCompressed) {
-        self.received_digest.insert(cert.id, digest.clone());
+    fn add_cert_in_hist(&mut self, subnet_id: &SubnetId, cert: &Certificate) -> bool {
+        self.all_certs.insert(cert.id, cert.clone());
+        self.history.entry(*subnet_id).or_default().insert(cert.id)
     }
 
     fn add_cert_in_digest(&mut self, subnet_id: &SubnetId, cert_id: &CertificateId) -> bool {
@@ -63,11 +65,6 @@ impl TrbStore for TrbMemStore {
             .entry(*subnet_id)
             .or_default()
             .insert(*cert_id)
-    }
-
-    fn add_cert_in_hist(&mut self, subnet_id: &SubnetId, cert: &Certificate) -> bool {
-        self.all_certs.insert(cert.id, cert.clone());
-        self.history.entry(*subnet_id).or_default().insert(cert.id)
     }
 
     fn read_journal(
@@ -79,17 +76,14 @@ impl TrbStore for TrbMemStore {
         unimplemented!();
     }
 
-    fn get_cert(&self, subnet_id: &SubnetId, _last_n: u64) -> Option<Vec<CertificateId>> {
+    fn recent_certificates_for_subnet(
+        &self,
+        subnet_id: &SubnetId,
+        _last_n: u64,
+    ) -> Option<Vec<CertificateId>> {
         self.history
             .get(subnet_id)
             .map(|subnet_certs| subnet_certs.iter().cloned().collect::<Vec<_>>())
-    }
-
-    fn cert_by_id(&self, cert_id: &CertificateId) -> Result<Option<Certificate>, Errors> {
-        match self.all_certs.get(cert_id) {
-            Some(cert) => Ok(Some(cert.clone())),
-            _ => Err(Errors::CertificateNotFound),
-        }
     }
 
     /// Compute and flush the digest for the given subnet
@@ -102,6 +96,18 @@ impl TrbStore for TrbMemStore {
             }
             _ => None,
         }
+    }
+
+    fn cert_by_id(&self, cert_id: &CertificateId) -> Result<Option<Certificate>, Errors> {
+        match self.all_certs.get(cert_id) {
+            Some(cert) => Ok(Some(cert.clone())),
+            _ => Err(Errors::CertificateNotFound),
+        }
+    }
+
+    // JAEGER END DELIVERY TRACE [ cert, peer ]
+    fn new_cert_candidate(&mut self, cert: &Certificate, digest: &DigestCompressed) {
+        self.received_digest.insert(cert.id, digest.clone());
     }
 
     ///

@@ -11,6 +11,7 @@ mod discovery_behavior;
 mod transmission_behavior;
 
 use behavior::Behavior;
+use std::time::Duration;
 
 use libp2p::{
     core::upgrade,
@@ -22,7 +23,7 @@ use libp2p::{
     Multiaddr, PeerId, Transport,
 };
 
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::mpsc;
 
 /// Configuration parameters
 pub struct NetworkWorkerConfig {
@@ -37,7 +38,7 @@ pub enum NetworkWorkerEvents {}
 
 /// Transport handle
 ///
-/// Communication is made using polling 'next_event()' and pushing commands to 'tx_commands'.
+/// Communication is made using polling [next_event()] and calling [eval()] (pushing commands to 'tx_commands').
 pub struct NetworkWorker {
     pub rx_events: mpsc::UnboundedReceiver<NetworkEvents>,
     pub tx_commands: mpsc::UnboundedSender<NetworkCommands>,
@@ -47,30 +48,17 @@ pub struct NetworkWorker {
 /// Network events
 #[derive(Debug)]
 pub enum NetworkEvents {
-    KadPeersChanged {
-        new_peers: Vec<PeerId>,
-    },
-    TransmissionOnReq {
-        from: PeerId,
-        data: Vec<u8>,
-        respond_to: oneshot::Sender<Vec<u8>>,
-    },
-    TransmissionOnResp {
-        for_ext_req_id: String,
-        from: PeerId,
-        data: Vec<u8>,
-    },
+    KadPeersChanged { new_peers: Vec<PeerId> },
+    TransmissionOnReq { from: PeerId, data: Vec<u8> },
 }
 
 /// Network commands
 #[derive(Debug)]
 pub enum NetworkCommands {
-    TransmissionReq {
-        ext_req_id: String,
-        to: Vec<PeerId>,
-        data: Vec<u8>,
-    },
+    TransmissionReq { to: Vec<PeerId>, data: Vec<u8> },
 }
+
+const TWO_HOURS: Duration = Duration::from_secs(60 * 60 * 2);
 
 impl NetworkWorker {
     pub fn new(config: NetworkWorkerConfig) -> Self {
@@ -100,6 +88,7 @@ impl NetworkWorker {
                 .upgrade(upgrade::Version::V1)
                 .authenticate(noise::NoiseConfig::xx(noise_keys).into_authenticated())
                 .multiplex(mplex::MplexConfig::new())
+                .timeout(TWO_HOURS)
                 .boxed();
 
             let mut swarm = {
@@ -115,21 +104,6 @@ impl NetworkWorker {
 
             // Listen on all interfaces and whatever port the OS assigns
             swarm.listen_on(local_listen_addr).expect("Bind port");
-
-            // gossip launch
-            for known_peer in config.known_peers.clone() {
-                log::info!(
-                    "---- adding gossip peer:{} at {}",
-                    &known_peer.0,
-                    &known_peer.1
-                );
-
-                // we need to dial peer so that gossipsub would be aware of it
-                match swarm.dial(known_peer.1.clone()) {
-                    Ok(_) => log::debug!("Dialed {:?}", &known_peer.1),
-                    Err(e) => log::debug!("Dial {:?} failed: {:?}", &known_peer.1, e),
-                }
-            }
 
             // networking loop
             loop {

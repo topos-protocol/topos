@@ -20,10 +20,10 @@ test:
 	RUSTFLAGS='-D warnings' cargo test --all
 
 clippy-check:
-	cargo clippy --all -- -D clippy::suspicious
+	RUSTFLAGS='-Dwarnings' cargo clippy --all -- -D clippy::suspicious
 
 clippy-fix:
-	cargo clippy --fix --allow-dirty
+	RUSTFLAGS='-Dwarnings' cargo clippy --fix --allow-dirty --all
 
 fmt-check:
 	cargo fmt --all --check

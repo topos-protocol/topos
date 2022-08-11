@@ -55,7 +55,7 @@ impl AppContext {
                 // protocol
                 Ok(evt) = self.trbp_cli.next_event() => {
                     log::debug!("trbp_cli.next_event(): {:?}", &evt);
-                    self.on_trbp_event(evt).await;
+                    self.on_protocol_event(evt).await;
                 },
 
                 // network
@@ -99,19 +99,17 @@ impl AppContext {
         }
     }
 
-    async fn on_trbp_event(&mut self, evt: TrbpEvents) {
-        log::debug!("on_trbp_event : {:?}", &evt);
+    async fn on_protocol_event(&mut self, evt: TrbpEvents) {
+        log::debug!("on_protocol_event : {:?}", &evt);
         match evt {
             TrbpEvents::NeedPeers => {
-                //todo
-                //  launch kademlia query or get latest known?
+                //todo - launch kademlia query or get latest known?
             }
             TrbpEvents::Broadcast { .. } => {
                 //todo ?
             }
             TrbpEvents::EchoSubscribeReq { peers } => {
                 let cmd = NetworkCommands::TransmissionReq {
-                    ext_req_id: "".to_string(),
                     to: peers
                         .iter()
                         .map(|e| PeerId::from_str(e.as_str()).expect("correct peer_id"))
@@ -125,7 +123,6 @@ impl AppContext {
             }
             TrbpEvents::ReadySubscribeReq { peers } => {
                 let cmd = NetworkCommands::TransmissionReq {
-                    ext_req_id: "".to_string(),
                     to: peers
                         .iter()
                         .map(|e| PeerId::from_str(e.as_str()).expect("correct peer_id"))
@@ -140,7 +137,6 @@ impl AppContext {
             TrbpEvents::EchoSubscribeOk { to_peer } => {
                 let to_peer_id = PeerId::from_str(to_peer.as_str()).expect("correct peer_id");
                 let cmd = NetworkCommands::TransmissionReq {
-                    ext_req_id: "".to_string(),
                     to: vec![to_peer_id],
                     data: NetworkMessage::from(TrbpCommands::OnEchoSubscribeOk {
                         from_peer: self.network_worker.my_peer_id.to_base58(),
@@ -152,7 +148,6 @@ impl AppContext {
             TrbpEvents::ReadySubscribeOk { to_peer } => {
                 let to_peer_id = PeerId::from_str(to_peer.as_str()).expect("correct peer_id");
                 let cmd = NetworkCommands::TransmissionReq {
-                    ext_req_id: "".to_string(),
                     to: vec![to_peer_id],
                     data: NetworkMessage::from(TrbpCommands::OnReadySubscribeOk {
                         from_peer: self.network_worker.my_peer_id.to_base58(),
@@ -167,7 +162,6 @@ impl AppContext {
                 digest,
             } => {
                 let cmd = NetworkCommands::TransmissionReq {
-                    ext_req_id: "".to_string(),
                     to: peers
                         .iter()
                         .map(|e| PeerId::from_str(e.as_str()).expect("correct peer_id"))
@@ -178,7 +172,6 @@ impl AppContext {
             }
             TrbpEvents::Echo { peers, cert } => {
                 let cmd = NetworkCommands::TransmissionReq {
-                    ext_req_id: "".to_string(),
                     to: peers
                         .iter()
                         .map(|e| PeerId::from_str(e.as_str()).expect("correct peer_id"))
@@ -193,7 +186,6 @@ impl AppContext {
             }
             TrbpEvents::Ready { peers, cert } => {
                 let cmd = NetworkCommands::TransmissionReq {
-                    ext_req_id: "".to_string(),
                     to: peers
                         .iter()
                         .map(|e| PeerId::from_str(e.as_str()).expect("correct peer_id"))
@@ -213,6 +205,7 @@ impl AppContext {
     }
 
     async fn on_net_event(&mut self, evt: NetworkEvents) {
+        log::debug!("on_net_event ({:?}", &evt);
         match evt {
             NetworkEvents::KadPeersChanged { new_peers } => {
                 //  notify the protocol
@@ -220,41 +213,12 @@ impl AppContext {
                     peers: new_peers.iter().map(|e| e.to_base58()).collect(),
                 });
             }
-            NetworkEvents::TransmissionOnReq {
-                from: _,
-                data,
-                respond_to,
-            } => {
+            NetworkEvents::TransmissionOnReq { from: _, data } => {
                 let msg: NetworkMessage = data.into();
                 match msg {
                     NetworkMessage::Cmd(cmd) => {
                         //  redirect
                         let _ = self.trbp_cli.eval(cmd);
-                        let _ = respond_to.send(NetworkMessage::Response(Ok(())).into());
-                    }
-                    _ => {
-                        let _ = respond_to
-                            .send(NetworkMessage::Response(Err("unexpected".to_string())).into());
-                    }
-                }
-            }
-            NetworkEvents::TransmissionOnResp {
-                for_ext_req_id: _,
-                from,
-                data,
-            } => {
-                let msg: NetworkMessage = data.into();
-
-                if let NetworkMessage::Response(res) = msg {
-                    match res {
-                        Ok(_) => {}
-                        Err(str) => {
-                            log::warn!(
-                                "the peer '{}' returned an error: {}",
-                                from.to_base58(),
-                                &str
-                            );
-                        }
                     }
                 }
             }
@@ -269,7 +233,6 @@ impl AppContext {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 enum NetworkMessage {
     Cmd(TrbpCommands),
-    Response(Result<(), String>),
 }
 
 // deserializer
