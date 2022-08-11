@@ -1,18 +1,21 @@
 //! Protocol implementation guts.
 //!
-use crate::sampler::{SampleType, SampleView};
-use crate::Peer;
-use crate::{trb_store::TrbStore, ReliableBroadcastConfig};
-#[allow(unused)]
-use opentelemetry::KeyValue;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
 use std::sync::{Arc, Mutex};
 use std::time;
-use tce_transport::{ReliableBroadcastParams, TrbpCommands, TrbpEvents};
+
+#[allow(unused)]
+use opentelemetry::KeyValue;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
+
+use tce_transport::{ReliableBroadcastParams, TrbpCommands, TrbpEvents};
 use topos_core::uci::{Certificate, CertificateId, DigestCompressed};
+
+use crate::sampler::{SampleType, SampleView};
+use crate::{sampler, Peer};
+use crate::{trb_store::TrbStore, ReliableBroadcastConfig};
 
 /// Processing data associated to a Certificate candidate for delivery
 /// Sample repartition, one peer may belongs to multiple samples
@@ -36,7 +39,7 @@ pub struct ReliableBroadcast {
     pub cert_candidate: HashMap<Certificate, DeliveryState>,
     delivered_pending: HashSet<Certificate>,
     pub all_known_certs: Vec<Certificate>,
-    pub delivery_time: HashMap<CertificateId, (std::time::SystemTime, time::Duration)>,
+    pub delivery_time: HashMap<CertificateId, (time::SystemTime, time::Duration)>,
     current_sample_view: Option<SampleView>,
 }
 
@@ -68,7 +71,7 @@ impl ReliableBroadcast {
             events_subscribers: Vec::new(),
             tx_exit,
             store: config.store,
-            params: config.params.clone(),
+            params: config.trbp_params.clone(),
             cert_candidate: HashMap::new(),
             delivered_pending: HashSet::new(),
             all_known_certs: Vec::new(),
@@ -86,7 +89,7 @@ impl ReliableBroadcast {
                     }
                     // poll new sample view
                     new_sample_view = sample_view_receiver.recv() => {
-                        Self::new_sample_view(me_cl.clone(), new_sample_view);
+                        Self::on_new_sample_view(me_cl.clone(), new_sample_view);
                     }
                     // exit command
                     Some(_) = rx_exit.recv() => {
@@ -103,15 +106,19 @@ impl ReliableBroadcast {
         aggr.current_sample_view.is_some()
     }
 
-    fn new_sample_view(
+    fn on_new_sample_view(
         data: Arc<Mutex<ReliableBroadcast>>,
         mb_new_view: Result<SampleView, broadcast::error::RecvError>,
     ) {
+        log::info!("on_new_sample_view({:?})", &mb_new_view);
         let mut aggr = data.lock().unwrap();
-
-        if let Ok(mb_new_view) = mb_new_view {
-            log::trace!("[{:?}] New sample view", aggr.my_peer_id);
-            aggr.current_sample_view = Some(mb_new_view);
+        if let Ok(new_view) = mb_new_view {
+            log::debug!(
+                "new_sample_view - [{:?}] New sample view: {:?}",
+                aggr.my_peer_id,
+                new_view
+            );
+            aggr.current_sample_view = Some(new_view);
         } else {
             log::warn!("Failure on the sample view channel");
         }
@@ -173,14 +180,29 @@ impl ReliableBroadcast {
     /// build initial delivery state
     fn delivery_state_for_new_cert(&mut self) -> Option<DeliveryState> {
         let ds = self.current_sample_view.clone().unwrap();
-        match ds.values().all(|s| !s.is_empty()) {
-            true => Some(ds),
-            false => None,
+
+        // check inbound sets are not empty
+        if ds
+            .get(&SampleType::EchoInbound)
+            .unwrap_or(&HashSet::<sampler::Peer>::new())
+            .is_empty()
+            || ds
+                .get(&SampleType::ReadyInbound)
+                .unwrap_or(&HashSet::<sampler::Peer>::new())
+                .is_empty()
+            || ds
+                .get(&SampleType::DeliveryInbound)
+                .unwrap_or(&HashSet::<sampler::Peer>::new())
+                .is_empty()
+        {
+            None
+        } else {
+            Some(ds)
         }
     }
 
     /// Called to process potentially new certificate:
-    /// - either submitted from API ( [TrbpCommands::Broadcast] command)
+    /// - either submitted from API ( [tce_transport::TrbpCommands::Broadcast] command)
     /// - or received through the gossip (first step of protocol exchange)
     fn dispatch(&mut self, cert: Certificate, digest: DigestCompressed) {
         if self.cert_pre_delivery_check(&cert).is_err() {
@@ -198,23 +220,58 @@ impl ReliableBroadcast {
         }
 
         // Gossip the certificate to all my peers
-        let curr_view = self.current_sample_view.clone();
-        let connected_peers = curr_view
-            .unwrap()
-            .get_mut(&SampleType::EchoInbound)
-            .unwrap()
-            .iter()
-            .cloned()
-            .collect::<Vec<_>>();
 
-        // FIXME: need visibility on the connected peers
         self.send_out_events(TrbpEvents::Gossip {
-            peers: connected_peers, // considered as the G-set for erdos-renyi
+            peers: self.gossip_peers(), // considered as the G-set for erdos-renyi
             cert: cert.clone(),
             digest: digest.clone(),
         });
         // Trigger event of new certificate candidate for delivery
         self.start_delivery(cert, digest);
+    }
+
+    /// My gossip peers.
+    ///
+    /// Union of all known peers.
+    fn gossip_peers(&self) -> Vec<Peer> {
+        if let Some(sample_view_ref) = self.current_sample_view.as_ref() {
+            let connected_peers = sample_view_ref
+                .get(&SampleType::EchoInbound)
+                .unwrap()
+                .iter()
+                .chain(
+                    sample_view_ref
+                        .get(&SampleType::ReadyInbound)
+                        .unwrap()
+                        .iter(),
+                )
+                .chain(
+                    sample_view_ref
+                        .get(&SampleType::DeliveryInbound)
+                        .unwrap()
+                        .iter(),
+                )
+                .chain(
+                    sample_view_ref
+                        .get(&SampleType::EchoOutbound)
+                        .unwrap()
+                        .iter(),
+                )
+                .chain(
+                    sample_view_ref
+                        .get(&SampleType::ReadyOutbound)
+                        .unwrap()
+                        .iter(),
+                )
+                .cloned()
+                .collect::<HashSet<_>>()
+                .into_iter()
+                .collect::<Vec<_>>();
+
+            connected_peers
+        } else {
+            vec![]
+        }
     }
 
     // Done only by sigma (the sender)
@@ -237,7 +294,7 @@ impl ReliableBroadcast {
 
     // pb.Deliver
     fn start_delivery(&mut self, cert: Certificate, digest: DigestCompressed) {
-        log::trace!(
+        log::debug!(
             "🙌 StartDelivery[{:?}]\t Peer:{:?}",
             &cert.id,
             &self.my_peer_id
@@ -337,12 +394,12 @@ impl ReliableBroadcast {
                             self.my_peer_id.clone(),
                             cert.id,
                             *from,
-                            std::time::SystemTime::now(),
+                            time::SystemTime::now(),
                             Default::default(),
                         )
                     }
                     self.delivered_pending.remove(cert);
-                    log::trace!(
+                    log::debug!(
                         "📝 Accepted[{:?}]\t Peer:{:?}\t Delivery time: {:?}",
                         &cert.id,
                         self.my_peer_id,
@@ -382,7 +439,6 @@ impl ReliableBroadcast {
         if self.store.check_digest_inclusion(cert).is_err() {
             log::warn!("Inclusion check not yet satisfied {:?}", cert);
         }
-
         Ok(())
     }
 }

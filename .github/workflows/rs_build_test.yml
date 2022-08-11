@@ -37,12 +37,16 @@ jobs:
         uses: fusion-engineering/setup-git-credentials@v2
         with:
           credentials: https://robot-toposware:${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}@github.com
+
       - name: Install Rust ${{ matrix.version }}
         uses: actions-rs/toolchain@v1
         with:
             toolchain: ${{ matrix.version }}
             components: 
             override: true
+            build-args: |
+              PRIV_GH_USER=robot-toposware
+              PRIV_GH_TOKEN=${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
 
       - uses: Swatinem/rust-cache@v1
 
@@ -51,6 +55,9 @@ jobs:
         with:
           command: test
           args: --workspace
+          build-args: |
+            PRIV_GH_USER=robot-toposware
+            PRIV_GH_TOKEN=${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
 
   fmt:
     name: fmt

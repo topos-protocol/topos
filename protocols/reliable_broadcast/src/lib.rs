@@ -3,18 +3,22 @@
 //! Abstracted from actual transport implementation.
 //! Abstracted from actual storage implementation.
 //!
-use crate::trb_store::TrbStore;
-use double_echo::aggregator::ReliableBroadcast;
-#[allow(unused)]
-use opentelemetry::global;
-use sampler::{aggregator::PeerSamplingOracle, SampleView};
 use std::sync::{Arc, Mutex};
 use std::time;
+
+#[allow(unused)]
+use opentelemetry::global;
+use tokio::sync::{broadcast, mpsc};
+
+use double_echo::aggregator::ReliableBroadcast;
+use sampler::{aggregator::PeerSamplingOracle, SampleView};
 use tce_transport::{ReliableBroadcastParams, TrbpCommands, TrbpEvents};
-use tokio::sync::broadcast;
-use tokio::sync::mpsc;
-pub use topos_core::uci;
+
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
+
+use crate::trb_store::TrbStore;
+
+pub use topos_core::uci;
 pub type Peer = String;
 
 pub mod double_echo;
@@ -26,12 +30,12 @@ pub mod trb_store;
 /// Configuration of TRB implementation
 pub struct ReliableBroadcastConfig {
     pub store: Box<dyn TrbStore + Send>,
-    pub params: ReliableBroadcastParams,
+    pub trbp_params: ReliableBroadcastParams,
     pub my_peer_id: Peer,
 }
 
-#[derive(Debug)]
 /// Thread safe client to the protocol aggregate
+#[derive(Debug)]
 pub struct ReliableBroadcastClient {
     peer_id: String,
     b_aggr: Arc<Mutex<ReliableBroadcast>>,
@@ -47,12 +51,15 @@ impl ReliableBroadcastClient {
     /// New client instances to the same aggregate can be cloned from the returned one.
     /// Aggregate is spawned as new task.
     pub fn new(config: ReliableBroadcastConfig) -> Self {
+        log::info!("new(trbp_params: {:?})", &config.trbp_params);
+
         let peer_id = config.my_peer_id.clone();
 
         // Oneshot channel for new sample state (era)
         let (sample_view_sender, sample_view_receiver) = broadcast::channel::<SampleView>(16);
 
-        let s_w_aggr = PeerSamplingOracle::spawn_new(config.params.clone(), sample_view_sender);
+        let s_w_aggr =
+            PeerSamplingOracle::spawn_new(config.trbp_params.clone(), sample_view_sender);
         let mut s_aggr = s_w_aggr.lock().unwrap();
         let sampling_commands = s_aggr.sampling_commands_channel.clone();
 
@@ -100,10 +107,10 @@ impl ReliableBroadcastClient {
             )
         };
         if is_broadcast_related(cmd.clone()) {
-            //log::info!("eval for broadcast {:?}", cmd);
+            log::debug!("eval for broadcast {:?}", cmd);
             self.broadcast_commands.send(cmd).map_err(|err| err.into())
         } else {
-            //log::info!("eval for sampling {:?}", cmd);
+            log::debug!("eval for sampling {:?}", cmd);
             self.sampling_commands.send(cmd).map_err(|err| err.into())
         }
     }
@@ -120,13 +127,18 @@ impl ReliableBroadcastClient {
         Ok(vec![])
     }
 
-    /// delivered certificates for given terminal chain after given certificate
+    /// delivered certificates for given terminal chain after the given certificate
     pub fn delivered_certs_ids(
         &self,
         subnet_id: SubnetId,
         _from_cert_id: CertificateId,
     ) -> Result<Option<Vec<CertificateId>>, Errors> {
-        let certs = self.b_aggr.lock().unwrap().store.get_cert(&subnet_id, 10);
+        let certs = self
+            .b_aggr
+            .lock()
+            .unwrap()
+            .store
+            .recent_certificates_for_subnet(&subnet_id, 10); //fixme
         Ok(certs)
     }
 

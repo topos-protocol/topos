@@ -1,6 +1,7 @@
 //! Kademlia & Identify working together for auto discovery of the nodes
 //!
-use crate::{identity::Keypair, NetworkEvents};
+use std::collections::HashSet;
+use std::time::Duration;
 
 use libp2p::{
     identify::Identify,
@@ -11,8 +12,9 @@ use libp2p::{
     swarm::NetworkBehaviourEventProcess,
     Multiaddr, NetworkBehaviour, PeerId,
 };
-use std::collections::HashSet;
 use tokio::sync::mpsc;
+
+use crate::{identity::Keypair, NetworkEvents};
 
 /// Auto discovery behaviour.
 ///
@@ -34,6 +36,9 @@ pub(crate) struct DiscoveryBehavior {
     routable_peers: HashSet<PeerId>,
 }
 
+const TCE_TRANSMISSION_PROTOCOL: &str = "/trbp-transmission/1";
+const TCE_DISCOVERY_PROTOCOL: &str = "/tce-disco/1";
+
 impl DiscoveryBehavior {
     pub(crate) fn new(
         local_key: Keypair,
@@ -44,18 +49,27 @@ impl DiscoveryBehavior {
 
         // identify
         let ident_config =
-            IdentifyConfig::new("/trbp-transmission/1".to_string(), local_key.public())
+            IdentifyConfig::new(TCE_TRANSMISSION_PROTOCOL.to_string(), local_key.public())
                 .with_push_listen_addr_updates(true);
         let ident = Identify::new(ident_config);
 
         // kademlia
-        let kad_config = KademliaConfig::default();
+        let kad_config = KademliaConfig::default()
+            .set_protocol_name(TCE_DISCOVERY_PROTOCOL.as_bytes())
+            .set_replication_interval(Some(Duration::from_secs(30)))
+            .set_publication_interval(Some(Duration::from_secs(30)))
+            .set_provider_publication_interval(Some(Duration::from_secs(30)))
+            .to_owned();
 
         let mut kad =
             Kademlia::with_config(local_peer_id, MemoryStore::new(local_peer_id), kad_config);
 
         for known_peer in known_peers {
-            log::info!("---- adding peer:{} at {}", &known_peer.0, &known_peer.1);
+            log::info!(
+                "Kademlia:  ---- adding peer:{} at {}",
+                &known_peer.0,
+                &known_peer.1
+            );
             kad.add_address(&known_peer.0, known_peer.1);
         }
 
@@ -76,6 +90,7 @@ impl DiscoveryBehavior {
     }
 
     fn notify_peers(&mut self) {
+        log::debug!("notify_peers - peers: {:?}", &self.routable_peers);
         let cl_tx = self.tx_events.clone();
         let cl_peers: Vec<PeerId> = Vec::from_iter(self.routable_peers.clone());
         tokio::spawn(async move {
@@ -108,19 +123,22 @@ impl NetworkBehaviourEventProcess<KademliaEvent> for DiscoveryBehavior {
         match event {
             KademliaEvent::RoutingUpdated {
                 peer,
-                is_new_peer: _,
+                is_new_peer,
                 addresses: _,
                 bucket_range: _,
                 old_peer: _,
             } => {
                 log::info!("routing updated: {:?}", peer);
-                self.routable_peers.insert(peer);
-                self.notify_peers();
+                // do the callback AFTER Identify worked (not a newly added peer)
+                if !is_new_peer && self.routable_peers.insert(peer) {
+                    self.notify_peers();
+                }
             }
             KademliaEvent::UnroutablePeer { peer } => {
                 log::info!("unroutable peer: {:?}", peer);
-                self.routable_peers.remove(&peer);
-                self.notify_peers();
+                if self.routable_peers.remove(&peer) {
+                    self.notify_peers();
+                }
             }
             _ => {}
         }
