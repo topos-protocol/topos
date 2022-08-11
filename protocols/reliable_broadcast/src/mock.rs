@@ -20,7 +20,7 @@ const NETWORK_DELAY_SIMULATION: bool = false;
 static MAX_TEST_DURATION: Duration = Duration::from_secs(60 * 2);
 /// Max time that the simulation can be stalled
 /// Stall in the sense no messages get exchanged across the nodes
-static MAX_STALL_DURATION: Duration = Duration::from_secs(4);
+static MAX_STALL_DURATION: Duration = Duration::from_secs(60);
 
 pub type PeersContainer = HashMap<String, Arc<Mutex<ReliableBroadcastClient>>>;
 
@@ -97,7 +97,7 @@ impl SimulationConfig {
     pub fn new(input: InputConfig) -> Self {
         Self {
             input,
-            ..Default::default()
+            params: ReliableBroadcastParams::default(),
         }
     }
 
@@ -129,7 +129,7 @@ use std::sync::Once;
 
 static INIT: Once = Once::new();
 
-pub fn initialize() {
+pub fn initialize_tracing() {
     INIT.call_once(|| {
         let agent_endpoint = "127.0.0.1:6831".to_string();
         tce_telemetry::init_tracer(&agent_endpoint, "local-integration-test");
@@ -145,7 +145,7 @@ pub fn viable_run(
 ) -> Option<SimulationConfig> {
     let mut config = SimulationConfig {
         input: input.clone(),
-        ..Default::default()
+        params: ReliableBroadcastParams::default(),
     };
     config.set_sample_size(sample_size);
     config.set_threshold(echo_ratio, ready_ratio, deliver_ratio);
@@ -153,8 +153,8 @@ pub fn viable_run(
     let rt = Runtime::new().unwrap();
     let current_config = config.clone();
     let res = rt.block_on(async {
-        initialize();
-        run_instance(current_config).await
+        initialize_tracing();
+        run_tce_network(current_config).await
     });
 
     match res {
@@ -163,7 +163,7 @@ pub fn viable_run(
     }
 }
 
-fn generate_cert(subnets: &Vec<SubnetId>, nb_cert: usize) -> Vec<Certificate> {
+fn generate_certs_list(subnets: &Vec<SubnetId>, nb_cert: usize) -> Vec<Certificate> {
     let mut nonce_state: HashMap<SubnetId, CertificateId> = HashMap::new();
     // Initialize the genesis of all subnets
     for subnet in subnets {
@@ -182,7 +182,7 @@ fn generate_cert(subnets: &Vec<SubnetId>, nb_cert: usize) -> Vec<Certificate> {
     (0..nb_cert).map(|_| gen_cert()).collect::<Vec<_>>()
 }
 
-fn submit_test_cert(
+fn submit_test_certs(
     certs: Vec<Certificate>,
     peers_container: Arc<PeersContainer>,
     to_peer: String,
@@ -199,8 +199,8 @@ fn submit_test_cert(
     });
 }
 
-async fn run_instance(simu_config: SimulationConfig) -> Result<(), ()> {
-    //log::info!("{:?}", simu_config);
+async fn run_tce_network(simu_config: SimulationConfig) -> Result<(), ()> {
+    log::info!("{:?}", simu_config);
 
     let all_peer_ids: Vec<String> = (1..=simu_config.input.nb_peers)
         .map(|e| format!("peer{}", e))
@@ -219,10 +219,14 @@ async fn run_instance(simu_config: SimulationConfig) -> Result<(), ()> {
     );
 
     let (tx_exit, main_jh) = launch_simulation_main_loop(trbp_peers.clone(), rx_combined_events);
-    let cert_list = generate_cert(&all_subnets, simu_config.input.nb_certificates);
+
     // submit test certificate
     // and check for the certificate propagation
-    submit_test_cert(cert_list.clone(), trbp_peers.clone(), "peer1".to_string());
+    let cert_list = generate_certs_list(&all_subnets, simu_config.input.nb_certificates);
+    // have to give the nodes some time to arrange with peers
+    time::sleep(Duration::from_secs(30)).await;
+    submit_test_certs(cert_list.clone(), trbp_peers.clone(), "peer1".to_string());
+
     watch_cert_delivered(
         trbp_peers.clone(),
         cert_list.clone(),
@@ -357,7 +361,7 @@ fn launch_broadcast_protocol_instances(
     for peer in peer_ids {
         let client = ReliableBroadcastClient::new(ReliableBroadcastConfig {
             store: Box::new(TrbMemStore::new(all_subnets.clone())),
-            params: global_trb_params.clone(),
+            trbp_params: global_trb_params.clone(),
             my_peer_id: peer.clone(),
         });
 
@@ -425,10 +429,6 @@ pub async fn handle_peer_event(
             if let Some(w_cli) = mb_cli {
                 let cli = w_cli.lock().unwrap();
                 cli.eval(TrbpCommands::OnVisiblePeersChanged {
-                    peers: visible_peers.clone(),
-                })?;
-                // very rough, like every node is connected to every other node
-                cli.eval(TrbpCommands::OnConnectedPeersChanged {
                     peers: visible_peers,
                 })?;
             }

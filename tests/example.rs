@@ -22,10 +22,10 @@ fn is_running(process: &mut Process) -> bool {
     std::thread::sleep(std::time::Duration::from_secs(1));
     match process.try_wait() {
         Ok(Some(status)) => {
-            println!("unable to launch {status}");
+            println!("unable to launch {}", status);
         }
         Ok(None) => {}
-        Err(e) => println!("error attempting to wait: {e}"),
+        Err(e) => println!("error attempting to wait: {}", e),
     }
     process.try_wait().is_ok()
 }
@@ -58,7 +58,7 @@ impl cucumber::World for World {
 
 #[given(expr = "tce node listening {word}")]
 async fn launch_tce_node(w: &mut World, port: String) {
-    let args = ["--ram-storage", "--web-api-local-port", port.as_str()];
+    let args = ["--web-api-local-port", port.as_str()];
 
     // Given
     // Launch the TCE process
