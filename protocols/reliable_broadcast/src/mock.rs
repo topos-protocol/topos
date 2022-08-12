@@ -226,22 +226,18 @@ fn test_gen_cert() {
 
 fn submit_test_cert(
     // FIXME: Flatten this input into Vec<Certificate>
-    history_state: HashMap<SubnetId, HashMap<CertificateId, Vec<Certificate>>>,
+    certificates: Vec<Certificate>,
     peers_container: Arc<PeersContainer>,
     to_peer: String,
 ) {
     tokio::spawn(async move {
-        for subnet_history in history_state.values() {
-            for certificates in subnet_history.values() {
-                for cert in certificates {
-                    let mb_cli = peers_container.get(&*to_peer);
-                    if let Some(w_cli) = mb_cli {
-                        let cli = w_cli.lock().unwrap();
-                        cli.eval(TrbpCommands::OnBroadcast { cert: cert.clone() })
-                            .unwrap();
-                    };
-                }
-            }
+        for cert in certificates {
+            let mb_cli = peers_container.get(&*to_peer);
+            if let Some(w_cli) = mb_cli {
+                let cli = w_cli.lock().unwrap();
+                cli.eval(TrbpCommands::OnBroadcast { cert: cert.clone() })
+                    .unwrap();
+            };
         }
     });
 }
@@ -268,7 +264,15 @@ async fn run_tce_network(simu_config: SimulationConfig) -> Result<(), ()> {
     let cert_list = generate_cert(&all_subnets, simu_config.input.nb_certificates);
     let nodes_history = cert_list
         .values()
-        .collect::<Vec<&HashMap<u64, Vec<Certificate>>>>();
+        .collect::<Vec<&HashMap<CertificateId, Vec<Certificate>>>>();
+    let mut all_cert = Vec::<Certificate>::new();
+    for certs_map in nodes_history.clone() {
+        for certs_vec in certs_map.values() {
+            for cert in certs_vec.clone() {
+                all_cert.push(cert);
+            }
+        }
+    }
     let mut node_history: Vec<Certificate> = Vec::new();
     for history in nodes_history {
         for vec_certs in history.values().collect::<Vec<_>>() {
@@ -281,7 +285,7 @@ async fn run_tce_network(simu_config: SimulationConfig) -> Result<(), ()> {
     // and check for the certificate propagation
     // have to give the nodes some time to arrange with peers
     time::sleep(Duration::from_secs(30)).await;
-    submit_test_cert(cert_list.clone(), trbp_peers.clone(), "peer1".to_string());
+    submit_test_cert(all_cert.clone(), trbp_peers.clone(), "peer1".to_string());
 
     watch_cert_delivered(
         trbp_peers.clone(),
