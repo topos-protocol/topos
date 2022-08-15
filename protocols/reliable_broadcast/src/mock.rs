@@ -222,7 +222,7 @@ fn generate_cert(
 
 #[test]
 fn test_cert_conflict_generation() {
-    let nb_subnet = 100;
+    let nb_subnet = 3;
     let nb_cert = 50;
     let conflict_ratio = 0.3;
     let all_subnets: Vec<SubnetId> = (1..=nb_subnet as u64).collect();
