@@ -191,12 +191,21 @@ fn generate_cert(
             gen_cert = Certificate::new(*last_cert_id, selected_subnet, Default::default());
             *last_cert_id = gen_cert.id;
         }
+<<<<<<< HEAD
 
         (selected_subnet, gen_cert)
     };
     let nb_conflict = (conflict_ratio * nb_cert as f32) as usize;
     for _ in 0..nb_conflict {
         let is_conflicting = true;
+=======
+
+        (selected_subnet, gen_cert)
+    };
+
+    for _ in 0..nb_cert {
+        let is_conflicting = rng.gen::<f32>() > conflict_ratio;
+>>>>>>> 01e10d1f829b3f28bca09f28a61d17725b6439e5
         let (current_subnet_id, current_cert) = gen_cert(is_conflicting);
         if let Some(subnet_history) = history_state.get_mut(&current_subnet_id) {
             subnet_history
