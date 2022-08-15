@@ -5,8 +5,6 @@ use rand::Rng;
 use rand_distr::Distribution;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Display, Formatter};
-//use std::fs::File;
-//use std::io::{Error, Write};
 
 use std::sync::{Arc, Mutex};
 use tce_transport::{ReliableBroadcastParams, TrbpCommands, TrbpEvents};
@@ -168,6 +166,7 @@ pub fn viable_run(
 fn generate_cert(
     subnets: &Vec<SubnetId>,
     nb_cert: usize,
+    conflict_ratio: f32,
 ) -> HashMap<SubnetId, HashMap<CertificateId, Vec<Certificate>>> {
     let mut nonce_state: HashMap<SubnetId, CertificateId> = HashMap::new();
     let mut history_state: HashMap<SubnetId, HashMap<CertificateId, Vec<Certificate>>> =
@@ -179,26 +178,25 @@ fn generate_cert(
         history_state.insert(*subnet, HashMap::new());
     }
 
-    let mut rng = rand::thread_rng();
+    //let mut rng = rand::thread_rng();
     let mut gen_cert = |is_conflicting| -> (SubnetId, Certificate) {
         let mut rng = rand::thread_rng();
         let selected_subnet = subnets[rng.gen_range(0..subnets.len())];
         let last_cert_id = nonce_state.get_mut(&selected_subnet).unwrap();
+
+        let gen_cert: Certificate;
         if is_conflicting {
-            let gen_cert = Certificate::new(0, selected_subnet, Default::default());
-            (selected_subnet, gen_cert)
+            gen_cert = Certificate::new(0, selected_subnet, Default::default());
         } else {
-            let gen_cert = Certificate::new(*last_cert_id, selected_subnet, Default::default());
+            gen_cert = Certificate::new(*last_cert_id, selected_subnet, Default::default());
             *last_cert_id = gen_cert.id;
-            (selected_subnet, gen_cert)
         }
+
+        (selected_subnet, gen_cert)
     };
-
-    //  let conflicting_ratio: f32 = 0.5;
-    //  let nb_conflicting_cert: usize = (conflicting_ratio * (nb_cert as f32)) as usize;
-
-    for _ in 0..nb_cert {
-        let is_conflicting = rng.gen_range(0..10) as f64 / 10.0 > 0.5;
+    let nb_conflict = (conflict_ratio * nb_cert as f32) as usize;
+    for _ in 0..nb_conflict {
+        let is_conflicting = true;
         let (current_subnet_id, current_cert) = gen_cert(is_conflicting);
         if let Some(subnet_history) = history_state.get_mut(&current_subnet_id) {
             subnet_history
@@ -207,16 +205,28 @@ fn generate_cert(
                 .or_insert_with(|| vec![current_cert]);
         }
     }
+    println!("nb conf in gencert : {}", nb_conflict);
 
+    for _ in 0..(nb_cert - nb_conflict) {
+        let is_conflicting = false;
+        let (current_subnet_id, current_cert) = gen_cert(is_conflicting);
+        if let Some(subnet_history) = history_state.get_mut(&current_subnet_id) {
+            subnet_history
+                .entry(current_cert.prev_cert_id)
+                .and_modify(|v| v.push(current_cert.clone()))
+                .or_insert_with(|| vec![current_cert]);
+        }
+    }
     history_state
 }
 
 #[test]
-fn test_gen_cert() {
+fn test_cert_conflict_generation() {
     let nb_subnet = 100;
     let nb_cert = 50;
+    let conflict_ratio = 0.3;
     let all_subnets: Vec<SubnetId> = (1..=nb_subnet as u64).collect();
-    let history_state = generate_cert(&all_subnets, nb_cert);
+    let history_state = generate_cert(&all_subnets, nb_cert, conflict_ratio);
     let mut conflict = false;
     for (_, history_of_subnet) in history_state {
         conflict = history_of_subnet.values().any(|v| v.len() > 1) || conflict;
@@ -225,7 +235,6 @@ fn test_gen_cert() {
 }
 
 fn submit_test_cert(
-    // FIXME: Flatten this input into Vec<Certificate>
     certificates: Vec<Certificate>,
     peers_container: Arc<PeersContainer>,
     to_peer: String,
@@ -245,6 +254,7 @@ fn submit_test_cert(
 async fn run_tce_network(simu_config: SimulationConfig) -> Result<(), ()> {
     log::info!("{:?}", simu_config);
 
+    let conflict_ratio = 0.;
     let all_peer_ids: Vec<String> = (1..=simu_config.input.nb_peers)
         .map(|e| format!("peer{}", e))
         .collect();
@@ -261,7 +271,11 @@ async fn run_tce_network(simu_config: SimulationConfig) -> Result<(), ()> {
         simu_config.params.clone(),
     );
     let (tx_exit, main_jh) = launch_simulation_main_loop(trbp_peers.clone(), rx_combined_events);
-    let cert_list = generate_cert(&all_subnets, simu_config.input.nb_certificates);
+    let cert_list = generate_cert(
+        &all_subnets,
+        simu_config.input.nb_certificates,
+        conflict_ratio,
+    );
     let nodes_history = cert_list
         .values()
         .collect::<Vec<&HashMap<CertificateId, Vec<Certificate>>>>();
