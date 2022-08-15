@@ -178,7 +178,6 @@ fn generate_cert(
         history_state.insert(*subnet, HashMap::new());
     }
 
-    //let mut rng = rand::thread_rng();
     let mut gen_cert = |is_conflicting| -> (SubnetId, Certificate) {
         let mut rng = rand::thread_rng();
         let selected_subnet = subnets[rng.gen_range(0..subnets.len())];
@@ -205,7 +204,6 @@ fn generate_cert(
                 .or_insert_with(|| vec![current_cert]);
         }
     }
-    println!("nb conf in gencert : {}", nb_conflict);
 
     for _ in 0..(nb_cert - nb_conflict) {
         let is_conflicting = false;
@@ -222,7 +220,7 @@ fn generate_cert(
 
 #[test]
 fn test_cert_conflict_generation() {
-    let nb_subnet = 100;
+    let nb_subnet = 3;
     let nb_cert = 50;
     let conflict_ratio = 0.3;
     let all_subnets: Vec<SubnetId> = (1..=nb_subnet as u64).collect();
