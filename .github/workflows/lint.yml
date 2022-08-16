@@ -1,0 +1,30 @@
+name: Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  lint:
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - { name: Linux, os: ubuntu-latest, triple: x86_64-unknown-linux-gnu }
+        version:
+          - "1.62.1"
+
+    name: ${{ matrix.version }} - Lint
+    runs-on: ${{ matrix.target.os }}
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: docker/build-push-action@v3
+        with:
+          target: lint
+          build-args: |
+            GITHUB_TOKEN=${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
+            TOOLCHAIN_VERSION=${{ matrix.version }}
