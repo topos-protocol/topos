@@ -5,6 +5,7 @@ use rand::Rng;
 use rand_distr::Distribution;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Display, Formatter};
+
 use std::sync::{Arc, Mutex};
 use tce_transport::{ReliableBroadcastParams, TrbpCommands, TrbpEvents};
 use tokio::runtime::Runtime;
@@ -46,7 +47,6 @@ impl Debug for SimulationConfig {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let r = |a, b| (a as f32) / (b as f32) * 100.;
         let echo_t_ratio = r(self.params.echo_threshold, self.params.echo_sample_size);
-        let ready_t_ratio = r(self.params.ready_threshold, self.params.ready_sample_size);
         let delivery_t_ratio = r(
             self.params.delivery_threshold,
             self.params.delivery_sample_size,
@@ -62,7 +62,7 @@ impl Debug for SimulationConfig {
             self.params.echo_sample_size,
             ratio_sample,
             echo_t_ratio,
-            ready_t_ratio,
+            self.params.ready_threshold,
             delivery_t_ratio
         )
     }
@@ -163,32 +163,82 @@ pub fn viable_run(
     }
 }
 
-fn generate_certs_list(subnets: &Vec<SubnetId>, nb_cert: usize) -> Vec<Certificate> {
+fn generate_cert(
+    subnets: &Vec<SubnetId>,
+    nb_cert: usize,
+    conflict_ratio: f32,
+) -> HashMap<SubnetId, HashMap<CertificateId, Vec<Certificate>>> {
     let mut nonce_state: HashMap<SubnetId, CertificateId> = HashMap::new();
+    let mut history_state: HashMap<SubnetId, HashMap<CertificateId, Vec<Certificate>>> =
+        HashMap::new();
+
     // Initialize the genesis of all subnets
     for subnet in subnets {
         nonce_state.insert(*subnet, 0);
+        history_state.insert(*subnet, HashMap::new());
     }
 
-    let mut rng = rand::thread_rng();
-    let mut gen_cert = || -> Certificate {
+    let mut gen_cert = |is_conflicting| -> (SubnetId, Certificate) {
+        let mut rng = rand::thread_rng();
         let selected_subnet = subnets[rng.gen_range(0..subnets.len())];
         let last_cert_id = nonce_state.get_mut(&selected_subnet).unwrap();
-        let gen_cert = Certificate::new(*last_cert_id, selected_subnet, Default::default());
-        *last_cert_id = gen_cert.id;
-        gen_cert
-    };
 
-    (0..nb_cert).map(|_| gen_cert()).collect::<Vec<_>>()
+        let gen_cert: Certificate;
+        if is_conflicting {
+            gen_cert = Certificate::new(0, selected_subnet, Default::default());
+        } else {
+            gen_cert = Certificate::new(*last_cert_id, selected_subnet, Default::default());
+            *last_cert_id = gen_cert.id;
+        }
+
+        (selected_subnet, gen_cert)
+    };
+    let nb_conflict = (conflict_ratio * nb_cert as f32) as usize;
+    for _ in 0..nb_conflict {
+        let is_conflicting = true;
+        let (current_subnet_id, current_cert) = gen_cert(is_conflicting);
+        if let Some(subnet_history) = history_state.get_mut(&current_subnet_id) {
+            subnet_history
+                .entry(current_cert.prev_cert_id)
+                .and_modify(|v| v.push(current_cert.clone()))
+                .or_insert_with(|| vec![current_cert]);
+        }
+    }
+
+    for _ in 0..(nb_cert - nb_conflict) {
+        let is_conflicting = false;
+        let (current_subnet_id, current_cert) = gen_cert(is_conflicting);
+        if let Some(subnet_history) = history_state.get_mut(&current_subnet_id) {
+            subnet_history
+                .entry(current_cert.prev_cert_id)
+                .and_modify(|v| v.push(current_cert.clone()))
+                .or_insert_with(|| vec![current_cert]);
+        }
+    }
+    history_state
 }
 
-fn submit_test_certs(
-    certs: Vec<Certificate>,
+#[test]
+fn test_cert_conflict_generation() {
+    let nb_subnet = 3;
+    let nb_cert = 50;
+    let conflict_ratio = 0.3;
+    let all_subnets: Vec<SubnetId> = (1..=nb_subnet as u64).collect();
+    let history_state = generate_cert(&all_subnets, nb_cert, conflict_ratio);
+    let mut conflict = false;
+    for (_, history_of_subnet) in history_state {
+        conflict = history_of_subnet.values().any(|v| v.len() > 1) || conflict;
+    }
+    assert!(conflict, r#"No conflicting certificates were found!"#);
+}
+
+fn submit_test_cert(
+    certificates: Vec<Certificate>,
     peers_container: Arc<PeersContainer>,
     to_peer: String,
 ) {
     tokio::spawn(async move {
-        for cert in &certs {
+        for cert in certificates {
             let mb_cli = peers_container.get(&*to_peer);
             if let Some(w_cli) = mb_cli {
                 let cli = w_cli.lock().unwrap();
@@ -202,6 +252,7 @@ fn submit_test_certs(
 async fn run_tce_network(simu_config: SimulationConfig) -> Result<(), ()> {
     log::info!("{:?}", simu_config);
 
+    let conflict_ratio = 0.;
     let all_peer_ids: Vec<String> = (1..=simu_config.input.nb_peers)
         .map(|e| format!("peer{}", e))
         .collect();
@@ -217,19 +268,40 @@ async fn run_tce_network(simu_config: SimulationConfig) -> Result<(), ()> {
         all_subnets.clone(),
         simu_config.params.clone(),
     );
-
     let (tx_exit, main_jh) = launch_simulation_main_loop(trbp_peers.clone(), rx_combined_events);
-
+    let cert_list = generate_cert(
+        &all_subnets,
+        simu_config.input.nb_certificates,
+        conflict_ratio,
+    );
+    let nodes_history = cert_list
+        .values()
+        .collect::<Vec<&HashMap<CertificateId, Vec<Certificate>>>>();
+    let mut all_cert = Vec::<Certificate>::new();
+    for certs_map in nodes_history.clone() {
+        for certs_vec in certs_map.values() {
+            for cert in certs_vec.clone() {
+                all_cert.push(cert);
+            }
+        }
+    }
+    let mut node_history: Vec<Certificate> = Vec::new();
+    for history in nodes_history {
+        for vec_certs in history.values().collect::<Vec<_>>() {
+            if !vec_certs.is_empty() {
+                node_history = vec_certs.clone();
+            }
+        }
+    }
     // submit test certificate
     // and check for the certificate propagation
-    let cert_list = generate_certs_list(&all_subnets, simu_config.input.nb_certificates);
     // have to give the nodes some time to arrange with peers
     time::sleep(Duration::from_secs(30)).await;
-    submit_test_certs(cert_list.clone(), trbp_peers.clone(), "peer1".to_string());
+    submit_test_cert(all_cert.clone(), trbp_peers.clone(), "peer1".to_string());
 
     watch_cert_delivered(
         trbp_peers.clone(),
-        cert_list.clone(),
+        node_history,
         tx_exit.clone(),
         all_peer_ids.clone(),
     );
