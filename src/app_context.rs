@@ -1,12 +1,15 @@
 //!
 //! Application logic glue
 //!
+use futures::{future::join_all, Stream, StreamExt};
 use libp2p::PeerId;
+use log::info;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
+use tokio::{spawn, sync::oneshot};
+use topos_p2p::{Client, Event};
 
 use tce_api::{ApiRequests, ApiWorker};
-use tce_net::{NetworkCommands, NetworkEvents, NetworkWorker};
 
 use tce_transport::{TrbpCommands, TrbpEvents};
 use tce_trbp::ReliableBroadcastClient;
@@ -23,7 +26,7 @@ pub struct AppContext {
     //pub store: Box<dyn trb_store::TrbStore>,
     pub trbp_cli: ReliableBroadcastClient,
     pub api_worker: ApiWorker,
-    pub network_worker: NetworkWorker,
+    pub network_client: Client,
 }
 
 impl AppContext {
@@ -32,35 +35,41 @@ impl AppContext {
         //store: Box<dyn trb_store::TrbStore>,
         trbp_cli: ReliableBroadcastClient,
         api_worker: ApiWorker,
-        network_worker: NetworkWorker,
+        network_client: Client,
     ) -> Self {
         Self {
             //store,
             trbp_cli,
             api_worker,
-            network_worker,
+            network_client,
         }
     }
 
     /// Main processing loop
-    pub(crate) async fn run(&mut self) {
+    pub async fn run(
+        mut self,
+        peer_addr: topos_addr::ToposAddr,
+        mut network_stream: impl Stream<Item = topos_p2p::Event> + Unpin,
+    ) {
+        let _ = self.network_client.start_listening(peer_addr).await;
+
         loop {
             tokio::select! {
                 // API
                 Ok(req) = self.api_worker.next_request() => {
-                    log::debug!("api_worker.next_request(): {:?}", &req);
+                    log::info!("api_worker.next_request(): {:?}", &req);
                     self.on_api_request(req);
                 }
 
                 // protocol
                 Ok(evt) = self.trbp_cli.next_event() => {
-                    log::debug!("trbp_cli.next_event(): {:?}", &evt);
+                    log::info!("trbp_cli.next_event(): {:?}", &evt);
                     self.on_protocol_event(evt).await;
                 },
 
                 // network
-                Ok(net_evt) = self.network_worker.next_event() => {
-                    log::debug!("network_worker.next_event(): {:?}", &net_evt);
+                Some(net_evt) = network_stream.next() => {
+                    log::info!("network_stream.next_event(): {:?}", &net_evt);
                     self.on_net_event(net_evt).await;
                 }
             }
@@ -109,94 +118,129 @@ impl AppContext {
                 //todo ?
             }
             TrbpEvents::EchoSubscribeReq { peers } => {
-                let cmd = NetworkCommands::TransmissionReq {
-                    to: peers
-                        .iter()
-                        .map(|e| PeerId::from_str(e.as_str()).expect("correct peer_id"))
-                        .collect(),
-                    data: NetworkMessage::from(TrbpCommands::OnEchoSubscribeReq {
-                        from_peer: self.network_worker.my_peer_id.to_base58(),
+                let data: Vec<u8> = NetworkMessage::from(TrbpCommands::OnEchoSubscribeReq {
+                    from_peer: self.network_client.local_peer_id.to_base58(),
+                })
+                .into();
+                let future_pool = peers
+                    .iter()
+                    .map(|peer_id| {
+                        info!("Sending echo subscribe");
+                        self.network_client.send_request(
+                            PeerId::from_str(&peer_id).expect("correct peer_id"),
+                            data.clone(),
+                        )
                     })
-                    .into(),
-                };
-                self.network_worker.eval(cmd).await;
+                    .collect::<Vec<_>>();
+
+                spawn(async move {
+                    join_all(future_pool).await;
+                });
             }
             TrbpEvents::ReadySubscribeReq { peers } => {
-                let cmd = NetworkCommands::TransmissionReq {
-                    to: peers
-                        .iter()
-                        .map(|e| PeerId::from_str(e.as_str()).expect("correct peer_id"))
-                        .collect(),
-                    data: NetworkMessage::from(TrbpCommands::OnReadySubscribeReq {
-                        from_peer: self.network_worker.my_peer_id.to_base58(),
+                let data: Vec<u8> = NetworkMessage::from(TrbpCommands::OnReadySubscribeReq {
+                    from_peer: self.network_client.local_peer_id.to_base58(),
+                })
+                .into();
+
+                let future_pool = peers
+                    .iter()
+                    .map(|peer_id| {
+                        info!("Sending ready subscribe");
+                        self.network_client.send_request(
+                            PeerId::from_str(&peer_id).expect("correct peer_id"),
+                            data.clone(),
+                        )
                     })
-                    .into(),
-                };
-                self.network_worker.eval(cmd).await;
+                    .collect::<Vec<_>>();
+
+                spawn(async move {
+                    join_all(future_pool).await;
+                });
             }
             TrbpEvents::EchoSubscribeOk { to_peer } => {
                 let to_peer_id = PeerId::from_str(to_peer.as_str()).expect("correct peer_id");
-                let cmd = NetworkCommands::TransmissionReq {
-                    to: vec![to_peer_id],
-                    data: NetworkMessage::from(TrbpCommands::OnEchoSubscribeOk {
-                        from_peer: self.network_worker.my_peer_id.to_base58(),
-                    })
-                    .into(),
-                };
-                self.network_worker.eval(cmd).await;
+                let data = NetworkMessage::from(TrbpCommands::OnEchoSubscribeOk {
+                    from_peer: self.network_client.local_peer_id.to_base58(),
+                })
+                .into();
+
+                info!("Sending echo subscribeOK");
+                spawn(self.network_client.send_request(to_peer_id, data));
             }
             TrbpEvents::ReadySubscribeOk { to_peer } => {
                 let to_peer_id = PeerId::from_str(to_peer.as_str()).expect("correct peer_id");
-                let cmd = NetworkCommands::TransmissionReq {
-                    to: vec![to_peer_id],
-                    data: NetworkMessage::from(TrbpCommands::OnReadySubscribeOk {
-                        from_peer: self.network_worker.my_peer_id.to_base58(),
-                    })
-                    .into(),
-                };
-                self.network_worker.eval(cmd).await;
+                let data = NetworkMessage::from(TrbpCommands::OnReadySubscribeOk {
+                    from_peer: self.network_client.local_peer_id.to_base58(),
+                })
+                .into();
+
+                info!("Sending ready subscribeOK");
+                spawn(self.network_client.send_request(to_peer_id, data));
             }
             TrbpEvents::Gossip {
                 peers,
                 cert,
                 digest,
             } => {
-                let cmd = NetworkCommands::TransmissionReq {
-                    to: peers
-                        .iter()
-                        .map(|e| PeerId::from_str(e.as_str()).expect("correct peer_id"))
-                        .collect(),
-                    data: NetworkMessage::from(TrbpCommands::OnGossip { cert, digest }).into(),
-                };
-                self.network_worker.eval(cmd).await;
+                let data: Vec<u8> =
+                    NetworkMessage::from(TrbpCommands::OnGossip { cert, digest }).into();
+
+                let future_pool = peers
+                    .iter()
+                    .map(|peer_id| {
+                        info!("sending gossip");
+                        self.network_client.send_request(
+                            PeerId::from_str(&peer_id).expect("correct peer_id"),
+                            data.clone(),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+
+                spawn(async move {
+                    join_all(future_pool).await;
+                });
             }
             TrbpEvents::Echo { peers, cert } => {
-                let cmd = NetworkCommands::TransmissionReq {
-                    to: peers
-                        .iter()
-                        .map(|e| PeerId::from_str(e.as_str()).expect("correct peer_id"))
-                        .collect(),
-                    data: NetworkMessage::from(TrbpCommands::OnEcho {
-                        from_peer: self.network_worker.my_peer_id.to_base58(),
-                        cert,
+                let data: Vec<u8> = NetworkMessage::from(TrbpCommands::OnEcho {
+                    from_peer: self.network_client.local_peer_id.to_base58(),
+                    cert,
+                })
+                .into();
+
+                let future_pool = peers
+                    .iter()
+                    .map(|peer_id| {
+                        self.network_client.send_request(
+                            PeerId::from_str(&peer_id).expect("correct peer_id"),
+                            data.clone(),
+                        )
                     })
-                    .into(),
-                };
-                self.network_worker.eval(cmd).await;
+                    .collect::<Vec<_>>();
+
+                spawn(async move {
+                    join_all(future_pool).await;
+                });
             }
             TrbpEvents::Ready { peers, cert } => {
-                let cmd = NetworkCommands::TransmissionReq {
-                    to: peers
-                        .iter()
-                        .map(|e| PeerId::from_str(e.as_str()).expect("correct peer_id"))
-                        .collect(),
-                    data: NetworkMessage::from(TrbpCommands::OnReady {
-                        from_peer: self.network_worker.my_peer_id.to_base58(),
-                        cert,
+                let data: Vec<u8> = NetworkMessage::from(TrbpCommands::OnReady {
+                    from_peer: self.network_client.local_peer_id.to_base58(),
+                    cert,
+                })
+                .into();
+                let future_pool = peers
+                    .iter()
+                    .map(|peer_id| {
+                        self.network_client.send_request(
+                            PeerId::from_str(&peer_id).expect("correct peer_id"),
+                            data.clone(),
+                        )
                     })
-                    .into(),
-                };
-                self.network_worker.eval(cmd).await;
+                    .collect::<Vec<_>>();
+
+                spawn(async move {
+                    join_all(future_pool).await;
+                });
             }
             evt => {
                 log::debug!("Unhandled event: {:?}", evt);
@@ -204,16 +248,16 @@ impl AppContext {
         }
     }
 
-    async fn on_net_event(&mut self, evt: NetworkEvents) {
+    async fn on_net_event(&mut self, evt: Event) {
         log::debug!("on_net_event ({:?}", &evt);
         match evt {
-            NetworkEvents::KadPeersChanged { new_peers } => {
+            Event::PeersChanged { new_peers } => {
                 //  notify the protocol
                 let _ = self.trbp_cli.eval(TrbpCommands::OnVisiblePeersChanged {
                     peers: new_peers.iter().map(|e| e.to_base58()).collect(),
                 });
             }
-            NetworkEvents::TransmissionOnReq { from: _, data } => {
+            Event::TransmissionOnReq { from: _, data, .. } => {
                 let msg: NetworkMessage = data.into();
                 match msg {
                     NetworkMessage::Cmd(cmd) => {
