@@ -58,6 +58,7 @@ async fn main() {
 
     let (client, event_stream, runtime) = topos_p2p::network::builder()
         .peer_key(local_key_pair(args.local_key_seed))
+        .listen_addr(addr.inner())
         .known_peers(args.parse_boot_peers())
         .build()
         .await
@@ -67,7 +68,7 @@ async fn main() {
 
     // setup transport-trbp-storage-api connector
     let app_context = AppContext::new(trbp_cli.clone(), api, client);
-    app_context.run(addr, event_stream).await;
+    app_context.run(event_stream).await;
 }
 
 /// build peer_id keys, generate for now - either from the seed or purely random one
