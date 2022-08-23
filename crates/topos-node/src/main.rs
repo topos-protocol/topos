@@ -3,7 +3,7 @@ use libp2p::{Multiaddr, PeerId};
 
 use topos_api::{ApiConfig, ApiWorker};
 use topos_core_certification::CertificationWorker;
-use topos_core_runtime_proxy::RuntimeProxyWorker;
+use topos_core_runtime_proxy::{RuntimeProxyConfig, RuntimeProxyWorker};
 use topos_core_tce_proxy::{TceProxyConfig, TceProxyWorker};
 use topos_net::{NetworkWorker, NetworkWorkerConfig};
 
@@ -22,7 +22,10 @@ async fn main() {
 
     // Launch the workers
     let certification = CertificationWorker::new(args.subnet_id);
-    let runtime_proxy = RuntimeProxyWorker::new();
+    let runtime_proxy = RuntimeProxyWorker::new(RuntimeProxyConfig {
+        endpoint: args.substrate_subnet_rpc_endpoint.clone(),
+        topos_core_contract: args.topos_core_contract.clone(),
+    });
 
     // downstream flow processor worker
     let tce_proxy_worker = TceProxyWorker::new(TceProxyConfig {
@@ -86,6 +89,18 @@ pub struct AppArgs {
     /// SubnetId to use
     #[clap(long, default_value_t = 0, env = "TOPOS_SUBNET_ID")]
     pub subnet_id: u64,
+
+    // Subnet substrate interface rpc endpoint
+    #[clap(
+        long,
+        default_value = "ws://127.0.0.1:9944",
+        env = "TOPOS_SUBSTRATE_SUBNET_RPC_ENDPOINT"
+    )]
+    pub substrate_subnet_rpc_endpoint: String,
+
+    // Topos core contract Eth address
+    #[clap(long, env = "TOPOS_CORE_CONTRACT")]
+    pub topos_core_contract: String,
 
     /// Base Uri of TCE node to call API at
     #[clap(
