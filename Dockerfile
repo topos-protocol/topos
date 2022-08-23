@@ -14,38 +14,37 @@ RUN apt update && \
 
 RUN rustup toolchain install ${TOOLCHAIN_VERSION} && \
     rustup default ${TOOLCHAIN_VERSION} && \
-    rustup target add x86_64-unknown-linux-musl
+    rustup target add x86_64-unknown-linux-musl && \
+    cargo install cargo-chef --locked
 
 WORKDIR /usr/src/app
 
-COPY ./Cargo.toml ./Cargo.toml
-COPY ./node/api/Cargo.toml ./node/api/Cargo.toml
-COPY ./node/net/Cargo.toml ./node/net/Cargo.toml
-COPY ./node/store/Cargo.toml ./node/store/Cargo.toml
-COPY ./node/telemetry/Cargo.toml ./node/telemetry/Cargo.toml
-COPY ./protocols/reliable_broadcast/Cargo.toml ./protocols/reliable_broadcast/Cargo.toml
-COPY ./protocols/transport/Cargo.toml ./protocols/transport/Cargo.toml
-COPY ./params-minimizer/Cargo.toml ./params-minimizer/Cargo.toml
-COPY ./tests ./tests
+FROM base AS planner
+COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
 
-
-FROM base as build
-RUN cargo fetch
-COPY ./ .
+FROM base AS build
+COPY --from=planner /usr/src/app/recipe.json recipe.json
+RUN cargo chef cook --release --recipe-path recipe.json
+COPY . .
 RUN cargo build --release
 
-FROM base as test
-COPY ./ .
+FROM base AS test
+COPY --from=planner /usr/src/app/recipe.json recipe.json
+RUN cargo chef cook --all-targets --recipe-path recipe.json
+COPY . .
 RUN cargo test --workspace
 
-FROM base as fmt
+FROM base AS fmt
 RUN rustup component add rustfmt
-COPY ./ .
+COPY . .
 RUN cargo fmt --all -- --check
 
-FROM base as lint
+FROM base AS lint
 RUN rustup component add clippy
-COPY ./ .
+COPY --from=planner /usr/src/app/recipe.json recipe.json
+RUN cargo chef cook --recipe-path recipe.json
+COPY . .
 RUN cargo clippy --all
 
 FROM debian:bullseye-slim
