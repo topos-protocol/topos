@@ -35,7 +35,6 @@ COPY ./ .
 RUN cargo build --release
 
 FROM base as test
-RUN cargo fetch
 COPY ./ .
 RUN cargo test --workspace
 
@@ -46,7 +45,6 @@ RUN cargo fmt --all -- --check
 
 FROM base as lint
 RUN rustup component add clippy
-RUN cargo fetch
 COPY ./ .
 RUN cargo clippy --all
 
