@@ -4,6 +4,7 @@ use tce_trbp::{trb_store::TrbStore, Errors};
 use topos_core::uci::{Certificate, CertificateId, DigestCompressed, SubnetId};
 
 /// Configuration of RocksDB store
+/// Configuration of RocksDB store
 pub struct StoreConfig {
     pub db_path: String,
 }
