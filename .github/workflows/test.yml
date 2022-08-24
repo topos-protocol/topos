@@ -25,11 +25,17 @@ jobs:
       - uses: actions/checkout@v3
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - uses: docker/build-push-action@v3
         with:
           target: test
           build-args: |
             GITHUB_TOKEN=${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
             TOOLCHAIN_VERSION=${{ matrix.version }}
-          cache-from: type=gha
-          cache-to: type=gha, mode=max
+          cache-from: type=registry, ref=ghcr.io/toposware/${{ github.repository }}:build-cache-${{ github.workflow }}-${{ matrix.version }}
+          cache-to: type=registry, ref=ghcr.io/toposware/${{ github.repository }}:build-cache-${{ github.workflow }}-${{ matrix.version }}, mode=max
