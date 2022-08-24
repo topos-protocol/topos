@@ -6,10 +6,13 @@ use std::cmp::Ordering;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::time;
+
 pub type CertificateId = u64;
 pub type SubnetId = u64;
 pub type StarkProof = Vec<u8>;
 pub type Frost = Vec<u8>;
+pub type Address = String;
+pub type Amount = ethereum_types::U256;
 
 /// Heavily checked on the gossip, so not abstracted
 const DUMMY_FROST_VERIF_DELAY: time::Duration = time::Duration::from_millis(0);
@@ -102,9 +105,18 @@ impl PartialOrd for Certificate {
     }
 }
 
+/// Cross chain transaction data definition
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub enum CrossChainTransactionData {
+    AssetTransfer { asset_id: String, amount: Amount },
+    FunctionCall { data: Vec<u8> },
+}
+
 /// Cross chain txn
-#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct CrossChainTransaction {
     pub terminal_subnet_id: SubnetId,
-    // todo
+    pub sender_addr: Address,
+    pub recipient_addr: Address,
+    pub transaction_data: CrossChainTransactionData,
 }
