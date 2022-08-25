@@ -96,17 +96,10 @@ impl ReliableBroadcastClient {
         b_aggr.events_subscribers.push(events_sender.clone());
         s_aggr.events_subscribers.push(events_sender.clone());
 
-        // let runtime = ReliableBroadcastRuntime {
-        //     peer_id: peer_id.clone(),
-        //     events: events_rcv,
-        // };
-
         (
             Self {
                 peer_id,
                 events_sender,
-                // b_aggr: b_w_aggr.clone(),
-                // s_aggr: s_w_aggr.clone(),
                 broadcast_commands,
                 sampling_commands,
             },
@@ -116,19 +109,6 @@ impl ReliableBroadcastClient {
     }
     /// Schedule command for execution
     pub fn eval(&self, cmd: TrbpCommands) -> Result<(), Errors> {
-        // FIXME: move the following operation to dedicated channel
-        // match cmd {
-        //     TrbpCommands::StartUp => {
-        //         let mut b_aggr = self.b_aggr.lock().unwrap();
-        //         b_aggr.on_cmd_start_up();
-        //     }
-        //     TrbpCommands::Shutdown => {
-        //         let mut b_aggr = self.b_aggr.lock().unwrap();
-        //         b_aggr.on_cmd_shut_down();
-        //     }
-        //     _ => {}
-        // }
-
         let is_broadcast_related = |cmd: &TrbpCommands| {
             matches!(
                 cmd,
@@ -238,25 +218,3 @@ impl From<mpsc::error::SendError<TrbInternalCommand>> for Errors {
         Errors::TokioError {}
     }
 }
-
-// impl Clone for ReliableBroadcastClient {
-//     fn clone(&self) -> Self {
-//         let mut b_aggr = self.b_aggr.lock().unwrap();
-//         let ch_b_commands = b_aggr.broadcast_commands_channel.clone();
-//
-//         let mut s_aggr = self.s_aggr.lock().unwrap();
-//         let ch_s_commands = s_aggr.sampling_commands_channel.clone();
-//
-//         let (events_sender, events_rcv) = mpsc::unbounded_channel::<TrbpEvents>();
-//         b_aggr.events_subscribers.push(events_sender.clone());
-//         s_aggr.events_subscribers.push(events_sender);
-//         Self {
-//             peer_id: self.peer_id.to_owned(),
-//             b_aggr: self.b_aggr.clone(),
-//             s_aggr: self.s_aggr.clone(),
-//             broadcast_commands: ch_b_commands,
-//             sampling_commands: ch_s_commands,
-//             events: events_rcv,
-//         }
-//     }
-// }
