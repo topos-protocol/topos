@@ -62,11 +62,11 @@ impl AppContext {
 
         loop {
             tokio::select! {
-                _ = publish.tick() => {
-                    if !peers.is_empty() {
-                        self.on_net_event(Event::PeersChanged { new_peers: peers.clone() }).await;
-                    }
-                }
+                // _ = publish.tick() => {
+                //     if !peers.is_empty() {
+                //         self.on_net_event(Event::PeersChanged { new_peers: peers.clone() }).await;
+                //     }
+                // }
                 // API
                 Ok(req) = self.api_worker.next_request() => {
                     log::info!("api_worker.next_request(): {:?}", &req);
@@ -274,7 +274,7 @@ impl AppContext {
                 })
                 .into();
 
-                let future_pool = new_peers
+                let mut future_pool = new_peers
                     .iter()
                     .map(|peer_id| {
                         warn!("Send EchoSubscribe");
@@ -282,6 +282,22 @@ impl AppContext {
                             .send_request::<_, NetworkMessage>(*peer_id, data.clone())
                     })
                     .collect::<Vec<_>>();
+
+                let data: Vec<u8> = NetworkMessage::from(TrbpCommands::OnReadySubscribeReq {
+                    from_peer: self.network_client.local_peer_id.to_base58(),
+                })
+                .into();
+
+                let mut future_pool_ready = new_peers
+                    .iter()
+                    .map(|peer_id| {
+                        warn!("Send ReadySubscribe");
+                        self.network_client
+                            .send_request::<_, NetworkMessage>(*peer_id, data.clone())
+                    })
+                    .collect::<Vec<_>>();
+
+                future_pool.append(&mut future_pool_ready);
 
                 spawn(async move {
                     let r = join_all(future_pool).await;
@@ -294,13 +310,42 @@ impl AppContext {
                 channel,
                 ..
             } => {
+                let my_peer = self.network_client.local_peer_id;
                 let msg: NetworkMessage = data.into();
                 match msg {
                     NetworkMessage::Cmd(cmd) => {
+                        info!("Receive TransmissionOnReq {:?}", cmd);
+
+                        match cmd {
+                            TrbpCommands::StartUp => todo!(),
+                            TrbpCommands::Shutdown => todo!(),
+                            TrbpCommands::OnBroadcast { cert } => todo!(),
+                            TrbpCommands::OnVisiblePeersChanged { peers } => todo!(),
+                            TrbpCommands::OnEchoSubscribeReq { from_peer } => {
+                                spawn(self.network_client.respond_to_request(
+                                    NetworkMessage::from(TrbpCommands::OnEchoSubscribeOk {
+                                        from_peer: my_peer.to_base58(),
+                                    }),
+                                    channel,
+                                ));
+                            }
+                            TrbpCommands::OnReadySubscribeReq { from_peer } => {
+                                spawn(self.network_client.respond_to_request(
+                                    NetworkMessage::from(TrbpCommands::OnReadySubscribeOk {
+                                        from_peer: my_peer.to_base58(),
+                                    }),
+                                    channel,
+                                ));
+                            }
+                            TrbpCommands::OnEchoSubscribeOk { from_peer } => todo!(),
+                            TrbpCommands::OnReadySubscribeOk { from_peer } => todo!(),
+                            TrbpCommands::OnStartDelivery { cert, digest } => todo!(),
+                            TrbpCommands::OnGossip { cert, digest } => todo!(),
+                            TrbpCommands::OnEcho { from_peer, cert } => todo!(),
+                            TrbpCommands::OnReady { from_peer, cert } => todo!(),
+                        }
                         //  redirect
                         // let _ = self.trbp_cli.eval(cmd);
-
-                        spawn(self.network_client.respond_to_request(vec![], channel));
                     }
                 }
             }
