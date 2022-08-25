@@ -17,10 +17,11 @@ jobs:
         version:
           - stable
           - nightly-2022-07-20
-
     name: ${{ matrix.version }} - Test
     runs-on: ${{ matrix.target.os }}
-
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v3
       - name: Set up Docker Buildx
