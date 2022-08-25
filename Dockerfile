@@ -14,12 +14,12 @@ RUN apt update && \
 
 RUN rustup toolchain install ${TOOLCHAIN_VERSION} && \
     rustup default ${TOOLCHAIN_VERSION} && \
-    rustup target add x86_64-unknown-linux-musl
+    rustup target add x86_64-unknown-linux-musl && \
+    cargo install cargo-chef --locked
 
 WORKDIR /usr/src/app
 
 FROM base AS planner
-RUN cargo install cargo-chef --locked
 COPY . .
 RUN cargo chef prepare --recipe-path recipe.json
 
