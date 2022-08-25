@@ -6,8 +6,10 @@ use libp2p::{
     Multiaddr, PeerId,
 };
 use tce_api::{ApiRequests, ApiWorker};
-use tce_transport::{ReliableBroadcastParams, TrbpCommands};
-use tce_trbp::{mem_store::TrbMemStore, ReliableBroadcastClient, ReliableBroadcastConfig};
+use tce_transport::{ReliableBroadcastParams, TrbpEvents};
+use tce_trbp::{
+    mem_store::TrbMemStore, ReliableBroadcastClient, ReliableBroadcastConfig, TrbInternalCommand,
+};
 use tokio::{spawn, sync::mpsc};
 use topos_addr::ToposAddr;
 use topos_p2p::{Client, Event, Runtime};
@@ -15,8 +17,8 @@ use topos_tce::AppContext;
 
 pub struct TestAppContext {
     pub peer_id: String,
-    pub command_sampler: mpsc::UnboundedSender<TrbpCommands>,
-    pub command_broadcast: mpsc::UnboundedSender<TrbpCommands>,
+    pub command_sampler: mpsc::UnboundedSender<TrbInternalCommand>,
+    pub command_broadcast: mpsc::UnboundedSender<TrbInternalCommand>,
     pub api: mpsc::Sender<ApiRequests>,
 }
 
@@ -37,7 +39,7 @@ where
 
     for (index, (seed, port, _key, addr)) in peers.iter().enumerate() {
         let peer_id = format!("peer_{index}");
-        let rb_client = create_reliable_broadcast_client(
+        let (rb_client, trb_events) = create_reliable_broadcast_client(
             &peer_id,
             create_reliable_broadcast_params(correct_sample, &g),
         );
@@ -50,7 +52,7 @@ where
         let app = AppContext::new(rb_client, api_worker, client.clone());
 
         spawn(runtime.run());
-        spawn(app.run(event_stream));
+        spawn(app.run(event_stream, trb_events));
 
         let client = TestAppContext {
             peer_id: peer_id.clone(),
@@ -101,12 +103,12 @@ fn keypair_from_seed(seed: u8) -> Keypair {
 
 async fn create_network_worker(
     seed: u8,
-    port: u16,
+    _port: u16,
     addr: Multiaddr,
     peers: &[PeerConfig],
 ) -> (Client, impl Stream<Item = Event> + Unpin + Send, Runtime) {
     let key = keypair_from_seed(seed);
-    let peer_id = key.public().to_peer_id();
+    let _peer_id = key.public().to_peer_id();
 
     let known_peers = peers
         .iter()
@@ -137,7 +139,10 @@ fn create_api_worker() -> (mpsc::Sender<ApiRequests>, ApiWorker) {
 fn create_reliable_broadcast_client(
     peer_id: &str,
     trbp_params: ReliableBroadcastParams,
-) -> ReliableBroadcastClient {
+) -> (
+    ReliableBroadcastClient,
+    impl Stream<Item = TrbpEvents> + Unpin,
+) {
     let config = ReliableBroadcastConfig {
         store: Box::new(TrbMemStore::new(vec![])),
         trbp_params,

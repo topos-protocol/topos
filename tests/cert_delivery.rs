@@ -4,9 +4,9 @@ mod support {
 }
 
 use crate::support::certificate::generate_cert;
-use std::{cmp::min, time::Duration};
+use std::time::Duration;
 use tce_transport::TrbpCommands;
-use tce_trbp::uci::SubnetId;
+use tce_trbp::{uci::SubnetId, TrbInternalCommand};
 use test_log::test;
 
 #[test(tokio::test)]
@@ -25,9 +25,9 @@ async fn cert_delivery() {
     if let Some(client) = clients.get("peer_1") {
         let _ = client
             .command_broadcast
-            .send(TrbpCommands::OnBroadcast {
+            .send(TrbInternalCommand::Command(TrbpCommands::OnBroadcast {
                 cert: cert.first().cloned().unwrap(),
-            })
+            }))
             .expect("Can't send certificate");
     }
 

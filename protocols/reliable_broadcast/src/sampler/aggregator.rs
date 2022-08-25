@@ -5,12 +5,13 @@ use std::cmp::min;
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
+use log::info;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 
-use tce_transport::{ReliableBroadcastParams, TrbpCommands, TrbpEvents};
+use tce_transport::{ReliableBroadcastParams, TrbpEvents};
 
-use crate::TrbInternalCommand;
+use crate::{SamplerCommand, TrbInternalCommand};
 
 use super::{sampling::sample_reduce_from, *};
 
@@ -38,11 +39,11 @@ impl PeerSamplingOracle {
         let (s_command_sender, mut s_command_rcv) = mpsc::unbounded_channel::<TrbInternalCommand>();
         // Init the samples
         let mut default_view: SampleView = Default::default();
-        default_view.insert(SampleType::EchoInbound, HashSet::new());
-        default_view.insert(SampleType::EchoOutbound, HashSet::new());
-        default_view.insert(SampleType::ReadyInbound, HashSet::new());
-        default_view.insert(SampleType::ReadyOutbound, HashSet::new());
-        default_view.insert(SampleType::DeliveryInbound, HashSet::new());
+        default_view.insert(SampleType::EchoSubscription, HashSet::new());
+        default_view.insert(SampleType::EchoSubscriber, HashSet::new());
+        default_view.insert(SampleType::ReadySubscription, HashSet::new());
+        default_view.insert(SampleType::ReadySubscriber, HashSet::new());
+        default_view.insert(SampleType::DeliverySubscription, HashSet::new());
 
         let me = Arc::new(Mutex::from(Self {
             events_subscribers: Vec::new(),
@@ -71,7 +72,7 @@ impl PeerSamplingOracle {
     }
 
     fn send_out_events(&mut self, evt: TrbpEvents) {
-        log::debug!("send_out_events(evt: {:?}", &evt);
+        log::debug!("send {:?}", &evt);
 
         for tx in &self.events_subscribers {
             // FIXME: When error is returned it means that receiving side of the channel is closed
@@ -88,55 +89,59 @@ impl PeerSamplingOracle {
     /// We handle:
     /// - [TrbpCommands::OnVisiblePeersChanged] - used to initialise (or review) peers sets
     /// - [TrbpCommands::OnConnectedPeersChanged] - to keep the nearest nodes
-    /// - [TrbpCommands::OnEchoSubscribeReq], [TrbpCommands::OnReadySubscribeReq] - to keep track of Inbound
-    /// - [TrbpCommands::OnEchoSubscribeOk], [TrbpCommands::OnReadySubscribeOk] - to keep track of Outbound
+    /// - [TrbpCommands::OnEchoSubscribeReq], [TrbpCommands::OnReadySubscribeReq] - to keep track of Subscriptions
+    /// - [TrbpCommands::OnEchoSubscribeOk], [TrbpCommands::OnReadySubscribeOk] - to keep track of Subscriber
     fn on_command(data: Arc<Mutex<PeerSamplingOracle>>, mb_cmd: Option<TrbInternalCommand>) {
-        log::debug!("on_command(cmd: {:?}", &mb_cmd);
         let mut aggr = data.lock().unwrap();
         match mb_cmd {
-            Some(TrbInternalCommand::Command(cmd)) => {
-                match cmd {
-                    TrbpCommands::OnVisiblePeersChanged { peers } => {
-                        if aggr.apply_visible_peers(peers) {
-                            aggr.reset_inbound_samples();
-                        }
+            Some(TrbInternalCommand::Sampler(command)) => match command {
+                SamplerCommand::PeersChanged { peers } => {
+                    if aggr.apply_visible_peers(peers) {
+                        aggr.reset_subscription_samples();
                     }
-                    TrbpCommands::OnEchoSubscribeReq { from_peer } => {
-                        aggr.add_confirmed_peer_to_sample(SampleType::EchoOutbound, &from_peer);
-                        aggr.send_out_events(TrbpEvents::EchoSubscribeOk { to_peer: from_peer });
-                        // notify the protocol that we updated Outbound peers
-                        aggr.view_sender.send(aggr.view.clone()).expect("send");
-                    }
-                    TrbpCommands::OnReadySubscribeReq { from_peer } => {
-                        aggr.add_confirmed_peer_to_sample(SampleType::ReadyOutbound, &from_peer);
-                        aggr.send_out_events(TrbpEvents::ReadySubscribeOk { to_peer: from_peer });
-                        // notify the protocol that we updated Outbound peers
-                        aggr.view_sender.send(aggr.view.clone()).expect("send");
-                    }
-                    TrbpCommands::OnEchoSubscribeOk { from_peer } => {
-                        if aggr.echo_pending_subs.remove(&from_peer) {
-                            aggr.add_confirmed_peer_to_sample(SampleType::EchoInbound, &from_peer);
-                            log::debug!(
-                                "on_command - OnEchoSubscribeOk - samples: {:?}",
-                                aggr.view
-                            );
-                        }
-                    }
-                    TrbpCommands::OnReadySubscribeOk { from_peer } => {
-                        if aggr.delivery_pending_subs.remove(&from_peer) {
-                            aggr.add_confirmed_peer_to_sample(
-                                SampleType::DeliveryInbound,
-                                &from_peer,
-                            );
-                        }
-                        // Sampling with replacement, so can be both cases
-                        if aggr.ready_pending_subs.remove(&from_peer) {
-                            aggr.add_confirmed_peer_to_sample(SampleType::ReadyInbound, &from_peer);
-                        }
-                    }
-                    _ => {}
                 }
-            }
+                SamplerCommand::ConfirmPeer { peer, sample_type } => {
+                    info!("ConfirmPeer {peer} in {sample_type:?}");
+                    match sample_type {
+                        SampleType::EchoSubscription => {
+                            if aggr.echo_pending_subs.remove(&peer) {
+                                aggr.add_confirmed_peer_to_sample(
+                                    SampleType::EchoSubscription,
+                                    &peer,
+                                );
+                            }
+                        }
+                        SampleType::ReadySubscription => {
+                            if aggr.ready_pending_subs.remove(&peer) {
+                                aggr.add_confirmed_peer_to_sample(
+                                    SampleType::ReadySubscription,
+                                    &peer,
+                                );
+                            }
+                        }
+                        SampleType::DeliverySubscription => {
+                            if aggr.delivery_pending_subs.remove(&peer) {
+                                aggr.add_confirmed_peer_to_sample(
+                                    SampleType::DeliverySubscription,
+                                    &peer,
+                                );
+                            }
+                        }
+
+                        SampleType::EchoSubscriber => {
+                            aggr.add_confirmed_peer_to_sample(SampleType::EchoSubscriber, &peer);
+                            // notify the protocol that we updated Subscriber peers
+                            aggr.view_sender.send(aggr.view.clone()).expect("send");
+                        }
+                        SampleType::ReadySubscriber => {
+                            aggr.add_confirmed_peer_to_sample(SampleType::ReadySubscriber, &peer);
+                            // notify the protocol that we updated Subscriber peers
+                            aggr.view_sender.send(aggr.view.clone()).expect("send");
+                        }
+                    }
+                }
+            },
+
             _ => {
                 log::warn!("empty command was passed");
             }
@@ -152,18 +157,20 @@ impl PeerSamplingOracle {
         true
     }
 
-    fn reset_inbound_samples(&mut self) {
+    fn reset_subscription_samples(&mut self) {
         self.status = SampleProviderStatus::BuildingNewView;
 
         // Init the samples
-        self.view.insert(SampleType::EchoInbound, HashSet::new());
-        self.view.insert(SampleType::ReadyInbound, HashSet::new());
         self.view
-            .insert(SampleType::DeliveryInbound, HashSet::new());
+            .insert(SampleType::EchoSubscription, HashSet::new());
+        self.view
+            .insert(SampleType::ReadySubscription, HashSet::new());
+        self.view
+            .insert(SampleType::DeliverySubscription, HashSet::new());
 
-        self.reset_echo_inbound_sample();
-        self.reset_ready_inbound_sample();
-        self.reset_delivery_inbound_sample();
+        self.reset_echo_subscription_sample();
+        self.reset_ready_subscription_sample();
+        self.reset_delivery_subscription_sample();
     }
 
     fn pending_subs_state_change_follow_up(&mut self) {
@@ -189,19 +196,20 @@ impl PeerSamplingOracle {
         }
     }
 
-    /// inbound echo sampling
-    fn reset_echo_inbound_sample(&mut self) {
+    /// subscription echo sampling
+    fn reset_echo_subscription_sample(&mut self) {
         self.echo_pending_subs.clear();
 
         let echo_sizer = |len| min(len, self.trbp_params.echo_sample_size);
         match sample_reduce_from(&self.visible_peers, echo_sizer) {
             Ok(echo_candidates) => {
                 log::debug!(
-                    "reset_echo_inbound_sample - echo_candidates: {:?}",
+                    "reset_echo_subscription_sample - echo_candidates: {:?}",
                     echo_candidates
                 );
 
                 for peer in &echo_candidates.value {
+                    log::info!("Adding {peer} to pending echo subscriptions");
                     self.echo_pending_subs.insert(peer.clone());
                 }
 
@@ -211,26 +219,27 @@ impl PeerSamplingOracle {
             }
             Err(e) => {
                 log::warn!(
-                    "reset_echo_inbound_sample - failed to sample due to {:?}",
+                    "reset_echo_subscription_sample - failed to sample due to {:?}",
                     e
                 );
             }
         }
     }
 
-    /// inbound ready sampling
-    fn reset_ready_inbound_sample(&mut self) {
+    /// subscription ready sampling
+    fn reset_ready_subscription_sample(&mut self) {
         self.ready_pending_subs.clear();
 
         let ready_sizer = |len| min(len, self.trbp_params.ready_sample_size);
         match sample_reduce_from(&self.visible_peers, ready_sizer) {
             Ok(ready_candidates) => {
                 log::debug!(
-                    "reset_ready_inbound_sample - ready_candidates: {:?}",
+                    "reset_ready_subscription_sample - ready_candidates: {:?}",
                     ready_candidates
                 );
 
                 for peer in &ready_candidates.value {
+                    log::info!("Adding {peer} to pending ready subscriptions");
                     self.ready_pending_subs.insert(peer.clone());
                 }
 
@@ -240,26 +249,27 @@ impl PeerSamplingOracle {
             }
             Err(e) => {
                 log::warn!(
-                    "reset_ready_inbound_sample - failed to sample due to {:?}",
+                    "reset_ready_subscription_sample - failed to sample due to {:?}",
                     e
                 );
             }
         }
     }
 
-    /// inbound delivery sampling
-    fn reset_delivery_inbound_sample(&mut self) {
+    /// subscription delivery sampling
+    fn reset_delivery_subscription_sample(&mut self) {
         self.delivery_pending_subs.clear();
 
         let delivery_sizer = |len| min(len, self.trbp_params.delivery_sample_size);
         match sample_reduce_from(&self.visible_peers, delivery_sizer) {
             Ok(delivery_candidates) => {
                 log::debug!(
-                    "reset_delivery_inbound_sample - delivery_candidates: {:?}",
+                    "reset_delivery_subscription_sample - delivery_candidates: {:?}",
                     delivery_candidates
                 );
 
                 for peer in &delivery_candidates.value {
+                    log::info!("Adding {peer} to pending delivery subscriptions");
                     self.delivery_pending_subs.insert(peer.clone());
                 }
 
@@ -269,7 +279,7 @@ impl PeerSamplingOracle {
             }
             Err(e) => {
                 log::warn!(
-                    "reset_delivery_inbound_sample - failed to sample due to {:?}",
+                    "reset_delivery_subscription_sample - failed to sample due to {:?}",
                     e
                 );
             }

@@ -337,15 +337,15 @@ fn watch_cert_delivered(
                     }
                     let mut delivered_all_cert = true;
                     for cert in &certs {
-                        // if let Ok(delivered) = cli
-                        //     .delivered_certs_ids(cert.initial_subnet_id, cert.id)
-                        //     .await
-                        // {
-                        //     // if something was returned, we'd expect our certificate to be on the list
-                        //     if !delivered.contains(&cert.id) {
-                        //         delivered_all_cert = false;
-                        //     }
-                        // }
+                        if let Ok(delivered) = cli
+                            .delivered_certs_ids(cert.initial_subnet_id, cert.id)
+                            .await
+                        {
+                            // if something was returned, we'd expect our certificate to be on the list
+                            if !delivered.contains(&cert.id) {
+                                delivered_all_cert = false;
+                            }
+                        }
                     }
                     if delivered_all_cert {
                         remaining_peers_to_finish.remove(&peer.clone());
@@ -442,7 +442,7 @@ fn launch_broadcast_protocol_instances(
         let _ = peers_container.insert(peer.clone(), Arc::new(Mutex::from(client.clone())));
 
         // configure combined events' listener
-        let mut ev_cli = client.clone();
+        let ev_cli = client.clone();
         let ev_tx = tx_combined_events.clone();
         let ev_peer = peer.clone();
         let _ = tokio::spawn(async move {

@@ -3,13 +3,12 @@ mod app_context;
 use clap::Parser;
 
 use tce_api::{ApiConfig, ApiWorker};
-// use tce_net::{NetworkWorker, NetworkWorkerConfig};
 use tce_trbp::{ReliableBroadcastClient, ReliableBroadcastConfig};
 use tokio::spawn;
 use topos_addr::ToposAddr;
 
 use crate::app_context::AppContext;
-use libp2p::{identity, kad::store::MemoryStore, Multiaddr, PeerId};
+use libp2p::{identity, PeerId};
 
 use tce_store::{Store, StoreConfig};
 use tce_transport::ReliableBroadcastParams;

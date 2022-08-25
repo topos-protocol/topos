@@ -4,12 +4,10 @@
 //! Abstracted from actual storage implementation.
 //!
 use futures::future::BoxFuture;
-use std::pin::Pin;
-use std::sync::{Arc, Mutex};
-use std::time;
+use sampler::SampleType;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
-use futures::{Future, Stream};
+use futures::Stream;
 #[allow(unused)]
 use opentelemetry::global;
 use tokio::sync::mpsc::UnboundedSender;
@@ -39,8 +37,21 @@ pub struct ReliableBroadcastConfig {
 }
 
 #[derive(Debug)]
+pub enum SamplerCommand {
+    PeersChanged {
+        peers: Vec<String>,
+    },
+    ConfirmPeer {
+        peer: String,
+        sample_type: SampleType,
+    },
+}
+
+#[derive(Debug)]
 pub enum TrbInternalCommand {
     Command(TrbpCommands),
+
+    Sampler(SamplerCommand),
 
     DeliveredCerts {
         subnet_id: SubnetId,
@@ -52,16 +63,11 @@ pub enum TrbInternalCommand {
 /// Thread safe client to the protocol aggregate
 #[derive(Clone, Debug)]
 pub struct ReliableBroadcastClient {
+    #[allow(dead_code)]
     peer_id: String,
-    // b_aggr: Arc<Mutex<ReliableBroadcast>>,
-    // s_aggr: Arc<Mutex<PeerSamplingOracle>>,
+    pub events_sender: mpsc::UnboundedSender<TrbpEvents>,
     broadcast_commands: mpsc::UnboundedSender<TrbInternalCommand>,
     sampling_commands: mpsc::UnboundedSender<TrbInternalCommand>,
-}
-
-pub struct ReliableBroadcastRuntime {
-    peer_id: String,
-    events: mpsc::UnboundedReceiver<TrbpEvents>,
 }
 
 impl ReliableBroadcastClient {
@@ -88,7 +94,7 @@ impl ReliableBroadcastClient {
 
         let (events_sender, events_rcv) = mpsc::unbounded_channel::<TrbpEvents>();
         b_aggr.events_subscribers.push(events_sender.clone());
-        s_aggr.events_subscribers.push(events_sender);
+        s_aggr.events_subscribers.push(events_sender.clone());
 
         // let runtime = ReliableBroadcastRuntime {
         //     peer_id: peer_id.clone(),
@@ -98,6 +104,7 @@ impl ReliableBroadcastClient {
         (
             Self {
                 peer_id,
+                events_sender,
                 // b_aggr: b_w_aggr.clone(),
                 // s_aggr: s_w_aggr.clone(),
                 broadcast_commands,
@@ -146,12 +153,23 @@ impl ReliableBroadcastClient {
             .send(TrbInternalCommand::Command(cmd))
             .map_err(|err| err.into())
     }
-    //
-    // /// Pollable (in select!) events' listener
-    // pub async fn next_event(&mut self) -> Result<TrbpEvents, Errors> {
-    //     let event = self.events.recv().await;
-    //     Ok(event.unwrap())
-    // }
+
+    pub fn peer_changed(&self, peers: Vec<String>) {
+        self.sampling_commands
+            .send(TrbInternalCommand::Sampler(SamplerCommand::PeersChanged {
+                peers,
+            }))
+            .expect("Unable to send peer changed to sampler");
+    }
+
+    pub fn add_confirmed_peer_to_sample(&self, sample_type: SampleType, peer: Peer) {
+        self.sampling_commands
+            .send(TrbInternalCommand::Sampler(SamplerCommand::ConfirmPeer {
+                peer,
+                sample_type,
+            }))
+            .expect("Unable to send confirmation to sample");
+    }
 
     /// known peers
     /// todo: move it out somewhere out of here, use DHT to advertise urls of API nodes
@@ -188,6 +206,10 @@ impl ReliableBroadcastClient {
         let fut = self.delivered_certs(subnet_id, from_cert_id);
 
         Box::pin(async move { fut.await.map(|mut v| v.iter_mut().map(|c| c.id).collect()) })
+    }
+
+    pub fn get_sampler_channel(&self) -> UnboundedSender<TrbInternalCommand> {
+        self.sampling_commands.clone()
     }
 
     pub fn get_command_channels(
