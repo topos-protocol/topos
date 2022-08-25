@@ -38,5 +38,5 @@ jobs:
           build-args: |
             GITHUB_TOKEN=${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
             TOOLCHAIN_VERSION=${{ matrix.version }}
-          cache-from: type=registry, ref=ghcr.io/${{ github.repository }}:build-cache-${{ github.workflow }}-${{ matrix.version }}
-          cache-to: type=registry, ref=ghcr.io/${{ github.repository }}:build-cache-${{ github.workflow }}-${{ matrix.version }}, mode=max
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository }}:build-cache-${{ github.workflow }}-${{ matrix.version }}
+          cache-to: type=registry,ref=ghcr.io/${{ github.repository }}:build-cache-${{ github.workflow }}-${{ matrix.version }},mode=max
