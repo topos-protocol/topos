@@ -30,8 +30,8 @@ jobs:
         uses: docker/login-action@v2
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: robot-toposware
+          password: ${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
       - uses: docker/build-push-action@v3
         with:
           target: test
