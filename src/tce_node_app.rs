@@ -49,7 +49,7 @@ async fn main() {
         .parse()
         .unwrap();
     // run protocol
-    let trbp_cli = ReliableBroadcastClient::new(config);
+    let (trbp_cli, trb_stream) = ReliableBroadcastClient::new(config);
 
     // run APi services
     let api = ApiWorker::new(ApiConfig {
@@ -67,8 +67,8 @@ async fn main() {
     spawn(runtime.run());
 
     // setup transport-trbp-storage-api connector
-    let app_context = AppContext::new(trbp_cli.clone(), api, client);
-    app_context.run(event_stream).await;
+    let app_context = AppContext::new(trbp_cli, api, client);
+    app_context.run(event_stream, trb_stream).await;
 }
 
 /// build peer_id keys, generate for now - either from the seed or purely random one

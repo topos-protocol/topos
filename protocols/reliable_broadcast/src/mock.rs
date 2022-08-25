@@ -5,6 +5,7 @@ use rand::Rng;
 use rand_distr::Distribution;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Display, Formatter};
+use tokio_stream::StreamExt;
 
 use std::sync::{Arc, Mutex};
 use tce_transport::{ReliableBroadcastParams, TrbpCommands, TrbpEvents};
@@ -336,14 +337,15 @@ fn watch_cert_delivered(
                     }
                     let mut delivered_all_cert = true;
                     for cert in &certs {
-                        if let Ok(Some(delivered)) =
-                            cli.delivered_certs_ids(cert.initial_subnet_id, cert.id)
-                        {
-                            // if something was returned, we'd expect our certificate to be on the list
-                            if !delivered.contains(&cert.id) {
-                                delivered_all_cert = false;
-                            }
-                        }
+                        // if let Ok(delivered) = cli
+                        //     .delivered_certs_ids(cert.initial_subnet_id, cert.id)
+                        //     .await
+                        // {
+                        //     // if something was returned, we'd expect our certificate to be on the list
+                        //     if !delivered.contains(&cert.id) {
+                        //         delivered_all_cert = false;
+                        //     }
+                        // }
                     }
                     if delivered_all_cert {
                         remaining_peers_to_finish.remove(&peer.clone());
@@ -431,7 +433,7 @@ fn launch_broadcast_protocol_instances(
 
     // create instances
     for peer in peer_ids {
-        let client = ReliableBroadcastClient::new(ReliableBroadcastConfig {
+        let (client, mut event_stream) = ReliableBroadcastClient::new(ReliableBroadcastConfig {
             store: Box::new(TrbMemStore::new(all_subnets.clone())),
             trbp_params: global_trb_params.clone(),
             my_peer_id: peer.clone(),
@@ -447,7 +449,7 @@ fn launch_broadcast_protocol_instances(
             ev_cli.eval(TrbpCommands::StartUp).unwrap();
             loop {
                 tokio::select! {
-                    Ok(evt) = ev_cli.next_event() => {
+                    Some(evt) = event_stream.next() => {
                         let _ = ev_tx.send((ev_peer.clone(), evt.clone()));
                     },
                     else => {}

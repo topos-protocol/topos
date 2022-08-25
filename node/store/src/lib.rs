@@ -63,7 +63,7 @@ impl TrbStore for Store {
         &self,
         _subnet_id: &SubnetId,
         _last_n: u64,
-    ) -> Option<Vec<CertificateId>> {
+    ) -> Vec<CertificateId> {
         unimplemented!("Please prefer TrbMemStore for now");
     }
 
@@ -71,12 +71,15 @@ impl TrbStore for Store {
         unimplemented!("Please prefer using the TrbMemStore for now");
     }
 
-    fn cert_by_id(&self, cert_id: &CertificateId) -> Result<Option<Certificate>, Errors> {
+    fn cert_by_id(&self, cert_id: &CertificateId) -> Result<Certificate, Errors> {
         let mb_bin_cert = self.db.get(Self::cert_key(cert_id)).expect("db get");
         let mb_cert = mb_bin_cert
             .map(|bc| bincode::deserialize::<Certificate>(bc.as_ref()).expect("Cert deser"));
 
-        Ok(mb_cert)
+        match mb_cert {
+            Some(cert) => Ok(cert),
+            None => Err(Errors::CertificateNotFound),
+        }
     }
 
     fn new_cert_candidate(&mut self, _cert: &Certificate, _digest: &DigestCompressed) {
@@ -89,7 +92,7 @@ impl TrbStore for Store {
 
     fn check_precedence(&self, cert: &Certificate) -> Result<(), Errors> {
         match self.cert_by_id(&cert.prev_cert_id) {
-            Ok(Some(_)) => Ok(()),
+            Ok(_) => Ok(()),
             _ => Err(Errors::CertificateNotFound),
         }
     }

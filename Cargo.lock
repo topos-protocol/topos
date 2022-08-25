@@ -4482,6 +4482,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "test-log"
+version = "0.2.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "38f0c854faeb68a048f0f2dc410c5ddae3bf83854ef0e4977d58306a5edef50e"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "textwrap"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4679,6 +4690,7 @@ dependencies = [
  "bincode",
  "clap",
  "cucumber",
+ "env_logger",
  "futures",
  "hyper",
  "lazy_static",
@@ -4687,7 +4699,11 @@ dependencies = [
  "opentelemetry",
  "opentelemetry-jaeger",
  "pretty_env_logger",
+ "rand 0.8.5",
+ "rand_core 0.6.3",
+ "rand_distr",
  "serde",
+ "test-log",
  "tokio",
  "topos-addr",
  "topos-p2p",
@@ -4757,6 +4773,7 @@ name = "topos-tce-protocols-reliable-broadcast"
 version = "0.1.0"
 dependencies = [
  "byteorder",
+ "futures",
  "log",
  "opentelemetry",
  "pretty_env_logger",
@@ -4765,6 +4782,7 @@ dependencies = [
  "rand_distr",
  "serde",
  "tokio",
+ "tokio-stream",
  "topos-core",
  "topos-tce-node-telemetry",
  "topos-tce-protocols-transport",

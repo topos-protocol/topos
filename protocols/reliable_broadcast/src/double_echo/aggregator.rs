@@ -14,7 +14,7 @@ use tce_transport::{ReliableBroadcastParams, TrbpCommands, TrbpEvents};
 use topos_core::uci::{Certificate, CertificateId, DigestCompressed};
 
 use crate::sampler::{SampleType, SampleView};
-use crate::{sampler, Peer};
+use crate::{sampler, Peer, TrbInternalCommand};
 use crate::{trb_store::TrbStore, ReliableBroadcastConfig};
 
 /// Processing data associated to a Certificate candidate for delivery
@@ -29,7 +29,7 @@ type DeliveryState = HashMap<SampleType, HashSet<Peer>>;
 /// - message definitions and data structures
 pub struct ReliableBroadcast {
     my_peer_id: Peer,
-    pub(crate) broadcast_commands_channel: mpsc::UnboundedSender<TrbpCommands>,
+    pub(crate) broadcast_commands_channel: mpsc::UnboundedSender<TrbInternalCommand>,
     pub events_subscribers: Vec<mpsc::UnboundedSender<TrbpEvents>>,
     tx_exit: mpsc::UnboundedSender<()>,
     pub(crate) store: Box<dyn TrbStore + Send>,
@@ -63,7 +63,7 @@ impl ReliableBroadcast {
         config: ReliableBroadcastConfig,
         mut sample_view_receiver: broadcast::Receiver<SampleView>,
     ) -> Arc<Mutex<ReliableBroadcast>> {
-        let (b_command_sender, mut b_command_rcv) = mpsc::unbounded_channel::<TrbpCommands>();
+        let (b_command_sender, mut b_command_rcv) = mpsc::unbounded_channel::<TrbInternalCommand>();
         let (tx_exit, mut rx_exit) = mpsc::unbounded_channel::<()>();
         let me = Arc::new(Mutex::from(Self {
             my_peer_id: config.my_peer_id.clone(),
@@ -124,12 +124,12 @@ impl ReliableBroadcast {
         }
     }
 
-    fn on_command(data: Arc<Mutex<ReliableBroadcast>>, mb_cmd: Option<TrbpCommands>) {
+    fn on_command(data: Arc<Mutex<ReliableBroadcast>>, mb_cmd: Option<TrbInternalCommand>) {
         let mut aggr = data.lock().unwrap();
 
         // Execute
         match mb_cmd {
-            Some(cmd) => match cmd {
+            Some(TrbInternalCommand::Command(cmd)) => match cmd {
                 TrbpCommands::StartUp => {
                     aggr.on_cmd_start_up();
                 }
@@ -150,6 +150,20 @@ impl ReliableBroadcast {
                 }
                 _ => {}
             },
+            Some(TrbInternalCommand::DeliveredCerts {
+                subnet_id,
+                limit,
+                sender,
+            }) => {
+                let value = aggr
+                    .store
+                    .recent_certificates_for_subnet(&subnet_id, limit)
+                    .iter()
+                    .filter_map(|cert_id| aggr.store.cert_by_id(cert_id).ok())
+                    .collect();
+
+                sender.send(Ok(value));
+            }
             _ => {
                 log::warn!("empty command was passed");
             }

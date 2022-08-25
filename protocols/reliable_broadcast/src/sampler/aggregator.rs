@@ -10,12 +10,14 @@ use tokio::sync::mpsc;
 
 use tce_transport::{ReliableBroadcastParams, TrbpCommands, TrbpEvents};
 
+use crate::TrbInternalCommand;
+
 use super::{sampling::sample_reduce_from, *};
 
 #[derive(Debug)]
 pub struct PeerSamplingOracle {
     pub events_subscribers: Vec<mpsc::UnboundedSender<TrbpEvents>>,
-    pub sampling_commands_channel: mpsc::UnboundedSender<TrbpCommands>,
+    pub sampling_commands_channel: mpsc::UnboundedSender<TrbInternalCommand>,
     pub trbp_params: ReliableBroadcastParams,
     pub visible_peers: Vec<Peer>,
 
@@ -33,7 +35,7 @@ impl PeerSamplingOracle {
         params: ReliableBroadcastParams,
         sample_view_sender: broadcast::Sender<SampleView>,
     ) -> Arc<Mutex<PeerSamplingOracle>> {
-        let (s_command_sender, mut s_command_rcv) = mpsc::unbounded_channel::<TrbpCommands>();
+        let (s_command_sender, mut s_command_rcv) = mpsc::unbounded_channel::<TrbInternalCommand>();
         // Init the samples
         let mut default_view: SampleView = Default::default();
         default_view.insert(SampleType::EchoInbound, HashSet::new());
@@ -88,11 +90,11 @@ impl PeerSamplingOracle {
     /// - [TrbpCommands::OnConnectedPeersChanged] - to keep the nearest nodes
     /// - [TrbpCommands::OnEchoSubscribeReq], [TrbpCommands::OnReadySubscribeReq] - to keep track of Inbound
     /// - [TrbpCommands::OnEchoSubscribeOk], [TrbpCommands::OnReadySubscribeOk] - to keep track of Outbound
-    fn on_command(data: Arc<Mutex<PeerSamplingOracle>>, mb_cmd: Option<TrbpCommands>) {
+    fn on_command(data: Arc<Mutex<PeerSamplingOracle>>, mb_cmd: Option<TrbInternalCommand>) {
         log::debug!("on_command(cmd: {:?}", &mb_cmd);
         let mut aggr = data.lock().unwrap();
         match mb_cmd {
-            Some(cmd) => {
+            Some(TrbInternalCommand::Command(cmd)) => {
                 match cmd {
                     TrbpCommands::OnVisiblePeersChanged { peers } => {
                         if aggr.apply_visible_peers(peers) {

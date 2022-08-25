@@ -15,6 +15,7 @@ use topos_tce::AppContext;
 
 pub struct TestAppContext {
     pub peer_id: String,
+    pub command_sampler: mpsc::UnboundedSender<TrbpCommands>,
     pub command_broadcast: mpsc::UnboundedSender<TrbpCommands>,
     pub api: mpsc::Sender<ApiRequests>,
 }
@@ -42,17 +43,18 @@ where
         );
         let (api, api_worker) = create_api_worker();
         let (client, event_stream, runtime) =
-            create_network_worker(*seed, *port, addr, &peers).await;
+            create_network_worker(*seed, *port, addr.clone(), &peers).await;
 
-        let command_broadcast = rb_client.get_command_channel();
+        let (command_sampler, command_broadcast) = rb_client.get_command_channels();
 
         let app = AppContext::new(rb_client, api_worker, client.clone());
 
         spawn(runtime.run());
-        spawn(app.run(addr.into(), event_stream));
+        spawn(app.run(event_stream));
 
         let client = TestAppContext {
             peer_id: peer_id.clone(),
+            command_sampler,
             command_broadcast,
             api,
         };
@@ -100,7 +102,7 @@ fn keypair_from_seed(seed: u8) -> Keypair {
 async fn create_network_worker(
     seed: u8,
     port: u16,
-    addr: &Multiaddr,
+    addr: Multiaddr,
     peers: &[PeerConfig],
 ) -> (Client, impl Stream<Item = Event> + Unpin + Send, Runtime) {
     let key = keypair_from_seed(seed);
@@ -120,6 +122,7 @@ async fn create_network_worker(
     topos_p2p::network::builder()
         .peer_key(key.clone())
         .known_peers(known_peers)
+        .listen_addr(addr)
         .build()
         .await
         .expect("Cannot create network")

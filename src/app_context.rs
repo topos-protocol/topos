@@ -1,6 +1,7 @@
 //!
 //! Application logic glue
 //!
+use futures::future::BoxFuture;
 use futures::{future::join_all, Stream, StreamExt};
 use libp2p::PeerId;
 use log::info;
@@ -8,6 +9,7 @@ use log::warn;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use std::time::Duration;
+use tce_trbp::uci::{Certificate, CertificateId};
 use tokio::time;
 use tokio::{spawn, sync::oneshot};
 use topos_p2p::{Client, Event};
@@ -15,7 +17,7 @@ use topos_p2p::{Client, Event};
 use tce_api::{ApiRequests, ApiWorker};
 
 use tce_transport::{TrbpCommands, TrbpEvents};
-use tce_trbp::ReliableBroadcastClient;
+use tce_trbp::{Errors, ReliableBroadcastClient};
 
 /// Top-level transducer main app context & driver (alike)
 ///
@@ -49,7 +51,11 @@ impl AppContext {
     }
 
     /// Main processing loop
-    pub async fn run(mut self, mut network_stream: impl Stream<Item = topos_p2p::Event> + Unpin) {
+    pub async fn run(
+        mut self,
+        mut network_stream: impl Stream<Item = topos_p2p::Event> + Unpin,
+        mut trb_stream: impl Stream<Item = TrbpEvents> + Unpin,
+    ) {
         let mut publish = tokio::time::interval(Duration::from_secs(1));
 
         let mut peers: Vec<PeerId> = Vec::new();
@@ -68,7 +74,7 @@ impl AppContext {
                 }
 
                 // protocol
-                Ok(evt) = self.trbp_cli.next_event() => {
+                Some(evt) = trb_stream.next() => {
                     log::info!("trbp_cli.next_event(): {:?}", &evt);
                     self.on_protocol_event(evt).await;
                 },
@@ -94,25 +100,21 @@ impl AppContext {
                 resp_channel.send(()).expect("sync send");
             }
             ApiRequests::DeliveredCerts { req, resp_channel } => {
-                match self
+                let future = self
                     .trbp_cli
-                    .delivered_certs_ids(req.subnet_id, req.from_cert_id)
-                {
-                    Ok(Some(v)) => {
-                        let the_certs = v
-                            .iter()
-                            .map(|&id| self.trbp_cli.cert_by_id(id).expect("cert").unwrap())
-                            .collect();
-                        resp_channel.send(the_certs).expect("sync send");
+                    .delivered_certs(req.subnet_id, req.from_cert_id);
+
+                spawn(async move {
+                    match future.await {
+                        Ok(the_certs) => {
+                            resp_channel.send(the_certs).expect("sync send");
+                        }
+
+                        _ => {
+                            log::error!("Request failure {:?}", req);
+                        }
                     }
-                    Ok(None) => {
-                        log::debug!("No delivered certificate for that subnet");
-                        resp_channel.send(Vec::new()).expect("sync send");
-                    }
-                    _ => {
-                        log::error!("Request failure {:?}", req);
-                    }
-                }
+                });
             }
         }
     }
@@ -267,11 +269,6 @@ impl AppContext {
         log::debug!("on_net_event ({:?}", &evt);
         match evt {
             Event::PeersChanged { new_peers } => {
-                //  notify the protocol
-                // let _ = self.trbp_cli.eval(TrbpCommands::OnVisiblePeersChanged {
-                //     peers: new_peers.iter().map(|e| e.to_base58()).collect(),
-                // });
-
                 let data: Vec<u8> = NetworkMessage::from(TrbpCommands::OnEchoSubscribeReq {
                     from_peer: self.network_client.local_peer_id.to_base58(),
                 })

@@ -51,6 +51,11 @@ futures = "*"
 async-trait = "0.1"
 cucumber = "0.13.0"
 hyper = { version = "0.14", features = ["full"] }
+rand_distr = "0.4.1"
+rand_core = "0.6.0"
+rand = "0.8.5"
+env_logger = "*"
+test-log = { version = "0.2", features = ["log"] }
 
 [[test]]
 name = "example" # this should be the same as the filename of your test target
