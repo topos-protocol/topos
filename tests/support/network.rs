@@ -172,6 +172,7 @@ where
     params
 }
 
+#[allow(dead_code)]
 pub struct TestNodeContext {
     pub(crate) peer_id: PeerId,
     pub(crate) peer_addr: ToposAddr,
@@ -180,6 +181,7 @@ pub struct TestNodeContext {
 }
 
 impl TestNodeContext {
+    #[allow(dead_code)]
     pub(crate) async fn next_event(&mut self) -> Option<topos_p2p::Event> {
         self.stream.next().await
     }

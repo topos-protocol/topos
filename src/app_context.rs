@@ -133,7 +133,7 @@ impl AppContext {
                     .map(|peer_id| {
                         warn!("Sending echo subscribe");
                         self.network_client.send_request::<_, NetworkMessage>(
-                            PeerId::from_str(&peer_id).expect("correct peer_id"),
+                            PeerId::from_str(peer_id).expect("correct peer_id"),
                             data.clone(),
                         )
                     })
@@ -174,7 +174,7 @@ impl AppContext {
                     .map(|peer_id| {
                         info!("Sending ready subscribe");
                         self.network_client.send_request::<_, NetworkMessage>(
-                            PeerId::from_str(&peer_id).expect("correct peer_id"),
+                            PeerId::from_str(peer_id).expect("correct peer_id"),
                             data.clone(),
                         )
                     })
@@ -235,7 +235,7 @@ impl AppContext {
                             TrbpCommands::OnEchoSubscribeReq { from_peer } => {
                                 self.trbp_cli.add_confirmed_peer_to_sample(
                                     SampleType::EchoSubscriber,
-                                    from_peer.clone(),
+                                    from_peer,
                                 );
                                 spawn(self.network_client.respond_to_request(
                                     NetworkMessage::from(TrbpCommands::OnEchoSubscribeOk {
@@ -248,7 +248,7 @@ impl AppContext {
                             TrbpCommands::OnReadySubscribeReq { from_peer } => {
                                 self.trbp_cli.add_confirmed_peer_to_sample(
                                     SampleType::ReadySubscriber,
-                                    from_peer.clone(),
+                                    from_peer,
                                 );
                                 spawn(self.network_client.respond_to_request(
                                     NetworkMessage::from(TrbpCommands::OnReadySubscribeOk {

@@ -34,7 +34,7 @@ async fn cert_delivery() {
     tokio::time::sleep(Duration::from_secs(1)).await;
 
     // Here to be able to display logs
-    assert!(false);
+    // assert!(false);
 }
 
 pub fn sample_lower_bound(n_u: usize) -> usize {
