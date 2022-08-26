@@ -1,24 +1,57 @@
-#
-# Builder
-#
-FROM --platform=linux/amd64 ghcr.io/toposware/topos-ci-docker:master AS builder
+FROM rust:latest AS base
 
-ARG PRIV_GH_USER
-ARG PRIV_GH_TOKEN
+ARG TOOLCHAIN_VERSION
+ARG GITHUB_TOKEN
 
-ENV PRIV_GH_USER ${PRIV_GH_USER}
-ENV PRIV_GH_TOKEN ${PRIV_GH_TOKEN}
+ENV CARGO_TERM_COLOR=always
+ENV RUSTFLAGS=-Dwarnings
+ENV RUST_BACKTRACE=1
 
-RUN rustup toolchain install nightly && \
-    rustup default nightly && \
-    rustup target add x86_64-unknown-linux-musl && \
-    rustup component add rustfmt
+RUN git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+
 RUN apt update && \
-    apt install -y clang musl-tools musl-dev sudo
-RUN sudo ln -s /usr/bin/g++ /usr/bin/musl-g++
-RUN update-ca-certificates
+    apt install -y clang
 
-# Create appuser
+RUN rustup toolchain install ${TOOLCHAIN_VERSION} && \
+    rustup default ${TOOLCHAIN_VERSION} && \
+    rustup target add x86_64-unknown-linux-musl && \
+    cargo install cargo-chef --locked
+
+WORKDIR /usr/src/app
+
+FROM base AS planner
+COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
+
+FROM base AS build
+COPY --from=planner /usr/src/app/recipe.json recipe.json
+RUN cargo chef cook --release --recipe-path recipe.json
+COPY . .
+RUN cargo build --release
+
+FROM base AS test
+COPY --from=planner /usr/src/app/recipe.json recipe.json
+RUN cargo chef cook --all-targets --recipe-path recipe.json
+COPY . .
+RUN cargo test --workspace
+
+FROM base AS fmt
+RUN rustup component add rustfmt
+COPY . .
+RUN cargo fmt --all -- --check
+
+FROM base AS lint
+RUN rustup component add clippy
+COPY --from=planner /usr/src/app/recipe.json recipe.json
+RUN cargo chef cook --recipe-path recipe.json
+COPY . .
+RUN cargo clippy --all
+
+FROM debian:bullseye-slim
+
+ENV RUST_LOG=trace
+ENV TCE_PORT=9090
+ENV TCE_RAM_STORAGE=true
 ENV USER=topos
 ENV UID=10001
 
@@ -31,46 +64,10 @@ RUN adduser \
     --uid "${UID}" \
     "${USER}"
 
-WORKDIR /src/github.com/toposware/tce
+WORKDIR /usr/src/app
 
+COPY --from=build /usr/src/app/target/release/topos-tce-node-app .
 
-# fetch and save dependencies as a layer
-#
-COPY ./Cargo.toml ./Cargo.toml
-COPY ./node/api/Cargo.toml ./node/api/Cargo.toml
-COPY ./node/net/Cargo.toml ./node/net/Cargo.toml
-COPY ./node/store/Cargo.toml ./node/store/Cargo.toml
-COPY ./node/telemetry/Cargo.toml ./node/telemetry/Cargo.toml
-COPY ./protocols/reliable_broadcast/Cargo.toml ./protocols/reliable_broadcast/Cargo.toml
-COPY ./protocols/transport/Cargo.toml ./protocols/transport/Cargo.toml
-COPY ./params-minimizer/Cargo.toml ./params-minimizer/Cargo.toml
-COPY ./tests ./tests
-
-RUN . /init.sh && cargo fetch
-
-# sources and build
-#
-COPY ./ .
-RUN . /init.sh && cargo build --release
-
-#
-# Final image
-#
-FROM --platform=linux/amd64 debian:bullseye-slim
-
-ENV RUST_LOG=trace
-ENV TCE_PORT=9090
-ENV TCE_RAM_STORAGE=true
-
-# Import from builder.
-COPY --from=builder /etc/passwd /etc/passwd
-COPY --from=builder /etc/group /etc/group
-
-WORKDIR /src/github.com/toposware/tce
-
-COPY --from=builder /src/github.com/toposware/tce/target/release/topos-tce-node-app ./topos-tce-node-app
-
-# Use an unprivileged user.
 USER topos:topos
 
-CMD ["./topos-tce-node-app"]
+CMD topos-tce-node-app
