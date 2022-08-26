@@ -449,7 +449,7 @@ fn launch_broadcast_protocol_instances(
             ev_cli.eval(TrbpCommands::StartUp).unwrap();
             loop {
                 tokio::select! {
-                    Some(evt) = event_stream.next() => {
+                    Some(Ok(evt)) = event_stream.next() => {
                         let _ = ev_tx.send((ev_peer.clone(), evt.clone()));
                     },
                     else => {}

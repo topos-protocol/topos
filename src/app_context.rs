@@ -12,8 +12,9 @@ use tce_api::web_api::PeerChanged;
 use tce_api::{ApiRequests, ApiWorker};
 use tce_transport::{TrbpCommands, TrbpEvents};
 use tce_trbp::sampler::SampleType;
-use tce_trbp::{ReliableBroadcastClient, SamplerCommand, TrbInternalCommand};
+use tce_trbp::{ReliableBroadcastClient, SamplerCommand};
 use tokio::spawn;
+use tokio::sync::oneshot;
 use topos_p2p::{Client, Event};
 
 /// Top-level transducer main app context & driver (alike)
@@ -51,7 +52,7 @@ impl AppContext {
     pub async fn run(
         mut self,
         mut network_stream: impl Stream<Item = topos_p2p::Event> + Unpin,
-        mut trb_stream: impl Stream<Item = TrbpEvents> + Unpin,
+        mut trb_stream: impl Stream<Item = Result<TrbpEvents, ()>> + Unpin,
     ) {
         loop {
             tokio::select! {
@@ -62,7 +63,7 @@ impl AppContext {
                 }
 
                 // protocol
-                Some(evt) = trb_stream.next() => {
+                Some(Ok(evt)) = trb_stream.next() => {
                     self.on_protocol_event(evt).await;
                 },
 
@@ -140,25 +141,35 @@ impl AppContext {
                     .collect::<Vec<_>>();
 
                 spawn(async move {
-                    let r = join_all(future_pool).await;
+                    let results = join_all(future_pool).await;
 
-                    r.into_iter().for_each(|result| match result {
-                        Ok(message) => match message {
-                            NetworkMessage::Cmd(TrbpCommands::OnEchoSubscribeOk { from_peer }) => {
-                                info!("Receive response to EchoSubscribe",);
-                                let _ = command_sender.send(TrbInternalCommand::Sampler(
-                                    SamplerCommand::ConfirmPeer {
-                                        peer: from_peer,
-                                        sample_type: SampleType::EchoSubscription,
-                                    },
-                                ));
+                    for result in results {
+                        match result {
+                            Ok(message) => match message {
+                                NetworkMessage::Cmd(TrbpCommands::OnEchoSubscribeOk {
+                                    from_peer,
+                                }) => {
+                                    info!("Receive response to EchoSubscribe",);
+                                    let (sender, receiver) = oneshot::channel();
+                                    let _ = command_sender
+                                        .send(SamplerCommand::ConfirmPeer {
+                                            peer: from_peer,
+                                            sample_type: SampleType::EchoSubscription,
+                                            sender,
+                                        })
+                                        .await;
+
+                                    let _ = receiver.await.expect("Sender was dropped");
+                                }
+                                msg => {
+                                    error!("Receive an unexpected message as a response {msg:?}")
+                                }
+                            },
+                            Err(error) => {
+                                error!("An error occured when sending EchoSubscribe {error:?}")
                             }
-                            msg => error!("Receive an unexpected message as a response {msg:?}"),
-                        },
-                        Err(error) => {
-                            error!("An error occured when sending EchoSubscribe {error:?}")
                         }
-                    });
+                    }
                 });
             }
             TrbpEvents::ReadySubscribeReq { peers } => {
@@ -181,31 +192,43 @@ impl AppContext {
                     .collect::<Vec<_>>();
 
                 spawn(async move {
-                    let r = join_all(future_pool).await;
+                    let results = join_all(future_pool).await;
 
-                    r.into_iter().for_each(|result| match result {
-                        Ok(message) => match message {
-                            NetworkMessage::Cmd(TrbpCommands::OnReadySubscribeOk { from_peer }) => {
-                                info!("Receive response to ReadySubscribe");
-                                let _ = command_sender.send(TrbInternalCommand::Sampler(
-                                    SamplerCommand::ConfirmPeer {
-                                        peer: from_peer.clone(),
-                                        sample_type: SampleType::ReadySubscription,
-                                    },
-                                ));
-                                let _ = command_sender.send(TrbInternalCommand::Sampler(
-                                    SamplerCommand::ConfirmPeer {
-                                        peer: from_peer,
-                                        sample_type: SampleType::DeliverySubscription,
-                                    },
-                                ));
+                    for result in results {
+                        match result {
+                            Ok(message) => match message {
+                                NetworkMessage::Cmd(TrbpCommands::OnReadySubscribeOk {
+                                    from_peer,
+                                }) => {
+                                    info!("Receive response to ReadySubscribe");
+                                    let (sender_ready, receiver_ready) = oneshot::channel();
+                                    let _ = command_sender
+                                        .send(SamplerCommand::ConfirmPeer {
+                                            peer: from_peer.clone(),
+                                            sample_type: SampleType::ReadySubscription,
+                                            sender: sender_ready,
+                                        })
+                                        .await;
+                                    let (sender_delivery, receiver_delivery) = oneshot::channel();
+                                    let _ = command_sender
+                                        .send(SamplerCommand::ConfirmPeer {
+                                            peer: from_peer,
+                                            sample_type: SampleType::DeliverySubscription,
+                                            sender: sender_delivery,
+                                        })
+                                        .await;
+
+                                    join_all(vec![receiver_ready, receiver_delivery]).await;
+                                }
+                                msg => {
+                                    error!("Receive an unexpected message as a response {msg:?}")
+                                }
+                            },
+                            Err(error) => {
+                                error!("An error occured when sending ReadySubscribe {error:?}")
                             }
-                            msg => error!("Receive an unexpected message as a response {msg:?}"),
-                        },
-                        Err(error) => {
-                            error!("An error occured when sending ReadySubscribe {error:?}")
                         }
-                    });
+                    }
                 });
             }
 
@@ -233,10 +256,13 @@ impl AppContext {
 
                         match cmd {
                             TrbpCommands::OnEchoSubscribeReq { from_peer } => {
-                                self.trbp_cli.add_confirmed_peer_to_sample(
-                                    SampleType::EchoSubscriber,
-                                    from_peer,
-                                );
+                                self.trbp_cli
+                                    .add_confirmed_peer_to_sample(
+                                        SampleType::EchoSubscriber,
+                                        from_peer,
+                                    )
+                                    .await;
+
                                 spawn(self.network_client.respond_to_request(
                                     NetworkMessage::from(TrbpCommands::OnEchoSubscribeOk {
                                         from_peer: my_peer.to_base58(),
@@ -246,10 +272,12 @@ impl AppContext {
                             }
 
                             TrbpCommands::OnReadySubscribeReq { from_peer } => {
-                                self.trbp_cli.add_confirmed_peer_to_sample(
-                                    SampleType::ReadySubscriber,
-                                    from_peer,
-                                );
+                                self.trbp_cli
+                                    .add_confirmed_peer_to_sample(
+                                        SampleType::ReadySubscriber,
+                                        from_peer,
+                                    )
+                                    .await;
                                 spawn(self.network_client.respond_to_request(
                                     NetworkMessage::from(TrbpCommands::OnReadySubscribeOk {
                                         from_peer: my_peer.to_base58(),
