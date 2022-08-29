@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package topos.tce.v1;
+
+service APIService {
+  rpc SubmitCertificate(SubmitCertificateRequest) returns (SubmitCertificateResponse) {}
+
+}
+
+message SubmitCertificateRequest {}
+message SubmitCertificateResponse {}
