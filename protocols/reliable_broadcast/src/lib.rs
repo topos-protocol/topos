@@ -13,11 +13,12 @@ use opentelemetry::global;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::{broadcast, mpsc, oneshot};
 
-use double_echo::aggregator::ReliableBroadcast;
-use tce_transport::{ReliableBroadcastParams, TrbpCommands, TrbpEvents};
+use double_echo::DoubleEcho;
+use tce_transport::{ReliableBroadcastParams, TrbpEvents};
 
-use topos_core::uci::{Certificate, CertificateId, SubnetId};
+use topos_core::uci::{Certificate, CertificateId, DigestCompressed, SubnetId};
 
+use crate::mem_store::TrbMemStore;
 use crate::sampler::Sampler;
 use crate::trb_store::TrbStore;
 pub use topos_core::uci;
@@ -49,11 +50,27 @@ pub enum SamplerCommand {
 }
 
 #[derive(Debug)]
-pub enum TrbInternalCommand {
-    Command(TrbpCommands),
+pub enum DoubleEchoCommand {
+    /// Received G-set message
+    Deliver {
+        cert: Certificate,
+        digest: DigestCompressed,
+    },
 
-    Sampler(SamplerCommand),
+    /// Entry point for new certificate to submit as initial sender
+    Broadcast { cert: Certificate },
 
+    /// When echo reply received
+    Echo {
+        from_peer: String,
+        cert: Certificate,
+    },
+
+    /// When ready reply received
+    Ready {
+        from_peer: String,
+        cert: Certificate,
+    },
     DeliveredCerts {
         subnet_id: SubnetId,
         limit: u64,
@@ -66,7 +83,7 @@ pub enum TrbInternalCommand {
 pub struct ReliableBroadcastClient {
     #[allow(dead_code)]
     peer_id: String,
-    broadcast_commands: mpsc::Sender<TrbInternalCommand>,
+    broadcast_commands: mpsc::Sender<DoubleEchoCommand>,
     sampling_commands: mpsc::Sender<SamplerCommand>,
 }
 
@@ -93,13 +110,20 @@ impl ReliableBroadcastClient {
             sample_view_sender,
         );
 
-        let b_w_aggr = ReliableBroadcast::spawn_new(config, sample_view_receiver);
-        let mut b_aggr = b_w_aggr.lock().unwrap();
-        let broadcast_commands = b_aggr.broadcast_commands_channel.clone();
+        let (broadcast_commands, command_receiver) = mpsc::channel(2048);
 
-        b_aggr.events_subscribers.push(event_sender);
+        let double_echo = DoubleEcho::new(
+            peer_id.clone(),
+            config.trbp_params.clone(),
+            command_receiver,
+            sample_view_receiver,
+            event_sender.clone(),
+            Box::new(TrbMemStore::default()),
+        );
 
         spawn(sampler.run());
+        spawn(double_echo.run());
+
         (
             Self {
                 peer_id,
@@ -109,29 +133,29 @@ impl ReliableBroadcastClient {
             BroadcastStream::new(event_receiver).map_err(|_| ()),
         )
     }
-    /// Schedule command for execution
-    pub fn eval(&self, cmd: TrbpCommands) -> Result<(), Errors> {
-        let is_broadcast_related = |cmd: &TrbpCommands| {
-            matches!(
-                cmd,
-                TrbpCommands::StartUp
-                    | TrbpCommands::Shutdown
-                    | TrbpCommands::OnBroadcast { .. }
-                    | TrbpCommands::OnGossip { .. }
-                    | TrbpCommands::OnStartDelivery { .. }
-                    | TrbpCommands::OnEcho { .. }
-                    | TrbpCommands::OnReady { .. }
-            )
-        };
-        if is_broadcast_related(&cmd) {
-            log::debug!("eval for broadcast {:?}", cmd);
-            self.broadcast_commands
-                .try_send(TrbInternalCommand::Command(cmd))
-                .map_err(|err| err.into())
-        } else {
-            Ok(())
-        }
-    }
+    // /// Schedule command for execution
+    // pub fn eval(&self, cmd: TrbpCommands) -> Result<(), Errors> {
+    //     let is_broadcast_related = |cmd: &TrbpCommands| {
+    //         matches!(
+    //             cmd,
+    //             TrbpCommands::StartUp
+    //                 | TrbpCommands::Shutdown
+    //                 | TrbpCommands::OnBroadcast { .. }
+    //                 | TrbpCommands::OnGossip { .. }
+    //                 | TrbpCommands::OnStartDelivery { .. }
+    //                 | TrbpCommands::OnEcho { .. }
+    //                 | TrbpCommands::OnReady { .. }
+    //         )
+    //     };
+    //     if is_broadcast_related(&cmd) {
+    //         log::debug!("eval for broadcast {:?}", cmd);
+    //         self.broadcast_commands
+    //             .try_send(DoubleEchoCommand::Command(cmd))
+    //             .map_err(|err| err.into())
+    //     } else {
+    //         Ok(())
+    //     }
+    // }
 
     pub fn peer_changed(
         &self,
@@ -180,7 +204,7 @@ impl ReliableBroadcastClient {
         let broadcast_commands = self.broadcast_commands.clone();
 
         async move {
-            let _ = broadcast_commands.send(TrbInternalCommand::DeliveredCerts {
+            let _ = broadcast_commands.send(DoubleEchoCommand::DeliveredCerts {
                 subnet_id,
                 limit: 10,
                 sender,
@@ -204,7 +228,10 @@ impl ReliableBroadcastClient {
         self.sampling_commands.clone()
     }
 
-    pub fn get_command_channels(&self) -> (Sender<SamplerCommand>, Sender<TrbInternalCommand>) {
+    pub fn get_double_echo_channel(&self) -> Sender<DoubleEchoCommand> {
+        self.broadcast_commands.clone()
+    }
+    pub fn get_command_channels(&self) -> (Sender<SamplerCommand>, Sender<DoubleEchoCommand>) {
         (
             self.sampling_commands.clone(),
             self.broadcast_commands.clone(),
@@ -220,14 +247,20 @@ pub enum Errors {
     CertificateNotFound,
 }
 
-impl From<mpsc::error::SendError<TrbInternalCommand>> for Errors {
-    fn from(_arg: mpsc::error::SendError<TrbInternalCommand>) -> Self {
+impl From<mpsc::error::SendError<DoubleEchoCommand>> for Errors {
+    fn from(_arg: mpsc::error::SendError<DoubleEchoCommand>) -> Self {
         Errors::TokioError {}
     }
 }
 
-impl From<mpsc::error::TrySendError<TrbInternalCommand>> for Errors {
-    fn from(_arg: mpsc::error::TrySendError<TrbInternalCommand>) -> Self {
+impl From<mpsc::error::TrySendError<DoubleEchoCommand>> for Errors {
+    fn from(_arg: mpsc::error::TrySendError<DoubleEchoCommand>) -> Self {
+        Errors::TokioError {}
+    }
+}
+
+impl From<mpsc::error::SendError<SamplerCommand>> for Errors {
+    fn from(_arg: mpsc::error::SendError<SamplerCommand>) -> Self {
         Errors::TokioError {}
     }
 }

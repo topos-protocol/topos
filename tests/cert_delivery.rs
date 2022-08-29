@@ -6,7 +6,7 @@ mod support {
 use crate::support::certificate::generate_cert;
 use std::time::Duration;
 use tce_transport::TrbpCommands;
-use tce_trbp::{uci::SubnetId, TrbInternalCommand};
+use tce_trbp::{uci::SubnetId, DoubleEchoCommand};
 use test_log::test;
 
 #[test(tokio::test)]
@@ -25,7 +25,7 @@ async fn cert_delivery() {
     if let Some(client) = clients.get("peer_1") {
         let _ = client
             .command_broadcast
-            .send(TrbInternalCommand::Command(TrbpCommands::OnBroadcast {
+            .send(DoubleEchoCommand::Command(TrbpCommands::OnBroadcast {
                 cert: cert.first().cloned().unwrap(),
             }))
             .await

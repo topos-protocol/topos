@@ -91,7 +91,6 @@ impl Sampler {
     /// - [TrbpCommands::OnConnectedPeersChanged] - to keep the nearest nodes
     /// - [TrbpCommands::OnEchoSubscribeReq], [TrbpCommands::OnReadySubscribeReq] - to keep track of Subscriptions
     /// - [TrbpCommands::OnEchoSubscribeOk], [TrbpCommands::OnReadySubscribeOk] - to keep track of Subscriber
-
     pub async fn run(mut self) {
         loop {
             tokio::select! {

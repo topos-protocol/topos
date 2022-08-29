@@ -1,5 +1,5 @@
-use crate::Errors;
 use crate::{mem_store::TrbMemStore, ReliableBroadcastClient, ReliableBroadcastConfig};
+use crate::{DoubleEchoCommand, Errors, SamplerCommand};
 /// Mock for the network and broadcast
 use rand::Rng;
 use rand_distr::Distribution;
@@ -7,8 +7,7 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Display, Formatter};
 use tokio_stream::StreamExt;
 
-use std::sync::{Arc, Mutex};
-use tce_transport::{ReliableBroadcastParams, TrbpCommands, TrbpEvents};
+use tce_transport::{ReliableBroadcastParams, TrbpEvents};
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
@@ -24,7 +23,7 @@ static MAX_TEST_DURATION: Duration = Duration::from_secs(60 * 2);
 /// Stall in the sense no messages get exchanged across the nodes
 static MAX_STALL_DURATION: Duration = Duration::from_secs(60);
 
-pub type PeersContainer = HashMap<String, Arc<Mutex<ReliableBroadcastClient>>>;
+pub type PeersContainer = HashMap<String, ReliableBroadcastClient>;
 
 #[derive(Debug, Default, Clone)]
 pub struct InputConfig {
@@ -235,19 +234,21 @@ fn test_cert_conflict_generation() {
 
 fn submit_test_cert(
     certificates: Vec<Certificate>,
-    peers_container: Arc<PeersContainer>,
+    peers_container: PeersContainer,
     to_peer: String,
 ) {
-    tokio::spawn(async move {
-        for cert in certificates {
-            let mb_cli = peers_container.get(&*to_peer);
-            if let Some(w_cli) = mb_cli {
-                let cli = w_cli.lock().unwrap();
-                cli.eval(TrbpCommands::OnBroadcast { cert: cert.clone() })
+    for cert in certificates {
+        let mb_cli = peers_container.get(&*to_peer);
+        if let Some(w_cli) = mb_cli {
+            let sender = w_cli.get_double_echo_channel();
+            tokio::spawn(async move {
+                sender
+                    .send(DoubleEchoCommand::Broadcast { cert: cert.clone() })
+                    .await
                     .unwrap();
-            };
-        }
-    });
+            });
+        };
+    }
 }
 
 async fn run_tce_network(simu_config: SimulationConfig) -> Result<(), ()> {
@@ -317,7 +318,7 @@ async fn run_tce_network(simu_config: SimulationConfig) -> Result<(), ()> {
 }
 
 fn watch_cert_delivered(
-    peers_container: Arc<PeersContainer>,
+    peers_container: PeersContainer,
     certs: Vec<Certificate>,
     tx_exit: mpsc::UnboundedSender<Result<(), ()>>,
     to_peers: Vec<String>,
@@ -331,13 +332,9 @@ fn watch_cert_delivered(
             for ref peer in remaining_peers_to_finish.clone() {
                 let mb_cli = peers_container.get(peer);
                 if let Some(w_cli) = mb_cli {
-                    let cli;
-                    {
-                        cli = w_cli.lock().unwrap().clone();
-                    }
                     let mut delivered_all_cert = true;
                     for cert in &certs {
-                        if let Ok(delivered) = cli
+                        if let Ok(delivered) = w_cli
                             .delivered_certs_ids(cert.initial_subnet_id, cert.id)
                             .await
                         {
@@ -374,7 +371,7 @@ type SimulationResponse = (
 /// * exit event sender
 /// * join handle of the main loop (to await upon)
 fn launch_simulation_main_loop(
-    peers_container: Arc<PeersContainer>,
+    peers_container: PeersContainer,
     mut rx_combined_events: mpsc::UnboundedReceiver<(String, TrbpEvents)>,
 ) -> SimulationResponse {
     // 'exit' command channel & max test duration
@@ -428,8 +425,8 @@ fn launch_broadcast_protocol_instances(
     tx_combined_events: mpsc::UnboundedSender<(String, TrbpEvents)>,
     all_subnets: Vec<SubnetId>,
     global_trb_params: ReliableBroadcastParams,
-) -> Arc<PeersContainer> {
-    let mut peers_container = HashMap::<String, Arc<Mutex<ReliableBroadcastClient>>>::new();
+) -> PeersContainer {
+    let mut peers_container = HashMap::<String, ReliableBroadcastClient>::new();
 
     // create instances
     for peer in peer_ids {
@@ -439,14 +436,12 @@ fn launch_broadcast_protocol_instances(
             my_peer_id: peer.clone(),
         });
 
-        let _ = peers_container.insert(peer.clone(), Arc::new(Mutex::from(client.clone())));
+        let _ = peers_container.insert(peer.clone(), client.clone());
 
         // configure combined events' listener
-        let ev_cli = client.clone();
         let ev_tx = tx_combined_events.clone();
         let ev_peer = peer.clone();
         let _ = tokio::spawn(async move {
-            ev_cli.eval(TrbpCommands::StartUp).unwrap();
             loop {
                 tokio::select! {
                     Some(Ok(evt)) = event_stream.next() => {
@@ -459,7 +454,7 @@ fn launch_broadcast_protocol_instances(
     }
 
     log::debug!("Network is launched, {:?}", peers_container.len());
-    Arc::new(peers_container)
+    peers_container
 }
 
 /// Simulating network delay
@@ -476,7 +471,7 @@ fn network_delay() -> time::Sleep {
 /// Allows to tune which peers are 'visible' to other peers.
 ///
 /// For now everybody sees whole simulated net
-fn visible_peers_for(peer: String, peers_container: Arc<PeersContainer>) -> Vec<String> {
+fn visible_peers_for(peer: String, peers_container: PeersContainer) -> Vec<String> {
     peers_container
         .keys()
         .cloned()
@@ -491,7 +486,7 @@ fn visible_peers_for(peer: String, peers_container: Arc<PeersContainer>) -> Vec<
 pub async fn handle_peer_event(
     from_peer: String,
     evt: TrbpEvents,
-    peers_container: Arc<PeersContainer>,
+    peers_container: PeersContainer,
 ) -> Result<(), Errors> {
     if NETWORK_DELAY_SIMULATION {
         network_delay().await;
@@ -501,55 +496,59 @@ pub async fn handle_peer_event(
             let visible_peers = visible_peers_for(from_peer.clone(), peers_container.clone());
             let mb_cli = peers_container.get(&*from_peer);
             if let Some(w_cli) = mb_cli {
-                let cli = w_cli.lock().unwrap();
-                cli.eval(TrbpCommands::OnVisiblePeersChanged {
-                    peers: visible_peers,
-                })?;
+                let sender = w_cli.get_sampler_channel();
+                sender
+                    .send(SamplerCommand::PeersChanged {
+                        peers: visible_peers,
+                    })
+                    .await?;
             }
         }
         TrbpEvents::Broadcast { cert } => {
             let mb_cli = peers_container.get(&*from_peer);
             if let Some(w_cli) = mb_cli {
-                let cli = w_cli.lock().unwrap();
-                cli.eval(TrbpCommands::OnBroadcast { cert })?;
+                w_cli
+                    .get_double_echo_channel()
+                    .send(DoubleEchoCommand::Broadcast { cert })
+                    .await?;
             }
         }
-        TrbpEvents::EchoSubscribeReq { peers } => {
-            for to_peer in peers {
-                let mb_cli = peers_container.get(&*to_peer);
-                if let Some(w_cli) = mb_cli {
-                    let cli = w_cli.lock().unwrap();
-                    cli.eval(TrbpCommands::OnEchoSubscribeReq {
-                        from_peer: from_peer.clone(),
-                    })?;
-                }
-            }
-        }
-        TrbpEvents::EchoSubscribeOk { to_peer } => {
-            let mb_cli = peers_container.get(&*to_peer);
-            if let Some(w_cli) = mb_cli {
-                let cli = w_cli.lock().unwrap();
-                cli.eval(TrbpCommands::OnEchoSubscribeOk { from_peer })?;
-            }
-        }
-        TrbpEvents::ReadySubscribeReq { peers } => {
-            for to_peer in peers {
-                let mb_cli = peers_container.get(&*to_peer);
-                if let Some(w_cli) = mb_cli {
-                    let cli = w_cli.lock().unwrap();
-                    cli.eval(TrbpCommands::OnReadySubscribeReq {
-                        from_peer: from_peer.clone(),
-                    })?;
-                }
-            }
-        }
-        TrbpEvents::ReadySubscribeOk { to_peer } => {
-            let mb_cli = peers_container.get(&*to_peer);
-            if let Some(w_cli) = mb_cli {
-                let cli = w_cli.lock().unwrap();
-                cli.eval(TrbpCommands::OnReadySubscribeOk { from_peer })?;
-            }
-        }
+        // TrbpEvents::EchoSubscribeReq { peers } => {
+        //     for to_peer in peers {
+        //         let mb_cli = peers_container.get(&*to_peer);
+        //         if let Some(w_cli) = mb_cli {
+        //             let cli = w_cli.lock().unwrap();
+        //             cli.eval(TrbpCommands::OnEchoSubscribeReq {
+        //                 from_peer: from_peer.clone(),
+        //             })?;
+        //         }
+        //     }
+        // }
+        // TrbpEvents::EchoSubscribeOk { to_peer } => {
+        //     let mb_cli = peers_container.get(&*to_peer);
+        //     if let Some(w_cli) = mb_cli {
+        //         let cli = w_cli.lock().unwrap();
+        //         cli.eval(TrbpCommands::OnEchoSubscribeOk { from_peer })?;
+        //     }
+        // }
+        // TrbpEvents::ReadySubscribeReq { peers } => {
+        //     for to_peer in peers {
+        //         let mb_cli = peers_container.get(&*to_peer);
+        //         if let Some(w_cli) = mb_cli {
+        //             let cli = w_cli.lock().unwrap();
+        //             cli.eval(TrbpCommands::OnReadySubscribeReq {
+        //                 from_peer: from_peer.clone(),
+        //             })?;
+        //         }
+        //     }
+        // }
+        // TrbpEvents::ReadySubscribeOk { to_peer } => {
+        //     let mb_cli = peers_container.get(&*to_peer);
+        //     if let Some(w_cli) = mb_cli {
+        //         let cli = w_cli.lock().unwrap();
+        //         cli.eval(TrbpCommands::OnReadySubscribeOk { from_peer })?;
+        //     }
+        // }
         TrbpEvents::Gossip {
             peers,
             cert,
@@ -558,11 +557,13 @@ pub async fn handle_peer_event(
             for to_peer in peers {
                 let mb_cli = peers_container.get(&*to_peer);
                 if let Some(w_cli) = mb_cli {
-                    let cli = w_cli.lock().unwrap();
-                    cli.eval(TrbpCommands::OnGossip {
-                        cert: cert.clone(),
-                        digest: digest.clone(),
-                    })?;
+                    w_cli
+                        .get_double_echo_channel()
+                        .send(DoubleEchoCommand::Deliver {
+                            cert: cert.clone(),
+                            digest: digest.clone(),
+                        })
+                        .await?;
                 }
             }
         }
@@ -570,11 +571,13 @@ pub async fn handle_peer_event(
             for to_peer in peers {
                 let mb_cli = peers_container.get(&*to_peer);
                 if let Some(w_cli) = mb_cli {
-                    let cli = w_cli.lock().unwrap();
-                    cli.eval(TrbpCommands::OnEcho {
-                        from_peer: from_peer.clone(),
-                        cert: cert.clone(),
-                    })?;
+                    w_cli
+                        .get_double_echo_channel()
+                        .send(DoubleEchoCommand::Echo {
+                            from_peer: from_peer.clone(),
+                            cert: cert.clone(),
+                        })
+                        .await?;
                 }
             }
         }
@@ -582,11 +585,13 @@ pub async fn handle_peer_event(
             for to_peer in peers {
                 let mb_cli = peers_container.get(&*to_peer);
                 if let Some(w_cli) = mb_cli {
-                    let cli = w_cli.lock().unwrap();
-                    cli.eval(TrbpCommands::OnReady {
-                        from_peer: from_peer.clone(),
-                        cert: cert.clone(),
-                    })?;
+                    w_cli
+                        .get_double_echo_channel()
+                        .send(DoubleEchoCommand::Ready {
+                            from_peer: from_peer.clone(),
+                            cert: cert.clone(),
+                        })
+                        .await?;
                 }
             }
         }
