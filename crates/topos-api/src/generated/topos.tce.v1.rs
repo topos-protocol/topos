@@ -4,9 +4,6 @@ pub struct SubmitCertificateRequest {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SubmitCertificateResponse {
 }
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct Another {
-}
 /// Generated client implementations.
 pub mod api_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
