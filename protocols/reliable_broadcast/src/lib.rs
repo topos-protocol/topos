@@ -22,6 +22,7 @@ use crate::mem_store::TrbMemStore;
 use crate::sampler::Sampler;
 use crate::trb_store::TrbStore;
 pub use topos_core::uci;
+
 pub type Peer = String;
 
 pub mod double_echo;
@@ -114,10 +115,10 @@ impl ReliableBroadcastClient {
 
         let double_echo = DoubleEcho::new(
             peer_id.clone(),
-            config.trbp_params.clone(),
+            config.trbp_params,
             command_receiver,
             sample_view_receiver,
-            event_sender.clone(),
+            event_sender,
             Box::new(TrbMemStore::default()),
         );
 
@@ -133,29 +134,6 @@ impl ReliableBroadcastClient {
             BroadcastStream::new(event_receiver).map_err(|_| ()),
         )
     }
-    // /// Schedule command for execution
-    // pub fn eval(&self, cmd: TrbpCommands) -> Result<(), Errors> {
-    //     let is_broadcast_related = |cmd: &TrbpCommands| {
-    //         matches!(
-    //             cmd,
-    //             TrbpCommands::StartUp
-    //                 | TrbpCommands::Shutdown
-    //                 | TrbpCommands::OnBroadcast { .. }
-    //                 | TrbpCommands::OnGossip { .. }
-    //                 | TrbpCommands::OnStartDelivery { .. }
-    //                 | TrbpCommands::OnEcho { .. }
-    //                 | TrbpCommands::OnReady { .. }
-    //         )
-    //     };
-    //     if is_broadcast_related(&cmd) {
-    //         log::debug!("eval for broadcast {:?}", cmd);
-    //         self.broadcast_commands
-    //             .try_send(DoubleEchoCommand::Command(cmd))
-    //             .map_err(|err| err.into())
-    //     } else {
-    //         Ok(())
-    //     }
-    // }
 
     pub fn peer_changed(
         &self,

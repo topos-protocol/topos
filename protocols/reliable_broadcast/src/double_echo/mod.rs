@@ -1,18 +1,16 @@
-use std::{
-    collections::{HashMap, HashSet},
-    time,
-};
-
-use log::{debug, info};
-use tce_transport::{ReliableBroadcastParams, TrbpEvents};
-use tokio::sync::{broadcast, mpsc};
-use topos_core::uci::{Certificate, CertificateId, DigestCompressed};
-
 use crate::{
     sampler::{SampleType, SampleView},
     trb_store::TrbStore,
     DoubleEchoCommand, Peer,
 };
+use log::debug;
+use std::{
+    collections::{HashMap, HashSet},
+    time,
+};
+use tce_transport::{ReliableBroadcastParams, TrbpEvents};
+use tokio::sync::{broadcast, mpsc};
+use topos_core::uci::{Certificate, CertificateId, DigestCompressed};
 
 /// Processing data associated to a Certificate candidate for delivery
 /// Sample repartition, one peer may belongs to multiple samples
@@ -145,7 +143,7 @@ impl DoubleEcho {
 
         // Gossip the certificate to all my peers
 
-        self.event_sender.send(TrbpEvents::Gossip {
+        let _ = self.event_sender.send(TrbpEvents::Gossip {
             peers: self.gossip_peers(), // considered as the G-set for erdos-renyi
             cert: cert.clone(),
             digest: digest.clone(),
@@ -211,7 +209,7 @@ impl DoubleEcho {
             }
             None => {
                 log::error!("[{:?}] Ill-formed samples", self.my_peer_id);
-                self.event_sender.send(TrbpEvents::Die);
+                let _ = self.event_sender.send(TrbpEvents::Die);
                 return;
             }
         }
@@ -231,7 +229,7 @@ impl DoubleEcho {
             log::warn!("[{:?}] EchoSubscriber peers set is empty", self.my_peer_id);
             return;
         }
-        self.event_sender.send(TrbpEvents::Echo {
+        let _ = self.event_sender.send(TrbpEvents::Echo {
             peers: echo_peers,
             cert,
         });
@@ -326,7 +324,7 @@ impl DoubleEcho {
         }
 
         for evt in gen_evts {
-            self.event_sender.send(evt);
+            let _ = self.event_sender.send(evt);
         }
     }
 
