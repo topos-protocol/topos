@@ -8,7 +8,8 @@ use libp2p::{
 use tce_api::{ApiRequests, ApiWorker};
 use tce_transport::{ReliableBroadcastParams, TrbpEvents};
 use tce_trbp::{
-    mem_store::TrbMemStore, ReliableBroadcastClient, ReliableBroadcastConfig, TrbInternalCommand,
+    mem_store::TrbMemStore, ReliableBroadcastClient, ReliableBroadcastConfig, SamplerCommand,
+    TrbInternalCommand,
 };
 use tokio::{spawn, sync::mpsc};
 use topos_addr::ToposAddr;
@@ -17,8 +18,8 @@ use topos_tce::AppContext;
 
 pub struct TestAppContext {
     pub peer_id: String,
-    pub command_sampler: mpsc::UnboundedSender<TrbInternalCommand>,
-    pub command_broadcast: mpsc::UnboundedSender<TrbInternalCommand>,
+    pub command_sampler: mpsc::Sender<SamplerCommand>,
+    pub command_broadcast: mpsc::Sender<TrbInternalCommand>,
     pub api: mpsc::Sender<ApiRequests>,
 }
 
@@ -141,7 +142,7 @@ fn create_reliable_broadcast_client(
     trbp_params: ReliableBroadcastParams,
 ) -> (
     ReliableBroadcastClient,
-    impl Stream<Item = TrbpEvents> + Unpin,
+    impl Stream<Item = Result<TrbpEvents, ()>> + Unpin,
 ) {
     let config = ReliableBroadcastConfig {
         store: Box::new(TrbMemStore::new(vec![])),

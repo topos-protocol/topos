@@ -238,9 +238,11 @@ impl Sampler {
                     self.pending_echo_subscribtions.insert(peer.clone());
                 }
 
-                let _ = self.event_sender.send(TrbpEvents::EchoSubscribeReq {
+                if let Err(error) = self.event_sender.send(TrbpEvents::EchoSubscribeReq {
                     peers: echo_candidates.value,
-                });
+                }) {
+                    log::error!("Unable to send event {:?}", error);
+                }
             }
             Err(e) => {
                 log::warn!(
@@ -268,9 +270,11 @@ impl Sampler {
                     self.pending_ready_subscribtions.insert(peer.clone());
                 }
 
-                let _ = self.event_sender.send(TrbpEvents::ReadySubscribeReq {
+                if let Err(error) = self.event_sender.send(TrbpEvents::ReadySubscribeReq {
                     peers: ready_candidates.value,
-                });
+                }) {
+                    log::error!("Unable to send event {:?}", error);
+                }
             }
             Err(e) => {
                 log::warn!(
@@ -298,9 +302,11 @@ impl Sampler {
                     self.pending_delivery_subscribtions.insert(peer.clone());
                 }
 
-                let _ = self.event_sender.send(TrbpEvents::ReadySubscribeReq {
+                if let Err(error) = self.event_sender.send(TrbpEvents::ReadySubscribeReq {
                     peers: delivery_candidates.value,
-                });
+                }) {
+                    log::error!("Unable to send event {:?}", error);
+                }
             }
             Err(e) => {
                 log::warn!(
@@ -316,4 +322,148 @@ impl Sampler {
 pub struct SamplerClient {
     #[allow(dead_code)]
     pub(crate) command: mpsc::Sender<SamplerCommand>,
+}
+
+#[cfg(test)]
+mod tests {
+
+    use tokio::sync::broadcast::error::TryRecvError;
+
+    use super::*;
+
+    #[test]
+    fn on_peer_change_sample_view_is_reset() {
+        cyclerng::utils::set_cycle([1]);
+
+        let (_, cmd_receiver) = mpsc::channel(10);
+        let (event_sender, mut event_receiver) = broadcast::channel(10);
+        let (view_sender, _) = mpsc::channel(10);
+
+        let g = |a, b| ((a as f32) * b) as usize;
+        let mut sampler = Sampler::new(
+            ReliableBroadcastParams {
+                echo_threshold: g(1, 0.66),
+                echo_sample_size: 1,
+                ready_threshold: g(1, 0.33),
+                ready_sample_size: 1,
+                delivery_threshold: g(1, 0.66),
+                delivery_sample_size: 1,
+            },
+            cmd_receiver,
+            event_sender,
+            view_sender,
+        );
+
+        let mut peers = Vec::new();
+        for i in 0..=100 {
+            peers.push(format!("peer_{i}"));
+        }
+
+        sampler.peer_changed(peers);
+
+        assert_eq!(sampler.pending_echo_subscribtions.len(), 1);
+        assert_eq!(sampler.pending_ready_subscribtions.len(), 1);
+        assert_eq!(sampler.pending_delivery_subscribtions.len(), 1);
+
+        assert_eq!(event_receiver.len(), 3);
+        assert!(matches!(
+            event_receiver.try_recv(),
+            Ok(TrbpEvents::EchoSubscribeReq { .. })
+        ));
+        assert!(matches!(
+            event_receiver.try_recv(),
+            Ok(TrbpEvents::ReadySubscribeReq { .. })
+        ));
+        assert!(matches!(
+            event_receiver.try_recv(),
+            Ok(TrbpEvents::ReadySubscribeReq { .. })
+        ));
+        assert!(matches!(
+            event_receiver.try_recv(),
+            Err(TryRecvError::Empty)
+        ));
+
+        assert_eq!(
+            sampler
+                .view
+                .get(&SampleType::EchoSubscription)
+                .unwrap()
+                .len(),
+            0
+        );
+
+        assert_eq!(
+            sampler
+                .view
+                .get(&SampleType::ReadySubscription)
+                .unwrap()
+                .len(),
+            0
+        );
+
+        assert_eq!(
+            sampler
+                .view
+                .get(&SampleType::DeliverySubscription)
+                .unwrap()
+                .len(),
+            0
+        );
+    }
+
+    #[tokio::test]
+    async fn confirming_echo_peer_and_create_view() {
+        cyclerng::utils::set_cycle([1]);
+
+        let (_, cmd_receiver) = mpsc::channel(10);
+        let (event_sender, mut event_receiver) = broadcast::channel(10);
+        let (view_sender, mut view_receiver) = mpsc::channel(10);
+
+        let g = |a, b| ((a as f32) * b) as usize;
+        let mut sampler = Sampler::new(
+            ReliableBroadcastParams {
+                echo_threshold: g(1, 0.66),
+                echo_sample_size: 1,
+                ready_threshold: g(1, 0.33),
+                ready_sample_size: 1,
+                delivery_threshold: g(1, 0.66),
+                delivery_sample_size: 1,
+            },
+            cmd_receiver,
+            event_sender,
+            view_sender,
+        );
+
+        sampler.pending_echo_subscribtions.insert("peer_1".into());
+        sampler
+            .handle_peer_confirmation(SampleType::EchoSubscription, "peer_1".into())
+            .await
+            .expect("Peer confirmation failed");
+
+        assert_eq!(sampler.pending_echo_subscribtions.len(), 0);
+        assert!(matches!(
+            event_receiver.try_recv(),
+            Err(TryRecvError::Empty)
+        ));
+        assert!(matches!(
+            view_receiver.try_recv(),
+            Err(tokio::sync::mpsc::error::TryRecvError::Empty)
+        ));
+
+        sampler.pending_subs_state_change_follow_up().await;
+        assert!(matches!(
+            view_receiver.try_recv(),
+            Err(tokio::sync::mpsc::error::TryRecvError::Empty)
+        ));
+
+        sampler.status = SampleProviderStatus::BuildingNewView;
+        sampler.pending_subs_state_change_follow_up().await;
+
+        let mut expected = SampleView::new();
+        let mut hash_set = HashSet::new();
+        hash_set.insert("peer_1".to_string());
+        expected.insert(SampleType::EchoSubscription, hash_set);
+
+        assert!(matches!(view_receiver.try_recv(), Ok(produced_view) if produced_view == expected));
+    }
 }
