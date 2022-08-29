@@ -72,7 +72,7 @@ impl PeerSamplingOracle {
     }
 
     fn send_out_events(&mut self, evt: TrbpEvents) {
-        log::debug!("send {:?}", &evt);
+        log::debug!("send_out_events(evt: {:?}", &evt);
 
         for tx in &self.events_subscribers {
             // FIXME: When error is returned it means that receiving side of the channel is closed

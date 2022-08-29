@@ -178,14 +178,15 @@ impl ReliableBroadcastClient {
             receiver.await.expect("Sender to be alive")
         })
     }
-    pub fn delivered_certs_ids(
+
+    pub async fn delivered_certs_ids(
         &self,
         subnet_id: SubnetId,
         from_cert_id: CertificateId,
-    ) -> BoxFuture<'static, Result<Vec<CertificateId>, Errors>> {
-        let fut = self.delivered_certs(subnet_id, from_cert_id);
-
-        Box::pin(async move { fut.await.map(|mut v| v.iter_mut().map(|c| c.id).collect()) })
+    ) -> Result<Vec<CertificateId>, Errors> {
+        self.delivered_certs(subnet_id, from_cert_id)
+            .await
+            .map(|mut v| v.iter_mut().map(|c| c.id).collect())
     }
 
     pub fn get_sampler_channel(&self) -> UnboundedSender<TrbInternalCommand> {

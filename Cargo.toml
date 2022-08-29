@@ -38,10 +38,6 @@ tce_telemetry = { package = "topos-tce-node-telemetry", path = "node/telemetry" 
 tce_trbp = { package = "topos-tce-protocols-reliable-broadcast", path = "protocols/reliable_broadcast" }
 tce_transport = { package = "topos-tce-protocols-transport", path = "protocols/transport" }
 
-# Local development
-# topos-p2p = {  path = "../topos-p2p/crates/topos-p2p" }
-# topos-addr = { path = "../topos-p2p/crates/topos-addr", package = "topos-addr"}
-
 topos-p2p = { git = "https://github.com/Toposware/topos-p2p", branch = "feat-modularise-peer-info", version = "0.1.0" }
 topos-addr = { git = "https://github.com/Toposware/topos-p2p", branch = "feat-modularise-peer-info", version = "0.1.0", package = "topos-addr"}
 

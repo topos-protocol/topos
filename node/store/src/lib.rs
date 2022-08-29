@@ -72,14 +72,11 @@ impl TrbStore for Store {
     }
 
     fn cert_by_id(&self, cert_id: &CertificateId) -> Result<Certificate, Errors> {
-        let mb_bin_cert = self.db.get(Self::cert_key(cert_id)).expect("db get");
-        let mb_cert = mb_bin_cert
-            .map(|bc| bincode::deserialize::<Certificate>(bc.as_ref()).expect("Cert deser"));
-
-        match mb_cert {
-            Some(cert) => Ok(cert),
-            None => Err(Errors::CertificateNotFound),
-        }
+        self.db
+            .get(Self::cert_key(cert_id))
+            .expect("db get")
+            .map(|bc| bincode::deserialize::<Certificate>(bc.as_ref()).expect("Cert deser"))
+            .ok_or(Errors::CertificateNotFound)
     }
 
     fn new_cert_candidate(&mut self, _cert: &Certificate, _digest: &DigestCompressed) {
