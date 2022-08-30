@@ -154,6 +154,8 @@ async fn dispatch_req(
         (&Method::GET, "/tce_api_endpoints") => tce_api_endpoints(tx.clone()).await,
         (&Method::POST, "/certs") => post_cert(req, tx.clone()).await,
         (&Method::POST, "/delivered_certs") => delivered_certs(req, tx.clone()).await,
+        // NOTE: This entrypoint is temporary and is used to simulate a change of peers in
+        // `topos-subnet`
         (&Method::POST, "/peers") => post_peer(req, tx.clone()).await,
         // not found
         _ => Ok(Response::builder()
