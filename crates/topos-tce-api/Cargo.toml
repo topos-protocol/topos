@@ -1,5 +1,5 @@
 [package]
-name = "topos-tce-node-api"
+name = "topos-tce-api"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
@@ -24,6 +24,6 @@ tokio = { version = "1.20.0", features = [
     "sync",
 ] }
 
-tce_trbp = { package = "topos-tce-protocols-reliable-broadcast", path = "../../protocols/reliable_broadcast" }
+tce_trbp = { package = "topos-tce-reliable-broadcast", path = "../topos-tce-reliable-broadcast" }
 
 topos-core = { git = "https://github.com/Toposware/topos-core", branch = "main", features = ["uci"], version = "0.1.0" }

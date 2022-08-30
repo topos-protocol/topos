@@ -1,5 +1,5 @@
 [package]
-name = "topos-tce-protocols-reliable-broadcast"
+name = "topos-tce-reliable-broadcast"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
@@ -31,10 +31,8 @@ futures = "*"
 
 topos-core = { git = "https://github.com/Toposware/topos-core", branch = "main", features = ["uci"], version = "0.1.0" }
 
-tce_transport = { package = "topos-tce-protocols-transport", path = "../transport"}
-tce_telemetry = { package = "topos-tce-node-telemetry", path = "../../node/telemetry" }
+tce_transport = { package = "topos-tce-transport", path = "../topos-tce-transport"}
+tce_telemetry = { package = "topos-tce-telemetry", path = "../topos-tce-telemetry" }
 
 [dev-dependencies]
 pretty_env_logger = "0.4.0"
-
-tce_telemetry = { package = "topos-tce-node-telemetry", path = "../../node/telemetry" }

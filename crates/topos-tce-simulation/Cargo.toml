@@ -30,10 +30,10 @@ pretty_env_logger = "0.4.0"
 fastapprox = "0.3.0"
 
 # tce dependencies
-tce_net = { package = "topos-tce-node-net", path = "../node/net" }
-tce_api = { package = "topos-tce-node-api", path = "../node/api" }
-tce_store = { package = "topos-tce-node-store", path = "../node/store" }
-tce_trbp = { package = "topos-tce-protocols-reliable-broadcast", path = "../protocols/reliable_broadcast" }
-tce_transport = { package = "topos-tce-protocols-transport", path = "../protocols/transport" }
+tce_net = { package = "topos-tce-net", path = "../topos-tce-net" }
+tce_api = { package = "topos-tce-api", path = "../topos-tce-api" }
+tce_store = { package = "topos-tce-store", path = "../topos-tce-store" }
+tce_trbp = { package = "topos-tce-reliable-broadcast", path = "../topos-tce-reliable-broadcast" }
+tce_transport = { package = "topos-tce-transport", path = "../topos-tce-transport" }
 
 topos-core = { git = "https://github.com/Toposware/topos-core", branch = "main", features = ["uci"], version = "0.1.0" }

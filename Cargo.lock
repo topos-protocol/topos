@@ -4729,17 +4729,17 @@ dependencies = [
  "tokio",
  "topos-addr",
  "topos-p2p",
- "topos-tce-node-api",
- "topos-tce-node-store",
- "topos-tce-node-telemetry",
- "topos-tce-protocols-reliable-broadcast",
- "topos-tce-protocols-transport",
+ "topos-tce-api",
+ "topos-tce-reliable-broadcast",
+ "topos-tce-store",
+ "topos-tce-telemetry",
+ "topos-tce-transport",
  "tracing",
  "tracing-log",
 ]
 
 [[package]]
-name = "topos-tce-node-api"
+name = "topos-tce-api"
 version = "0.1.0"
 dependencies = [
  "bytes",
@@ -4749,11 +4749,11 @@ dependencies = [
  "serde_json",
  "tokio",
  "topos-core",
- "topos-tce-protocols-reliable-broadcast",
+ "topos-tce-reliable-broadcast",
 ]
 
 [[package]]
-name = "topos-tce-node-net"
+name = "topos-tce-net"
 version = "0.1.0"
 dependencies = [
  "async-trait",
@@ -4763,35 +4763,11 @@ dependencies = [
  "rand 0.8.5",
  "rand_core 0.6.3",
  "tokio",
- "topos-tce-protocols-transport",
+ "topos-tce-transport",
 ]
 
 [[package]]
-name = "topos-tce-node-store"
-version = "0.1.0"
-dependencies = [
- "bincode",
- "log",
- "pretty_env_logger",
- "rocksdb",
- "topos-core",
- "topos-tce-protocols-reliable-broadcast",
-]
-
-[[package]]
-name = "topos-tce-node-telemetry"
-version = "0.1.0"
-dependencies = [
- "lazy_static",
- "libp2p 0.41.2",
- "log",
- "opentelemetry",
- "opentelemetry-jaeger",
- "topos-core",
-]
-
-[[package]]
-name = "topos-tce-protocols-reliable-broadcast"
+name = "topos-tce-reliable-broadcast"
 version = "0.1.0"
 dependencies = [
  "byteorder",
@@ -4806,17 +4782,8 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "topos-core",
- "topos-tce-node-telemetry",
- "topos-tce-protocols-transport",
-]
-
-[[package]]
-name = "topos-tce-protocols-transport"
-version = "0.1.0"
-dependencies = [
- "clap",
- "serde",
- "topos-core",
+ "topos-tce-telemetry",
+ "topos-tce-transport",
 ]
 
 [[package]]
@@ -4832,11 +4799,44 @@ dependencies = [
  "rand_distr",
  "tokio",
  "topos-core",
- "topos-tce-node-api",
- "topos-tce-node-net",
- "topos-tce-node-store",
- "topos-tce-protocols-reliable-broadcast",
- "topos-tce-protocols-transport",
+ "topos-tce-api",
+ "topos-tce-net",
+ "topos-tce-reliable-broadcast",
+ "topos-tce-store",
+ "topos-tce-transport",
+]
+
+[[package]]
+name = "topos-tce-store"
+version = "0.1.0"
+dependencies = [
+ "bincode",
+ "log",
+ "pretty_env_logger",
+ "rocksdb",
+ "topos-core",
+ "topos-tce-reliable-broadcast",
+]
+
+[[package]]
+name = "topos-tce-telemetry"
+version = "0.1.0"
+dependencies = [
+ "lazy_static",
+ "libp2p 0.41.2",
+ "log",
+ "opentelemetry",
+ "opentelemetry-jaeger",
+ "topos-core",
+]
+
+[[package]]
+name = "topos-tce-transport"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "serde",
+ "topos-core",
 ]
 
 [[package]]
