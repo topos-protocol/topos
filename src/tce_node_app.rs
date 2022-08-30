@@ -3,11 +3,12 @@ mod app_context;
 use clap::Parser;
 
 use tce_api::{ApiConfig, ApiWorker};
-use tce_net::{NetworkWorker, NetworkWorkerConfig};
 use tce_trbp::{ReliableBroadcastClient, ReliableBroadcastConfig};
+use tokio::spawn;
+use topos_addr::ToposAddr;
 
 use crate::app_context::AppContext;
-use libp2p::{Multiaddr, PeerId};
+use libp2p::{identity, PeerId};
 
 use tce_store::{Store, StoreConfig};
 use tce_transport::ReliableBroadcastParams;
@@ -43,28 +44,47 @@ async fn main() {
     };
 
     log::info!("Starting application");
-
+    let addr: ToposAddr = format!("/ip4/0.0.0.0/tcp/{}", args.tce_local_port)
+        .parse()
+        .unwrap();
     // run protocol
-    let trbp_cli = ReliableBroadcastClient::new(config);
+    let (trbp_cli, trb_stream) = ReliableBroadcastClient::new(config);
 
     // run APi services
     let api = ApiWorker::new(ApiConfig {
         web_port: args.web_api_local_port,
     });
 
-    // run transport
-    let srv = NetworkWorker::new(NetworkWorkerConfig {
-        known_peers: args.parse_boot_peers(),
-        local_port: args.tce_local_port,
-        secret_key_seed: args.local_key_seed,
-        local_key_pair: args.local_key_pair,
-    });
+    let (client, event_stream, runtime) = topos_p2p::network::builder()
+        .peer_key(local_key_pair(args.local_key_seed))
+        .listen_addr(addr.inner())
+        .known_peers(args.parse_boot_peers())
+        .build()
+        .await
+        .expect("Can't create network system");
+
+    spawn(runtime.run());
 
     // setup transport-trbp-storage-api connector
-    let mut app_context = AppContext::new(trbp_cli.clone(), api, srv);
-    app_context.run().await;
+    let app_context = AppContext::new(trbp_cli, api, client);
+    app_context.run(event_stream, trb_stream).await;
 }
 
+/// build peer_id keys, generate for now - either from the seed or purely random one
+fn local_key_pair(secret_key_seed: Option<u8>) -> identity::Keypair {
+    // todo: load from protobuf encoded|base64 encoded config.local_key_pair
+    match secret_key_seed {
+        Some(seed) => {
+            let mut bytes = [0u8; 32];
+            bytes[0] = seed;
+            let secret_key = identity::ed25519::SecretKey::from_bytes(&mut bytes).expect(
+                "this returns `Err` only if the length is wrong; the length is correct; qed",
+            );
+            identity::Keypair::Ed25519(secret_key.into())
+        }
+        None => identity::Keypair::generate_ed25519(),
+    }
+}
 /// Application configuration
 #[derive(Debug, Parser)]
 #[clap(name = "TCE node (toposware.com)")]
@@ -107,7 +127,7 @@ pub struct AppArgs {
 }
 
 impl AppArgs {
-    pub fn parse_boot_peers(&self) -> Vec<(PeerId, Multiaddr)> {
+    pub fn parse_boot_peers(&self) -> Vec<(PeerId, ToposAddr)> {
         log::info!("boot_peers: {:?}", self.boot_peers);
         self.boot_peers
             .split(' ')

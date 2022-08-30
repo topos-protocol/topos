@@ -32,13 +32,13 @@ pub trait TrbStore {
         &self,
         subnet_id: &SubnetId,
         last_n: u64,
-    ) -> Option<Vec<CertificateId>>;
+    ) -> Vec<CertificateId>;
 
     /// Compute the digest for a given Subnet
     fn flush_digest_view(&mut self, subnet_id: &SubnetId) -> Option<DigestCompressed>;
 
     /// Read certificate
-    fn cert_by_id(&self, cert_id: &CertificateId) -> Result<Option<Certificate>, Errors>;
+    fn cert_by_id(&self, cert_id: &CertificateId) -> Result<Certificate, Errors>;
 
     /// Receive new cert from broadcast along with digest
     fn new_cert_candidate(&mut self, cert: &Certificate, digest: &DigestCompressed);

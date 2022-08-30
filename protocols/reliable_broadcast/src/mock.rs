@@ -5,6 +5,7 @@ use rand::Rng;
 use rand_distr::Distribution;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Display, Formatter};
+use tokio_stream::StreamExt;
 
 use std::sync::{Arc, Mutex};
 use tce_transport::{ReliableBroadcastParams, TrbpCommands, TrbpEvents};
@@ -336,8 +337,9 @@ fn watch_cert_delivered(
                     }
                     let mut delivered_all_cert = true;
                     for cert in &certs {
-                        if let Ok(Some(delivered)) =
-                            cli.delivered_certs_ids(cert.initial_subnet_id, cert.id)
+                        if let Ok(delivered) = cli
+                            .delivered_certs_ids(cert.initial_subnet_id, cert.id)
+                            .await
                         {
                             // if something was returned, we'd expect our certificate to be on the list
                             if !delivered.contains(&cert.id) {
@@ -431,7 +433,7 @@ fn launch_broadcast_protocol_instances(
 
     // create instances
     for peer in peer_ids {
-        let client = ReliableBroadcastClient::new(ReliableBroadcastConfig {
+        let (client, mut event_stream) = ReliableBroadcastClient::new(ReliableBroadcastConfig {
             store: Box::new(TrbMemStore::new(all_subnets.clone())),
             trbp_params: global_trb_params.clone(),
             my_peer_id: peer.clone(),
@@ -440,14 +442,14 @@ fn launch_broadcast_protocol_instances(
         let _ = peers_container.insert(peer.clone(), Arc::new(Mutex::from(client.clone())));
 
         // configure combined events' listener
-        let mut ev_cli = client.clone();
+        let ev_cli = client.clone();
         let ev_tx = tx_combined_events.clone();
         let ev_peer = peer.clone();
         let _ = tokio::spawn(async move {
             ev_cli.eval(TrbpCommands::StartUp).unwrap();
             loop {
                 tokio::select! {
-                    Ok(evt) = ev_cli.next_event() => {
+                    Some(evt) = event_stream.next() => {
                         let _ = ev_tx.send((ev_peer.clone(), evt.clone()));
                     },
                     else => {}

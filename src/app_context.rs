@@ -1,15 +1,20 @@
 //!
 //! Application logic glue
 //!
+use futures::{future::join_all, Stream, StreamExt};
 use libp2p::PeerId;
+use log::error;
+use log::info;
+use log::warn;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
-
+use tce_api::web_api::PeerChanged;
 use tce_api::{ApiRequests, ApiWorker};
-use tce_net::{NetworkCommands, NetworkEvents, NetworkWorker};
-
 use tce_transport::{TrbpCommands, TrbpEvents};
-use tce_trbp::ReliableBroadcastClient;
+use tce_trbp::sampler::SampleType;
+use tce_trbp::{ReliableBroadcastClient, SamplerCommand, TrbInternalCommand};
+use tokio::spawn;
+use topos_p2p::{Client, Event};
 
 /// Top-level transducer main app context & driver (alike)
 ///
@@ -23,7 +28,7 @@ pub struct AppContext {
     //pub store: Box<dyn trb_store::TrbStore>,
     pub trbp_cli: ReliableBroadcastClient,
     pub api_worker: ApiWorker,
-    pub network_worker: NetworkWorker,
+    pub network_client: Client,
 }
 
 impl AppContext {
@@ -32,35 +37,37 @@ impl AppContext {
         //store: Box<dyn trb_store::TrbStore>,
         trbp_cli: ReliableBroadcastClient,
         api_worker: ApiWorker,
-        network_worker: NetworkWorker,
+        network_client: Client,
     ) -> Self {
         Self {
             //store,
             trbp_cli,
             api_worker,
-            network_worker,
+            network_client,
         }
     }
 
     /// Main processing loop
-    pub(crate) async fn run(&mut self) {
+    pub async fn run(
+        mut self,
+        mut network_stream: impl Stream<Item = topos_p2p::Event> + Unpin,
+        mut trb_stream: impl Stream<Item = TrbpEvents> + Unpin,
+    ) {
         loop {
             tokio::select! {
+
                 // API
                 Ok(req) = self.api_worker.next_request() => {
-                    log::debug!("api_worker.next_request(): {:?}", &req);
                     self.on_api_request(req);
                 }
 
                 // protocol
-                Ok(evt) = self.trbp_cli.next_event() => {
-                    log::debug!("trbp_cli.next_event(): {:?}", &evt);
+                Some(evt) = trb_stream.next() => {
                     self.on_protocol_event(evt).await;
                 },
 
                 // network
-                Ok(net_evt) = self.network_worker.next_event() => {
-                    log::debug!("network_worker.next_event(): {:?}", &net_evt);
+                Some(net_evt) = network_stream.next() => {
                     self.on_net_event(net_evt).await;
                 }
             }
@@ -69,32 +76,43 @@ impl AppContext {
 
     fn on_api_request(&mut self, req: ApiRequests) {
         match req {
+            ApiRequests::PeerChanged {
+                req: PeerChanged { mut peers },
+                resp_channel,
+            } => {
+                resp_channel.send(()).expect("sync send");
+                info!("Peers have changed, notify the sampler");
+                self.trbp_cli.peer_changed(
+                    peers
+                        .iter_mut()
+                        .map(|e| e.parse::<PeerId>().unwrap().to_base58())
+                        .collect(),
+                );
+            }
+
             ApiRequests::SubmitCert { req, resp_channel } => {
                 self.trbp_cli
                     .eval(TrbpCommands::OnBroadcast { cert: req.cert })
                     .expect("SubmitCert");
                 resp_channel.send(()).expect("sync send");
             }
+
             ApiRequests::DeliveredCerts { req, resp_channel } => {
-                match self
+                let future = self
                     .trbp_cli
-                    .delivered_certs_ids(req.subnet_id, req.from_cert_id)
-                {
-                    Ok(Some(v)) => {
-                        let the_certs = v
-                            .iter()
-                            .map(|&id| self.trbp_cli.cert_by_id(id).expect("cert").unwrap())
-                            .collect();
-                        resp_channel.send(the_certs).expect("sync send");
+                    .delivered_certs(req.subnet_id, req.from_cert_id);
+
+                spawn(async move {
+                    match future.await {
+                        Ok(the_certs) => {
+                            resp_channel.send(the_certs).expect("sync send");
+                        }
+
+                        _ => {
+                            log::error!("Request failure {:?}", req);
+                        }
                     }
-                    Ok(None) => {
-                        log::debug!("No delivered certificate for that subnet");
-                        resp_channel.send(Vec::new()).expect("sync send");
-                    }
-                    _ => {
-                        log::error!("Request failure {:?}", req);
-                    }
-                }
+                });
             }
         }
     }
@@ -102,126 +120,150 @@ impl AppContext {
     async fn on_protocol_event(&mut self, evt: TrbpEvents) {
         log::debug!("on_protocol_event : {:?}", &evt);
         match evt {
-            TrbpEvents::NeedPeers => {
-                //todo - launch kademlia query or get latest known?
-            }
-            TrbpEvents::Broadcast { .. } => {
-                //todo ?
-            }
             TrbpEvents::EchoSubscribeReq { peers } => {
-                let cmd = NetworkCommands::TransmissionReq {
-                    to: peers
-                        .iter()
-                        .map(|e| PeerId::from_str(e.as_str()).expect("correct peer_id"))
-                        .collect(),
-                    data: NetworkMessage::from(TrbpCommands::OnEchoSubscribeReq {
-                        from_peer: self.network_worker.my_peer_id.to_base58(),
+                let data: Vec<u8> = NetworkMessage::from(TrbpCommands::OnEchoSubscribeReq {
+                    from_peer: self.network_client.local_peer_id.to_base58(),
+                })
+                .into();
+
+                let command_sender = self.trbp_cli.get_sampler_channel();
+
+                let future_pool = peers
+                    .iter()
+                    .map(|peer_id| {
+                        warn!("Sending echo subscribe");
+                        self.network_client.send_request::<_, NetworkMessage>(
+                            PeerId::from_str(peer_id).expect("correct peer_id"),
+                            data.clone(),
+                        )
                     })
-                    .into(),
-                };
-                self.network_worker.eval(cmd).await;
+                    .collect::<Vec<_>>();
+
+                spawn(async move {
+                    let r = join_all(future_pool).await;
+
+                    r.into_iter().for_each(|result| match result {
+                        Ok(message) => match message {
+                            NetworkMessage::Cmd(TrbpCommands::OnEchoSubscribeOk { from_peer }) => {
+                                info!("Receive response to EchoSubscribe",);
+                                let _ = command_sender.send(TrbInternalCommand::Sampler(
+                                    SamplerCommand::ConfirmPeer {
+                                        peer: from_peer,
+                                        sample_type: SampleType::EchoSubscription,
+                                    },
+                                ));
+                            }
+                            msg => error!("Receive an unexpected message as a response {msg:?}"),
+                        },
+                        Err(error) => {
+                            error!("An error occured when sending EchoSubscribe {error:?}")
+                        }
+                    });
+                });
             }
             TrbpEvents::ReadySubscribeReq { peers } => {
-                let cmd = NetworkCommands::TransmissionReq {
-                    to: peers
-                        .iter()
-                        .map(|e| PeerId::from_str(e.as_str()).expect("correct peer_id"))
-                        .collect(),
-                    data: NetworkMessage::from(TrbpCommands::OnReadySubscribeReq {
-                        from_peer: self.network_worker.my_peer_id.to_base58(),
+                let data: Vec<u8> = NetworkMessage::from(TrbpCommands::OnReadySubscribeReq {
+                    from_peer: self.network_client.local_peer_id.to_base58(),
+                })
+                .into();
+
+                let command_sender = self.trbp_cli.get_sampler_channel();
+
+                let future_pool = peers
+                    .iter()
+                    .map(|peer_id| {
+                        info!("Sending ready subscribe");
+                        self.network_client.send_request::<_, NetworkMessage>(
+                            PeerId::from_str(peer_id).expect("correct peer_id"),
+                            data.clone(),
+                        )
                     })
-                    .into(),
-                };
-                self.network_worker.eval(cmd).await;
+                    .collect::<Vec<_>>();
+
+                spawn(async move {
+                    let r = join_all(future_pool).await;
+
+                    r.into_iter().for_each(|result| match result {
+                        Ok(message) => match message {
+                            NetworkMessage::Cmd(TrbpCommands::OnReadySubscribeOk { from_peer }) => {
+                                info!("Receive response to ReadySubscribe");
+                                let _ = command_sender.send(TrbInternalCommand::Sampler(
+                                    SamplerCommand::ConfirmPeer {
+                                        peer: from_peer.clone(),
+                                        sample_type: SampleType::ReadySubscription,
+                                    },
+                                ));
+                                let _ = command_sender.send(TrbInternalCommand::Sampler(
+                                    SamplerCommand::ConfirmPeer {
+                                        peer: from_peer,
+                                        sample_type: SampleType::DeliverySubscription,
+                                    },
+                                ));
+                            }
+                            msg => error!("Receive an unexpected message as a response {msg:?}"),
+                        },
+                        Err(error) => {
+                            error!("An error occured when sending ReadySubscribe {error:?}")
+                        }
+                    });
+                });
             }
-            TrbpEvents::EchoSubscribeOk { to_peer } => {
-                let to_peer_id = PeerId::from_str(to_peer.as_str()).expect("correct peer_id");
-                let cmd = NetworkCommands::TransmissionReq {
-                    to: vec![to_peer_id],
-                    data: NetworkMessage::from(TrbpCommands::OnEchoSubscribeOk {
-                        from_peer: self.network_worker.my_peer_id.to_base58(),
-                    })
-                    .into(),
-                };
-                self.network_worker.eval(cmd).await;
-            }
-            TrbpEvents::ReadySubscribeOk { to_peer } => {
-                let to_peer_id = PeerId::from_str(to_peer.as_str()).expect("correct peer_id");
-                let cmd = NetworkCommands::TransmissionReq {
-                    to: vec![to_peer_id],
-                    data: NetworkMessage::from(TrbpCommands::OnReadySubscribeOk {
-                        from_peer: self.network_worker.my_peer_id.to_base58(),
-                    })
-                    .into(),
-                };
-                self.network_worker.eval(cmd).await;
-            }
-            TrbpEvents::Gossip {
-                peers,
-                cert,
-                digest,
-            } => {
-                let cmd = NetworkCommands::TransmissionReq {
-                    to: peers
-                        .iter()
-                        .map(|e| PeerId::from_str(e.as_str()).expect("correct peer_id"))
-                        .collect(),
-                    data: NetworkMessage::from(TrbpCommands::OnGossip { cert, digest }).into(),
-                };
-                self.network_worker.eval(cmd).await;
-            }
-            TrbpEvents::Echo { peers, cert } => {
-                let cmd = NetworkCommands::TransmissionReq {
-                    to: peers
-                        .iter()
-                        .map(|e| PeerId::from_str(e.as_str()).expect("correct peer_id"))
-                        .collect(),
-                    data: NetworkMessage::from(TrbpCommands::OnEcho {
-                        from_peer: self.network_worker.my_peer_id.to_base58(),
-                        cert,
-                    })
-                    .into(),
-                };
-                self.network_worker.eval(cmd).await;
-            }
-            TrbpEvents::Ready { peers, cert } => {
-                let cmd = NetworkCommands::TransmissionReq {
-                    to: peers
-                        .iter()
-                        .map(|e| PeerId::from_str(e.as_str()).expect("correct peer_id"))
-                        .collect(),
-                    data: NetworkMessage::from(TrbpCommands::OnReady {
-                        from_peer: self.network_worker.my_peer_id.to_base58(),
-                        cert,
-                    })
-                    .into(),
-                };
-                self.network_worker.eval(cmd).await;
-            }
+
             evt => {
                 log::debug!("Unhandled event: {:?}", evt);
             }
         }
     }
 
-    async fn on_net_event(&mut self, evt: NetworkEvents) {
-        log::debug!("on_net_event ({:?}", &evt);
+    async fn on_net_event(&mut self, evt: Event) {
         match evt {
-            NetworkEvents::KadPeersChanged { new_peers } => {
-                //  notify the protocol
-                let _ = self.trbp_cli.eval(TrbpCommands::OnVisiblePeersChanged {
-                    peers: new_peers.iter().map(|e| e.to_base58()).collect(),
-                });
-            }
-            NetworkEvents::TransmissionOnReq { from: _, data } => {
+            Event::PeersChanged { .. } => {}
+
+            Event::TransmissionOnReq {
+                from: _,
+                data,
+                channel,
+                ..
+            } => {
+                let my_peer = self.network_client.local_peer_id;
                 let msg: NetworkMessage = data.into();
                 match msg {
                     NetworkMessage::Cmd(cmd) => {
-                        //  redirect
-                        let _ = self.trbp_cli.eval(cmd);
+                        info!("Receive TransmissionOnReq {:?}", cmd);
+
+                        match cmd {
+                            TrbpCommands::OnEchoSubscribeReq { from_peer } => {
+                                self.trbp_cli.add_confirmed_peer_to_sample(
+                                    SampleType::EchoSubscriber,
+                                    from_peer,
+                                );
+                                spawn(self.network_client.respond_to_request(
+                                    NetworkMessage::from(TrbpCommands::OnEchoSubscribeOk {
+                                        from_peer: my_peer.to_base58(),
+                                    }),
+                                    channel,
+                                ));
+                            }
+
+                            TrbpCommands::OnReadySubscribeReq { from_peer } => {
+                                self.trbp_cli.add_confirmed_peer_to_sample(
+                                    SampleType::ReadySubscriber,
+                                    from_peer,
+                                );
+                                spawn(self.network_client.respond_to_request(
+                                    NetworkMessage::from(TrbpCommands::OnReadySubscribeOk {
+                                        from_peer: my_peer.to_base58(),
+                                    }),
+                                    channel,
+                                ));
+                            }
+
+                            _ => todo!(),
+                        }
                     }
                 }
             }
+            _ => {}
         }
     }
 }

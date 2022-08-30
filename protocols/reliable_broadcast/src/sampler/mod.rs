@@ -25,14 +25,14 @@ pub enum SampleProviderStatus {
 pub enum SampleType {
     /// Inbound: FROM external peer TO me
     /// Message from those I am following
-    EchoInbound,
-    ReadyInbound,
-    DeliveryInbound,
+    EchoSubscription,
+    ReadySubscription,
+    DeliverySubscription,
 
     /// Outbound: FROM me TO external peer
     /// Message to my followers
-    EchoOutbound,
-    ReadyOutbound,
+    EchoSubscriber,
+    ReadySubscriber,
 }
 
 //#[derive(Debug, Default)]

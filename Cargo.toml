@@ -14,7 +14,7 @@ path = "src/tce_node_app.rs"
 serde = { version = "1.0.136", features = ["derive"] }
 bincode = "1.3.3"
 clap = { version = "3.0.10", features = ["derive", "env"] }
-libp2p = { version = "0.41.0", features = ["tcp-tokio"] }
+libp2p = { version = "0.46", features = ["tcp-tokio"] }
 lazy_static = "1.4"
 log = "0.4.14"
 opentelemetry = { version = "0.17", default-features = false, features = ["trace", "rt-tokio"] }
@@ -32,17 +32,28 @@ tokio = { version = "1.20.0", features = [
 ] }
 
 # tce dependencies
-tce_net = { package = "topos-tce-node-net", path = "node/net" }
 tce_api = { package = "topos-tce-node-api", path = "node/api" }
 tce_store = { package = "topos-tce-node-store", path = "node/store" }
 tce_telemetry = { package = "topos-tce-node-telemetry", path = "node/telemetry" }
 tce_trbp = { package = "topos-tce-protocols-reliable-broadcast", path = "protocols/reliable_broadcast" }
 tce_transport = { package = "topos-tce-protocols-transport", path = "protocols/transport" }
 
+topos-p2p = { git = "https://github.com/Toposware/topos-p2p", branch = "main", version = "0.1.0" }
+topos-addr = { git = "https://github.com/Toposware/topos-p2p", branch = "main", version = "0.1.0", package = "topos-addr"}
+
+tracing = { version = "*", default-features = false, features = ["log"]}
+tracing-log = { version = "*", features = ['env_logger'] }
+futures = "*"
+
 [dev-dependencies]
 async-trait = "0.1"
 cucumber = "0.13.0"
 hyper = { version = "0.14", features = ["full"] }
+rand_distr = "0.4.1"
+rand_core = "0.6.0"
+rand = "0.8.5"
+env_logger = "*"
+test-log = { version = "0.2", features = ["log"] }
 
 [[test]]
 name = "example" # this should be the same as the filename of your test target

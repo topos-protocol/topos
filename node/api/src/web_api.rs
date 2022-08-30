@@ -100,6 +100,32 @@ async fn delivered_certs(
     Ok(bad_request("failed".into()))
 }
 
+/// Input of [post]/certs
+#[derive(Serialize, Deserialize, Debug)]
+pub struct PeerChanged {
+    pub peers: Vec<String>,
+}
+
+/// Handler of [post]/certs
+async fn post_peer(
+    req: Request<Body>,
+    tx: mpsc::Sender<ApiRequests>,
+) -> Result<Response<Body>, Infallible> {
+    if let Ok(deser_req) = from_post_params::<PeerChanged>(req).await {
+        // todo: check transport-level signature
+        let (snd, rcv) = oneshot::channel::<()>();
+        tx.send(ApiRequests::PeerChanged {
+            req: deser_req,
+            resp_channel: snd,
+        })
+        .await
+        .expect("send");
+        rcv.await.expect("sync recv");
+        return Ok(to_http_response(Ok::<(), ()>(())));
+    }
+
+    Ok(bad_request("failed".into()))
+}
 /// Runs hyper web server
 pub async fn run(tx: mpsc::Sender<ApiRequests>, web_port: u16) {
     // todo:
@@ -128,6 +154,9 @@ async fn dispatch_req(
         (&Method::GET, "/tce_api_endpoints") => tce_api_endpoints(tx.clone()).await,
         (&Method::POST, "/certs") => post_cert(req, tx.clone()).await,
         (&Method::POST, "/delivered_certs") => delivered_certs(req, tx.clone()).await,
+        // NOTE: This entrypoint is temporary and is used to simulate a change of peers in
+        // `topos-subnet`
+        (&Method::POST, "/peers") => post_peer(req, tx.clone()).await,
         // not found
         _ => Ok(Response::builder()
             .status(StatusCode::NOT_FOUND)

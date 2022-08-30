@@ -80,10 +80,11 @@ impl TrbStore for TrbMemStore {
         &self,
         subnet_id: &SubnetId,
         _last_n: u64,
-    ) -> Option<Vec<CertificateId>> {
-        self.history
-            .get(subnet_id)
-            .map(|subnet_certs| subnet_certs.iter().cloned().collect::<Vec<_>>())
+    ) -> Vec<CertificateId> {
+        match self.history.get(subnet_id) {
+            Some(subnet_certs) => subnet_certs.iter().cloned().collect::<Vec<_>>(),
+            None => Vec::new(),
+        }
     }
 
     /// Compute and flush the digest for the given subnet
@@ -98,9 +99,9 @@ impl TrbStore for TrbMemStore {
         }
     }
 
-    fn cert_by_id(&self, cert_id: &CertificateId) -> Result<Option<Certificate>, Errors> {
+    fn cert_by_id(&self, cert_id: &CertificateId) -> Result<Certificate, Errors> {
         match self.all_certs.get(cert_id) {
-            Some(cert) => Ok(Some(cert.clone())),
+            Some(cert) => Ok(cert.clone()),
             _ => Err(Errors::CertificateNotFound),
         }
     }
@@ -125,7 +126,7 @@ impl TrbStore for TrbMemStore {
 
     fn check_precedence(&self, cert: &Certificate) -> Result<(), Errors> {
         match self.cert_by_id(&cert.prev_cert_id) {
-            Ok(Some(_)) => Ok(()),
+            Ok(_) => Ok(()),
             _ => Err(Errors::CertificateNotFound),
         }
     }
