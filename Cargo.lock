@@ -4668,7 +4668,7 @@ dependencies = [
 [[package]]
 name = "topos-addr"
 version = "0.1.0"
-source = "git+https://github.com/Toposware/topos-p2p?branch=feat-modularise-peer-info#69b05cd823ec3f791a878787f3a2efd5d5deb772"
+source = "git+https://github.com/Toposware/topos-p2p?branch=main#954f03cb1d36144e6b3b7974e774725c6c47b04a"
 dependencies = [
  "bs58",
  "lazy-regex",
@@ -4688,7 +4688,7 @@ dependencies = [
 [[package]]
 name = "topos-p2p"
 version = "0.1.0"
-source = "git+https://github.com/Toposware/topos-p2p?branch=feat-modularise-peer-info#69b05cd823ec3f791a878787f3a2efd5d5deb772"
+source = "git+https://github.com/Toposware/topos-p2p?branch=main#954f03cb1d36144e6b3b7974e774725c6c47b04a"
 dependencies = [
  "async-trait",
  "bincode",
