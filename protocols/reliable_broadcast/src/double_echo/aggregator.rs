@@ -14,7 +14,7 @@ use tce_transport::{ReliableBroadcastParams, TrbpCommands, TrbpEvents};
 use topos_core::uci::{Certificate, CertificateId, DigestCompressed};
 
 use crate::sampler::{SampleType, SampleView};
-use crate::{sampler, Peer};
+use crate::{sampler, Peer, TrbInternalCommand};
 use crate::{trb_store::TrbStore, ReliableBroadcastConfig};
 
 /// Processing data associated to a Certificate candidate for delivery
@@ -29,7 +29,7 @@ type DeliveryState = HashMap<SampleType, HashSet<Peer>>;
 /// - message definitions and data structures
 pub struct ReliableBroadcast {
     my_peer_id: Peer,
-    pub(crate) broadcast_commands_channel: mpsc::UnboundedSender<TrbpCommands>,
+    pub(crate) broadcast_commands_channel: mpsc::UnboundedSender<TrbInternalCommand>,
     pub events_subscribers: Vec<mpsc::UnboundedSender<TrbpEvents>>,
     tx_exit: mpsc::UnboundedSender<()>,
     pub(crate) store: Box<dyn TrbStore + Send>,
@@ -63,7 +63,7 @@ impl ReliableBroadcast {
         config: ReliableBroadcastConfig,
         mut sample_view_receiver: broadcast::Receiver<SampleView>,
     ) -> Arc<Mutex<ReliableBroadcast>> {
-        let (b_command_sender, mut b_command_rcv) = mpsc::unbounded_channel::<TrbpCommands>();
+        let (b_command_sender, mut b_command_rcv) = mpsc::unbounded_channel::<TrbInternalCommand>();
         let (tx_exit, mut rx_exit) = mpsc::unbounded_channel::<()>();
         let me = Arc::new(Mutex::from(Self {
             my_peer_id: config.my_peer_id.clone(),
@@ -124,12 +124,12 @@ impl ReliableBroadcast {
         }
     }
 
-    fn on_command(data: Arc<Mutex<ReliableBroadcast>>, mb_cmd: Option<TrbpCommands>) {
+    fn on_command(data: Arc<Mutex<ReliableBroadcast>>, mb_cmd: Option<TrbInternalCommand>) {
         let mut aggr = data.lock().unwrap();
 
         // Execute
         match mb_cmd {
-            Some(cmd) => match cmd {
+            Some(TrbInternalCommand::Command(cmd)) => match cmd {
                 TrbpCommands::StartUp => {
                     aggr.on_cmd_start_up();
                 }
@@ -150,6 +150,21 @@ impl ReliableBroadcast {
                 }
                 _ => {}
             },
+            Some(TrbInternalCommand::DeliveredCerts {
+                subnet_id,
+                limit,
+                sender,
+            }) => {
+                let value = aggr
+                    .store
+                    .recent_certificates_for_subnet(&subnet_id, limit)
+                    .iter()
+                    .filter_map(|cert_id| aggr.store.cert_by_id(cert_id).ok())
+                    .collect();
+
+                // TODO: Catch send failure
+                let _ = sender.send(Ok(value));
+            }
             _ => {
                 log::warn!("empty command was passed");
             }
@@ -183,15 +198,15 @@ impl ReliableBroadcast {
 
         // check inbound sets are not empty
         if ds
-            .get(&SampleType::EchoInbound)
+            .get(&SampleType::EchoSubscription)
             .unwrap_or(&HashSet::<sampler::Peer>::new())
             .is_empty()
             || ds
-                .get(&SampleType::ReadyInbound)
+                .get(&SampleType::ReadySubscription)
                 .unwrap_or(&HashSet::<sampler::Peer>::new())
                 .is_empty()
             || ds
-                .get(&SampleType::DeliveryInbound)
+                .get(&SampleType::DeliverySubscription)
                 .unwrap_or(&HashSet::<sampler::Peer>::new())
                 .is_empty()
         {
@@ -236,30 +251,30 @@ impl ReliableBroadcast {
     fn gossip_peers(&self) -> Vec<Peer> {
         if let Some(sample_view_ref) = self.current_sample_view.as_ref() {
             let connected_peers = sample_view_ref
-                .get(&SampleType::EchoInbound)
+                .get(&SampleType::EchoSubscription)
                 .unwrap()
                 .iter()
                 .chain(
                     sample_view_ref
-                        .get(&SampleType::ReadyInbound)
+                        .get(&SampleType::ReadySubscription)
                         .unwrap()
                         .iter(),
                 )
                 .chain(
                     sample_view_ref
-                        .get(&SampleType::DeliveryInbound)
+                        .get(&SampleType::DeliverySubscription)
                         .unwrap()
                         .iter(),
                 )
                 .chain(
                     sample_view_ref
-                        .get(&SampleType::EchoOutbound)
+                        .get(&SampleType::EchoSubscriber)
                         .unwrap()
                         .iter(),
                 )
                 .chain(
                     sample_view_ref
-                        .get(&SampleType::ReadyOutbound)
+                        .get(&SampleType::ReadySubscriber)
                         .unwrap()
                         .iter(),
                 )
@@ -317,7 +332,7 @@ impl ReliableBroadcast {
         // Send Echo to the echo sample
         let sample_to_peers = self.cert_candidate.get(&cert).unwrap();
         let echo_peers = sample_to_peers
-            .get(&SampleType::EchoOutbound)
+            .get(&SampleType::EchoSubscriber)
             .unwrap_or(&HashSet::new())
             .iter()
             .cloned()
@@ -334,14 +349,14 @@ impl ReliableBroadcast {
 
     fn on_cmd_on_echo(&mut self, from_peer: String, cert: Certificate) {
         if let Some(state) = self.cert_candidate.get_mut(&cert) {
-            sample_consume_peer(&from_peer, state, SampleType::EchoInbound);
+            sample_consume_peer(&from_peer, state, SampleType::EchoSubscription);
         }
     }
 
     fn on_cmd_on_ready(&mut self, from_peer: String, cert: Certificate) {
         if let Some(state) = self.cert_candidate.get_mut(&cert) {
-            sample_consume_peer(&from_peer, state, SampleType::ReadyInbound);
-            sample_consume_peer(&from_peer, state, SampleType::DeliveryInbound);
+            sample_consume_peer(&from_peer, state, SampleType::ReadySubscription);
+            sample_consume_peer(&from_peer, state, SampleType::DeliverySubscription);
         }
     }
 
@@ -353,7 +368,8 @@ impl ReliableBroadcast {
             if is_e_ready(&self.params, state_to_delivery)
                 || is_r_ready(&self.params, state_to_delivery)
             {
-                if let Some(ready_sample) = state_to_delivery.get_mut(&SampleType::ReadyOutbound) {
+                if let Some(ready_sample) = state_to_delivery.get_mut(&SampleType::ReadySubscriber)
+                {
                     // Fanout the Ready messages to my subscribers
                     let readies = ready_sample.iter().cloned().collect::<Vec<_>>();
                     if !readies.is_empty() {
@@ -445,7 +461,7 @@ impl ReliableBroadcast {
 
 // state checkers
 fn is_ok_to_deliver(params: &ReliableBroadcastParams, state: &DeliveryState) -> bool {
-    match state.get(&SampleType::DeliveryInbound) {
+    match state.get(&SampleType::DeliverySubscription) {
         Some(sample) => match params.delivery_sample_size.checked_sub(sample.len()) {
             Some(consumed) => consumed >= params.delivery_threshold,
             None => false,
@@ -455,7 +471,7 @@ fn is_ok_to_deliver(params: &ReliableBroadcastParams, state: &DeliveryState) -> 
 }
 
 fn is_e_ready(params: &ReliableBroadcastParams, state: &DeliveryState) -> bool {
-    match state.get(&SampleType::EchoInbound) {
+    match state.get(&SampleType::EchoSubscription) {
         Some(sample) => match params.echo_sample_size.checked_sub(sample.len()) {
             Some(consumed) => consumed >= params.echo_threshold,
             None => false,
@@ -465,7 +481,7 @@ fn is_e_ready(params: &ReliableBroadcastParams, state: &DeliveryState) -> bool {
 }
 
 fn is_r_ready(params: &ReliableBroadcastParams, state: &DeliveryState) -> bool {
-    match state.get(&SampleType::ReadyInbound) {
+    match state.get(&SampleType::ReadySubscription) {
         Some(sample) => match params.ready_sample_size.checked_sub(sample.len()) {
             Some(consumed) => consumed >= params.ready_threshold,
             None => false,

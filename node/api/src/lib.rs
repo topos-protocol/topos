@@ -22,9 +22,15 @@ pub enum ApiRequests {
         req: web_api::SubmitCertReq,
         resp_channel: oneshot::Sender<()>,
     },
+
     DeliveredCerts {
         req: web_api::DeliveredCertsReq,
         resp_channel: oneshot::Sender<Vec<Certificate>>,
+    },
+
+    PeerChanged {
+        req: web_api::PeerChanged,
+        resp_channel: oneshot::Sender<()>,
     },
 }
 
