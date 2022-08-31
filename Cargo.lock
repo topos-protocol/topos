@@ -4847,20 +4847,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "topos-tce-net"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "byteorder",
- "libp2p 0.41.2",
- "log",
- "rand 0.8.5",
- "rand_core 0.6.3",
- "tokio",
- "topos-tce-transport",
-]
-
-[[package]]
 name = "topos-tce-simulation"
 version = "0.1.0"
 dependencies = [
@@ -5067,7 +5053,6 @@ dependencies = [
  "smallvec",
  "thiserror",
  "tinyvec",
- "tokio",
  "url",
 ]
 
@@ -5112,7 +5097,6 @@ dependencies = [
  "resolv-conf",
  "smallvec",
  "thiserror",
- "tokio",
  "trust-dns-proto 0.20.4",
 ]
 
