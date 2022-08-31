@@ -38,7 +38,7 @@ tce_telemetry = { package = "topos-tce-telemetry", path = "./crates/topos-tce-te
 topos-tce-broadcast = { path = "./crates/topos-tce-broadcast" }
 tce_transport = { package = "topos-tce-transport", path = "./crates/topos-tce-transport" }
 
-topos-p2p = { git = "https://github.com/Toposware/topos-p2p", branch = "main", version = "0.1.0" }
+topos-p2p = { path = "./crates/topos-p2p" }
 topos-addr = { git = "https://github.com/Toposware/topos-p2p", branch = "main", version = "0.1.0", package = "topos-addr"}
 
 tracing = { version = "*", default-features = false, features = ["log"]}
