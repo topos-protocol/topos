@@ -21,7 +21,7 @@ async fn main() {
     let args = AppArgs::parse();
 
     // Launch the workers
-    let certification = CertificationWorker::new(args.subnet_id);
+    let certification = CertificationWorker::new(args.subnet_id.clone());
     let runtime_proxy = RuntimeProxyWorker::new(RuntimeProxyConfig {
         endpoint: args.substrate_subnet_rpc_endpoint.clone(),
         topos_core_contract: args.topos_core_contract.clone(),
@@ -29,7 +29,7 @@ async fn main() {
 
     // downstream flow processor worker
     let tce_proxy_worker = TceProxyWorker::new(TceProxyConfig {
-        subnet_id: args.subnet_id,
+        subnet_id: args.subnet_id.clone(),
         base_tce_api_url: args.base_tce_api_url.clone(),
     });
 
@@ -87,8 +87,8 @@ pub struct AppArgs {
     pub db_path: Option<String>,
 
     /// SubnetId to use
-    #[clap(long, default_value_t = 0, env = "TOPOS_SUBNET_ID")]
-    pub subnet_id: u64,
+    #[clap(long, default_value_t = 0.to_string(), env = "TOPOS_SUBNET_ID")]
+    pub subnet_id: String,
 
     // Subnet substrate interface rpc endpoint
     #[clap(

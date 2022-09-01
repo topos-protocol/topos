@@ -24,7 +24,7 @@ tokio = { version = "1.15.0", features = [
     "sync",
 ] }
 
-topos-core = { git = "https://github.com/Toposware/topos-core", branch = "main", features = ["uci"], version = "0.1.0" }
+topos-core = { git = "https://github.com/toposware/topos-core", branch = "main", features = ["uci"], version = "0.1.0" }
 topos_net = { package = "topos-node-net", path = "../../node/net" }
 topos_api = { package = "topos-node-api", path = "../topos-node-api" }
 #topos_store = { package = "topos-node-store", path = "node/store" }
