@@ -24,6 +24,6 @@ tokio = { version = "1.20.0", features = [
     "sync",
 ] }
 
-tce_trbp = { package = "topos-tce-reliable-broadcast", path = "../topos-tce-reliable-broadcast" }
+topos-tce-broadcast = { path = "../topos-tce-broadcast" }
 
 topos-core = { git = "https://github.com/Toposware/topos-core", branch = "main", features = ["uci"], version = "0.1.0" }

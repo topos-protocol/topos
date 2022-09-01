@@ -3,16 +3,16 @@ mod app_context;
 use clap::Parser;
 
 use tce_api::{ApiConfig, ApiWorker};
-use tce_trbp::{ReliableBroadcastClient, ReliableBroadcastConfig};
 use tokio::spawn;
 use topos_addr::ToposAddr;
+use topos_tce_broadcast::mem_store::TrbMemStore;
+use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
 
 use crate::app_context::AppContext;
 use libp2p::{identity, PeerId};
 
 use tce_store::{Store, StoreConfig};
 use tce_transport::ReliableBroadcastParams;
-use tce_trbp::mem_store::TrbMemStore;
 
 #[tokio::main]
 async fn main() {

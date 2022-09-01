@@ -4730,7 +4730,7 @@ dependencies = [
  "topos-addr",
  "topos-p2p",
  "topos-tce-api",
- "topos-tce-reliable-broadcast",
+ "topos-tce-broadcast",
  "topos-tce-store",
  "topos-tce-telemetry",
  "topos-tce-transport",
@@ -4749,25 +4749,11 @@ dependencies = [
  "serde_json",
  "tokio",
  "topos-core",
- "topos-tce-reliable-broadcast",
+ "topos-tce-broadcast",
 ]
 
 [[package]]
-name = "topos-tce-net"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "byteorder",
- "libp2p 0.41.2",
- "log",
- "rand 0.8.5",
- "rand_core 0.6.3",
- "tokio",
- "topos-tce-transport",
-]
-
-[[package]]
-name = "topos-tce-reliable-broadcast"
+name = "topos-tce-broadcast"
 version = "0.1.0"
 dependencies = [
  "byteorder",
@@ -4787,6 +4773,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "topos-tce-net"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "byteorder",
+ "libp2p 0.41.2",
+ "log",
+ "rand 0.8.5",
+ "rand_core 0.6.3",
+ "tokio",
+ "topos-tce-transport",
+]
+
+[[package]]
 name = "topos-tce-simulation"
 version = "0.1.0"
 dependencies = [
@@ -4800,8 +4800,8 @@ dependencies = [
  "tokio",
  "topos-core",
  "topos-tce-api",
+ "topos-tce-broadcast",
  "topos-tce-net",
- "topos-tce-reliable-broadcast",
  "topos-tce-store",
  "topos-tce-transport",
 ]
@@ -4815,7 +4815,7 @@ dependencies = [
  "pretty_env_logger",
  "rocksdb",
  "topos-core",
- "topos-tce-reliable-broadcast",
+ "topos-tce-broadcast",
 ]
 
 [[package]]
