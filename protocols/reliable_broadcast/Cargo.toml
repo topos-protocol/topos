@@ -25,7 +25,8 @@ tokio = { version = "1.20.0", features = [
 rand_distr = "0.4.1"
 rand_core = "0.6.0"
 rand = "0.8.5"
-tokio-stream = "*"
+tokio-stream = { version = "*", features = ["sync"] }
+
 futures = "*"
 
 topos-core = { git = "https://github.com/Toposware/topos-core", branch = "main", features = ["uci"], version = "0.1.0" }

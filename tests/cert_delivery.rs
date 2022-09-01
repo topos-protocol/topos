@@ -28,6 +28,7 @@ async fn cert_delivery() {
             .send(TrbInternalCommand::Command(TrbpCommands::OnBroadcast {
                 cert: cert.first().cloned().unwrap(),
             }))
+            .await
             .expect("Can't send certificate");
     }
 
