@@ -8,8 +8,8 @@ use libp2p::{
 use tce_api::{ApiRequests, ApiWorker};
 use tce_transport::{ReliableBroadcastParams, TrbpEvents};
 use tce_trbp::{
-    mem_store::TrbMemStore, ReliableBroadcastClient, ReliableBroadcastConfig, SamplerCommand,
-    TrbInternalCommand,
+    mem_store::TrbMemStore, DoubleEchoCommand, ReliableBroadcastClient, ReliableBroadcastConfig,
+    SamplerCommand,
 };
 use tokio::{spawn, sync::mpsc};
 use topos_addr::ToposAddr;
@@ -19,7 +19,7 @@ use topos_tce::AppContext;
 pub struct TestAppContext {
     pub peer_id: String,
     pub command_sampler: mpsc::Sender<SamplerCommand>,
-    pub command_broadcast: mpsc::Sender<TrbInternalCommand>,
+    pub command_broadcast: mpsc::Sender<DoubleEchoCommand>,
     pub api: mpsc::Sender<ApiRequests>,
 }
 
