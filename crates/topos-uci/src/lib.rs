@@ -1,14 +1,15 @@
 //! Universal Certificate Interface
 //!
 //! Data structures to support Certificates' exchange
+
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::time;
 
-pub type CertificateId = u64;
-pub type SubnetId = u64;
+pub type CertificateId = String;
+pub type SubnetId = String;
 pub type StarkProof = Vec<u8>;
 pub type Frost = Vec<u8>;
 pub type Address = String;
@@ -24,7 +25,7 @@ const DUMMY_STARK_DELAY: time::Duration = time::Duration::from_millis(0);
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Certificate {
     pub initial_subnet_id: SubnetId,
-    pub id: CertificateId,
+    pub cert_id: CertificateId,
     pub prev_cert_id: CertificateId,
     //pub proof: StarkProof,
     //pub signature: Frost,
@@ -48,13 +49,13 @@ impl Certificate {
         calls: Vec<CrossChainTransaction>,
     ) -> Certificate {
         let mut cert = Certificate {
-            id: 0,
+            cert_id: 0.to_string(),
             prev_cert_id: prev,
             initial_subnet_id: initial,
             calls,
         };
 
-        cert.id = calculate_hash(&cert);
+        cert.cert_id = calculate_hash(&cert);
         cert
     }
 
@@ -71,10 +72,10 @@ impl Certificate {
 
 pub enum CertificateCheckingError {}
 
-fn calculate_hash<T: Hash>(t: &T) -> u64 {
+fn calculate_hash<T: Hash>(t: &T) -> String {
     let mut s = DefaultHasher::new();
     t.hash(&mut s);
-    s.finish()
+    s.finish().to_string()
 }
 
 impl Hash for Certificate {
@@ -89,13 +90,13 @@ impl Hash for Certificate {
 impl Eq for Certificate {}
 impl PartialEq for Certificate {
     fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
+        self.cert_id == other.cert_id
     }
 }
 
 impl Ord for Certificate {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.id.cmp(&other.id)
+        self.cert_id.cmp(&other.cert_id)
     }
 }
 

@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+topos-uci = { path = "../topos-uci"}
 tonic = { version = "0.7", default-features = false, features = [
     "prost",
     "codegen",
@@ -13,6 +14,7 @@ tonic = { version = "0.7", default-features = false, features = [
 ] }
 prost = "0.10"
 prost-types = "0.10"
+ethereum-types = "0.13.1"
 
 [build-dependencies]
 tonic-build = { version = "0.7", default-features = false, features = [

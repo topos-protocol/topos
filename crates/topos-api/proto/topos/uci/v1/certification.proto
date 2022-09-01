@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package topos.uci.v1;
+
+/* Two types of transactions available:
+ * Asset transfer
+ * Smart contract function call
+ */
+message CrossChainTransactionData {
+  oneof data {
+     AssetTransfer asset_transfer = 1;
+     FunctionCall function_call = 2;
+  }
+
+  // Cross chain transaction data for asset transfer
+  message AssetTransfer {
+    string asset_id = 1;
+    bytes amount = 2;
+  }
+
+  // Data describing cross chain function call
+  message FunctionCall {
+    bytes data = 1;
+  }
+}
+
+// Cross chain transaction exchanged between subnets
+message CrossChainTransaction {
+  string terminal_subnet_id = 1;
+  string sender_addr = 2;
+  string recipient_addr = 3;
+  CrossChainTransactionData transaction_data = 4;
+}
+
+
+// Certificate - main exchange item
+message Certificate {
+    string initial_subnet_id = 1;
+    string cert_id = 2;
+    string prev_cert_id = 3;
+    repeated CrossChainTransaction calls = 4;
+}
