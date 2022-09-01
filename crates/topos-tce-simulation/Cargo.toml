@@ -35,4 +35,4 @@ tce_store = { package = "topos-tce-store", path = "../topos-tce-store" }
 tce_transport = { package = "topos-tce-transport", path = "../topos-tce-transport" }
 
 topos-tce-broadcast = { path = "../topos-tce-broadcast" }
-topos-core = { git = "https://github.com/Toposware/topos-core", branch = "main", features = ["uci"], version = "0.1.0" }
+topos-core = { git = "https://github.com/toposware/topos-core", branch = "main", features = ["uci"], version = "0.1.0" }

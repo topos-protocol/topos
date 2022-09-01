@@ -109,7 +109,7 @@ impl AppContext {
             ApiRequests::DeliveredCerts { req, resp_channel } => {
                 let future = self
                     .trbp_cli
-                    .delivered_certs(req.subnet_id, req.from_cert_id);
+                    .delivered_certs(req.subnet_id.clone(), req.from_cert_id.clone());
 
                 spawn(async move {
                     match future.await {

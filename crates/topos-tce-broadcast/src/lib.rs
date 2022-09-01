@@ -199,7 +199,7 @@ impl ReliableBroadcastClient {
     ) -> Result<Vec<CertificateId>, Errors> {
         self.delivered_certs(subnet_id, from_cert_id)
             .await
-            .map(|mut v| v.iter_mut().map(|c| c.id).collect())
+            .map(|mut v| v.iter_mut().map(|c| c.cert_id.clone()).collect())
     }
 
     pub fn get_sampler_channel(&self) -> Sender<SamplerCommand> {

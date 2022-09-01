@@ -31,11 +31,11 @@ impl TrbMemStore {
             followed_subnet: subnets,
         };
         for subnet in &store.followed_subnet {
-            store.tracked_digest.insert(*subnet, BTreeSet::new());
-            store.history.insert(*subnet, BTreeSet::new());
+            store.tracked_digest.insert(subnet.clone(), BTreeSet::new());
+            store.history.insert(subnet.clone(), BTreeSet::new());
         }
         // Add the genesis
-        store.all_certs.insert(0, Default::default());
+        store.all_certs.insert(0.to_string(), Default::default());
         store
     }
 }
@@ -49,22 +49,25 @@ impl TrbStore for TrbMemStore {
         // Add the cert into the history of each Terminal
         for call in &cert.calls {
             self.add_cert_in_hist(&call.terminal_subnet_id, cert);
-            self.add_cert_in_digest(&call.terminal_subnet_id, &cert.id);
+            self.add_cert_in_digest(&call.terminal_subnet_id, &cert.cert_id);
         }
 
         Ok(())
     }
 
     fn add_cert_in_hist(&mut self, subnet_id: &SubnetId, cert: &Certificate) -> bool {
-        self.all_certs.insert(cert.id, cert.clone());
-        self.history.entry(*subnet_id).or_default().insert(cert.id)
+        self.all_certs.insert(cert.cert_id.clone(), cert.clone());
+        self.history
+            .entry(subnet_id.clone())
+            .or_default()
+            .insert(cert.cert_id.clone())
     }
 
     fn add_cert_in_digest(&mut self, subnet_id: &SubnetId, cert_id: &CertificateId) -> bool {
         self.tracked_digest
-            .entry(*subnet_id)
+            .entry(subnet_id.clone())
             .or_default()
-            .insert(*cert_id)
+            .insert(cert_id.clone())
     }
 
     fn read_journal(
@@ -108,14 +111,15 @@ impl TrbStore for TrbMemStore {
 
     // JAEGER END DELIVERY TRACE [ cert, peer ]
     fn new_cert_candidate(&mut self, cert: &Certificate, digest: &DigestCompressed) {
-        self.received_digest.insert(cert.id, digest.clone());
+        self.received_digest
+            .insert(cert.cert_id.clone(), digest.clone());
     }
 
     ///
     /// Checks
     ///
     fn check_digest_inclusion(&self, cert: &Certificate) -> Result<(), Errors> {
-        let received_digest = self.received_digest.get(&cert.id).unwrap();
+        let received_digest = self.received_digest.get(&cert.cert_id).unwrap();
 
         // Check that all cert in digest are in my history
         received_digest
