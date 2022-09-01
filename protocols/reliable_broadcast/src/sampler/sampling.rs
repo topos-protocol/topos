@@ -35,6 +35,11 @@ where
 
     let src_len = src.len();
     let sample_size = reducer(src_len);
+
+    if sample_size == 0 {
+        return Err(SamplerError::ZeroLength);
+    }
+
     if sample_size > src_len {
         return Err(SamplerError::ShortOfInput);
     }

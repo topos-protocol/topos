@@ -3,22 +3,22 @@
 //! Abstracted from actual transport implementation.
 //! Abstracted from actual storage implementation.
 //!
-use futures::future::BoxFuture;
 use sampler::SampleType;
-use tokio_stream::wrappers::UnboundedReceiverStream;
+use tokio::spawn;
+use tokio_stream::wrappers::BroadcastStream;
 
-use futures::Stream;
+use futures::{Future, Stream, TryStreamExt};
 #[allow(unused)]
 use opentelemetry::global;
-use tokio::sync::mpsc::UnboundedSender;
+use tokio::sync::mpsc::Sender;
 use tokio::sync::{broadcast, mpsc, oneshot};
 
 use double_echo::aggregator::ReliableBroadcast;
-use sampler::{aggregator::PeerSamplingOracle, SampleView};
 use tce_transport::{ReliableBroadcastParams, TrbpCommands, TrbpEvents};
 
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
 
+use crate::sampler::Sampler;
 use crate::trb_store::TrbStore;
 pub use topos_core::uci;
 pub type Peer = String;
@@ -44,6 +44,7 @@ pub enum SamplerCommand {
     ConfirmPeer {
         peer: String,
         sample_type: SampleType,
+        sender: oneshot::Sender<Result<(), ()>>,
     },
 }
 
@@ -65,9 +66,8 @@ pub enum TrbInternalCommand {
 pub struct ReliableBroadcastClient {
     #[allow(dead_code)]
     peer_id: String,
-    pub events_sender: mpsc::UnboundedSender<TrbpEvents>,
-    broadcast_commands: mpsc::UnboundedSender<TrbInternalCommand>,
-    sampling_commands: mpsc::UnboundedSender<TrbInternalCommand>,
+    broadcast_commands: mpsc::Sender<TrbInternalCommand>,
+    sampling_commands: mpsc::Sender<SamplerCommand>,
 }
 
 impl ReliableBroadcastClient {
@@ -75,36 +75,38 @@ impl ReliableBroadcastClient {
     ///
     /// New client instances to the same aggregate can be cloned from the returned one.
     /// Aggregate is spawned as new task.
-    pub fn new(config: ReliableBroadcastConfig) -> (Self, impl Stream<Item = TrbpEvents>) {
+    pub fn new(
+        config: ReliableBroadcastConfig,
+    ) -> (Self, impl Stream<Item = Result<TrbpEvents, ()>>) {
         log::info!("new(trbp_params: {:?})", &config.trbp_params);
 
         let peer_id = config.my_peer_id.clone();
 
-        // Oneshot channel for new sample state (era)
-        let (sample_view_sender, sample_view_receiver) = broadcast::channel::<SampleView>(16);
+        let (sample_view_sender, sample_view_receiver) = mpsc::channel(2048);
+        let (sampler_command_sender, command_receiver) = mpsc::channel(2048);
+        let (event_sender, event_receiver) = broadcast::channel(2048);
 
-        let s_w_aggr =
-            PeerSamplingOracle::spawn_new(config.trbp_params.clone(), sample_view_sender);
-        let mut s_aggr = s_w_aggr.lock().unwrap();
-        let sampling_commands = s_aggr.sampling_commands_channel.clone();
+        let sampler = Sampler::new(
+            config.trbp_params.clone(),
+            command_receiver,
+            event_sender.clone(),
+            sample_view_sender,
+        );
 
         let b_w_aggr = ReliableBroadcast::spawn_new(config, sample_view_receiver);
         let mut b_aggr = b_w_aggr.lock().unwrap();
         let broadcast_commands = b_aggr.broadcast_commands_channel.clone();
 
-        let (events_sender, events_rcv) = mpsc::unbounded_channel::<TrbpEvents>();
-        b_aggr.events_subscribers.push(events_sender.clone());
-        s_aggr.events_subscribers.push(events_sender.clone());
+        b_aggr.events_subscribers.push(event_sender);
 
+        spawn(sampler.run());
         (
             Self {
                 peer_id,
-                events_sender,
                 broadcast_commands,
-                sampling_commands,
+                sampling_commands: sampler_command_sender,
             },
-            // TODO: Switch to bounded stream to better perf
-            UnboundedReceiverStream::new(events_rcv),
+            BroadcastStream::new(event_receiver).map_err(|_| ()),
         )
     }
     /// Schedule command for execution
@@ -121,34 +123,43 @@ impl ReliableBroadcastClient {
                     | TrbpCommands::OnReady { .. }
             )
         };
-        let sender = if is_broadcast_related(&cmd) {
+        if is_broadcast_related(&cmd) {
             log::debug!("eval for broadcast {:?}", cmd);
-            &self.broadcast_commands
+            self.broadcast_commands
+                .try_send(TrbInternalCommand::Command(cmd))
+                .map_err(|err| err.into())
         } else {
-            log::debug!("eval for sampling {:?}", cmd);
-            &self.sampling_commands
-        };
-
-        sender
-            .send(TrbInternalCommand::Command(cmd))
-            .map_err(|err| err.into())
+            Ok(())
+        }
     }
 
-    pub fn peer_changed(&self, peers: Vec<String>) {
-        self.sampling_commands
-            .send(TrbInternalCommand::Sampler(SamplerCommand::PeersChanged {
-                peers,
-            }))
-            .expect("Unable to send peer changed to sampler");
+    pub fn peer_changed(
+        &self,
+        peers: Vec<String>,
+    ) -> impl Future<Output = Result<(), ()>> + 'static + Send {
+        let command_channel = self.get_sampler_channel();
+        async move {
+            command_channel
+                .send(SamplerCommand::PeersChanged { peers })
+                .await
+                .expect("Unable to send peer changed to sampler");
+            Ok(())
+        }
     }
 
-    pub fn add_confirmed_peer_to_sample(&self, sample_type: SampleType, peer: Peer) {
+    pub async fn add_confirmed_peer_to_sample(&self, sample_type: SampleType, peer: Peer) {
+        let (sender, receiver) = oneshot::channel();
+
         self.sampling_commands
-            .send(TrbInternalCommand::Sampler(SamplerCommand::ConfirmPeer {
+            .send(SamplerCommand::ConfirmPeer {
                 peer,
                 sample_type,
-            }))
+                sender,
+            })
+            .await
             .expect("Unable to send confirmation to sample");
+
+        let _ = receiver.await.expect("Sender was dropped");
     }
 
     /// known peers
@@ -163,12 +174,12 @@ impl ReliableBroadcastClient {
         &self,
         subnet_id: SubnetId,
         _from_cert_id: CertificateId,
-    ) -> BoxFuture<'static, Result<Vec<Certificate>, Errors>> {
+    ) -> impl Future<Output = Result<Vec<Certificate>, Errors>> + 'static + Send {
         let (sender, receiver) = oneshot::channel();
 
         let broadcast_commands = self.broadcast_commands.clone();
 
-        Box::pin(async move {
+        async move {
             let _ = broadcast_commands.send(TrbInternalCommand::DeliveredCerts {
                 subnet_id,
                 limit: 10,
@@ -176,7 +187,7 @@ impl ReliableBroadcastClient {
             });
 
             receiver.await.expect("Sender to be alive")
-        })
+        }
     }
 
     pub async fn delivered_certs_ids(
@@ -189,16 +200,11 @@ impl ReliableBroadcastClient {
             .map(|mut v| v.iter_mut().map(|c| c.id).collect())
     }
 
-    pub fn get_sampler_channel(&self) -> UnboundedSender<TrbInternalCommand> {
+    pub fn get_sampler_channel(&self) -> Sender<SamplerCommand> {
         self.sampling_commands.clone()
     }
 
-    pub fn get_command_channels(
-        &self,
-    ) -> (
-        UnboundedSender<TrbInternalCommand>,
-        UnboundedSender<TrbInternalCommand>,
-    ) {
+    pub fn get_command_channels(&self) -> (Sender<SamplerCommand>, Sender<TrbInternalCommand>) {
         (
             self.sampling_commands.clone(),
             self.broadcast_commands.clone(),
@@ -216,6 +222,12 @@ pub enum Errors {
 
 impl From<mpsc::error::SendError<TrbInternalCommand>> for Errors {
     fn from(_arg: mpsc::error::SendError<TrbInternalCommand>) -> Self {
+        Errors::TokioError {}
+    }
+}
+
+impl From<mpsc::error::TrySendError<TrbInternalCommand>> for Errors {
+    fn from(_arg: mpsc::error::TrySendError<TrbInternalCommand>) -> Self {
         Errors::TokioError {}
     }
 }

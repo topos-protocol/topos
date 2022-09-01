@@ -29,8 +29,8 @@ type DeliveryState = HashMap<SampleType, HashSet<Peer>>;
 /// - message definitions and data structures
 pub struct ReliableBroadcast {
     my_peer_id: Peer,
-    pub(crate) broadcast_commands_channel: mpsc::UnboundedSender<TrbInternalCommand>,
-    pub events_subscribers: Vec<mpsc::UnboundedSender<TrbpEvents>>,
+    pub(crate) broadcast_commands_channel: mpsc::Sender<TrbInternalCommand>,
+    pub events_subscribers: Vec<broadcast::Sender<TrbpEvents>>,
     tx_exit: mpsc::UnboundedSender<()>,
     pub(crate) store: Box<dyn TrbStore + Send>,
     params: ReliableBroadcastParams,
@@ -61,9 +61,9 @@ fn sample_consume_peer(peer_to_consume: &String, state: &mut DeliveryState, samp
 impl ReliableBroadcast {
     pub fn spawn_new(
         config: ReliableBroadcastConfig,
-        mut sample_view_receiver: broadcast::Receiver<SampleView>,
+        mut sample_view_receiver: mpsc::Receiver<SampleView>,
     ) -> Arc<Mutex<ReliableBroadcast>> {
-        let (b_command_sender, mut b_command_rcv) = mpsc::unbounded_channel::<TrbInternalCommand>();
+        let (b_command_sender, mut b_command_rcv) = mpsc::channel::<TrbInternalCommand>(2048);
         let (tx_exit, mut rx_exit) = mpsc::unbounded_channel::<()>();
         let me = Arc::new(Mutex::from(Self {
             my_peer_id: config.my_peer_id.clone(),
@@ -106,13 +106,10 @@ impl ReliableBroadcast {
         aggr.current_sample_view.is_some()
     }
 
-    fn on_new_sample_view(
-        data: Arc<Mutex<ReliableBroadcast>>,
-        mb_new_view: Result<SampleView, broadcast::error::RecvError>,
-    ) {
+    fn on_new_sample_view(data: Arc<Mutex<ReliableBroadcast>>, mb_new_view: Option<SampleView>) {
         log::info!("on_new_sample_view({:?})", &mb_new_view);
         let mut aggr = data.lock().unwrap();
-        if let Ok(new_view) = mb_new_view {
+        if let Some(new_view) = mb_new_view {
             log::debug!(
                 "new_sample_view - [{:?}] New sample view: {:?}",
                 aggr.my_peer_id,
