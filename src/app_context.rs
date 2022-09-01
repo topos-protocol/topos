@@ -12,6 +12,7 @@ use tce_api::web_api::PeerChanged;
 use tce_api::{ApiRequests, ApiWorker};
 use tce_transport::{TrbpCommands, TrbpEvents};
 use tce_trbp::sampler::SampleType;
+use tce_trbp::DoubleEchoCommand;
 use tce_trbp::{ReliableBroadcastClient, SamplerCommand};
 use tokio::spawn;
 use tokio::sync::oneshot;
@@ -95,11 +96,14 @@ impl AppContext {
             }
 
             ApiRequests::SubmitCert { req, resp_channel } => {
-                // TODO: Switch to async processing
-                self.trbp_cli
-                    .eval(TrbpCommands::OnBroadcast { cert: req.cert })
-                    .expect("SubmitCert");
-                resp_channel.send(()).expect("sync send");
+                let command_sender = self.trbp_cli.get_double_echo_channel();
+                spawn(async move {
+                    command_sender
+                        .send(DoubleEchoCommand::Broadcast { cert: req.cert })
+                        .await
+                        .expect("SubmitCert");
+                    resp_channel.send(()).expect("sync send");
+                });
             }
 
             ApiRequests::DeliveredCerts { req, resp_channel } => {
