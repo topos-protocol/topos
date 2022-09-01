@@ -83,15 +83,19 @@ impl AppContext {
             } => {
                 resp_channel.send(()).expect("sync send");
                 info!("Peers have changed, notify the sampler");
-                self.trbp_cli.peer_changed(
-                    peers
-                        .iter_mut()
-                        .map(|e| e.parse::<PeerId>().unwrap().to_base58())
-                        .collect(),
+
+                spawn(
+                    self.trbp_cli.peer_changed(
+                        peers
+                            .iter_mut()
+                            .map(|e| e.parse::<PeerId>().unwrap().to_base58())
+                            .collect(),
+                    ),
                 );
             }
 
             ApiRequests::SubmitCert { req, resp_channel } => {
+                // TODO: Switch to async processing
                 self.trbp_cli
                     .eval(TrbpCommands::OnBroadcast { cert: req.cert })
                     .expect("SubmitCert");

@@ -3,12 +3,11 @@
 //! Abstracted from actual transport implementation.
 //! Abstracted from actual storage implementation.
 //!
-use futures::future::BoxFuture;
 use sampler::SampleType;
 use tokio::spawn;
 use tokio_stream::wrappers::BroadcastStream;
 
-use futures::{Stream, TryStreamExt};
+use futures::{Future, Stream, TryStreamExt};
 #[allow(unused)]
 use opentelemetry::global;
 use tokio::sync::mpsc::Sender;
@@ -107,7 +106,6 @@ impl ReliableBroadcastClient {
                 broadcast_commands,
                 sampling_commands: sampler_command_sender,
             },
-            // TODO: Switch to bounded stream to better perf
             BroadcastStream::new(event_receiver).map_err(|_| ()),
         )
     }
@@ -135,21 +133,30 @@ impl ReliableBroadcastClient {
         }
     }
 
-    pub fn peer_changed(&self, peers: Vec<String>) {
-        self.sampling_commands
-            .try_send(SamplerCommand::PeersChanged { peers })
-            .expect("Unable to send peer changed to sampler");
+    pub fn peer_changed(
+        &self,
+        peers: Vec<String>,
+    ) -> impl Future<Output = Result<(), ()>> + 'static + Send {
+        let command_channel = self.get_sampler_channel();
+        async move {
+            command_channel
+                .send(SamplerCommand::PeersChanged { peers })
+                .await
+                .expect("Unable to send peer changed to sampler");
+            Ok(())
+        }
     }
 
     pub async fn add_confirmed_peer_to_sample(&self, sample_type: SampleType, peer: Peer) {
         let (sender, receiver) = oneshot::channel();
 
         self.sampling_commands
-            .try_send(SamplerCommand::ConfirmPeer {
+            .send(SamplerCommand::ConfirmPeer {
                 peer,
                 sample_type,
                 sender,
             })
+            .await
             .expect("Unable to send confirmation to sample");
 
         let _ = receiver.await.expect("Sender was dropped");
@@ -167,12 +174,12 @@ impl ReliableBroadcastClient {
         &self,
         subnet_id: SubnetId,
         _from_cert_id: CertificateId,
-    ) -> BoxFuture<'static, Result<Vec<Certificate>, Errors>> {
+    ) -> impl Future<Output = Result<Vec<Certificate>, Errors>> + 'static + Send {
         let (sender, receiver) = oneshot::channel();
 
         let broadcast_commands = self.broadcast_commands.clone();
 
-        Box::pin(async move {
+        async move {
             let _ = broadcast_commands.send(TrbInternalCommand::DeliveredCerts {
                 subnet_id,
                 limit: 10,
@@ -180,7 +187,7 @@ impl ReliableBroadcastClient {
             });
 
             receiver.await.expect("Sender to be alive")
-        })
+        }
     }
 
     pub async fn delivered_certs_ids(
