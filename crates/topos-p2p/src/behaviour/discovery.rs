@@ -21,7 +21,6 @@ use libp2p::{
     Multiaddr, PeerId,
 };
 use tokio::sync::oneshot;
-use topos_addr::ToposAddr;
 use tracing::{debug, error, info, trace, warn};
 
 type PendingDials = HashMap<PeerId, oneshot::Sender<Result<(), Box<dyn Error + Send>>>>;
@@ -413,7 +412,7 @@ impl DiscoveryBehaviour {
     pub fn new(
         peer_key: Keypair,
         discovery_protocol: &'static str,
-        known_peers: &[(PeerId, ToposAddr)],
+        known_peers: &[(PeerId, Multiaddr)],
         with_mdns: bool,
     ) -> Self {
         let local_peer_id = peer_key.public().to_peer_id();
@@ -435,7 +434,7 @@ impl DiscoveryBehaviour {
                 "Kademlia:  ---- adding peer:{} at {}",
                 &known_peer.0, &known_peer.1
             );
-            kademlia.add_address(&known_peer.0, known_peer.1.inner());
+            kademlia.add_address(&known_peer.0, known_peer.1.clone());
         }
 
         for known_peer in known_peers {
@@ -457,7 +456,7 @@ impl DiscoveryBehaviour {
             events: VecDeque::new(),
             inner_commands: VecDeque::new(),
             local_peer_id,
-            permanent_addresses: known_peers.iter().map(|(p, a)| (*p, a.inner())).collect(),
+            permanent_addresses: known_peers.iter().map(|(p, a)| (*p, a.clone())).collect(),
             ephemeral_addresses: HashMap::new(),
             num_connections: 0,
             pending_dial: HashMap::new(),
@@ -468,14 +467,14 @@ impl DiscoveryBehaviour {
     pub fn dial(
         &mut self,
         peer_id: PeerId,
-        peer_addr: ToposAddr,
+        peer_addr: Multiaddr,
         sender: oneshot::Sender<Result<(), Box<dyn Error + Send>>>,
     ) {
         let handler = self.new_handler();
         match (self.peers.get(&peer_id), self.pending_dial.entry(peer_id)) {
             (None, Entry::Vacant(entry)) => {
                 self.inner_commands.push_back(NetworkBehaviourAction::Dial {
-                    opts: peer_addr.inner().into(),
+                    opts: peer_addr.into(),
                     handler,
                 });
                 entry.insert(sender);

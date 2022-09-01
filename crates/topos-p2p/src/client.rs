@@ -15,7 +15,7 @@ pub struct Client {
 impl Client {
     pub async fn start_listening(
         &self,
-        peer_addr: topos_addr::ToposAddr,
+        peer_addr: libp2p::Multiaddr,
     ) -> Result<(), Box<dyn Error + Send>> {
         let (sender, receiver) = oneshot::channel();
         self.sender
@@ -28,7 +28,7 @@ impl Client {
     pub async fn dial(
         &self,
         peer_id: PeerId,
-        peer_addr: topos_addr::ToposAddr,
+        peer_addr: libp2p::Multiaddr,
     ) -> Result<(), Box<dyn Error + Send>> {
         let (sender, receiver) = oneshot::channel();
         self.sender

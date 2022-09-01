@@ -3,30 +3,26 @@ use std::net::UdpSocket;
 use futures::{Stream, StreamExt};
 use libp2p::{
     identity::{ed25519::SecretKey, Keypair},
-    PeerId,
+    Multiaddr, PeerId,
 };
 use tokio::spawn;
-use topos_addr::ToposAddr;
 use topos_p2p::{network, Client};
 
-pub fn local_peer(peer_index: u8) -> (Keypair, ToposAddr) {
+pub fn local_peer(peer_index: u8) -> (Keypair, Multiaddr) {
     let peer_id: Keypair = keypair_from_byte(peer_index);
     let socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
     let port = socket.local_addr().unwrap().port();
-    let local_listen_addr: ToposAddr =
-        format!("{}@127.0.0.1:{}", peer_id.public().to_peer_id(), port)
-            .parse()
-            .unwrap();
+    let local_listen_addr: Multiaddr = format!("/ip4/127.0.0.1/tcp/{}", port).parse().unwrap();
     (peer_id, local_listen_addr)
 }
 
-pub fn local_peers(count: u8) -> Vec<(Keypair, ToposAddr)> {
+pub fn local_peers(count: u8) -> Vec<(Keypair, Multiaddr)> {
     (0..count).map(|i: u8| local_peer(i)).collect()
 }
 
 pub async fn start_node(
-    (peer_key, peer_addr): (Keypair, ToposAddr),
-    known_peers: Vec<(PeerId, ToposAddr)>,
+    (peer_key, peer_addr): (Keypair, Multiaddr),
+    known_peers: Vec<(PeerId, Multiaddr)>,
 ) -> TestNodeContext {
     let peer_id = peer_key.public().to_peer_id();
 
@@ -59,7 +55,7 @@ pub fn keypair_from_byte(seed: u8) -> Keypair {
 
 pub struct TestNodeContext {
     pub(crate) peer_id: PeerId,
-    pub(crate) peer_addr: ToposAddr,
+    pub(crate) peer_addr: Multiaddr,
     pub(crate) client: Client,
     stream: Box<dyn Stream<Item = topos_p2p::Event> + Unpin + Send>,
 }

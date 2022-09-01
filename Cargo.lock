@@ -1790,29 +1790,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "lazy-regex"
-version = "2.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6b12f2eb6ed7d39405c5eb25a034b4c106a9ad87a6d9be3298de6c5f32fd57d"
-dependencies = [
- "lazy-regex-proc_macros",
- "once_cell",
- "regex",
-]
-
-[[package]]
-name = "lazy-regex-proc_macros"
-version = "2.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f2496e5264069bc726ccf37eb76b9cd89406ae110d836c3f76729f99c8a23293"
-dependencies = [
- "proc-macro2",
- "quote",
- "regex",
- "syn",
-]
-
-[[package]]
 name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4739,18 +4716,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "topos-addr"
-version = "0.1.0"
-source = "git+https://github.com/Toposware/topos-p2p?branch=main#954f03cb1d36144e6b3b7974e774725c6c47b04a"
-dependencies = [
- "bs58",
- "lazy-regex",
- "libp2p 0.46.1",
- "log",
- "thiserror",
-]
-
-[[package]]
 name = "topos-core"
 version = "0.1.0"
 source = "git+https://github.com/Toposware/topos-core?branch=main#e3bd109d91184d1bfbde103713a7724920e259ce"
@@ -4772,7 +4737,6 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-stream",
- "topos-addr",
  "tracing",
  "tracing-subscriber 0.3.15",
  "tracing-test",
@@ -4801,7 +4765,6 @@ dependencies = [
  "serde",
  "test-log",
  "tokio",
- "topos-addr",
  "topos-p2p",
  "topos-tce-api",
  "topos-tce-broadcast",
@@ -4810,6 +4773,7 @@ dependencies = [
  "topos-tce-transport",
  "tracing",
  "tracing-log",
+ "tracing-subscriber 0.3.15",
 ]
 
 [[package]]

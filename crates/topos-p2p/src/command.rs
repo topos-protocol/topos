@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use libp2p::{request_response::ResponseChannel, PeerId};
+use libp2p::{request_response::ResponseChannel, Multiaddr, PeerId};
 use tokio::sync::oneshot;
 
 use crate::behaviour::transmission::codec::TransmissionResponse;
@@ -9,7 +9,7 @@ use crate::behaviour::transmission::codec::TransmissionResponse;
 pub enum Command {
     /// Executed when the node is starting
     StartListening {
-        peer_addr: topos_addr::ToposAddr,
+        peer_addr: Multiaddr,
         sender: oneshot::Sender<Result<(), Box<dyn Error + Send>>>,
     },
 
@@ -19,7 +19,7 @@ pub enum Command {
     /// If we can't initiate a dial with the peer, an error is returned
     Dial {
         peer_id: PeerId,
-        peer_addr: topos_addr::ToposAddr,
+        peer_addr: Multiaddr,
         sender: oneshot::Sender<Result<(), Box<dyn Error + Send>>>,
     },
 

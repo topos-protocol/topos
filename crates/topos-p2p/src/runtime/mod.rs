@@ -1,9 +1,8 @@
 use crate::{Behaviour, Command, Event};
-use libp2p::Swarm;
+use libp2p::{Multiaddr, Swarm};
 use std::error::Error;
 use tokio::sync::mpsc;
 use tokio_stream::StreamExt;
-use topos_addr::ToposAddr;
 
 pub struct Runtime {
     swarm: Swarm<Behaviour>,
@@ -27,8 +26,8 @@ impl Runtime {
         }
     }
 
-    fn start_listening(&mut self, peer_addr: ToposAddr) -> Result<(), Box<dyn Error + Send>> {
-        match self.swarm.listen_on(peer_addr.inner()) {
+    fn start_listening(&mut self, peer_addr: Multiaddr) -> Result<(), Box<dyn Error + Send>> {
+        match self.swarm.listen_on(peer_addr) {
             Ok(_) => Ok(()),
             Err(e) => Err(Box::new(e)),
         }

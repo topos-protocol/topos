@@ -21,7 +21,6 @@ use libp2p::{
 use std::{collections::VecDeque, error::Error, time::Duration};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
-use topos_addr::ToposAddr;
 use tracing::warn;
 
 pub fn builder() -> NetworkBuilder {
@@ -37,7 +36,7 @@ pub struct NetworkBuilder {
     peer_key: Option<Keypair>,
     listen_addr: Option<Multiaddr>,
     store: Option<MemoryStore>,
-    known_peers: Vec<(PeerId, ToposAddr)>,
+    known_peers: Vec<(PeerId, Multiaddr)>,
     local_port: Option<u8>,
 }
 
@@ -59,7 +58,7 @@ impl NetworkBuilder {
         self
     }
 
-    pub fn known_peers(mut self, known_peers: Vec<(PeerId, ToposAddr)>) -> Self {
+    pub fn known_peers(mut self, known_peers: Vec<(PeerId, Multiaddr)>) -> Self {
         self.known_peers = known_peers;
 
         self

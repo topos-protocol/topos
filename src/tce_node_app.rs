@@ -4,12 +4,11 @@ use clap::Parser;
 
 use tce_api::{ApiConfig, ApiWorker};
 use tokio::spawn;
-use topos_addr::ToposAddr;
 use topos_tce_broadcast::mem_store::TrbMemStore;
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
 
 use crate::app_context::AppContext;
-use libp2p::{identity, PeerId};
+use libp2p::{identity, Multiaddr, PeerId};
 
 use tce_store::{Store, StoreConfig};
 use tce_transport::ReliableBroadcastParams;
@@ -44,7 +43,7 @@ async fn main() {
     };
 
     log::info!("Starting application");
-    let addr: ToposAddr = format!("/ip4/0.0.0.0/tcp/{}", args.tce_local_port)
+    let addr: Multiaddr = format!("/ip4/0.0.0.0/tcp/{}", args.tce_local_port)
         .parse()
         .unwrap();
     // run protocol
@@ -57,7 +56,7 @@ async fn main() {
 
     let (client, event_stream, runtime) = topos_p2p::network::builder()
         .peer_key(local_key_pair(args.local_key_seed))
-        .listen_addr(addr.inner())
+        .listen_addr(addr)
         .known_peers(args.parse_boot_peers())
         .build()
         .await
@@ -127,7 +126,7 @@ pub struct AppArgs {
 }
 
 impl AppArgs {
-    pub fn parse_boot_peers(&self) -> Vec<(PeerId, ToposAddr)> {
+    pub fn parse_boot_peers(&self) -> Vec<(PeerId, Multiaddr)> {
         log::info!("boot_peers: {:?}", self.boot_peers);
         self.boot_peers
             .split(' ')
