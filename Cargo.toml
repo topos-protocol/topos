@@ -32,13 +32,13 @@ tokio = { version = "1.20.0", features = [
 ] }
 
 # tce dependencies
-tce_api = { package = "topos-tce-api", path = "./crates/topos-tce-api" }
 tce_store = { package = "topos-tce-store", path = "./crates/topos-tce-store" }
 tce_telemetry = { package = "topos-tce-telemetry", path = "./crates/topos-tce-telemetry" }
 topos-tce-broadcast = { path = "./crates/topos-tce-broadcast" }
 tce_transport = { package = "topos-tce-transport", path = "./crates/topos-tce-transport" }
 
 topos-p2p = { path = "./crates/topos-p2p" }
+topos-tce-api = { path = "./crates/topos-tce-api"}
 
 tracing = { version = "*", default-features = false, features = ["log"]}
 tracing-log = { version = "*", features = ['env_logger'] }
@@ -64,3 +64,6 @@ harness = false  # allows Cucumber to print output instead of libtest
 members = [
     "crates/*"
 ]
+
+[patch."https://github.com/toposware/topos-core"]
+topos-core = { path = "../topos-core/crates/topos-core/" }
