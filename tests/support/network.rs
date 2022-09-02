@@ -5,7 +5,6 @@ use libp2p::{
     identity::{self, Keypair},
     Multiaddr, PeerId,
 };
-use tce_api::{ApiRequests, ApiWorker};
 use tce_transport::{ReliableBroadcastParams, TrbpEvents};
 use tokio::{spawn, sync::mpsc};
 use topos_p2p::{Client, Event, Runtime};
@@ -19,7 +18,6 @@ pub struct TestAppContext {
     pub peer_id: String,
     pub command_sampler: mpsc::Sender<SamplerCommand>,
     pub command_broadcast: mpsc::Sender<DoubleEchoCommand>,
-    pub api: mpsc::Sender<ApiRequests>,
 }
 
 pub type Seed = u8;
@@ -43,13 +41,12 @@ where
             &peer_id,
             create_reliable_broadcast_params(correct_sample, &g),
         );
-        let (api, api_worker) = create_api_worker();
         let (client, event_stream, runtime) =
             create_network_worker(*seed, *port, addr.clone(), &peers).await;
 
         let (command_sampler, command_broadcast) = rb_client.get_command_channels();
 
-        let app = AppContext::new(rb_client, api_worker, client.clone());
+        let app = AppContext::new(rb_client, client.clone());
 
         spawn(runtime.run());
         spawn(app.run(event_stream, trb_events));
@@ -58,7 +55,6 @@ where
             peer_id: peer_id.clone(),
             command_sampler,
             command_broadcast,
-            api,
         };
 
         clients.insert(peer_id, client);
@@ -128,12 +124,6 @@ async fn create_network_worker(
         .build()
         .await
         .expect("Cannot create network")
-}
-
-fn create_api_worker() -> (mpsc::Sender<ApiRequests>, ApiWorker) {
-    let (api, rx_requests) = mpsc::channel(255);
-    let api_worker = ApiWorker { rx_requests };
-    (api, api_worker)
 }
 
 fn create_reliable_broadcast_client(

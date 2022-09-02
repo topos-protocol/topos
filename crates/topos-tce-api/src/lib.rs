@@ -1,61 +1,115 @@
-//! External (non-Topos network) APIs of the node.
-//! Implementation is divided into transport agnostic part
-//! and protocol adapters - json-http, etc
-pub mod web_api;
+use std::collections::{HashMap, HashSet};
+use tokio::sync::mpsc;
+use tokio::sync::mpsc::Sender;
+use tokio::{spawn, sync::oneshot};
+use tonic::{Status, Streaming};
+use topos_core::api::tce::v1::{WatchCertificatesRequest, WatchCertificatesResponse};
+use tracing::info;
+use uuid::Uuid;
 
-use tokio::sync::{mpsc, oneshot};
-use topos_core::uci::Certificate;
+mod grpc;
+use grpc::ServerBuilder;
 
-/// API configuration struct.
-pub struct ApiConfig {
-    // todo endpoints config
-    pub web_port: u16,
+mod stream;
+use stream::{Stream, StreamCommand};
+
+pub struct Runtime {
+    active_streams: HashMap<Uuid, Sender<StreamCommand>>,
+    pending_streams: HashMap<Uuid, Sender<StreamCommand>>,
+    subnet_subscription: HashMap<String, HashSet<Uuid>>,
+    internal_runtime_command_receiver: mpsc::Receiver<InternalRuntimeCommand>,
 }
 
-/// Host (app context) interface
-///
-/// General pattern to support 'synchronous' call is to pass oneshot Sender within every request
-/// and await on the Receiver side of the channel.
-#[derive(Debug)]
-pub enum ApiRequests {
-    SubmitCert {
-        req: web_api::SubmitCertReq,
-        resp_channel: oneshot::Sender<()>,
-    },
-
-    DeliveredCerts {
-        req: web_api::DeliveredCertsReq,
-        resp_channel: oneshot::Sender<Vec<Certificate>>,
-    },
-
-    PeerChanged {
-        req: web_api::PeerChanged,
-        resp_channel: oneshot::Sender<()>,
-    },
-}
-
-/// Umbrella worker for all api services
-pub struct ApiWorker {
-    pub rx_requests: mpsc::Receiver<ApiRequests>,
-}
-
-impl ApiWorker {
-    pub fn new(config: ApiConfig) -> Self {
-        let (tx, rx) = mpsc::channel(255);
-        let me = Self { rx_requests: rx };
-        let web_port = config.web_port;
-        tokio::spawn(async move {
-            web_api::run(tx.clone(), web_port).await;
-        });
-
-        me
+impl Runtime {
+    pub fn build() -> ServerBuilder {
+        ServerBuilder::default()
     }
 
-    /// 'Selectable' poll
-    pub async fn next_request(&mut self) -> Result<ApiRequests, ()> {
-        match self.rx_requests.recv().await {
-            Some(e) => Ok(e),
-            _ => Err(()),
+    pub async fn launch(mut self) {
+        loop {
+            tokio::select! {
+                Some(internal_command) = self.internal_runtime_command_receiver.recv() => {
+                    self.handle_command(internal_command).await;
+
+                }
+            }
         }
     }
+
+    async fn handle_command(&mut self, command: InternalRuntimeCommand) {
+        match command {
+            InternalRuntimeCommand::NewStream {
+                stream,
+                sender,
+                internal_runtime_command_sender,
+            } => {
+                let stream_id = Uuid::new_v4();
+                info!("Opening a new stream with UUID {stream_id}");
+
+                let (command_sender, command_receiver) = mpsc::channel(2048);
+
+                self.pending_streams.insert(stream_id, command_sender);
+
+                let active_stream = Stream {
+                    stream_id,
+                    stream,
+                    sender,
+                    command_receiver,
+                    internal_runtime_command_sender,
+                };
+
+                spawn(active_stream.run());
+            }
+
+            InternalRuntimeCommand::StreamTimeout { stream_id } => {
+                self.pending_streams.remove(&stream_id);
+            }
+
+            InternalRuntimeCommand::Handshaked { stream_id } => {
+                if let Some(sender) = self.pending_streams.remove(&stream_id) {
+                    self.active_streams.insert(stream_id, sender);
+                }
+            }
+
+            InternalRuntimeCommand::Register {
+                stream_id,
+                subnet_id,
+                sender,
+            } => {
+                self.subnet_subscription
+                    .entry(subnet_id)
+                    .or_default()
+                    .insert(stream_id);
+
+                _ = sender.send(Ok(()));
+            }
+        }
+    }
+}
+
+enum RuntimeEvent {}
+enum InternalRuntimeEvent {}
+
+enum RuntimeCommand {}
+#[derive(Debug)]
+enum InternalRuntimeCommand {
+    NewStream {
+        stream: Streaming<WatchCertificatesRequest>,
+        sender: mpsc::Sender<Result<WatchCertificatesResponse, Status>>,
+        internal_runtime_command_sender: Sender<InternalRuntimeCommand>,
+    },
+
+    Register {
+        stream_id: Uuid,
+        subnet_id: String,
+        sender: oneshot::Sender<Result<(), ()>>,
+    },
+
+    StreamTimeout {
+        stream_id: Uuid,
+    },
+
+    Handshaked {
+        stream_id: Uuid,
+    },
 }
