@@ -4718,7 +4718,7 @@ dependencies = [
 [[package]]
 name = "topos-core"
 version = "0.1.0"
-source = "git+https://github.com/Toposware/topos-core?branch=main#e3bd109d91184d1bfbde103713a7724920e259ce"
+source = "git+https://github.com/toposware/topos-core?branch=main#9cc806b891427ba85785998a5491196d9ce46fe4"
 dependencies = [
  "topos-uci",
 ]
@@ -4864,8 +4864,8 @@ dependencies = [
 
 [[package]]
 name = "topos-uci"
-version = "0.1.0"
-source = "git+https://github.com/Toposware/topos-core?branch=main#e3bd109d91184d1bfbde103713a7724920e259ce"
+version = "0.1.1"
+source = "git+https://github.com/toposware/topos-core?branch=main#9cc806b891427ba85785998a5491196d9ce46fe4"
 dependencies = [
  "ethereum-types",
  "serde",

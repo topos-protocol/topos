@@ -28,7 +28,7 @@ tokio-stream = { version = "*", features = ["sync"] }
 
 futures = "*"
 
-topos-core = { git = "https://github.com/Toposware/topos-core", branch = "main", features = ["uci"], version = "0.1.0" }
+topos-core = { git = "https://github.com/toposware/topos-core", branch = "main", features = ["uci"], version = "0.1.0" }
 
 tce_transport = { package = "topos-tce-transport", path = "../topos-tce-transport"}
 tce_telemetry = { package = "topos-tce-telemetry", path = "../topos-tce-telemetry" }

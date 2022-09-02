@@ -174,21 +174,25 @@ fn generate_cert(
 
     // Initialize the genesis of all subnets
     for subnet in subnets {
-        nonce_state.insert(*subnet, 0);
-        history_state.insert(*subnet, HashMap::new());
+        nonce_state.insert(subnet.clone(), 0.to_string());
+        history_state.insert(subnet.clone(), HashMap::new());
     }
 
     let mut gen_cert = |is_conflicting| -> (SubnetId, Certificate) {
         let mut rng = rand::thread_rng();
-        let selected_subnet = subnets[rng.gen_range(0..subnets.len())];
+        let selected_subnet = subnets[rng.gen_range(0..subnets.len())].clone();
         let last_cert_id = nonce_state.get_mut(&selected_subnet).unwrap();
 
         let gen_cert: Certificate;
         if is_conflicting {
-            gen_cert = Certificate::new(0, selected_subnet, Default::default());
+            gen_cert = Certificate::new(0.to_string(), selected_subnet.clone(), Default::default());
         } else {
-            gen_cert = Certificate::new(*last_cert_id, selected_subnet, Default::default());
-            *last_cert_id = gen_cert.id;
+            gen_cert = Certificate::new(
+                last_cert_id.clone(),
+                selected_subnet.clone(),
+                Default::default(),
+            );
+            *last_cert_id = gen_cert.cert_id.clone();
         }
 
         (selected_subnet, gen_cert)
@@ -199,7 +203,7 @@ fn generate_cert(
         let (current_subnet_id, current_cert) = gen_cert(is_conflicting);
         if let Some(subnet_history) = history_state.get_mut(&current_subnet_id) {
             subnet_history
-                .entry(current_cert.prev_cert_id)
+                .entry(current_cert.prev_cert_id.clone())
                 .and_modify(|v| v.push(current_cert.clone()))
                 .or_insert_with(|| vec![current_cert]);
         }
@@ -210,7 +214,7 @@ fn generate_cert(
         let (current_subnet_id, current_cert) = gen_cert(is_conflicting);
         if let Some(subnet_history) = history_state.get_mut(&current_subnet_id) {
             subnet_history
-                .entry(current_cert.prev_cert_id)
+                .entry(current_cert.prev_cert_id.clone())
                 .and_modify(|v| v.push(current_cert.clone()))
                 .or_insert_with(|| vec![current_cert]);
         }
@@ -223,7 +227,7 @@ fn test_cert_conflict_generation() {
     let nb_subnet = 3;
     let nb_cert = 50;
     let conflict_ratio = 0.3;
-    let all_subnets: Vec<SubnetId> = (1..=nb_subnet as u64).collect();
+    let all_subnets: Vec<SubnetId> = (1..=nb_subnet as u64).map(|v| v.to_string()).collect();
     let history_state = generate_cert(&all_subnets, nb_cert, conflict_ratio);
     let mut conflict = false;
     for (_, history_of_subnet) in history_state {
@@ -258,7 +262,9 @@ async fn run_tce_network(simu_config: SimulationConfig) -> Result<(), ()> {
     let all_peer_ids: Vec<String> = (1..=simu_config.input.nb_peers)
         .map(|e| format!("peer{}", e))
         .collect();
-    let all_subnets: Vec<SubnetId> = (1..=simu_config.input.nb_subnets as u64).collect();
+    let all_subnets: Vec<SubnetId> = (1..=simu_config.input.nb_subnets)
+        .map(|id| id.to_string())
+        .collect();
 
     // channel for combined event's from all the instances
     let (tx_combined_events, rx_combined_events) =
@@ -335,11 +341,14 @@ fn watch_cert_delivered(
                     let mut delivered_all_cert = true;
                     for cert in &certs {
                         if let Ok(delivered) = w_cli
-                            .delivered_certs_ids(cert.initial_subnet_id, cert.id)
+                            .delivered_certs_ids(
+                                cert.initial_subnet_id.clone(),
+                                cert.cert_id.clone(),
+                            )
                             .await
                         {
                             // if something was returned, we'd expect our certificate to be on the list
-                            if !delivered.contains(&cert.id) {
+                            if !delivered.contains(&cert.cert_id) {
                                 delivered_all_cert = false;
                             }
                         }

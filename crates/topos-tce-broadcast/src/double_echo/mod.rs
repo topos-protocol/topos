@@ -137,7 +137,7 @@ impl DoubleEcho {
             return;
         }
 
-        if self.store.cert_by_id(&cert.id).is_ok() {
+        if self.store.cert_by_id(&cert.cert_id).is_ok() {
             return;
         }
 
@@ -199,7 +199,7 @@ impl DoubleEcho {
     fn start_delivery(&mut self, cert: Certificate, digest: DigestCompressed) {
         log::debug!(
             "🙌 StartDelivery[{:?}]\t Peer:{:?}",
-            &cert.id,
+            &cert.cert_id,
             &self.my_peer_id
         );
         // Add new entry for the new Cert candidate
@@ -215,8 +215,10 @@ impl DoubleEcho {
         }
         self.all_known_certs.push(cert.clone());
         self.store.new_cert_candidate(&cert, &digest);
-        self.delivery_time
-            .insert(cert.id, (time::SystemTime::now(), Default::default()));
+        self.delivery_time.insert(
+            cert.cert_id.clone(),
+            (time::SystemTime::now(), Default::default()),
+        );
         // Send Echo to the echo sample
         let sample_to_peers = self.cert_candidate.get(&cert).unwrap();
         let echo_peers = sample_to_peers
@@ -300,13 +302,13 @@ impl DoubleEcho {
             for cert in &cert_to_pending {
                 if self.store.apply_cert(cert).is_ok() {
                     let mut d = time::Duration::from_millis(0);
-                    if let Some((from, duration)) = self.delivery_time.get_mut(&cert.id) {
+                    if let Some((from, duration)) = self.delivery_time.get_mut(&cert.cert_id) {
                         *duration = from.elapsed().unwrap();
                         d = *duration;
 
                         tce_telemetry::span_cert_delivery(
                             self.my_peer_id.clone(),
-                            cert.id,
+                            &cert.cert_id,
                             *from,
                             time::SystemTime::now(),
                             Default::default(),
@@ -315,7 +317,7 @@ impl DoubleEcho {
                     self.pending_delivery.remove(cert);
                     log::debug!(
                         "📝 Accepted[{:?}]\t Peer:{:?}\t Delivery time: {:?}",
-                        &cert.id,
+                        &cert.cert_id,
                         self.my_peer_id,
                         d
                     );
