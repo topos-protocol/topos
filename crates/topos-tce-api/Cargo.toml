@@ -26,4 +26,4 @@ tokio = { version = "1.20.0", features = [
 
 topos-tce-broadcast = { path = "../topos-tce-broadcast" }
 
-topos-core = { git = "https://github.com/Toposware/topos-core", branch = "main", features = ["uci"], version = "0.1.0" }
+topos-core = { git = "https://github.com/toposware/topos-core", branch = "main", features = ["uci"], version = "0.1.0" }

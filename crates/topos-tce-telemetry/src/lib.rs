@@ -37,12 +37,13 @@ pub fn init_tracer(agent_endpoint: &String, service_name: &str) {
 
 pub fn span_cert_delivery(
     peer_id: String,
-    cert: CertificateId,
+    cert: &CertificateId,
     start: std::time::SystemTime,
     end: std::time::SystemTime,
     attr: Vec<KeyValue>,
 ) {
-    let trace_id = cert as u128;
+    let mut trace_id: [u8; 16] = [0; 16];
+    trace_id[..cert.len()].copy_from_slice(cert.as_bytes());
     let tracer = global::tracer("cert-latency");
     let _span = tracer.build(
         SpanBuilder {
@@ -51,7 +52,7 @@ pub fn span_cert_delivery(
             span_kind: Some(SpanKind::Server),
             ..Default::default()
         }
-        .with_trace_id(TraceId::from_bytes(trace_id.to_be_bytes()))
+        .with_trace_id(TraceId::from_bytes(trace_id))
         .with_start_time(start)
         .with_end_time(end)
         .with_attributes(attr),

@@ -15,7 +15,7 @@ async fn cert_delivery() {
 
     let g = |a, b| (((a as f32) * b) as f32).ceil() as usize;
 
-    let all_subnets: Vec<SubnetId> = (1..=10).collect();
+    let all_subnets: Vec<SubnetId> = (1..=10).map(|v| v.to_string()).collect();
 
     let clients = support::network::start_peer_pool(peer_number as u8, correct_sample, g).await;
 

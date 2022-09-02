@@ -32,14 +32,17 @@ impl Store {
 impl TrbStore for Store {
     fn apply_cert(&mut self, cert: &Certificate) -> Result<(), Errors> {
         self.db
-            .put(Self::cert_key(&cert.id), bincode::serialize(&cert).unwrap())
+            .put(
+                Self::cert_key(&cert.cert_id),
+                bincode::serialize(&cert).unwrap(),
+            )
             .expect("db save");
         Ok(())
     }
 
     fn add_cert_in_hist(&mut self, subnet_id: &SubnetId, cert: &Certificate) -> bool {
         let key = self.new_journal_key(subnet_id);
-        let cert_key = Self::cert_key(&cert.id);
+        let cert_key = Self::cert_key(&cert.cert_id);
         self.db.put(key, cert_key).expect("db save");
         true
     }
@@ -102,7 +105,7 @@ impl TrbStore for Store {
 impl Store {
     fn cert_key(cert_id: &CertificateId) -> Vec<u8> {
         let mut key = b"cert:".to_vec();
-        key.push(*cert_id as u8);
+        key.extend(cert_id.as_bytes());
         //key.append(&mut cert_id.clone());
         key
     }
@@ -110,7 +113,7 @@ impl Store {
     fn new_journal_key(&mut self, subnet_id: &SubnetId) -> Vec<u8> {
         let mut key_prefix = b"journal:".to_vec();
         //key_prefix.append(&mut subnet_id);
-        key_prefix.push(*subnet_id as u8);
+        key_prefix.extend(subnet_id.as_bytes());
         key_prefix.append(&mut b":".to_vec());
 
         // find last item for this subnet
