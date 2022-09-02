@@ -13,3 +13,4 @@
 # IntelliJ files
 .idea
 **/*.iml
+.vscode
