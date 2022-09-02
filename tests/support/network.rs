@@ -8,7 +8,6 @@ use libp2p::{
 use tce_api::{ApiRequests, ApiWorker};
 use tce_transport::{ReliableBroadcastParams, TrbpEvents};
 use tokio::{spawn, sync::mpsc};
-use topos_addr::ToposAddr;
 use topos_p2p::{Client, Event, Runtime};
 use topos_tce::AppContext;
 use topos_tce_broadcast::{
@@ -176,7 +175,7 @@ where
 #[allow(dead_code)]
 pub struct TestNodeContext {
     pub(crate) peer_id: PeerId,
-    pub(crate) peer_addr: ToposAddr,
+    pub(crate) peer_addr: Multiaddr,
     pub(crate) client: Client,
     stream: Box<dyn Stream<Item = topos_p2p::Event> + Unpin + Send>,
 }

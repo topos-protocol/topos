@@ -38,14 +38,14 @@ tce_telemetry = { package = "topos-tce-telemetry", path = "./crates/topos-tce-te
 topos-tce-broadcast = { path = "./crates/topos-tce-broadcast" }
 tce_transport = { package = "topos-tce-transport", path = "./crates/topos-tce-transport" }
 
-topos-p2p = { git = "https://github.com/Toposware/topos-p2p", branch = "main", version = "0.1.0" }
-topos-addr = { git = "https://github.com/Toposware/topos-p2p", branch = "main", version = "0.1.0", package = "topos-addr"}
+topos-p2p = { path = "./crates/topos-p2p" }
 
 tracing = { version = "*", default-features = false, features = ["log"]}
 tracing-log = { version = "*", features = ['env_logger'] }
 futures = "*"
 
 [dev-dependencies]
+
 async-trait = "0.1"
 cucumber = "0.13.0"
 hyper = { version = "0.14", features = ["full"] }
@@ -53,7 +53,8 @@ rand_distr = "0.4.1"
 rand_core = "0.6.0"
 rand = "0.8.5"
 env_logger = "*"
-test-log = { version = "0.2", features = ["log"] }
+test-log = { version = "0.2", features = ["log", "trace"] }
+tracing-subscriber = {version = "0.3", default-features = false, features = ["env-filter", "fmt"]}
 
 [[test]]
 name = "example" # this should be the same as the filename of your test target
