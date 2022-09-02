@@ -5,8 +5,8 @@ mod support {
 
 use crate::support::certificate::generate_cert;
 use std::time::Duration;
-use tce_trbp::{uci::SubnetId, DoubleEchoCommand};
 use test_log::test;
+use topos_tce_broadcast::{uci::SubnetId, DoubleEchoCommand};
 
 #[test(tokio::test)]
 async fn cert_delivery() {

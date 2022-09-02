@@ -3,7 +3,7 @@
 mod totality {
     use std::cmp::min;
     use topos_core::uci::SubnetId;
-    use topos_tce_protocols_reliable_broadcast::mock;
+    use topos_tce_broadcast::mock;
 
     #[test]
     fn disclaimer() {

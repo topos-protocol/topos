@@ -11,12 +11,12 @@ use std::str::FromStr;
 use tce_api::web_api::PeerChanged;
 use tce_api::{ApiRequests, ApiWorker};
 use tce_transport::{TrbpCommands, TrbpEvents};
-use tce_trbp::sampler::SampleType;
-use tce_trbp::DoubleEchoCommand;
-use tce_trbp::{ReliableBroadcastClient, SamplerCommand};
 use tokio::spawn;
 use tokio::sync::oneshot;
 use topos_p2p::{Client, Event};
+use topos_tce_broadcast::sampler::SampleType;
+use topos_tce_broadcast::DoubleEchoCommand;
+use topos_tce_broadcast::{ReliableBroadcastClient, SamplerCommand};
 
 /// Top-level transducer main app context & driver (alike)
 ///

@@ -1,5 +1,5 @@
 [package]
-name = "topos-tce-node-net"
+name = "topos-tce-net"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
@@ -9,7 +9,7 @@ path = 'src/lib.rs'
 
 [dependencies]
 byteorder = "1.4.3"
-transport = { package = "topos-tce-protocols-transport", path = "../../protocols/transport" }
+transport = { package = "topos-tce-transport", path = "../topos-tce-transport" }
 libp2p = { version = "0.41.0", features = [
     "tcp-tokio",
     "dns-tokio",

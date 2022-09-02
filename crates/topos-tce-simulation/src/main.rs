@@ -9,7 +9,7 @@ use std::fmt::Debug;
 use std::fs::File;
 use std::io::{Error, Write};
 use std::sync::Once;
-use tce_trbp::mock::*;
+use topos_tce_broadcast::mock::*;
 
 static DB_TEST_SETUP: Once = Once::new();
 

@@ -1,5 +1,5 @@
 [package]
-name = "topos-tce-node-telemetry"
+name = "topos-tce-telemetry"
 version = "0.1.0"
 edition = "2021"
 
