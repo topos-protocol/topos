@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use rand::Rng;
-use tce_trbp::uci::{Certificate, CertificateId, SubnetId};
+use topos_tce_broadcast::uci::{Certificate, CertificateId, SubnetId};
 
 pub fn generate_cert(subnets: &Vec<SubnetId>, nb_cert: usize) -> Vec<Certificate> {
     let mut nonce_state: HashMap<SubnetId, CertificateId> = HashMap::new();

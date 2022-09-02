@@ -18,7 +18,7 @@ services:
       - TCE_LOCAL_KS=1 # 12D3KooWPjceQrSwdWXPyLLeABRXmuqt69Rg3sBYbU1Nft9HyQ6X
       - TCE_JAEGER_AGENT=nohost:6831
     command: 
-      - "./topos-tce-node-app"
+      - "./topos-tce-app"
   peer2:
     build: .
     image: ghcr.io/toposware/tce:latest
@@ -33,7 +33,7 @@ services:
       - TCE_BOOT_PEERS=12D3KooWPjceQrSwdWXPyLLeABRXmuqt69Rg3sBYbU1Nft9HyQ6X /dns4/tce-boot-node/tcp/9090
       - TCE_JAEGER_AGENT=nohost:6831
     command:
-      - "./topos-tce-node-app"
+      - "./topos-tce-app"
     depends_on:
       - tce-boot-node
 #  peer3:
@@ -50,7 +50,7 @@ services:
 #      - TCE_BOOT_PEERS=12D3KooWPjceQrSwdWXPyLLeABRXmuqt69Rg3sBYbU1Nft9HyQ6X /dns4/tce-boot-node/tcp/9090
 #      - TCE_JAEGER_AGENT=nohost:6831
 #    command:
-#      - "./topos-tce-node-app"
+#      - "./topos-tce-app"
 #    depends_on:
 #      - tce-boot-node
 #  peer4:
@@ -67,7 +67,7 @@ services:
 #      - TCE_BOOT_PEERS=12D3KooWPjceQrSwdWXPyLLeABRXmuqt69Rg3sBYbU1Nft9HyQ6X /dns4/tce-boot-node/tcp/9090
 #      - TCE_JAEGER_AGENT=nohost:6831
 #    command:
-#      - "./topos-tce-node-app"
+#      - "./topos-tce-app"
 #    depends_on:
 #      - tce-boot-node
 #  peer5:
@@ -84,6 +84,6 @@ services:
 #      - TCE_BOOT_PEERS=12D3KooWPjceQrSwdWXPyLLeABRXmuqt69Rg3sBYbU1Nft9HyQ6X /dns4/tce-boot-node/tcp/9090
 #      - TCE_JAEGER_AGENT=nohost:6831
 #    command:
-#      - "./topos-tce-node-app"
+#      - "./topos-tce-app"
 #    depends_on:
 #      - tce-boot-node
