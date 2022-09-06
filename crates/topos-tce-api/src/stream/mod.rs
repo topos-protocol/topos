@@ -20,7 +20,7 @@ pub mod errors;
 #[cfg(test)]
 mod tests;
 
-use crate::InternalRuntimeCommand;
+use crate::runtime::InternalRuntimeCommand;
 
 pub use self::{commands::StreamCommand, errors::PreStartError};
 
