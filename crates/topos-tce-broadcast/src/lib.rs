@@ -182,11 +182,13 @@ impl ReliableBroadcastClient {
         let broadcast_commands = self.broadcast_commands.clone();
 
         async move {
-            let _ = broadcast_commands.send(DoubleEchoCommand::DeliveredCerts {
-                subnet_id,
-                limit: 10,
-                sender,
-            });
+            let _ = broadcast_commands
+                .send(DoubleEchoCommand::DeliveredCerts {
+                    subnet_id,
+                    limit: 10,
+                    sender,
+                })
+                .await;
 
             receiver.await.expect("Sender to be alive")
         }
