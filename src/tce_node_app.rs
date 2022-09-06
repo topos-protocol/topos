@@ -48,7 +48,9 @@ async fn main() {
     // run protocol
     let (trbp_cli, trb_stream) = ReliableBroadcastClient::new(config);
 
-    topos_tce_api::Runtime::build().build().await;
+    let (_client, launcher) = topos_tce_api::Runtime::builder().build();
+
+    spawn(launcher.launch());
 
     let (client, event_stream, runtime) = topos_p2p::network::builder()
         .peer_key(local_key_pair(args.local_key_seed))

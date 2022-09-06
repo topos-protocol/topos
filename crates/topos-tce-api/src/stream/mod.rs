@@ -110,7 +110,7 @@ impl Stream {
             })
             .await;
 
-        if let Err(_) = receiver.await {
+        if receiver.await.is_err() {
             Err(())
         } else {
             Ok(())
