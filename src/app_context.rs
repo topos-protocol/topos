@@ -15,7 +15,6 @@ use tokio::spawn;
 use tokio::sync::oneshot;
 use topos_p2p::{Client, Event};
 use topos_tce_broadcast::sampler::SampleType;
-use topos_tce_broadcast::DoubleEchoCommand;
 use topos_tce_broadcast::{ReliableBroadcastClient, SamplerCommand};
 
 /// Top-level transducer main app context & driver (alike)

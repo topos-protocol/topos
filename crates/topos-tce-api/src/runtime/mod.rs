@@ -2,13 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use tokio::{
     spawn,
-    sync::{
-        mpsc::{self, Receiver, Sender},
-        oneshot,
-    },
+    sync::mpsc::{self, Receiver, Sender},
 };
-use tonic::{Status, Streaming};
-use topos_core::api::tce::v1::{WatchCertificatesRequest, WatchCertificatesResponse};
 use tracing::info;
 use uuid::Uuid;
 
@@ -24,7 +19,6 @@ mod events;
 pub use client::RuntimeClient;
 
 pub(crate) use self::commands::InternalRuntimeCommand;
-pub(crate) use self::events::InternalRuntimeEvent;
 
 pub use self::commands::RuntimeCommand;
 pub use self::events::RuntimeEvent;
@@ -57,7 +51,7 @@ impl Runtime {
         }
     }
 
-    async fn handle_runtime_command(&mut self, command: RuntimeCommand) {}
+    async fn handle_runtime_command(&mut self, _command: RuntimeCommand) {}
 
     async fn handle_internal_command(&mut self, command: InternalRuntimeCommand) {
         match command {

@@ -23,6 +23,7 @@ pub(crate) enum InternalRuntimeCommand {
         stream_id: Uuid,
     },
 
+    #[allow(dead_code)]
     Handshaked {
         stream_id: Uuid,
     },
