@@ -1,4 +1,3 @@
-use async_stream::stream;
 use futures::Stream as FutureStream;
 use std::collections::HashMap;
 use std::pin::Pin;
@@ -12,31 +11,50 @@ use topos_core::api::tce::v1::{
     WatchCertificatesResponse,
 };
 
-use crate::InternalRuntimeCommand;
-use crate::Runtime;
+use crate::runtime::{InternalRuntimeCommand, Runtime, RuntimeClient};
 
 const DEFAULT_CHANNEL_STREAM_CAPACITY: usize = 100;
 
+#[derive(Debug)]
 struct TceGrpcService {
     command_sender: mpsc::Sender<InternalRuntimeCommand>,
 }
 
 #[derive(Debug, Default)]
-pub struct ServerBuilder {}
+pub struct ServerBuilder {
+    service: Option<ApiServiceServer<TceGrpcService>>,
+    runtime: Option<Runtime>,
+}
 
 impl ServerBuilder {
-    pub async fn build(self) {
-        let (command_sender, internal_runtime_command_receiver) =
-            mpsc::channel::<InternalRuntimeCommand>(2048);
+    pub fn build(mut self) -> (RuntimeClient, Self) {
+        let (command_sender, internal_runtime_command_receiver) = mpsc::channel(2048);
 
-        let service = ApiServiceServer::new(TceGrpcService { command_sender });
+        self.service = Some(ApiServiceServer::new(TceGrpcService { command_sender }));
 
-        let runtime = Runtime {
+        let (command_sender, runtime_command_receiver) = mpsc::channel(2048);
+
+        self.runtime = Some(Runtime {
             active_streams: HashMap::new(),
             pending_streams: HashMap::new(),
             subnet_subscription: HashMap::new(),
             internal_runtime_command_receiver,
-        };
+            runtime_command_receiver,
+        });
+
+        (RuntimeClient { command_sender }, self)
+    }
+
+    pub async fn launch(mut self) {
+        let service = self
+            .service
+            .take()
+            .expect("Unable to start because gRPC service is not defined");
+
+        let runtime = self
+            .runtime
+            .take()
+            .expect("Unable to start because API Runtime is not defined");
 
         spawn(runtime.launch());
 
