@@ -65,6 +65,3 @@ tracing-subscriber = {version = "0.3", default-features = false, features = ["en
 members = [
     "crates/*"
 ]
-
-[patch."https://github.com/toposware/topos-core"]
-topos-core = { path = "../topos-core/crates/topos-core/" }
