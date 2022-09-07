@@ -10,6 +10,7 @@ use tokio_stream::StreamExt;
 use tonic::{Status, Streaming};
 use topos_core::api::tce::v1::{
     watch_certificates_request::{Command, OpenStream},
+    watch_certificates_response::{CertificatePushed, Event},
     WatchCertificatesRequest, WatchCertificatesResponse,
 };
 use tracing::{debug, info};
@@ -66,8 +67,16 @@ impl Stream {
 
         loop {
             tokio::select! {
-                Some(_command) = self.command_receiver.recv() => {
+                Some(command) = self.command_receiver.recv() => {
+                    match command {
+                        StreamCommand::PushCertificate { certificate, .. } => {
+                            _ = self.sender.send(Ok(WatchCertificatesResponse {
+                                request_id: None,
+                                event: Some(Event::CertificatePushed(CertificatePushed{ certificate: Some(certificate.into()) }))
 
+                            })).await;
+                        }
+                    }
                 }
 
                 Some(_stream_packet) = self.stream.next() => {
@@ -113,6 +122,12 @@ impl Stream {
         if receiver.await.is_err() {
             Err(())
         } else {
+            _ = self
+                .internal_runtime_command_sender
+                .send(InternalRuntimeCommand::Handshaked {
+                    stream_id: self.stream_id,
+                })
+                .await;
             Ok(())
         }
     }
