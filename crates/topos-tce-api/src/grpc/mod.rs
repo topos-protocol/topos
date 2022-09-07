@@ -11,9 +11,13 @@ use topos_core::api::tce::v1::{
     SubmitCertificateRequest, SubmitCertificateResponse, WatchCertificatesRequest,
     WatchCertificatesResponse,
 };
+use tracing::info;
 
 use crate::runtime::{InternalRuntimeCommand, Runtime, RuntimeClient};
 use crate::RuntimeCommand;
+
+#[cfg(test)]
+mod tests;
 
 const DEFAULT_CHANNEL_STREAM_CAPACITY: usize = 100;
 
@@ -102,9 +106,20 @@ impl ServerBuilder {
 impl ApiService for TceGrpcService {
     async fn submit_certificate(
         &self,
-        _request: Request<SubmitCertificateRequest>,
+        request: Request<SubmitCertificateRequest>,
     ) -> Result<Response<SubmitCertificateResponse>, Status> {
-        Err(Status::unimplemented(""))
+        let data = request.into_inner();
+        if let Some(certificate) = data.certificate {
+            _ = self
+                .command_sender
+                .send(InternalRuntimeCommand::CertificateSubmitted {
+                    certificate: certificate.into(),
+                })
+                .await;
+            Ok(Response::new(SubmitCertificateResponse {}))
+        } else {
+            Err(Status::invalid_argument("Certificate is malformed"))
+        }
     }
 
     ///Server streaming response type for the WatchCertificates method.
@@ -117,6 +132,11 @@ impl ApiService for TceGrpcService {
         &self,
         request: Request<Streaming<WatchCertificatesRequest>>,
     ) -> Result<Response<Self::WatchCertificatesStream>, Status> {
+        match request.remote_addr() {
+            Some(addr) => info!(client.addr = %addr, "starting a new stream"),
+            None => info!(client.addr = %"<unknown>", "starting a new stream"),
+        }
+
         let stream: Streaming<_> = request.into_inner();
 
         let (sender, rx) = mpsc::channel::<Result<WatchCertificatesResponse, Status>>(

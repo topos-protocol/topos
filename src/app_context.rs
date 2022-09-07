@@ -62,56 +62,6 @@ impl AppContext {
             }
         }
     }
-    //
-    // fn on_api_request(&mut self, req: ApiRequests) {
-    //     match req {
-    //         ApiRequests::PeerChanged {
-    //             req: PeerChanged { mut peers },
-    //             resp_channel,
-    //         } => {
-    //             resp_channel.send(()).expect("sync send");
-    //             info!("Peers have changed, notify the sampler");
-    //
-    //             spawn(
-    //                 self.trbp_cli.peer_changed(
-    //                     peers
-    //                         .iter_mut()
-    //                         .map(|e| e.parse::<PeerId>().unwrap().to_base58())
-    //                         .collect(),
-    //                 ),
-    //             );
-    //         }
-    //
-    //         ApiRequests::SubmitCert { req, resp_channel } => {
-    //             let command_sender = self.trbp_cli.get_double_echo_channel();
-    //             spawn(async move {
-    //                 command_sender
-    //                     .send(DoubleEchoCommand::Broadcast { cert: req.cert })
-    //                     .await
-    //                     .expect("SubmitCert");
-    //                 resp_channel.send(()).expect("sync send");
-    //             });
-    //         }
-    //
-    //         ApiRequests::DeliveredCerts { req, resp_channel } => {
-    //             let future = self
-    //                 .trbp_cli
-    //                 .delivered_certs(req.subnet_id, req.from_cert_id);
-    //
-    //             spawn(async move {
-    //                 match future.await {
-    //                     Ok(the_certs) => {
-    //                         resp_channel.send(the_certs).expect("sync send");
-    //                     }
-    //
-    //                     _ => {
-    //                         log::error!("Request failure {:?}", req);
-    //                     }
-    //                 }
-    //             });
-    //         }
-    //     }
-    // }
 
     async fn on_protocol_event(&mut self, evt: TrbpEvents) {
         log::debug!("on_protocol_event : {:?}", &evt);

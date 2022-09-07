@@ -4966,32 +4966,22 @@ dependencies = [
 [[package]]
 name = "topos-api"
 version = "0.1.0"
-source = "git+https://github.com/toposware/topos-core?branch=feature/define-tce-streaming-file#3a499e233935733c6dcfd0869a6f9f1705da0132"
 dependencies = [
  "ethereum-types",
  "prost 0.11.0",
  "prost-types 0.10.1",
  "tonic",
  "tonic-build",
- "topos-uci 0.1.1 (git+https://github.com/toposware/topos-core?branch=feature/define-tce-streaming-file)",
+ "topos-uci",
  "uuid",
 ]
 
 [[package]]
 name = "topos-core"
 version = "0.1.0"
-source = "git+https://github.com/toposware/topos-core?branch=feature/define-tce-streaming-file#3a499e233935733c6dcfd0869a6f9f1705da0132"
 dependencies = [
  "topos-api",
- "topos-uci 0.1.1 (git+https://github.com/toposware/topos-core?branch=feature/define-tce-streaming-file)",
-]
-
-[[package]]
-name = "topos-core"
-version = "0.1.0"
-source = "git+https://github.com/toposware/topos-core?branch=main#9cc806b891427ba85785998a5491196d9ce46fe4"
-dependencies = [
- "topos-uci 0.1.1 (git+https://github.com/toposware/topos-core?branch=main)",
+ "topos-uci",
 ]
 
 [[package]]
@@ -5068,7 +5058,7 @@ dependencies = [
  "tonic",
  "tonic-health",
  "tonic-reflection",
- "topos-core 0.1.0 (git+https://github.com/toposware/topos-core?branch=feature/define-tce-streaming-file)",
+ "topos-core",
  "topos-tce-broadcast",
  "tracing",
  "tracing-subscriber 0.3.15",
@@ -5090,7 +5080,7 @@ dependencies = [
  "serde",
  "tokio",
  "tokio-stream",
- "topos-core 0.1.0 (git+https://github.com/toposware/topos-core?branch=main)",
+ "topos-core",
  "topos-tce-telemetry",
  "topos-tce-transport",
 ]
@@ -5107,7 +5097,7 @@ dependencies = [
  "rand_core 0.6.3",
  "rand_distr",
  "tokio",
- "topos-core 0.1.0 (git+https://github.com/toposware/topos-core?branch=main)",
+ "topos-core",
  "topos-tce-broadcast",
  "topos-tce-store",
  "topos-tce-transport",
@@ -5121,7 +5111,7 @@ dependencies = [
  "log",
  "pretty_env_logger",
  "rocksdb",
- "topos-core 0.1.0 (git+https://github.com/toposware/topos-core?branch=main)",
+ "topos-core",
  "topos-tce-broadcast",
 ]
 
@@ -5134,7 +5124,7 @@ dependencies = [
  "log",
  "opentelemetry",
  "opentelemetry-jaeger",
- "topos-core 0.1.0 (git+https://github.com/toposware/topos-core?branch=main)",
+ "topos-core",
 ]
 
 [[package]]
@@ -5143,22 +5133,12 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "serde",
- "topos-core 0.1.0 (git+https://github.com/toposware/topos-core?branch=main)",
+ "topos-core",
 ]
 
 [[package]]
 name = "topos-uci"
 version = "0.1.1"
-source = "git+https://github.com/toposware/topos-core?branch=feature/define-tce-streaming-file#3a499e233935733c6dcfd0869a6f9f1705da0132"
-dependencies = [
- "ethereum-types",
- "serde",
-]
-
-[[package]]
-name = "topos-uci"
-version = "0.1.1"
-source = "git+https://github.com/toposware/topos-core?branch=main#9cc806b891427ba85785998a5491196d9ce46fe4"
 dependencies = [
  "ethereum-types",
  "serde",

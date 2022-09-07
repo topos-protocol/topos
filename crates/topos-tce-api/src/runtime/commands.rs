@@ -35,4 +35,8 @@ pub(crate) enum InternalRuntimeCommand {
     Handshaked {
         stream_id: Uuid,
     },
+
+    CertificateSubmitted {
+        certificate: Certificate,
+    },
 }
