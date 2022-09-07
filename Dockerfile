@@ -10,7 +10,7 @@ ENV RUST_BACKTRACE=1
 RUN git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
 
 RUN apt update && \
-    apt install -y clang cmake
+    apt install -y clang cmake protobuf-compiler libprotobuf-dev
 
 RUN rustup toolchain install ${TOOLCHAIN_VERSION} && \
     rustup default ${TOOLCHAIN_VERSION} && \
