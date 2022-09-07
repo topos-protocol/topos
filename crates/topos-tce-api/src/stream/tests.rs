@@ -82,3 +82,31 @@ pub async fn sending_open_stream_message() -> Result<(), Box<dyn std::error::Err
 
     Ok(())
 }
+
+#[test(tokio::test)]
+#[ignore = "not yet implemented"]
+async fn subscribing_to_multiple_subnet_id() {}
+
+#[test(tokio::test)]
+#[ignore = "not yet implemented"]
+async fn pausing_all_subscription() {}
+
+#[test(tokio::test)]
+#[ignore = "not yet implemented"]
+async fn pausing_one_subscription() {}
+
+#[test(tokio::test)]
+#[ignore = "not yet implemented"]
+async fn resuming_one_subscription() {}
+
+#[test(tokio::test)]
+#[ignore = "not yet implemented"]
+async fn resuming_all_subscription() {}
+
+#[test(tokio::test)]
+#[ignore = "not yet implemented"]
+async fn closing_client_stream() {}
+
+#[test(tokio::test)]
+#[ignore = "not yet implemented"]
+async fn closing_server_stream() {}

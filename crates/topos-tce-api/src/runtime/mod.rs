@@ -21,6 +21,9 @@ mod client;
 mod commands;
 mod events;
 
+#[cfg(test)]
+mod tests;
+
 pub use client::RuntimeClient;
 
 pub(crate) use self::commands::InternalRuntimeCommand;
@@ -144,6 +147,10 @@ impl Runtime {
                     .insert(stream_id);
 
                 _ = sender.send(Ok(()));
+            }
+
+            InternalRuntimeCommand::CertificateSubmitted { certificate } => {
+                info!("A certificate has been submitted to the TCE {certificate:?}");
             }
         }
     }
