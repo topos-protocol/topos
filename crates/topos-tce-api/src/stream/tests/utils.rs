@@ -27,6 +27,7 @@ pub struct StreamBuilder {
     outbound_stream_channel_size: usize,
     runtime_channel_size: usize,
     stream_channel_size: usize,
+    #[allow(dead_code)]
     stream_id: Uuid,
 }
 
@@ -42,24 +43,28 @@ impl Default for StreamBuilder {
 }
 
 impl StreamBuilder {
+    #[allow(dead_code)]
     pub fn outbound_stream_channel_size(mut self, value: usize) -> Self {
         self.outbound_stream_channel_size = value;
 
         self
     }
 
+    #[allow(dead_code)]
     pub fn runtime_channel_size(mut self, value: usize) -> Self {
         self.runtime_channel_size = value;
 
         self
     }
 
+    #[allow(dead_code)]
     pub fn stream_channel_size(mut self, value: usize) -> Self {
         self.stream_channel_size = value;
 
         self
     }
 
+    #[allow(dead_code)]
     pub fn stream_id(mut self, value: Uuid) -> Self {
         self.stream_id = value;
 
@@ -68,9 +73,9 @@ impl StreamBuilder {
 
     pub fn build(self) -> (Sender, Stream, StreamContext) {
         let (tx, stream) = create_stream();
-        let (sender, mut stream_receiver) = mpsc::channel(self.outbound_stream_channel_size);
+        let (sender, stream_receiver) = mpsc::channel(self.outbound_stream_channel_size);
         let (command_sender, command_receiver) = mpsc::channel(self.stream_channel_size);
-        let (internal_runtime_command_sender, mut runtime_receiver) =
+        let (internal_runtime_command_sender, runtime_receiver) =
             mpsc::channel(self.runtime_channel_size);
         let stream_id = Uuid::new_v4();
 
@@ -97,6 +102,7 @@ impl StreamBuilder {
 
 pub struct StreamContext {
     pub(crate) stream_receiver: mpsc::Receiver<Result<WatchCertificatesResponse, Status>>,
+    #[allow(dead_code)]
     pub(crate) command_sender: mpsc::Sender<StreamCommand>,
     pub(crate) runtime_receiver: mpsc::Receiver<InternalRuntimeCommand>,
     pub(crate) stream_id: Uuid,

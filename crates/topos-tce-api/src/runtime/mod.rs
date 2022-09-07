@@ -1,14 +1,19 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    time::Duration,
+};
 
 use tokio::{
     spawn,
     sync::mpsc::{self, Receiver, Sender},
 };
+use tonic_health::server::HealthReporter;
+use topos_core::api::tce::v1::api_service_server::ApiServiceServer;
 use tracing::{error, info};
 use uuid::Uuid;
 
 use crate::{
-    grpc::ServerBuilder,
+    grpc::{ServerBuilder, TceGrpcService},
     stream::{Stream, StreamCommand},
 };
 
@@ -30,6 +35,7 @@ pub struct Runtime {
     pub(crate) subnet_subscription: HashMap<String, HashSet<Uuid>>,
     pub(crate) internal_runtime_command_receiver: Receiver<InternalRuntimeCommand>,
     pub(crate) runtime_command_receiver: Receiver<RuntimeCommand>,
+    pub(crate) health_reporter: HealthReporter,
 }
 
 impl Runtime {
@@ -38,8 +44,12 @@ impl Runtime {
     }
 
     pub async fn launch(mut self) {
+        let mut health_update = tokio::time::interval(Duration::from_secs(1));
         loop {
             tokio::select! {
+                _ = health_update.tick() => {
+                    self.health_reporter.set_serving::<ApiServiceServer<TceGrpcService>>().await;
+                }
                 Some(internal_command) = self.internal_runtime_command_receiver.recv() => {
                     self.handle_internal_command(internal_command).await;
                 }
