@@ -1,9 +1,17 @@
 use tokio::sync::{mpsc::Sender, oneshot};
 use tonic::{Status, Streaming};
-use topos_core::api::tce::v1::{WatchCertificatesRequest, WatchCertificatesResponse};
+use topos_core::{
+    api::tce::v1::{WatchCertificatesRequest, WatchCertificatesResponse},
+    uci::Certificate,
+};
 use uuid::Uuid;
 
-pub enum RuntimeCommand {}
+pub enum RuntimeCommand {
+    DispatchCertificate {
+        subnet_id: String,
+        certificate: Certificate,
+    },
+}
 
 #[derive(Debug)]
 pub(crate) enum InternalRuntimeCommand {

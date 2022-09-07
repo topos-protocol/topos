@@ -4,7 +4,7 @@ use tokio::{
     spawn,
     sync::mpsc::{self, Receiver, Sender},
 };
-use tracing::info;
+use tracing::{error, info};
 use uuid::Uuid;
 
 use crate::{
@@ -51,7 +51,40 @@ impl Runtime {
         }
     }
 
-    async fn handle_runtime_command(&mut self, _command: RuntimeCommand) {}
+    async fn handle_runtime_command(&mut self, command: RuntimeCommand) {
+        match command {
+            RuntimeCommand::DispatchCertificate {
+                subnet_id,
+                certificate,
+            } => {
+                info!("Received DispatchCertificate");
+                if let Some(stream_list) = self.subnet_subscription.get(&subnet_id) {
+                    let uuids: Vec<&Uuid> = stream_list.iter().collect();
+
+                    for uuid in uuids {
+                        if let Some(sender) = self.active_streams.get(uuid) {
+                            let sender = sender.clone();
+                            // TODO: Switch to arc
+                            let subnet_id = subnet_id.clone();
+                            let certificate = certificate.clone();
+
+                            info!("Sending certificate to {uuid}");
+                            spawn(async move {
+                                _ = sender
+                                    .send(StreamCommand::PushCertificate {
+                                        subnet_id,
+                                        certificate,
+                                    })
+                                    .await;
+                            });
+                        }
+                    }
+                } else {
+                    error!("No subscription for this subnet");
+                }
+            }
+        }
+    }
 
     async fn handle_internal_command(&mut self, command: InternalRuntimeCommand) {
         match command {
@@ -85,6 +118,7 @@ impl Runtime {
             InternalRuntimeCommand::Handshaked { stream_id } => {
                 if let Some(sender) = self.pending_streams.remove(&stream_id) {
                     self.active_streams.insert(stream_id, sender);
+                    info!("{stream_id} has successfully handshake");
                 }
             }
 
@@ -93,6 +127,7 @@ impl Runtime {
                 subnet_id,
                 sender,
             } => {
+                info!("{stream_id} is registered as subscriber for {subnet_id:?}");
                 self.subnet_subscription
                     .entry(subnet_id)
                     .or_default()
