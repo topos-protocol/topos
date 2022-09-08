@@ -31,10 +31,10 @@ async fn cert_delivery() {
             .expect("Can't send certificate");
     }
 
-    tokio::time::sleep(Duration::from_secs(1)).await;
+    tokio::time::sleep(Duration::from_secs(10)).await;
 
     // Here to be able to display logs
-    // assert!(false);
+    //assert!(false);
 }
 
 pub fn sample_lower_bound(n_u: usize) -> usize {

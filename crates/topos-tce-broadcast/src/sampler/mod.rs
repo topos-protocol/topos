@@ -134,10 +134,9 @@ impl Sampler {
             return;
         }
 
-        // todo - think about timeouts on Subscribe...
-        let stable_view = self.pending_echo_subscribtions.is_empty()
-            && self.pending_ready_subscribtions.is_empty()
-            && self.pending_ready_subscribtions.is_empty();
+        let stable_view = self.pending_echo_subscriptions.is_empty()
+            && self.pending_ready_subscriptions.is_empty()
+            && self.pending_delivery_subscriptions.is_empty();
 
         if stable_view {
             // Attempt to send the new view to the Broadcaster
@@ -189,7 +188,12 @@ impl Sampler {
     fn reset_subscription_samples(&mut self) {
         self.status = SampleProviderStatus::BuildingNewView;
 
-        // Init the samples
+        // Reset subscribers
+        self.view.insert(SampleType::EchoSubscriber, HashSet::new());
+        self.view
+            .insert(SampleType::ReadySubscriber, HashSet::new());
+
+        // Reset subscriptions
         self.view
             .insert(SampleType::EchoSubscription, HashSet::new());
         self.view
@@ -308,9 +312,8 @@ pub struct SamplerClient {
 #[cfg(test)]
 mod tests {
 
-    use tokio::sync::broadcast::error::TryRecvError;
-
     use super::*;
+    use tokio::sync::broadcast::error::TryRecvError;
 
     #[test]
     fn on_peer_change_sample_view_is_reset() {
@@ -344,7 +347,10 @@ mod tests {
 
         sampler.peer_changed(peers);
 
-        assert_eq!(sampler.status, SampleProviderStatus::BuildingNewView);
+        assert!(matches!(
+            sampler.status,
+            SampleProviderStatus::BuildingNewView
+        ));
 
         assert_eq!(event_receiver.len(), 3);
         assert!(matches!(
@@ -393,14 +399,15 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn confirming_echo_peer_and_create_view() {
+    async fn confirming_peers_and_create_expected_view() {
         cyclerng::utils::set_cycle([1]);
 
-        let (_, cmd_receiver) = mpsc::channel(10);
-        let (event_sender, mut event_receiver) = broadcast::channel(10);
+        let (_, cmd_receiver) = mpsc::channel(100);
+        let (event_sender, mut _event_receiver) = broadcast::channel(100);
         let (view_sender, mut view_receiver) = mpsc::channel(10);
 
         let g = |a, b| ((a as f32) * b) as usize;
+        let nb_peers = 100;
         let sample_size = 10;
         let mut sampler = Sampler::new(
             ReliableBroadcastParams {
@@ -416,36 +423,58 @@ mod tests {
             view_sender,
         );
 
-        sampler.pending_echo_subscribtions.insert("peer_1".into());
-        sampler
-            .handle_peer_confirmation(SampleType::EchoSubscription, "peer_1".into())
-            .await
-            .expect("Peer confirmation failed");
+        let mut peers = Vec::new();
+        for i in 0..nb_peers {
+            peers.push(format!("peer_{i}"));
+        }
 
-        assert_eq!(sampler.pending_echo_subscribtions.len(), 0);
-        assert!(matches!(
-            event_receiver.try_recv(),
-            Err(TryRecvError::Empty)
-        ));
-        assert!(matches!(
-            view_receiver.try_recv(),
-            Err(tokio::sync::mpsc::error::TryRecvError::Empty)
-        ));
+        sampler.peer_changed(peers);
+
+        let mut expected_view = SampleView::default();
+        expected_view.insert(SampleType::EchoSubscriber, HashSet::new());
+        expected_view.insert(SampleType::ReadySubscriber, HashSet::new());
+        expected_view.insert(
+            SampleType::EchoSubscription,
+            sampler.pending_echo_subscriptions.clone(),
+        );
+        expected_view.insert(
+            SampleType::ReadySubscription,
+            sampler.pending_ready_subscriptions.clone(),
+        );
+        expected_view.insert(
+            SampleType::DeliverySubscription,
+            sampler.pending_delivery_subscriptions.clone(),
+        );
+
+        for p in sampler.pending_echo_subscriptions.clone() {
+            sampler
+                .handle_peer_confirmation(SampleType::EchoSubscription, p.to_owned())
+                .await
+                .expect("Handle peer confirmation");
+        }
+
+        for p in sampler.pending_ready_subscriptions.clone() {
+            sampler
+                .handle_peer_confirmation(SampleType::ReadySubscription, p.to_owned())
+                .await
+                .expect("Handle peer confirmation");
+        }
+
+        for p in sampler.pending_delivery_subscriptions.clone() {
+            sampler
+                .handle_peer_confirmation(SampleType::DeliverySubscription, p.to_owned())
+                .await
+                .expect("Handle peer confirmation");
+        }
+
+        assert!(sampler.pending_echo_subscriptions.is_empty());
+        assert!(sampler.pending_ready_subscriptions.is_empty());
+        assert!(sampler.pending_delivery_subscriptions.is_empty());
 
         sampler.pending_subs_state_change_follow_up().await;
-        assert!(matches!(
-            view_receiver.try_recv(),
-            Err(tokio::sync::mpsc::error::TryRecvError::Empty)
-        ));
 
-        sampler.status = SampleProviderStatus::BuildingNewView;
-        sampler.pending_subs_state_change_follow_up().await;
-
-        let mut expected = SampleView::new();
-        let mut hash_set = HashSet::new();
-        hash_set.insert("peer_1".to_string());
-        expected.insert(SampleType::EchoSubscription, hash_set);
-
-        assert!(matches!(view_receiver.try_recv(), Ok(produced_view) if produced_view == expected));
+        assert!(
+            matches!(view_receiver.try_recv(), Ok(produced_view) if produced_view == expected_view)
+        );
     }
 }
