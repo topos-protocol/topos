@@ -188,10 +188,13 @@ impl Sampler {
     fn reset_subscription_samples(&mut self) {
         self.status = SampleProviderStatus::BuildingNewView;
 
-        // Reset subscribers
-        self.view.insert(SampleType::EchoSubscriber, HashSet::new());
-        self.view
-            .insert(SampleType::ReadySubscriber, HashSet::new());
+        // Reset unvisible subscribers
+        if let Some(echo_subscribers) = self.view.get_mut(&SampleType::EchoSubscriber) {
+            echo_subscribers.retain(|p| self.visible_peers.contains(p));
+        }
+        if let Some(ready_subscribers) = self.view.get_mut(&SampleType::ReadySubscriber) {
+            ready_subscribers.retain(|p| self.visible_peers.contains(p));
+        }
 
         // Reset subscriptions
         self.view
@@ -431,8 +434,6 @@ mod tests {
         sampler.peer_changed(peers);
 
         let mut expected_view = SampleView::default();
-        expected_view.insert(SampleType::EchoSubscriber, HashSet::new());
-        expected_view.insert(SampleType::ReadySubscriber, HashSet::new());
         expected_view.insert(
             SampleType::EchoSubscription,
             sampler.pending_echo_subscriptions.clone(),
