@@ -2,10 +2,57 @@ syntax = "proto3";
 
 package topos.tce.v1;
 
-service APIService {
-  rpc SubmitCertificate(SubmitCertificateRequest) returns (SubmitCertificateResponse) {}
+import "topos/shared/v1/uuid.proto";
+import "topos/shared/v1/subnet.proto";
+import "topos/uci/v1/certification.proto";
 
+import "google/protobuf/timestamp.proto";
+
+service APIService {
+  rpc SubmitCertificate(SubmitCertificateRequest) returns (SubmitCertificateResponse);
+
+  // This RPC allows a client to open a bidirectional stream with a TCE
+  rpc WatchCertificates(stream WatchCertificatesRequest) returns (stream WatchCertificatesResponse);
 }
 
-message SubmitCertificateRequest {}
+message SubmitCertificateRequest {
+  topos.uci.v1.Certificate certificate = 1;
+}
+
 message SubmitCertificateResponse {}
+
+message WatchCertificatesRequest {
+  // Provide a request_id to track response
+  topos.shared.v1.UUID request_id = 1;
+
+  // Define which command needs to be performed
+  oneof command {
+    OpenStream open_stream = 2;
+  }
+
+  // Sent once to start receiving events and being able to send further command
+  message OpenStream {
+    repeated topos.shared.v1.SubnetId subnet_ids = 1;
+  }
+}
+
+message WatchCertificatesResponse {
+  // If the response is directly linked to a request this ID allow one to track it
+  topos.shared.v1.UUID request_id = 1;
+
+  oneof event {
+    StreamOpened stream_opened = 2;
+    CertificatePushed certificate_pushed = 3;
+  }
+
+  // Sent by the TCE when the stream is ready to be used and that certificates will start being push
+  message StreamOpened {
+    repeated topos.shared.v1.SubnetId subnet_ids = 1;
+  }
+
+  // Main message pushed to the stream
+  message CertificatePushed {
+    topos.uci.v1.Certificate certificate = 1;
+
+  }
+}

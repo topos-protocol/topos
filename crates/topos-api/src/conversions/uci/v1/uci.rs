@@ -4,6 +4,7 @@
 use crate::uci::v1 as proto_v1;
 use ethereum_types::U256;
 
+// TODO: replace From by TryFrom because From must not fail
 impl From<proto_v1::CrossChainTransactionData> for topos_uci::CrossChainTransactionData {
     fn from(transaction_data: proto_v1::CrossChainTransactionData) -> Self {
         match transaction_data

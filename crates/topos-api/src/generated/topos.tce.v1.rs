@@ -1,11 +1,70 @@
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct SubmitCertificateRequest {}
+pub struct SubmitCertificateRequest {
+    #[prost(message, optional, tag="1")]
+    pub certificate: ::core::option::Option<super::super::uci::v1::Certificate>,
+}
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct SubmitCertificateResponse {}
+pub struct SubmitCertificateResponse {
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct WatchCertificatesRequest {
+    /// Provide a request_id to track response
+    #[prost(message, optional, tag="1")]
+    pub request_id: ::core::option::Option<super::super::shared::v1::Uuid>,
+    /// Define which command needs to be performed
+    #[prost(oneof="watch_certificates_request::Command", tags="2")]
+    pub command: ::core::option::Option<watch_certificates_request::Command>,
+}
+/// Nested message and enum types in `WatchCertificatesRequest`.
+pub mod watch_certificates_request {
+    /// Sent once to start receiving events and being able to send further command
+    #[derive(Clone, PartialEq, ::prost::Message)]
+    pub struct OpenStream {
+        #[prost(message, repeated, tag="1")]
+        pub subnet_ids: ::prost::alloc::vec::Vec<super::super::super::shared::v1::SubnetId>,
+    }
+    /// Define which command needs to be performed
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Command {
+        #[prost(message, tag="2")]
+        OpenStream(OpenStream),
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct WatchCertificatesResponse {
+    /// If the response is directly linked to a request this ID allow one to track it
+    #[prost(message, optional, tag="1")]
+    pub request_id: ::core::option::Option<super::super::shared::v1::Uuid>,
+    #[prost(oneof="watch_certificates_response::Event", tags="2, 3")]
+    pub event: ::core::option::Option<watch_certificates_response::Event>,
+}
+/// Nested message and enum types in `WatchCertificatesResponse`.
+pub mod watch_certificates_response {
+    /// Sent by the TCE when the stream is ready to be used and that certificates will start being push
+    #[derive(Clone, PartialEq, ::prost::Message)]
+    pub struct StreamOpened {
+        #[prost(message, repeated, tag="1")]
+        pub subnet_ids: ::prost::alloc::vec::Vec<super::super::super::shared::v1::SubnetId>,
+    }
+    /// Main message pushed to the stream
+    #[derive(Clone, PartialEq, ::prost::Message)]
+    pub struct CertificatePushed {
+        #[prost(message, optional, tag="1")]
+        pub certificate: ::core::option::Option<super::super::super::uci::v1::Certificate>,
+    }
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Event {
+        #[prost(message, tag="2")]
+        StreamOpened(StreamOpened),
+        #[prost(message, tag="3")]
+        CertificatePushed(CertificatePushed),
+    }
+}
 /// Generated client implementations.
 pub mod api_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
+    use tonic::codegen::http::Uri;
     #[derive(Debug, Clone)]
     pub struct ApiServiceClient<T> {
         inner: tonic::client::Grpc<T>,
@@ -32,6 +91,10 @@ pub mod api_service_client {
             let inner = tonic::client::Grpc::new(inner);
             Self { inner }
         }
+        pub fn with_origin(inner: T, origin: Uri) -> Self {
+            let inner = tonic::client::Grpc::with_origin(inner, origin);
+            Self { inner }
+        }
         pub fn with_interceptor<F>(
             inner: T,
             interceptor: F,
@@ -45,40 +108,70 @@ pub mod api_service_client {
                     <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
-                Into<StdError> + Send + Sync,
+            <T as tonic::codegen::Service<
+                http::Request<tonic::body::BoxBody>,
+            >>::Error: Into<StdError> + Send + Sync,
         {
             ApiServiceClient::new(InterceptedService::new(inner, interceptor))
         }
-        /// Compress requests with `gzip`.
+        /// Compress requests with the given encoding.
         ///
         /// This requires the server to support it otherwise it might respond with an
         /// error.
         #[must_use]
-        pub fn send_gzip(mut self) -> Self {
-            self.inner = self.inner.send_gzip();
+        pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.inner = self.inner.send_compressed(encoding);
             self
         }
-        /// Enable decompressing responses with `gzip`.
+        /// Enable decompressing responses.
         #[must_use]
-        pub fn accept_gzip(mut self) -> Self {
-            self.inner = self.inner.accept_gzip();
+        pub fn accept_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.inner = self.inner.accept_compressed(encoding);
             self
         }
         pub async fn submit_certificate(
             &mut self,
             request: impl tonic::IntoRequest<super::SubmitCertificateRequest>,
         ) -> Result<tonic::Response<super::SubmitCertificateResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
-            })?;
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/topos.tce.v1.APIService/SubmitCertificate");
+            let path = http::uri::PathAndQuery::from_static(
+                "/topos.tce.v1.APIService/SubmitCertificate",
+            );
             self.inner.unary(request.into_request(), path, codec).await
+        }
+        /// This RPC allows a client to open a bidirectional stream with a TCE
+        pub async fn watch_certificates(
+            &mut self,
+            request: impl tonic::IntoStreamingRequest<
+                Message = super::WatchCertificatesRequest,
+            >,
+        ) -> Result<
+            tonic::Response<tonic::codec::Streaming<super::WatchCertificatesResponse>>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/topos.tce.v1.APIService/WatchCertificates",
+            );
+            self.inner.streaming(request.into_streaming_request(), path, codec).await
         }
     }
 }
@@ -93,12 +186,23 @@ pub mod api_service_server {
             &self,
             request: tonic::Request<super::SubmitCertificateRequest>,
         ) -> Result<tonic::Response<super::SubmitCertificateResponse>, tonic::Status>;
+        ///Server streaming response type for the WatchCertificates method.
+        type WatchCertificatesStream: futures_core::Stream<
+                Item = Result<super::WatchCertificatesResponse, tonic::Status>,
+            >
+            + Send
+            + 'static;
+        /// This RPC allows a client to open a bidirectional stream with a TCE
+        async fn watch_certificates(
+            &self,
+            request: tonic::Request<tonic::Streaming<super::WatchCertificatesRequest>>,
+        ) -> Result<tonic::Response<Self::WatchCertificatesStream>, tonic::Status>;
     }
     #[derive(Debug)]
     pub struct ApiServiceServer<T: ApiService> {
         inner: _Inner<T>,
-        accept_compression_encodings: (),
-        send_compression_encodings: (),
+        accept_compression_encodings: EnabledCompressionEncodings,
+        send_compression_encodings: EnabledCompressionEncodings,
     }
     struct _Inner<T>(Arc<T>);
     impl<T: ApiService> ApiServiceServer<T> {
@@ -113,11 +217,26 @@ pub mod api_service_server {
                 send_compression_encodings: Default::default(),
             }
         }
-        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
             InterceptedService::new(Self::new(inner), interceptor)
+        }
+        /// Enable decompressing requests with the given encoding.
+        #[must_use]
+        pub fn accept_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.accept_compression_encodings.enable(encoding);
+            self
+        }
+        /// Compress responses with the given encoding, if the client supports it.
+        #[must_use]
+        pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.send_compression_encodings.enable(encoding);
+            self
         }
     }
     impl<T, B> tonic::codegen::Service<http::Request<B>> for ApiServiceServer<T>
@@ -129,7 +248,10 @@ pub mod api_service_server {
         type Response = http::Response<tonic::body::BoxBody>;
         type Error = std::convert::Infallible;
         type Future = BoxFuture<Self::Response, Self::Error>;
-        fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        fn poll_ready(
+            &mut self,
+            _cx: &mut Context<'_>,
+        ) -> Poll<Result<(), Self::Error>> {
             Poll::Ready(Ok(()))
         }
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
@@ -138,17 +260,23 @@ pub mod api_service_server {
                 "/topos.tce.v1.APIService/SubmitCertificate" => {
                     #[allow(non_camel_case_types)]
                     struct SubmitCertificateSvc<T: ApiService>(pub Arc<T>);
-                    impl<T: ApiService> tonic::server::UnaryService<super::SubmitCertificateRequest>
-                        for SubmitCertificateSvc<T>
-                    {
+                    impl<
+                        T: ApiService,
+                    > tonic::server::UnaryService<super::SubmitCertificateRequest>
+                    for SubmitCertificateSvc<T> {
                         type Response = super::SubmitCertificateResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::SubmitCertificateRequest>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move { (*inner).submit_certificate(request).await };
+                            let fut = async move {
+                                (*inner).submit_certificate(request).await
+                            };
                             Box::pin(fut)
                         }
                     }
@@ -159,23 +287,71 @@ pub mod api_service_server {
                         let inner = inner.0;
                         let method = SubmitCertificateSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
-                            accept_compression_encodings,
-                            send_compression_encodings,
-                        );
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
                     Box::pin(fut)
                 }
-                _ => Box::pin(async move {
-                    Ok(http::Response::builder()
-                        .status(200)
-                        .header("grpc-status", "12")
-                        .header("content-type", "application/grpc")
-                        .body(empty_body())
-                        .unwrap())
-                }),
+                "/topos.tce.v1.APIService/WatchCertificates" => {
+                    #[allow(non_camel_case_types)]
+                    struct WatchCertificatesSvc<T: ApiService>(pub Arc<T>);
+                    impl<
+                        T: ApiService,
+                    > tonic::server::StreamingService<super::WatchCertificatesRequest>
+                    for WatchCertificatesSvc<T> {
+                        type Response = super::WatchCertificatesResponse;
+                        type ResponseStream = T::WatchCertificatesStream;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::ResponseStream>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<
+                                tonic::Streaming<super::WatchCertificatesRequest>,
+                            >,
+                        ) -> Self::Future {
+                            let inner = self.0.clone();
+                            let fut = async move {
+                                (*inner).watch_certificates(request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = WatchCertificatesSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
+                        let res = grpc.streaming(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                _ => {
+                    Box::pin(async move {
+                        Ok(
+                            http::Response::builder()
+                                .status(200)
+                                .header("grpc-status", "12")
+                                .header("content-type", "application/grpc")
+                                .body(empty_body())
+                                .unwrap(),
+                        )
+                    })
+                }
             }
         }
     }
@@ -199,7 +375,7 @@ pub mod api_service_server {
             write!(f, "{:?}", self.0)
         }
     }
-    impl<T: ApiService> tonic::transport::NamedService for ApiServiceServer<T> {
+    impl<T: ApiService> tonic::server::NamedService for ApiServiceServer<T> {
         const NAME: &'static str = "topos.tce.v1.APIService";
     }
 }
