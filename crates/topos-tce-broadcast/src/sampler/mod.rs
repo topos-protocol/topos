@@ -85,12 +85,6 @@ impl Sampler {
         }
     }
 
-    /// Reaction to external events.
-    /// We handle:
-    /// - [TrbpCommands::OnVisiblePeersChanged] - used to initialise (or review) peers sets
-    /// - [TrbpCommands::OnConnectedPeersChanged] - to keep the nearest nodes
-    /// - [TrbpCommands::OnEchoSubscribeReq], [TrbpCommands::OnReadySubscribeReq] - to keep track of Subscriptions
-    /// - [TrbpCommands::OnEchoSubscribeOk], [TrbpCommands::OnReadySubscribeOk] - to keep track of Subscriber
     pub async fn run(mut self) {
         loop {
             tokio::select! {
@@ -183,21 +177,9 @@ impl Sampler {
 
             SampleType::EchoSubscriber => {
                 let _ = self.add_confirmed_peer_to_sample(SampleType::EchoSubscriber, &peer);
-                // notify the protocol that we updated Subscriber peers
-                return self
-                    .view_sender
-                    .send(self.view.clone())
-                    .await
-                    .map_err(|_| ());
             }
             SampleType::ReadySubscriber => {
                 let _ = self.add_confirmed_peer_to_sample(SampleType::ReadySubscriber, &peer);
-                // notify the protocol that we updated Subscriber peers
-                return self
-                    .view_sender
-                    .send(self.view.clone())
-                    .await
-                    .map_err(|_| ());
             }
         }
 
@@ -338,15 +320,17 @@ mod tests {
         let (event_sender, mut event_receiver) = broadcast::channel(10);
         let (view_sender, _) = mpsc::channel(10);
 
+        let nb_peers = 100;
+        let sample_size = 10;
         let g = |a, b| ((a as f32) * b) as usize;
         let mut sampler = Sampler::new(
             ReliableBroadcastParams {
-                echo_threshold: g(1, 0.66),
-                echo_sample_size: 1,
-                ready_threshold: g(1, 0.33),
-                ready_sample_size: 1,
-                delivery_threshold: g(1, 0.66),
-                delivery_sample_size: 1,
+                echo_threshold: g(sample_size, 0.5),
+                echo_sample_size: sample_size,
+                ready_threshold: g(sample_size, 0.5),
+                ready_sample_size: sample_size,
+                delivery_threshold: g(sample_size, 0.5),
+                delivery_sample_size: sample_size,
             },
             cmd_receiver,
             event_sender,
@@ -354,28 +338,26 @@ mod tests {
         );
 
         let mut peers = Vec::new();
-        for i in 0..=100 {
+        for i in 0..nb_peers {
             peers.push(format!("peer_{i}"));
         }
 
         sampler.peer_changed(peers);
 
-        assert_eq!(sampler.pending_echo_subscribtions.len(), 1);
-        assert_eq!(sampler.pending_ready_subscribtions.len(), 1);
-        assert_eq!(sampler.pending_delivery_subscribtions.len(), 1);
+        assert_eq!(sampler.status, SampleProviderStatus::BuildingNewView);
 
         assert_eq!(event_receiver.len(), 3);
         assert!(matches!(
             event_receiver.try_recv(),
-            Ok(TrbpEvents::EchoSubscribeReq { .. })
+            Ok(TrbpEvents::EchoSubscribeReq { peers }) if peers.len() == sampler.params.echo_sample_size
         ));
         assert!(matches!(
             event_receiver.try_recv(),
-            Ok(TrbpEvents::ReadySubscribeReq { .. })
+            Ok(TrbpEvents::ReadySubscribeReq { peers }) if peers.len() == sampler.params.ready_sample_size
         ));
         assert!(matches!(
             event_receiver.try_recv(),
-            Ok(TrbpEvents::ReadySubscribeReq { .. })
+            Ok(TrbpEvents::ReadySubscribeReq { peers }) if peers.len() == sampler.params.delivery_sample_size
         ));
         assert!(matches!(
             event_receiver.try_recv(),
@@ -419,14 +401,15 @@ mod tests {
         let (view_sender, mut view_receiver) = mpsc::channel(10);
 
         let g = |a, b| ((a as f32) * b) as usize;
+        let sample_size = 10;
         let mut sampler = Sampler::new(
             ReliableBroadcastParams {
-                echo_threshold: g(1, 0.66),
-                echo_sample_size: 1,
-                ready_threshold: g(1, 0.33),
-                ready_sample_size: 1,
-                delivery_threshold: g(1, 0.66),
-                delivery_sample_size: 1,
+                echo_threshold: g(sample_size, 0.5),
+                echo_sample_size: sample_size,
+                ready_threshold: g(sample_size, 0.5),
+                ready_sample_size: sample_size,
+                delivery_threshold: g(sample_size, 0.5),
+                delivery_sample_size: sample_size,
             },
             cmd_receiver,
             event_sender,
