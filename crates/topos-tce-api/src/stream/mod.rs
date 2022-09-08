@@ -8,10 +8,13 @@ use tokio::{
 };
 use tokio_stream::StreamExt;
 use tonic::{Status, Streaming};
-use topos_core::api::tce::v1::{
-    watch_certificates_request::{Command, OpenStream},
-    watch_certificates_response::{CertificatePushed, Event},
-    WatchCertificatesRequest, WatchCertificatesResponse,
+use topos_core::api::{
+    shared::v1::SubnetId,
+    tce::v1::{
+        watch_certificates_request::{Command, OpenStream},
+        watch_certificates_response::{CertificatePushed, Event, StreamOpened},
+        WatchCertificatesRequest, WatchCertificatesResponse,
+    },
 };
 use tracing::{debug, info};
 use uuid::Uuid;
@@ -35,7 +38,7 @@ pub struct Stream {
 
 impl Stream {
     pub async fn run(mut self) {
-        let subnet_id = match self.pre_start().await {
+        let subnet_ids = match self.pre_start().await {
             Err(_) => {
                 _ = self
                     .sender
@@ -55,7 +58,7 @@ impl Stream {
 
             Ok(subnet_id) => {
                 info!(
-                    "Received an OpenStream command for the stream {} linked to the subnet {}",
+                    "Received an OpenStream command for the stream {} linked to the subnet {:?}",
                     self.stream_id, subnet_id
                 );
 
@@ -63,7 +66,12 @@ impl Stream {
             }
         };
 
-        _ = self.handshake(subnet_id).await;
+        _ = self.handshake(subnet_ids.clone()).await;
+
+        _ = self
+            .sender
+            .send(Ok(StreamOpened { subnet_ids }.into()))
+            .await;
 
         loop {
             tokio::select! {
@@ -88,14 +96,14 @@ impl Stream {
 }
 
 impl Stream {
-    async fn pre_start(&mut self) -> Result<String, PreStartError> {
+    async fn pre_start(&mut self) -> Result<Vec<SubnetId>, PreStartError> {
         let waiting_for_open_stream = async {
             if let Ok(Some(WatchCertificatesRequest {
-                command: Some(Command::OpenStream(OpenStream { subnet_id })),
+                command: Some(Command::OpenStream(OpenStream { subnet_ids })),
                 ..
             })) = self.stream.message().await
             {
-                Ok(subnet_id)
+                Ok(subnet_ids)
             } else {
                 Err(())
             }
@@ -108,13 +116,13 @@ impl Stream {
         }
     }
 
-    async fn handshake(&mut self, subnet_id: String) -> Result<(), ()> {
+    async fn handshake(&mut self, subnet_ids: Vec<SubnetId>) -> Result<(), ()> {
         let (sender, receiver) = oneshot::channel::<Result<(), ()>>();
         _ = self
             .internal_runtime_command_sender
             .send(InternalRuntimeCommand::Register {
                 stream_id: self.stream_id,
-                subnet_id,
+                subnet_ids,
                 sender,
             })
             .await;

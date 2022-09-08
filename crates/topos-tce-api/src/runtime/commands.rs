@@ -1,7 +1,10 @@
 use tokio::sync::{mpsc::Sender, oneshot};
 use tonic::{Status, Streaming};
 use topos_core::{
-    api::tce::v1::{WatchCertificatesRequest, WatchCertificatesResponse},
+    api::{
+        shared::v1::SubnetId,
+        tce::v1::{WatchCertificatesRequest, WatchCertificatesResponse},
+    },
     uci::Certificate,
 };
 use uuid::Uuid;
@@ -23,7 +26,7 @@ pub(crate) enum InternalRuntimeCommand {
 
     Register {
         stream_id: Uuid,
-        subnet_id: String,
+        subnet_ids: Vec<SubnetId>,
         sender: oneshot::Sender<Result<(), ()>>,
     },
 

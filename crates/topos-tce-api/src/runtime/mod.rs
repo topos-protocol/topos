@@ -137,14 +137,16 @@ impl Runtime {
 
             InternalRuntimeCommand::Register {
                 stream_id,
-                subnet_id,
+                subnet_ids,
                 sender,
             } => {
-                info!("{stream_id} is registered as subscriber for {subnet_id:?}");
-                self.subnet_subscription
-                    .entry(subnet_id)
-                    .or_default()
-                    .insert(stream_id);
+                info!("{stream_id} is registered as subscriber for {subnet_ids:?}");
+                for subnet_id in subnet_ids {
+                    self.subnet_subscription
+                        .entry(subnet_id.value)
+                        .or_default()
+                        .insert(stream_id);
+                }
 
                 _ = sender.send(Ok(()));
             }

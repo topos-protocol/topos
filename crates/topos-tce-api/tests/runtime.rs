@@ -29,7 +29,7 @@ async fn runtime_can_dispatch_a_cert() {
         let channel = channel::Endpoint::from_static("http://127.0.0.1:1340").connect_lazy();
         let mut client = ApiServiceClient::new(channel);
         let in_stream = async_stream::stream! {
-            yield OpenStream { subnet_id: "subnet_id".to_string() }.into();
+            yield OpenStream { subnet_ids: vec!["subnet_id".into()] }.into();
         };
 
         let response = client.watch_certificates(in_stream).await.unwrap();
