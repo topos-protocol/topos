@@ -54,9 +54,9 @@ pub struct Sampler {
     event_sender: broadcast::Sender<TrbpEvents>,
     visible_peers: Vec<Peer>,
 
-    pending_echo_subscribtions: HashSet<Peer>,
-    pending_ready_subscribtions: HashSet<Peer>,
-    pending_delivery_subscribtions: HashSet<Peer>,
+    pending_echo_subscriptions: HashSet<Peer>,
+    pending_ready_subscriptions: HashSet<Peer>,
+    pending_delivery_subscriptions: HashSet<Peer>,
 
     view: SampleView,
     view_sender: mpsc::Sender<SampleView>,
@@ -77,9 +77,9 @@ impl Sampler {
             event_sender,
             view_sender,
             visible_peers: Vec::new(),
-            pending_echo_subscribtions: HashSet::new(),
-            pending_ready_subscribtions: HashSet::new(),
-            pending_delivery_subscribtions: HashSet::new(),
+            pending_echo_subscriptions: HashSet::new(),
+            pending_ready_subscriptions: HashSet::new(),
+            pending_delivery_subscriptions: HashSet::new(),
             view: SampleView::new(),
             status: SampleProviderStatus::Stabilized,
         }
@@ -158,17 +158,17 @@ impl Sampler {
         info!("ConfirmPeer {peer} in {sample_type:?}");
         match sample_type {
             SampleType::EchoSubscription => {
-                if self.pending_echo_subscribtions.remove(&peer) {
+                if self.pending_echo_subscriptions.remove(&peer) {
                     return self.add_confirmed_peer_to_sample(SampleType::EchoSubscription, &peer);
                 }
             }
             SampleType::ReadySubscription => {
-                if self.pending_ready_subscribtions.remove(&peer) {
+                if self.pending_ready_subscriptions.remove(&peer) {
                     return self.add_confirmed_peer_to_sample(SampleType::ReadySubscription, &peer);
                 }
             }
             SampleType::DeliverySubscription => {
-                if self.pending_delivery_subscribtions.remove(&peer) {
+                if self.pending_delivery_subscriptions.remove(&peer) {
                     return self
                         .add_confirmed_peer_to_sample(SampleType::DeliverySubscription, &peer);
                 }
@@ -208,7 +208,7 @@ impl Sampler {
 
     /// subscription echo sampling
     fn reset_echo_subscription_sample(&mut self) {
-        self.pending_echo_subscribtions.clear();
+        self.pending_echo_subscriptions.clear();
 
         let echo_sizer = |len| min(len, self.params.echo_sample_size);
         match sample_reduce_from(&self.visible_peers, echo_sizer) {
@@ -220,7 +220,7 @@ impl Sampler {
 
                 for peer in &echo_candidates.value {
                     log::info!("Adding {peer} to pending echo subscriptions");
-                    self.pending_echo_subscribtions.insert(peer.clone());
+                    self.pending_echo_subscriptions.insert(peer.clone());
                 }
 
                 if let Err(error) = self.event_sender.send(TrbpEvents::EchoSubscribeReq {
@@ -240,7 +240,7 @@ impl Sampler {
 
     /// subscription ready sampling
     fn reset_ready_subscription_sample(&mut self) {
-        self.pending_ready_subscribtions.clear();
+        self.pending_ready_subscriptions.clear();
 
         let ready_sizer = |len| min(len, self.params.ready_sample_size);
         match sample_reduce_from(&self.visible_peers, ready_sizer) {
@@ -252,7 +252,7 @@ impl Sampler {
 
                 for peer in &ready_candidates.value {
                     log::info!("Adding {peer} to pending ready subscriptions");
-                    self.pending_ready_subscribtions.insert(peer.clone());
+                    self.pending_ready_subscriptions.insert(peer.clone());
                 }
 
                 if let Err(error) = self.event_sender.send(TrbpEvents::ReadySubscribeReq {
@@ -272,7 +272,7 @@ impl Sampler {
 
     /// subscription delivery sampling
     fn reset_delivery_subscription_sample(&mut self) {
-        self.pending_delivery_subscribtions.clear();
+        self.pending_delivery_subscriptions.clear();
 
         let delivery_sizer = |len| min(len, self.params.delivery_sample_size);
         match sample_reduce_from(&self.visible_peers, delivery_sizer) {
@@ -284,7 +284,7 @@ impl Sampler {
 
                 for peer in &delivery_candidates.value {
                     log::info!("Adding {peer} to pending delivery subscriptions");
-                    self.pending_delivery_subscribtions.insert(peer.clone());
+                    self.pending_delivery_subscriptions.insert(peer.clone());
                 }
 
                 if let Err(error) = self.event_sender.send(TrbpEvents::ReadySubscribeReq {
