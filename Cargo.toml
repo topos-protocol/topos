@@ -66,5 +66,3 @@ members = [
     "crates/*"
 ]
 
-[patch."https://github.com/toposware/topos-core"]
-topos-core = { path = "../topos-core/crates/topos-core/" }
