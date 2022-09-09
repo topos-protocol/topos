@@ -18,10 +18,7 @@ impl RuntimeClient {
 
         async move {
             _ = sender
-                .send(RuntimeCommand::DispatchCertificate {
-                    subnet_id: certificate.initial_subnet_id.clone(),
-                    certificate,
-                })
+                .send(RuntimeCommand::DispatchCertificate { certificate })
                 .await;
         }
     }

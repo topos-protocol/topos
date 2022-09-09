@@ -9,7 +9,7 @@ use tokio::{
 };
 use tonic_health::server::HealthReporter;
 use topos_core::api::tce::v1::api_service_server::ApiServiceServer;
-use tracing::{error, info};
+use tracing::info;
 use uuid::Uuid;
 
 use crate::{
@@ -66,34 +66,27 @@ impl Runtime {
 
     async fn handle_runtime_command(&mut self, command: RuntimeCommand) {
         match command {
-            RuntimeCommand::DispatchCertificate {
-                subnet_id,
-                certificate,
-            } => {
+            RuntimeCommand::DispatchCertificate { certificate } => {
                 info!("Received DispatchCertificate");
-                if let Some(stream_list) = self.subnet_subscription.get(&subnet_id) {
+                if let Some(stream_list) =
+                    self.subnet_subscription.get(&certificate.initial_subnet_id)
+                {
                     let uuids: Vec<&Uuid> = stream_list.iter().collect();
 
                     for uuid in uuids {
                         if let Some(sender) = self.active_streams.get(uuid) {
                             let sender = sender.clone();
                             // TODO: Switch to arc
-                            let subnet_id = subnet_id.clone();
                             let certificate = certificate.clone();
 
                             info!("Sending certificate to {uuid}");
                             spawn(async move {
                                 _ = sender
-                                    .send(StreamCommand::PushCertificate {
-                                        subnet_id,
-                                        certificate,
-                                    })
+                                    .send(StreamCommand::PushCertificate { certificate })
                                     .await;
                             });
                         }
                     }
-                } else {
-                    error!("No subscription for this subnet");
                 }
             }
         }

@@ -10,10 +10,7 @@ use topos_core::{
 use uuid::Uuid;
 
 pub enum RuntimeCommand {
-    DispatchCertificate {
-        subnet_id: String,
-        certificate: Certificate,
-    },
+    DispatchCertificate { certificate: Certificate },
 }
 
 #[derive(Debug)]
