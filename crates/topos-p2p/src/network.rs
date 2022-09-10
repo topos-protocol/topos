@@ -103,12 +103,15 @@ impl NetworkBuilder {
                 self.discovery_protocol.unwrap_or(DISCOVERY_PROTOCOL),
                 &self.known_peers[..],
                 false,
+                // TODO: better handle the listening part
+                self.listen_addr.clone(),
             ),
             transmission: TransmissionBehaviour::new(),
             events: VecDeque::new(),
+            peer_id: peer_key.public().to_peer_id(),
+            addresses: self.listen_addr.clone().unwrap(),
         };
 
-        // let transport = TokioDnsConfig::system(TokioTcpTransport::new(
         let transport = TokioTcpTransport::new(GenTcpConfig::default().nodelay(true))
             .upgrade(upgrade::Version::V1)
             .authenticate(noise::NoiseConfig::xx(noise_keys).into_authenticated())
