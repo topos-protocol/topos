@@ -23,6 +23,7 @@ tokio = { version = "1.15.0", features = [
     "time",
     "sync",
 ] }
+rpassword = "7.0.0"
 
 topos-core = { git = "https://github.com/toposware/topos-core", branch = "main", features = ["uci"], version = "0.1.0" }
 topos_net = { package = "topos-node-net", path = "../../node/net" }

@@ -1,13 +1,13 @@
 use clap::Parser;
 use libp2p::{Multiaddr, PeerId};
 
+use crate::app_context::AppContext;
+use log::info;
 use topos_api::{ApiConfig, ApiWorker};
 use topos_core_certification::CertificationWorker;
 use topos_core_runtime_proxy::{RuntimeProxyConfig, RuntimeProxyWorker};
 use topos_core_tce_proxy::{TceProxyConfig, TceProxyWorker};
 use topos_net::{NetworkWorker, NetworkWorkerConfig};
-
-use crate::app_context::AppContext;
 
 mod app_context;
 
@@ -16,15 +16,21 @@ mod app_context;
 #[tokio::main]
 async fn main() {
     pretty_env_logger::init_timed();
-    log::info!("Starting application");
+    info!("Starting application");
 
-    let args = AppArgs::parse();
+    let mut args = AppArgs::parse();
+
+    let pass = args.topos_node_keystore_password.take().unwrap_or_else(|| {
+        rpassword::prompt_password("Keystore password:").expect("Valid keystore password")
+    });
 
     // Launch the workers
     let certification = CertificationWorker::new(args.subnet_id.clone());
     let runtime_proxy = RuntimeProxyWorker::new(RuntimeProxyConfig {
         endpoint: args.substrate_subnet_rpc_endpoint.clone(),
         topos_core_contract: args.topos_core_contract.clone(),
+        keystore_file: args.topos_node_keystore_file.clone(),
+        keystore_password: pass,
     });
 
     // downstream flow processor worker
@@ -109,11 +115,24 @@ pub struct AppArgs {
         env = "TOPOS_BASE_TCE_API_URL"
     )]
     pub base_tce_api_url: String,
+
+    /// Keystore file
+    #[clap(
+        long,
+        default_value = "topos-node-keystore.json",
+        env = "TOPOS_NODE_KEYSTORE_FILE"
+    )]
+    pub topos_node_keystore_file: String,
+
+    /// Keystore file password. If this parameter is not provided
+    /// password prompt will be opened
+    #[clap(long, env = "TOPOS_NODE_KEYSTORE_PASSWORD")]
+    pub topos_node_keystore_password: Option<String>,
 }
 
 impl AppArgs {
     pub fn parse_boot_peers(&self) -> Vec<(PeerId, Multiaddr)> {
-        log::info!("boot_peers: {:?}", self.boot_peers);
+        info!("boot_peers: {:?}", self.boot_peers);
         self.boot_peers
             .split(' ')
             .map(|s| s.to_string())
