@@ -17,7 +17,7 @@ use topos_tce_api::Runtime;
 async fn runtime_can_dispatch_a_cert() {
     let (tx, rx) = oneshot::channel::<Certificate>();
 
-    let (runtime_client, launcher) = Runtime::builder().build();
+    let (runtime_client, launcher) = Runtime::builder().build().await;
 
     spawn(launcher.launch());
 

@@ -2,7 +2,6 @@ use std::{
     collections::{HashMap, HashSet},
     time::Duration,
 };
-
 use tokio::{
     spawn,
     sync::mpsc::{self, Receiver, Sender},
@@ -13,10 +12,11 @@ use tracing::info;
 use uuid::Uuid;
 
 use crate::{
-    grpc::{ServerBuilder, TceGrpcService},
+    grpc::TceGrpcService,
     stream::{Stream, StreamCommand},
 };
 
+pub(crate) mod builder;
 mod client;
 mod commands;
 mod events;
@@ -26,6 +26,7 @@ mod tests;
 
 pub use client::RuntimeClient;
 
+use self::builder::RuntimeBuilder;
 pub(crate) use self::commands::InternalRuntimeCommand;
 
 pub use self::commands::RuntimeCommand;
@@ -42,8 +43,8 @@ pub struct Runtime {
 }
 
 impl Runtime {
-    pub fn builder() -> ServerBuilder {
-        ServerBuilder::default()
+    pub fn builder() -> RuntimeBuilder {
+        RuntimeBuilder::default()
     }
 
     pub async fn launch(mut self) {

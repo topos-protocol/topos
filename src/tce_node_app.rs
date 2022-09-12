@@ -48,7 +48,7 @@ async fn main() {
     // run protocol
     let (trbp_cli, trb_stream) = ReliableBroadcastClient::new(config);
 
-    let (_client, launcher) = topos_tce_api::Runtime::builder().build();
+    let (_client, launcher) = topos_tce_api::Runtime::builder().build().await;
 
     spawn(launcher.launch());
 
