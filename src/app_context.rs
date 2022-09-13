@@ -8,14 +8,13 @@ use log::info;
 use log::warn;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
-use tce_api::web_api::PeerChanged;
-use tce_api::{ApiRequests, ApiWorker};
+// use tce_api::web_api::PeerChanged;
+// use tce_api::{ApiRequests, ApiWorker};
 use tce_transport::{TrbpCommands, TrbpEvents};
 use tokio::spawn;
 use tokio::sync::oneshot;
 use topos_p2p::{Client, Event};
 use topos_tce_broadcast::sampler::SampleType;
-use topos_tce_broadcast::DoubleEchoCommand;
 use topos_tce_broadcast::{ReliableBroadcastClient, SamplerCommand};
 
 /// Top-level transducer main app context & driver (alike)
@@ -29,22 +28,15 @@ use topos_tce_broadcast::{ReliableBroadcastClient, SamplerCommand};
 pub struct AppContext {
     //pub store: Box<dyn trb_store::TrbStore>,
     pub trbp_cli: ReliableBroadcastClient,
-    pub api_worker: ApiWorker,
     pub network_client: Client,
 }
 
 impl AppContext {
     /// Factory
-    pub fn new(
-        //store: Box<dyn trb_store::TrbStore>,
-        trbp_cli: ReliableBroadcastClient,
-        api_worker: ApiWorker,
-        network_client: Client,
-    ) -> Self {
+    pub fn new(trbp_cli: ReliableBroadcastClient, network_client: Client) -> Self {
         Self {
             //store,
             trbp_cli,
-            api_worker,
             network_client,
         }
     }
@@ -58,11 +50,6 @@ impl AppContext {
         loop {
             tokio::select! {
 
-                // API
-                Ok(req) = self.api_worker.next_request() => {
-                    self.on_api_request(req);
-                }
-
                 // protocol
                 Some(Ok(evt)) = trb_stream.next() => {
                     self.on_protocol_event(evt).await;
@@ -72,56 +59,6 @@ impl AppContext {
                 Some(net_evt) = network_stream.next() => {
                     self.on_net_event(net_evt).await;
                 }
-            }
-        }
-    }
-
-    fn on_api_request(&mut self, req: ApiRequests) {
-        match req {
-            ApiRequests::PeerChanged {
-                req: PeerChanged { mut peers },
-                resp_channel,
-            } => {
-                resp_channel.send(()).expect("sync send");
-                info!("Peers have changed, notify the sampler");
-
-                spawn(
-                    self.trbp_cli.peer_changed(
-                        peers
-                            .iter_mut()
-                            .map(|e| e.parse::<PeerId>().unwrap().to_base58())
-                            .collect(),
-                    ),
-                );
-            }
-
-            ApiRequests::SubmitCert { req, resp_channel } => {
-                let command_sender = self.trbp_cli.get_double_echo_channel();
-                spawn(async move {
-                    command_sender
-                        .send(DoubleEchoCommand::Broadcast { cert: req.cert })
-                        .await
-                        .expect("SubmitCert");
-                    resp_channel.send(()).expect("sync send");
-                });
-            }
-
-            ApiRequests::DeliveredCerts { req, resp_channel } => {
-                let future = self
-                    .trbp_cli
-                    .delivered_certs(req.subnet_id.clone(), req.from_cert_id.clone());
-
-                spawn(async move {
-                    match future.await {
-                        Ok(the_certs) => {
-                            resp_channel.send(the_certs).expect("sync send");
-                        }
-
-                        _ => {
-                            log::error!("Request failure {:?}", req);
-                        }
-                    }
-                });
             }
         }
     }
