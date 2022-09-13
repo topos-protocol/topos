@@ -6,6 +6,7 @@ use rand_distr::Distribution;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Display, Formatter};
 use tokio_stream::StreamExt;
+use tracing::{debug, error, info, trace, warn};
 
 use tce_transport::{ReliableBroadcastParams, TrbpEvents};
 use tokio::runtime::Runtime;
@@ -256,7 +257,7 @@ fn submit_test_cert(
 }
 
 async fn run_tce_network(simu_config: SimulationConfig) -> Result<(), ()> {
-    log::info!("{:?}", simu_config);
+    info!("{:?}", simu_config);
 
     let conflict_ratio = 0.;
     let all_peer_ids: Vec<String> = (1..=simu_config.input.nb_peers)
@@ -359,11 +360,11 @@ fn watch_cert_delivered(
                 }
             }
 
-            log::trace!("Remaining ones: {}", remaining_peers_to_finish.len());
+            trace!("Remaining ones: {}", remaining_peers_to_finish.len());
         }
 
         // when done call signal to exit
-        log::info!("🎉 Totality for all the certificates!");
+        info!("🎉 Totality for all the certificates!");
         let _ = tx_exit.send(Ok(()));
     });
 }
@@ -398,7 +399,7 @@ fn launch_simulation_main_loop(
                         Ok(Some((from_peer, evt))) => {
                             match evt {
                                 TrbpEvents::Die => {
-                                    log::error!("The peer {:?} died", from_peer);
+                                    error!("The peer {:?} died", from_peer);
                                     return Err(());
                                 },
                                 _ => {
@@ -408,7 +409,7 @@ fn launch_simulation_main_loop(
                             }
                         },
                         Ok(None) | Err(_) => {
-                            log::error!("The simulation got stalled for {:?}", MAX_STALL_DURATION);
+                            error!("The simulation got stalled for {:?}", MAX_STALL_DURATION);
                             return Err(());
                         }
                     }
@@ -419,7 +420,7 @@ fn launch_simulation_main_loop(
                 }
                 // ... or timeout happened
                 () = &mut max_test_duration => {
-                    log::error!("Test took max long duration of {:?}, exiting.", MAX_TEST_DURATION);
+                    error!("Test took max long duration of {:?}, exiting.", MAX_TEST_DURATION);
                     return Err(());
                 }
             }
@@ -462,7 +463,7 @@ fn launch_broadcast_protocol_instances(
         });
     }
 
-    log::debug!("Network is launched, {:?}", peers_container.len());
+    debug!("Network is launched, {:?}", peers_container.len());
     peers_container
 }
 
@@ -473,7 +474,7 @@ fn network_delay() -> time::Sleep {
     let sample = dist.sample(&mut rng); // Range should be between 0 and 10 with lambda oof 4.0
     let delta: u64 = rng.gen_range(20..=99);
     let delay = (sample * 50.0) as u64 + delta; // Number of milliseconds of delay in 100 MS increments per Poisson
-    log::warn!("Network Delay: {:?}ms", delay);
+    warn!("Network Delay: {:?}ms", delay);
     time::sleep(Duration::from_millis(delay))
 }
 
@@ -605,7 +606,7 @@ pub async fn handle_peer_event(
             }
         }
         evt => {
-            log::debug!("[{:?}] Unhandled event: {:?}", from_peer, evt);
+            debug!("[{:?}] Unhandled event: {:?}", from_peer, evt);
         }
     }
     Ok(())

@@ -8,9 +8,9 @@ use std::{
     collections::{HashMap, HashSet},
 };
 
-use log::info;
 use tce_transport::{ReliableBroadcastParams, TrbpEvents};
 use tokio::sync::{broadcast, mpsc};
+use tracing::{debug, error, info, warn};
 
 use crate::SamplerCommand;
 
@@ -145,7 +145,7 @@ impl Sampler {
                     self.status = SampleProviderStatus::Stabilized;
                 }
                 Err(e) => {
-                    log::error!("Fail to send new sample view {:?} ", e);
+                    error!("Fail to send new sample view {:?} ", e);
                 }
             }
         }
@@ -216,24 +216,24 @@ impl Sampler {
         let echo_sizer = |len| min(len, self.params.echo_sample_size);
         match sample_reduce_from(&self.visible_peers, echo_sizer) {
             Ok(echo_candidates) => {
-                log::debug!(
+                debug!(
                     "reset_echo_subscription_sample - echo_candidates: {:?}",
                     echo_candidates
                 );
 
                 for peer in &echo_candidates.value {
-                    log::info!("Adding {peer} to pending echo subscriptions");
+                    info!("Adding {peer} to pending echo subscriptions");
                     self.pending_echo_subscriptions.insert(peer.clone());
                 }
 
                 if let Err(error) = self.event_sender.send(TrbpEvents::EchoSubscribeReq {
                     peers: echo_candidates.value,
                 }) {
-                    log::error!("Unable to send event {:?}", error);
+                    error!("Unable to send event {:?}", error);
                 }
             }
             Err(e) => {
-                log::warn!(
+                warn!(
                     "reset_echo_subscription_sample - failed to sample due to {:?}",
                     e
                 );
@@ -248,24 +248,24 @@ impl Sampler {
         let ready_sizer = |len| min(len, self.params.ready_sample_size);
         match sample_reduce_from(&self.visible_peers, ready_sizer) {
             Ok(ready_candidates) => {
-                log::debug!(
+                debug!(
                     "reset_ready_subscription_sample - ready_candidates: {:?}",
                     ready_candidates
                 );
 
                 for peer in &ready_candidates.value {
-                    log::info!("Adding {peer} to pending ready subscriptions");
+                    info!("Adding {peer} to pending ready subscriptions");
                     self.pending_ready_subscriptions.insert(peer.clone());
                 }
 
                 if let Err(error) = self.event_sender.send(TrbpEvents::ReadySubscribeReq {
                     peers: ready_candidates.value,
                 }) {
-                    log::error!("Unable to send event {:?}", error);
+                    error!("Unable to send event {:?}", error);
                 }
             }
             Err(e) => {
-                log::warn!(
+                warn!(
                     "reset_ready_subscription_sample - failed to sample due to {:?}",
                     e
                 );
@@ -280,24 +280,24 @@ impl Sampler {
         let delivery_sizer = |len| min(len, self.params.delivery_sample_size);
         match sample_reduce_from(&self.visible_peers, delivery_sizer) {
             Ok(delivery_candidates) => {
-                log::debug!(
+                debug!(
                     "reset_delivery_subscription_sample - delivery_candidates: {:?}",
                     delivery_candidates
                 );
 
                 for peer in &delivery_candidates.value {
-                    log::info!("Adding {peer} to pending delivery subscriptions");
+                    info!("Adding {peer} to pending delivery subscriptions");
                     self.pending_delivery_subscriptions.insert(peer.clone());
                 }
 
                 if let Err(error) = self.event_sender.send(TrbpEvents::ReadySubscribeReq {
                     peers: delivery_candidates.value,
                 }) {
-                    log::error!("Unable to send event {:?}", error);
+                    error!("Unable to send event {:?}", error);
                 }
             }
             Err(e) => {
-                log::warn!(
+                warn!(
                     "reset_delivery_subscription_sample - failed to sample due to {:?}",
                     e
                 );

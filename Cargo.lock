@@ -5036,6 +5036,7 @@ dependencies = [
  "serde",
  "test-log",
  "tokio",
+ "topos-core",
  "topos-p2p",
  "topos-tce-api",
  "topos-tce-broadcast",
@@ -5081,7 +5082,6 @@ version = "0.1.0"
 dependencies = [
  "byteorder",
  "futures",
- "log",
  "opentelemetry",
  "pretty_env_logger",
  "rand 0.8.5",
@@ -5093,6 +5093,8 @@ dependencies = [
  "topos-core",
  "topos-tce-telemetry",
  "topos-tce-transport",
+ "tracing",
+ "tracing-subscriber 0.3.15",
 ]
 
 [[package]]
