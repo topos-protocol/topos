@@ -70,7 +70,7 @@ pub enum TrbpCommands {
 }
 
 /// Protocol events
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum TrbpEvents {
     /// Emitted to get peers list, expected that Commands.ApplyPeers will come as reaction
     NeedPeers,

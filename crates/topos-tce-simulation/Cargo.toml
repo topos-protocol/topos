@@ -30,7 +30,7 @@ pretty_env_logger = "0.4.0"
 fastapprox = "0.3.0"
 
 # tce dependencies
-tce_api = { package = "topos-tce-api", path = "../topos-tce-api" }
+# tce_api = { package = "topos-tce-api", path = "../topos-tce-api" }
 tce_store = { package = "topos-tce-store", path = "../topos-tce-store" }
 tce_transport = { package = "topos-tce-transport", path = "../topos-tce-transport" }
 

@@ -2,7 +2,6 @@ mod app_context;
 
 use clap::Parser;
 
-use tce_api::{ApiConfig, ApiWorker};
 use tokio::spawn;
 use topos_tce_broadcast::mem_store::TrbMemStore;
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
@@ -49,10 +48,9 @@ async fn main() {
     // run protocol
     let (trbp_cli, trb_stream) = ReliableBroadcastClient::new(config);
 
-    // run APi services
-    let api = ApiWorker::new(ApiConfig {
-        web_port: args.web_api_local_port,
-    });
+    let (_client, launcher) = topos_tce_api::Runtime::builder().build().await;
+
+    spawn(launcher.launch());
 
     let (client, event_stream, runtime) = topos_p2p::network::builder()
         .peer_key(local_key_pair(args.local_key_seed))
@@ -65,7 +63,7 @@ async fn main() {
     spawn(runtime.run());
 
     // setup transport-trbp-storage-api connector
-    let app_context = AppContext::new(trbp_cli, api, client);
+    let app_context = AppContext::new(trbp_cli, client);
     app_context.run(event_stream, trb_stream).await;
 }
 

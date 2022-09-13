@@ -2,10 +2,6 @@
 name = "topos-tce-api"
 version = "0.1.0"
 edition = "2021"
-license = "MIT"
-
-[lib]
-path = 'src/lib.rs'
 
 [dependencies]
 bytes = "1.1.0"
@@ -26,4 +22,22 @@ tokio = { version = "1.20.0", features = [
 
 topos-tce-broadcast = { path = "../topos-tce-broadcast" }
 
-topos-core = { git = "https://github.com/toposware/topos-core", branch = "main", features = ["uci"], version = "0.1.0" }
+async-stream = "0.3.3"
+futures = "0.3.24"
+tokio-stream = "0.1.9"
+tonic = { version = "0.8.0", features = ["transport"] }
+tonic-reflection = "0.5.0"
+topos-core = { git = "https://github.com/toposware/topos-core", branch = "main", features = ["uci", "api"], version = "0.1.0" }
+tracing = "0.1.36"
+uuid = { version = "1.1.2", features = ["v4"] }
+tonic-health = "0.7.0"
+
+[dev-dependencies]
+bytes = "1.2.1"
+env_logger = "0.9.0"
+http = "0.2.8"
+http-body = "0.4.5"
+hyper = "0.14.20"
+prost = "0.11.0"
+test-log = { version = "0.2", features = ["trace"] }
+tracing-subscriber = {version = "0.3", default-features = false, features = ["env-filter", "fmt"]}
