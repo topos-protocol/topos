@@ -4,7 +4,6 @@
 use crate::AppArgs;
 use serde::{Deserialize, Serialize};
 use topos_api::{ApiRequests, ApiWorker};
-use topos_core::uci::CrossChainTransaction;
 use topos_core_certification::CertificationWorker;
 use topos_core_runtime_proxy::RuntimeProxyWorker;
 use topos_core_tce_proxy::TceProxyWorker;
@@ -24,6 +23,7 @@ use topos_net::{NetworkEvents, NetworkWorker};
 /// config+data as input and runs app returning data as output
 ///
 pub struct AppContext {
+    #[allow(dead_code)]
     config: AppArgs,
     pub certification_worker: CertificationWorker,
     pub runtime_proxy_worker: RuntimeProxyWorker,
@@ -114,17 +114,13 @@ impl AppContext {
     async fn on_tce_proxy_event(&mut self, evt: TceProxyEvent) {
         match evt {
             TceProxyEvent::NewDeliveredCerts(certs) => {
-                let mut txns = Vec::<CrossChainTransaction>::new();
+                // New certificates acquired from tce, pass them to substrate runtimime proxy
+                // for processing
                 for cert in certs {
-                    for txn in cert.calls {
-                        if txn.terminal_subnet_id == self.config.subnet_id {
-                            txns.push(txn);
-                        }
-                    }
+                    self.runtime_proxy_worker
+                        .eval(RuntimeProxyCommand::OnNewDeliveredTxns(cert))
+                        .expect("Send cross transactions to the runtime");
                 }
-                self.runtime_proxy_worker
-                    .eval(RuntimeProxyCommand::OnNewDeliveredTxns(txns))
-                    .expect("Send cross transactions to the runtime");
             }
         }
     }

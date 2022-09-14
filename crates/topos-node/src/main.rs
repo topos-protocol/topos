@@ -27,8 +27,9 @@ async fn main() {
     // Launch the workers
     let certification = CertificationWorker::new(args.subnet_id.clone());
     let runtime_proxy = RuntimeProxyWorker::new(RuntimeProxyConfig {
+        subnet_id: args.subnet_id.clone(),
         endpoint: args.substrate_subnet_rpc_endpoint.clone(),
-        topos_core_contract: args.topos_core_contract.clone(),
+        subnet_contract: args.subnet_contract.clone(),
         keystore_file: args.topos_node_keystore_file.clone(),
         keystore_password: pass,
     });
@@ -104,9 +105,9 @@ pub struct AppArgs {
     )]
     pub substrate_subnet_rpc_endpoint: String,
 
-    // Topos core contract Eth address
-    #[clap(long, env = "TOPOS_CORE_CONTRACT")]
-    pub topos_core_contract: String,
+    // Ethereum core contract address
+    #[clap(long, env = "SUBNET_CONTRACT")]
+    pub subnet_contract: String,
 
     /// Base Uri of TCE node to call API at
     #[clap(
