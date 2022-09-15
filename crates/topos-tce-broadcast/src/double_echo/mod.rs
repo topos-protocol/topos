@@ -394,3 +394,61 @@ fn is_r_ready(params: &ReliableBroadcastParams, state: &DeliveryState) -> bool {
         _ => false,
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+    use crate::mem_store::TrbMemStore;
+
+    #[tokio::test]
+    async fn handle_receiving_sample_view() {
+        let (_view_sender, view_receiver) = mpsc::channel(10);
+
+        // Network parameters
+        let nb_peers = 100;
+        let sample_size = 10;
+        let g = |a, b| ((a as f32) * b) as usize;
+        let broadcast_params = ReliableBroadcastParams {
+            echo_threshold: g(sample_size, 0.5),
+            echo_sample_size: sample_size,
+            ready_threshold: g(sample_size, 0.5),
+            ready_sample_size: sample_size,
+            delivery_threshold: g(sample_size, 0.5),
+            delivery_sample_size: sample_size,
+        };
+
+        // List of peers
+        let mut peers = Vec::new();
+        for i in 0..nb_peers {
+            peers.push(format!("peer_{i}"));
+        }
+
+        let my_peer_id = peers[0].clone();
+
+        let mut expected_view = SampleView::default();
+        expected_view.insert(SampleType::EchoSubscription, Default::default());
+        expected_view.insert(SampleType::ReadySubscription, Default::default());
+        expected_view.insert(SampleType::DeliverySubscription, Default::default());
+
+        // Double Echo
+        let (_, cmd_receiver) = mpsc::channel(10);
+        let (event_sender, mut _event_receiver) = broadcast::channel(10);
+        let double_echo = DoubleEcho::new(
+            my_peer_id,
+            broadcast_params,
+            cmd_receiver,
+            view_receiver,
+            event_sender,
+            Box::new(TrbMemStore::default()),
+        );
+
+        assert!(double_echo.current_sample_view.is_none());
+
+        // spawn(double_echo.run());
+
+        // view_sender.send(expected_view);
+
+        // assert!(matches!(double_echo.current_sample_view, Some(view) if view == expected_view));
+    }
+}
