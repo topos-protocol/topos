@@ -505,7 +505,8 @@ impl DiscoveryBehaviour {
         let local_peer_id = peer_key.public().to_peer_id();
         let kademlia_config = KademliaConfig::default()
             .set_protocol_name(discovery_protocol.as_bytes())
-            .set_replication_factor(NonZeroUsize::new(1).unwrap())
+            // TODO: use environement variable
+            .set_replication_factor(NonZeroUsize::new(2).unwrap())
             // .set_replication_interval(Some(Duration::from_secs(30)))
             // .set_publication_interval(Some(Duration::from_secs(30)))
             // .set_provider_publication_interval(Some(Duration::from_secs(30)))

@@ -162,7 +162,12 @@ impl Runtime {
                 certificate,
                 sender,
             } => {
-                info!("A certificate has been submitted to the TCE {certificate:?}");
+                info!(
+                    initial_subnet_id = certificate.initial_subnet_id,
+                    cert_id = certificate.cert_id,
+                    "A certificate has been submitted to the TCE",
+                );
+
                 if let Err(error) = self
                     .api_event_sender
                     .send(RuntimeEvent::CertificateSubmitted {

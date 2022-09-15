@@ -287,7 +287,19 @@ impl AppContext {
 
     async fn on_net_event(&mut self, evt: NetEvent) {
         match evt {
-            NetEvent::PeersChanged { .. } => {}
+            NetEvent::PeersChanged { new_peers } => {
+                let sender = self.trbp_cli.get_sampler_channel().clone();
+
+                info!("Sending PeersChanged to Sampler {new_peers:?}");
+                _ = sender
+                    .send(SamplerCommand::PeersChanged {
+                        peers: new_peers
+                            .iter()
+                            .map(|peer_id| peer_id.to_string())
+                            .collect(),
+                    })
+                    .await;
+            }
 
             NetEvent::TransmissionOnReq {
                 from: _,

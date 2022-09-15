@@ -5,7 +5,7 @@ ARG GITHUB_TOKEN
 ARG CODECOV_TOKEN
 
 ENV CARGO_TERM_COLOR=always
-ENV RUSTFLAGS=-Dwarnings
+# ENV RUSTFLAGS=-Dwarnings
 ENV RUST_BACKTRACE=1
 
 RUN git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"

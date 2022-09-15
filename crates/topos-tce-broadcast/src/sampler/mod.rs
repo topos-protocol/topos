@@ -8,6 +8,7 @@ use std::{
     collections::{HashMap, HashSet},
 };
 
+use serde::Serialize;
 use tce_transport::{ReliableBroadcastParams, TrbpEvents};
 use tokio::sync::{broadcast, mpsc};
 use tracing::{debug, error, info, warn};
@@ -31,7 +32,7 @@ pub enum SampleProviderStatus {
     Stabilized,
 }
 
-#[derive(PartialEq, Eq, Hash, Debug, Clone)]
+#[derive(Serialize, PartialEq, Eq, Hash, Debug, Clone)]
 pub enum SampleType {
     /// Inbound: FROM external peer TO me
     /// Message from those I am following
@@ -114,10 +115,11 @@ impl Sampler {
     ) -> Result<(), ()> {
         if self
             .view
-            .entry(sample_type)
+            .entry(sample_type.clone())
             .or_default()
             .insert(peer.to_string())
         {
+            info!("Confirmed {peer} into {sample_type:?}, {:?}", self.view);
             Ok(())
         } else {
             Err(())
@@ -136,7 +138,19 @@ impl Sampler {
 
         let stable_view = self.pending_echo_subscriptions.is_empty()
             && self.pending_ready_subscriptions.is_empty()
-            && self.pending_delivery_subscriptions.is_empty();
+            && self.pending_delivery_subscriptions.is_empty()
+            && self
+                .view
+                .get(&SampleType::EchoSubscriber)
+                .map(|v| if v.is_empty() { None } else { Some(v) })
+                .flatten()
+                .is_some()
+            && self
+                .view
+                .get(&SampleType::ReadySubscriber)
+                .map(|v| if v.is_empty() { None } else { Some(v) })
+                .flatten()
+                .is_some();
 
         if stable_view {
             // Attempt to send the new view to the Broadcaster

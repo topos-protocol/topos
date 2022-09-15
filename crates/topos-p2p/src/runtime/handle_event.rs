@@ -1,10 +1,10 @@
-use std::io;
-
 use libp2p::{
-    core::either::EitherError,
+    core::{either::EitherError, Endpoint},
     multiaddr::Protocol,
+    ping::PingFailure as Failure,
     swarm::{ConnectionHandlerUpgrErr, SwarmEvent},
 };
+use std::io;
 use tracing::{error, info, instrument, warn};
 
 use crate::{event::ComposedEvent, Runtime};
@@ -15,7 +15,11 @@ impl Runtime {
         &mut self,
         event: SwarmEvent<
             ComposedEvent,
-            EitherError<EitherError<io::Error, io::Error>, ConnectionHandlerUpgrErr<io::Error>>,
+            // EitherError<EitherError<io::Error, io::Error>, ConnectionHandlerUpgrErr<io::Error>>,
+            EitherError<
+                EitherError<EitherError<Failure, io::Error>, io::Error>,
+                ConnectionHandlerUpgrErr<io::Error>,
+            >,
         >,
     ) {
         match event {
@@ -35,8 +39,10 @@ impl Runtime {
                 peer_id, endpoint, ..
             } => {
                 info!(
-                    "Connection established with peer {peer_id} as {:?}",
-                    endpoint.to_endpoint()
+                    peer_id = peer_id.to_string(),
+                    direction = format!("{:?}", endpoint.to_endpoint()),
+                    addresses = endpoint.get_remote_address().to_string(),
+                    "Connection established with peer: {peer_id}"
                 );
             }
             SwarmEvent::IncomingConnection { local_addr, .. } => {
@@ -53,7 +59,20 @@ impl Runtime {
                 );
             }
 
-            SwarmEvent::ConnectionClosed { peer_id, .. } => info!("ConnectionClosed {peer_id}"),
+            SwarmEvent::ConnectionClosed {
+                peer_id, endpoint, ..
+            } => {
+                info!(
+                    peer_id = peer_id.to_string(),
+                    direction = match endpoint.to_endpoint() {
+                        Endpoint::Dialer => "dialer",
+                        Endpoint::Listener => "listener",
+                    },
+                    addresses = endpoint.get_remote_address().to_string(),
+                    "Connection closed with peer {}",
+                    peer_id
+                );
+            }
 
             SwarmEvent::Dialing(peer_id) => {
                 info!("Dial {:?} from {:?}", peer_id, *self.swarm.local_peer_id());

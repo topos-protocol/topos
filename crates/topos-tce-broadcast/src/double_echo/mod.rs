@@ -101,11 +101,10 @@ impl DoubleEcho {
                         }
                         _ => {}
                     }
-
                 }
 
                 Some(new_sample_view) = self.sample_view_receiver.recv() => {
-                    info!("New sample receive on DoubleEcho {new_sample_view:?}");
+                    info!(sample = serde_json::to_string(&new_sample_view).unwrap(), "New sample receive on DoubleEcho {new_sample_view:?}");
 
                     self.current_sample_view = Some(new_sample_view);
                 }

@@ -4,6 +4,7 @@ mod storage;
 
 use crate::app_context::AppContext;
 use crate::cli::AppArgs;
+
 use clap::Parser;
 use tce_store::{Store, StoreConfig};
 use tokio::spawn;
@@ -14,7 +15,7 @@ use tracing::info;
 
 #[tokio::main]
 async fn main() {
-    pretty_env_logger::init_timed();
+    console_subscriber::init();
     info!("Initializing application");
     let args = AppArgs::parse();
 
@@ -23,20 +24,21 @@ async fn main() {
     // launch data store
     info!(
         "Storage: {}",
-        if let Some(db_path) = args.db_path.clone() {
-            format!("RocksDB: {}", &db_path)
-        } else {
+        // if let Some(db_path) = args.db_path.clone() {
+        // } else {
             "RAM".to_string()
-        }
+        // }
     );
     let config = ReliableBroadcastConfig {
-        store: if let Some(db_path) = args.db_path.clone() {
-            // Use RocksDB
-            Box::new(Store::new(StoreConfig { db_path }))
-        } else {
+        store: 
+        //  if let Some(db_path) = args.db_path.clone() {
+        //     // Use RocksDB
+        //     Box::new(Store::new(StoreConfig { db_path }))
+        // } else {
             // Use in RAM storage
             Box::new(TrbMemStore::new(Vec::new()))
-        },
+        // },
+            ,
         trbp_params: args.trbp_params.clone(),
         my_peer_id: "main".to_string(),
     };

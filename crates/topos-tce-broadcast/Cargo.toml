@@ -19,8 +19,10 @@ tce_transport = { package = "topos-tce-transport", path = "../topos-tce-transpor
 tce_telemetry = { package = "topos-tce-telemetry", path = "../topos-tce-telemetry" }
 
 byteorder = "1.4.3"
-opentelemetry = { version = "0.17", default-features = false, features = ["trace", "rt-tokio"] }
 thiserror = "1.0.36"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+serde_json = "1.0.85"
 
 [dev-dependencies]
 pretty_env_logger = "0.4.0"

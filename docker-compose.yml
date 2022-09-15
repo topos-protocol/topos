@@ -1,89 +1,94 @@
-networks:
-  tce:
-    ipam:
-      config:
-        - subnet: 192.168.55.0/24
+version: "3.9"
 services:
-  tce-boot-node:
-    build: .
+  boot-node:
+    build:
+      context: .
+      args:
+        GITHUB_TOKEN: "${GITHUB_TOKEN}"
+        TOOLCHAIN_VERSION: stable
     image: ghcr.io/toposware/tce:latest
+    container_name: boot-node
     ports:
-      - "1001:9090"
-      - "8081:8080"
-    networks:
-      tce:
-        ipv4_address: 192.168.55.11
+      - "1340:1340"
+      - "9090"
+      - "8080"
+      - "6669:6669"
+    command: "./topos-tce-app"
     environment:
-      - RUST_LOG=debug
+      - RUST_LOG=info
+      - TCE_PORT=9090
       - TCE_LOCAL_KS=1 # 12D3KooWPjceQrSwdWXPyLLeABRXmuqt69Rg3sBYbU1Nft9HyQ6X
       - TCE_JAEGER_AGENT=nohost:6831
-    command: 
-      - "./topos-tce-app"
-  peer2:
-    build: .
+      - TCE_API_HOST=0.0.0.0:1340
+      - TCE_CONSOLE_BIND=0.0.0.0:6669
+
+  node:
+    build:
+      context: .
+      args:
+        GITHUB_TOKEN: "${GITHUB_TOKEN}"
+        TOOLCHAIN_VERSION: stable
     image: ghcr.io/toposware/tce:latest
+    deploy:
+      replicas: 15
     ports:
-      - "1002:9090"
-      - "8082:8080"
-    networks:
-      tce:
-        ipv4_address: 192.168.55.12
+      - "9090"
+      - "8080"
     environment:
-      - RUST_LOG=debug
-      - TCE_BOOT_PEERS=12D3KooWPjceQrSwdWXPyLLeABRXmuqt69Rg3sBYbU1Nft9HyQ6X /dns4/tce-boot-node/tcp/9090
+      - RUST_LOG=info
+      - TCE_PORT=9090
+      - TCE_BOOT_PEERS=12D3KooWPjceQrSwdWXPyLLeABRXmuqt69Rg3sBYbU1Nft9HyQ6X /dns4/boot-node/tcp/9090
       - TCE_JAEGER_AGENT=nohost:6831
-    command:
-      - "./topos-tce-app"
+    command: "./topos-tce-app"
     depends_on:
-      - tce-boot-node
-#  peer3:
-#    build: .
-#    image: ghcr.io/toposware/tce:latest
-#    ports:
-#      - "1003:9090"
-#      - "8083:8080"
-#    networks:
-#      tce:
-#        ipv4_address: 192.168.55.13
-#    environment:
-#      - RUST_LOG=info
-#      - TCE_BOOT_PEERS=12D3KooWPjceQrSwdWXPyLLeABRXmuqt69Rg3sBYbU1Nft9HyQ6X /dns4/tce-boot-node/tcp/9090
-#      - TCE_JAEGER_AGENT=nohost:6831
-#    command:
-#      - "./topos-tce-app"
-#    depends_on:
-#      - tce-boot-node
-#  peer4:
-#    build: .
-#    image: ghcr.io/toposware/tce:latest
-#    ports:
-#      - "1004:9090"
-#      - "8084:8080"
-#    networks:
-#      tce:
-#        ipv4_address: 192.168.55.14
-#    environment:
-#      - RUST_LOG=info
-#      - TCE_BOOT_PEERS=12D3KooWPjceQrSwdWXPyLLeABRXmuqt69Rg3sBYbU1Nft9HyQ6X /dns4/tce-boot-node/tcp/9090
-#      - TCE_JAEGER_AGENT=nohost:6831
-#    command:
-#      - "./topos-tce-app"
-#    depends_on:
-#      - tce-boot-node
-#  peer5:
-#    build: .
-#    image: ghcr.io/toposware/tce:latest
-#    ports:
-#      - "1005:9090"
-#      - "8085:8080"
-#    networks:
-#      tce:
-#        ipv4_address: 192.168.55.15
-#    environment:
-#      - RUST_LOG=info
-#      - TCE_BOOT_PEERS=12D3KooWPjceQrSwdWXPyLLeABRXmuqt69Rg3sBYbU1Nft9HyQ6X /dns4/tce-boot-node/tcp/9090
-#      - TCE_JAEGER_AGENT=nohost:6831
-#    command:
-#      - "./topos-tce-app"
-#    depends_on:
-#      - tce-boot-node
+      - boot-node
+
+  cadvisor:
+    container_name: cadvisor
+    image: gcr.io/cadvisor/cadvisor:v0.45.0
+    ports:
+      - "8080:8080"
+    privileged: true
+    depends_on:
+      - boot-node
+      - node
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/run/docker.sock:/var/run/docker.sock:rw
+
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus:v2.38.0
+    ports:
+      - "9090:9090"
+    restart: always
+    depends_on:
+      - cadvisor
+    volumes:
+      - "./config/prometheus/:/etc/prometheus/"
+      - "prometheus-storage:/prometheus"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/etc/prometheus/console_libraries"
+      - "--web.console.templates=/etc/prometheus/consoles"
+
+  grafana:
+    container_name: grafana
+    image: grafana/grafana:9.0.6
+    ports:
+      - "3000:3000"
+    restart: always
+    depends_on:
+      - prometheus
+    volumes:
+      - "grafana-storage:/var/lib/grafana"
+      - ./config/grafana/provisioning/:/etc/grafana/provisioning/
+    env_file:
+      - ./config/grafana/config.monitoring
+
+volumes:
+  prometheus-storage:
+  grafana-storage:

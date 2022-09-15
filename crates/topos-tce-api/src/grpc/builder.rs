@@ -1,6 +1,6 @@
+use futures::future::BoxFuture;
+use futures::FutureExt;
 use std::net::SocketAddr;
-
-use futures::{future::BoxFuture, FutureExt};
 use tokio::sync::mpsc::Sender;
 use tonic_health::server::HealthReporter;
 use topos_core::api::tce::v1::api_service_server::ApiServiceServer;
@@ -39,7 +39,9 @@ impl ServerBuilder {
             .take()
             .expect("Cannot build gRPC without an InternalRuntimeCommand sender");
 
-        let service = ApiServiceServer::new(TceGrpcService { command_sender });
+        let service = ApiServiceServer::new(TceGrpcService {
+            command_sender: command_sender.clone(),
+        });
 
         let (mut health_reporter, health_service) = tonic_health::server::health_reporter();
 

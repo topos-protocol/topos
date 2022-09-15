@@ -1,0 +1,91 @@
+syntax = "proto3";
+
+package console.instrument;
+
+import "google/protobuf/timestamp.proto";
+
+service Instrument {
+  rpc WatchUpdates(WatchUpdatesRequest) returns (stream WatchUpdatesResponse) {}
+}
+
+message WatchUpdatesRequest {
+}
+
+message WatchUpdatesResponse {
+  google.protobuf.Timestamp now = 1;
+
+  InitialState initial_state = 2;
+
+  repeated NetworkUpdate network_update = 3;
+  repeated RuntimeUpdate runtime_update = 4;
+  repeated DoubleEchoUpdate double_echo_update = 5;
+}
+
+message NetworkUpdate {
+  oneof update {
+    ConnectedPeer connected_peer = 1;
+    DisconnectedPeer disconnected_peer = 2;
+  }
+}
+
+message DoubleEchoUpdate {
+  oneof update {
+    NewSample new_sample = 1;
+  }
+}
+
+message ConnectedPeer {
+  string peer_id = 1;
+  string addresses = 2;
+  string direction = 3;
+}
+
+message DisconnectedPeer {
+  string peer_id = 1;
+}
+
+message RuntimeUpdate {
+  oneof update {
+    NewCertificate new_certificate = 1;
+  }
+}
+
+message NewCertificate {
+  string cert_id = 1;
+  string subnet_id = 2;
+}
+
+message PendingCertificate {
+  string cert_id = 1;
+  string subnet_id = 2;
+}
+
+message ValidatedCertificate {
+  string cert_id = 1;
+  string subnet_id = 2;
+}
+
+message Stream {
+  string stream_uuid = 1;
+  repeated string subnet_ids = 2;
+}
+
+message Sample {
+  repeated string echo_subscribers = 1;
+  repeated string ready_subscribers = 2;
+  repeated string echo_subsriptions = 3;
+  repeated string ready_subsriptions = 4;
+  repeated string delivery_subsriptions = 5;
+}
+
+message InitialState {
+  repeated ConnectedPeer peers = 1;
+  repeated PendingCertificate pending_certificate = 2;
+  repeated ValidatedCertificate validated_certificate = 3;
+  Sample current_sample = 4;
+  repeated Stream streams = 5;
+}
+
+message NewSample {
+    Sample sample = 1;
+}

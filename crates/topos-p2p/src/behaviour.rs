@@ -100,7 +100,7 @@ impl NetworkBehaviourEventProcess<DiscoveryOut> for Behaviour {
                 if self.discovery.peers.insert(peer) {
                     self.events
                         .push_back(ComposedEvent::OutEvent(Event::PeersChanged {
-                            new_peers: vec![peer],
+                            new_peers: self.discovery.peers.iter().cloned().collect(),
                         }))
                 }
             }
@@ -142,6 +142,10 @@ impl NetworkBehaviourEventProcess<PeerInfoOut> for Behaviour {
                         .iter()
                         .any(|p| p.as_bytes() == self.discovery.kademlia.protocol_name())
                 {
+                    info!(
+                        "PeerInfo: Identify peer: {:?} with {:?}",
+                        peer_id, listen_addrs
+                    );
                     for addr in listen_addrs {
                         self.transmission.inner.add_address(&peer_id, addr.clone());
                         self.discovery.kademlia.add_address(&peer_id, addr);

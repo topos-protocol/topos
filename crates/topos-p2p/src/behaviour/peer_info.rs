@@ -4,12 +4,13 @@ use std::{
 };
 
 use libp2p::{
-    core::{connection::ConnectionId, ConnectedPoint},
+    core::{connection::ConnectionId, either::EitherOutput, ConnectedPoint},
     identify::{Identify, IdentifyConfig, IdentifyEvent, IdentifyInfo},
     identity::Keypair,
+    ping::{self, Ping},
     swarm::{
-        ConnectionHandler, IntoConnectionHandler, NetworkBehaviour, NetworkBehaviourAction,
-        PollParameters,
+        ConnectionHandler, IntoConnectionHandler, IntoConnectionHandlerSelect, NetworkBehaviour,
+        NetworkBehaviourAction, PollParameters,
     },
     Multiaddr, PeerId,
 };
@@ -17,6 +18,7 @@ use tracing::{error, info};
 
 pub struct PeerInfoBehaviour {
     identify: Identify,
+    ping: Ping,
 
     /// Events to dispatch in the stream
     events: VecDeque<PeerInfoOut>,
@@ -40,12 +42,15 @@ pub enum PeerInfoOut {
 }
 
 impl NetworkBehaviour for PeerInfoBehaviour {
-    type ConnectionHandler = <Identify as NetworkBehaviour>::ConnectionHandler;
+    type ConnectionHandler = IntoConnectionHandlerSelect<
+        <Ping as NetworkBehaviour>::ConnectionHandler,
+        <Identify as NetworkBehaviour>::ConnectionHandler,
+    >;
 
     type OutEvent = PeerInfoOut;
 
     fn new_handler(&mut self) -> Self::ConnectionHandler {
-        self.identify.new_handler()
+        IntoConnectionHandler::select(self.ping.new_handler(), self.identify.new_handler())
     }
 
     fn inject_connection_established(
@@ -63,6 +68,14 @@ impl NetworkBehaviour for PeerInfoBehaviour {
             failed_addresses,
             other_established,
         );
+
+        self.ping.inject_connection_established(
+            peer_id,
+            connection_id,
+            endpoint,
+            failed_addresses,
+            other_established,
+        );
     }
     fn inject_event(
         &mut self,
@@ -70,7 +83,15 @@ impl NetworkBehaviour for PeerInfoBehaviour {
         connection: ConnectionId,
         event: <<Self::ConnectionHandler as IntoConnectionHandler>::Handler as ConnectionHandler>::OutEvent,
     ) {
-        self.identify.inject_event(peer_id, connection, event)
+        match event {
+            EitherOutput::First(ping_event) => {
+                self.ping.inject_event(peer_id, connection, ping_event)
+            }
+            EitherOutput::Second(identify_event) => {
+                self.identify
+                    .inject_event(peer_id, connection, identify_event)
+            }
+        }
     }
 
     fn inject_connection_closed(
@@ -117,6 +138,7 @@ impl NetworkBehaviour for PeerInfoBehaviour {
                     if opts.get_peer_id().is_none() {
                         error!("The peer-info isn't supposed to start dialing addresses");
                     }
+                    let handler = IntoConnectionHandler::select(self.ping.new_handler(), handler);
                     return Poll::Ready(NetworkBehaviourAction::Dial { opts, handler });
                 }
                 NetworkBehaviourAction::NotifyHandler {
@@ -127,7 +149,7 @@ impl NetworkBehaviour for PeerInfoBehaviour {
                     return Poll::Ready(NetworkBehaviourAction::NotifyHandler {
                         peer_id,
                         handler,
-                        event,
+                        event: EitherOutput::Second(event),
                     })
                 }
                 NetworkBehaviourAction::ReportObservedAddr { address, score } => {
@@ -159,6 +181,7 @@ impl PeerInfoBehaviour {
         let identify = Identify::new(ident_config);
 
         Self {
+            ping: Ping::new(ping::Config::default().with_keep_alive(true)),
             identify,
             events: VecDeque::new(),
         }

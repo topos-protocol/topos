@@ -1,0 +1,26 @@
+[package]
+name = "topos-tce-console-api"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+# Generate code that is compatible with Tonic's `transport` module.
+transport = ["tonic-build/transport", "tonic/transport"]
+
+[dependencies]
+tonic = { version = "0.8", default-features = false, features = [
+    "prost",
+    "codegen",
+    "transport",
+] }
+prost = "0.11"
+prost-types = "0.11"
+tracing-core = "0.1.17"
+
+[build-dependencies]
+tonic-build = { version = "0.8", default-features = false, features = [
+    "prost", "transport"
+] }
+
