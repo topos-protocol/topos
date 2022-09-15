@@ -441,7 +441,7 @@ mod tests {
 
     #[tokio::test]
     async fn handle_receiving_sample_view() {
-        let (view_sender, view_receiver) = mpsc::channel(10);
+        let (_view_sender, view_receiver) = mpsc::channel(10);
 
         // Network parameters
         let nb_peers = 100;
@@ -475,6 +475,14 @@ mod tests {
             view_receiver,
             event_sender,
             Box::new(TrbMemStore::default()),
+        );
+
+        assert_eq!(
+            expected_view
+                .get(&SampleType::EchoSubscriber)
+                .unwrap()
+                .len(),
+            sample_size
         );
 
         assert!(double_echo.current_sample_view.is_none());
