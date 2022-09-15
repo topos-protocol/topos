@@ -441,7 +441,7 @@ mod tests {
 
     #[tokio::test]
     async fn handle_receiving_sample_view() {
-        let (_view_sender, view_receiver) = mpsc::channel(10);
+        let (view_sender, view_receiver) = mpsc::channel(10);
 
         // Network parameters
         let nb_peers = 100;
