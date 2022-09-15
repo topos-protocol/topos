@@ -398,12 +398,42 @@ fn is_r_ready(params: &ReliableBroadcastParams, state: &DeliveryState) -> bool {
 #[cfg(test)]
 mod tests {
 
+    use std::usize;
+
     use super::*;
     use crate::mem_store::TrbMemStore;
+    use rand::Rng;
+
+    fn get_sample(peers: &Vec<Peer>, sample_size: usize) -> HashSet<Peer> {
+        let mut rng = rand::thread_rng();
+        HashSet::from_iter((0..=sample_size).map(|_| peers[rng.gen_range(0..peers.len())].clone()))
+    }
+
+    fn get_sample_view(peers: Vec<Peer>, sample_size: usize) -> SampleView {
+        let mut expected_view = SampleView::default();
+
+        expected_view.insert(
+            SampleType::EchoSubscription,
+            get_sample(&peers, sample_size),
+        );
+        expected_view.insert(
+            SampleType::ReadySubscription,
+            get_sample(&peers, sample_size),
+        );
+        expected_view.insert(
+            SampleType::DeliverySubscription,
+            get_sample(&peers, sample_size),
+        );
+
+        expected_view.insert(SampleType::EchoSubscriber, get_sample(&peers, sample_size));
+        expected_view.insert(SampleType::ReadySubscriber, get_sample(&peers, sample_size));
+
+        expected_view
+    }
 
     #[tokio::test]
     async fn handle_receiving_sample_view() {
-        let (_view_sender, view_receiver) = mpsc::channel(10);
+        let (view_sender, view_receiver) = mpsc::channel(10);
 
         // Network parameters
         let nb_peers = 100;
@@ -425,15 +455,11 @@ mod tests {
         }
 
         let my_peer_id = peers[0].clone();
-
-        let mut expected_view = SampleView::default();
-        expected_view.insert(SampleType::EchoSubscription, Default::default());
-        expected_view.insert(SampleType::ReadySubscription, Default::default());
-        expected_view.insert(SampleType::DeliverySubscription, Default::default());
+        let expected_view = get_sample_view(peers, sample_size);
 
         // Double Echo
-        let (_, cmd_receiver) = mpsc::channel(10);
-        let (event_sender, mut _event_receiver) = broadcast::channel(10);
+        let (cmd_sender, cmd_receiver) = mpsc::channel(10);
+        let (event_sender, event_receiver) = broadcast::channel(10);
         let double_echo = DoubleEcho::new(
             my_peer_id,
             broadcast_params,
@@ -444,11 +470,15 @@ mod tests {
         );
 
         assert!(double_echo.current_sample_view.is_none());
+        tokio::spawn(double_echo.run());
+        assert!(view_sender.send(expected_view).await.is_ok());
 
-        // spawn(double_echo.run());
+        let le_cert = Certificate::default();
+        cmd_sender
+            .send(DoubleEchoCommand::Broadcast { cert: le_cert })
+            .await
+            .expect("Broadcast is emitted");
 
-        // view_sender.send(expected_view);
-
-        // assert!(matches!(double_echo.current_sample_view, Some(view) if view == expected_view));
+        assert_eq!(event_receiver.len(), sample_size);
     }
 }
