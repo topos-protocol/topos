@@ -235,6 +235,7 @@ impl DoubleEcho {
             warn!("[{:?}] EchoSubscriber peers set is empty", self.my_peer_id);
             return;
         }
+
         let _ = self.event_sender.send(TrbpEvents::Echo {
             peers: echo_peers,
             cert,
@@ -398,15 +399,17 @@ fn is_r_ready(params: &ReliableBroadcastParams, state: &DeliveryState) -> bool {
 #[cfg(test)]
 mod tests {
 
-    use std::usize;
+    use std::{iter::FromIterator, usize};
 
     use super::*;
     use crate::mem_store::TrbMemStore;
-    use rand::Rng;
+    // use rand::{distributions::Uniform, Rng};
+    use rand::seq::IteratorRandom;
+    use tokio::sync::broadcast::error::TryRecvError;
 
     fn get_sample(peers: &Vec<Peer>, sample_size: usize) -> HashSet<Peer> {
         let mut rng = rand::thread_rng();
-        HashSet::from_iter((0..=sample_size).map(|_| peers[rng.gen_range(0..peers.len())].clone()))
+        HashSet::from_iter(peers.iter().cloned().choose_multiple(&mut rng, sample_size))
     }
 
     fn get_sample_view(peers: Vec<Peer>, sample_size: usize) -> SampleView {
@@ -416,10 +419,12 @@ mod tests {
             SampleType::EchoSubscription,
             get_sample(&peers, sample_size),
         );
+
         expected_view.insert(
             SampleType::ReadySubscription,
             get_sample(&peers, sample_size),
         );
+
         expected_view.insert(
             SampleType::DeliverySubscription,
             get_sample(&peers, sample_size),
@@ -433,7 +438,7 @@ mod tests {
 
     #[tokio::test]
     async fn handle_receiving_sample_view() {
-        let (view_sender, view_receiver) = mpsc::channel(10);
+        let (_view_sender, view_receiver) = mpsc::channel(10);
 
         // Network parameters
         let nb_peers = 100;
@@ -458,9 +463,9 @@ mod tests {
         let expected_view = get_sample_view(peers, sample_size);
 
         // Double Echo
-        let (cmd_sender, cmd_receiver) = mpsc::channel(10);
-        let (event_sender, event_receiver) = broadcast::channel(10);
-        let double_echo = DoubleEcho::new(
+        let (_cmd_sender, cmd_receiver) = mpsc::channel(10);
+        let (event_sender, mut event_receiver) = broadcast::channel(10);
+        let mut double_echo = DoubleEcho::new(
             my_peer_id,
             broadcast_params,
             cmd_receiver,
@@ -469,16 +474,35 @@ mod tests {
             Box::new(TrbMemStore::default()),
         );
 
+        assert_eq!(
+            expected_view
+                .get(&SampleType::EchoSubscriber)
+                .unwrap()
+                .len(),
+            sample_size
+        );
+
         assert!(double_echo.current_sample_view.is_none());
-        tokio::spawn(double_echo.run());
-        assert!(view_sender.send(expected_view).await.is_ok());
+        double_echo.current_sample_view = Some(expected_view);
 
         let le_cert = Certificate::default();
-        cmd_sender
-            .send(DoubleEchoCommand::Broadcast { cert: le_cert })
-            .await
-            .expect("Broadcast is emitted");
+        double_echo.handle_broadcast(le_cert);
 
-        assert_eq!(event_receiver.len(), sample_size);
+        assert_eq!(event_receiver.len(), 2);
+
+        assert!(matches!(
+            event_receiver.try_recv(),
+            Ok(TrbpEvents::Gossip { .. })
+        ));
+
+        assert!(matches!(
+            event_receiver.try_recv(),
+            Ok(TrbpEvents::Echo { .. })
+        ));
+
+        assert!(matches!(
+            event_receiver.try_recv(),
+            Err(TryRecvError::Empty)
+        ));
     }
 }
