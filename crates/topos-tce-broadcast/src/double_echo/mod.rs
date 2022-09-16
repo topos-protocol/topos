@@ -474,14 +474,6 @@ mod tests {
             Box::new(TrbMemStore::default()),
         );
 
-        assert_eq!(
-            expected_view
-                .get(&SampleType::EchoSubscriber)
-                .unwrap()
-                .len(),
-            sample_size
-        );
-
         assert!(double_echo.current_sample_view.is_none());
         double_echo.current_sample_view = Some(expected_view);
 
@@ -492,13 +484,12 @@ mod tests {
 
         assert!(matches!(
             event_receiver.try_recv(),
-            Ok(TrbpEvents::Gossip { .. })
+            Ok(TrbpEvents::Gossip { peers, .. }) if peers.len() == double_echo.gossip_peers().len()
         ));
 
         assert!(matches!(
             event_receiver.try_recv(),
-            Ok(TrbpEvents::Echo { .. })
-        ));
+            Ok(TrbpEvents::Echo { peers, .. }) if peers.len() == sample_size));
 
         assert!(matches!(
             event_receiver.try_recv(),
