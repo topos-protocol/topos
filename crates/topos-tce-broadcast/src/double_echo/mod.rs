@@ -477,14 +477,6 @@ mod tests {
             Box::new(TrbMemStore::default()),
         );
 
-        assert_eq!(
-            expected_view
-                .get(&SampleType::EchoSubscriber)
-                .unwrap()
-                .len(),
-            sample_size
-        );
-
         assert!(double_echo.current_sample_view.is_none());
         double_echo.current_sample_view = Some(expected_view.clone());
 
