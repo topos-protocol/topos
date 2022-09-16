@@ -265,6 +265,7 @@ impl DoubleEcho {
             Some(ds)
         }
     }
+
     fn state_change_follow_up(&mut self) {
         let mut state_modified = false;
         let mut gen_evts = Vec::<TrbpEvents>::new();
@@ -467,7 +468,7 @@ mod tests {
         let (event_sender, mut event_receiver) = broadcast::channel(10);
         let mut double_echo = DoubleEcho::new(
             my_peer_id,
-            broadcast_params,
+            broadcast_params.clone(),
             cmd_receiver,
             view_receiver,
             event_sender,
@@ -475,10 +476,10 @@ mod tests {
         );
 
         assert!(double_echo.current_sample_view.is_none());
-        double_echo.current_sample_view = Some(expected_view);
+        double_echo.current_sample_view = Some(expected_view.clone());
 
         let le_cert = Certificate::default();
-        double_echo.handle_broadcast(le_cert);
+        double_echo.handle_broadcast(le_cert.clone());
 
         assert_eq!(event_receiver.len(), 2);
 
@@ -494,6 +495,52 @@ mod tests {
         assert!(matches!(
             event_receiver.try_recv(),
             Err(TryRecvError::Empty)
+        ));
+
+        // Echo phase
+        let echo_subscription = expected_view
+            .get(&SampleType::EchoSubscription)
+            .unwrap()
+            .into_iter()
+            .take(broadcast_params.echo_threshold)
+            .collect::<Vec<_>>();
+
+        // Send just enough Echo to reach the threshold
+        for p in echo_subscription {
+            double_echo.handle_echo(p.clone(), le_cert.clone());
+        }
+
+        assert_eq!(event_receiver.len(), 0);
+
+        double_echo.state_change_follow_up();
+        assert_eq!(event_receiver.len(), 1);
+
+        assert!(matches!(
+            event_receiver.try_recv(),
+            Ok(TrbpEvents::Ready { peers, .. }) if peers.len() == broadcast_params.ready_sample_size
+        ));
+
+        // Ready phase
+        let delivery_subscription = expected_view
+            .get(&SampleType::DeliverySubscription)
+            .unwrap()
+            .into_iter()
+            .take(broadcast_params.delivery_threshold)
+            .collect::<Vec<_>>();
+
+        // Send just enough Ready to reach the delivery threshold
+        for p in delivery_subscription {
+            double_echo.handle_ready(p.clone(), le_cert.clone());
+        }
+
+        assert_eq!(event_receiver.len(), 0);
+
+        double_echo.state_change_follow_up();
+        assert_eq!(event_receiver.len(), 1);
+
+        assert!(matches!(
+            event_receiver.try_recv(),
+            Ok(TrbpEvents::CertificateDelivered { certificate }) if certificate == le_cert
         ));
     }
 }
