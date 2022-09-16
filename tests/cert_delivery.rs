@@ -59,7 +59,7 @@ async fn cert_delivery() {
             .expect("Can't send certificate");
     }
 
-    // tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+    tokio::time::sleep(std::time::Duration::from_secs(20)).await;
 
     // FIXME: assert properly
 }

@@ -16,7 +16,8 @@ use topos_tce_broadcast::{
 
 #[derive(Debug)]
 pub struct TestAppContext {
-    pub peer_id: String,
+    pub id: String,
+    pub peer_id: PeerId,
     pub command_sampler: mpsc::Sender<SamplerCommand>,
     pub command_broadcast: mpsc::Sender<DoubleEchoCommand>,
 }
@@ -36,7 +37,7 @@ where
     let mut clients = HashMap::new();
     let peers = build_peer_config_pool(peer_number);
 
-    for (index, (seed, port, _key, addr)) in peers.iter().enumerate() {
+    for (index, (seed, port, keypair, addr)) in peers.iter().enumerate() {
         let peer_id = format!("peer_{index}");
         let (rb_client, trb_events) = create_reliable_broadcast_client(
             &peer_id,
@@ -54,7 +55,8 @@ where
         spawn(app.run(event_stream, trb_events, api_events));
 
         let client = TestAppContext {
-            peer_id: peer_id.clone(),
+            id: peer_id.clone(),
+            peer_id: keypair.public().to_peer_id(),
             command_sampler,
             command_broadcast,
         };

@@ -88,7 +88,7 @@ impl DoubleEcho {
                 }
 
                 Some(new_sample_view) = self.sample_view_receiver.recv() => {
-                    debug!("New sample receive on DoubleEcho {new_sample_view:?}");
+                    info!("New sample receive on DoubleEcho {new_sample_view:?}");
 
                     self.current_sample_view = Some(new_sample_view);
                 }
