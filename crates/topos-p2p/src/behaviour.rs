@@ -4,10 +4,15 @@ use self::{
     transmission::{protocol::TransmissionProtocol, TransmissionBehaviour, TransmissionOut},
 };
 use crate::{event::ComposedEvent, Event};
-use libp2p::swarm::{
-    NetworkBehaviour, NetworkBehaviourAction, NetworkBehaviourEventProcess, PollParameters,
+use libp2p::{
+    core::ProtocolName, identify::IdentifyInfo, kad::Quorum, Multiaddr, NetworkBehaviour, PeerId,
 };
-use libp2p::{core::ProtocolName, identify::IdentifyInfo, NetworkBehaviour};
+use libp2p::{
+    kad::{record::Key, Record},
+    swarm::{
+        NetworkBehaviour, NetworkBehaviourAction, NetworkBehaviourEventProcess, PollParameters,
+    },
+};
 use std::{
     collections::VecDeque,
     task::{Context, Poll},
@@ -42,6 +47,12 @@ pub(crate) struct Behaviour {
     /// Buffer of events to send to the Runtime
     #[behaviour(ignore)]
     pub(crate) events: VecDeque<ComposedEvent>,
+
+    #[behaviour(ignore)]
+    pub(crate) peer_id: PeerId,
+
+    #[behaviour(ignore)]
+    pub(crate) addresses: Multiaddr,
 }
 
 impl Behaviour {
@@ -96,6 +107,14 @@ impl NetworkBehaviourEventProcess<DiscoveryOut> for Behaviour {
                             new_peers: peers,
                         }))
                 }
+            }
+
+            DiscoveryOut::BootstrapOk => {
+                let key = Key::new(&self.peer_id.to_string());
+                _ = self
+                    .discovery
+                    .kademlia
+                    .put_record(Record::new(key, self.addresses.to_vec()), Quorum::All);
             }
         }
     }
