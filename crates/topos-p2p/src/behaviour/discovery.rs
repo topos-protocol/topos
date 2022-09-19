@@ -10,8 +10,8 @@ use libp2p::{
     core::{connection::ConnectionId, transport::ListenerId, ConnectedPoint},
     identity::Keypair,
     kad::{
-        store::MemoryStore, AddProviderOk, GetClosestPeersError, Kademlia, KademliaConfig,
-        KademliaEvent, QueryResult,
+        record::Key, store::MemoryStore, AddProviderOk, GetClosestPeersError, Kademlia,
+        KademliaConfig, KademliaEvent, QueryResult, Quorum, Record,
     },
     mdns::{Mdns, MdnsConfig, MdnsEvent},
     swarm::{
@@ -114,6 +114,7 @@ impl MdnsWrapper {
 pub enum DiscoveryOut {
     UnroutablePeer(PeerId),
     Discovered(PeerId),
+    BootstrapOk,
 }
 
 impl NetworkBehaviour for DiscoveryBehaviour {
@@ -278,7 +279,8 @@ impl NetworkBehaviour for DiscoveryBehaviour {
                                 DiscoveryOut::Discovered(peer),
                             ));
                         }
-                        KademliaEvent::RoutablePeer { .. } => {
+                        KademliaEvent::RoutablePeer { peer, address } => {
+                            debug!("RoutablePeer {:?} {:?}", peer, address);
                             // return Poll::Ready(NetworkBehaviourAction::GenerateEvent(
                             //     DiscoveryOut::Discovered(peer),
                             // ))
@@ -323,7 +325,7 @@ impl NetworkBehaviour for DiscoveryBehaviour {
                                 );
                             }
                             Ok(ok) => {
-                                trace!(
+                                debug!(
                                     "Discovery => Query for {:?} yielded {:?} results",
                                     &ok.key,
                                     ok.peers.len(),
@@ -336,14 +338,41 @@ impl NetworkBehaviour for DiscoveryBehaviour {
                             }
                         },
 
+                        KademliaEvent::OutboundQueryCompleted {
+                            result: QueryResult::Bootstrap(res),
+                            ..
+                        } => {
+                            warn!("BootstrapOK, {res:?}");
+                            match res {
+                                Ok(_) => {
+                                    return Poll::Ready(NetworkBehaviourAction::GenerateEvent(
+                                        DiscoveryOut::BootstrapOk,
+                                    ));
+                                }
+                                Err(e) => error!("Error: bootstrap : {e:?}"),
+                            }
+                        }
                         // We never start any other type of query.
                         KademliaEvent::OutboundQueryCompleted { result: e, .. } => {
                             warn!("Discovery => Unhandled Kademlia event: {:?}", e)
                         }
 
-                        KademliaEvent::RoutingUpdated { .. }
-                        | KademliaEvent::PendingRoutablePeer { .. }
-                        | KademliaEvent::InboundRequest { .. } => {}
+                        KademliaEvent::RoutingUpdated {
+                            peer,
+                            is_new_peer,
+                            addresses,
+                            bucket_range,
+                            old_peer,
+                        } => {
+                            debug!(
+                                "RoutingUpdated, {:?}, {:?}, {:?}, {:?}, {:?}",
+                                peer, is_new_peer, addresses, bucket_range, old_peer
+                            );
+                        }
+                        KademliaEvent::PendingRoutablePeer { .. } => debug!("PendingRoutablePeer"),
+                        KademliaEvent::InboundRequest { request } => {
+                            debug!("InboundRequest, {:?}", request);
+                        }
                     }
                 }
 
@@ -414,6 +443,7 @@ impl DiscoveryBehaviour {
         discovery_protocol: &'static str,
         known_peers: &[(PeerId, Multiaddr)],
         with_mdns: bool,
+        listen_addr: Option<Multiaddr>,
     ) -> Self {
         let local_peer_id = peer_key.public().to_peer_id();
         let kademlia_config = KademliaConfig::default()
@@ -437,13 +467,19 @@ impl DiscoveryBehaviour {
             kademlia.add_address(&known_peer.0, known_peer.1.clone());
         }
 
-        for known_peer in known_peers {
-            info!("{:?}", kademlia.addresses_of_peer(&known_peer.0));
-        }
-
         kademlia
             .start_providing("topos-tce".as_bytes().to_vec().into())
             .expect("Cannot provide");
+
+        if known_peers.is_empty() && listen_addr.is_some() {
+            // We're a boot node
+            let key = Key::new(&local_peer_id.to_string());
+            if let Some(addr) = listen_addr {
+                _ = kademlia.put_record(Record::new(key, addr.to_vec()), Quorum::All);
+            }
+        }
+
+        _ = kademlia.bootstrap();
 
         Self {
             kademlia,

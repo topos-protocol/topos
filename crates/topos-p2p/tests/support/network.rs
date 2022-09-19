@@ -29,6 +29,7 @@ pub async fn start_node(
     let (client, event_stream, event_loop) = network::builder()
         .peer_key(peer_key)
         .known_peers(known_peers)
+        .listen_addr(peer_addr.clone())
         .build()
         .await
         .unwrap();
