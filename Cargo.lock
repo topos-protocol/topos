@@ -5017,6 +5017,7 @@ dependencies = [
 name = "topos-tce"
 version = "0.1.0"
 dependencies = [
+ "async-stream",
  "async-trait",
  "bincode",
  "clap",
@@ -5026,7 +5027,6 @@ dependencies = [
  "hyper",
  "lazy_static",
  "libp2p 0.46.1",
- "log",
  "opentelemetry",
  "opentelemetry-jaeger",
  "pretty_env_logger",
@@ -5036,6 +5036,7 @@ dependencies = [
  "serde",
  "test-log",
  "tokio",
+ "tonic",
  "topos-core",
  "topos-p2p",
  "topos-tce-api",

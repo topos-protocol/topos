@@ -1,6 +1,7 @@
 use std::{
     collections::{hash_map::Entry, HashMap, HashSet, VecDeque},
     error::Error,
+    num::NonZeroUsize,
     task::{Context, Poll},
 };
 
@@ -11,7 +12,7 @@ use libp2p::{
     identity::Keypair,
     kad::{
         record::Key, store::MemoryStore, AddProviderOk, GetClosestPeersError, Kademlia,
-        KademliaConfig, KademliaEvent, QueryId, QueryResult, Quorum, Record,
+        KademliaConfig, KademliaEvent, QueryId, QueryResult, Quorum,
     },
     mdns::{Mdns, MdnsConfig, MdnsEvent},
     swarm::{
@@ -21,7 +22,7 @@ use libp2p::{
     Multiaddr, PeerId,
 };
 use tokio::sync::oneshot;
-use tracing::{debug, error, info, trace, warn};
+use tracing::{debug, error, info, instrument, trace, warn};
 
 type PendingDials = HashMap<PeerId, oneshot::Sender<Result<(), Box<dyn Error + Send>>>>;
 type PendingRecordRequest = oneshot::Sender<Result<Vec<Multiaddr>, Box<dyn Error + Send>>>;
@@ -145,7 +146,7 @@ impl NetworkBehaviour for DiscoveryBehaviour {
         failed_addresses: Option<&Vec<Multiaddr>>,
         other_established: usize,
     ) {
-        info!("Connection established with peer: {peer_id}");
+        debug!("Connection established with peer: {peer_id}");
         if let Some(sender) = self.pending_dial.remove(peer_id) {
             self.peers.insert(*peer_id);
             let _ = sender.send(Ok(()));
@@ -258,6 +259,7 @@ impl NetworkBehaviour for DiscoveryBehaviour {
         self.kademlia.inject_expired_external_addr(addr);
     }
 
+    #[instrument(name = "DiscoveryBehaviour::poll", skip_all, fields(peer_id = %self.local_peer_id))]
     fn poll(
         &mut self,
         cx: &mut Context<'_>,
@@ -416,7 +418,7 @@ impl NetworkBehaviour for DiscoveryBehaviour {
                 }
 
                 NetworkBehaviourAction::Dial { opts, handler } => {
-                    info!("Discovery => Dial {opts:?}");
+                    debug!("Discovery => Dial {opts:?}");
                     return Poll::Ready(NetworkBehaviourAction::Dial { opts, handler });
                 }
 
@@ -477,16 +479,17 @@ impl NetworkBehaviour for DiscoveryBehaviour {
 }
 
 impl DiscoveryBehaviour {
+    #[instrument(name = "DiscoveryBehaviour", skip_all, fields(peer_id = %peer_key.public().to_peer_id()))]
     pub fn new(
         peer_key: Keypair,
         discovery_protocol: &'static str,
         known_peers: &[(PeerId, Multiaddr)],
         with_mdns: bool,
-        listen_addr: Option<Multiaddr>,
     ) -> Self {
         let local_peer_id = peer_key.public().to_peer_id();
         let kademlia_config = KademliaConfig::default()
             .set_protocol_name(discovery_protocol.as_bytes())
+            .set_replication_factor(NonZeroUsize::new(1).unwrap())
             // .set_replication_interval(Some(Duration::from_secs(30)))
             // .set_publication_interval(Some(Duration::from_secs(30)))
             // .set_provider_publication_interval(Some(Duration::from_secs(30)))
@@ -504,18 +507,6 @@ impl DiscoveryBehaviour {
                 &known_peer.0, &known_peer.1
             );
             kademlia.add_address(&known_peer.0, known_peer.1.clone());
-        }
-
-        kademlia
-            .start_providing("topos-tce".as_bytes().to_vec().into())
-            .expect("Cannot provide");
-
-        if known_peers.is_empty() && listen_addr.is_some() {
-            // We're a boot node
-            let key = Key::new(&local_peer_id.to_string());
-            if let Some(addr) = listen_addr {
-                _ = kademlia.put_record(Record::new(key, addr.to_vec()), Quorum::All);
-            }
         }
 
         _ = kademlia.bootstrap();
@@ -546,6 +537,7 @@ impl DiscoveryBehaviour {
         peer_addr: Multiaddr,
         sender: oneshot::Sender<Result<(), Box<dyn Error + Send>>>,
     ) {
+        info!("Sending an active Dial");
         let handler = self.new_handler();
         match (self.peers.get(&peer_id), self.pending_dial.entry(peer_id)) {
             (None, Entry::Vacant(entry)) => {

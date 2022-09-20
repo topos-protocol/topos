@@ -6,6 +6,7 @@ use clap::Parser;
 use tokio::spawn;
 use topos_tce_broadcast::mem_store::TrbMemStore;
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
+use tracing::info;
 
 use crate::app_context::AppContext;
 use libp2p::{identity, Multiaddr, PeerId};
@@ -15,14 +16,14 @@ use tce_transport::ReliableBroadcastParams;
 
 #[tokio::main]
 async fn main() {
-    pretty_env_logger::init_timed();
-    log::info!("Initializing application");
+    // pretty_env_logger::init_timed();
+    info!("Initializing application");
     let args = AppArgs::parse();
 
     tce_telemetry::init_tracer(&args.jaeger_agent, "testnet");
 
     // launch data store
-    log::info!(
+    info!(
         "Storage: {}",
         if let Some(db_path) = args.db_path.clone() {
             format!("RocksDB: {}", &db_path)
@@ -42,7 +43,7 @@ async fn main() {
         my_peer_id: "main".to_string(),
     };
 
-    log::info!("Starting application");
+    info!("Starting application");
     let addr: Multiaddr = format!("/ip4/0.0.0.0/tcp/{}", args.tce_local_port)
         .parse()
         .unwrap();
@@ -129,7 +130,7 @@ pub struct AppArgs {
 
 impl AppArgs {
     pub fn parse_boot_peers(&self) -> Vec<(PeerId, Multiaddr)> {
-        log::info!("boot_peers: {:?}", self.boot_peers);
+        info!("boot_peers: {:?}", self.boot_peers);
         self.boot_peers
             .split(' ')
             .map(|s| s.to_string())

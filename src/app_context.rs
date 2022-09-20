@@ -3,14 +3,15 @@
 //!
 use futures::{future::join_all, Stream, StreamExt};
 use libp2p::PeerId;
-use log::error;
-use log::info;
-use log::warn;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use topos_tce_api::RuntimeClient as ApiClient;
 use topos_tce_api::RuntimeEvent as ApiEvent;
 use topos_tce_broadcast::DoubleEchoCommand;
+use tracing::debug;
+use tracing::error;
+use tracing::info;
+use tracing::warn;
 // use tce_api::web_api::PeerChanged;
 // use tce_api::{ApiRequests, ApiWorker};
 use tce_transport::{TrbpCommands, TrbpEvents};
@@ -96,7 +97,7 @@ impl AppContext {
     }
 
     async fn on_protocol_event(&mut self, evt: TrbpEvents) {
-        log::debug!("on_protocol_event : {:?}", &evt);
+        debug!("on_protocol_event : {:?}", &evt);
         match evt {
             TrbpEvents::CertificateDelivered { certificate } => {
                 _ = self.pending_storage.remove(&certificate.cert_id).await;
@@ -284,7 +285,7 @@ impl AppContext {
             }
 
             evt => {
-                log::debug!("Unhandled event: {:?}", evt);
+                debug!("Unhandled event: {:?}", evt);
             }
         }
     }

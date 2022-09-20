@@ -1,12 +1,14 @@
 use futures::Stream;
-use std::collections::HashMap;
+use std::{collections::HashMap, net::SocketAddr};
 use tokio::{spawn, sync::mpsc};
 use tokio_stream::wrappers::ReceiverStream;
 
 use crate::{grpc::builder::ServerBuilder, Runtime, RuntimeClient, RuntimeEvent};
 
 #[derive(Default)]
-pub struct RuntimeBuilder {}
+pub struct RuntimeBuilder {
+    grpc_socket_addr: Option<SocketAddr>,
+}
 
 impl RuntimeBuilder {
     pub async fn build_and_launch(self) -> (RuntimeClient, impl Stream<Item = RuntimeEvent>) {
@@ -15,6 +17,7 @@ impl RuntimeBuilder {
 
         let (health_reporter, grpc) = ServerBuilder::default()
             .command_sender(command_sender)
+            .serve_addr(self.grpc_socket_addr)
             .build()
             .await;
 
@@ -37,5 +40,11 @@ impl RuntimeBuilder {
             RuntimeClient { command_sender },
             ReceiverStream::new(api_event_receiver),
         )
+    }
+
+    pub fn set_grpc_socket_addr(mut self, socket: Option<SocketAddr>) -> Self {
+        self.grpc_socket_addr = socket;
+
+        self
     }
 }

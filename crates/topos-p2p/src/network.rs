@@ -104,8 +104,6 @@ impl NetworkBuilder {
                 self.discovery_protocol.unwrap_or(DISCOVERY_PROTOCOL),
                 &self.known_peers[..],
                 false,
-                // TODO: better handle the listening part
-                self.listen_addr.clone(),
             ),
             transmission: TransmissionBehaviour::new(),
             events: VecDeque::new(),

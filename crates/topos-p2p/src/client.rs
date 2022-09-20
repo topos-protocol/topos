@@ -70,10 +70,25 @@ impl Client {
     ) -> BoxFuture<'static, Result<R, Box<dyn Error + Send>>> {
         let (sender, receiver) = oneshot::channel();
 
+        // Send request to discover the peer
+        // Wait for the Record query result
+        // Add the peer to the different behaviour
+        // Respond to the discovery
+        // Send the request
         let network = self.sender.clone();
         let data = data.into();
 
         Box::pin(async move {
+            let (addr_sender, addr_receiver) = oneshot::channel();
+            network
+                .send(Command::Discover {
+                    to,
+                    sender: addr_sender,
+                })
+                .await
+                .expect("Command receiver not to be dropped");
+
+            let _ = addr_receiver.await.expect("failed to fetch addr")?;
             network
                 .send(Command::TransmissionReq { to, data, sender })
                 .await
