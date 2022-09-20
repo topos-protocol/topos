@@ -159,33 +159,13 @@ impl DoubleEcho {
         self.start_delivery(cert, digest);
     }
 
-    /// My gossip peers.
-    ///
-    /// Union of all known peers.
+    /// Gossip to the Echo and Ready Subscribers
     fn gossip_peers(&self) -> Vec<Peer> {
         if let Some(sample_view_ref) = self.current_sample_view.as_ref() {
             let connected_peers = sample_view_ref
-                .get(&SampleType::EchoSubscription)
+                .get(&SampleType::EchoSubscriber)
                 .unwrap()
                 .iter()
-                .chain(
-                    sample_view_ref
-                        .get(&SampleType::ReadySubscription)
-                        .unwrap()
-                        .iter(),
-                )
-                .chain(
-                    sample_view_ref
-                        .get(&SampleType::DeliverySubscription)
-                        .unwrap()
-                        .iter(),
-                )
-                .chain(
-                    sample_view_ref
-                        .get(&SampleType::EchoSubscriber)
-                        .unwrap()
-                        .iter(),
-                )
                 .chain(
                     sample_view_ref
                         .get(&SampleType::ReadySubscriber)
