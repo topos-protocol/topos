@@ -4,8 +4,8 @@ use topos_core::uci::Certificate;
 
 use super::RuntimeCommand;
 
+#[derive(Clone, Debug)]
 pub struct RuntimeClient {
-    #[allow(dead_code)]
     pub(crate) command_sender: mpsc::Sender<RuntimeCommand>,
 }
 

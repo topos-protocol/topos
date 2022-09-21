@@ -39,10 +39,12 @@ tce_transport = { package = "topos-tce-transport", path = "./crates/topos-tce-tr
 
 topos-p2p = { path = "./crates/topos-p2p" }
 topos-tce-api = { path = "./crates/topos-tce-api"}
+topos-core = { git = "https://github.com/toposware/topos-core", branch = "main", features = ["uci"], version = "0.1.0" }
 
 tracing = { version = "*", default-features = false, features = ["log"]}
 tracing-log = { version = "*", features = ['env_logger'] }
 futures = "*"
+async-trait = "0.1"
 
 [dev-dependencies]
 
@@ -65,4 +67,3 @@ tracing-subscriber = {version = "0.3", default-features = false, features = ["en
 members = [
     "crates/*"
 ]
-

@@ -17,6 +17,7 @@ use double_echo::DoubleEcho;
 use tce_transport::{ReliableBroadcastParams, TrbpEvents};
 
 use topos_core::uci::{Certificate, CertificateId, DigestCompressed, SubnetId};
+use tracing::info;
 
 use crate::mem_store::TrbMemStore;
 use crate::sampler::Sampler;
@@ -96,7 +97,7 @@ impl ReliableBroadcastClient {
     pub fn new(
         config: ReliableBroadcastConfig,
     ) -> (Self, impl Stream<Item = Result<TrbpEvents, ()>>) {
-        log::info!("new(trbp_params: {:?})", &config.trbp_params);
+        info!("new(trbp_params: {:?})", &config.trbp_params);
 
         let peer_id = config.my_peer_id.clone();
 
@@ -211,11 +212,28 @@ impl ReliableBroadcastClient {
     pub fn get_double_echo_channel(&self) -> Sender<DoubleEchoCommand> {
         self.broadcast_commands.clone()
     }
+
     pub fn get_command_channels(&self) -> (Sender<SamplerCommand>, Sender<DoubleEchoCommand>) {
         (
             self.sampling_commands.clone(),
             self.broadcast_commands.clone(),
         )
+    }
+
+    /// Use to broadcast new certificate to the TCE network
+    pub fn broadcast_new_certificate(
+        &self,
+        certificate: Certificate,
+    ) -> impl Future<Output = Result<(), ()>> + 'static + Send {
+        let broadcast_commands = self.broadcast_commands.clone();
+
+        async move {
+            _ = broadcast_commands
+                .send(DoubleEchoCommand::Broadcast { cert: certificate })
+                .await;
+
+            Ok(())
+        }
     }
 }
 /// Protocol and technical errors

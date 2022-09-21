@@ -8,14 +8,18 @@ use log::info;
 use log::warn;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
+use topos_tce_api::RuntimeClient as ApiClient;
+use topos_tce_api::RuntimeEvent as ApiEvent;
 // use tce_api::web_api::PeerChanged;
 // use tce_api::{ApiRequests, ApiWorker};
 use tce_transport::{TrbpCommands, TrbpEvents};
 use tokio::spawn;
 use tokio::sync::oneshot;
-use topos_p2p::{Client, Event};
+use topos_p2p::{Client as NetworkClient, Event as NetEvent};
 use topos_tce_broadcast::sampler::SampleType;
 use topos_tce_broadcast::{ReliableBroadcastClient, SamplerCommand};
+
+use crate::storage::Storage;
 
 /// Top-level transducer main app context & driver (alike)
 ///
@@ -26,26 +30,34 @@ use topos_tce_broadcast::{ReliableBroadcastClient, SamplerCommand};
 /// config+data as input and runs app returning data as output
 ///
 pub struct AppContext {
-    //pub store: Box<dyn trb_store::TrbStore>,
     pub trbp_cli: ReliableBroadcastClient,
-    pub network_client: Client,
+    pub network_client: NetworkClient,
+    pub api_client: ApiClient,
+    pub pending_storage: Box<dyn Storage>,
 }
 
 impl AppContext {
     /// Factory
-    pub fn new(trbp_cli: ReliableBroadcastClient, network_client: Client) -> Self {
+    pub fn new(
+        pending_storage: impl Storage,
+        trbp_cli: ReliableBroadcastClient,
+        network_client: NetworkClient,
+        api_client: ApiClient,
+    ) -> Self {
         Self {
-            //store,
             trbp_cli,
             network_client,
+            api_client,
+            pending_storage: Box::new(pending_storage),
         }
     }
 
     /// Main processing loop
     pub async fn run(
         mut self,
-        mut network_stream: impl Stream<Item = topos_p2p::Event> + Unpin,
+        mut network_stream: impl Stream<Item = NetEvent> + Unpin,
         mut trb_stream: impl Stream<Item = Result<TrbpEvents, ()>> + Unpin,
+        mut api_stream: impl Stream<Item = ApiEvent> + Unpin,
     ) {
         loop {
             tokio::select! {
@@ -59,6 +71,25 @@ impl AppContext {
                 Some(net_evt) = network_stream.next() => {
                     self.on_net_event(net_evt).await;
                 }
+
+                // api events
+                Some(event) = api_stream.next() => {
+                    self.on_api_event(event).await;
+                }
+
+            }
+        }
+    }
+
+    async fn on_api_event(&mut self, event: ApiEvent) {
+        match event {
+            ApiEvent::CertificateSubmitted {
+                certificate,
+                sender,
+            } => {
+                _ = self.pending_storage.persist(certificate.clone()).await;
+                spawn(self.trbp_cli.broadcast_new_certificate(certificate));
+                _ = sender.send(Ok(()));
             }
         }
     }
@@ -66,6 +97,11 @@ impl AppContext {
     async fn on_protocol_event(&mut self, evt: TrbpEvents) {
         log::debug!("on_protocol_event : {:?}", &evt);
         match evt {
+            TrbpEvents::CertificateDelivered { certificate } => {
+                _ = self.pending_storage.remove(&certificate.cert_id).await;
+                spawn(self.api_client.dispatch_certificate(certificate));
+            }
+
             TrbpEvents::EchoSubscribeReq { peers } => {
                 let data: Vec<u8> = NetworkMessage::from(TrbpCommands::OnEchoSubscribeReq {
                     from_peer: self.network_client.local_peer_id.to_base58(),
@@ -183,11 +219,11 @@ impl AppContext {
         }
     }
 
-    async fn on_net_event(&mut self, evt: Event) {
+    async fn on_net_event(&mut self, evt: NetEvent) {
         match evt {
-            Event::PeersChanged { .. } => {}
+            NetEvent::PeersChanged { .. } => {}
 
-            Event::TransmissionOnReq {
+            NetEvent::TransmissionOnReq {
                 from: _,
                 data,
                 channel,

@@ -1,4 +1,5 @@
 mod app_context;
+mod storage;
 
 use clap::Parser;
 
@@ -48,11 +49,9 @@ async fn main() {
     // run protocol
     let (trbp_cli, trb_stream) = ReliableBroadcastClient::new(config);
 
-    let (_client, launcher) = topos_tce_api::Runtime::builder().build().await;
+    let (api_client, api_stream) = topos_tce_api::Runtime::builder().build_and_launch().await;
 
-    spawn(launcher.launch());
-
-    let (client, event_stream, runtime) = topos_p2p::network::builder()
+    let (network_client, event_stream, runtime) = topos_p2p::network::builder()
         .peer_key(local_key_pair(args.local_key_seed))
         .listen_addr(addr)
         .known_peers(args.parse_boot_peers())
@@ -63,8 +62,13 @@ async fn main() {
     spawn(runtime.run());
 
     // setup transport-trbp-storage-api connector
-    let app_context = AppContext::new(trbp_cli, client);
-    app_context.run(event_stream, trb_stream).await;
+    let app_context = AppContext::new(
+        storage::inmemory::InmemoryStorage::default(),
+        trbp_cli,
+        network_client,
+        api_client,
+    );
+    app_context.run(event_stream, trb_stream, api_stream).await;
 }
 
 /// build peer_id keys, generate for now - either from the seed or purely random one
