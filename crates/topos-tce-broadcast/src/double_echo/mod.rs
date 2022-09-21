@@ -235,6 +235,7 @@ impl DoubleEcho {
             warn!("[{:?}] EchoSubscriber peers set is empty", self.my_peer_id);
             return;
         }
+
         let _ = self.event_sender.send(TrbpEvents::Echo {
             peers: echo_peers,
             cert,
@@ -264,6 +265,7 @@ impl DoubleEcho {
             Some(ds)
         }
     }
+
     fn state_change_follow_up(&mut self) {
         let mut state_modified = false;
         let mut gen_evts = Vec::<TrbpEvents>::new();
@@ -392,5 +394,153 @@ fn is_r_ready(params: &ReliableBroadcastParams, state: &DeliveryState) -> bool {
             None => false,
         },
         _ => false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use std::{iter::FromIterator, usize};
+
+    use super::*;
+    use crate::mem_store::TrbMemStore;
+    // use rand::{distributions::Uniform, Rng};
+    use rand::seq::IteratorRandom;
+    use tokio::sync::broadcast::error::TryRecvError;
+
+    fn get_sample(peers: &Vec<Peer>, sample_size: usize) -> HashSet<Peer> {
+        let mut rng = rand::thread_rng();
+        HashSet::from_iter(peers.iter().cloned().choose_multiple(&mut rng, sample_size))
+    }
+
+    fn get_sample_view(peers: Vec<Peer>, sample_size: usize) -> SampleView {
+        let mut expected_view = SampleView::default();
+
+        expected_view.insert(
+            SampleType::EchoSubscription,
+            get_sample(&peers, sample_size),
+        );
+
+        expected_view.insert(
+            SampleType::ReadySubscription,
+            get_sample(&peers, sample_size),
+        );
+
+        expected_view.insert(
+            SampleType::DeliverySubscription,
+            get_sample(&peers, sample_size),
+        );
+
+        expected_view.insert(SampleType::EchoSubscriber, get_sample(&peers, sample_size));
+        expected_view.insert(SampleType::ReadySubscriber, get_sample(&peers, sample_size));
+
+        expected_view
+    }
+
+    #[tokio::test]
+    async fn handle_receiving_sample_view() {
+        let (_view_sender, view_receiver) = mpsc::channel(10);
+
+        // Network parameters
+        let nb_peers = 100;
+        let sample_size = 10;
+        let g = |a, b| ((a as f32) * b) as usize;
+        let broadcast_params = ReliableBroadcastParams {
+            echo_threshold: g(sample_size, 0.5),
+            echo_sample_size: sample_size,
+            ready_threshold: g(sample_size, 0.5),
+            ready_sample_size: sample_size,
+            delivery_threshold: g(sample_size, 0.5),
+            delivery_sample_size: sample_size,
+        };
+
+        // List of peers
+        let mut peers = Vec::new();
+        for i in 0..nb_peers {
+            peers.push(format!("peer_{i}"));
+        }
+
+        let my_peer_id = peers[0].clone();
+        let expected_view = get_sample_view(peers, sample_size);
+
+        // Double Echo
+        let (_cmd_sender, cmd_receiver) = mpsc::channel(10);
+        let (event_sender, mut event_receiver) = broadcast::channel(10);
+        let mut double_echo = DoubleEcho::new(
+            my_peer_id,
+            broadcast_params.clone(),
+            cmd_receiver,
+            view_receiver,
+            event_sender,
+            Box::new(TrbMemStore::default()),
+        );
+
+        assert!(double_echo.current_sample_view.is_none());
+        double_echo.current_sample_view = Some(expected_view.clone());
+
+        let le_cert = Certificate::default();
+        double_echo.handle_broadcast(le_cert.clone());
+
+        assert_eq!(event_receiver.len(), 2);
+
+        assert!(matches!(
+            event_receiver.try_recv(),
+            Ok(TrbpEvents::Gossip { peers, .. }) if peers.len() == double_echo.gossip_peers().len()
+        ));
+
+        assert!(matches!(
+            event_receiver.try_recv(),
+            Ok(TrbpEvents::Echo { peers, .. }) if peers.len() == sample_size));
+
+        assert!(matches!(
+            event_receiver.try_recv(),
+            Err(TryRecvError::Empty)
+        ));
+
+        // Echo phase
+        let echo_subscription = expected_view
+            .get(&SampleType::EchoSubscription)
+            .unwrap()
+            .into_iter()
+            .take(broadcast_params.echo_threshold)
+            .collect::<Vec<_>>();
+
+        // Send just enough Echo to reach the threshold
+        for p in echo_subscription {
+            double_echo.handle_echo(p.clone(), le_cert.clone());
+        }
+
+        assert_eq!(event_receiver.len(), 0);
+
+        double_echo.state_change_follow_up();
+        assert_eq!(event_receiver.len(), 1);
+
+        assert!(matches!(
+            event_receiver.try_recv(),
+            Ok(TrbpEvents::Ready { peers, .. }) if peers.len() == broadcast_params.ready_sample_size
+        ));
+
+        // Ready phase
+        let delivery_subscription = expected_view
+            .get(&SampleType::DeliverySubscription)
+            .unwrap()
+            .into_iter()
+            .take(broadcast_params.delivery_threshold)
+            .collect::<Vec<_>>();
+
+        // Send just enough Ready to reach the delivery threshold
+        for p in delivery_subscription {
+            double_echo.handle_ready(p.clone(), le_cert.clone());
+        }
+
+        assert_eq!(event_receiver.len(), 0);
+
+        double_echo.state_change_follow_up();
+        assert_eq!(event_receiver.len(), 1);
+
+        assert!(matches!(
+            event_receiver.try_recv(),
+            Ok(TrbpEvents::CertificateDelivered { certificate }) if certificate == le_cert
+        ));
     }
 }
