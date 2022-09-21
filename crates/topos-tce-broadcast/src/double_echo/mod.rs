@@ -3,7 +3,6 @@ use crate::{
     trb_store::TrbStore,
     DoubleEchoCommand, Peer,
 };
-use log::debug;
 use std::{
     collections::{HashMap, HashSet},
     time,
@@ -11,6 +10,7 @@ use std::{
 use tce_transport::{ReliableBroadcastParams, TrbpEvents};
 use tokio::sync::{broadcast, mpsc};
 use topos_core::uci::{Certificate, CertificateId, DigestCompressed};
+use tracing::{debug, error, info, warn};
 
 /// Processing data associated to a Certificate candidate for delivery
 /// Sample repartition, one peer may belongs to multiple samples
@@ -57,6 +57,7 @@ impl DoubleEcho {
     }
 
     pub(crate) async fn run(mut self) {
+        info!("DoubleEcho started");
         loop {
             tokio::select! {
                 Some(command) = self.command_receiver.recv() => {
@@ -115,9 +116,13 @@ impl DoubleEcho {
     }
 
     fn handle_broadcast(&mut self, cert: Certificate) {
-        if let Some(computed_digest) = self.store.flush_digest_view(&cert.initial_subnet_id) {
-            self.dispatch(cert, computed_digest);
-        }
+        info!("Handling broadcast of Certificate {:?}", cert.cert_id);
+        let digest = self
+            .store
+            .flush_digest_view(&cert.initial_subnet_id)
+            .unwrap_or_default();
+
+        self.dispatch(cert, digest);
     }
 
     fn handle_deliver(&mut self, cert: Certificate, digest: DigestCompressed) {
@@ -129,7 +134,7 @@ impl DoubleEcho {
     /// - or received through the gossip (first step of protocol exchange)
     fn dispatch(&mut self, cert: Certificate, digest: DigestCompressed) {
         if self.cert_pre_delivery_check(&cert).is_err() {
-            log::info!("Error on the pre cert delivery check");
+            info!("Error on the pre cert delivery check");
             return;
         }
         // Don't gossip one cert already gossiped
@@ -142,12 +147,12 @@ impl DoubleEcho {
         }
 
         // Gossip the certificate to all my peers
-
         let _ = self.event_sender.send(TrbpEvents::Gossip {
             peers: self.gossip_peers(), // considered as the G-set for erdos-renyi
             cert: cert.clone(),
             digest: digest.clone(),
         });
+
         // Trigger event of new certificate candidate for delivery
         self.start_delivery(cert, digest);
     }
@@ -197,10 +202,9 @@ impl DoubleEcho {
     }
 
     fn start_delivery(&mut self, cert: Certificate, digest: DigestCompressed) {
-        log::debug!(
+        debug!(
             "🙌 StartDelivery[{:?}]\t Peer:{:?}",
-            &cert.cert_id,
-            &self.my_peer_id
+            &cert.cert_id, &self.my_peer_id
         );
         // Add new entry for the new Cert candidate
         match self.delivery_state_for_new_cert() {
@@ -208,7 +212,7 @@ impl DoubleEcho {
                 self.cert_candidate.insert(cert.clone(), delivery_state);
             }
             None => {
-                log::error!("[{:?}] Ill-formed samples", self.my_peer_id);
+                error!("[{:?}] Ill-formed samples", self.my_peer_id);
                 let _ = self.event_sender.send(TrbpEvents::Die);
                 return;
             }
@@ -228,7 +232,7 @@ impl DoubleEcho {
             .cloned()
             .collect::<Vec<_>>();
         if echo_peers.is_empty() {
-            log::warn!("[{:?}] EchoSubscriber peers set is empty", self.my_peer_id);
+            warn!("[{:?}] EchoSubscriber peers set is empty", self.my_peer_id);
             return;
         }
         let _ = self.event_sender.send(TrbpEvents::Echo {
@@ -315,12 +319,14 @@ impl DoubleEcho {
                         )
                     }
                     self.pending_delivery.remove(cert);
-                    log::debug!(
+                    debug!(
                         "📝 Accepted[{:?}]\t Peer:{:?}\t Delivery time: {:?}",
-                        &cert.cert_id,
-                        self.my_peer_id,
-                        d
+                        &cert.cert_id, self.my_peer_id, d
                     );
+
+                    _ = self.event_sender.send(TrbpEvents::CertificateDelivered {
+                        certificate: cert.clone(),
+                    });
                 }
             }
         }
@@ -335,11 +341,11 @@ impl DoubleEcho {
     /// that is already known as incorrect
     fn cert_pre_delivery_check(&self, cert: &Certificate) -> Result<(), ()> {
         if cert.check_signature().is_err() {
-            log::error!("Error on the signature");
+            error!("Error on the signature");
         }
 
         if cert.check_proof().is_err() {
-            log::error!("Error on the proof");
+            error!("Error on the proof");
         }
 
         Ok(())
@@ -348,11 +354,11 @@ impl DoubleEcho {
     /// Here comes test that is necessarily done after delivery
     fn cert_post_delivery_check(&self, cert: &Certificate) -> Result<(), ()> {
         if self.store.check_precedence(cert).is_err() {
-            log::warn!("Precedence not yet satisfied {:?}", cert);
+            warn!("Precedence not yet satisfied {:?}", cert);
         }
 
         if self.store.check_digest_inclusion(cert).is_err() {
-            log::warn!("Inclusion check not yet satisfied {:?}", cert);
+            warn!("Inclusion check not yet satisfied {:?}", cert);
         }
         Ok(())
     }

@@ -32,14 +32,21 @@ pub(crate) use self::commands::InternalRuntimeCommand;
 pub use self::commands::RuntimeCommand;
 pub use self::events::RuntimeEvent;
 
-#[derive(Debug)]
 pub struct Runtime {
+    /// Streams that are currently active (with a valid handshake)
     pub(crate) active_streams: HashMap<Uuid, Sender<StreamCommand>>,
+    /// Streams that are currently in negotiation
     pub(crate) pending_streams: HashMap<Uuid, Sender<StreamCommand>>,
+    /// Mapping between a subnet_id and streams that are subscribed to it
     pub(crate) subnet_subscription: HashMap<String, HashSet<Uuid>>,
+    /// Receiver for Internal API command
     pub(crate) internal_runtime_command_receiver: Receiver<InternalRuntimeCommand>,
+    /// Receiver for Outside API command
     pub(crate) runtime_command_receiver: Receiver<RuntimeCommand>,
+    /// HealthCheck reporter for gRPC
     pub(crate) health_reporter: HealthReporter,
+    /// Sender that forward Event to the rest of the system
+    pub(crate) api_event_sender: Sender<RuntimeEvent>,
 }
 
 impl Runtime {
@@ -145,8 +152,18 @@ impl Runtime {
                 _ = sender.send(Ok(()));
             }
 
-            InternalRuntimeCommand::CertificateSubmitted { certificate } => {
+            InternalRuntimeCommand::CertificateSubmitted {
+                certificate,
+                sender,
+            } => {
                 info!("A certificate has been submitted to the TCE {certificate:?}");
+                _ = self
+                    .api_event_sender
+                    .send(RuntimeEvent::CertificateSubmitted {
+                        certificate,
+                        sender,
+                    })
+                    .await;
             }
         }
     }

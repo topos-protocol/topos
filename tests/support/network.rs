@@ -8,12 +8,13 @@ use libp2p::{
 use tce_transport::{ReliableBroadcastParams, TrbpEvents};
 use tokio::{spawn, sync::mpsc};
 use topos_p2p::{Client, Event, Runtime};
-use topos_tce::AppContext;
+use topos_tce::{storage::inmemory::InmemoryStorage, AppContext};
 use topos_tce_broadcast::{
     mem_store::TrbMemStore, DoubleEchoCommand, ReliableBroadcastClient, ReliableBroadcastConfig,
     SamplerCommand,
 };
 
+#[derive(Debug)]
 pub struct TestAppContext {
     pub peer_id: String,
     pub command_sampler: mpsc::Sender<SamplerCommand>,
@@ -46,10 +47,11 @@ where
 
         let (command_sampler, command_broadcast) = rb_client.get_command_channels();
 
-        let app = AppContext::new(rb_client, client.clone());
+        let (api_client, api_events) = topos_tce_api::Runtime::builder().build_and_launch().await;
+        let app = AppContext::new(InmemoryStorage::default(), rb_client, client, api_client);
 
         spawn(runtime.run());
-        spawn(app.run(event_stream, trb_events));
+        spawn(app.run(event_stream, trb_events, api_events));
 
         let client = TestAppContext {
             peer_id: peer_id.clone(),

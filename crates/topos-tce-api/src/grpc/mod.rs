@@ -1,6 +1,6 @@
-use futures::Stream as FutureStream;
+use futures::{FutureExt, Stream as FutureStream};
 use std::pin::Pin;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::{Request, Response, Status, Streaming};
 use topos_core::api::tce::v1::{
@@ -31,13 +31,23 @@ impl ApiService for TceGrpcService {
     ) -> Result<Response<SubmitCertificateResponse>, Status> {
         let data = request.into_inner();
         if let Some(certificate) = data.certificate {
+            let (sender, receiver) = oneshot::channel::<Result<(), ()>>();
+
             _ = self
                 .command_sender
                 .send(InternalRuntimeCommand::CertificateSubmitted {
                     certificate: certificate.into(),
+                    sender,
                 })
                 .await;
-            Ok(Response::new(SubmitCertificateResponse {}))
+
+            receiver
+                .map(|value| match value {
+                    Ok(Ok(_)) => Ok(Response::new(SubmitCertificateResponse {})),
+                    Ok(Err(_)) => Err(Status::internal("Can't submit certificate")),
+                    Err(_) => Err(Status::internal("Can't submit certificate")),
+                })
+                .await
         } else {
             Err(Status::invalid_argument("Certificate is malformed"))
         }

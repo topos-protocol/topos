@@ -4,7 +4,6 @@ mod support {
 }
 
 use crate::support::certificate::generate_cert;
-use std::time::Duration;
 use test_log::test;
 use topos_tce_broadcast::{uci::SubnetId, DoubleEchoCommand};
 
@@ -31,10 +30,10 @@ async fn cert_delivery() {
             .expect("Can't send certificate");
     }
 
-    tokio::time::sleep(Duration::from_secs(10)).await;
+    // tokio::time::sleep(std::time::Duration::from_secs(10)).await;
 
     // Here to be able to display logs
-    //assert!(false);
+    // assert!(false);
 }
 
 pub fn sample_lower_bound(n_u: usize) -> usize {
