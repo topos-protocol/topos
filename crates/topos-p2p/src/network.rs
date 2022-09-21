@@ -86,6 +86,7 @@ impl NetworkBuilder {
         self,
     ) -> Result<(Client, impl Stream<Item = Event>, Runtime), Box<dyn Error>> {
         let peer_key = self.peer_key.expect("peer_key not defined");
+        let peer_id = peer_key.public().to_peer_id();
 
         let noise_keys = noise::Keypair::<noise::X25519Spec>::new().into_authentic(&peer_key)?;
 
@@ -108,7 +109,7 @@ impl NetworkBuilder {
             ),
             transmission: TransmissionBehaviour::new(),
             events: VecDeque::new(),
-            peer_id: peer_key.public().to_peer_id(),
+            peer_id,
             addresses: self.listen_addr.clone().unwrap(),
         };
 
@@ -119,7 +120,7 @@ impl NetworkBuilder {
             .timeout(TWO_HOURS)
             .boxed();
 
-        let mut swarm = SwarmBuilder::new(transport, behaviour, peer_key.public().to_peer_id())
+        let mut swarm = SwarmBuilder::new(transport, behaviour, peer_id)
             .executor(Box::new(|future| {
                 let _ = tokio::spawn(future);
             }))
@@ -133,11 +134,11 @@ impl NetworkBuilder {
 
         Ok((
             Client {
-                local_peer_id: peer_key.public().to_peer_id(),
+                local_peer_id: peer_id,
                 sender: command_sender,
             },
             ReceiverStream::new(event_receiver),
-            Runtime::new(swarm, command_receiver, event_sender),
+            Runtime::new(swarm, command_receiver, event_sender, peer_id),
         ))
     }
 }
