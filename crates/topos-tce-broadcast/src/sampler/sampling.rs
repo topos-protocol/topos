@@ -83,10 +83,7 @@ where
 
 #[cfg(test)]
 mod should {
-    use rand::thread_rng;
-    use rand_distr::{Distribution, Uniform};
-
-    use super::{super::cyclerng, *};
+    use super::{super::cyclerng, thread_rng, Uniform, *};
 
     #[test]
     fn return_cyclerng_for_samples_in_test() {
