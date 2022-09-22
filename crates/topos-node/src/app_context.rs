@@ -53,7 +53,7 @@ impl AppContext {
     }
 
     /// Main processing loop
-    pub(crate) async fn run(&mut self) {
+    pub(crate) async fn run(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         loop {
             tokio::select! {
                 // Topos Node API
@@ -105,7 +105,7 @@ impl AppContext {
         match evt {
             CertificationEvent::NewCertificate(cert) => {
                 self.tce_proxy_worker
-                    .eval(TceProxyCommand::SubmitCertificate(cert))
+                    .send_command(TceProxyCommand::SubmitCertificate(cert))
                     .expect("Submit Certificate to TCE");
             }
         }
@@ -114,7 +114,7 @@ impl AppContext {
     async fn on_tce_proxy_event(&mut self, evt: TceProxyEvent) {
         match evt {
             TceProxyEvent::NewDeliveredCerts(certs) => {
-                // New certificates acquired from tce, pass them to substrate runtimime proxy
+                // New certificates acquired from tce, pass them to substrate runtime proxy
                 // for processing
                 for cert in certs {
                     self.runtime_proxy_worker

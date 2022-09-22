@@ -14,7 +14,7 @@ mod app_context;
 // use topos_store::{Store, StoreConfig};
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     pretty_env_logger::init_timed();
     info!("Starting application");
 
@@ -25,20 +25,22 @@ async fn main() {
     });
 
     // Launch the workers
-    let certification = CertificationWorker::new(args.subnet_id.clone());
+    let certification = CertificationWorker::new(args.subnet_id.clone())?;
+
     let runtime_proxy = RuntimeProxyWorker::new(RuntimeProxyConfig {
         subnet_id: args.subnet_id.clone(),
         endpoint: args.substrate_subnet_rpc_endpoint.clone(),
         subnet_contract: args.subnet_contract.clone(),
         keystore_file: args.topos_node_keystore_file.clone(),
         keystore_password: pass,
-    });
+    })?;
 
     // downstream flow processor worker
     let tce_proxy_worker = TceProxyWorker::new(TceProxyConfig {
         subnet_id: args.subnet_id.clone(),
         base_tce_api_url: args.base_tce_api_url.clone(),
-    });
+    })
+    .await?;
 
     let api = ApiWorker::new(ApiConfig {
         web_port: args.web_api_local_port,
@@ -59,7 +61,7 @@ async fn main() {
         srv,
         tce_proxy_worker,
     );
-    app_context.run().await;
+    app_context.run().await
 }
 
 /// Application configuration
