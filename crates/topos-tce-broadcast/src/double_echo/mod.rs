@@ -4,7 +4,7 @@ use crate::{
     DoubleEchoCommand, Peer,
 };
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{HashMap, HashSet, VecDeque},
     time,
 };
 use tce_transport::{ReliableBroadcastParams, TrbpEvents};
@@ -30,9 +30,13 @@ pub struct DoubleEcho {
     all_known_certs: Vec<Certificate>,
     delivery_time: HashMap<CertificateId, (time::SystemTime, time::Duration)>,
     current_sample_view: Option<SampleView>,
+
+    buffer: VecDeque<Certificate>,
 }
 
 impl DoubleEcho {
+    pub const MAX_BUFFER_SIZE: usize = 2048;
+
     pub fn new(
         my_peer_id: String,
         params: ReliableBroadcastParams,
@@ -53,6 +57,7 @@ impl DoubleEcho {
             all_known_certs: Default::default(),
             delivery_time: Default::default(),
             current_sample_view: Default::default(),
+            buffer: VecDeque::new(),
         }
     }
 
@@ -61,28 +66,38 @@ impl DoubleEcho {
         loop {
             tokio::select! {
                 Some(command) = self.command_receiver.recv() => {
-                    if let DoubleEchoCommand::DeliveredCerts { subnet_id, limit, sender } = command {
-                        let value = self
-                            .store
-                            .recent_certificates_for_subnet(&subnet_id, limit)
-                            .iter()
-                            .filter_map(|cert_id| self.store.cert_by_id(cert_id).ok())
-                            .collect();
+                    match command {
+                        DoubleEchoCommand::DeliveredCerts { subnet_id, limit, sender } => {
+                            let value = self
+                                .store
+                                .recent_certificates_for_subnet(&subnet_id, limit)
+                                .iter()
+                                .filter_map(|cert_id| self.store.cert_by_id(cert_id).ok())
+                                .collect();
 
-                        // TODO: Catch send failure
-                        let _ = sender.send(Ok(value));
-                    } else if self.current_sample_view.is_some() {
-                        match command {
-                            DoubleEchoCommand::Echo { from_peer, cert } => self.handle_echo(from_peer, cert),
-                            DoubleEchoCommand::Ready { from_peer, cert } => self.handle_ready(from_peer, cert),
-                            DoubleEchoCommand::Broadcast { cert } => self.handle_broadcast(cert),
-                            DoubleEchoCommand::Deliver { cert, digest } => self.handle_deliver(cert, digest),
-                            _ => {}
+                            // TODO: Catch send failure
+                            let _ = sender.send(Ok(value));
                         }
 
-                        self.state_change_follow_up();
-                    } else {
-                        warn!("Command: {command:?} not handled, sample: {:?}", self.current_sample_view);
+                        DoubleEchoCommand::BroadcastMany { certificates } if self.buffer.is_empty() => {
+                            self.buffer = certificates.into();
+                        }
+
+                        DoubleEchoCommand::Broadcast { cert } => {
+                            self.buffer.push_back(cert);
+                        }
+
+                        command if self.current_sample_view.is_some() => {
+                            match command {
+                                DoubleEchoCommand::Echo { from_peer, cert } => self.handle_echo(from_peer, cert),
+                                DoubleEchoCommand::Ready { from_peer, cert } => self.handle_ready(from_peer, cert),
+                                DoubleEchoCommand::Deliver { cert, digest } => self.handle_deliver(cert, digest),
+                                _ => {}
+                            }
+
+                            self.state_change_follow_up();
+                        }
+                        _ => {}
                     }
 
                 }
@@ -91,6 +106,12 @@ impl DoubleEcho {
                     info!("New sample receive on DoubleEcho {new_sample_view:?}");
 
                     self.current_sample_view = Some(new_sample_view);
+                }
+            }
+
+            if self.current_sample_view.is_some() {
+                while let Some(cert) = self.buffer.pop_front() {
+                    self.handle_broadcast(cert);
                 }
             }
         }
@@ -388,7 +409,7 @@ mod tests {
     use crate::mem_store::TrbMemStore;
     // use rand::{distributions::Uniform, Rng};
     use rand::seq::IteratorRandom;
-    use tokio::sync::broadcast::error::TryRecvError;
+    use tokio::{spawn, sync::broadcast::error::TryRecvError};
 
     fn get_sample(peers: &Vec<Peer>, sample_size: usize) -> HashSet<Peer> {
         let mut rng = rand::thread_rng();
@@ -524,5 +545,73 @@ mod tests {
             event_receiver.try_recv(),
             Ok(TrbpEvents::CertificateDelivered { certificate }) if certificate == le_cert
         ));
+    }
+
+    #[tokio::test]
+    async fn buffering_certificate() {
+        let (view_sender, view_receiver) = mpsc::channel(10);
+
+        // Network parameters
+        let nb_peers = 100;
+        let sample_size = 10;
+        let g = |a, b| ((a as f32) * b) as usize;
+        let broadcast_params = ReliableBroadcastParams {
+            echo_threshold: g(sample_size, 0.5),
+            echo_sample_size: sample_size,
+            ready_threshold: g(sample_size, 0.5),
+            ready_sample_size: sample_size,
+            delivery_threshold: g(sample_size, 0.5),
+            delivery_sample_size: sample_size,
+        };
+
+        // List of peers
+        let mut peers = Vec::new();
+        for i in 0..nb_peers {
+            peers.push(format!("peer_{i}"));
+        }
+
+        let my_peer_id = peers[0].clone();
+        let expected_view = get_sample_view(peers, sample_size);
+
+        // Double Echo
+        let (cmd_sender, cmd_receiver) = mpsc::channel(10);
+        let (event_sender, mut event_receiver) = broadcast::channel(10);
+        let double_echo = DoubleEcho::new(
+            my_peer_id,
+            broadcast_params.clone(),
+            cmd_receiver,
+            view_receiver,
+            event_sender,
+            Box::new(TrbMemStore::default()),
+        );
+
+        spawn(double_echo.run());
+
+        let le_cert = Certificate::default();
+        cmd_sender
+            .send(DoubleEchoCommand::Broadcast {
+                cert: le_cert.clone(),
+            })
+            .await
+            .expect("Cannot send broadcast command");
+
+        assert_eq!(event_receiver.len(), 0);
+        view_sender
+            .send(expected_view.clone())
+            .await
+            .expect("Cannot send expected view");
+
+        let assertion = async {
+            while let Ok(event) = event_receiver.recv().await {
+                if matches!(event, TrbpEvents::Gossip { .. }) {
+                    break;
+                }
+            }
+        };
+
+        if let Err(_) = tokio::time::timeout(std::time::Duration::from_millis(100), assertion).await
+        {
+            panic!("Timeout waiting for event");
+        }
     }
 }
