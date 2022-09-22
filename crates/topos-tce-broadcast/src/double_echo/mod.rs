@@ -460,7 +460,7 @@ mod tests {
         assert!(double_echo.current_sample_view.is_none());
         double_echo.current_sample_view = Some(expected_view.clone());
 
-        let le_cert = Certificate::default();
+        let le_cert = Certificate::new("0".to_string(), "0".to_string(), vec![]);
         double_echo.handle_broadcast(le_cert.clone());
 
         assert_eq!(event_receiver.len(), 2);

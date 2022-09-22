@@ -126,7 +126,7 @@ impl Sampler {
 
     fn peer_changed(&mut self, peers: Vec<Peer>) {
         self.visible_peers = peers;
-        self.reset_subscription_samples();
+        self.reset_samples();
     }
 
     async fn pending_subs_state_change_follow_up(&mut self) {
@@ -155,7 +155,7 @@ impl Sampler {
         sample_type: SampleType,
         peer: Peer,
     ) -> Result<(), ()> {
-        info!("ConfirmPeer {peer} in {sample_type:?}");
+        debug!("ConfirmPeer {peer} in {sample_type:?}",);
         match sample_type {
             SampleType::EchoSubscription => {
                 if self.pending_echo_subscriptions.remove(&peer) {
@@ -185,15 +185,21 @@ impl Sampler {
         Err(())
     }
 
-    fn reset_subscription_samples(&mut self) {
+    fn reset_samples(&mut self) {
         self.status = SampleProviderStatus::BuildingNewView;
 
         // Reset unvisible subscribers
         if let Some(echo_subscribers) = self.view.get_mut(&SampleType::EchoSubscriber) {
             echo_subscribers.retain(|p| self.visible_peers.contains(p));
+        } else {
+            self.view.insert(SampleType::EchoSubscriber, HashSet::new());
         }
+
         if let Some(ready_subscribers) = self.view.get_mut(&SampleType::ReadySubscriber) {
             ready_subscribers.retain(|p| self.visible_peers.contains(p));
+        } else {
+            self.view
+                .insert(SampleType::ReadySubscriber, HashSet::new());
         }
 
         // Reset subscriptions
@@ -434,6 +440,8 @@ mod tests {
         sampler.peer_changed(peers);
 
         let mut expected_view = SampleView::default();
+        expected_view.insert(SampleType::EchoSubscriber, HashSet::new());
+        expected_view.insert(SampleType::ReadySubscriber, HashSet::new());
         expected_view.insert(
             SampleType::EchoSubscription,
             sampler.pending_echo_subscriptions.clone(),
