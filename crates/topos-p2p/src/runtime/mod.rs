@@ -1,5 +1,5 @@
 use crate::{Behaviour, Command, Event};
-use libp2p::{Multiaddr, Swarm};
+use libp2p::{Multiaddr, PeerId, Swarm};
 use std::error::Error;
 use tokio::sync::mpsc;
 use tokio_stream::StreamExt;
@@ -8,6 +8,7 @@ pub struct Runtime {
     swarm: Swarm<Behaviour>,
     command_receiver: mpsc::Receiver<Command>,
     event_sender: mpsc::Sender<Event>,
+    local_peer_id: PeerId,
 }
 
 mod handle_command;
@@ -18,11 +19,13 @@ impl Runtime {
         swarm: Swarm<Behaviour>,
         command_receiver: mpsc::Receiver<Command>,
         event_sender: mpsc::Sender<Event>,
+        local_peer_id: PeerId,
     ) -> Self {
         Self {
             swarm,
             command_receiver,
             event_sender,
+            local_peer_id,
         }
     }
 

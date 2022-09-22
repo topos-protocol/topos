@@ -3,9 +3,11 @@ use crate::{
     error::FSMError,
     Command, Runtime,
 };
-use libp2p::PeerId;
+use libp2p::{kad::record::Key, swarm::NetworkBehaviour, PeerId};
+use tracing::{info, instrument};
 
 impl Runtime {
+    #[instrument(name = "Runtime::handle_command", skip_all, fields(peer_id = %self.local_peer_id))]
     pub(crate) async fn handle_command(&mut self, command: Command) {
         match command {
             Command::StartListening { peer_addr, sender } => {
@@ -62,6 +64,21 @@ impl Runtime {
 
                 let _ = sender.send(Ok(()));
             }
+
+            Command::Discover { to, sender } => {
+                let behaviour = self.swarm.behaviour_mut();
+                let addr = behaviour.transmission.addresses_of_peer(&to);
+
+                if addr.is_empty() {
+                    info!("We don't know {to}, fetching its Multiaddr from DHT");
+                    behaviour
+                        .discovery
+                        .get_record(Key::new(&to.to_string()), sender);
+                } else {
+                    _ = sender.send(Ok(addr));
+                }
+            }
+
             Command::TransmissionReq { to, data, sender } => {
                 if self
                     .swarm

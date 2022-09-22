@@ -17,6 +17,7 @@ use std::{
     collections::VecDeque,
     task::{Context, Poll},
 };
+use tracing::{info, instrument};
 
 pub(crate) mod discovery;
 pub(crate) mod peer_info;
@@ -89,8 +90,12 @@ impl NetworkBehaviourEventProcess<TransmissionOut> for Behaviour {
 }
 
 impl NetworkBehaviourEventProcess<DiscoveryOut> for Behaviour {
+    #[instrument(name = "Behaviour::inject_event", skip(self), fields(peer_id = %self.peer_id))]
     fn inject_event(&mut self, event: DiscoveryOut) {
         match event {
+            DiscoveryOut::SelfDiscovered(peer, addr) => {
+                self.transmission.inner.add_address(&peer, addr);
+            }
             DiscoveryOut::Discovered(peer) => {
                 if self.discovery.peers.insert(peer) {
                     self.events
@@ -110,6 +115,7 @@ impl NetworkBehaviourEventProcess<DiscoveryOut> for Behaviour {
             }
 
             DiscoveryOut::BootstrapOk => {
+                info!("Bootstrapping finished");
                 let key = Key::new(&self.peer_id.to_string());
                 _ = self
                     .discovery
