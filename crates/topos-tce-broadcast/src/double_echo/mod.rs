@@ -81,6 +81,8 @@ impl DoubleEcho {
                         }
 
                         self.state_change_follow_up();
+                    } else {
+                        warn!("Command: {command:?} not handled, sample: {:?}", self.current_sample_view);
                     }
 
                 }

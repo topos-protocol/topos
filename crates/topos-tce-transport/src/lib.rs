@@ -67,6 +67,8 @@ pub enum TrbpCommands {
         from_peer: String,
         cert: Certificate,
     },
+    /// Given peer replied ok to the double echo request
+    OnDoubleEchoOk { from_peer: String },
 }
 
 /// Protocol events

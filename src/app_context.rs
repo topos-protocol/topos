@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use topos_tce_api::RuntimeClient as ApiClient;
 use topos_tce_api::RuntimeEvent as ApiEvent;
+use topos_tce_broadcast::DoubleEchoCommand;
 // use tce_api::web_api::PeerChanged;
 // use tce_api::{ApiRequests, ApiWorker};
 use tce_transport::{TrbpCommands, TrbpEvents};
@@ -213,6 +214,75 @@ impl AppContext {
                 });
             }
 
+            TrbpEvents::Gossip { peers, cert, .. } => {
+                let data: Vec<u8> = NetworkMessage::from(TrbpCommands::OnGossip {
+                    cert,
+                    digest: vec![],
+                })
+                .into();
+
+                let future_pool = peers
+                    .iter()
+                    .map(|peer_id| {
+                        warn!("Sending gossip");
+                        self.network_client.send_request::<_, NetworkMessage>(
+                            PeerId::from_str(peer_id).expect("correct peer_id"),
+                            data.clone(),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+
+                spawn(async move {
+                    let _results = join_all(future_pool).await;
+                });
+            }
+
+            TrbpEvents::Echo { peers, cert } => {
+                let data: Vec<u8> = NetworkMessage::from(TrbpCommands::OnEcho {
+                    from_peer: self.network_client.local_peer_id.to_base58(),
+                    cert,
+                })
+                .into();
+
+                let future_pool = peers
+                    .iter()
+                    .map(|peer_id| {
+                        warn!("Sending echo");
+                        self.network_client.send_request::<_, NetworkMessage>(
+                            PeerId::from_str(peer_id).expect("correct peer_id"),
+                            data.clone(),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+
+                spawn(async move {
+                    let _results = join_all(future_pool).await;
+                });
+            }
+
+            TrbpEvents::Ready { peers, cert } => {
+                let data: Vec<u8> = NetworkMessage::from(TrbpCommands::OnReady {
+                    from_peer: self.network_client.local_peer_id.to_base58(),
+                    cert,
+                })
+                .into();
+
+                let future_pool = peers
+                    .iter()
+                    .map(|peer_id| {
+                        warn!("Sending ready");
+                        self.network_client.send_request::<_, NetworkMessage>(
+                            PeerId::from_str(peer_id).expect("correct peer_id"),
+                            data.clone(),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+
+                spawn(async move {
+                    let _results = join_all(future_pool).await;
+                });
+            }
+
             evt => {
                 log::debug!("Unhandled event: {:?}", evt);
             }
@@ -267,6 +337,48 @@ impl AppContext {
                                 ));
                             }
 
+                            TrbpCommands::OnGossip { cert, digest: _ } => {
+                                let command_sender = self.trbp_cli.get_double_echo_channel();
+                                command_sender
+                                    .send(DoubleEchoCommand::Broadcast { cert })
+                                    .await
+                                    .expect("Gossip the certificate");
+
+                                spawn(self.network_client.respond_to_request(
+                                    NetworkMessage::from(TrbpCommands::OnDoubleEchoOk {
+                                        from_peer: my_peer.to_base58(),
+                                    }),
+                                    channel,
+                                ));
+                            }
+                            TrbpCommands::OnEcho { from_peer, cert } => {
+                                let command_sender = self.trbp_cli.get_double_echo_channel();
+                                command_sender
+                                    .send(DoubleEchoCommand::Echo { from_peer, cert })
+                                    .await
+                                    .expect("Receive the Echo");
+
+                                spawn(self.network_client.respond_to_request(
+                                    NetworkMessage::from(TrbpCommands::OnDoubleEchoOk {
+                                        from_peer: my_peer.to_base58(),
+                                    }),
+                                    channel,
+                                ));
+                            }
+                            TrbpCommands::OnReady { from_peer, cert } => {
+                                let command_sender = self.trbp_cli.get_double_echo_channel();
+                                command_sender
+                                    .send(DoubleEchoCommand::Ready { from_peer, cert })
+                                    .await
+                                    .expect("Receive the Ready");
+
+                                spawn(self.network_client.respond_to_request(
+                                    NetworkMessage::from(TrbpCommands::OnDoubleEchoOk {
+                                        from_peer: my_peer.to_base58(),
+                                    }),
+                                    channel,
+                                ));
+                            }
                             _ => todo!(),
                         }
                     }
