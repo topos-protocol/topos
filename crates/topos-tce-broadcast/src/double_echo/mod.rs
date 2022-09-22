@@ -84,7 +84,9 @@ impl DoubleEcho {
                         }
 
                         DoubleEchoCommand::Broadcast { cert } => {
-                            self.buffer.push_back(cert);
+                            if self.buffer.len() < Self::MAX_BUFFER_SIZE {
+                                self.buffer.push_back(cert);
+                            }
                         }
 
                         command if self.current_sample_view.is_some() => {
