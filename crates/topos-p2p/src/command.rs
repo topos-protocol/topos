@@ -40,6 +40,12 @@ pub enum Command {
         sender: oneshot::Sender<Result<Vec<u8>, Box<dyn Error + Send>>>,
     },
 
+    /// Try to discover a peer based on its PeerId
+    Discover {
+        to: PeerId,
+        sender: oneshot::Sender<Result<Vec<Multiaddr>, Box<dyn Error + Send>>>,
+    },
+
     /// Send a TransmissionReq to multiple nodes
     TransmissionResponse {
         data: Vec<u8>,

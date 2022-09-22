@@ -11,7 +11,7 @@ use libp2p::{
     identity::Keypair,
     kad::{
         record::Key, store::MemoryStore, AddProviderOk, GetClosestPeersError, Kademlia,
-        KademliaConfig, KademliaEvent, QueryResult, Quorum, Record,
+        KademliaConfig, KademliaEvent, QueryId, QueryResult, Quorum, Record,
     },
     mdns::{Mdns, MdnsConfig, MdnsEvent},
     swarm::{
@@ -24,6 +24,7 @@ use tokio::sync::oneshot;
 use tracing::{debug, error, info, trace, warn};
 
 type PendingDials = HashMap<PeerId, oneshot::Sender<Result<(), Box<dyn Error + Send>>>>;
+type PendingRecordRequest = oneshot::Sender<Result<Vec<Multiaddr>, Box<dyn Error + Send>>>;
 
 /// DiscoveryBehaviour is responsible to discover and manage connections with peers
 pub(crate) struct DiscoveryBehaviour {
@@ -66,6 +67,9 @@ pub(crate) struct DiscoveryBehaviour {
 
     /// Contains peer ids of dialled node
     pub peers: HashSet<PeerId>,
+
+    /// Pending DHT queries
+    pending_record_requests: HashMap<QueryId, PendingRecordRequest>,
 }
 
 /// [`Mdns::new`] returns a future. Instead of forcing [`DiscoveryConfig::finish`] and all its
@@ -113,6 +117,7 @@ impl MdnsWrapper {
 #[derive(Debug)]
 pub enum DiscoveryOut {
     UnroutablePeer(PeerId),
+    SelfDiscovered(PeerId, Multiaddr),
     Discovered(PeerId),
     BootstrapOk,
 }
@@ -341,17 +346,51 @@ impl NetworkBehaviour for DiscoveryBehaviour {
                         KademliaEvent::OutboundQueryCompleted {
                             result: QueryResult::Bootstrap(res),
                             ..
+                        } => match res {
+                            Ok(_) => {
+                                return Poll::Ready(NetworkBehaviourAction::GenerateEvent(
+                                    DiscoveryOut::BootstrapOk,
+                                ));
+                            }
+                            Err(e) => error!("Error: bootstrap : {e:?}"),
+                        },
+
+                        KademliaEvent::OutboundQueryCompleted {
+                            result: QueryResult::PutRecord(res),
+                            ..
                         } => {
-                            warn!("BootstrapOK, {res:?}");
-                            match res {
-                                Ok(_) => {
-                                    return Poll::Ready(NetworkBehaviourAction::GenerateEvent(
-                                        DiscoveryOut::BootstrapOk,
-                                    ));
-                                }
-                                Err(e) => error!("Error: bootstrap : {e:?}"),
+                            if let Err(e) = res {
+                                error!("{e:?}");
                             }
                         }
+
+                        KademliaEvent::OutboundQueryCompleted {
+                            result: QueryResult::GetRecord(res),
+                            id,
+                            ..
+                        } => match res {
+                            Ok(result) => {
+                                if let Some(sender) = self.pending_record_requests.remove(&id) {
+                                    if let Some(peer_record) = result.records.first() {
+                                        let addr =
+                                            Multiaddr::try_from(peer_record.record.value.clone())
+                                                .unwrap();
+
+                                        let peer_id = peer_record.record.publisher.unwrap();
+                                        self.kademlia.add_address(&peer_id, addr.clone());
+
+                                        _ = sender.send(Ok(vec![addr.clone()]));
+
+                                        return Poll::Ready(NetworkBehaviourAction::GenerateEvent(
+                                            DiscoveryOut::SelfDiscovered(peer_id, addr),
+                                        ));
+                                    }
+                                }
+                            }
+
+                            Err(error) => error!("{error:?}"),
+                        },
+
                         // We never start any other type of query.
                         KademliaEvent::OutboundQueryCompleted { result: e, .. } => {
                             warn!("Discovery => Unhandled Kademlia event: {:?}", e)
@@ -497,6 +536,7 @@ impl DiscoveryBehaviour {
             num_connections: 0,
             pending_dial: HashMap::new(),
             peers: HashSet::new(),
+            pending_record_requests: HashMap::new(),
         }
     }
 
@@ -521,5 +561,15 @@ impl DiscoveryBehaviour {
                 let _ = sender.send(Err(Box::new(FSMError::AlreadyDialed(peer_id))));
             }
         }
+    }
+
+    pub fn get_record(
+        &mut self,
+        key: Key,
+        sender: oneshot::Sender<Result<Vec<Multiaddr>, Box<dyn Error + Send>>>,
+    ) {
+        let query_id = self.kademlia.get_record(key, Quorum::One);
+
+        self.pending_record_requests.insert(query_id, sender);
     }
 }
