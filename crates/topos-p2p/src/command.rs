@@ -1,9 +1,9 @@
-use std::error::Error;
+use std::{error::Error, fmt::Display};
 
 use libp2p::{request_response::ResponseChannel, Multiaddr, PeerId};
 use tokio::sync::oneshot;
 
-use crate::behaviour::transmission::codec::TransmissionResponse;
+use crate::{behaviour::transmission::codec::TransmissionResponse, error::FSMError};
 
 #[derive(Debug)]
 pub enum Command {
@@ -20,7 +20,7 @@ pub enum Command {
     Dial {
         peer_id: PeerId,
         peer_addr: Multiaddr,
-        sender: oneshot::Sender<Result<(), Box<dyn Error + Send>>>,
+        sender: oneshot::Sender<Result<(), P2PError>>,
     },
 
     /// Command to ask for the current connected peer id list
@@ -51,4 +51,18 @@ pub enum Command {
         data: Vec<u8>,
         channel: ResponseChannel<TransmissionResponse>,
     },
+}
+
+impl Display for Command {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Command::StartListening { .. } => write!(f, "StartListening"),
+            Command::Dial { peer_id, .. } => write!(f, "Dial({peer_id})"),
+            Command::ConnectedPeers { .. } => write!(f, "ConnectedPeers"),
+            Command::Disconnect { .. } => write!(f, "Disconnect"),
+            Command::TransmissionReq { to, .. } => write!(f, "TransmissionReq(to: {to})"),
+            Command::Discover { to, .. } => write!(f, "Discover(to: {to})"),
+            Command::TransmissionResponse { .. } => write!(f, "TransmissionResponse"),
+        }
+    }
 }

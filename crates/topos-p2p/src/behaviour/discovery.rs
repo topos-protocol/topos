@@ -24,7 +24,7 @@ use libp2p::{
 use tokio::sync::oneshot;
 use tracing::{debug, error, info, instrument, trace, warn};
 
-type PendingDials = HashMap<PeerId, oneshot::Sender<Result<(), Box<dyn Error + Send>>>>;
+type PendingDials = HashMap<PeerId, oneshot::Sender<Result<(), FSMError>>>;
 type PendingRecordRequest = oneshot::Sender<Result<Vec<Multiaddr>, Box<dyn Error + Send>>>;
 
 /// DiscoveryBehaviour is responsible to discover and manage connections with peers
@@ -149,7 +149,11 @@ impl NetworkBehaviour for DiscoveryBehaviour {
         debug!("Connection established with peer: {peer_id}");
         if let Some(sender) = self.pending_dial.remove(peer_id) {
             self.peers.insert(*peer_id);
-            let _ = sender.send(Ok(()));
+            if sender.send(Ok(())).is_err() {
+                warn!(
+                    "Could not notify successful dial with {peer_id} because initiator is dropped"
+                );
+            }
         }
 
         self.kademlia.inject_connection_established(
@@ -207,7 +211,9 @@ impl NetworkBehaviour for DiscoveryBehaviour {
         error!("Dial failure: {error:?}");
         if let Some(peer_id) = peer_id {
             if let Some(sender) = self.pending_dial.remove(&peer_id) {
-                let _ = sender.send(Err(Box::new(crate::error::P2PError::DialError)));
+                if sender.send(Err(crate::error::P2PError::DialError)).is_err() {
+                    warn!("Could not notify dial failure because initiator is dropped");
+                }
             }
         }
 
@@ -380,7 +386,10 @@ impl NetworkBehaviour for DiscoveryBehaviour {
                                             if let Some(peer_id) = peer_record.record.publisher {
                                                 self.kademlia.add_address(&peer_id, addr.clone());
 
-                                                _ = sender.send(Ok(vec![addr.clone()]));
+                                                if sender.send(Ok(vec![addr.clone()])).is_err() {
+                                                    // TODO: Hash the QueryId
+                                                    warn!("Could not notify Record query ({id:?}) response because initiator is dropped");
+                                                }
 
                                                 return Poll::Ready(
                                                     NetworkBehaviourAction::GenerateEvent(
@@ -512,7 +521,9 @@ impl DiscoveryBehaviour {
             kademlia.add_address(&known_peer.0, known_peer.1.clone());
         }
 
-        _ = kademlia.bootstrap();
+        if kademlia.bootstrap().is_err() {
+            warn!("Bootstrapping failed because of NoKnownPeers, ignore this warning if boot-node");
+        }
 
         Self {
             kademlia,
@@ -538,7 +549,7 @@ impl DiscoveryBehaviour {
         &mut self,
         peer_id: PeerId,
         peer_addr: Multiaddr,
-        sender: oneshot::Sender<Result<(), Box<dyn Error + Send>>>,
+        sender: oneshot::Sender<Result<(), P2PError>>,
     ) {
         info!("Sending an active Dial");
         let handler = self.new_handler();
@@ -552,8 +563,9 @@ impl DiscoveryBehaviour {
             }
 
             _ => {
-                error!("Already dialing peer.");
-                let _ = sender.send(Err(Box::new(P2PError::AlreadyDialed(peer_id))));
+                if sender.send(Err(P2PError::AlreadyDialed(peer_id))).is_err() {
+                    warn!("Could not notify that {peer_id} was already dialed because initiator is dropped");
+                }
             }
         }
     }

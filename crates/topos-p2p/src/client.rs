@@ -2,9 +2,12 @@ use std::error::Error;
 
 use futures::future::BoxFuture;
 use libp2p::{request_response::ResponseChannel, PeerId};
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::{
+    mpsc::{self, error::SendError},
+    oneshot,
+};
 
-use crate::{behaviour::transmission::codec::TransmissionResponse, Command};
+use crate::{behaviour::transmission::codec::TransmissionResponse, error::FSMError, Command};
 
 #[derive(Clone)]
 pub struct Client {
@@ -18,18 +21,22 @@ impl Client {
         peer_addr: libp2p::Multiaddr,
     ) -> Result<(), Box<dyn Error + Send>> {
         let (sender, receiver) = oneshot::channel();
-        self.sender
+        if let Err(SendError(command)) = self
+            .sender
             .send(Command::StartListening { peer_addr, sender })
             .await
-            .expect("Command receiver not to be dropped.");
-        receiver.await.expect("Sender not to be dropped.")
+        {
+            return Err(Box::new(FSMError::UnableToSendCommand(command)));
+        }
+
+        receiver.await.unwrap_or_else(|error| Err(Box::new(error)))
     }
 
     pub async fn dial(
         &self,
         peer_id: PeerId,
         peer_addr: libp2p::Multiaddr,
-    ) -> Result<(), Box<dyn Error + Send>> {
+    ) -> Result<(), P2PError> {
         let (sender, receiver) = oneshot::channel();
         self.sender
             .send(Command::Dial {

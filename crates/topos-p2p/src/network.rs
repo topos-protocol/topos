@@ -122,7 +122,7 @@ impl NetworkBuilder {
 
         let swarm = SwarmBuilder::new(transport, behaviour, peer_id)
             .executor(Box::new(|future| {
-                let _ = tokio::spawn(future);
+                tokio::spawn(future);
             }))
             .build();
 

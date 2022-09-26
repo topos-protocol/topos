@@ -21,7 +21,7 @@ use std::{
     time::Duration,
 };
 use tokio::sync::oneshot::{self, Sender};
-use tracing::{debug, error};
+use tracing::{debug, error, warn};
 
 pub mod codec;
 pub mod protocol;
@@ -215,18 +215,22 @@ impl NetworkBehaviour for TransmissionBehaviour {
                         ..
                     } => {
                         if let Some(sender) = self.pending_requests.remove(&request_id) {
-                            let _ = sender.send(Ok(response.0));
+                            if sender.send(Ok(response.0)).is_err() {
+                                warn!("Could not send response to request {request_id} because initiator is dropped");
+                            }
                         }
                     }
 
                     RequestResponseEvent::OutboundFailure {
                         request_id, error, ..
                     } => {
-                        let _ = self
-                            .pending_requests
-                            .remove(&request_id)
-                            .expect("Request to still be pending.")
-                            .send(Err(Box::new(error)));
+                        if let Some(sender) = self.pending_requests.remove(&request_id) {
+                            if sender.send(Err(Box::new(error))).is_err() {
+                                warn!("Could not send RequestFailure for request {request_id} because initiator is dropped");
+                            }
+                        } else {
+                            warn!("Received an OutboundRequest failure for an unknown request {request_id}")
+                        }
                     }
 
                     RequestResponseEvent::InboundFailure {

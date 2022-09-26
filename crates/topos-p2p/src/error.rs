@@ -1,6 +1,8 @@
 use libp2p::PeerId;
 use thiserror::Error;
 
+use crate::command::Command;
+
 #[derive(Error, Debug)]
 pub enum P2PError {
     #[error("Can't dial on self")]
@@ -11,4 +13,6 @@ pub enum P2PError {
     AlreadyDisconnected,
     #[error("Error during dialling")]
     DialError,
+    #[error("Unable to send command {0}")]
+    UnableToSendCommand(Command),
 }

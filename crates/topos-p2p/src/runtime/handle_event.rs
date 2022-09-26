@@ -5,7 +5,7 @@ use libp2p::{
     multiaddr::Protocol,
     swarm::{ConnectionHandlerUpgrErr, SwarmEvent},
 };
-use tracing::{error, info, instrument};
+use tracing::{error, info, instrument, warn};
 
 use crate::{event::ComposedEvent, Runtime};
 
@@ -60,9 +60,9 @@ impl Runtime {
             }
 
             SwarmEvent::Behaviour(ComposedEvent::OutEvent(event)) => {
-                self.event_sender
-                    .try_send(event)
-                    .expect("Cannot send event to stream");
+                if let Err(error) = self.event_sender.try_send(event) {
+                    warn!(reason = %error, "Unable to send NetworkEvent event to outer stream");
+                }
             }
             event => error!("Unhandled event: {event:?}"),
         }
