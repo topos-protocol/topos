@@ -6,6 +6,7 @@ use opentelemetry::{
     trace::{SpanBuilder, SpanKind, TraceId, Tracer},
 };
 use topos_core::uci::CertificateId;
+use tracing::{error, info};
 
 const JAEGER_HEADER: &str = "topos-trace-id";
 #[allow(unused)]
@@ -18,7 +19,7 @@ lazy_static::lazy_static! {
 }
 
 pub fn init_tracer(agent_endpoint: &String, service_name: &str) {
-    log::info!("Initialize jaeger tracer agent for {:?}", agent_endpoint);
+    info!("Initialize jaeger tracer agent for {:?}", agent_endpoint);
     global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
     match opentelemetry_jaeger::new_pipeline()
         .with_agent_endpoint(agent_endpoint)
@@ -30,7 +31,7 @@ pub fn init_tracer(agent_endpoint: &String, service_name: &str) {
             global::set_tracer_provider(provider);
         }
         Err(e) => {
-            log::error!("Fail to initialize tracer {}", e);
+            error!("Fail to initialize tracer {}", e);
         }
     }
 }
