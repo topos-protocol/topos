@@ -1,3 +1,5 @@
+use std::net::SocketAddr;
+
 use clap::Parser;
 use libp2p::{Multiaddr, PeerId};
 use tce_transport::ReliableBroadcastParams;
@@ -47,6 +49,10 @@ pub struct AppArgs {
     /// Testing only - deliver certificate immediately upon submission
     #[clap(long, env = "TCE_TEST_IMMEDIATE_DELIVERY")]
     pub test_immediate_delivery: bool,
+
+    /// gRPC API Addr
+    #[clap(long, env = "TCE_API_ADDR")]
+    pub api_addr: SocketAddr,
 
     /// TRBP parameters
     #[clap(flatten)]
