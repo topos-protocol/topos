@@ -5,22 +5,18 @@ edition = "2021"
 license = "MIT"
 
 [dependencies]
-libp2p = { version = "0.46", features = ["tcp-tokio", "dns-tokio"] }
-tokio-stream = "*"
-
-tracing = "0.1"
-
 async-trait.workspace = true
+futures.workspace = true
 serde.workspace = true
 thiserror.workspace = true
-futures.workspace = true
+tokio-stream.workspace = true
 tokio.workspace = true
+tracing.workspace = true
+
+libp2p = { workspace = true, features = ["tcp-tokio", "dns-tokio", "request-response", "identify", "mplex", "mdns", "kad"] }
 
 [dev-dependencies]
 bincode = "1.3"
-tracing-test = "0.1"
-# test-log = { version = "0.2", default-features = false, features = ["trace"] }
 env_logger = "*"
 test-log = { version = "0.2", features = ["trace"] }
-tracing = {version = "0.1", default-features = false}
-tracing-subscriber = {version = "0.3", default-features = false, features = ["env-filter", "fmt"]}
+tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }

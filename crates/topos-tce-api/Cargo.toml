@@ -6,23 +6,20 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bytes = "1.1.0"
-hyper = { version = "0.14", features = ["full"] }
-log = "0.4.14"
-
-async-stream = "0.3.3"
 
 serde.workspace = true
 futures.workspace = true
 tokio.workspace = true
+tracing.workspace = true
+tokio-stream.workspace = true
 
-tokio-stream = "0.1.9"
-tonic = { version = "0.8.0", features = ["transport"] }
-tonic-reflection = "0.5.0"
 topos-core = { workspace = true, features = ["uci", "api"] }
-tracing = "0.1.36"
-uuid = { version = "1.1.2", features = ["v4"] }
+
+async-stream = "0.3.3"
+tonic = { version = "0.8.0", features = ["transport"] }
 tonic-health = "0.7.0"
+tonic-reflection = "0.5.0"
+uuid = { version = "1.1.2", features = ["v4"] }
 
 [dev-dependencies]
 bytes = "1.2.1"
@@ -32,5 +29,4 @@ http-body = "0.4.5"
 hyper = "0.14.20"
 prost = "0.11.0"
 test-log = { version = "0.2", features = ["trace"] }
-tracing-subscriber = {version = "0.3", default-features = false, features = ["env-filter", "fmt"]}
-
+tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
