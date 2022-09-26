@@ -48,7 +48,7 @@ impl Runtime {
 
         loop {
             tokio::select! {
-                event = self.swarm.next() => self.handle_event(event.unwrap()).await,
+                Some(event) = self.swarm.next() => self.handle_event(event).await,
                 command = self.command_receiver.recv() =>
                     match command {
                         Some(command) => self.handle_command(command).await,

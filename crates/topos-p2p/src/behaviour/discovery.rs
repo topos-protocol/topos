@@ -374,18 +374,21 @@ impl NetworkBehaviour for DiscoveryBehaviour {
                             Ok(result) => {
                                 if let Some(sender) = self.pending_record_requests.remove(&id) {
                                     if let Some(peer_record) = result.records.first() {
-                                        let addr =
+                                        if let Ok(addr) =
                                             Multiaddr::try_from(peer_record.record.value.clone())
-                                                .unwrap();
+                                        {
+                                            if let Some(peer_id) = peer_record.record.publisher {
+                                                self.kademlia.add_address(&peer_id, addr.clone());
 
-                                        let peer_id = peer_record.record.publisher.unwrap();
-                                        self.kademlia.add_address(&peer_id, addr.clone());
+                                                _ = sender.send(Ok(vec![addr.clone()]));
 
-                                        _ = sender.send(Ok(vec![addr.clone()]));
-
-                                        return Poll::Ready(NetworkBehaviourAction::GenerateEvent(
-                                            DiscoveryOut::SelfDiscovered(peer_id, addr),
-                                        ));
+                                                return Poll::Ready(
+                                                    NetworkBehaviourAction::GenerateEvent(
+                                                        DiscoveryOut::SelfDiscovered(peer_id, addr),
+                                                    ),
+                                                );
+                                            }
+                                        }
                                     }
                                 }
                             }
