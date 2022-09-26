@@ -9,8 +9,6 @@ use crate::runtime::InternalRuntimeCommand;
 
 use super::TceGrpcService;
 
-const DEFAULT_SOCKET_ADDR: &str = "127.0.0.1:1340";
-
 #[derive(Debug, Default)]
 pub struct ServerBuilder {
     command_sender: Option<Sender<InternalRuntimeCommand>>,
@@ -54,12 +52,10 @@ impl ServerBuilder {
             .build()
             .unwrap();
 
-        let serve_addr = if let Some(addr) = self.serve_addr {
-            addr
-        } else {
-            // TODO: Remove this when we'll have grpc addr validation on CLI side.
-            DEFAULT_SOCKET_ADDR.parse().unwrap()
-        };
+        let serve_addr = self
+            .serve_addr
+            .take()
+            .expect("Cannot build gRPC without a valid serve_addr");
 
         let grpc = tonic::transport::Server::builder()
             .add_service(health_service)

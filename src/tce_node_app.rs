@@ -46,10 +46,14 @@ async fn main() {
     let addr: Multiaddr = format!("/ip4/0.0.0.0/tcp/{}", args.tce_local_port)
         .parse()
         .unwrap();
+
     // run protocol
     let (trbp_cli, trb_stream) = ReliableBroadcastClient::new(config);
 
-    let (api_client, api_stream) = topos_tce_api::Runtime::builder().build_and_launch().await;
+    let (api_client, api_stream) = topos_tce_api::Runtime::builder()
+        .serve_addr(args.api_addr)
+        .build_and_launch()
+        .await;
 
     let (network_client, event_stream, runtime) = topos_p2p::network::builder()
         .peer_key(local_key_pair(args.local_key_seed))

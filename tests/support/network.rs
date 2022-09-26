@@ -51,13 +51,13 @@ where
 
         let (command_sampler, command_broadcast) = rb_client.get_command_channels();
 
-        let socket_addr = UdpSocket::bind("0.0.0.0:0").unwrap().local_addr().unwrap();
-        let port = socket_addr.port();
+        let socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
+        let addr = socket.local_addr().ok().unwrap();
+
         let (api_client, api_events) = topos_tce_api::Runtime::builder()
-            .set_grpc_socket_addr(Some(socket_addr))
+            .serve_addr(addr)
             .build_and_launch()
             .await;
-
         let app = AppContext::new(InmemoryStorage::default(), rb_client, client, api_client);
 
         spawn(runtime.run());

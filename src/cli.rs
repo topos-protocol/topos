@@ -51,7 +51,7 @@ pub struct AppArgs {
     pub test_immediate_delivery: bool,
 
     /// gRPC API Addr
-    #[clap(long, env = "TCE_API_ADDR")]
+    #[clap(long, env = "TCE_API_ADDR", default_value = "[::1]:1340")]
     pub api_addr: SocketAddr,
 
     /// TRBP parameters
