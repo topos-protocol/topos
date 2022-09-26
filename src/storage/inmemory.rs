@@ -19,7 +19,7 @@ impl Storage for InmemoryStorage {
         {
             Ok(())
         } else {
-            Err(StorageError::CertificateAlreadyExist)
+            Err(StorageError::CertificateAlreadyExists)
         }
     }
 

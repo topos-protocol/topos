@@ -4,6 +4,7 @@
 //! Abstracted from actual storage implementation.
 //!
 use sampler::SampleType;
+use thiserror::Error;
 use tokio::spawn;
 use tokio_stream::wrappers::BroadcastStream;
 
@@ -243,29 +244,16 @@ impl ReliableBroadcastClient {
         }
     }
 }
+
 /// Protocol and technical errors
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum Errors {
-    BadPeers {},
-    BadCommand {},
-    TokioError {},
+    #[error("Error while sending a DoubleEchoCommand to DoubleEcho: {0:?}")]
+    DoubleEchoSend(#[from] mpsc::error::SendError<DoubleEchoCommand>),
+
+    #[error("Error while sending a SamplerCommand to Sampler: {0:?}")]
+    SamplerSend(#[from] mpsc::error::SendError<SamplerCommand>),
+
+    #[error("Requested certificate not found")]
     CertificateNotFound,
-}
-
-impl From<mpsc::error::SendError<DoubleEchoCommand>> for Errors {
-    fn from(_arg: mpsc::error::SendError<DoubleEchoCommand>) -> Self {
-        Errors::TokioError {}
-    }
-}
-
-impl From<mpsc::error::TrySendError<DoubleEchoCommand>> for Errors {
-    fn from(_arg: mpsc::error::TrySendError<DoubleEchoCommand>) -> Self {
-        Errors::TokioError {}
-    }
-}
-
-impl From<mpsc::error::SendError<SamplerCommand>> for Errors {
-    fn from(_arg: mpsc::error::SendError<SamplerCommand>) -> Self {
-        Errors::TokioError {}
-    }
 }
