@@ -21,7 +21,7 @@ use std::{
     time::Duration,
 };
 use tokio::sync::oneshot::{self, Sender};
-use tracing::{error, info};
+use tracing::{debug, error};
 
 pub mod codec;
 pub mod protocol;
@@ -66,7 +66,7 @@ impl NetworkBehaviour for TransmissionBehaviour {
         failed_addresses: Option<&Vec<Multiaddr>>,
         other_established: usize,
     ) {
-        info!("Connection established with peer: {peer_id}");
+        debug!("Connection established with peer: {peer_id}");
         self.inner.inject_connection_established(
             peer_id,
             connection_id,
@@ -84,7 +84,7 @@ impl NetworkBehaviour for TransmissionBehaviour {
         handler: RequestResponseHandler<TransmissionCodec>,
         remaining_established: usize,
     ) {
-        info!("Connection closed for peer: {peer_id}");
+        debug!("Connection closed for peer: {peer_id}");
         self.inner.inject_connection_closed(
             peer_id,
             connection_id,

@@ -5,11 +5,12 @@ use libp2p::{
     multiaddr::Protocol,
     swarm::{ConnectionHandlerUpgrErr, SwarmEvent},
 };
-use tracing::{error, info};
+use tracing::{error, info, instrument};
 
 use crate::{event::ComposedEvent, Runtime};
 
 impl Runtime {
+    #[instrument(name = "Runtime::handle_event", skip_all, fields(peer_id = %self.local_peer_id))]
     pub(crate) async fn handle_event(
         &mut self,
         event: SwarmEvent<
@@ -19,11 +20,9 @@ impl Runtime {
     ) {
         match event {
             SwarmEvent::NewListenAddr { address, .. } => {
-                let local_peer_id = *self.swarm.local_peer_id();
                 info!(
-                    "Local node is listening on {:?}, peer_id: {:?}",
-                    address.with(Protocol::P2p(local_peer_id.into())),
-                    local_peer_id
+                    "Local node is listening on {:?}",
+                    address.with(Protocol::P2p(self.local_peer_id.into())),
                 );
             }
             SwarmEvent::OutgoingConnectionError { peer_id, error, .. } => {
@@ -32,8 +31,13 @@ impl Runtime {
                 }
             }
 
-            SwarmEvent::ConnectionEstablished { peer_id, .. } => {
-                info!("Connection established with peer: {peer_id}");
+            SwarmEvent::ConnectionEstablished {
+                peer_id, endpoint, ..
+            } => {
+                info!(
+                    "Connection established with peer {peer_id} as {:?}",
+                    endpoint.to_endpoint()
+                );
             }
             SwarmEvent::IncomingConnection { local_addr, .. } => {
                 info!("IncomingConnection {local_addr}")

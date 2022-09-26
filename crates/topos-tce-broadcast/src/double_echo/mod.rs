@@ -88,7 +88,7 @@ impl DoubleEcho {
                 }
 
                 Some(new_sample_view) = self.sample_view_receiver.recv() => {
-                    debug!("New sample receive on DoubleEcho {new_sample_view:?}");
+                    info!("New sample receive on DoubleEcho {new_sample_view:?}");
 
                     self.current_sample_view = Some(new_sample_view);
                 }
@@ -159,33 +159,13 @@ impl DoubleEcho {
         self.start_delivery(cert, digest);
     }
 
-    /// My gossip peers.
-    ///
-    /// Union of all known peers.
+    /// Gossip to the Echo and Ready Subscribers
     fn gossip_peers(&self) -> Vec<Peer> {
         if let Some(sample_view_ref) = self.current_sample_view.as_ref() {
             let connected_peers = sample_view_ref
-                .get(&SampleType::EchoSubscription)
+                .get(&SampleType::EchoSubscriber)
                 .unwrap()
                 .iter()
-                .chain(
-                    sample_view_ref
-                        .get(&SampleType::ReadySubscription)
-                        .unwrap()
-                        .iter(),
-                )
-                .chain(
-                    sample_view_ref
-                        .get(&SampleType::DeliverySubscription)
-                        .unwrap()
-                        .iter(),
-                )
-                .chain(
-                    sample_view_ref
-                        .get(&SampleType::EchoSubscriber)
-                        .unwrap()
-                        .iter(),
-                )
                 .chain(
                     sample_view_ref
                         .get(&SampleType::ReadySubscriber)
@@ -480,7 +460,7 @@ mod tests {
         assert!(double_echo.current_sample_view.is_none());
         double_echo.current_sample_view = Some(expected_view.clone());
 
-        let le_cert = Certificate::default();
+        let le_cert = Certificate::new("0".to_string(), "0".to_string(), vec![]);
         double_echo.handle_broadcast(le_cert.clone());
 
         assert_eq!(event_receiver.len(), 2);

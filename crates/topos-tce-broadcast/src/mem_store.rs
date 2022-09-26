@@ -129,6 +129,9 @@ impl TrbStore for TrbMemStore {
     }
 
     fn check_precedence(&self, cert: &Certificate) -> Result<(), Errors> {
+        if cert.prev_cert_id == "0" {
+            return Ok(());
+        }
         match self.cert_by_id(&cert.prev_cert_id) {
             Ok(_) => Ok(()),
             _ => Err(Errors::CertificateNotFound),
