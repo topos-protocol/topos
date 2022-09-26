@@ -139,16 +139,6 @@ async fn create_network_worker(
             })
             .collect::<Vec<_>>()
     };
-    // let known_peers = peers
-    //     .iter()
-    //     .filter_map(|(current_seed, _, key, addr)| {
-    //         if seed == *current_seed {
-    //             None
-    //         } else {
-    //             Some((key.public().to_peer_id(), addr.clone().into()))
-    //         }
-    //     })
-    //     .collect::<Vec<(PeerId, Multiaddr)>>();
 
     topos_p2p::network::builder()
         .peer_key(key.clone())
