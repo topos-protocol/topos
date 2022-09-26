@@ -64,6 +64,7 @@ pub enum DoubleEchoCommand {
         cert: Certificate,
     },
 
+    // Entry point to broadcast many Certificates
     BroadcastMany {
         certificates: Vec<Certificate>,
     },
