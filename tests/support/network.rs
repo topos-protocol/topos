@@ -1,4 +1,4 @@
-use std::{collections::HashMap, net::UdpSocket};
+use std::{collections::HashMap, net::UdpSocket, str::FromStr};
 
 use futures::{Stream, StreamExt};
 use libp2p::{
@@ -7,6 +7,8 @@ use libp2p::{
 };
 use tce_transport::{ReliableBroadcastParams, TrbpEvents};
 use tokio::{spawn, sync::mpsc};
+use tonic::transport::{channel, Channel};
+use topos_core::api::tce::v1::api_service_client::ApiServiceClient;
 use topos_p2p::{Client, Event, Runtime};
 use topos_tce::{storage::inmemory::InmemoryStorage, AppContext};
 use topos_tce_broadcast::{
@@ -16,9 +18,11 @@ use topos_tce_broadcast::{
 
 #[derive(Debug)]
 pub struct TestAppContext {
-    pub peer_id: String,
+    pub id: String,
+    pub peer_id: PeerId,
     pub command_sampler: mpsc::Sender<SamplerCommand>,
     pub command_broadcast: mpsc::Sender<DoubleEchoCommand>,
+    pub(crate) api_grpc_client: Option<ApiServiceClient<Channel>>,
 }
 
 pub type Seed = u8;
@@ -36,7 +40,7 @@ where
     let mut clients = HashMap::new();
     let peers = build_peer_config_pool(peer_number);
 
-    for (index, (seed, port, _key, addr)) in peers.iter().enumerate() {
+    for (index, (seed, port, keypair, addr)) in peers.iter().enumerate() {
         let peer_id = format!("peer_{index}");
         let (rb_client, trb_events) = create_reliable_broadcast_client(
             &peer_id,
@@ -47,18 +51,31 @@ where
 
         let (command_sampler, command_broadcast) = rb_client.get_command_channels();
 
-        let (api_client, api_events) = topos_tce_api::Runtime::builder().build_and_launch().await;
+        let socket_addr = UdpSocket::bind("0.0.0.0:0").unwrap().local_addr().unwrap();
+        let port = socket_addr.port();
+        let (api_client, api_events) = topos_tce_api::Runtime::builder()
+            .set_grpc_socket_addr(Some(socket_addr))
+            .build_and_launch()
+            .await;
+
         let app = AppContext::new(InmemoryStorage::default(), rb_client, client, api_client);
 
         spawn(runtime.run());
         spawn(app.run(event_stream, trb_events, api_events));
+        let api_endpoint = format!("http://127.0.0.1:{port}");
+
+        let channel = channel::Endpoint::from_str(&api_endpoint)
+            .unwrap()
+            .connect_lazy();
+        let api_grpc_client = ApiServiceClient::new(channel);
 
         let client = TestAppContext {
-            peer_id: peer_id.clone(),
+            id: peer_id.clone(),
+            peer_id: keypair.public().to_peer_id(),
             command_sampler,
             command_broadcast,
+            api_grpc_client: Some(api_grpc_client),
         };
-
         clients.insert(peer_id, client);
     }
 
@@ -108,16 +125,20 @@ async fn create_network_worker(
     let key = keypair_from_seed(seed);
     let _peer_id = key.public().to_peer_id();
 
-    let known_peers = peers
-        .iter()
-        .filter_map(|(current_seed, _, key, addr)| {
-            if seed == *current_seed {
-                None
-            } else {
-                Some((key.public().to_peer_id(), addr.clone().into()))
-            }
-        })
-        .collect();
+    let known_peers = if seed == 1 {
+        vec![]
+    } else {
+        peers
+            .iter()
+            .filter_map(|(current_seed, _, key, addr)| {
+                if *current_seed == 1 {
+                    Some((key.public().to_peer_id(), addr.clone().into()))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>()
+    };
 
     topos_p2p::network::builder()
         .peer_key(key.clone())

@@ -4,7 +4,7 @@ use crate::{
     Command, Runtime,
 };
 use libp2p::{kad::record::Key, swarm::NetworkBehaviour, PeerId};
-use tracing::{info, instrument};
+use tracing::{error, info, instrument};
 
 impl Runtime {
     #[instrument(name = "Runtime::handle_command", skip_all, fields(peer_id = %self.local_peer_id))]
@@ -87,6 +87,7 @@ impl Runtime {
                     .send_request(&to, TransmissionRequest(data), sender)
                     .is_err()
                 {
+                    error!("Request error");
                     // TODO: notify failure
                 }
             }

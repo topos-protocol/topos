@@ -20,6 +20,7 @@ pub struct Uniform {
 
 #[cfg(test)]
 impl Uniform {
+    #[allow(dead_code)]
     pub fn new(low: usize, high: usize) -> Self {
         Uniform {
             testing: "this is a mock implementation!".to_owned(),
@@ -28,6 +29,7 @@ impl Uniform {
         }
     }
 
+    #[allow(dead_code)]
     pub fn sample<R: Rng + ?Sized>(&self, _rng: &mut R) -> usize {
         _rng.gen()
     }

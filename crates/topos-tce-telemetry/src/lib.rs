@@ -43,7 +43,8 @@ pub fn span_cert_delivery(
     attr: Vec<KeyValue>,
 ) {
     let mut trace_id: [u8; 16] = [0; 16];
-    trace_id[..cert.len()].copy_from_slice(cert.as_bytes());
+    trace_id.clone_from_slice(&cert.as_bytes()[..16]);
+
     let tracer = global::tracer("cert-latency");
     let _span = tracer.build(
         SpanBuilder {

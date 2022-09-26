@@ -24,9 +24,8 @@ impl ServerBuilder {
         self
     }
 
-    #[allow(dead_code)]
-    pub(crate) fn serve_addr(mut self, addr: SocketAddr) -> Self {
-        self.serve_addr = Some(addr);
+    pub(crate) fn serve_addr(mut self, addr: Option<SocketAddr>) -> Self {
+        self.serve_addr = addr;
 
         self
     }
