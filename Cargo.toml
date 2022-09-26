@@ -16,6 +16,7 @@ futures.workspace = true
 serde.workspace = true
 tokio.workspace = true
 topos-core.workspace = true
+tracing.workspace = true
 
 tce_store = { package = "topos-tce-store", path = "./crates/topos-tce-store" }
 tce_telemetry = { package = "topos-tce-telemetry", path = "./crates/topos-tce-telemetry" }
@@ -32,13 +33,13 @@ opentelemetry = { version = "0.17", default-features = false, features = ["trace
 opentelemetry-jaeger = { version = "0.16", features = ["rt-tokio"] }
 pretty_env_logger = "0.4.0"
 
-# tce dependencies
 [dev-dependencies]
 async-trait.workspace = true
 libp2p.workspace = true
 rand.workspace = true
 rand_core.workspace = true
 rand_distr.workspace = true
+tonic.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 tracing.workspace = true
 
@@ -46,6 +47,7 @@ cucumber = "0.13.0"
 env_logger = "*"
 hyper = { version = "0.14", features = ["full"] }
 test-log = { version = "0.2", features = ["log", "trace"] }
+async-stream = "0.3.3"
 
 # Commented because the test isn't compatible with gRPC health_check
 # [[test]]
@@ -68,6 +70,7 @@ serde = { version = "1.0", default-features = false }
 thiserror = { version = "1.0", default-features = false }
 tokio = { version = "1.20", default-features = false }
 tokio-stream = { version = "0.1", default-features = false}
+tonic = { version = "0.8.0", default-features = false }
 topos-core = { git = "https://github.com/toposware/topos-core", branch = "main", default-features = false, version = "0.1.0" }
 tracing = { version = "0.1", default-features = false }
 tracing-subscriber = { version = "0.3", default-features = false }

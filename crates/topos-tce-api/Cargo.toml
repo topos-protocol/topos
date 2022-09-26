@@ -6,17 +6,16 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-
-serde.workspace = true
 futures.workspace = true
-tokio.workspace = true
-tracing.workspace = true
+serde.workspace = true
 tokio-stream.workspace = true
+tokio.workspace = true
+tonic.workspace = true
+tracing.workspace = true
 
 topos-core = { workspace = true, features = ["uci", "api"] }
 
 async-stream = "0.3.3"
-tonic = { version = "0.8.0", features = ["transport"] }
 tonic-health = "0.7.0"
 tonic-reflection = "0.5.0"
 uuid = { version = "1.1.2", features = ["v4"] }

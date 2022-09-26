@@ -3481,6 +3481,7 @@ dependencies = [
 name = "topos-tce"
 version = "0.1.0"
 dependencies = [
+ "async-stream",
  "async-trait",
  "bincode",
  "clap",
@@ -3499,6 +3500,7 @@ dependencies = [
  "serde",
  "test-log",
  "tokio",
+ "tonic",
  "topos-core",
  "topos-p2p",
  "topos-tce-api",
