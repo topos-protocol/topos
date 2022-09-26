@@ -1,18 +1,17 @@
 mod app_context;
+mod cli;
 mod storage;
 
+use crate::app_context::AppContext;
+use crate::cli::AppArgs;
 use clap::Parser;
-
+use libp2p::{identity, Multiaddr};
+use tce_store::{Store, StoreConfig};
 use tokio::spawn;
 use topos_p2p::{utils::local_key_pair, Multiaddr, PeerId};
 use topos_tce_broadcast::mem_store::TrbMemStore;
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
 use tracing::info;
-
-use crate::app_context::AppContext;
-
-use tce_store::{Store, StoreConfig};
-use tce_transport::ReliableBroadcastParams;
 
 #[tokio::main]
 async fn main() {
@@ -72,65 +71,18 @@ async fn main() {
     app_context.run(event_stream, trb_stream, api_stream).await;
 }
 
-/// Application configuration
-#[derive(Debug, Parser)]
-#[clap(name = "TCE node (toposware.com)")]
-pub struct AppArgs {
-    /// Boot nodes to connect to, pairs of <PeerId> <Multiaddr>, space separated,
-    /// quoted list like --boot-peers='a a1 b b1'
-    #[clap(long, default_value = "", env = "TCE_BOOT_PEERS")]
-    pub boot_peers: String,
-    /// Advertised (externally visible) <host|address:port>,
-    /// if empty this machine ip address(es) are used
-    #[clap(long, env = "TCE_EXT_HOST")]
-    pub tce_ext_host: Option<String>,
-    /// Port to listen on (host is 0.0.0.0, should be good for most installations)
-    #[clap(long, default_value_t = 0, env = "TCE_PORT")]
-    pub tce_local_port: u16,
-    /// WebAPI external url <host|address:port> (optional)
-    #[clap(long, env = "TCE_WEB_API_EXT_URL")]
-    pub web_api_ext_url: Option<String>,
-    /// WebAPI port
-    #[clap(long, default_value_t = 8080, env = "TCE_WEB_API_PORT")]
-    pub web_api_local_port: u16,
-    /// Local peer secret key seed (optional, used for testing)
-    #[clap(long, env = "TCE_LOCAL_KS")]
-    pub local_key_seed: Option<u8>,
-    /// Local peer key-pair (in base64 format)
-    #[clap(long, env = "TCE_LOCAL_KEYPAIR")]
-    pub local_key_pair: Option<String>,
-    /// Storage database path, if not set RAM storage is used
-    #[clap(long, env = "TCE_DB_PATH")]
-    pub db_path: Option<String>,
-    /// Socket of the Jaeger agent endpoint
-    #[clap(long, default_value = "127.0.0.1:6831", env = "TCE_JAEGER_AGENT")]
-    pub jaeger_agent: String,
-    /// Testing only - deliver certificate immediately upon submission
-    #[clap(long, env = "TCE_TEST_IMMEDIATE_DELIVERY")]
-    pub test_immediate_delivery: bool,
-    /// TRBP parameters
-    #[clap(flatten)]
-    pub trbp_params: ReliableBroadcastParams,
-}
-
-impl AppArgs {
-    pub fn parse_boot_peers(&self) -> Vec<(PeerId, Multiaddr)> {
-        info!("boot_peers: {:?}", self.boot_peers);
-        self.boot_peers
-            .split(' ')
-            .map(|s| s.to_string())
-            .collect::<Vec<String>>()
-            .chunks(2)
-            .filter_map(|pair| {
-                if pair.len() > 1 {
-                    Some((
-                        pair[0].as_str().parse().unwrap(),
-                        pair[1].as_str().parse().unwrap(),
-                    ))
-                } else {
-                    None
-                }
-            })
-            .collect()
+/// build peer_id keys, generate for now - either from the seed or purely random one
+fn local_key_pair(secret_key_seed: Option<u8>) -> identity::Keypair {
+    // todo: load from protobuf encoded|base64 encoded config.local_key_pair
+    match secret_key_seed {
+        Some(seed) => {
+            let mut bytes = [0u8; 32];
+            bytes[0] = seed;
+            let secret_key = identity::ed25519::SecretKey::from_bytes(&mut bytes).expect(
+                "this returns `Err` only if the length is wrong; the length is correct; qed",
+            );
+            identity::Keypair::Ed25519(secret_key.into())
+        }
+        None => identity::Keypair::generate_ed25519(),
     }
 }
