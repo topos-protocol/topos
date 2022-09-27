@@ -1,3 +1,4 @@
+use thiserror::Error;
 use topos_core::uci::{Certificate, CertificateId};
 
 pub mod inmemory;
@@ -8,6 +9,8 @@ pub trait Storage: Send + 'static {
     async fn remove(&mut self, certificate_id: &CertificateId) -> bool;
 }
 
+#[derive(Error, Debug)]
 pub enum StorageError {
-    CertificateAlreadyExist,
+    #[error("The certificate already exists")]
+    CertificateAlreadyExists,
 }

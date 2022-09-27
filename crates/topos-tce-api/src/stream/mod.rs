@@ -24,8 +24,9 @@ pub mod errors;
 #[cfg(test)]
 mod tests;
 
-use crate::runtime::InternalRuntimeCommand;
+use crate::runtime::{error::RuntimeError, InternalRuntimeCommand};
 
+use self::errors::HandshakeError;
 pub use self::{commands::StreamCommand, errors::PreStartError};
 
 pub struct Stream {
@@ -116,8 +117,9 @@ impl Stream {
         }
     }
 
-    async fn handshake(&mut self, subnet_ids: Vec<SubnetId>) -> Result<(), ()> {
-        let (sender, receiver) = oneshot::channel::<Result<(), ()>>();
+    async fn handshake(&mut self, subnet_ids: Vec<SubnetId>) -> Result<(), HandshakeError> {
+        let (sender, receiver) = oneshot::channel::<Result<(), RuntimeError>>();
+
         _ = self
             .internal_runtime_command_sender
             .send(InternalRuntimeCommand::Register {
@@ -127,16 +129,14 @@ impl Stream {
             })
             .await;
 
-        if receiver.await.is_err() {
-            Err(())
-        } else {
-            _ = self
-                .internal_runtime_command_sender
-                .send(InternalRuntimeCommand::Handshaked {
-                    stream_id: self.stream_id,
-                })
-                .await;
-            Ok(())
-        }
+        receiver.await??;
+
+        _ = self
+            .internal_runtime_command_sender
+            .send(InternalRuntimeCommand::Handshaked {
+                stream_id: self.stream_id,
+            })
+            .await;
+        Ok(())
     }
 }

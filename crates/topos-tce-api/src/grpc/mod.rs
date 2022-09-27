@@ -31,7 +31,7 @@ impl ApiService for TceGrpcService {
     ) -> Result<Response<SubmitCertificateResponse>, Status> {
         let data = request.into_inner();
         if let Some(certificate) = data.certificate {
-            let (sender, receiver) = oneshot::channel::<Result<(), ()>>();
+            let (sender, receiver) = oneshot::channel();
 
             _ = self
                 .command_sender

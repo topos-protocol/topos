@@ -9,6 +9,8 @@ use topos_core::{
 };
 use uuid::Uuid;
 
+use super::error::RuntimeError;
+
 pub enum RuntimeCommand {
     /// This command is dispatch when a certificate is ready to be dispatch to related subnet
     DispatchCertificate { certificate: Certificate },
@@ -31,7 +33,7 @@ pub(crate) enum InternalRuntimeCommand {
     Register {
         stream_id: Uuid,
         subnet_ids: Vec<SubnetId>,
-        sender: oneshot::Sender<Result<(), ()>>,
+        sender: oneshot::Sender<Result<(), RuntimeError>>,
     },
 
     /// Notify that a Stream took too long to handshake
@@ -44,6 +46,6 @@ pub(crate) enum InternalRuntimeCommand {
     /// This command will be used to trigger the DoubleEcho process.
     CertificateSubmitted {
         certificate: Certificate,
-        sender: oneshot::Sender<Result<(), ()>>,
+        sender: oneshot::Sender<Result<(), RuntimeError>>,
     },
 }
