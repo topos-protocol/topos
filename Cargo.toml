@@ -14,6 +14,7 @@ path = "src/tce_node_app.rs"
 async-trait.workspace = true
 futures.workspace = true
 serde.workspace = true
+thiserror.workspace = true
 tokio.workspace = true
 topos-core.workspace = true
 tracing.workspace = true

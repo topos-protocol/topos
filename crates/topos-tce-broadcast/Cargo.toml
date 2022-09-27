@@ -19,3 +19,7 @@ tce_telemetry = { package = "topos-tce-telemetry", path = "../topos-tce-telemetr
 
 byteorder = "1.4.3"
 opentelemetry = { version = "0.17", default-features = false, features = ["trace", "rt-tokio"] }
+thiserror = "1.0.36"
+
+[dev-dependencies]
+pretty_env_logger = "0.4.0"

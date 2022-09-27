@@ -19,6 +19,7 @@ use crate::{
 pub(crate) mod builder;
 mod client;
 mod commands;
+pub(crate) mod error;
 mod events;
 
 #[cfg(test)]
