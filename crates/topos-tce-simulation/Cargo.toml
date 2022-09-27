@@ -13,13 +13,12 @@ rand.workspace = true
 rand_core.workspace = true
 rand_distr.workspace = true
 tokio.workspace = true
+tracing.workspace = true
 
 tce_store = { package = "topos-tce-store", path = "../topos-tce-store" }
 tce_transport = { package = "topos-tce-transport", path = "../topos-tce-transport" }
 topos-core = { workspace = true, features = ["uci"] }
 topos-tce-broadcast = { path = "../topos-tce-broadcast" }
-
-log = "0.4.14"
 
 clap = { version = "3.0.10", features = ["derive", "env"] }
 pretty_env_logger = "0.4.0"

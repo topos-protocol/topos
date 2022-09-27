@@ -16,7 +16,7 @@ use tce_transport::ReliableBroadcastParams;
 
 #[tokio::main]
 async fn main() {
-    // pretty_env_logger::init_timed();
+    pretty_env_logger::init_timed();
     info!("Initializing application");
     let args = AppArgs::parse();
 
