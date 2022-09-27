@@ -1,6 +1,6 @@
 use crate::{
     behaviour::transmission::codec::{TransmissionRequest, TransmissionResponse},
-    error::FSMError,
+    error::P2PError,
     Command, Runtime,
 };
 use libp2p::{kad::record::Key, swarm::NetworkBehaviour, PeerId};
@@ -33,11 +33,11 @@ impl Runtime {
                 .dial(peer_id, peer_addr, sender),
 
             Command::Dial { sender, .. } => {
-                let _ = sender.send(Err(Box::new(FSMError::CantDialSelf)));
+                let _ = sender.send(Err(Box::new(P2PError::CantDialSelf)));
             }
 
             Command::Disconnect { sender } if self.swarm.listeners().count() == 0 => {
-                let _ = sender.send(Err(Box::new(FSMError::AlreadyDisconnected)));
+                let _ = sender.send(Err(Box::new(P2PError::AlreadyDisconnected)));
             }
 
             Command::Disconnect { sender } => {

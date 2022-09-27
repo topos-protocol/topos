@@ -5,7 +5,7 @@ use std::{
     task::{Context, Poll},
 };
 
-use crate::error::FSMError;
+use crate::error::P2PError;
 use futures::{future::BoxFuture, FutureExt};
 use libp2p::{
     core::{connection::ConnectionId, transport::ListenerId, ConnectedPoint},
@@ -207,7 +207,7 @@ impl NetworkBehaviour for DiscoveryBehaviour {
         error!("Dial failure: {error:?}");
         if let Some(peer_id) = peer_id {
             if let Some(sender) = self.pending_dial.remove(&peer_id) {
-                let _ = sender.send(Err(Box::new(crate::error::FSMError::DialError)));
+                let _ = sender.send(Err(Box::new(crate::error::P2PError::DialError)));
             }
         }
 
@@ -550,7 +550,7 @@ impl DiscoveryBehaviour {
 
             _ => {
                 error!("Already dialing peer.");
-                let _ = sender.send(Err(Box::new(FSMError::AlreadyDialed(peer_id))));
+                let _ = sender.send(Err(Box::new(P2PError::AlreadyDialed(peer_id))));
             }
         }
     }

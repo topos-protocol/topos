@@ -2,12 +2,12 @@
 //! Application logic glue
 //!
 use futures::{future::join_all, Stream, StreamExt};
-use libp2p::PeerId;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use tce_transport::{TrbpCommands, TrbpEvents};
 use tokio::spawn;
 use tokio::sync::oneshot;
+use topos_p2p::PeerId;
 use topos_p2p::{Client as NetworkClient, Event as NetEvent};
 use topos_tce_api::RuntimeClient as ApiClient;
 use topos_tce_api::RuntimeEvent as ApiEvent;

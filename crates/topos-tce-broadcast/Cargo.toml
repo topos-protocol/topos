@@ -3,37 +3,19 @@ name = "topos-tce-broadcast"
 version = "0.1.0"
 edition = "2021"
 
-[lib]
-path = 'src/lib.rs'
-
 [dependencies]
-serde = { version = "1.0.136", features = ["derive"] }
-byteorder = "1.4.3"
-opentelemetry = { version = "0.17", default-features = false, features = ["trace", "rt-tokio"] }
-tokio = { version = "1.20.0", features = [
-    "io-util",
-    "io-std",
-    "macros",
-    "rt",
-    "rt-multi-thread",
-    "fs",
-    "time",
-    "sync",
-] }
-rand_distr = "0.4.1"
-rand_core = "0.6.0"
-rand = "0.8.5"
-tokio-stream = { version = "*", features = ["sync"] }
+futures.workspace = true
+rand.workspace = true
+rand_core.workspace = true
+rand_distr.workspace = true
+serde.workspace = true
+tokio-stream = { workspace = true, features = ["sync"] }
+tokio.workspace = true
+tracing.workspace = true
 
-futures = "*"
-
-topos-core = { git = "https://github.com/toposware/topos-core", branch = "main", features = ["uci"], version = "0.1.0" }
-
+topos-core = { workspace = true, features = ["uci"] }
 tce_transport = { package = "topos-tce-transport", path = "../topos-tce-transport"}
 tce_telemetry = { package = "topos-tce-telemetry", path = "../topos-tce-telemetry" }
 
-tracing = "0.1"
-tracing-subscriber = "0.3"
-
-[dev-dependencies]
-pretty_env_logger = "0.4.0"
+byteorder = "1.4.3"
+opentelemetry = { version = "0.17", default-features = false, features = ["trace", "rt-tokio"] }
