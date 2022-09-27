@@ -11,6 +11,12 @@ pub struct RuntimeBuilder {
 }
 
 impl RuntimeBuilder {
+    pub fn serve_addr(mut self, addr: SocketAddr) -> Self {
+        self.grpc_socket_addr = Some(addr);
+
+        self
+    }
+
     pub async fn build_and_launch(self) -> (RuntimeClient, impl Stream<Item = RuntimeEvent>) {
         let (command_sender, internal_runtime_command_receiver) = mpsc::channel(2048);
         let (api_event_sender, api_event_receiver) = mpsc::channel(2048);
