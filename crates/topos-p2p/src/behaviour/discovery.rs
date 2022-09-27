@@ -1,6 +1,5 @@
 use std::{
     collections::{hash_map::Entry, HashMap, HashSet, VecDeque},
-    error::Error,
     num::NonZeroUsize,
     task::{Context, Poll},
 };

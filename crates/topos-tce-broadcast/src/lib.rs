@@ -18,7 +18,7 @@ use double_echo::DoubleEcho;
 use tce_transport::{ReliableBroadcastParams, TrbpEvents};
 
 use topos_core::uci::{Certificate, CertificateId, DigestCompressed, SubnetId};
-use tracing::info;
+use tracing::{error, info};
 
 use crate::mem_store::TrbMemStore;
 use crate::sampler::Sampler;
@@ -150,10 +150,13 @@ impl ReliableBroadcastClient {
     ) -> impl Future<Output = Result<(), ()>> + 'static + Send {
         let command_channel = self.get_sampler_channel();
         async move {
-            command_channel
+            if command_channel
                 .send(SamplerCommand::PeersChanged { peers })
                 .await
-                .expect("Unable to send peer changed to sampler");
+                .is_err()
+            {
+                error!("Unable to send peer changed to sampler");
+            }
             Ok(())
         }
     }
@@ -161,16 +164,22 @@ impl ReliableBroadcastClient {
     pub async fn add_confirmed_peer_to_sample(&self, sample_type: SampleType, peer: Peer) {
         let (sender, receiver) = oneshot::channel();
 
-        self.sampling_commands
+        if self
+            .sampling_commands
             .send(SamplerCommand::ConfirmPeer {
                 peer,
                 sample_type,
                 sender,
             })
             .await
-            .expect("Unable to send confirmation to sample");
+            .is_err()
+        {
+            error!("Unable to send confirmation to sample");
+        }
 
-        let _ = receiver.await.expect("Sender was dropped");
+        if receiver.await.is_err() {
+            error!("Unable to receive add_confirmed_peer_to_sample response, Sender was dropped");
+        }
     }
 
     /// known peers
@@ -191,15 +200,19 @@ impl ReliableBroadcastClient {
         let broadcast_commands = self.broadcast_commands.clone();
 
         async move {
-            let _ = broadcast_commands
+            if broadcast_commands
                 .send(DoubleEchoCommand::DeliveredCerts {
                     subnet_id,
                     limit: 10,
                     sender,
                 })
-                .await;
+                .await
+                .is_err()
+            {
+                error!("Unable to execute delivered_certs");
+            }
 
-            receiver.await.expect("Sender to be alive")
+            receiver.await.map_err(Into::into).and_then(|result| result)
         }
     }
 
@@ -236,9 +249,13 @@ impl ReliableBroadcastClient {
         let broadcast_commands = self.broadcast_commands.clone();
 
         async move {
-            _ = broadcast_commands
+            if broadcast_commands
                 .send(DoubleEchoCommand::Broadcast { cert: certificate })
-                .await;
+                .await
+                .is_err()
+            {
+                error!("Unable to send broadcast_new_certificate command, Receiver was dropped");
+            }
 
             Ok(())
         }
@@ -250,6 +267,9 @@ impl ReliableBroadcastClient {
 pub enum Errors {
     #[error("Error while sending a DoubleEchoCommand to DoubleEcho: {0:?}")]
     DoubleEchoSend(#[from] mpsc::error::SendError<DoubleEchoCommand>),
+
+    #[error("Error while waiting for a DoubleEchoCommand response: {0:?}")]
+    DoubleEchoRecv(#[from] oneshot::error::RecvError),
 
     #[error("Error while sending a SamplerCommand to Sampler: {0:?}")]
     SamplerSend(#[from] mpsc::error::SendError<SamplerCommand>),
