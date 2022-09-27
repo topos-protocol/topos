@@ -1,3 +1,5 @@
+use crate::error::CommandExecutionError;
+
 use self::{
     codec::{TransmissionCodec, TransmissionRequest, TransmissionResponse},
     protocol::TransmissionProtocol,
@@ -15,7 +17,6 @@ use libp2p::{
 };
 use std::{
     collections::{HashMap, VecDeque},
-    error::Error,
     iter,
     task::{Context, Poll},
     time::Duration,
@@ -26,7 +27,7 @@ use tracing::{debug, error, warn};
 pub mod codec;
 pub mod protocol;
 
-type PendingRequests = HashMap<RequestId, oneshot::Sender<Result<Vec<u8>, Box<dyn Error + Send>>>>;
+type PendingRequests = HashMap<RequestId, oneshot::Sender<Result<Vec<u8>, CommandExecutionError>>>;
 
 /// Transmission is responsible of dealing with node interaction (RequestResponse, Gossip)
 pub(crate) struct TransmissionBehaviour {
@@ -225,7 +226,7 @@ impl NetworkBehaviour for TransmissionBehaviour {
                         request_id, error, ..
                     } => {
                         if let Some(sender) = self.pending_requests.remove(&request_id) {
-                            if sender.send(Err(Box::new(error))).is_err() {
+                            if sender.send(Err(error.into())).is_err() {
                                 warn!("Could not send RequestFailure for request {request_id} because initiator is dropped");
                             }
                         } else {
@@ -289,7 +290,7 @@ impl TransmissionBehaviour {
         &mut self,
         to: &PeerId,
         data: TransmissionRequest,
-        sender: Sender<Result<Vec<u8>, Box<dyn Error + Send>>>,
+        sender: Sender<Result<Vec<u8>, CommandExecutionError>>,
     ) -> Result<(), ()> {
         let request_id = self.inner.send_request(to, data);
 

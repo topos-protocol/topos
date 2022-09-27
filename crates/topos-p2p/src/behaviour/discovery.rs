@@ -5,7 +5,7 @@ use std::{
     task::{Context, Poll},
 };
 
-use crate::error::P2PError;
+use crate::error::{CommandExecutionError, P2PError};
 use futures::{future::BoxFuture, FutureExt};
 use libp2p::{
     core::{connection::ConnectionId, transport::ListenerId, ConnectedPoint},
@@ -24,8 +24,8 @@ use libp2p::{
 use tokio::sync::oneshot;
 use tracing::{debug, error, info, instrument, trace, warn};
 
-type PendingDials = HashMap<PeerId, oneshot::Sender<Result<(), FSMError>>>;
-type PendingRecordRequest = oneshot::Sender<Result<Vec<Multiaddr>, Box<dyn Error + Send>>>;
+type PendingDials = HashMap<PeerId, oneshot::Sender<Result<(), P2PError>>>;
+type PendingRecordRequest = oneshot::Sender<Result<Vec<Multiaddr>, CommandExecutionError>>;
 
 /// DiscoveryBehaviour is responsible to discover and manage connections with peers
 pub(crate) struct DiscoveryBehaviour {
@@ -521,6 +521,10 @@ impl DiscoveryBehaviour {
             kademlia.add_address(&known_peer.0, known_peer.1.clone());
         }
 
+        if let Err(store_error) = kademlia.start_providing("topos-tce".as_bytes().to_vec().into()) {
+            warn!(reason = %store_error, "Could not start providing Kademlia protocol `topos-tce`")
+        }
+
         if kademlia.bootstrap().is_err() {
             warn!("Bootstrapping failed because of NoKnownPeers, ignore this warning if boot-node");
         }
@@ -573,7 +577,7 @@ impl DiscoveryBehaviour {
     pub fn get_record(
         &mut self,
         key: Key,
-        sender: oneshot::Sender<Result<Vec<Multiaddr>, Box<dyn Error + Send>>>,
+        sender: oneshot::Sender<Result<Vec<Multiaddr>, CommandExecutionError>>,
     ) {
         let query_id = self.kademlia.get_record(key, Quorum::One);
 

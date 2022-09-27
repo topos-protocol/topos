@@ -1,6 +1,5 @@
-use crate::{Behaviour, Command, Event};
+use crate::{error::P2PError, Behaviour, Command, Event};
 use libp2p::{Multiaddr, PeerId, Swarm};
-use std::error::Error;
 use tokio::sync::mpsc;
 use tokio_stream::StreamExt;
 use tracing::error;
@@ -30,11 +29,11 @@ impl Runtime {
         }
     }
 
-    fn start_listening(&mut self, peer_addr: Multiaddr) -> Result<(), Box<dyn Error + Send>> {
-        match self.swarm.listen_on(peer_addr) {
-            Ok(_) => Ok(()),
-            Err(e) => Err(Box::new(e)),
-        }
+    fn start_listening(&mut self, peer_addr: Multiaddr) -> Result<(), P2PError> {
+        self.swarm
+            .listen_on(peer_addr)
+            .map(|_| ())
+            .map_err(Into::into)
     }
 
     pub async fn run(mut self) {

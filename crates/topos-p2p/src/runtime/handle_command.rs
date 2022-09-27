@@ -49,10 +49,7 @@ impl Runtime {
             }
 
             Command::Disconnect { sender } if self.swarm.listeners().count() == 0 => {
-                if sender
-                    .send(Err(Box::new(P2PError::AlreadyDisconnected)))
-                    .is_err()
-                {
+                if sender.send(Err(P2PError::AlreadyDisconnected)).is_err() {
                     warn!(
                         reason = %P2PError::AlreadyDisconnected,
                         "Unable to notify Disconnection failure because initiator is dropped",

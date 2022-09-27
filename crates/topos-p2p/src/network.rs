@@ -7,6 +7,7 @@ use crate::{
     constant::{
         COMMAND_STREAM_BUFFER, DISCOVERY_PROTOCOL, EVENT_STREAM_BUFFER, TRANSMISSION_PROTOCOL,
     },
+    error::P2PError,
 };
 use futures::Stream;
 use libp2p::{
@@ -84,7 +85,9 @@ impl NetworkBuilder {
     pub async fn build(
         mut self,
     ) -> Result<(Client, impl Stream<Item = Event>, Runtime), Box<dyn Error>> {
-        let peer_key = self.peer_key.expect("peer_key not defined");
+        let peer_key = self
+            .peer_key
+            .ok_or_else(|| Box::new(FSMError::MissingPeerKey))?;
         let peer_id = peer_key.public().to_peer_id();
 
         let noise_keys = noise::Keypair::<noise::X25519Spec>::new().into_authentic(&peer_key)?;
