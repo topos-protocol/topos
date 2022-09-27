@@ -1,8 +1,9 @@
-use std::time::Duration;
+use std::{net::UdpSocket, time::Duration};
 use test_log::test;
 use tokio::{spawn, sync::oneshot};
 use tokio_stream::StreamExt;
 use tonic::transport::channel;
+use tonic::transport::Uri;
 use topos_core::{
     api::tce::v1::{
         api_service_client::ApiServiceClient,
@@ -17,14 +18,24 @@ use topos_tce_api::Runtime;
 async fn runtime_can_dispatch_a_cert() {
     let (tx, rx) = oneshot::channel::<Certificate>();
 
-    let (runtime_client, _launcher) = Runtime::builder().build_and_launch().await;
+    let socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
+    let addr = socket.local_addr().ok().unwrap();
+
+    let (runtime_client, _launcher) = Runtime::builder().serve_addr(addr).build_and_launch().await;
 
     // Wait for server to boot
     tokio::time::sleep(Duration::from_millis(100)).await;
 
+    let uri = Uri::builder()
+        .path_and_query("/")
+        .authority(addr.to_string())
+        .scheme("http")
+        .build()
+        .unwrap();
+
     // This block represent a subnet A
     spawn(async move {
-        let channel = channel::Endpoint::from_static("http://127.0.0.1:1340").connect_lazy();
+        let channel = channel::Channel::builder(uri).connect_lazy();
         let mut client = ApiServiceClient::new(channel);
         let in_stream = async_stream::stream! {
             yield OpenStream { subnet_ids: vec!["subnet_id".into()] }.into();
