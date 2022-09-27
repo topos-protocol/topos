@@ -1,8 +1,9 @@
 use std::net::SocketAddr;
 
 use clap::Parser;
-use libp2p::{Multiaddr, PeerId};
 use tce_transport::ReliableBroadcastParams;
+use topos_p2p::{Multiaddr, PeerId};
+use tracing::info;
 
 /// Application configuration
 #[derive(Debug, Parser)]
@@ -46,10 +47,6 @@ pub struct AppArgs {
     #[clap(long, default_value = "127.0.0.1:6831", env = "TCE_JAEGER_AGENT")]
     pub jaeger_agent: String,
 
-    /// Testing only - deliver certificate immediately upon submission
-    #[clap(long, env = "TCE_TEST_IMMEDIATE_DELIVERY")]
-    pub test_immediate_delivery: bool,
-
     /// gRPC API Addr
     #[clap(long, env = "TCE_API_ADDR", default_value = "[::1]:1340")]
     pub api_addr: SocketAddr,
@@ -61,7 +58,7 @@ pub struct AppArgs {
 
 impl AppArgs {
     pub fn parse_boot_peers(&self) -> Vec<(PeerId, Multiaddr)> {
-        log::info!("boot_peers: {:?}", self.boot_peers);
+        info!("boot_peers: {:?}", self.boot_peers);
         self.boot_peers
             .split(' ')
             .map(|s| s.to_string())

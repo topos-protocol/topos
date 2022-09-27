@@ -53,6 +53,7 @@ where
 
         let socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
         let addr = socket.local_addr().ok().unwrap();
+        let api_port = addr.port();
 
         let (api_client, api_events) = topos_tce_api::Runtime::builder()
             .serve_addr(addr)
@@ -62,7 +63,7 @@ where
 
         spawn(runtime.run());
         spawn(app.run(event_stream, trb_events, api_events));
-        let api_endpoint = format!("http://127.0.0.1:{port}");
+        let api_endpoint = format!("http://127.0.0.1:{api_port}");
 
         let channel = channel::Endpoint::from_str(&api_endpoint)
             .unwrap()

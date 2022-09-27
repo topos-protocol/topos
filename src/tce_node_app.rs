@@ -5,10 +5,9 @@ mod storage;
 use crate::app_context::AppContext;
 use crate::cli::AppArgs;
 use clap::Parser;
-use libp2p::{identity, Multiaddr};
 use tce_store::{Store, StoreConfig};
 use tokio::spawn;
-use topos_p2p::{utils::local_key_pair, Multiaddr, PeerId};
+use topos_p2p::{utils::local_key_pair, Multiaddr};
 use topos_tce_broadcast::mem_store::TrbMemStore;
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
 use tracing::info;
@@ -73,20 +72,4 @@ async fn main() {
         api_client,
     );
     app_context.run(event_stream, trb_stream, api_stream).await;
-}
-
-/// build peer_id keys, generate for now - either from the seed or purely random one
-fn local_key_pair(secret_key_seed: Option<u8>) -> identity::Keypair {
-    // todo: load from protobuf encoded|base64 encoded config.local_key_pair
-    match secret_key_seed {
-        Some(seed) => {
-            let mut bytes = [0u8; 32];
-            bytes[0] = seed;
-            let secret_key = identity::ed25519::SecretKey::from_bytes(&mut bytes).expect(
-                "this returns `Err` only if the length is wrong; the length is correct; qed",
-            );
-            identity::Keypair::Ed25519(secret_key.into())
-        }
-        None => identity::Keypair::generate_ed25519(),
-    }
 }
