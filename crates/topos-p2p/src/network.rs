@@ -19,7 +19,7 @@ use libp2p::{
     tcp::{GenTcpConfig, TokioTcpTransport},
     Multiaddr, PeerId, Transport,
 };
-use std::{collections::VecDeque, error::Error, time::Duration};
+use std::{collections::VecDeque, time::Duration};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
@@ -82,12 +82,8 @@ impl NetworkBuilder {
         self
     }
 
-    pub async fn build(
-        mut self,
-    ) -> Result<(Client, impl Stream<Item = Event>, Runtime), Box<dyn Error>> {
-        let peer_key = self
-            .peer_key
-            .ok_or_else(|| Box::new(FSMError::MissingPeerKey))?;
+    pub async fn build(mut self) -> Result<(Client, impl Stream<Item = Event>, Runtime), P2PError> {
+        let peer_key = self.peer_key.ok_or(P2PError::MissingPeerKey)?;
         let peer_id = peer_key.public().to_peer_id();
 
         let noise_keys = noise::Keypair::<noise::X25519Spec>::new().into_authentic(&peer_key)?;

@@ -1,6 +1,6 @@
 use std::io;
 
-use libp2p::{autonat::OutboundFailure, PeerId, TransportError};
+use libp2p::{noise::NoiseError, request_response::OutboundFailure, PeerId, TransportError};
 use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
 
@@ -27,6 +27,9 @@ pub enum P2PError {
 
     #[error("Unable to received expected response of a oneshot channel")]
     OneshotReceiveError(#[from] oneshot::error::RecvError),
+
+    #[error("An error occured on the Noice protocol: {0}")]
+    NoiseProtocolError(#[from] NoiseError),
 }
 
 #[derive(Error, Debug)]
