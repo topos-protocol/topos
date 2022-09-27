@@ -16,7 +16,7 @@ use topos_core::api::{
         WatchCertificatesRequest, WatchCertificatesResponse,
     },
 };
-use tracing::{debug, info};
+use tracing::{error, info, instrument, warn};
 use uuid::Uuid;
 
 pub mod commands;
@@ -38,22 +38,28 @@ pub struct Stream {
 }
 
 impl Stream {
+    #[instrument(name = "gRPC::Stream", skip(self), fields(stream_id = %self.stream_id))]
     pub async fn run(mut self) {
         let subnet_ids = match self.pre_start().await {
             Err(_) => {
-                _ = self
+                if let Err(error) = self
                     .sender
                     .send(Err(Status::invalid_argument("No openstream provided")))
-                    .await;
+                    .await
+                {
+                    warn!(%error, "Can't notify stream of invalid argument during pre_start");
+                }
 
-                _ = self
+                if let Err(error) = self
                     .internal_runtime_command_sender
                     .send(InternalRuntimeCommand::StreamTimeout {
                         stream_id: self.stream_id,
                     })
-                    .await;
+                    .await
+                {
+                    warn!(%error, "Can't notify stream of timeout during pre_start");
+                }
 
-                debug!("Stream failure, timedout on OpenStream");
                 return;
             }
 
@@ -67,23 +73,30 @@ impl Stream {
             }
         };
 
-        _ = self.handshake(subnet_ids.clone()).await;
+        if let Err(handshake_error) = self.handshake(subnet_ids.clone()).await {
+            error!(%handshake_error, "Handshake failed with stream")
+        }
 
-        _ = self
+        if let Err(error) = self
             .sender
             .send(Ok(StreamOpened { subnet_ids }.into()))
-            .await;
+            .await
+        {
+            error!(%error, "Handshake failed with stream")
+        }
 
         loop {
             tokio::select! {
                 Some(command) = self.command_receiver.recv() => {
                     match command {
                         StreamCommand::PushCertificate { certificate, .. } => {
-                            _ = self.sender.send(Ok(WatchCertificatesResponse {
+                            if let Err(error) = self.sender.send(Ok(WatchCertificatesResponse {
                                 request_id: None,
                                 event: Some(Event::CertificatePushed(CertificatePushed{ certificate: Some(certificate.into()) }))
 
-                            })).await;
+                            })).await {
+                                error!(%error, "Can't forward WatchCertificatesResponse to stream, channel seems dropped");
+                            }
                         }
                     }
                 }
@@ -120,23 +133,24 @@ impl Stream {
     async fn handshake(&mut self, subnet_ids: Vec<SubnetId>) -> Result<(), HandshakeError> {
         let (sender, receiver) = oneshot::channel::<Result<(), RuntimeError>>();
 
-        _ = self
-            .internal_runtime_command_sender
+        self.internal_runtime_command_sender
             .send(InternalRuntimeCommand::Register {
                 stream_id: self.stream_id,
                 subnet_ids,
                 sender,
             })
-            .await;
+            .await
+            .map_err(Box::new)?;
 
         receiver.await??;
 
-        _ = self
-            .internal_runtime_command_sender
+        self.internal_runtime_command_sender
             .send(InternalRuntimeCommand::Handshaked {
                 stream_id: self.stream_id,
             })
-            .await;
+            .await
+            .map_err(Box::new)?;
+
         Ok(())
     }
 }

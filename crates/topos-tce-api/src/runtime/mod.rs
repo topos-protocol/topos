@@ -8,7 +8,7 @@ use tokio::{
 };
 use tonic_health::server::HealthReporter;
 use topos_core::api::tce::v1::api_service_server::ApiServiceServer;
-use tracing::info;
+use tracing::{error, info};
 use uuid::Uuid;
 
 use crate::{
@@ -90,9 +90,12 @@ impl Runtime {
 
                             info!("Sending certificate to {uuid}");
                             spawn(async move {
-                                _ = sender
+                                if let Err(error) = sender
                                     .send(StreamCommand::PushCertificate { certificate })
-                                    .await;
+                                    .await
+                                {
+                                    error!(%error, "Can't push certificate because receiver is dropped");
+                                }
                             });
                         }
                     }
@@ -150,7 +153,9 @@ impl Runtime {
                         .insert(stream_id);
                 }
 
-                _ = sender.send(Ok(()));
+                if let Err(error) = sender.send(Ok(())) {
+                    error!(?error, "Can't send response to Stream, receiver is dropped");
+                }
             }
 
             InternalRuntimeCommand::CertificateSubmitted {
@@ -158,13 +163,19 @@ impl Runtime {
                 sender,
             } => {
                 info!("A certificate has been submitted to the TCE {certificate:?}");
-                _ = self
+                if let Err(error) = self
                     .api_event_sender
                     .send(RuntimeEvent::CertificateSubmitted {
                         certificate,
                         sender,
                     })
-                    .await;
+                    .await
+                {
+                    error!(
+                        %error,
+                        "Can't send certificate submission to runtime, receiver is dropped"
+                    );
+                }
             }
         }
     }
