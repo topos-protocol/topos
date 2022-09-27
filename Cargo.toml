@@ -3,6 +3,7 @@ name = "topos-tce"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
+rust-version = "1.64"
 
 # our main binary
 [[bin]]
@@ -10,55 +11,43 @@ name = "topos-tce-app"
 path = "src/tce_node_app.rs"
 
 [dependencies]
+async-trait.workspace = true
+futures.workspace = true
+serde.workspace = true
+tokio.workspace = true
+topos-core.workspace = true
+tracing.workspace = true
+
+tce_store = { package = "topos-tce-store", path = "./crates/topos-tce-store" }
+tce_telemetry = { package = "topos-tce-telemetry", path = "./crates/topos-tce-telemetry" }
+tce_transport = { package = "topos-tce-transport", path = "./crates/topos-tce-transport" }
+topos-p2p = { path = "./crates/topos-p2p" }
+topos-tce-api = { path = "./crates/topos-tce-api"}
+topos-tce-broadcast = { path = "./crates/topos-tce-broadcast" }
+
 # external dependencies
-serde = { version = "1.0.136", features = ["derive"] }
 bincode = "1.3.3"
 clap = { version = "3.0.10", features = ["derive", "env"] }
-libp2p = { version = "0.46", features = ["tcp-tokio"] }
 lazy_static = "1.4"
 opentelemetry = { version = "0.17", default-features = false, features = ["trace", "rt-tokio"] }
 opentelemetry-jaeger = { version = "0.16", features = ["rt-tokio"] }
 pretty_env_logger = "0.4.0"
-tokio = { version = "1.20.0", features = [
-    "io-util",
-    "io-std",
-    "macros",
-    "rt",
-    "rt-multi-thread",
-    "fs",
-    "time",
-    "sync",
-] }
-
-# tce dependencies
-tce_store = { package = "topos-tce-store", path = "./crates/topos-tce-store" }
-tce_telemetry = { package = "topos-tce-telemetry", path = "./crates/topos-tce-telemetry" }
-topos-tce-broadcast = { path = "./crates/topos-tce-broadcast" }
-tce_transport = { package = "topos-tce-transport", path = "./crates/topos-tce-transport" }
-
-topos-p2p = { path = "./crates/topos-p2p" }
-topos-tce-api = { path = "./crates/topos-tce-api"}
-topos-core = { git = "https://github.com/toposware/topos-core", branch = "main", features = ["uci"], version = "0.1.0" }
-
-tracing = { version = "*", default-features = false, features = ["log"]}
-tracing-log = { version = "*", features = ['env_logger'] }
-futures = "*"
-async-trait = "0.1"
 
 [dev-dependencies]
+async-trait.workspace = true
+libp2p.workspace = true
+rand.workspace = true
+rand_core.workspace = true
+rand_distr.workspace = true
+tonic.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
+tracing.workspace = true
 
-async-stream = "0.3.3"
-async-trait = "0.1"
 cucumber = "0.13.0"
-hyper = { version = "0.14", features = ["full"] }
-rand_distr = "0.4.1"
-rand_core = "0.6.0"
-rand = "0.8.5"
 env_logger = "*"
+hyper = { version = "0.14", features = ["full"] }
 test-log = { version = "0.2", features = ["log", "trace"] }
-tracing-subscriber = {version = "0.3", default-features = false, features = ["env-filter", "fmt"]}
-tonic = { version = "0.8.0", features = ["transport"] }
-topos-core = { git = "https://github.com/toposware/topos-core", branch = "main", features = ["uci", "api"], version = "0.1.0" }
+async-stream = "0.3.3"
 
 # Commented because the test isn't compatible with gRPC health_check
 # [[test]]
@@ -69,3 +58,19 @@ topos-core = { git = "https://github.com/toposware/topos-core", branch = "main",
 members = [
     "crates/*"
 ]
+
+[workspace.dependencies]
+async-trait = { version = "0.1", default-features = false }
+futures = { version = "0.3", default-features = false }
+libp2p = { version = "0.46", default-features = false, features = ["noise"]}
+rand = { version = "0.8", default-features = false }
+rand_core = { version = "0.6", default-features = false }
+rand_distr = { version = "0.4", default-features = false }
+serde = { version = "1.0", default-features = false }
+thiserror = { version = "1.0", default-features = false }
+tokio = { version = "1.20", default-features = false }
+tokio-stream = { version = "0.1", default-features = false}
+tonic = { version = "0.8.0", default-features = false }
+topos-core = { git = "https://github.com/toposware/topos-core", branch = "main", default-features = false, version = "0.1.0" }
+tracing = { version = "0.1", default-features = false }
+tracing-subscriber = { version = "0.3", default-features = false }

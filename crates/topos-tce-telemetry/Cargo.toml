@@ -7,10 +7,9 @@ edition = "2021"
 path = 'src/lib.rs'
 
 [dependencies]
+topos-core = { workspace = true, features = ["uci"] }
+
 lazy_static = "1.4"
 log = "0.4.14"
 opentelemetry = { version = "0.17", default-features = false, features = ["trace", "rt-tokio"] }
 opentelemetry-jaeger = { version = "0.16", features = ["rt-tokio"] }
-libp2p = { version = "0.41.0", features = ["tcp-tokio"] }
-
-topos-core = { git = "https://github.com/toposware/topos-core", branch = "main", features = ["uci"], version = "0.1.0" }
