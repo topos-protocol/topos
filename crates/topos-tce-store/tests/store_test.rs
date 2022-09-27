@@ -1,6 +1,7 @@
 use rocksdb::{IteratorMode, Options, ReadOptions, DB};
 use std::sync::Once;
 use topos_core::uci::Certificate;
+use tracing::debug;
 
 static DB_TEST_SETUP: Once = Once::new();
 
@@ -30,7 +31,7 @@ fn db_load() {
         ro.set_iterate_upper_bound(b"my key:z".to_vec());
         let iter = db.iterator_opt(IteratorMode::Start, ro);
         for a in iter {
-            log::debug!(
+            debug!(
                 "key:'{}', val: '{}'",
                 String::from_utf8_lossy(a.0.as_ref()),
                 String::from_utf8_lossy(a.1.as_ref())
@@ -65,7 +66,7 @@ fn new_offset() {
         ro.set_iterate_upper_bound(jkey("nokey".into(), u64::MAX));
         let mut iter = db.iterator_opt(IteratorMode::End, ro);
         if let Some(a) = iter.next() {
-            log::debug!(
+            debug!(
                 "key:'{}', val: '{}'",
                 String::from_utf8_lossy(a.0.as_ref()),
                 String::from_utf8_lossy(a.1.as_ref())

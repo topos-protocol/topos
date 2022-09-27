@@ -10,6 +10,7 @@ use std::fs::File;
 use std::io::{Error, Write};
 use std::sync::Once;
 use topos_tce_broadcast::mock::*;
+use tracing::{error, info};
 
 static DB_TEST_SETUP: Once = Once::new();
 
@@ -90,7 +91,7 @@ pub struct AppArgs {
 
 pub fn main() -> Result<(), Error> {
     setup();
-    log::info!("Starting minimizer");
+    info!("Starting minimizer");
 
     let args = AppArgs::parse();
 
@@ -107,11 +108,11 @@ pub fn main() -> Result<(), Error> {
 
     let mut network_size = 32;
     for _ in 0..=60 {
-        log::info!("Minimizing for N = {:?}", network_size);
+        info!("Minimizing for N = {:?}", network_size);
         input_config.nb_peers = network_size;
         match minimize_params(input_config.clone()) {
             Some(best_record) => {
-                log::info!("🥇 Best Values:\t{:?}", best_record);
+                info!("🥇 Best Values:\t{:?}", best_record);
                 std::writeln!(output, "{}", format_args!("{}", best_record)).ok();
                 // std::writeln!(
                 //     output,
@@ -126,7 +127,7 @@ pub fn main() -> Result<(), Error> {
                 // )?;
             }
             None => {
-                log::error!("Failure");
+                error!("Failure");
             }
         }
         match network_size.cmp(&1024) {

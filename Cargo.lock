@@ -3562,7 +3562,6 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "fastapprox",
- "log",
  "pretty_env_logger",
  "rand 0.8.5",
  "rand_core 0.6.4",
@@ -3572,6 +3571,7 @@ dependencies = [
  "topos-tce-broadcast",
  "topos-tce-store",
  "topos-tce-transport",
+ "tracing",
 ]
 
 [[package]]
@@ -3579,11 +3579,11 @@ name = "topos-tce-store"
 version = "0.1.0"
 dependencies = [
  "bincode",
- "log",
  "pretty_env_logger",
  "rocksdb",
  "topos-core",
  "topos-tce-broadcast",
+ "tracing",
 ]
 
 [[package]]
@@ -3591,10 +3591,10 @@ name = "topos-tce-telemetry"
 version = "0.1.0"
 dependencies = [
  "lazy_static",
- "log",
  "opentelemetry",
  "opentelemetry-jaeger",
  "topos-core",
+ "tracing",
 ]
 
 [[package]]
