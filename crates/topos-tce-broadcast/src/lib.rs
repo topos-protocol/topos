@@ -60,7 +60,14 @@ pub enum DoubleEchoCommand {
     },
 
     /// Entry point for new certificate to submit as initial sender
-    Broadcast { cert: Certificate },
+    Broadcast {
+        cert: Certificate,
+    },
+
+    // Entry point to broadcast many Certificates
+    BroadcastMany {
+        certificates: Vec<Certificate>,
+    },
 
     /// When echo reply received
     Echo {
