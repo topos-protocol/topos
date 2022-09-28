@@ -16,12 +16,11 @@ use libp2p::{
     mplex, noise,
     swarm::SwarmBuilder,
     tcp::{GenTcpConfig, TokioTcpTransport},
-    Multiaddr, PeerId, Swarm, Transport,
+    Multiaddr, PeerId, Transport,
 };
 use std::{collections::VecDeque, error::Error, time::Duration};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
-use tracing::warn;
 
 pub fn builder() -> NetworkBuilder {
     NetworkBuilder::default()
@@ -83,7 +82,7 @@ impl NetworkBuilder {
     }
 
     pub async fn build(
-        self,
+        mut self,
     ) -> Result<(Client, impl Stream<Item = Event>, Runtime), Box<dyn Error>> {
         let peer_key = self.peer_key.expect("peer_key not defined");
         let peer_id = peer_key.public().to_peer_id();
@@ -108,7 +107,10 @@ impl NetworkBuilder {
             transmission: TransmissionBehaviour::new(),
             events: VecDeque::new(),
             peer_id,
-            addresses: self.listen_addr.clone().unwrap(),
+            addresses: self
+                .listen_addr
+                .take()
+                .expect("P2P runtime expect a MultiAddr"),
         };
 
         let transport = TokioTcpTransport::new(GenTcpConfig::default().nodelay(true))
@@ -118,17 +120,11 @@ impl NetworkBuilder {
             .timeout(TWO_HOURS)
             .boxed();
 
-        let mut swarm = SwarmBuilder::new(transport, behaviour, peer_id)
+        let swarm = SwarmBuilder::new(transport, behaviour, peer_id)
             .executor(Box::new(|future| {
                 let _ = tokio::spawn(future);
             }))
             .build();
-
-        if let Some(addr) = self.listen_addr {
-            if let Err(error) = Swarm::listen_on(&mut swarm, addr.clone()) {
-                warn!("Couldn't start listening on {addr} because of {error:?}");
-            }
-        }
 
         Ok((
             Client {

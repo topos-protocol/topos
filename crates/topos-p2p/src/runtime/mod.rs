@@ -3,6 +3,7 @@ use libp2p::{Multiaddr, PeerId, Swarm};
 use std::error::Error;
 use tokio::sync::mpsc;
 use tokio_stream::StreamExt;
+use tracing::error;
 
 pub struct Runtime {
     swarm: Swarm<Behaviour>,
@@ -37,6 +38,14 @@ impl Runtime {
     }
 
     pub async fn run(mut self) {
+        let addr = self.swarm.behaviour().addresses.clone();
+        if let Err(error) = self.swarm.listen_on(addr) {
+            error!(
+                "Couldn't start listening on {} because of {error:?}",
+                self.swarm.behaviour().addresses
+            );
+        }
+
         loop {
             tokio::select! {
                 event = self.swarm.next() => self.handle_event(event.unwrap()).await,
