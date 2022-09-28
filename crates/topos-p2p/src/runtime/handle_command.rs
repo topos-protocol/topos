@@ -12,7 +12,7 @@ impl Runtime {
         match command {
             Command::StartListening { peer_addr, sender } => {
                 if sender.send(self.start_listening(peer_addr)).is_err() {
-                    warn!("Unable to notify StartListening response because initiator is dropped");
+                    warn!("Unable to notify StartListening response: initiator is dropped");
                 }
             }
 
@@ -25,7 +25,7 @@ impl Runtime {
                         .collect::<Vec<_>>()))
                     .is_err()
                 {
-                    warn!("Unable to notify ConnectedPeers response because initiator is dropped");
+                    warn!("Unable to notify ConnectedPeers response: initiator is dropped");
                 }
             }
 
@@ -52,7 +52,7 @@ impl Runtime {
                 if sender.send(Err(P2PError::AlreadyDisconnected)).is_err() {
                     warn!(
                         reason = %P2PError::AlreadyDisconnected,
-                        "Unable to notify Disconnection failure because initiator is dropped",
+                        "Unable to notify Disconnection failure: initiator is dropped",
                     );
                 }
             }
@@ -82,7 +82,7 @@ impl Runtime {
                 }
 
                 if sender.send(Ok(())).is_err() {
-                    warn!("Unable to notify Disconnection because initiator is dropped",);
+                    warn!("Unable to notify Disconnection: initiator is dropped",);
                 }
             }
 

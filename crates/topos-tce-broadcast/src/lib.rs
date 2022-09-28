@@ -276,4 +276,7 @@ pub enum Errors {
 
     #[error("Requested certificate not found")]
     CertificateNotFound,
+
+    #[error("Requested digest not found for certificate {0}")]
+    DigestNotFound(CertificateId),
 }

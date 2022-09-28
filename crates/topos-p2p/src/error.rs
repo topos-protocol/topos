@@ -16,7 +16,7 @@ pub enum P2PError {
     AlreadyDisconnected,
     #[error("Error during dialling")]
     DialError,
-    #[error("Unable build a network because of the peer_key is missing")]
+    #[error("Unable build a network: peer_key missing")]
     MissingPeerKey,
 
     #[error(transparent)]
@@ -25,10 +25,10 @@ pub enum P2PError {
     #[error("An error occured on the Transport layer: {0}")]
     TransportError(#[from] TransportError<io::Error>),
 
-    #[error("Unable to received expected response of a oneshot channel")]
+    #[error("Unable to receive expected response of a oneshot channel")]
     OneshotReceiveError(#[from] oneshot::error::RecvError),
 
-    #[error("An error occured on the Noice protocol: {0}")]
+    #[error("An error occurred on the Noise protocol: {0}")]
     NoiseProtocolError(#[from] NoiseError),
 }
 
@@ -40,7 +40,7 @@ pub enum CommandExecutionError {
     #[error("Unable to perform query: {0}")]
     RequestOutbandFailure(#[from] OutboundFailure),
 
-    #[error("Unable to received expected response of a oneshot channel")]
+    #[error("Unable to receive expected response of a oneshot channel")]
     UnableToReceiveCommandResponse(#[from] oneshot::error::RecvError),
 
     #[error("Unable to send a command: {0}")]

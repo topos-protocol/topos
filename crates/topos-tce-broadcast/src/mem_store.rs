@@ -122,7 +122,7 @@ impl TrbStore for TrbMemStore {
         let received_digest = self
             .received_digest
             .get(&cert.cert_id)
-            .ok_or(Errors::CertificateNotFound)?;
+            .ok_or_else(|| Errors::DigestNotFound(cert.cert_id.clone()))?;
 
         // Check that all cert in digest are in my history
         received_digest

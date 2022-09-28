@@ -150,7 +150,8 @@ impl NetworkBehaviour for DiscoveryBehaviour {
             self.peers.insert(*peer_id);
             if sender.send(Ok(())).is_err() {
                 warn!(
-                    "Could not notify successful dial with {peer_id} because initiator is dropped"
+                    %peer_id,
+                    "Could not notify successful dial with {peer_id}: initiator dropped"
                 );
             }
         }
@@ -383,11 +384,15 @@ impl NetworkBehaviour for DiscoveryBehaviour {
                                             Multiaddr::try_from(peer_record.record.value.clone())
                                         {
                                             if let Some(peer_id) = peer_record.record.publisher {
-                                                self.kademlia.add_address(&peer_id, addr.clone());
+                                                if !sender.is_closed() {
+                                                    self.kademlia
+                                                        .add_address(&peer_id, addr.clone());
 
-                                                if sender.send(Ok(vec![addr.clone()])).is_err() {
-                                                    // TODO: Hash the QueryId
-                                                    warn!("Could not notify Record query ({id:?}) response because initiator is dropped");
+                                                    if sender.send(Ok(vec![addr.clone()])).is_err()
+                                                    {
+                                                        // TODO: Hash the QueryId
+                                                        warn!("Could not notify Record query ({id:?}) response because initiator is dropped");
+                                                    }
                                                 }
 
                                                 return Poll::Ready(

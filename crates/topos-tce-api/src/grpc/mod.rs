@@ -42,9 +42,7 @@ impl ApiService for TceGrpcService {
                 .await
                 .is_err()
             {
-                return Err(Status::internal(
-                    "Can't submit certificate because the sender is dropped",
-                ));
+                return Err(Status::internal("Can't submit certificate: sender dropped"));
             }
 
             receiver
@@ -90,9 +88,7 @@ impl ApiService for TceGrpcService {
             .await
             .is_err()
         {
-            return Err(Status::internal(
-                "Can't submit certificate because the sender is dropped",
-            ));
+            return Err(Status::internal("Can't submit certificate: sender dropped"));
         }
 
         Ok(Response::new(
