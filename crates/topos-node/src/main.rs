@@ -111,10 +111,10 @@ pub struct AppArgs {
     #[clap(long, env = "SUBNET_CONTRACT")]
     pub subnet_contract: String,
 
-    /// Base Uri of TCE node to call API at
+    /// Base Uri of TCE node to call grpc service api
     #[clap(
         long,
-        default_value = "http://localhost:8080",
+        default_value = "http://127.0.0.1:1340",
         env = "TOPOS_BASE_TCE_API_URL"
     )]
     pub base_tce_api_url: String,
