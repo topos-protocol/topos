@@ -14,6 +14,7 @@
 .idea
 **/*.iml
 
+# VSCode
 .vscode
 **/tests/databases
 
@@ -52,4 +53,7 @@ override.tf.json
 # Ignore CLI configuration files
 .terraformrc
 terraform.rc
+
+#k8s
+**/kubeconfig
 # ~~~ END TERRAFORM
