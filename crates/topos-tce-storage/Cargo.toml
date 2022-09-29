@@ -1,0 +1,14 @@
+[package]
+name = "topos-tce-storage"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+async-trait.workspace = true
+tracing.workspace = true
+tokio.workspace = true
+futures.workspace = true
+thiserror.workspace = true
+topos-core = { workspace = true, features = ["uci"] }

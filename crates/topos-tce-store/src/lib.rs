@@ -31,12 +31,12 @@ impl Store {
 
 impl TrbStore for Store {
     fn apply_cert(&mut self, cert: &Certificate) -> Result<(), Errors> {
-        self.db
-            .put(
-                Self::cert_key(&cert.cert_id),
-                bincode::serialize(&cert).unwrap(),
-            )
-            .expect("db save");
+        // self.db
+        //     .put(
+        //         Self::cert_key(&cert.cert_id),
+        //         bincode::serialize(&cert).unwrap(),
+        //     )
+        //     .expect("db save");
         Ok(())
     }
 
@@ -78,7 +78,7 @@ impl TrbStore for Store {
         self.db
             .get(Self::cert_key(cert_id))
             .expect("db get")
-            .map(|bc| bincode::deserialize::<Certificate>(bc.as_ref()).expect("Cert deser"))
+            // .map(|bc| bincode::deserialize::<Certificate>(bc.as_ref()).expect("Cert deser"))
             .ok_or(Errors::CertificateNotFound)
     }
 

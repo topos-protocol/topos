@@ -3,16 +3,6 @@ name = "topos-tce-store"
 version = "0.1.0"
 edition = "2021"
 
-[lib]
-path = 'src/lib.rs'
-
 [dependencies]
-topos-core = { workspace = true, features = ["uci"] }
-topos-tce-broadcast = { path = "../topos-tce-broadcast" }
-
-bincode = "1.3.3"
-rocksdb = "0.18.0"
-
-[dev-dependencies]
-pretty_env_logger = "0.4.0"
 tracing.workspace = true
+topos-core = { workspace = true, features = ["uci"] }
