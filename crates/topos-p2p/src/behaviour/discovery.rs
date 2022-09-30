@@ -1,11 +1,10 @@
 use std::{
     collections::{hash_map::Entry, HashMap, HashSet, VecDeque},
-    error::Error,
     num::NonZeroUsize,
     task::{Context, Poll},
 };
 
-use crate::error::P2PError;
+use crate::error::{CommandExecutionError, P2PError};
 use futures::{future::BoxFuture, FutureExt};
 use libp2p::{
     core::{connection::ConnectionId, transport::ListenerId, ConnectedPoint},
@@ -24,8 +23,8 @@ use libp2p::{
 use tokio::sync::oneshot;
 use tracing::{debug, error, info, instrument, trace, warn};
 
-type PendingDials = HashMap<PeerId, oneshot::Sender<Result<(), Box<dyn Error + Send>>>>;
-type PendingRecordRequest = oneshot::Sender<Result<Vec<Multiaddr>, Box<dyn Error + Send>>>;
+type PendingDials = HashMap<PeerId, oneshot::Sender<Result<(), P2PError>>>;
+type PendingRecordRequest = oneshot::Sender<Result<Vec<Multiaddr>, CommandExecutionError>>;
 
 /// DiscoveryBehaviour is responsible to discover and manage connections with peers
 pub(crate) struct DiscoveryBehaviour {
@@ -149,7 +148,12 @@ impl NetworkBehaviour for DiscoveryBehaviour {
         debug!("Connection established with peer: {peer_id}");
         if let Some(sender) = self.pending_dial.remove(peer_id) {
             self.peers.insert(*peer_id);
-            let _ = sender.send(Ok(()));
+            if sender.send(Ok(())).is_err() {
+                warn!(
+                    %peer_id,
+                    "Could not notify successful dial with {peer_id}: initiator dropped"
+                );
+            }
         }
 
         self.kademlia.inject_connection_established(
@@ -207,7 +211,9 @@ impl NetworkBehaviour for DiscoveryBehaviour {
         error!("Dial failure: {error:?}");
         if let Some(peer_id) = peer_id {
             if let Some(sender) = self.pending_dial.remove(&peer_id) {
-                let _ = sender.send(Err(Box::new(crate::error::P2PError::DialError)));
+                if sender.send(Err(crate::error::P2PError::DialError)).is_err() {
+                    warn!("Could not notify dial failure because initiator is dropped");
+                }
             }
         }
 
@@ -374,18 +380,28 @@ impl NetworkBehaviour for DiscoveryBehaviour {
                             Ok(result) => {
                                 if let Some(sender) = self.pending_record_requests.remove(&id) {
                                     if let Some(peer_record) = result.records.first() {
-                                        let addr =
+                                        if let Ok(addr) =
                                             Multiaddr::try_from(peer_record.record.value.clone())
-                                                .unwrap();
+                                        {
+                                            if let Some(peer_id) = peer_record.record.publisher {
+                                                if !sender.is_closed() {
+                                                    self.kademlia
+                                                        .add_address(&peer_id, addr.clone());
 
-                                        let peer_id = peer_record.record.publisher.unwrap();
-                                        self.kademlia.add_address(&peer_id, addr.clone());
+                                                    if sender.send(Ok(vec![addr.clone()])).is_err()
+                                                    {
+                                                        // TODO: Hash the QueryId
+                                                        warn!("Could not notify Record query ({id:?}) response because initiator is dropped");
+                                                    }
+                                                }
 
-                                        _ = sender.send(Ok(vec![addr.clone()]));
-
-                                        return Poll::Ready(NetworkBehaviourAction::GenerateEvent(
-                                            DiscoveryOut::SelfDiscovered(peer_id, addr),
-                                        ));
+                                                return Poll::Ready(
+                                                    NetworkBehaviourAction::GenerateEvent(
+                                                        DiscoveryOut::SelfDiscovered(peer_id, addr),
+                                                    ),
+                                                );
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -509,7 +525,13 @@ impl DiscoveryBehaviour {
             kademlia.add_address(&known_peer.0, known_peer.1.clone());
         }
 
-        _ = kademlia.bootstrap();
+        if let Err(store_error) = kademlia.start_providing("topos-tce".as_bytes().to_vec().into()) {
+            warn!(reason = %store_error, "Could not start providing Kademlia protocol `topos-tce`")
+        }
+
+        if kademlia.bootstrap().is_err() {
+            warn!("Bootstrapping failed because of NoKnownPeers, ignore this warning if boot-node");
+        }
 
         Self {
             kademlia,
@@ -535,7 +557,7 @@ impl DiscoveryBehaviour {
         &mut self,
         peer_id: PeerId,
         peer_addr: Multiaddr,
-        sender: oneshot::Sender<Result<(), Box<dyn Error + Send>>>,
+        sender: oneshot::Sender<Result<(), P2PError>>,
     ) {
         info!("Sending an active Dial");
         let handler = self.new_handler();
@@ -549,8 +571,9 @@ impl DiscoveryBehaviour {
             }
 
             _ => {
-                error!("Already dialing peer.");
-                let _ = sender.send(Err(Box::new(P2PError::AlreadyDialed(peer_id))));
+                if sender.send(Err(P2PError::AlreadyDialed(peer_id))).is_err() {
+                    warn!("Could not notify that {peer_id} was already dialed because initiator is dropped");
+                }
             }
         }
     }
@@ -558,7 +581,7 @@ impl DiscoveryBehaviour {
     pub fn get_record(
         &mut self,
         key: Key,
-        sender: oneshot::Sender<Result<Vec<Multiaddr>, Box<dyn Error + Send>>>,
+        sender: oneshot::Sender<Result<Vec<Multiaddr>, CommandExecutionError>>,
     ) {
         let query_id = self.kademlia.get_record(key, Quorum::One);
 

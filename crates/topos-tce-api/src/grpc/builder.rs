@@ -50,7 +50,7 @@ impl ServerBuilder {
         let reflexion = tonic_reflection::server::Builder::configure()
             .register_encoded_file_descriptor_set(topos_core::api::FILE_DESCRIPTOR_SET)
             .build()
-            .unwrap();
+            .expect("Cannot build gRPC because of FILE_DESCRIPTOR_SET error");
 
         let serve_addr = self
             .serve_addr

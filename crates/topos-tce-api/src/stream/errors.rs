@@ -1,7 +1,6 @@
+use crate::runtime::{error::RuntimeError, InternalRuntimeCommand};
 use thiserror::Error;
 use tokio::sync::{mpsc::error::SendError, oneshot::error::RecvError};
-
-use crate::runtime::{error::RuntimeError, InternalRuntimeCommand};
 
 #[derive(Error, Debug)]
 pub enum PreStartError {
@@ -21,7 +20,7 @@ pub(crate) enum HandshakeError {
     OneshotCommunicationChannel(#[from] RecvError),
 
     #[error(transparent)]
-    InternalRuntimeCommandCommunication(#[from] Box<SendError<InternalRuntimeCommand>>),
+    InternalCommunicationChannel(#[from] Box<SendError<InternalRuntimeCommand>>),
 }
 
 #[cfg(test)]
