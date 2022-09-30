@@ -144,12 +144,7 @@ impl DoubleEcho {
 
     async fn handle_broadcast(&mut self, cert: Certificate) {
         info!("Handling broadcast of Certificate {:?}", cert.cert_id);
-        // let digest = self
-        //     .store
-        //     .flush_digest_view(&cert.initial_subnet_id)
-        //     .unwrap_or_default();
 
-        // self.dispatch(cert, digest);
         self.dispatch(cert).await;
     }
 
@@ -381,9 +376,6 @@ impl DoubleEcho {
             warn!("Precedence not yet satisfied {:?}", cert);
         }
 
-        // if self.store.check_digest_inclusion(cert).is_err() {
-        //     warn!("Inclusion check not yet satisfied {:?}", cert);
-        // }
         Ok(())
     }
 }

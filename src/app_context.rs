@@ -214,11 +214,7 @@ impl AppContext {
             }
 
             TrbpEvents::Gossip { peers, cert, .. } => {
-                let data: Vec<u8> = NetworkMessage::from(TrbpCommands::OnGossip {
-                    cert,
-                    digest: vec![],
-                })
-                .into();
+                let data: Vec<u8> = NetworkMessage::from(TrbpCommands::OnGossip { cert }).into();
 
                 let future_pool = peers
                     .iter()
@@ -336,7 +332,7 @@ impl AppContext {
                                 ));
                             }
 
-                            TrbpCommands::OnGossip { cert, digest: _ } => {
+                            TrbpCommands::OnGossip { cert } => {
                                 let command_sender = self.trbp_cli.get_double_echo_channel();
                                 command_sender
                                     .send(DoubleEchoCommand::Broadcast { cert })

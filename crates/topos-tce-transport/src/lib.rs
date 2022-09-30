@@ -2,7 +2,7 @@
 //!
 use clap::Parser;
 use serde::{Deserialize, Serialize};
-use topos_core::uci::{Certificate, DigestCompressed};
+use topos_core::uci::Certificate;
 
 /// Protocol parameters of the TRB
 #[derive(Default, Clone, Debug, Parser)]
@@ -48,15 +48,9 @@ pub enum TrbpCommands {
     /// Given peer replied ok to the ReadySubscribe request
     OnReadySubscribeOk { from_peer: String },
     /// Upon new certificate to start delivery
-    OnStartDelivery {
-        cert: Certificate,
-        digest: DigestCompressed,
-    },
+    OnStartDelivery { cert: Certificate },
     /// Received G-set message
-    OnGossip {
-        cert: Certificate,
-        digest: DigestCompressed,
-    },
+    OnGossip { cert: Certificate },
     /// When echo reply received
     OnEcho {
         from_peer: String,
