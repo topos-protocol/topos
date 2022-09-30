@@ -17,9 +17,10 @@ serde.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 topos-core.workspace = true
+topos-tce-storage.workspace = true
 tracing.workspace = true
 
-tce_store = { package = "topos-tce-store", path = "./crates/topos-tce-store" }
+# tce_store = { package = "topos-tce-store", path = "./crates/topos-tce-store" }
 tce_telemetry = { package = "topos-tce-telemetry", path = "./crates/topos-tce-telemetry" }
 tce_transport = { package = "topos-tce-transport", path = "./crates/topos-tce-transport" }
 topos-p2p = { path = "./crates/topos-p2p" }
@@ -73,5 +74,6 @@ tokio = { version = "1.20", default-features = false }
 tokio-stream = { version = "0.1", default-features = false}
 tonic = { version = "0.8.0", default-features = false }
 topos-core = { git = "https://github.com/toposware/topos-core", branch = "main", default-features = false, version = "0.1.0" }
+topos-tce-storage = { path = "./crates/topos-tce-storage", default-features = false }
 tracing = { version = "0.1", default-features = false }
 tracing-subscriber = { version = "0.3", default-features = false }

@@ -1,8 +1,0 @@
-[package]
-name = "topos-tce-store"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-tracing.workspace = true
-topos-core = { workspace = true, features = ["uci"] }

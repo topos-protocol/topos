@@ -1,11 +1,14 @@
-use crate::{mem_store::TrbMemStore, ReliableBroadcastClient, ReliableBroadcastConfig};
 use crate::{DoubleEchoCommand, Errors, SamplerCommand};
+use crate::{ReliableBroadcastClient, ReliableBroadcastConfig};
 /// Mock for the network and broadcast
 use rand::Rng;
 use rand_distr::Distribution;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Display, Formatter};
+use std::future::IntoFuture;
+use tokio::spawn;
 use tokio_stream::StreamExt;
+use topos_tce_storage::{Connection, InMemoryStorage};
 use tracing::{debug, error, info, trace, warn};
 
 use tce_transport::{ReliableBroadcastParams, TrbpEvents};
@@ -433,15 +436,21 @@ fn launch_simulation_main_loop(
 fn launch_broadcast_protocol_instances(
     peer_ids: Vec<String>,
     tx_combined_events: mpsc::UnboundedSender<(String, TrbpEvents)>,
-    all_subnets: Vec<SubnetId>,
+    _all_subnets: Vec<SubnetId>,
     global_trb_params: ReliableBroadcastParams,
 ) -> PeersContainer {
     let mut peers_container = HashMap::<String, ReliableBroadcastClient>::new();
 
     // create instances
     for peer in peer_ids {
+        let storage = InMemoryStorage::default();
+
+        let (connection, store) = Connection::new(storage);
+
+        spawn(connection.into_future());
+
         let (client, mut event_stream) = ReliableBroadcastClient::new(ReliableBroadcastConfig {
-            store: Box::new(TrbMemStore::new(all_subnets.clone())),
+            store,
             trbp_params: global_trb_params.clone(),
             my_peer_id: peer.clone(),
         });
@@ -559,20 +568,13 @@ pub async fn handle_peer_event(
         //         cli.eval(TrbpCommands::OnReadySubscribeOk { from_peer })?;
         //     }
         // }
-        TrbpEvents::Gossip {
-            peers,
-            cert,
-            digest,
-        } => {
+        TrbpEvents::Gossip { peers, cert } => {
             for to_peer in peers {
                 let mb_cli = peers_container.get(&*to_peer);
                 if let Some(w_cli) = mb_cli {
                     w_cli
                         .get_double_echo_channel()
-                        .send(DoubleEchoCommand::Deliver {
-                            cert: cert.clone(),
-                            digest: digest.clone(),
-                        })
+                        .send(DoubleEchoCommand::Deliver { cert: cert.clone() })
                         .await?;
                 }
             }

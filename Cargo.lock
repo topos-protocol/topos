@@ -3362,7 +3362,7 @@ dependencies = [
  "topos-p2p",
  "topos-tce-api",
  "topos-tce-broadcast",
- "topos-tce-store",
+ "topos-tce-storage",
  "topos-tce-telemetry",
  "topos-tce-transport",
  "tracing",
@@ -3411,6 +3411,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "topos-core",
+ "topos-tce-storage",
  "topos-tce-telemetry",
  "topos-tce-transport",
  "tracing",
@@ -3439,16 +3440,9 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "futures",
+ "pin-project-lite",
  "thiserror",
  "tokio",
- "topos-core",
- "tracing",
-]
-
-[[package]]
-name = "topos-tce-store"
-version = "0.1.0"
-dependencies = [
  "topos-core",
  "tracing",
 ]

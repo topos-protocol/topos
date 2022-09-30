@@ -12,3 +12,4 @@ tokio.workspace = true
 futures.workspace = true
 thiserror.workspace = true
 topos-core = { workspace = true, features = ["uci"] }
+pin-project-lite = "0.2.9"

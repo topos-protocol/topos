@@ -1,4 +1,4 @@
-use std::{collections::HashMap, net::UdpSocket, str::FromStr};
+use std::{collections::HashMap, future::IntoFuture, net::UdpSocket, str::FromStr};
 
 use futures::{Stream, StreamExt};
 use libp2p::{
@@ -10,11 +10,11 @@ use tokio::{spawn, sync::mpsc};
 use tonic::transport::{channel, Channel};
 use topos_core::api::tce::v1::api_service_client::ApiServiceClient;
 use topos_p2p::{Client, Event, Runtime};
-use topos_tce::{storage::inmemory::InmemoryStorage, AppContext};
+use topos_tce::AppContext;
 use topos_tce_broadcast::{
-    mem_store::TrbMemStore, DoubleEchoCommand, ReliableBroadcastClient, ReliableBroadcastConfig,
-    SamplerCommand,
+    DoubleEchoCommand, ReliableBroadcastClient, ReliableBroadcastConfig, SamplerCommand,
 };
+use topos_tce_storage::{Connection, InMemoryStorage, StorageClient};
 
 #[derive(Debug)]
 pub struct TestAppContext {
@@ -42,9 +42,15 @@ where
 
     for (index, (seed, port, keypair, addr)) in peers.iter().enumerate() {
         let peer_id = format!("peer_{index}");
+
+        let storage = InMemoryStorage::default();
+        let (connection, store) = Connection::new(storage);
+        spawn(connection.into_future());
+
         let (rb_client, trb_events) = create_reliable_broadcast_client(
             &peer_id,
             create_reliable_broadcast_params(correct_sample, &g),
+            store.clone(),
         );
         let (client, event_stream, runtime) =
             create_network_worker(*seed, *port, addr.clone(), &peers).await;
@@ -59,7 +65,7 @@ where
             .serve_addr(addr)
             .build_and_launch()
             .await;
-        let app = AppContext::new(InmemoryStorage::default(), rb_client, client, api_client);
+        let app = AppContext::new(store, rb_client, client, api_client);
 
         spawn(runtime.run());
         spawn(app.run(event_stream, trb_events, api_events));
@@ -153,12 +159,13 @@ async fn create_network_worker(
 fn create_reliable_broadcast_client(
     peer_id: &str,
     trbp_params: ReliableBroadcastParams,
+    store: StorageClient,
 ) -> (
     ReliableBroadcastClient,
     impl Stream<Item = Result<TrbpEvents, ()>> + Unpin,
 ) {
     let config = ReliableBroadcastConfig {
-        store: Box::new(TrbMemStore::new(vec![])),
+        store,
         trbp_params,
         my_peer_id: peer_id.to_string(),
     };

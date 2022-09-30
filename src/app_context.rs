@@ -14,9 +14,8 @@ use topos_tce_api::RuntimeEvent as ApiEvent;
 use topos_tce_broadcast::sampler::SampleType;
 use topos_tce_broadcast::DoubleEchoCommand;
 use topos_tce_broadcast::{ReliableBroadcastClient, SamplerCommand};
+use topos_tce_storage::StorageClient;
 use tracing::{debug, error, info, warn};
-
-use crate::storage::Storage;
 
 /// Top-level transducer main app context & driver (alike)
 ///
@@ -30,13 +29,13 @@ pub struct AppContext {
     pub trbp_cli: ReliableBroadcastClient,
     pub network_client: NetworkClient,
     pub api_client: ApiClient,
-    pub pending_storage: Box<dyn Storage>,
+    pub storage: StorageClient,
 }
 
 impl AppContext {
     /// Factory
     pub fn new(
-        pending_storage: impl Storage,
+        storage: StorageClient,
         trbp_cli: ReliableBroadcastClient,
         network_client: NetworkClient,
         api_client: ApiClient,
@@ -45,7 +44,7 @@ impl AppContext {
             trbp_cli,
             network_client,
             api_client,
-            pending_storage: Box::new(pending_storage),
+            storage,
         }
     }
 
@@ -84,7 +83,7 @@ impl AppContext {
                 certificate,
                 sender,
             } => {
-                _ = self.pending_storage.persist(certificate.clone()).await;
+                _ = self.storage.persist_pending(certificate.clone()).await;
                 spawn(self.trbp_cli.broadcast_new_certificate(certificate));
                 _ = sender.send(Ok(()));
             }
@@ -95,7 +94,11 @@ impl AppContext {
         debug!("on_protocol_event : {:?}", &evt);
         match evt {
             TrbpEvents::CertificateDelivered { certificate } => {
-                _ = self.pending_storage.remove(&certificate.cert_id).await;
+                info!("Delivering cert");
+                _ = self
+                    .storage
+                    .certificate_delivered(certificate.cert_id.clone())
+                    .await;
                 spawn(self.api_client.dispatch_certificate(certificate));
             }
 

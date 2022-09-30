@@ -1,7 +1,6 @@
 use crate::{
     sampler::{SampleType, SampleView},
-    trb_store::TrbStore,
-    DoubleEchoCommand, Peer,
+    DoubleEchoCommand, Errors, Peer,
 };
 use std::{
     collections::{HashMap, HashSet, VecDeque},
@@ -9,7 +8,8 @@ use std::{
 };
 use tce_transport::{ReliableBroadcastParams, TrbpEvents};
 use tokio::sync::{broadcast, mpsc};
-use topos_core::uci::{Certificate, CertificateId, DigestCompressed};
+use topos_core::uci::{Certificate, CertificateId};
+use topos_tce_storage::{CertificateStatus, StorageClient};
 use tracing::{debug, error, info, warn};
 
 /// Processing data associated to a Certificate candidate for delivery
@@ -23,7 +23,7 @@ pub struct DoubleEcho {
     sample_view_receiver: mpsc::Receiver<SampleView>,
     event_sender: broadcast::Sender<TrbpEvents>,
 
-    store: Box<dyn TrbStore + Send>,
+    store: StorageClient,
 
     cert_candidate: HashMap<Certificate, DeliveryState>,
     pending_delivery: HashSet<Certificate>,
@@ -43,7 +43,7 @@ impl DoubleEcho {
         command_receiver: mpsc::Receiver<DoubleEchoCommand>,
         sample_view_receiver: mpsc::Receiver<SampleView>,
         event_sender: broadcast::Sender<TrbpEvents>,
-        store: Box<dyn TrbStore + Send>,
+        store: StorageClient,
     ) -> Self {
         Self {
             my_peer_id,
@@ -68,15 +68,15 @@ impl DoubleEcho {
                 Some(command) = self.command_receiver.recv() => {
                     match command {
                         DoubleEchoCommand::DeliveredCerts { subnet_id, limit, sender } => {
-                            let value = self
+                            if let Ok(value) = self
                                 .store
-                                .recent_certificates_for_subnet(&subnet_id, limit)
-                                .iter()
-                                .filter_map(|cert_id| self.store.cert_by_id(cert_id).ok())
-                                .collect();
+                                .recent_certificates_for_subnet(subnet_id, limit).await {
 
                             // TODO: Catch send failure
                             let _ = sender.send(Ok(value));
+                            } else {
+                                let _ = sender.send(Err(Errors::UnableToFetchDeliveredCerts));
+                            }
                         }
 
                         DoubleEchoCommand::BroadcastMany { certificates } if self.buffer.is_empty() => {
@@ -93,11 +93,11 @@ impl DoubleEcho {
                             match command {
                                 DoubleEchoCommand::Echo { from_peer, cert } => self.handle_echo(from_peer, cert),
                                 DoubleEchoCommand::Ready { from_peer, cert } => self.handle_ready(from_peer, cert),
-                                DoubleEchoCommand::Deliver { cert, digest } => self.handle_deliver(cert, digest),
+                                DoubleEchoCommand::Deliver { cert } => self.handle_deliver(cert).await,
                                 _ => {}
                             }
 
-                            self.state_change_follow_up();
+                            self.state_change_follow_up().await;
                         }
                         _ => {}
                     }
@@ -113,7 +113,7 @@ impl DoubleEcho {
 
             if self.current_sample_view.is_some() {
                 while let Some(cert) = self.buffer.pop_front() {
-                    self.handle_broadcast(cert);
+                    self.handle_broadcast(cert).await;
                 }
             }
         }
@@ -128,36 +128,39 @@ impl DoubleEcho {
     }
 
     fn handle_echo(&mut self, from_peer: Peer, cert: Certificate) {
+        info!("Received Echo for {from_peer}");
         if let Some(state) = self.cert_candidate.get_mut(&cert) {
             Self::sample_consume_peer(&from_peer, state, SampleType::EchoSubscription);
         }
     }
 
     fn handle_ready(&mut self, from_peer: Peer, cert: Certificate) {
+        info!("Received Ready for {from_peer}");
         if let Some(state) = self.cert_candidate.get_mut(&cert) {
             Self::sample_consume_peer(&from_peer, state, SampleType::ReadySubscription);
             Self::sample_consume_peer(&from_peer, state, SampleType::DeliverySubscription);
         }
     }
 
-    fn handle_broadcast(&mut self, cert: Certificate) {
+    async fn handle_broadcast(&mut self, cert: Certificate) {
         info!("Handling broadcast of Certificate {:?}", cert.cert_id);
-        let digest = self
-            .store
-            .flush_digest_view(&cert.initial_subnet_id)
-            .unwrap_or_default();
+        // let digest = self
+        //     .store
+        //     .flush_digest_view(&cert.initial_subnet_id)
+        //     .unwrap_or_default();
 
-        self.dispatch(cert, digest);
+        // self.dispatch(cert, digest);
+        self.dispatch(cert).await;
     }
 
-    fn handle_deliver(&mut self, cert: Certificate, digest: DigestCompressed) {
-        self.dispatch(cert, digest)
+    async fn handle_deliver(&mut self, cert: Certificate) {
+        self.dispatch(cert).await;
     }
 
     /// Called to process potentially new certificate:
     /// - either submitted from API ( [tce_transport::TrbpCommands::Broadcast] command)
     /// - or received through the gossip (first step of protocol exchange)
-    fn dispatch(&mut self, cert: Certificate, digest: DigestCompressed) {
+    async fn dispatch(&mut self, cert: Certificate) {
         if self.cert_pre_delivery_check(&cert).is_err() {
             info!("Error on the pre cert delivery check");
             return;
@@ -167,7 +170,12 @@ impl DoubleEcho {
             return;
         }
 
-        if self.store.cert_by_id(&cert.cert_id).is_ok() {
+        if self
+            .store
+            .get_certificate(cert.cert_id.clone())
+            .await
+            .is_ok()
+        {
             return;
         }
 
@@ -175,11 +183,10 @@ impl DoubleEcho {
         let _ = self.event_sender.send(TrbpEvents::Gossip {
             peers: self.gossip_peers(), // considered as the G-set for erdos-renyi
             cert: cert.clone(),
-            digest: digest.clone(),
         });
 
         // Trigger event of new certificate candidate for delivery
-        self.start_delivery(cert, digest);
+        self.start_delivery(cert).await;
     }
 
     /// Gossip to the Echo and Ready Subscribers
@@ -206,7 +213,7 @@ impl DoubleEcho {
         }
     }
 
-    fn start_delivery(&mut self, cert: Certificate, digest: DigestCompressed) {
+    async fn start_delivery(&mut self, cert: Certificate) {
         debug!(
             "🙌 StartDelivery[{:?}]\t Peer:{:?}",
             &cert.cert_id, &self.my_peer_id
@@ -214,6 +221,14 @@ impl DoubleEcho {
         // Add new entry for the new Cert candidate
         match self.delivery_state_for_new_cert() {
             Some(delivery_state) => {
+                if let Err(error) = self.store.persist_pending(cert.clone()).await {
+                    warn!(
+                        "Error persisting pending certificate in start_delivery {:?}",
+                        error
+                    );
+                    return;
+                }
+
                 self.cert_candidate.insert(cert.clone(), delivery_state);
             }
             None => {
@@ -223,7 +238,7 @@ impl DoubleEcho {
             }
         }
         self.all_known_certs.push(cert.clone());
-        self.store.new_cert_candidate(&cert, &digest);
+        // self.store.new_cert_candidate(&cert);
         self.delivery_time.insert(
             cert.cert_id.clone(),
             (time::SystemTime::now(), Default::default()),
@@ -271,7 +286,7 @@ impl DoubleEcho {
         }
     }
 
-    fn state_change_follow_up(&mut self) {
+    async fn state_change_follow_up(&mut self) {
         let mut state_modified = false;
         let mut gen_evts = Vec::<TrbpEvents>::new();
         // For all current Cert on processing
@@ -303,15 +318,17 @@ impl DoubleEcho {
             self.cert_candidate
                 .retain(|c, _| !self.pending_delivery.contains(c));
 
-            let cert_to_pending = self
-                .pending_delivery
-                .iter()
-                .cloned()
-                .filter(|c| self.cert_post_delivery_check(c).is_ok())
-                .collect::<Vec<_>>();
+            let mut pending_delivery = Vec::new();
 
-            for cert in &cert_to_pending {
-                if self.store.apply_cert(cert).is_ok() {
+            for cert in &self.pending_delivery {
+                if self.cert_post_delivery_check(cert).await.is_ok() {
+                    pending_delivery.push(cert.clone());
+                }
+            }
+
+            for cert in pending_delivery {
+                let res = self.store.get_certificate(cert.cert_id.clone()).await;
+                if matches!(res, Ok((_, CertificateStatus::Pending))) {
                     let mut d = time::Duration::from_millis(0);
                     if let Some((from, duration)) = self.delivery_time.get_mut(&cert.cert_id) {
                         *duration = from.elapsed().unwrap();
@@ -325,7 +342,7 @@ impl DoubleEcho {
                             Default::default(),
                         )
                     }
-                    self.pending_delivery.remove(cert);
+                    self.pending_delivery.remove(&cert);
                     debug!(
                         "📝 Accepted[{:?}]\t Peer:{:?}\t Delivery time: {:?}",
                         &cert.cert_id, self.my_peer_id, d
@@ -359,14 +376,14 @@ impl DoubleEcho {
     }
 
     /// Here comes test that is necessarily done after delivery
-    fn cert_post_delivery_check(&self, cert: &Certificate) -> Result<(), ()> {
-        if self.store.check_precedence(cert).is_err() {
+    async fn cert_post_delivery_check(&self, cert: &Certificate) -> Result<(), ()> {
+        if self.store.check_precedence(cert).await.is_err() {
             warn!("Precedence not yet satisfied {:?}", cert);
         }
 
-        if self.store.check_digest_inclusion(cert).is_err() {
-            warn!("Inclusion check not yet satisfied {:?}", cert);
-        }
+        // if self.store.check_digest_inclusion(cert).is_err() {
+        //     warn!("Inclusion check not yet satisfied {:?}", cert);
+        // }
         Ok(())
     }
 }
@@ -405,13 +422,12 @@ fn is_r_ready(params: &ReliableBroadcastParams, state: &DeliveryState) -> bool {
 #[cfg(test)]
 mod tests {
 
-    use std::{iter::FromIterator, usize};
+    use std::{future::IntoFuture, iter::FromIterator, usize};
 
     use super::*;
-    use crate::mem_store::TrbMemStore;
-    // use rand::{distributions::Uniform, Rng};
     use rand::seq::IteratorRandom;
     use tokio::{spawn, sync::broadcast::error::TryRecvError};
+    use topos_tce_storage::{Connection, InMemoryStorage};
 
     fn get_sample(peers: &Vec<Peer>, sample_size: usize) -> HashSet<Peer> {
         let mut rng = rand::thread_rng();
@@ -471,20 +487,25 @@ mod tests {
         // Double Echo
         let (_cmd_sender, cmd_receiver) = mpsc::channel(10);
         let (event_sender, mut event_receiver) = broadcast::channel(10);
+
+        let storage = InMemoryStorage::default();
+        let (connection, store) = Connection::new(storage);
+        spawn(connection.into_future());
+
         let mut double_echo = DoubleEcho::new(
             my_peer_id,
             broadcast_params.clone(),
             cmd_receiver,
             view_receiver,
             event_sender,
-            Box::new(TrbMemStore::default()),
+            store,
         );
 
         assert!(double_echo.current_sample_view.is_none());
         double_echo.current_sample_view = Some(expected_view.clone());
 
         let le_cert = Certificate::new("0".to_string(), "0".to_string(), vec![]);
-        double_echo.handle_broadcast(le_cert.clone());
+        double_echo.handle_broadcast(le_cert.clone()).await;
 
         assert_eq!(event_receiver.len(), 2);
 
@@ -517,7 +538,7 @@ mod tests {
 
         assert_eq!(event_receiver.len(), 0);
 
-        double_echo.state_change_follow_up();
+        double_echo.state_change_follow_up().await;
         assert_eq!(event_receiver.len(), 1);
 
         assert!(matches!(
@@ -540,7 +561,7 @@ mod tests {
 
         assert_eq!(event_receiver.len(), 0);
 
-        double_echo.state_change_follow_up();
+        double_echo.state_change_follow_up().await;
         assert_eq!(event_receiver.len(), 1);
 
         assert!(matches!(
@@ -578,13 +599,18 @@ mod tests {
         // Double Echo
         let (cmd_sender, cmd_receiver) = mpsc::channel(10);
         let (event_sender, mut event_receiver) = broadcast::channel(10);
+
+        let storage = InMemoryStorage::default();
+        let (connection, store) = Connection::new(storage);
+        spawn(connection.into_future());
+
         let double_echo = DoubleEcho::new(
             my_peer_id,
             broadcast_params.clone(),
             cmd_receiver,
             view_receiver,
             event_sender,
-            Box::new(TrbMemStore::default()),
+            store,
         );
 
         spawn(double_echo.run());

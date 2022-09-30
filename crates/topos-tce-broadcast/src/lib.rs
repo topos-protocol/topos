@@ -17,25 +17,22 @@ use tokio::sync::{broadcast, mpsc, oneshot};
 use double_echo::DoubleEcho;
 use tce_transport::{ReliableBroadcastParams, TrbpEvents};
 
-use topos_core::uci::{Certificate, CertificateId, DigestCompressed, SubnetId};
+use topos_core::uci::{Certificate, CertificateId, SubnetId};
+use topos_tce_storage::StorageClient;
 use tracing::{error, info};
 
-use crate::mem_store::TrbMemStore;
 use crate::sampler::Sampler;
-use crate::trb_store::TrbStore;
 pub use topos_core::uci;
 
 pub type Peer = String;
 
 pub mod double_echo;
-pub mod mem_store;
 pub mod mock;
 pub mod sampler;
-pub mod trb_store;
 
 /// Configuration of TRB implementation
 pub struct ReliableBroadcastConfig {
-    pub store: Box<dyn TrbStore + Send>,
+    pub store: StorageClient,
     pub trbp_params: ReliableBroadcastParams,
     pub my_peer_id: Peer,
 }
@@ -57,7 +54,6 @@ pub enum DoubleEchoCommand {
     /// Received G-set message
     Deliver {
         cert: Certificate,
-        digest: DigestCompressed,
     },
 
     /// Entry point for new certificate to submit as initial sender
@@ -128,7 +124,7 @@ impl ReliableBroadcastClient {
             command_receiver,
             sample_view_receiver,
             event_sender,
-            Box::new(TrbMemStore::default()),
+            config.store,
         );
 
         spawn(sampler.run());
@@ -279,4 +275,7 @@ pub enum Errors {
 
     #[error("Requested digest not found for certificate {0}")]
     DigestNotFound(CertificateId),
+
+    #[error("Unable to fetch delivered certs")]
+    UnableToFetchDeliveredCerts,
 }

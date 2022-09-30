@@ -90,7 +90,6 @@ pub enum TrbpEvents {
     Gossip {
         peers: Vec<String>,
         cert: Certificate,
-        digest: DigestCompressed,
     },
     /// Indicates that 'echo' message broadcasting is required
     Echo {

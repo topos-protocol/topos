@@ -1,15 +1,15 @@
 mod app_context;
 mod cli;
-mod storage;
+
+use std::future::IntoFuture;
 
 use crate::app_context::AppContext;
 use crate::cli::AppArgs;
 use clap::Parser;
-use tce_store::{Store, StoreConfig};
 use tokio::spawn;
 use topos_p2p::{utils::local_key_pair, Multiaddr};
-use topos_tce_broadcast::mem_store::TrbMemStore;
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
+use topos_tce_storage::{Connection, InMemoryStorage};
 use tracing::info;
 
 #[tokio::main]
@@ -29,19 +29,20 @@ async fn main() {
             "RAM".to_string()
         }
     );
+
+    let storage = InMemoryStorage::default();
+
+    let (connection, store) = Connection::new(storage);
+
     let config = ReliableBroadcastConfig {
-        store: if let Some(db_path) = args.db_path.clone() {
-            // Use RocksDB
-            Box::new(Store::new(StoreConfig { db_path }))
-        } else {
-            // Use in RAM storage
-            Box::new(TrbMemStore::new(Vec::new()))
-        },
+        store: store.clone(),
         trbp_params: args.trbp_params.clone(),
         my_peer_id: "main".to_string(),
     };
 
     info!("Starting application");
+    spawn(connection.into_future());
+
     let addr: Multiaddr = format!("/ip4/0.0.0.0/tcp/{}", args.tce_local_port)
         .parse()
         .unwrap();
@@ -65,11 +66,6 @@ async fn main() {
     spawn(runtime.run());
 
     // setup transport-trbp-storage-api connector
-    let app_context = AppContext::new(
-        storage::inmemory::InmemoryStorage::default(),
-        trbp_cli,
-        network_client,
-        api_client,
-    );
+    let app_context = AppContext::new(store, trbp_cli, network_client, api_client);
     app_context.run(event_stream, trb_stream, api_stream).await;
 }
