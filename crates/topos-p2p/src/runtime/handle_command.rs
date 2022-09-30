@@ -4,22 +4,29 @@ use crate::{
     Command, Runtime,
 };
 use libp2p::{kad::record::Key, swarm::NetworkBehaviour, PeerId};
-use tracing::{error, info, instrument};
+use tracing::{error, info, instrument, warn};
 
 impl Runtime {
     #[instrument(name = "Runtime::handle_command", skip_all, fields(peer_id = %self.local_peer_id))]
     pub(crate) async fn handle_command(&mut self, command: Command) {
         match command {
             Command::StartListening { peer_addr, sender } => {
-                let _ = sender.send(self.start_listening(peer_addr));
+                if sender.send(self.start_listening(peer_addr)).is_err() {
+                    warn!("Unable to notify StartListening response: initiator is dropped");
+                }
             }
 
             Command::ConnectedPeers { sender } => {
-                let _ = sender.send(Ok(self
-                    .swarm
-                    .connected_peers()
-                    .cloned()
-                    .collect::<Vec<_>>()));
+                if sender
+                    .send(Ok(self
+                        .swarm
+                        .connected_peers()
+                        .cloned()
+                        .collect::<Vec<_>>()))
+                    .is_err()
+                {
+                    warn!("Unable to notify ConnectedPeers response: initiator is dropped");
+                }
             }
 
             Command::Dial {
@@ -33,11 +40,21 @@ impl Runtime {
                 .dial(peer_id, peer_addr, sender),
 
             Command::Dial { sender, .. } => {
-                let _ = sender.send(Err(Box::new(P2PError::CantDialSelf)));
+                if sender.send(Err(P2PError::CantDialSelf)).is_err() {
+                    warn!(
+                        reason = %P2PError::CantDialSelf,
+                        "Unable to notify Dial failure because initiator is dropped",
+                    );
+                }
             }
 
             Command::Disconnect { sender } if self.swarm.listeners().count() == 0 => {
-                let _ = sender.send(Err(Box::new(P2PError::AlreadyDisconnected)));
+                if sender.send(Err(P2PError::AlreadyDisconnected)).is_err() {
+                    warn!(
+                        reason = %P2PError::AlreadyDisconnected,
+                        "Unable to notify Disconnection failure: initiator is dropped",
+                    );
+                }
             }
 
             Command::Disconnect { sender } => {
@@ -59,10 +76,14 @@ impl Runtime {
                     self.swarm.connected_peers().into_iter().cloned().collect();
 
                 for peer_id in peers {
-                    let _ = self.swarm.disconnect_peer_id(peer_id);
+                    if self.swarm.disconnect_peer_id(peer_id).is_err() {
+                        info!("Peer {peer_id} wasn't connected during Disconnection command");
+                    }
                 }
 
-                let _ = sender.send(Ok(()));
+                if sender.send(Ok(())).is_err() {
+                    warn!("Unable to notify Disconnection: initiator is dropped",);
+                }
             }
 
             Command::Discover { to, sender } => {
@@ -93,11 +114,11 @@ impl Runtime {
             }
 
             Command::TransmissionResponse { data, channel } => {
-                self.swarm
+                _ = self
+                    .swarm
                     .behaviour_mut()
                     .transmission
-                    .send_response(channel, TransmissionResponse(data))
-                    .expect("Connection to peer to be still open.");
+                    .send_response(channel, TransmissionResponse(data));
             }
         }
     }

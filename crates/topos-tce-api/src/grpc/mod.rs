@@ -33,13 +33,17 @@ impl ApiService for TceGrpcService {
         if let Some(certificate) = data.certificate {
             let (sender, receiver) = oneshot::channel();
 
-            _ = self
+            if self
                 .command_sender
                 .send(InternalRuntimeCommand::CertificateSubmitted {
                     certificate: certificate.into(),
                     sender,
                 })
-                .await;
+                .await
+                .is_err()
+            {
+                return Err(Status::internal("Can't submit certificate: sender dropped"));
+            }
 
             receiver
                 .map(|value| match value {
@@ -74,14 +78,18 @@ impl ApiService for TceGrpcService {
             DEFAULT_CHANNEL_STREAM_CAPACITY,
         );
 
-        _ = self
+        if self
             .command_sender
             .send(InternalRuntimeCommand::NewStream {
                 stream,
                 sender,
                 internal_runtime_command_sender: self.command_sender.clone(),
             })
-            .await;
+            .await
+            .is_err()
+        {
+            return Err(Status::internal("Can't submit certificate: sender dropped"));
+        }
 
         Ok(Response::new(
             Box::pin(ReceiverStream::new(rx)) as Self::WatchCertificatesStream

@@ -1,3 +1,5 @@
+use crate::error::CommandExecutionError;
+
 use self::{
     codec::{TransmissionCodec, TransmissionRequest, TransmissionResponse},
     protocol::TransmissionProtocol,
@@ -15,18 +17,17 @@ use libp2p::{
 };
 use std::{
     collections::{HashMap, VecDeque},
-    error::Error,
     iter,
     task::{Context, Poll},
     time::Duration,
 };
 use tokio::sync::oneshot::{self, Sender};
-use tracing::{debug, error};
+use tracing::{debug, error, warn};
 
 pub mod codec;
 pub mod protocol;
 
-type PendingRequests = HashMap<RequestId, oneshot::Sender<Result<Vec<u8>, Box<dyn Error + Send>>>>;
+type PendingRequests = HashMap<RequestId, oneshot::Sender<Result<Vec<u8>, CommandExecutionError>>>;
 
 /// Transmission is responsible of dealing with node interaction (RequestResponse, Gossip)
 pub(crate) struct TransmissionBehaviour {
@@ -215,18 +216,22 @@ impl NetworkBehaviour for TransmissionBehaviour {
                         ..
                     } => {
                         if let Some(sender) = self.pending_requests.remove(&request_id) {
-                            let _ = sender.send(Ok(response.0));
+                            if sender.send(Ok(response.0)).is_err() {
+                                warn!("Could not send response to request {request_id} because initiator is dropped");
+                            }
                         }
                     }
 
                     RequestResponseEvent::OutboundFailure {
                         request_id, error, ..
                     } => {
-                        let _ = self
-                            .pending_requests
-                            .remove(&request_id)
-                            .expect("Request to still be pending.")
-                            .send(Err(Box::new(error)));
+                        if let Some(sender) = self.pending_requests.remove(&request_id) {
+                            if sender.send(Err(error.into())).is_err() {
+                                warn!("Could not send RequestFailure for request {request_id} because initiator is dropped");
+                            }
+                        } else {
+                            warn!("Received an OutboundRequest failure for an unknown request {request_id}")
+                        }
                     }
 
                     RequestResponseEvent::InboundFailure {
@@ -285,7 +290,7 @@ impl TransmissionBehaviour {
         &mut self,
         to: &PeerId,
         data: TransmissionRequest,
-        sender: Sender<Result<Vec<u8>, Box<dyn Error + Send>>>,
+        sender: Sender<Result<Vec<u8>, CommandExecutionError>>,
     ) -> Result<(), ()> {
         let request_id = self.inner.send_request(to, data);
 

@@ -119,12 +119,16 @@ impl TrbStore for TrbMemStore {
     /// Checks
     ///
     fn check_digest_inclusion(&self, cert: &Certificate) -> Result<(), Errors> {
-        let received_digest = self.received_digest.get(&cert.cert_id).unwrap();
+        let received_digest = self
+            .received_digest
+            .get(&cert.cert_id)
+            .ok_or_else(|| Errors::DigestNotFound(cert.cert_id.clone()))?;
 
         // Check that all cert in digest are in my history
         received_digest
             .iter()
             .all(|cert_id| self.cert_by_id(cert_id).is_ok());
+
         Ok(())
     }
 

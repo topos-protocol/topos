@@ -1,10 +1,15 @@
-use std::error::Error;
-
 use futures::future::BoxFuture;
 use libp2p::{request_response::ResponseChannel, PeerId};
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::{
+    mpsc::{self, error::SendError},
+    oneshot,
+};
 
-use crate::{behaviour::transmission::codec::TransmissionResponse, Command};
+use crate::{
+    behaviour::transmission::codec::TransmissionResponse,
+    error::{CommandExecutionError, P2PError},
+    Command,
+};
 
 #[derive(Clone)]
 pub struct Client {
@@ -13,91 +18,69 @@ pub struct Client {
 }
 
 impl Client {
-    pub async fn start_listening(
-        &self,
-        peer_addr: libp2p::Multiaddr,
-    ) -> Result<(), Box<dyn Error + Send>> {
+    pub async fn start_listening(&self, peer_addr: libp2p::Multiaddr) -> Result<(), P2PError> {
         let (sender, receiver) = oneshot::channel();
-        self.sender
-            .send(Command::StartListening { peer_addr, sender })
-            .await
-            .expect("Command receiver not to be dropped.");
-        receiver.await.expect("Sender not to be dropped.")
+        let command = Command::StartListening { peer_addr, sender };
+
+        Self::send_command_with_receiver(&self.sender, command, receiver).await
     }
 
     pub async fn dial(
         &self,
         peer_id: PeerId,
         peer_addr: libp2p::Multiaddr,
-    ) -> Result<(), Box<dyn Error + Send>> {
+    ) -> Result<(), P2PError> {
         let (sender, receiver) = oneshot::channel();
-        self.sender
-            .send(Command::Dial {
-                peer_id,
-                peer_addr,
-                sender,
-            })
-            .await
-            .expect("Command receiver not to be dropped.");
+        let command = Command::Dial {
+            peer_id,
+            peer_addr,
+            sender,
+        };
 
-        receiver.await.expect("Sender not to be dropped.")
+        Self::send_command_with_receiver(&self.sender, command, receiver).await
     }
 
-    pub async fn connected_peers(&self) -> Result<Vec<PeerId>, Box<dyn Error + Send>> {
+    pub async fn connected_peers(&self) -> Result<Vec<PeerId>, P2PError> {
         let (sender, receiver) = oneshot::channel();
-        self.sender
-            .send(Command::ConnectedPeers { sender })
+        Self::send_command_with_receiver(&self.sender, Command::ConnectedPeers { sender }, receiver)
             .await
-            .expect("Command receiver not to be dropped.");
-
-        receiver.await.expect("Sender not to be dropped.")
     }
 
-    pub async fn disconnect(&self) -> Result<(), Box<dyn Error + Send>> {
+    pub async fn disconnect(&self) -> Result<(), P2PError> {
         let (sender, receiver) = oneshot::channel();
-        self.sender
-            .send(Command::Disconnect { sender })
-            .await
-            .expect("Command receiver not to be dropped.");
+        let command = Command::Disconnect { sender };
 
-        receiver.await.expect("Sender not to be dropped.")
+        Self::send_command_with_receiver(&self.sender, command, receiver).await
     }
 
     pub fn send_request<T: Into<Vec<u8>>, R: From<Vec<u8>>>(
         &self,
         to: PeerId,
         data: T,
-    ) -> BoxFuture<'static, Result<R, Box<dyn Error + Send>>> {
-        let (sender, receiver) = oneshot::channel();
-
-        // Send request to discover the peer
-        // Wait for the Record query result
-        // Add the peer to the different behaviour
-        // Respond to the discovery
-        // Send the request
-        let network = self.sender.clone();
+    ) -> BoxFuture<'static, Result<R, CommandExecutionError>> {
         let data = data.into();
+        let network = self.sender.clone();
+        let (sender, receiver) = oneshot::channel();
+        let (addr_sender, addr_receiver) = oneshot::channel();
 
         Box::pin(async move {
-            let (addr_sender, addr_receiver) = oneshot::channel();
-            network
-                .send(Command::Discover {
+            Self::send_command_with_receiver(
+                &network,
+                Command::Discover {
                     to,
                     sender: addr_sender,
-                })
-                .await
-                .expect("Command receiver not to be dropped");
+                },
+                addr_receiver,
+            )
+            .await?;
 
-            let _ = addr_receiver.await.expect("failed to fetch addr")?;
-            network
-                .send(Command::TransmissionReq { to, data, sender })
-                .await
-                .expect("Command receiver not to be dropped.");
-
-            receiver
-                .await
-                .expect("Sender not to be dropped.")
-                .map(|result| result.into())
+            Self::send_command_with_receiver(
+                &network,
+                Command::TransmissionReq { to, data, sender },
+                receiver,
+            )
+            .await
+            .map(|result| result.into())
         })
     }
 
@@ -105,7 +88,7 @@ impl Client {
         &self,
         data: T,
         channel: ResponseChannel<TransmissionResponse>,
-    ) -> BoxFuture<'static, ()> {
+    ) -> BoxFuture<'static, Result<(), CommandExecutionError>> {
         let data = data.into();
 
         let sender = self.sender.clone();
@@ -114,7 +97,22 @@ impl Client {
             sender
                 .send(Command::TransmissionResponse { data, channel })
                 .await
-                .expect("Command receiver not to be dropped.");
+                .map_err(Into::into)
         })
+    }
+
+    async fn send_command_with_receiver<
+        T,
+        E: From<oneshot::error::RecvError> + From<CommandExecutionError>,
+    >(
+        sender: &mpsc::Sender<Command>,
+        command: Command,
+        receiver: oneshot::Receiver<Result<T, E>>,
+    ) -> Result<T, E> {
+        if let Err(SendError(command)) = sender.send(command).await {
+            return Err(CommandExecutionError::UnableToSendCommand(command).into());
+        }
+
+        receiver.await.unwrap_or_else(|error| Err(error.into()))
     }
 }

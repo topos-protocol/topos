@@ -1,8 +1,8 @@
+use super::RuntimeCommand;
 use futures::Future;
 use tokio::sync::mpsc;
 use topos_core::uci::Certificate;
-
-use super::RuntimeCommand;
+use tracing::error;
 
 #[derive(Clone, Debug)]
 pub struct RuntimeClient {
@@ -17,9 +17,12 @@ impl RuntimeClient {
         let sender = self.command_sender.clone();
 
         async move {
-            _ = sender
+            if let Err(error) = sender
                 .send(RuntimeCommand::DispatchCertificate { certificate })
-                .await;
+                .await
+            {
+                error!("Can't dispatch certificate: {error:?}");
+            }
         }
     }
 }
