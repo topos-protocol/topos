@@ -60,6 +60,7 @@ resource "kubernetes_deployment" "bootnode" {
 
         container {
           image = var.tce_node_image
+          image_pull_policy = "Always"
           name  = "tce"
 
           port {
@@ -134,6 +135,7 @@ resource "kubernetes_deployment" "replicas" {
 
         container {
           image = var.tce_node_image
+          image_pull_policy = "Always"
           name  = "tce"
 
           port {
@@ -208,6 +210,7 @@ resource "kubernetes_deployment" "cert_spammer" {
 
         container {
           image = var.cert_spammer_image
+          image_pull_policy = "Always"
           name  = "cert-spammer"
 
           env {

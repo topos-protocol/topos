@@ -10,7 +10,7 @@ services:
   #     - "16686:16686"
   boot:
     container_name: boot
-    image: ghcr.io/toposware/tce:tools-ci-bug-fixes
+    image: ghcr.io/toposware/tce:pr-4
     ports:
       - "9090"
       - "8080"
@@ -19,8 +19,6 @@ services:
       - RUST_BACKTRACE=full
       - TCE_LOCAL_KS=1 # 12D3KooWPjceQrSwdWXPyLLeABRXmuqt69Rg3sBYbU1Nft9HyQ6X
       - TCE_JAEGER_AGENT=udp://jaeger.tce.toposware.com:6831
-    command:
-      - "./topos-tce-node-app"
     logging:
       driver: gelf
       options:
@@ -28,7 +26,7 @@ services:
         tag: "boot"
 
   peer:
-    image: ghcr.io/toposware/tce:tools-ci-bug-fixes
+    image: ghcr.io/toposware/tce:pr-4
     deploy:
       replicas: 5
     ports:
