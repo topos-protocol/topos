@@ -1,4 +1,4 @@
-name: Docker build and push
+name: Docker_build_push
 
 on:
   pull_request:
@@ -14,25 +14,33 @@ jobs:
   docker:
     name: Build and push docker image to GitHub Container Registry
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Inject slug/short variables
+        uses: rlespinasse/github-slug-action@v4
+        with:
+          short-length: 7
+
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
+        uses: docker/login-action@v2
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Extract metadata (tags, labels) for Docker
         id: meta
-        uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
+        uses: docker/metadata-action@v4
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+
       - name: Push to GitHub Container Registry
-        uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
+        uses: docker/build-push-action@v3
         with:
           context: .
           push: true
@@ -41,10 +49,16 @@ jobs:
           build-args: |
             GITHUB_TOKEN=${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
             TOOLCHAIN_VERSION=${{ env.RUST_TOOLCHAIN_VERSION }}
+          cache-from: |
+            type=registry,ref=ghcr.io/${{ github.repository }}:build-cache-${{ env.GITHUB_REF_SLUG_URL }}-${{ github.workflow }}-stable
+            type=registry,ref=ghcr.io/${{ github.repository }}:build-cache-main-${{ github.workflow }}-stable
+          cache-to: type=registry,ref=ghcr.io/${{ github.repository }}:build-cache-${{ env.GITHUB_REF_SLUG_URL }}-${{ github.workflow }}-${{ matrix.version }},mode=max
+
       - name: Save docker tags
         run: |
           mkdir -p ./docker
           echo ${{ steps.meta.outputs.tags }} > ./docker/docker_tags
+
       - name: Publish docker tags artifact
         uses: actions/upload-artifact@v3
         with:
