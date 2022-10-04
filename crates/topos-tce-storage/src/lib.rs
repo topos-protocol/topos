@@ -1,20 +1,39 @@
 use errors::InternalStorageError;
-use std::time::Instant;
+use futures::Future;
+use serde::{Deserialize, Serialize};
+use std::{
+    pin::Pin,
+    time::{Instant, SystemTime},
+};
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
 
 pub mod client;
 pub mod command;
 pub mod connection;
 pub mod errors;
+
+#[cfg(feature = "inmemory")]
 pub mod inmemory;
+#[cfg(feature = "rocksdb")]
+pub mod rocks;
 
 pub use client::StorageClient;
 pub use connection::Connection;
+
+#[cfg(feature = "inmemory")]
 pub use inmemory::InMemoryStorage;
+
+#[cfg(feature = "rocksdb")]
+pub use rocks::RocksDBStorage;
 
 #[async_trait::async_trait]
 pub trait Storage: Sync + Send + 'static {
-    async fn connect(&mut self) -> Result<(), InternalStorageError>;
+    /// Add a pending certificate to the pool
+    async fn add_pending_certificate(
+        &mut self,
+        certificate: Certificate,
+    ) -> Result<(), InternalStorageError>;
+
     /// Persist the certificate with given status
     async fn persist(
         &mut self,
@@ -36,13 +55,13 @@ pub trait Storage: Sync + Send + 'static {
     async fn get_certificates(
         &self,
         cert_id: Vec<CertificateId>,
-    ) -> Result<Vec<(Certificate, CertificateStatus)>, InternalStorageError>;
+    ) -> Result<Vec<(CertificateStatus, Certificate)>, InternalStorageError>;
 
     /// Returns the certificate data given their id
     async fn get_certificate(
         &self,
         cert_id: CertificateId,
-    ) -> Result<(Certificate, CertificateStatus), InternalStorageError>;
+    ) -> Result<(CertificateStatus, Certificate), InternalStorageError>;
 
     /// Returns the certificate emitted by given subnet
     /// Ranged by height since emitted Certificate are totally ordered
@@ -70,7 +89,7 @@ pub trait Storage: Sync + Send + 'static {
 pub type Height = u64;
 
 /// Uniquely identify the tip of which subnet
-#[allow(dead_code)]
+#[derive(Serialize, Deserialize)]
 pub struct Tip {
     /// Certificate id of the tip
     cert_id: CertificateId,
@@ -79,10 +98,10 @@ pub struct Tip {
     /// Height of the Certificate
     height: Height,
     /// Timestamp of the Certificate
-    timestamp: Instant,
+    timestamp: SystemTime,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub enum CertificateStatus {
     Pending,
     Delivered,

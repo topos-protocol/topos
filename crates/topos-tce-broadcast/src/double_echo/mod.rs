@@ -233,7 +233,6 @@ impl DoubleEcho {
             }
         }
         self.all_known_certs.push(cert.clone());
-        // self.store.new_cert_candidate(&cert);
         self.delivery_time.insert(
             cert.cert_id.clone(),
             (time::SystemTime::now(), Default::default()),
@@ -323,7 +322,7 @@ impl DoubleEcho {
 
             for cert in pending_delivery {
                 let res = self.store.get_certificate(cert.cert_id.clone()).await;
-                if matches!(res, Ok((_, CertificateStatus::Pending))) {
+                if matches!(res, Ok((CertificateStatus::Pending, _))) {
                     let mut d = time::Duration::from_millis(0);
                     if let Some((from, duration)) = self.delivery_time.get_mut(&cert.cert_id) {
                         *duration = from.elapsed().unwrap();

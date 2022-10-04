@@ -1,5 +1,6 @@
 use crate::{DoubleEchoCommand, Errors, SamplerCommand};
 use crate::{ReliableBroadcastClient, ReliableBroadcastConfig};
+use futures::FutureExt;
 /// Mock for the network and broadcast
 use rand::Rng;
 use rand_distr::Distribution;
@@ -445,7 +446,7 @@ fn launch_broadcast_protocol_instances(
     for peer in peer_ids {
         let storage = InMemoryStorage::default();
 
-        let (connection, store) = Connection::new(storage);
+        let (connection, store) = Connection::new(futures::future::ok(storage).boxed());
 
         spawn(connection.into_future());
 

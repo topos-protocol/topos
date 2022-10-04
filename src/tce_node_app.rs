@@ -6,6 +6,7 @@ use std::future::IntoFuture;
 use crate::app_context::AppContext;
 use crate::cli::AppArgs;
 use clap::Parser;
+use futures::FutureExt;
 use tokio::spawn;
 use topos_p2p::{utils::local_key_pair, Multiaddr};
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
@@ -32,7 +33,7 @@ async fn main() {
 
     let storage = InMemoryStorage::default();
 
-    let (connection, store) = Connection::new(storage);
+    let (connection, store) = Connection::new(futures::future::ok(storage).boxed());
 
     let config = ReliableBroadcastConfig {
         store: store.clone(),

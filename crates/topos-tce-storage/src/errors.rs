@@ -10,6 +10,18 @@ pub enum InternalStorageError {
     CertificateAlreadyExists,
     #[error("Unable to find a certificate: {0}")]
     CertificateNotFound(CertificateId),
+    #[error("Unable to start storage")]
+    UnableToStartStorage,
+
+    #[cfg(feature = "rocksdb")]
+    #[error("Unable to execute query: {0}")]
+    RocksDBError(#[from] rocksdb::Error),
+
+    #[error("Unable to deserialize database value")]
+    UnableToDeserializeValue,
+
+    #[error("Invalid query argument: {0}")]
+    InvalidQueryArgument(&'static str),
 }
 
 #[derive(Debug, Error)]

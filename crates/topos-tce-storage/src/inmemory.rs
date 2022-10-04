@@ -1,12 +1,14 @@
 use std::{
     collections::{BTreeMap, HashMap},
-    time::Instant,
+    time::{Instant, SystemTime},
 };
 
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
 use tracing::warn;
 
 use crate::{CertificateStatus, Height, InternalStorageError, Storage, Tip};
+
+pub struct InMemoryConfig {}
 
 #[derive(Default)]
 pub struct InMemoryStorage {
@@ -15,8 +17,6 @@ pub struct InMemoryStorage {
     delivered_certs: HashMap<CertificateId, Certificate>,
 
     tips: BTreeMap<SubnetId, (CertificateId, Height)>,
-    // received: BTreeMap<(SubnetId, Height), CertificateId>,
-    // emitted: BTreeMap<(SubnetId, Height), CertificateId>,
 }
 
 impl InMemoryStorage {
@@ -36,8 +36,11 @@ impl InMemoryStorage {
 }
 #[async_trait::async_trait]
 impl Storage for InMemoryStorage {
-    async fn connect(&mut self) -> Result<(), InternalStorageError> {
-        Ok(())
+    async fn add_pending_certificate(
+        &mut self,
+        certificate: Certificate,
+    ) -> Result<(), InternalStorageError> {
+        unimplemented!()
     }
 
     async fn persist(
@@ -98,7 +101,7 @@ impl Storage for InMemoryStorage {
                     cert_id: certificate_id.clone(),
                     subnet_id: subnet.clone(),
                     height: *height,
-                    timestamp: Instant::now(),
+                    timestamp: SystemTime::now(),
                 })
             }
         }
@@ -109,7 +112,7 @@ impl Storage for InMemoryStorage {
     async fn get_certificates(
         &self,
         cert_ids: Vec<CertificateId>,
-    ) -> Result<Vec<(Certificate, CertificateStatus)>, InternalStorageError> {
+    ) -> Result<Vec<(CertificateStatus, Certificate)>, InternalStorageError> {
         let mut result = Vec::new();
 
         // NOTE: What to do if one cert is not found?
@@ -125,11 +128,11 @@ impl Storage for InMemoryStorage {
     async fn get_certificate(
         &self,
         cert_id: CertificateId,
-    ) -> Result<(Certificate, CertificateStatus), InternalStorageError> {
+    ) -> Result<(CertificateStatus, Certificate), InternalStorageError> {
         if let Some(certificate) = self.delivered_certs.get(&cert_id) {
-            Ok((certificate.clone(), CertificateStatus::Delivered))
+            Ok((CertificateStatus::Delivered, certificate.clone()))
         } else if let Some(certificate) = self.pending_pool.get(&cert_id) {
-            Ok((certificate.clone(), CertificateStatus::Pending))
+            Ok((CertificateStatus::Pending, certificate.clone()))
         } else {
             Err(InternalStorageError::CertificateNotFound(cert_id))
         }

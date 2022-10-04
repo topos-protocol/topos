@@ -26,7 +26,7 @@ pub enum StorageCommand {
 
     GetCertificate {
         certificate_id: CertificateId,
-        response_channel: oneshot::Sender<Result<(Certificate, CertificateStatus), StorageError>>,
+        response_channel: oneshot::Sender<Result<(CertificateStatus, Certificate), StorageError>>,
     },
 }
 

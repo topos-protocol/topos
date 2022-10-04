@@ -69,7 +69,7 @@ impl StorageClient {
     pub async fn get_certificate(
         &self,
         certificate_id: CertificateId,
-    ) -> Result<(Certificate, CertificateStatus), StorageError> {
+    ) -> Result<(CertificateStatus, Certificate), StorageError> {
         let (response_channel, receiver) = oneshot::channel();
 
         self.sender

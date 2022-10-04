@@ -1,30 +1,32 @@
-use std::future::IntoFuture;
+use std::{future::IntoFuture, pin::Pin};
 
-use futures::{future::BoxFuture, FutureExt};
+use futures::{future::BoxFuture, Future, FutureExt, TryFutureExt};
 use tokio::sync::mpsc;
 
 use crate::{client::StorageClient, command::StorageCommand, errors::StorageError, Storage};
 
+pub type StorageBuilder<S> = Pin<Box<dyn Future<Output = Result<S, StorageError>> + Send>>;
+
 pub struct Connection<S: Storage> {
-    storage: S,
+    storage: StorageBuilder<S>,
     queries: mpsc::Receiver<StorageCommand>,
 }
 
 impl<S: Storage> Connection<S> {
-    pub fn new(storage: S) -> (Self, StorageClient) {
+    pub fn new(storage: StorageBuilder<S>) -> (Self, StorageClient) {
         let (sender, queries) = mpsc::channel(1024);
 
         (Self { storage, queries }, StorageClient { sender })
     }
 
-    async fn handle_command(&mut self, command: StorageCommand) {
+    async fn handle_command(storage: &mut S, command: StorageCommand) {
         match command {
             StorageCommand::Persist {
                 certificate,
                 status,
                 response_channel,
             } => {
-                if let Err(error) = self.storage.persist(certificate, status).await {
+                if let Err(error) = storage.persist(certificate, status).await {
                     _ = response_channel.send(Err(error.into()));
                 } else {
                     _ = response_channel.send(Ok(()));
@@ -36,7 +38,7 @@ impl<S: Storage> Connection<S> {
                 status,
                 response_channel,
             } => {
-                if let Err(error) = self.storage.update(&certificate_id, status).await {
+                if let Err(error) = storage.update(&certificate_id, status).await {
                     _ = response_channel.send(Err(error.into()));
                 } else {
                     _ = response_channel.send(Ok(()));
@@ -48,7 +50,7 @@ impl<S: Storage> Connection<S> {
                 response_channel,
             } => {
                 _ = response_channel.send(
-                    self.storage
+                    storage
                         .get_certificate(certificate_id)
                         .await
                         .map_err(Into::into),
@@ -65,17 +67,16 @@ impl<S: Storage> IntoFuture for Connection<S> {
     type IntoFuture = BoxFuture<'static, Self::Output>;
 
     fn into_future(mut self) -> Self::IntoFuture {
-        async move {
-            self.storage.connect().await?;
-
-            loop {
-                tokio::select! {
-                    Some(command) = self.queries.recv() => {
-                        self.handle_command(command).await;
+        self.storage
+            .and_then(|mut storage| async move {
+                loop {
+                    tokio::select! {
+                        Some(command) = self.queries.recv() => {
+                            Self::handle_command(&mut storage, command).await;
+                        }
                     }
                 }
-            }
-        }
-        .boxed()
+            })
+            .boxed()
     }
 }

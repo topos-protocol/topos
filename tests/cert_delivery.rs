@@ -125,7 +125,6 @@ async fn cert_delivery() {
     if let Err(_) = tokio::time::timeout(std::time::Duration::from_millis(1000), assertion).await {
         panic!("Timeout waiting for command");
     }
-    // FIXME: assert properly
 }
 
 pub fn sample_lower_bound(n_u: usize) -> usize {
