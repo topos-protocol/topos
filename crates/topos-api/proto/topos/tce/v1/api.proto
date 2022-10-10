@@ -2,11 +2,9 @@ syntax = "proto3";
 
 package topos.tce.v1;
 
-import "topos/shared/v1/uuid.proto";
 import "topos/shared/v1/subnet.proto";
+import "topos/shared/v1/uuid.proto";
 import "topos/uci/v1/certification.proto";
-
-import "google/protobuf/timestamp.proto";
 
 service APIService {
   rpc SubmitCertificate(SubmitCertificateRequest) returns (SubmitCertificateResponse);
@@ -53,6 +51,5 @@ message WatchCertificatesResponse {
   // Main message pushed to the stream
   message CertificatePushed {
     topos.uci.v1.Certificate certificate = 1;
-
   }
 }

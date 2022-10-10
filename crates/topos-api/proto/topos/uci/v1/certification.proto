@@ -8,8 +8,8 @@ package topos.uci.v1;
  */
 message CrossChainTransactionData {
   oneof data {
-     AssetTransfer asset_transfer = 1;
-     FunctionCall function_call = 2;
+    AssetTransfer asset_transfer = 1;
+    FunctionCall function_call = 2;
   }
 
   // Cross chain transaction data for asset transfer
@@ -32,11 +32,10 @@ message CrossChainTransaction {
   CrossChainTransactionData transaction_data = 4;
 }
 
-
 // Certificate - main exchange item
 message Certificate {
-    string initial_subnet_id = 1;
-    string cert_id = 2;
-    string prev_cert_id = 3;
-    repeated CrossChainTransaction calls = 4;
+  string initial_subnet_id = 1;
+  string cert_id = 2;
+  string prev_cert_id = 3;
+  repeated CrossChainTransaction calls = 4;
 }
