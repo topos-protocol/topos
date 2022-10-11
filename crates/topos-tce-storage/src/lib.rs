@@ -1,10 +1,8 @@
+use std::time::{Instant, SystemTime};
+
 use errors::InternalStorageError;
-use futures::Future;
 use serde::{Deserialize, Serialize};
-use std::{
-    pin::Pin,
-    time::{Instant, SystemTime},
-};
+
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
 
 pub mod client;
@@ -16,6 +14,9 @@ pub mod errors;
 pub mod inmemory;
 #[cfg(feature = "rocksdb")]
 pub mod rocks;
+
+#[cfg(test)]
+mod tests;
 
 pub use client::StorageClient;
 pub use connection::Connection;
@@ -61,7 +62,7 @@ pub trait Storage: Sync + Send + 'static {
     async fn get_certificate(
         &self,
         cert_id: CertificateId,
-    ) -> Result<(CertificateStatus, Certificate), InternalStorageError>;
+    ) -> Result<Certificate, InternalStorageError>;
 
     /// Returns the certificate emitted by given subnet
     /// Ranged by height since emitted Certificate are totally ordered
@@ -82,7 +83,12 @@ pub trait Storage: Sync + Send + 'static {
     ) -> Result<Vec<CertificateId>, InternalStorageError>;
 
     /// Returns all the known Certificate that are not delivered yet
-    async fn get_certificate_pending(&self) -> Result<Vec<CertificateId>, InternalStorageError>;
+    async fn get_pending_certificates(
+        &self,
+    ) -> Result<Vec<(u64, Certificate)>, InternalStorageError>;
+
+    /// Remove a certificate from pending pool
+    async fn remove_pending_certificate(&self, index: u64) -> Result<(), InternalStorageError>;
 }
 
 /// Certificate index in the history of its emitter subnet
@@ -101,7 +107,7 @@ pub struct Tip {
     timestamp: SystemTime,
 }
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub enum CertificateStatus {
     Pending,
     Delivered,

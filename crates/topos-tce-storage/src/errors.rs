@@ -22,6 +22,9 @@ pub enum InternalStorageError {
 
     #[error("Invalid query argument: {0}")]
     InvalidQueryArgument(&'static str),
+
+    #[error(transparent)]
+    Bincode(#[from] Box<bincode::ErrorKind>),
 }
 
 #[derive(Debug, Error)]

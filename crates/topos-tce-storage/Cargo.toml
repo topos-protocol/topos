@@ -24,3 +24,7 @@ tower = "0.4.13"
 default = ["rocksdb", "inmemory"]
 inmemory = []
 rocksdb = ["dep:rocksdb"]
+
+[dev-dependencies]
+rand.workspace = true
+rstest = "0.15.0"

@@ -9,7 +9,7 @@ use std::{
 use tce_transport::{ReliableBroadcastParams, TrbpEvents};
 use tokio::sync::{broadcast, mpsc};
 use topos_core::uci::{Certificate, CertificateId};
-use topos_tce_storage::{CertificateStatus, StorageClient};
+use topos_tce_storage::StorageClient;
 use tracing::{debug, error, info, warn};
 
 /// Processing data associated to a Certificate candidate for delivery
@@ -321,31 +321,35 @@ impl DoubleEcho {
             }
 
             for cert in pending_delivery {
-                let res = self.store.get_certificate(cert.cert_id.clone()).await;
-                if matches!(res, Ok((CertificateStatus::Pending, _))) {
-                    let mut d = time::Duration::from_millis(0);
-                    if let Some((from, duration)) = self.delivery_time.get_mut(&cert.cert_id) {
-                        *duration = from.elapsed().unwrap();
-                        d = *duration;
+                // let res = self
+                //     .store
+                //     .get_pending_ertificate(cert.cert_id.clone())
+                //     .await;
+                //
+                // if matches!(res, Ok((CertificateStatus::Pending, _))) {
+                let mut d = time::Duration::from_millis(0);
+                if let Some((from, duration)) = self.delivery_time.get_mut(&cert.cert_id) {
+                    *duration = from.elapsed().unwrap();
+                    d = *duration;
 
-                        tce_telemetry::span_cert_delivery(
-                            self.my_peer_id.clone(),
-                            &cert.cert_id,
-                            *from,
-                            time::SystemTime::now(),
-                            Default::default(),
-                        )
-                    }
-                    self.pending_delivery.remove(&cert);
-                    debug!(
-                        "📝 Accepted[{:?}]\t Peer:{:?}\t Delivery time: {:?}",
-                        &cert.cert_id, self.my_peer_id, d
-                    );
-
-                    _ = self.event_sender.send(TrbpEvents::CertificateDelivered {
-                        certificate: cert.clone(),
-                    });
+                    tce_telemetry::span_cert_delivery(
+                        self.my_peer_id.clone(),
+                        &cert.cert_id,
+                        *from,
+                        time::SystemTime::now(),
+                        Default::default(),
+                    )
                 }
+                self.pending_delivery.remove(&cert);
+                debug!(
+                    "📝 Accepted[{:?}]\t Peer:{:?}\t Delivery time: {:?}",
+                    &cert.cert_id, self.my_peer_id, d
+                );
+
+                _ = self.event_sender.send(TrbpEvents::CertificateDelivered {
+                    certificate: cert.clone(),
+                });
+                // }
             }
         }
 
@@ -416,6 +420,7 @@ mod tests {
     use std::{future::IntoFuture, iter::FromIterator, usize};
 
     use super::*;
+    use futures::FutureExt;
     use rand::seq::IteratorRandom;
     use tokio::{spawn, sync::broadcast::error::TryRecvError};
     use topos_tce_storage::{Connection, InMemoryStorage};
@@ -480,7 +485,7 @@ mod tests {
         let (event_sender, mut event_receiver) = broadcast::channel(10);
 
         let storage = InMemoryStorage::default();
-        let (connection, store) = Connection::new(storage);
+        let (connection, store) = Connection::new(async { Ok(storage) }.boxed());
         spawn(connection.into_future());
 
         let mut double_echo = DoubleEcho::new(
@@ -592,7 +597,7 @@ mod tests {
         let (event_sender, mut event_receiver) = broadcast::channel(10);
 
         let storage = InMemoryStorage::default();
-        let (connection, store) = Connection::new(storage);
+        let (connection, store) = Connection::new(async { Ok(storage) }.boxed());
         spawn(connection.into_future());
 
         let double_echo = DoubleEcho::new(
