@@ -1,0 +1,39 @@
+name: Coverage
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  codecov:
+    name: Code coverage
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - run: |
+          git config --global url."https://${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}@github.com/".insteadOf "https://github.com/"
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Install cargo-tarpaulin
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: cargo-tarpaulin
+
+      - name: Generate coverage report
+        uses: actions-rs/cargo@v1
+        with:
+          command: tarpaulin
+          args: --engine llvm --all-features --release --timeout 600 --out Xml
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3.1.1
