@@ -64,14 +64,8 @@ resource "kubernetes_deployment" "bootnode" {
           name  = "tce"
 
           port {
-            name = "tcp"
+            name = "p2p"
             container_port = "9090"
-          }
-
-          port {
-            name = "http"
-            container_port = "8080"
-            protocol = "TCP"
           }
 
           env {
@@ -102,8 +96,8 @@ resource "kubernetes_service" "bootnode" {
     session_affinity = "ClientIP"
 
     port {
-      port        = 9090
-      target_port = "tcp"
+      port        = 8080
+      target_port = "p2p"
     }
   }
 }
@@ -139,14 +133,24 @@ resource "kubernetes_deployment" "replicas" {
           name  = "tce"
 
           port {
-            name = "tcp"
+            name = "p2p"
             container_port = "9090"
           }
 
           port {
-            name = "http"
-            container_port = "8080"
+            name = "api"
+            container_port = "1340"
             protocol = "TCP"
+          }
+
+          env {
+            name  = "RUST_LOG"
+            value = "debug"
+          }
+
+          env {
+            name  = "TCE_API_ADDR"
+            value = "0.0.0.0:1340"
           }
 
           env {
@@ -157,6 +161,10 @@ resource "kubernetes_deployment" "replicas" {
           env {
             name  = "TCE_BOOT_PEERS"
             value = "12D3KooWPjceQrSwdWXPyLLeABRXmuqt69Rg3sBYbU1Nft9HyQ6X /dns4/${kubernetes_service.bootnode.metadata.0.name}/tcp/${kubernetes_service.bootnode.spec.0.port.0.port}"
+          }
+
+          liveness_probe {
+            initial_delay_seconds = 10
           }
         }
       }
@@ -178,12 +186,15 @@ resource "kubernetes_service" "replicas" {
 
     port {
       port        = 8080
-      target_port = "http"
+      target_port = "api"
     }
   }
 }
 
 resource "kubernetes_deployment" "cert_spammer" {
+  depends_on = [
+    kubernetes_deployment.replicas
+  ]
   metadata {
     name = "cert-spammer"
     namespace= kubernetes_namespace.namespace.metadata.0.name
@@ -215,7 +226,7 @@ resource "kubernetes_deployment" "cert_spammer" {
 
           env {
             name  = "TARGET_NODE"
-            value = "${kubernetes_service.replicas.metadata.0.name}:${kubernetes_service.replicas.spec.0.port.0.port}"
+            value = "http://${kubernetes_service.replicas.metadata.0.name}:${kubernetes_service.replicas.spec.0.port.0.port}"
           }
           
           env {
