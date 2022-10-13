@@ -26,6 +26,8 @@ jobs:
           toolchain: stable
           override: true
 
+      - uses: Swatinem/rust-cache@v2
+
       - name: Install cargo-tarpaulin
         uses: actions-rs/cargo@v1
         with:
@@ -40,3 +42,7 @@ jobs:
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3.1.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./target/tarpaulin/topos-tce-coverage.json
+          fail_ci_if_error: true
