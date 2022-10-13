@@ -1,12 +1,18 @@
-use std::{marker::PhantomData, path::Path, sync::Arc};
+use std::{marker::PhantomData, sync::Arc};
+
+#[cfg(test)]
+use std::path::Path;
+
+#[cfg(test)]
+use rocksdb::ColumnFamilyDescriptor;
 
 use bincode::Options;
-use rocksdb::{BoundColumnFamily, ColumnFamilyDescriptor, DBWithThreadMode, MultiThreaded};
+use rocksdb::{BoundColumnFamily, DBWithThreadMode, MultiThreaded};
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::errors::InternalStorageError;
 
-use super::iterator::ColumnIterator;
+use super::{iterator::ColumnIterator, map::Map};
 
 #[derive(Debug)]
 pub struct DBColumn<K, V> {
@@ -20,6 +26,7 @@ where
     K: DeserializeOwned + Serialize,
     V: DeserializeOwned + Serialize,
 {
+    #[cfg(test)]
     pub fn open<P: AsRef<Path>>(
         path: P,
         db_options: Option<rocksdb::Options>,
@@ -34,7 +41,7 @@ where
             options.create_if_missing(true);
             options.create_missing_column_families(true);
             Arc::new(
-                rocksdb::DBWithThreadMode::<MultiThreaded>::open_cf_descriptors(
+                DBWithThreadMode::<MultiThreaded>::open_cf_descriptors(
                     &options,
                     &primary,
                     vec![ColumnFamilyDescriptor::new(column, default_rocksdb_options)],
@@ -48,6 +55,14 @@ where
             _phantom: PhantomData,
             cf: column.to_string(),
         })
+    }
+
+    pub fn reopen(db: &Arc<DBWithThreadMode<MultiThreaded>>, column: &str) -> Self {
+        Self {
+            db: db.clone(),
+            _phantom: PhantomData,
+            cf: column.to_string(),
+        }
     }
 
     fn cf(&self) -> Arc<BoundColumnFamily<'_>> {
@@ -106,18 +121,6 @@ where
 
         ColumnIterator::new(iterator)
     }
-}
-
-pub trait Map<'a, K, V>
-where
-    K: Serialize + DeserializeOwned + ?Sized,
-    V: Serialize + DeserializeOwned,
-{
-    type Iterator: Iterator<Item = (K, V)>;
-
-    fn iter(&'a self) -> Self::Iterator;
-
-    fn prefix_iter<P: Serialize>(&'a self, prefix: &P) -> Self::Iterator;
 }
 
 fn be_fix_int_ser<S>(t: &S) -> Result<Vec<u8>, InternalStorageError>

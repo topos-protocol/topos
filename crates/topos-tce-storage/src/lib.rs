@@ -27,6 +27,8 @@ pub use inmemory::InMemoryStorage;
 #[cfg(feature = "rocksdb")]
 pub use rocks::RocksDBStorage;
 
+pub type PendingCertificateId = u64;
+
 #[async_trait::async_trait]
 pub trait Storage: Sync + Send + 'static {
     /// Add a pending certificate to the pool
@@ -40,7 +42,7 @@ pub trait Storage: Sync + Send + 'static {
         &mut self,
         certificate: Certificate,
         status: CertificateStatus,
-    ) -> Result<(), InternalStorageError>;
+    ) -> Result<PendingCertificateId, InternalStorageError>;
 
     /// Update the certificate entry with new status
     async fn update(

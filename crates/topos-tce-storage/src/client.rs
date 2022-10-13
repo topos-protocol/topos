@@ -7,7 +7,7 @@ use topos_core::uci::{Certificate, CertificateId, SubnetId};
 use crate::{
     command::{ExpectedVersion, StorageCommand},
     errors::StorageError,
-    CertificateStatus,
+    CertificateStatus, PendingCertificateId,
 };
 
 #[derive(Debug, Clone)]
@@ -16,7 +16,10 @@ pub struct StorageClient {
 }
 
 impl StorageClient {
-    pub async fn persist_pending(&self, certificate: Certificate) -> Result<(), StorageError> {
+    pub async fn persist_pending(
+        &self,
+        certificate: Certificate,
+    ) -> Result<PendingCertificateId, StorageError> {
         let (response_channel, receiver) = oneshot::channel();
 
         self.sender

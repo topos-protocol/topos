@@ -5,7 +5,7 @@ use std::{
 
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
 
-use crate::{CertificateStatus, Height, InternalStorageError, Storage, Tip};
+use crate::{CertificateStatus, Height, InternalStorageError, PendingCertificateId, Storage, Tip};
 
 pub struct InMemoryConfig {}
 
@@ -49,7 +49,7 @@ impl Storage for InMemoryStorage {
         &mut self,
         certificate: Certificate,
         status: CertificateStatus,
-    ) -> Result<(), InternalStorageError> {
+    ) -> Result<PendingCertificateId, InternalStorageError> {
         match status {
             CertificateStatus::Pending => {}
             CertificateStatus::Delivered => {
@@ -58,7 +58,7 @@ impl Storage for InMemoryStorage {
             }
         }
 
-        Ok(())
+        Ok(0)
     }
 
     async fn update(

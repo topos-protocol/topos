@@ -1,20 +1,26 @@
 use std::{
     path::Path,
-    sync::atomic::{AtomicU64, Ordering},
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc,
+    },
 };
 
+use rocksdb::{ColumnFamilyDescriptor, MultiThreaded};
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
 
 use crate::{
     errors::{InternalStorageError, StorageError},
-    Storage,
+    PendingCertificateId, Storage,
 };
 
-use self::db_column::{DBColumn, Map};
+use self::db_column::DBColumn;
+use self::map::Map;
 
 pub(crate) mod constants;
 pub(crate) mod db_column;
-mod iterator;
+pub(crate) mod iterator;
+pub(crate) mod map;
 
 pub(crate) type SourceStreamRef = (SubnetId, u64);
 pub(crate) type TargetStreamRef = (SubnetId, SubnetId, u64);
@@ -30,6 +36,7 @@ pub enum RocksDBError {}
 pub struct RocksDBStorage {
     pending_certificates: PendingCertificatesColumn,
     certificates: CertificatesColumn,
+
     #[allow(dead_code)]
     source_subnet_streams: SourceSubnetStreamsColumn,
     #[allow(dead_code)]
@@ -39,15 +46,58 @@ pub struct RocksDBStorage {
 }
 
 impl RocksDBStorage {
+    #[cfg(test)]
+    pub(crate) fn new(
+        pending_certificates: PendingCertificatesColumn,
+        certificates: CertificatesColumn,
+        source_subnet_streams: SourceSubnetStreamsColumn,
+        target_subnet_streams: TargetSubnetStreamsColumn,
+        next_pending_id: AtomicU64,
+    ) -> Self {
+        Self {
+            pending_certificates,
+            certificates,
+            source_subnet_streams,
+            target_subnet_streams,
+            next_pending_id,
+        }
+    }
+
     pub async fn open(path: &Path) -> Result<Self, StorageError> {
+        let options = rocksdb::Options::default();
+        let default_rocksdb_options = rocksdb::Options::default();
+
+        let db = Arc::new(
+            rocksdb::DBWithThreadMode::<MultiThreaded>::open_cf_descriptors(
+                &options,
+                &path,
+                vec![
+                    ColumnFamilyDescriptor::new(
+                        constants::PENDING_CERTIFICATES,
+                        default_rocksdb_options.clone(),
+                    ),
+                    ColumnFamilyDescriptor::new(
+                        constants::CERTIFICATES,
+                        default_rocksdb_options.clone(),
+                    ),
+                    ColumnFamilyDescriptor::new(
+                        constants::SOURCE_SUBNET_STREAMS,
+                        default_rocksdb_options.clone(),
+                    ),
+                    ColumnFamilyDescriptor::new(
+                        constants::TARGET_SUBNET_STREAMS,
+                        default_rocksdb_options,
+                    ),
+                ],
+            )
+            .unwrap(),
+        );
+
         Ok(Self {
-            pending_certificates: DBColumn::open(path, None, constants::PENDING_CERTIFICATES)
-                .unwrap(),
-            certificates: DBColumn::open(path, None, constants::CERTIFICATES).unwrap(),
-            source_subnet_streams: DBColumn::open(path, None, constants::SOURCE_SUBNET_STREAMS)
-                .unwrap(),
-            target_subnet_streams: DBColumn::open(path, None, constants::TARGET_SUBNET_STREAMS)
-                .unwrap(),
+            pending_certificates: DBColumn::reopen(&db, constants::PENDING_CERTIFICATES),
+            certificates: DBColumn::reopen(&db, constants::CERTIFICATES),
+            source_subnet_streams: DBColumn::reopen(&db, constants::SOURCE_SUBNET_STREAMS),
+            target_subnet_streams: DBColumn::reopen(&db, constants::TARGET_SUBNET_STREAMS),
             next_pending_id: AtomicU64::new(0),
         })
     }
@@ -68,7 +118,7 @@ impl Storage for RocksDBStorage {
         &mut self,
         _certificate: Certificate,
         _status: crate::CertificateStatus,
-    ) -> Result<(), InternalStorageError> {
+    ) -> Result<PendingCertificateId, InternalStorageError> {
         unimplemented!();
     }
 

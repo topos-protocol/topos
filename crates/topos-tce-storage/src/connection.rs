@@ -25,13 +25,14 @@ impl<S: Storage> Connection<S> {
                 certificate,
                 status,
                 response_channel,
-            } => {
-                if let Err(error) = storage.persist(certificate, status).await {
+            } => match storage.persist(certificate, status).await {
+                Err(error) => {
                     _ = response_channel.send(Err(error.into()));
-                } else {
-                    _ = response_channel.send(Ok(()));
                 }
-            }
+                Ok(value) => {
+                    _ = response_channel.send(Ok(value));
+                }
+            },
 
             StorageCommand::UpdateCertificate {
                 certificate_id,

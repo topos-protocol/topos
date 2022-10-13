@@ -1,14 +1,14 @@
 use tokio::sync::oneshot;
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
 
-use crate::{errors::StorageError, CertificateStatus};
+use crate::{errors::StorageError, CertificateStatus, PendingCertificateId};
 
 #[derive(Debug)]
 pub enum StorageCommand {
     Persist {
         certificate: Certificate,
         status: CertificateStatus,
-        response_channel: oneshot::Sender<Result<(), StorageError>>,
+        response_channel: oneshot::Sender<Result<PendingCertificateId, StorageError>>,
     },
 
     UpdateCertificate {
