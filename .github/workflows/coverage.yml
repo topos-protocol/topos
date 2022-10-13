@@ -26,19 +26,12 @@ jobs:
           toolchain: stable
           override: true
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@v1
 
-      - name: Install cargo-tarpaulin
-        uses: actions-rs/cargo@v1
+      - uses: actions-rs/tarpaulin@v0.1
         with:
-          command: install
-          args: cargo-tarpaulin
-
-      - name: Generate coverage report
-        uses: actions-rs/cargo@v1
-        with:
-          command: tarpaulin
-          args: --engine llvm --all-features --release --timeout 600 --out Xml
+          args: "--engine llvm --all-features --release"
+          timeout: 600
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3.1.1
