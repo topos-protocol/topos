@@ -47,6 +47,14 @@ pub struct AppArgs {
     #[clap(long, default_value = "127.0.0.1:6831", env = "TCE_JAEGER_AGENT")]
     pub jaeger_agent: String,
 
+    /// Jaeger service name
+    #[clap(
+        long,
+        default_value = "tce-jaeger-service",
+        env = "TCE_JAEGER_SERVICE_NAME"
+    )]
+    pub jaeger_service_name: String,
+
     /// gRPC API Addr
     #[clap(long, env = "TCE_API_ADDR", default_value = "[::1]:1340")]
     pub api_addr: SocketAddr,
