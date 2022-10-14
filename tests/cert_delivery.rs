@@ -68,7 +68,7 @@ async fn cert_delivery() {
     // NOTE: Needed time for nodes to put their record on DHT
     // plus the resolution from other peers
     info!("Waiting proper peer discovery");
-    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    tokio::time::sleep(std::time::Duration::from_secs(4)).await;
 
     info!("Trigger the new network view");
     for i in 0..clients.len() {
@@ -94,7 +94,7 @@ async fn cert_delivery() {
         }
     }
 
-    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    tokio::time::sleep(std::time::Duration::from_secs(4)).await;
 
     // Broadcast one certificate
     info!("Broadcast 1 Certificate");
