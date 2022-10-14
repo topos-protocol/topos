@@ -114,7 +114,7 @@ pub struct AppArgs {
     /// Base Uri of TCE node to call grpc service api
     #[clap(
         long,
-        default_value = "http://127.0.0.1:1340",
+        default_value = "http://[::1]:1340",
         env = "TOPOS_BASE_TCE_API_URL"
     )]
     pub base_tce_api_url: String,
