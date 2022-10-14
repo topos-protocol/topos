@@ -33,7 +33,7 @@ async fn main() {
 
     let storage = InMemoryStorage::default();
 
-    let (connection, store) = Connection::new(futures::future::ok(storage).boxed());
+    let (connection, store, _) = Connection::build(futures::future::ok(storage).boxed());
 
     let config = ReliableBroadcastConfig {
         store: store.clone(),

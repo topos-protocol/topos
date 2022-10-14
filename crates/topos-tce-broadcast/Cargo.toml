@@ -13,6 +13,7 @@ serde.workspace = true
 tokio-stream = { workspace = true, features = ["sync"] }
 tokio.workspace = true
 tracing.workspace = true
+thiserror.workspace = true
 
 topos-core = { workspace = true, features = ["uci"] }
 topos-tce-storage = { workspace = true, features = ["inmemory"] }
@@ -21,7 +22,6 @@ tce_telemetry = { package = "topos-tce-telemetry", path = "../topos-tce-telemetr
 
 byteorder = "1.4.3"
 opentelemetry = { version = "0.17", default-features = false, features = ["trace", "rt-tokio"] }
-thiserror = "1.0.36"
 
 [dev-dependencies]
 pretty_env_logger = "0.4.0"

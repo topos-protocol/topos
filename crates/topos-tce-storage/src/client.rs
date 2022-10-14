@@ -1,13 +1,10 @@
-use tokio::sync::{
-    mpsc::{self},
-    oneshot,
-};
+use tokio::sync::{mpsc, oneshot};
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
 
 use crate::{
-    command::{ExpectedVersion, StorageCommand},
+    command::{AddPendingCertificate, CertificateDelivered, GetCertificate, StorageCommand},
     errors::StorageError,
-    CertificateStatus, PendingCertificateId,
+    PendingCertificateId,
 };
 
 #[derive(Debug, Clone)]
@@ -16,18 +13,17 @@ pub struct StorageClient {
 }
 
 impl StorageClient {
-    pub async fn persist_pending(
+    pub async fn add_pending_certificate(
         &self,
         certificate: Certificate,
     ) -> Result<PendingCertificateId, StorageError> {
         let (response_channel, receiver) = oneshot::channel();
 
         self.sender
-            .send(StorageCommand::Persist {
-                certificate,
-                status: CertificateStatus::Pending,
+            .send(StorageCommand::AddPendingCertificate(
+                AddPendingCertificate { certificate },
                 response_channel,
-            })
+            ))
             .await?;
 
         receiver.await?
@@ -40,11 +36,10 @@ impl StorageClient {
         let (response_channel, receiver) = oneshot::channel();
 
         self.sender
-            .send(StorageCommand::UpdateCertificate {
-                certificate_id,
-                status: CertificateStatus::Delivered,
+            .send(StorageCommand::CertificateDelivered(
+                CertificateDelivered { certificate_id },
                 response_channel,
-            })
+            ))
             .await?;
 
         receiver.await?
@@ -52,21 +47,22 @@ impl StorageClient {
 
     pub async fn recent_certificates_for_subnet(
         &self,
-        subnet_id: SubnetId,
-        limit: u64,
+        _subnet_id: SubnetId,
+        _limit: u64,
     ) -> Result<Vec<Certificate>, StorageError> {
-        let (response_channel, receiver) = oneshot::channel();
-
-        self.sender
-            .send(StorageCommand::ReadStream {
-                subnet_id,
-                from: ExpectedVersion::End,
-                limit,
-                response_channel,
-            })
-            .await?;
-
-        receiver.await?
+        unimplemented!()
+        // let (response_channel, receiver) = oneshot::channel();
+        //
+        // self.sender
+        //     .send(StorageCommand::ReadStream {
+        //         subnet_id,
+        //         from: ExpectedVersion::End,
+        //         limit,
+        //         response_channel,
+        //     })
+        //     .await?;
+        //
+        // receiver.await?
     }
 
     pub async fn get_certificate(
@@ -76,10 +72,10 @@ impl StorageClient {
         let (response_channel, receiver) = oneshot::channel();
 
         self.sender
-            .send(StorageCommand::GetCertificate {
-                certificate_id,
+            .send(StorageCommand::GetCertificate(
+                GetCertificate { certificate_id },
                 response_channel,
-            })
+            ))
             .await?;
 
         receiver.await?

@@ -108,10 +108,12 @@ impl Storage for RocksDBStorage {
     async fn add_pending_certificate(
         &mut self,
         certificate: Certificate,
-    ) -> Result<(), InternalStorageError> {
+    ) -> Result<PendingCertificateId, InternalStorageError> {
         let key = self.next_pending_id.fetch_add(1, Ordering::Relaxed);
 
-        self.pending_certificates.insert(&key, &certificate)
+        self.pending_certificates.insert(&key, &certificate)?;
+
+        Ok(key)
     }
 
     async fn persist(
@@ -139,16 +141,22 @@ impl Storage for RocksDBStorage {
 
     async fn get_certificates(
         &self,
-        _cert_id: Vec<CertificateId>,
-    ) -> Result<Vec<(crate::CertificateStatus, Certificate)>, InternalStorageError> {
-        unimplemented!();
+        certificate_ids: Vec<CertificateId>,
+    ) -> Result<Vec<Certificate>, InternalStorageError> {
+        let mut result = Vec::new();
+
+        for certificate_id in certificate_ids {
+            result.push(self.get_certificate(certificate_id).await?);
+        }
+
+        Ok(result)
     }
 
     async fn get_certificate(
         &self,
-        cert_id: CertificateId,
+        certificate_id: CertificateId,
     ) -> Result<Certificate, InternalStorageError> {
-        self.certificates.get(&cert_id)
+        self.certificates.get(&certificate_id)
     }
 
     async fn get_emitted_certificates(

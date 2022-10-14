@@ -44,7 +44,7 @@ where
         let peer_id = format!("peer_{index}");
 
         let storage = InMemoryStorage::default();
-        let (connection, store) = Connection::new(async move { Ok(storage) }.boxed());
+        let (connection, store, _) = Connection::build(async move { Ok(storage) }.boxed());
         spawn(connection.into_future());
 
         let (rb_client, trb_events) = create_reliable_broadcast_client(

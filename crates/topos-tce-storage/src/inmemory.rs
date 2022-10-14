@@ -1,5 +1,6 @@
 use std::{
     collections::{BTreeMap, HashMap},
+    sync::atomic::{AtomicU64, Ordering},
     time::{Instant, SystemTime},
 };
 
@@ -9,13 +10,25 @@ use crate::{CertificateStatus, Height, InternalStorageError, PendingCertificateI
 
 pub struct InMemoryConfig {}
 
-#[derive(Default)]
 pub struct InMemoryStorage {
     pending_pool: BTreeMap<CertificateId, Certificate>,
 
     delivered_certs: HashMap<CertificateId, Certificate>,
 
     tips: BTreeMap<SubnetId, (CertificateId, Height)>,
+
+    next_pending_id: AtomicU64,
+}
+
+impl Default for InMemoryStorage {
+    fn default() -> Self {
+        Self {
+            pending_pool: Default::default(),
+            delivered_certs: Default::default(),
+            tips: Default::default(),
+            next_pending_id: AtomicU64::new(0),
+        }
+    }
 }
 
 impl InMemoryStorage {
@@ -38,11 +51,12 @@ impl Storage for InMemoryStorage {
     async fn add_pending_certificate(
         &mut self,
         certificate: Certificate,
-    ) -> Result<(), InternalStorageError> {
-        self.pending_pool
-            .insert(certificate.cert_id.clone(), certificate);
+    ) -> Result<PendingCertificateId, InternalStorageError> {
+        let key = self.next_pending_id.fetch_add(1, Ordering::Relaxed);
 
-        Ok(())
+        self.pending_pool.insert(key.to_string(), certificate);
+
+        Ok(key)
     }
 
     async fn persist(
@@ -105,14 +119,14 @@ impl Storage for InMemoryStorage {
 
     async fn get_certificates(
         &self,
-        cert_ids: Vec<CertificateId>,
-    ) -> Result<Vec<(CertificateStatus, Certificate)>, InternalStorageError> {
+        certificate_ids: Vec<CertificateId>,
+    ) -> Result<Vec<Certificate>, InternalStorageError> {
         let mut result = Vec::new();
 
         // NOTE: What to do if one cert is not found?
-        for cert_id in cert_ids {
+        for cert_id in certificate_ids {
             if let Ok(certificate) = self.get_certificate(cert_id).await {
-                result.push((CertificateStatus::Delivered, certificate));
+                result.push(certificate);
             }
         }
 

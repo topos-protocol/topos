@@ -83,7 +83,10 @@ impl AppContext {
                 certificate,
                 sender,
             } => {
-                _ = self.storage.persist_pending(certificate.clone()).await;
+                _ = self
+                    .storage
+                    .add_pending_certificate(certificate.clone())
+                    .await;
                 spawn(self.trbp_cli.broadcast_new_certificate(certificate));
                 _ = sender.send(Ok(()));
             }

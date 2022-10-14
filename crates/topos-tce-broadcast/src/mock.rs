@@ -446,7 +446,7 @@ fn launch_broadcast_protocol_instances(
     for peer in peer_ids {
         let storage = InMemoryStorage::default();
 
-        let (connection, store) = Connection::new(futures::future::ok(storage).boxed());
+        let (connection, store, _) = Connection::build(futures::future::ok(storage).boxed());
 
         spawn(connection.into_future());
 

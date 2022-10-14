@@ -216,7 +216,7 @@ impl DoubleEcho {
         // Add new entry for the new Cert candidate
         match self.delivery_state_for_new_cert() {
             Some(delivery_state) => {
-                if let Err(error) = self.store.persist_pending(cert.clone()).await {
+                if let Err(error) = self.store.add_pending_certificate(cert.clone()).await {
                     warn!(
                         "Error persisting pending certificate in start_delivery {:?}",
                         error
@@ -485,7 +485,7 @@ mod tests {
         let (event_sender, mut event_receiver) = broadcast::channel(10);
 
         let storage = InMemoryStorage::default();
-        let (connection, store) = Connection::new(async { Ok(storage) }.boxed());
+        let (connection, store, _) = Connection::build(async { Ok(storage) }.boxed());
         spawn(connection.into_future());
 
         let mut double_echo = DoubleEcho::new(
@@ -597,7 +597,7 @@ mod tests {
         let (event_sender, mut event_receiver) = broadcast::channel(10);
 
         let storage = InMemoryStorage::default();
-        let (connection, store) = Connection::new(async { Ok(storage) }.boxed());
+        let (connection, store, _) = Connection::build(async { Ok(storage) }.boxed());
         spawn(connection.into_future());
 
         let double_echo = DoubleEcho::new(

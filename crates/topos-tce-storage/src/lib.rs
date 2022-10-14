@@ -29,13 +29,15 @@ pub use rocks::RocksDBStorage;
 
 pub type PendingCertificateId = u64;
 
+pub enum StorageEvent {}
+
 #[async_trait::async_trait]
 pub trait Storage: Sync + Send + 'static {
     /// Add a pending certificate to the pool
     async fn add_pending_certificate(
         &mut self,
         certificate: Certificate,
-    ) -> Result<(), InternalStorageError>;
+    ) -> Result<PendingCertificateId, InternalStorageError>;
 
     /// Persist the certificate with given status
     async fn persist(
@@ -57,13 +59,13 @@ pub trait Storage: Sync + Send + 'static {
     /// Returns the certificate data given their id
     async fn get_certificates(
         &self,
-        cert_id: Vec<CertificateId>,
-    ) -> Result<Vec<(CertificateStatus, Certificate)>, InternalStorageError>;
+        certificate_ids: Vec<CertificateId>,
+    ) -> Result<Vec<Certificate>, InternalStorageError>;
 
     /// Returns the certificate data given their id
     async fn get_certificate(
         &self,
-        cert_id: CertificateId,
+        certificate_id: CertificateId,
     ) -> Result<Certificate, InternalStorageError>;
 
     /// Returns the certificate emitted by given subnet
