@@ -30,7 +30,7 @@ jobs:
 
       - uses: actions-rs/tarpaulin@v0.1
         with:
-          args: "--engine llvm --all-features --release"
+          args: "--engine llvm --workspace --all-features --release"
           timeout: 600
 
       - name: Upload coverage to Codecov
