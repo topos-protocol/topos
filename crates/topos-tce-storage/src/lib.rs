@@ -35,20 +35,20 @@ pub enum StorageEvent {}
 pub trait Storage: Sync + Send + 'static {
     /// Add a pending certificate to the pool
     async fn add_pending_certificate(
-        &mut self,
+        &self,
         certificate: Certificate,
     ) -> Result<PendingCertificateId, InternalStorageError>;
 
     /// Persist the certificate with given status
     async fn persist(
-        &mut self,
+        &self,
         certificate: Certificate,
         status: CertificateStatus,
     ) -> Result<PendingCertificateId, InternalStorageError>;
 
     /// Update the certificate entry with new status
     async fn update(
-        &mut self,
+        &self,
         certificate_id: &CertificateId,
         status: CertificateStatus,
     ) -> Result<(), InternalStorageError>;

@@ -12,11 +12,11 @@ use serde::{de::DeserializeOwned, Serialize};
 
 use crate::errors::InternalStorageError;
 
-use super::{iterator::ColumnIterator, map::Map};
+use super::{iterator::ColumnIterator, map::Map, RocksDB};
 
 #[derive(Debug)]
 pub struct DBColumn<K, V> {
-    pub db: Arc<DBWithThreadMode<MultiThreaded>>,
+    pub db: RocksDB,
     _phantom: PhantomData<fn(K) -> V>,
     cf: String,
 }
@@ -40,14 +40,18 @@ where
         let db = {
             options.create_if_missing(true);
             options.create_missing_column_families(true);
-            Arc::new(
-                DBWithThreadMode::<MultiThreaded>::open_cf_descriptors(
-                    &options,
-                    &primary,
-                    vec![ColumnFamilyDescriptor::new(column, default_rocksdb_options)],
-                )
-                .unwrap(),
-            )
+            RocksDB {
+                rocksdb: Arc::new(
+                    DBWithThreadMode::<MultiThreaded>::open_cf_descriptors(
+                        &options,
+                        &primary,
+                        vec![ColumnFamilyDescriptor::new(column, default_rocksdb_options)],
+                    )
+                    .unwrap(),
+                ),
+                batch_in_progress: Default::default(),
+                atomic_batch: Default::default(),
+            }
         };
 
         Ok(Self {
@@ -57,7 +61,7 @@ where
         })
     }
 
-    pub fn reopen(db: &Arc<DBWithThreadMode<MultiThreaded>>, column: &str) -> Self {
+    pub fn reopen(db: &RocksDB, column: &str) -> Self {
         Self {
             db: db.clone(),
             _phantom: PhantomData,
@@ -66,7 +70,7 @@ where
     }
 
     fn cf(&self) -> Arc<BoundColumnFamily<'_>> {
-        self.db.cf_handle(&self.cf).unwrap()
+        self.db.rocksdb.cf_handle(&self.cf).unwrap()
     }
 
     pub(crate) fn insert(&self, key: &K, value: &V) -> Result<(), InternalStorageError> {
@@ -76,7 +80,7 @@ where
 
         let value_buf = bincode::serialize(value).unwrap();
 
-        self.db.put_cf(&cf, &key_buf, &value_buf).unwrap();
+        self.db.rocksdb.put_cf(&cf, &key_buf, &value_buf).unwrap();
 
         Ok(())
     }
@@ -84,7 +88,7 @@ where
     pub(crate) fn delete(&self, key: &K) -> Result<(), InternalStorageError> {
         let key_buf = be_fix_int_ser(key).unwrap();
 
-        self.db.delete_cf(&self.cf(), key_buf).unwrap();
+        self.db.rocksdb.delete_cf(&self.cf(), key_buf).unwrap();
 
         Ok(())
     }
@@ -93,6 +97,7 @@ where
         let key_buf = be_fix_int_ser(key).unwrap();
 
         self.db
+            .rocksdb
             .get_pinned_cf(&self.cf(), key_buf)?
             .map(|data| bincode::deserialize(&data).unwrap())
             .ok_or(InternalStorageError::UnableToDeserializeValue)
@@ -107,7 +112,7 @@ where
     type Iterator = ColumnIterator<'a, K, V>;
 
     fn iter(&'a self) -> Self::Iterator {
-        let mut raw_iterator = self.db.raw_iterator_cf(&self.cf());
+        let mut raw_iterator = self.db.rocksdb.raw_iterator_cf(&self.cf());
         raw_iterator.seek_to_first();
 
         ColumnIterator::new(raw_iterator)
@@ -116,6 +121,7 @@ where
     fn prefix_iter<P: Serialize>(&'a self, prefix: &P) -> Self::Iterator {
         let iterator = self
             .db
+            .rocksdb
             .prefix_iterator_cf(&self.cf(), be_fix_int_ser(prefix).unwrap())
             .into();
 

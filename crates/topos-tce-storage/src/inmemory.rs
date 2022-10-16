@@ -4,6 +4,7 @@ use std::{
     time::{Instant, SystemTime},
 };
 
+use tokio::sync::{Mutex, MutexGuard};
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
 
 use crate::{CertificateStatus, Height, InternalStorageError, PendingCertificateId, Storage, Tip};
@@ -11,11 +12,11 @@ use crate::{CertificateStatus, Height, InternalStorageError, PendingCertificateI
 pub struct InMemoryConfig {}
 
 pub struct InMemoryStorage {
-    pending_pool: BTreeMap<CertificateId, Certificate>,
+    pending_pool: Mutex<BTreeMap<CertificateId, Certificate>>,
 
-    delivered_certs: HashMap<CertificateId, Certificate>,
+    delivered_certs: Mutex<HashMap<CertificateId, Certificate>>,
 
-    tips: BTreeMap<SubnetId, (CertificateId, Height)>,
+    tips: Mutex<BTreeMap<SubnetId, (CertificateId, Height)>>,
 
     next_pending_id: AtomicU64,
 }
@@ -32,35 +33,54 @@ impl Default for InMemoryStorage {
 }
 
 impl InMemoryStorage {
-    fn set_delivered(&mut self, certificate: Certificate) {
+    async fn set_delivered(&self, certificate: Certificate) {
         let subnet = certificate.initial_subnet_id.clone();
 
-        if let Some((ref mut certificate_id, ref mut height)) = self.tips.get_mut(&subnet) {
+        let mut tips = self.tips.lock().await;
+        if let Some((ref mut certificate_id, ref mut height)) = tips.get_mut(&subnet) {
             *certificate_id = certificate.cert_id.clone();
             *height += 1;
         } else {
-            self.tips.insert(subnet, (certificate.cert_id.clone(), 1));
+            tips.insert(subnet, (certificate.cert_id.clone(), 1));
         }
 
         self.delivered_certs
+            .lock()
+            .await
             .insert(certificate.cert_id.clone(), certificate);
     }
+
+    fn get_certificate_with_lock(
+        &self,
+        cert_id: CertificateId,
+        lock: &MutexGuard<'_, HashMap<CertificateId, Certificate>>,
+    ) -> Result<Certificate, InternalStorageError> {
+        if let Some(certificate) = lock.get(&cert_id) {
+            Ok(certificate.clone())
+        } else {
+            Err(InternalStorageError::CertificateNotFound(cert_id))
+        }
+    }
 }
+
 #[async_trait::async_trait]
 impl Storage for InMemoryStorage {
     async fn add_pending_certificate(
-        &mut self,
+        &self,
         certificate: Certificate,
     ) -> Result<PendingCertificateId, InternalStorageError> {
         let key = self.next_pending_id.fetch_add(1, Ordering::Relaxed);
 
-        self.pending_pool.insert(key.to_string(), certificate);
+        self.pending_pool
+            .lock()
+            .await
+            .insert(key.to_string(), certificate);
 
         Ok(key)
     }
 
     async fn persist(
-        &mut self,
+        &self,
         certificate: Certificate,
         status: CertificateStatus,
     ) -> Result<PendingCertificateId, InternalStorageError> {
@@ -68,7 +88,7 @@ impl Storage for InMemoryStorage {
             CertificateStatus::Pending => {}
             CertificateStatus::Delivered => {
                 // NOTE: Do we need to validate that the certificate was in the pending_pool?
-                self.set_delivered(certificate);
+                self.set_delivered(certificate).await;
             }
         }
 
@@ -76,7 +96,7 @@ impl Storage for InMemoryStorage {
     }
 
     async fn update(
-        &mut self,
+        &self,
         certificate_id: &CertificateId,
         status: CertificateStatus,
     ) -> Result<(), InternalStorageError> {
@@ -87,8 +107,8 @@ impl Storage for InMemoryStorage {
                 Ok(())
             }
             CertificateStatus::Delivered => {
-                if let Some(certificate) = self.pending_pool.remove(certificate_id) {
-                    self.set_delivered(certificate);
+                if let Some(certificate) = self.pending_pool.lock().await.remove(certificate_id) {
+                    self.set_delivered(certificate).await;
 
                     Ok(())
                 } else {
@@ -103,8 +123,10 @@ impl Storage for InMemoryStorage {
     async fn get_tip(&self, subnets: Vec<SubnetId>) -> Result<Vec<Tip>, InternalStorageError> {
         let mut result = Vec::new();
 
+        let tips = self.tips.lock().await;
+
         for subnet in subnets {
-            if let Some((certificate_id, height)) = self.tips.get(&subnet) {
+            if let Some((certificate_id, height)) = tips.get(&subnet) {
                 result.push(Tip {
                     cert_id: certificate_id.clone(),
                     subnet_id: subnet.clone(),
@@ -123,9 +145,11 @@ impl Storage for InMemoryStorage {
     ) -> Result<Vec<Certificate>, InternalStorageError> {
         let mut result = Vec::new();
 
+        let lock = self.delivered_certs.lock().await;
+
         // NOTE: What to do if one cert is not found?
         for cert_id in certificate_ids {
-            if let Ok(certificate) = self.get_certificate(cert_id).await {
+            if let Ok(certificate) = self.get_certificate_with_lock(cert_id, &lock) {
                 result.push(certificate);
             }
         }
@@ -137,11 +161,7 @@ impl Storage for InMemoryStorage {
         &self,
         cert_id: CertificateId,
     ) -> Result<Certificate, InternalStorageError> {
-        if let Some(certificate) = self.delivered_certs.get(&cert_id) {
-            Ok(certificate.clone())
-        } else {
-            Err(InternalStorageError::CertificateNotFound(cert_id))
-        }
+        self.get_certificate_with_lock(cert_id, &self.delivered_certs.lock().await)
     }
 
     async fn get_emitted_certificates(

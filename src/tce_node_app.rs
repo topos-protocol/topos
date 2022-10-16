@@ -1,7 +1,7 @@
 mod app_context;
 mod cli;
 
-use std::future::IntoFuture;
+use std::{future::IntoFuture, path::PathBuf};
 
 use crate::app_context::AppContext;
 use crate::cli::AppArgs;
@@ -10,7 +10,7 @@ use futures::FutureExt;
 use tokio::spawn;
 use topos_p2p::{utils::local_key_pair, Multiaddr};
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
-use topos_tce_storage::{Connection, InMemoryStorage};
+use topos_tce_storage::{Connection, InMemoryStorage, RocksDBStorage};
 use tracing::info;
 
 #[tokio::main]
@@ -30,10 +30,15 @@ async fn main() {
             "RAM".to_string()
         }
     );
+    let path = args.db_path.clone().unwrap();
 
-    let storage = InMemoryStorage::default();
+    let storage = async move {
+        let path = PathBuf::from(path);
 
-    let (connection, store, _) = Connection::build(futures::future::ok(storage).boxed());
+        RocksDBStorage::open(&path).await
+    };
+
+    let (connection, store, _) = Connection::build(storage.boxed());
 
     let config = ReliableBroadcastConfig {
         store: store.clone(),

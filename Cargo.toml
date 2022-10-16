@@ -17,7 +17,7 @@ serde.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 topos-core.workspace = true
-topos-tce-storage.workspace = true
+topos-tce-storage = { workspace = true, features = ["rocksdb"] }
 tracing.workspace = true
 
 tce_telemetry = { package = "topos-tce-telemetry", path = "./crates/topos-tce-telemetry" }

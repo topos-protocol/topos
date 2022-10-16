@@ -1,12 +1,15 @@
 use std::{
-    path::Path,
+    fmt::Debug,
+    path::{Path, PathBuf},
     sync::{
-        atomic::{AtomicU64, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
         Arc,
     },
 };
 
+use once_cell::sync::OnceCell;
 use rocksdb::{ColumnFamilyDescriptor, MultiThreaded};
+use tokio::sync::Mutex;
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
 
 use crate::{
@@ -29,8 +32,26 @@ pub(crate) type CertificatesColumn = DBColumn<CertificateId, Certificate>;
 pub(crate) type SourceSubnetStreamsColumn = DBColumn<SourceStreamRef, CertificateId>;
 pub(crate) type TargetSubnetStreamsColumn = DBColumn<TargetStreamRef, CertificateId>;
 
+static DB: OnceCell<RocksDB> = OnceCell::new();
+
 #[derive(Debug)]
 pub enum RocksDBError {}
+
+#[derive(Clone)]
+pub struct RocksDB {
+    rocksdb: Arc<rocksdb::DBWithThreadMode<MultiThreaded>>,
+    batch_in_progress: Arc<AtomicBool>,
+    atomic_batch: Arc<Mutex<rocksdb::WriteBatch>>,
+}
+
+impl Debug for RocksDB {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RocksDB")
+            .field("rocksdb", &self.rocksdb)
+            .field("batch_in_progress", &self.batch_in_progress)
+            .finish()
+    }
+}
 
 #[derive(Debug)]
 pub struct RocksDBStorage {
@@ -63,35 +84,43 @@ impl RocksDBStorage {
         }
     }
 
-    pub async fn open(path: &Path) -> Result<Self, StorageError> {
-        let options = rocksdb::Options::default();
-        let default_rocksdb_options = rocksdb::Options::default();
+    pub async fn open(path: &PathBuf) -> Result<Self, StorageError> {
+        let mut options = rocksdb::Options::default();
+        options.create_if_missing(true);
+        options.create_missing_column_families(true);
+        let mut default_rocksdb_options = rocksdb::Options::default();
 
-        let db = Arc::new(
-            rocksdb::DBWithThreadMode::<MultiThreaded>::open_cf_descriptors(
-                &options,
-                &path,
-                vec![
-                    ColumnFamilyDescriptor::new(
-                        constants::PENDING_CERTIFICATES,
-                        default_rocksdb_options.clone(),
-                    ),
-                    ColumnFamilyDescriptor::new(
-                        constants::CERTIFICATES,
-                        default_rocksdb_options.clone(),
-                    ),
-                    ColumnFamilyDescriptor::new(
-                        constants::SOURCE_SUBNET_STREAMS,
-                        default_rocksdb_options.clone(),
-                    ),
-                    ColumnFamilyDescriptor::new(
-                        constants::TARGET_SUBNET_STREAMS,
-                        default_rocksdb_options,
-                    ),
-                ],
-            )
-            .unwrap(),
-        );
+        let db = DB.get_or_try_init(|| {
+            Ok::<_, StorageError>(RocksDB {
+                rocksdb: Arc::new(
+                    rocksdb::DBWithThreadMode::<MultiThreaded>::open_cf_descriptors(
+                        &options,
+                        &path,
+                        vec![
+                            ColumnFamilyDescriptor::new(
+                                constants::PENDING_CERTIFICATES,
+                                default_rocksdb_options.clone(),
+                            ),
+                            ColumnFamilyDescriptor::new(
+                                constants::CERTIFICATES,
+                                default_rocksdb_options.clone(),
+                            ),
+                            ColumnFamilyDescriptor::new(
+                                constants::SOURCE_SUBNET_STREAMS,
+                                default_rocksdb_options.clone(),
+                            ),
+                            ColumnFamilyDescriptor::new(
+                                constants::TARGET_SUBNET_STREAMS,
+                                default_rocksdb_options,
+                            ),
+                        ],
+                    )
+                    .unwrap(),
+                ),
+                batch_in_progress: Default::default(),
+                atomic_batch: Default::default(),
+            })
+        })?;
 
         Ok(Self {
             pending_certificates: DBColumn::reopen(&db, constants::PENDING_CERTIFICATES),
@@ -106,7 +135,7 @@ impl RocksDBStorage {
 #[async_trait::async_trait]
 impl Storage for RocksDBStorage {
     async fn add_pending_certificate(
-        &mut self,
+        &self,
         certificate: Certificate,
     ) -> Result<PendingCertificateId, InternalStorageError> {
         let key = self.next_pending_id.fetch_add(1, Ordering::Relaxed);
@@ -117,7 +146,7 @@ impl Storage for RocksDBStorage {
     }
 
     async fn persist(
-        &mut self,
+        &self,
         _certificate: Certificate,
         _status: crate::CertificateStatus,
     ) -> Result<PendingCertificateId, InternalStorageError> {
@@ -125,7 +154,7 @@ impl Storage for RocksDBStorage {
     }
 
     async fn update(
-        &mut self,
+        &self,
         _certificate_id: &CertificateId,
         _status: crate::CertificateStatus,
     ) -> Result<(), InternalStorageError> {

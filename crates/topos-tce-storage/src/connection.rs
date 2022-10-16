@@ -1,4 +1,4 @@
-use std::{future::IntoFuture, pin::Pin};
+use std::{collections::VecDeque, future::IntoFuture, pin::Pin, sync::Arc};
 
 use async_trait::async_trait;
 use futures::{future::BoxFuture, Future, FutureExt, Stream, TryFutureExt};
@@ -15,22 +15,22 @@ use crate::{
     PendingCertificateId, Storage, StorageEvent,
 };
 
+use self::builder::{ConnectionBuilder, StorageBuilder};
+
 #[allow(dead_code)]
 const MAX_PENDING_CERTIFICATES: usize = 1000;
 
-pub type StorageBuilder<S> = Pin<Box<dyn Future<Output = Result<S, StorageError>> + Send>>;
+mod builder;
+mod handlers;
 
-pub struct ConnectionBuilder<S: Storage> {
-    storage_builder: Option<StorageBuilder<S>>,
-
-    queries: mpsc::Receiver<StorageCommand>,
-    events: mpsc::Sender<StorageEvent>,
-    certificate_dispatcher: mpsc::Sender<Certificate>,
+#[async_trait]
+trait CommandHandler<C: Command> {
+    async fn handle(&mut self, command: C) -> Result<C::Result, StorageError>;
 }
 
 pub struct Connection<S: Storage> {
     /// Manage the underlying storage
-    storage: S,
+    storage: Arc<S>,
 
     /// Listen for queries from outside
     queries: mpsc::Receiver<StorageCommand>,
@@ -40,7 +40,9 @@ pub struct Connection<S: Storage> {
     events: mpsc::Sender<StorageEvent>,
 
     #[allow(dead_code)]
-    certificate_dispatcher: mpsc::Sender<Certificate>,
+    certificate_dispatcher: Option<mpsc::Sender<PendingCertificateId>>,
+
+    pending_certificates: VecDeque<PendingCertificateId>,
 }
 
 impl<S: Storage> Connection<S> {
@@ -94,13 +96,22 @@ impl<S: Storage> IntoFuture for Connection<S> {
 
     fn into_future(mut self) -> Self::IntoFuture {
         async move {
+            let certificate_dispatcher = self.certificate_dispatcher.take().ok_or_else(|| {
+                StorageError::InternalStorage(InternalStorageError::UnableToStartStorage)
+            })?;
+
             loop {
                 tokio::select! {
+                    Ok(permit) = certificate_dispatcher.reserve(), if !self.pending_certificates.is_empty() => {
+
+                        permit.send(self.pending_certificates.pop_front().unwrap());
+                    },
 
                     Some(command) = self.queries.recv() => {
                         match command {
                             StorageCommand::AddPendingCertificate(command, response_channel) => {
-                                _ = response_channel.send(self.handle(command).await)
+                            let res = self.handle(command).await;
+                                _ = response_channel.send(res);
                             },
                             StorageCommand::CertificateDelivered(command, response_channel) => {
                                 _ = response_channel.send(self.handle(command).await)
@@ -113,60 +124,5 @@ impl<S: Storage> IntoFuture for Connection<S> {
             }
         }
         .boxed()
-    }
-}
-
-#[async_trait]
-trait CommandHandler<C: Command> {
-    async fn handle(&mut self, command: C) -> Result<C::Result, StorageError>;
-}
-
-#[async_trait]
-impl<S> CommandHandler<AddPendingCertificate> for Connection<S>
-where
-    S: Storage,
-{
-    async fn handle(
-        &mut self,
-        AddPendingCertificate { certificate }: AddPendingCertificate,
-    ) -> Result<PendingCertificateId, StorageError> {
-        Ok(self.storage.add_pending_certificate(certificate).await?)
-    }
-}
-
-#[async_trait]
-impl<S> CommandHandler<CertificateDelivered> for Connection<S>
-where
-    S: Storage,
-{
-    async fn handle(&mut self, _command: CertificateDelivered) -> Result<(), StorageError> {
-        Ok(())
-    }
-}
-
-#[async_trait]
-impl<S> CommandHandler<GetCertificate> for Connection<S>
-where
-    S: Storage,
-{
-    async fn handle(
-        &mut self,
-        GetCertificate { certificate_id }: GetCertificate,
-    ) -> Result<Certificate, StorageError> {
-        Ok(self.storage.get_certificate(certificate_id).await?)
-    }
-}
-
-impl<S> ConnectionBuilder<S>
-where
-    S: Storage,
-{
-    fn into_connection(self, storage: S) -> Connection<S> {
-        Connection {
-            storage,
-            queries: self.queries,
-            events: self.events,
-            certificate_dispatcher: self.certificate_dispatcher,
-        }
     }
 }
