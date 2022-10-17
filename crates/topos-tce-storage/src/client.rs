@@ -51,18 +51,6 @@ impl StorageClient {
         _limit: u64,
     ) -> Result<Vec<Certificate>, StorageError> {
         unimplemented!()
-        // let (response_channel, receiver) = oneshot::channel();
-        //
-        // self.sender
-        //     .send(StorageCommand::ReadStream {
-        //         subnet_id,
-        //         from: ExpectedVersion::End,
-        //         limit,
-        //         response_channel,
-        //     })
-        //     .await?;
-        //
-        // receiver.await?
     }
 
     /// Fetch a certificate from the storage
