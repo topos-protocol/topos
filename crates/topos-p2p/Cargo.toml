@@ -17,6 +17,6 @@ libp2p = { workspace = true, features = ["tcp-tokio", "dns-tokio", "request-resp
 
 [dev-dependencies]
 bincode = "1.3"
-env_logger = "*"
+env_logger = "0.9.1"
 test-log = { version = "0.2", features = ["trace"] }
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }

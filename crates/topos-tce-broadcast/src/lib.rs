@@ -18,7 +18,7 @@ use double_echo::DoubleEcho;
 use tce_transport::{ReliableBroadcastParams, TrbpEvents};
 
 use topos_core::uci::{Certificate, CertificateId, DigestCompressed, SubnetId};
-use tracing::{error, info};
+use tracing::{error, info, instrument, Instrument, Span};
 
 use crate::mem_store::TrbMemStore;
 use crate::sampler::{Sampler, SubscribersUpdate, SubscriptionsView};
@@ -102,10 +102,16 @@ impl ReliableBroadcastClient {
     ///
     /// New client instances to the same aggregate can be cloned from the returned one.
     /// Aggregate is spawned as new task.
+    #[instrument(name = "ReliableBroadcastClient", skip_all, fields(peer_id = config.my_peer_id))]
     pub fn new(
         config: ReliableBroadcastConfig,
     ) -> (Self, impl Stream<Item = Result<TrbpEvents, ()>>) {
-        info!("new(trbp_params: {:?})", &config.trbp_params);
+        info!(
+            "Initial new ReliableBroadcastClient with: echo [ sample_size: {}, threashold: {}, ], ready [ sample_size: {}, threashold: {}, ], delivery [ sample_size: {}, threashold: {}, ])",
+            config.trbp_params.echo_sample_size, config.trbp_params.echo_threshold,
+            config.trbp_params.ready_sample_size, config.trbp_params.ready_threshold,
+            config.trbp_params.delivery_sample_size, config.trbp_params.delivery_threshold,
+        );
 
         let peer_id = config.my_peer_id.clone();
 
@@ -136,8 +142,8 @@ impl ReliableBroadcastClient {
             Box::new(TrbMemStore::default()),
         );
 
-        spawn(sampler.run());
-        spawn(double_echo.run());
+        spawn(sampler.run().instrument(Span::current()));
+        spawn(double_echo.run().instrument(Span::current()));
 
         (
             Self {
