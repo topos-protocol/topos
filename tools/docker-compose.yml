@@ -61,10 +61,12 @@ services:
     image: ghcr.io/toposware/cert-spammer:feat-grpc-tce-client
     environment:
       - RUST_LOG=debug
-      - TARGET_NODE=http://peer:1340
+      - TARGET_NODE_LIST=/nodes.json
     depends_on:
       # - jaeger
       - peer
+    volumes:
+      - ./peer_nodes.json:/nodes.json
     logging:
       driver: gelf
       options:
