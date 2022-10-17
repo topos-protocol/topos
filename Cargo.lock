@@ -3608,6 +3608,7 @@ dependencies = [
  "async-trait",
  "bincode",
  "futures",
+ "once_cell",
  "rand 0.8.5",
  "rocksdb",
  "rstest",
