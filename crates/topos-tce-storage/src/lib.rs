@@ -14,8 +14,14 @@ pub(crate) mod events;
 #[cfg(feature = "rocksdb")]
 pub(crate) mod rocks;
 
+#[cfg(test)]
+mod tests;
+
 pub use client::StorageClient;
 pub use connection::Connection;
+
+#[cfg(feature = "rocksdb")]
+pub use rocks::RocksDBStorage;
 
 pub type PendingCertificateId = u64;
 
