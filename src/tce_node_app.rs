@@ -10,7 +10,7 @@ use futures::FutureExt;
 use tokio::spawn;
 use topos_p2p::{utils::local_key_pair, Multiaddr};
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
-use topos_tce_storage::{Connection, InMemoryStorage, RocksDBStorage};
+use topos_tce_storage::{Connection, RocksDBStorage};
 use tracing::info;
 
 #[tokio::main]

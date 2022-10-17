@@ -7,7 +7,9 @@ where
 {
     type Iterator: Iterator<Item = (K, V)>;
 
+    /// Returns an Iterator over the whole CF
     fn iter(&'a self) -> Self::Iterator;
 
+    /// Returns a prefixed Iterator over the CF
     fn prefix_iter<P: Serialize>(&'a self, prefix: &P) -> Self::Iterator;
 }

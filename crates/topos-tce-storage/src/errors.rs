@@ -8,8 +8,10 @@ use crate::command::StorageCommand;
 pub enum InternalStorageError {
     #[error("The certificate already exists")]
     CertificateAlreadyExists,
+
     #[error("Unable to find a certificate: {0}")]
     CertificateNotFound(CertificateId),
+
     #[error("Unable to start storage")]
     UnableToStartStorage,
 

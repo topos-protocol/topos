@@ -1,33 +1,28 @@
-use std::{collections::VecDeque, future::IntoFuture, pin::Pin, sync::Arc};
+use std::{collections::VecDeque, future::IntoFuture, sync::Arc};
 
-use async_trait::async_trait;
-use futures::{future::BoxFuture, Future, FutureExt, Stream, TryFutureExt};
+use futures::{future::BoxFuture, FutureExt, Stream, TryFutureExt};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
-use topos_core::uci::Certificate;
 
 use crate::{
     client::StorageClient,
-    command::{
-        AddPendingCertificate, CertificateDelivered, Command, GetCertificate, StorageCommand,
-    },
+    command::StorageCommand,
+    connection::handler::CommandHandler,
     errors::{InternalStorageError, StorageError},
-    PendingCertificateId, Storage, StorageEvent,
+    events::StorageEvent,
+    PendingCertificateId, Storage,
 };
 
 use self::builder::{ConnectionBuilder, StorageBuilder};
 
-#[allow(dead_code)]
 const MAX_PENDING_CERTIFICATES: usize = 1000;
 
 mod builder;
+mod handler;
 mod handlers;
 
-#[async_trait]
-trait CommandHandler<C: Command> {
-    async fn handle(&mut self, command: C) -> Result<C::Result, StorageError>;
-}
-
+/// This struct is responsible of managing the Storage connection.
+/// It consumes queries from outside and execute them on the storage.
 pub struct Connection<S: Storage> {
     /// Manage the underlying storage
     storage: Arc<S>,
@@ -64,7 +59,7 @@ impl<S: Storage> Connection<S> {
                 events,
                 certificate_dispatcher,
             },
-            StorageClient { sender },
+            StorageClient::new(sender),
             ReceiverStream::new(events_stream),
         )
     }
@@ -96,9 +91,9 @@ impl<S: Storage> IntoFuture for Connection<S> {
 
     fn into_future(mut self) -> Self::IntoFuture {
         async move {
-            let certificate_dispatcher = self.certificate_dispatcher.take().ok_or_else(|| {
+            let certificate_dispatcher = self.certificate_dispatcher.take().ok_or(
                 StorageError::InternalStorage(InternalStorageError::UnableToStartStorage)
-            })?;
+            )?;
 
             loop {
                 tokio::select! {

@@ -1,15 +1,13 @@
 use std::{
     fmt::Debug,
-    path::{Path, PathBuf},
+    path::PathBuf,
     sync::{
-        atomic::{AtomicBool, AtomicU64, Ordering},
+        atomic::{AtomicU64, Ordering},
         Arc,
     },
 };
 
-use once_cell::sync::OnceCell;
 use rocksdb::{ColumnFamilyDescriptor, MultiThreaded};
-use tokio::sync::Mutex;
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
 
 use crate::{
@@ -17,10 +15,11 @@ use crate::{
     PendingCertificateId, Storage,
 };
 
-use self::db_column::DBColumn;
-use self::map::Map;
+use self::{db::RocksDB, map::Map};
+use self::{db::DB, db_column::DBColumn};
 
 pub(crate) mod constants;
+pub(crate) mod db;
 pub(crate) mod db_column;
 pub(crate) mod iterator;
 pub(crate) mod map;
@@ -31,27 +30,6 @@ pub(crate) type PendingCertificatesColumn = DBColumn<u64, Certificate>;
 pub(crate) type CertificatesColumn = DBColumn<CertificateId, Certificate>;
 pub(crate) type SourceSubnetStreamsColumn = DBColumn<SourceStreamRef, CertificateId>;
 pub(crate) type TargetSubnetStreamsColumn = DBColumn<TargetStreamRef, CertificateId>;
-
-static DB: OnceCell<RocksDB> = OnceCell::new();
-
-#[derive(Debug)]
-pub enum RocksDBError {}
-
-#[derive(Clone)]
-pub struct RocksDB {
-    rocksdb: Arc<rocksdb::DBWithThreadMode<MultiThreaded>>,
-    batch_in_progress: Arc<AtomicBool>,
-    atomic_batch: Arc<Mutex<rocksdb::WriteBatch>>,
-}
-
-impl Debug for RocksDB {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("RocksDB")
-            .field("rocksdb", &self.rocksdb)
-            .field("batch_in_progress", &self.batch_in_progress)
-            .finish()
-    }
-}
 
 #[derive(Debug)]
 pub struct RocksDBStorage {
@@ -88,7 +66,7 @@ impl RocksDBStorage {
         let mut options = rocksdb::Options::default();
         options.create_if_missing(true);
         options.create_missing_column_families(true);
-        let mut default_rocksdb_options = rocksdb::Options::default();
+        let default_rocksdb_options = rocksdb::Options::default();
 
         let db = DB.get_or_try_init(|| {
             Ok::<_, StorageError>(RocksDB {
@@ -123,10 +101,10 @@ impl RocksDBStorage {
         })?;
 
         Ok(Self {
-            pending_certificates: DBColumn::reopen(&db, constants::PENDING_CERTIFICATES),
-            certificates: DBColumn::reopen(&db, constants::CERTIFICATES),
-            source_subnet_streams: DBColumn::reopen(&db, constants::SOURCE_SUBNET_STREAMS),
-            target_subnet_streams: DBColumn::reopen(&db, constants::TARGET_SUBNET_STREAMS),
+            pending_certificates: DBColumn::reopen(db, constants::PENDING_CERTIFICATES),
+            certificates: DBColumn::reopen(db, constants::CERTIFICATES),
+            source_subnet_streams: DBColumn::reopen(db, constants::SOURCE_SUBNET_STREAMS),
+            target_subnet_streams: DBColumn::reopen(db, constants::TARGET_SUBNET_STREAMS),
             next_pending_id: AtomicU64::new(0),
         })
     }

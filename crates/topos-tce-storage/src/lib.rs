@@ -9,6 +9,7 @@ pub mod client;
 pub mod command;
 pub mod connection;
 pub mod errors;
+pub mod events;
 
 #[cfg(feature = "inmemory")]
 pub mod inmemory;
@@ -28,8 +29,6 @@ pub use inmemory::InMemoryStorage;
 pub use rocks::RocksDBStorage;
 
 pub type PendingCertificateId = u64;
-
-pub enum StorageEvent {}
 
 #[async_trait::async_trait]
 pub trait Storage: Sync + Send + 'static {

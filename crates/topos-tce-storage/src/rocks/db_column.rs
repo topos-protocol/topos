@@ -3,20 +3,21 @@ use std::{marker::PhantomData, sync::Arc};
 #[cfg(test)]
 use std::path::Path;
 
+use rocksdb::BoundColumnFamily;
 #[cfg(test)]
 use rocksdb::ColumnFamilyDescriptor;
 
 use bincode::Options;
-use rocksdb::{BoundColumnFamily, DBWithThreadMode, MultiThreaded};
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::errors::InternalStorageError;
 
 use super::{iterator::ColumnIterator, map::Map, RocksDB};
 
+/// A DBColumn represents a CF structure
 #[derive(Debug)]
 pub struct DBColumn<K, V> {
-    pub db: RocksDB,
+    db: RocksDB,
     _phantom: PhantomData<fn(K) -> V>,
     cf: String,
 }
@@ -42,7 +43,7 @@ where
             options.create_missing_column_families(true);
             RocksDB {
                 rocksdb: Arc::new(
-                    DBWithThreadMode::<MultiThreaded>::open_cf_descriptors(
+                    rocksdb::DBWithThreadMode::<rocksdb::MultiThreaded>::open_cf_descriptors(
                         &options,
                         &primary,
                         vec![ColumnFamilyDescriptor::new(column, default_rocksdb_options)],
@@ -69,10 +70,14 @@ where
         }
     }
 
+    /// Returns the CF of the DBColumn, used to build queries.
     fn cf(&self) -> Arc<BoundColumnFamily<'_>> {
         self.db.rocksdb.cf_handle(&self.cf).unwrap()
     }
 
+    /// Insert a record into the storage by passing a Key and a Value.
+    ///
+    /// Key are fixed length bincode serialized.
     pub(crate) fn insert(&self, key: &K, value: &V) -> Result<(), InternalStorageError> {
         let cf = self.cf();
 
@@ -85,6 +90,9 @@ where
         Ok(())
     }
 
+    /// Delete a record from the storage by passing a Key
+    ///
+    /// Key are fixed length bincode serialized.
     pub(crate) fn delete(&self, key: &K) -> Result<(), InternalStorageError> {
         let key_buf = be_fix_int_ser(key).unwrap();
 
@@ -93,6 +101,9 @@ where
         Ok(())
     }
 
+    /// Get a record from the storage by passing a Key
+    ///
+    /// Key are fixed length bincode serialized.
     pub(crate) fn get(&self, key: &K) -> Result<V, InternalStorageError> {
         let key_buf = be_fix_int_ser(key).unwrap();
 
@@ -129,6 +140,7 @@ where
     }
 }
 
+/// Serialize a value using a fix length serialize and a big endian endianness
 fn be_fix_int_ser<S>(t: &S) -> Result<Vec<u8>, InternalStorageError>
 where
     S: Serialize + ?Sized,

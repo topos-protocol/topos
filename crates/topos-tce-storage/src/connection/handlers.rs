@@ -7,8 +7,12 @@ use crate::{
     Connection, PendingCertificateId, Storage,
 };
 
-use super::CommandHandler;
+use super::handler::CommandHandler;
 
+/// Handle a AddPendingCertificate query
+///
+/// a AddPendingCertificate query will put the pending certificate into the storage
+/// and add the returned pending_id into the pending_certificates queue
 #[async_trait]
 impl<S> CommandHandler<AddPendingCertificate> for Connection<S>
 where
@@ -26,6 +30,7 @@ where
     }
 }
 
+/// Handle a CertificateDelivered query
 #[async_trait]
 impl<S> CommandHandler<CertificateDelivered> for Connection<S>
 where
@@ -36,6 +41,9 @@ where
     }
 }
 
+/// Handle a GetCertificate query
+///
+/// The GetCertificate query will just ask for delivered certificate
 #[async_trait]
 impl<S> CommandHandler<GetCertificate> for Connection<S>
 where

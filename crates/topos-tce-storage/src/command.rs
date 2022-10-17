@@ -3,31 +3,38 @@ use topos_core::uci::{Certificate, CertificateId};
 
 use crate::{errors::StorageError, PendingCertificateId};
 
-#[derive(Debug)]
-pub enum StorageCommand {
-    AddPendingCertificate(
-        AddPendingCertificate,
-        oneshot::Sender<Result<<AddPendingCertificate as Command>::Result, StorageError>>,
-    ),
-    CertificateDelivered(
-        CertificateDelivered,
-        oneshot::Sender<Result<<CertificateDelivered as Command>::Result, StorageError>>,
-    ),
-    GetCertificate(
-        GetCertificate,
-        oneshot::Sender<Result<<GetCertificate as Command>::Result, StorageError>>,
-    ),
+macro_rules! RegisterCommands {
+    ($($command:ident),+) => {
+        #[derive(Debug)]
+        pub enum StorageCommand {
+            $(
+                $command(
+                    $command,
+                    oneshot::Sender<Result<<$command as Command>::Result, StorageError>>,
+                ),
+            )*
+        }
+
+        $(
+            impl From<$command> for (StorageCommand, oneshot::Receiver<Result<<$command as Command>::Result, StorageError>>) {
+                fn from(command: $command) -> (StorageCommand, oneshot::Receiver<Result<<$command as Command>::Result, StorageError>>) {
+                    let (response_channel, receiver) = oneshot::channel();
+
+                    (
+                        StorageCommand::$command(command, response_channel),
+                        receiver
+                    )
+                }
+            }
+        )*
+    };
 }
+
+// TODO: Replace by inventory
+RegisterCommands!(AddPendingCertificate, CertificateDelivered, GetCertificate);
 
 pub trait Command {
     type Result: 'static;
-}
-
-#[derive(Debug)]
-pub enum ExpectedVersion {
-    Version(u64),
-    Start,
-    End,
 }
 
 #[derive(Debug)]

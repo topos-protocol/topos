@@ -11,6 +11,7 @@ pub struct ColumnIterator<'a, K, V> {
 }
 
 impl<'a, K, V> ColumnIterator<'a, K, V> {
+    /// Creates a new ColumnIterator base on a DBRawIteratorWithThreadMode
     pub fn new(iterator: DBRawIteratorWithThreadMode<'a, DBWithThreadMode<MultiThreaded>>) -> Self {
         Self {
             iterator,

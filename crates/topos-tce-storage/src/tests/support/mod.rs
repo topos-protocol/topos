@@ -3,12 +3,13 @@ use std::{
     sync::{atomic::AtomicU64, Arc},
 };
 
+use rocksdb::MultiThreaded;
 use rocksdb::Options;
 use rstest::fixture;
 
 use crate::{
     rocks::{
-        CertificatesColumn, PendingCertificatesColumn, RocksDB, SourceSubnetStreamsColumn,
+        db::RocksDB, CertificatesColumn, PendingCertificatesColumn, SourceSubnetStreamsColumn,
         TargetSubnetStreamsColumn,
     },
     RocksDBStorage,
@@ -39,11 +40,13 @@ pub(crate) fn storage(
 }
 
 #[fixture]
-pub(crate) fn rocksdb(created_folder: Box<PathBuf>) -> RocksDB {
+pub(crate) fn rocks_db(created_folder: Box<PathBuf>) -> RocksDB {
     let mut options = Options::default();
     options.create_if_missing(true);
     RocksDB {
-        rocksdb: Arc::new(rocksdb::DB::open(&options, created_folder)),
+        rocksdb: Arc::new(
+            rocksdb::DBWithThreadMode::<MultiThreaded>::open(&options, *created_folder).unwrap(),
+        ),
         batch_in_progress: Default::default(),
         atomic_batch: Default::default(),
     }
