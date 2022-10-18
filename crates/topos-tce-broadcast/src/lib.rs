@@ -21,7 +21,7 @@ use topos_core::uci::{Certificate, CertificateId, DigestCompressed, SubnetId};
 use tracing::{error, info};
 
 use crate::mem_store::TrbMemStore;
-use crate::sampler::Sampler;
+use crate::sampler::{Sampler, SubscribersUpdate, SubscriptionsView};
 use crate::trb_store::TrbStore;
 pub use topos_core::uci;
 
@@ -109,7 +109,10 @@ impl ReliableBroadcastClient {
 
         let peer_id = config.my_peer_id.clone();
 
-        let (sample_view_sender, sample_view_receiver) = mpsc::channel(2048);
+        let (subscriptions_view_sender, subscriptions_view_receiver) =
+            mpsc::channel::<SubscriptionsView>(2048);
+        let (subscribers_update_sender, subscribers_update_receiver) =
+            mpsc::channel::<SubscribersUpdate>(2048);
         let (sampler_command_sender, command_receiver) = mpsc::channel(2048);
         let (event_sender, event_receiver) = broadcast::channel(2048);
 
@@ -117,7 +120,8 @@ impl ReliableBroadcastClient {
             config.trbp_params.clone(),
             command_receiver,
             event_sender.clone(),
-            sample_view_sender,
+            subscriptions_view_sender,
+            subscribers_update_sender,
         );
 
         let (broadcast_commands, command_receiver) = mpsc::channel(2048);
@@ -126,7 +130,8 @@ impl ReliableBroadcastClient {
             peer_id.clone(),
             config.trbp_params,
             command_receiver,
-            sample_view_receiver,
+            subscriptions_view_receiver,
+            subscribers_update_receiver,
             event_sender,
             Box::new(TrbMemStore::default()),
         );

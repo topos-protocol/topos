@@ -11,7 +11,7 @@ rand_core.workspace = true
 rand_distr.workspace = true
 serde.workspace = true
 tokio-stream = { workspace = true, features = ["sync"] }
-tokio.workspace = true
+tokio = { workspace = true, features = ["full"] }
 tracing.workspace = true
 
 topos-core = { workspace = true, features = ["uci"] }

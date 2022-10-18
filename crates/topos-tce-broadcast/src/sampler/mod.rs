@@ -3,10 +3,7 @@ mod sampling;
 
 // Move to transport crate
 pub type Peer = String;
-use std::{
-    cmp::min,
-    collections::{HashMap, HashSet},
-};
+use std::{cmp::min, collections::HashSet};
 
 use tce_transport::{ReliableBroadcastParams, TrbpEvents};
 use tokio::sync::{broadcast, mpsc};
@@ -45,8 +42,50 @@ pub enum SampleType {
     ReadySubscriber,
 }
 
-//#[derive(Debug, Default)]
-pub type SampleView = HashMap<SampleType, HashSet<Peer>>;
+#[derive(Debug, Clone, Eq, PartialEq, Default)]
+pub struct SubscribersView {
+    pub echo: HashSet<Peer>,
+    pub ready: HashSet<Peer>,
+}
+
+impl SubscribersView {
+    pub fn get_subscribers(&self) -> Vec<Peer> {
+        self.echo
+            .iter()
+            .chain(self.ready.iter())
+            .cloned()
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>()
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum SubscribersUpdate {
+    NewEchoSubscriber(Peer),
+    RemoveEchoSubscriber(Peer),
+    RemoveEchoSubscribers(HashSet<Peer>),
+    NewReadySubscriber(Peer),
+    RemoveReadySubscriber(Peer),
+    RemoveReadySubscribers(HashSet<Peer>),
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Default)]
+pub struct SubscriptionsView {
+    pub echo: HashSet<Peer>,
+    pub ready: HashSet<Peer>,
+    pub delivery: HashSet<Peer>,
+}
+
+impl SubscriptionsView {
+    pub fn is_some(&self) -> bool {
+        !(self.echo.is_empty() || self.echo.is_empty() || self.echo.is_empty())
+    }
+
+    pub fn is_none(&self) -> bool {
+        self.echo.is_empty() && self.echo.is_empty() && self.echo.is_empty()
+    }
+}
 
 pub struct Sampler {
     params: ReliableBroadcastParams,
@@ -54,13 +93,11 @@ pub struct Sampler {
     event_sender: broadcast::Sender<TrbpEvents>,
     visible_peers: Vec<Peer>,
 
-    pending_echo_subscriptions: HashSet<Peer>,
-    pending_ready_subscriptions: HashSet<Peer>,
-    pending_delivery_subscriptions: HashSet<Peer>,
-
-    view: SampleView,
-    view_sender: mpsc::Sender<SampleView>,
-
+    pending_subscriptions: SubscriptionsView,
+    subscriptions: SubscriptionsView,
+    subscribers: SubscribersView, // View of the peers that are following me. Kept for purpose of sending RemoveSubscriber to DoubleEcho
+    subscriptions_sender: mpsc::Sender<SubscriptionsView>,
+    subscribers_update_sender: mpsc::Sender<SubscribersUpdate>,
     status: SampleProviderStatus,
 }
 
@@ -69,18 +106,19 @@ impl Sampler {
         params: ReliableBroadcastParams,
         command_receiver: mpsc::Receiver<SamplerCommand>,
         event_sender: broadcast::Sender<TrbpEvents>,
-        view_sender: mpsc::Sender<SampleView>,
+        subscriptions_sender: mpsc::Sender<SubscriptionsView>,
+        subscribers_update_sender: mpsc::Sender<SubscribersUpdate>,
     ) -> Self {
         Self {
             params,
             command_receiver,
             event_sender,
-            view_sender,
             visible_peers: Vec::new(),
-            pending_echo_subscriptions: HashSet::new(),
-            pending_ready_subscriptions: HashSet::new(),
-            pending_delivery_subscriptions: HashSet::new(),
-            view: SampleView::new(),
+            pending_subscriptions: Default::default(),
+            subscriptions: SubscriptionsView::default(),
+            subscribers: SubscribersView::default(),
+            subscriptions_sender,
+            subscribers_update_sender,
             status: SampleProviderStatus::Stabilized,
         }
     }
@@ -98,7 +136,7 @@ impl Sampler {
 
                             self.pending_subs_state_change_follow_up().await;
                         }
-                        SamplerCommand::PeersChanged { peers } => self.peer_changed(peers)
+                        SamplerCommand::PeersChanged { peers } => self.peers_changed(peers).await
                     }
                 }
             }
@@ -107,49 +145,76 @@ impl Sampler {
 }
 
 impl Sampler {
-    pub(crate) fn add_confirmed_peer_to_sample(
+    pub(crate) fn add_confirmed_subscription_peer_to_sample(
         &mut self,
         sample_type: SampleType,
         peer: &str,
     ) -> Result<(), ()> {
-        if self
-            .view
-            .entry(sample_type)
-            .or_default()
-            .insert(peer.to_string())
-        {
+        let result = match sample_type {
+            SampleType::EchoSubscription => self.subscriptions.echo.insert(peer.to_string()),
+            SampleType::ReadySubscription => self.subscriptions.ready.insert(peer.to_string()),
+            SampleType::DeliverySubscription => {
+                self.subscriptions.delivery.insert(peer.to_string())
+            }
+            _ => false,
+        };
+        if result {
             Ok(())
         } else {
             Err(())
         }
     }
 
-    fn peer_changed(&mut self, peers: Vec<Peer>) {
+    pub(crate) fn add_confirmed_subscriber_peer_to_sample(
+        &mut self,
+        sample_type: SampleType,
+        peer: &str,
+    ) -> Result<(), ()> {
+        let result = match sample_type {
+            SampleType::EchoSubscriber => self.subscribers.echo.insert(peer.to_string()),
+            SampleType::ReadySubscriber => self.subscribers.ready.insert(peer.to_string()),
+            _ => false,
+        };
+        if result {
+            Ok(())
+        } else {
+            Err(())
+        }
+    }
+
+    async fn peers_changed(&mut self, peers: Vec<Peer>) {
         self.visible_peers = peers;
-        self.reset_samples();
+        self.reset_samples().await;
     }
 
     async fn pending_subs_state_change_follow_up(&mut self) {
-        if matches!(self.status, SampleProviderStatus::Stabilized) {
-            return;
-        }
-
-        let stable_view = self.pending_echo_subscriptions.is_empty()
-            && self.pending_ready_subscriptions.is_empty()
-            && self.pending_delivery_subscriptions.is_empty();
-
-        if stable_view {
-            // Attempt to send the new view to the Broadcaster
-            match self.view_sender.send(self.view.clone()).await {
-                Ok(_) => {
-                    self.status = SampleProviderStatus::Stabilized;
-                }
-                Err(e) => {
-                    error!("Fail to send new sample view {:?} ", e);
+        match self.status {
+            SampleProviderStatus::Stabilized => {
+                // Do nothing
+            }
+            SampleProviderStatus::BuildingNewView => {
+                let stable_view = self.pending_subscriptions.echo.is_empty()
+                    && self.pending_subscriptions.ready.is_empty()
+                    && self.pending_subscriptions.delivery.is_empty();
+                if stable_view {
+                    // Attempt to send the new subscription view to the Broadcaster
+                    match self
+                        .subscriptions_sender
+                        .send(self.subscriptions.clone())
+                        .await
+                    {
+                        Ok(_) => {
+                            self.status = SampleProviderStatus::Stabilized;
+                        }
+                        Err(e) => {
+                            error!("Fail to send new subscription sample view {:?} ", e);
+                        }
+                    }
                 }
             }
         }
     }
+
     async fn handle_peer_confirmation(
         &mut self,
         sample_type: SampleType,
@@ -158,57 +223,104 @@ impl Sampler {
         debug!("ConfirmPeer {peer} in {sample_type:?}",);
         match sample_type {
             SampleType::EchoSubscription => {
-                if self.pending_echo_subscriptions.remove(&peer) {
-                    return self.add_confirmed_peer_to_sample(SampleType::EchoSubscription, &peer);
+                if self.pending_subscriptions.echo.remove(&peer) {
+                    return self.add_confirmed_subscription_peer_to_sample(
+                        SampleType::EchoSubscription,
+                        &peer,
+                    );
                 }
             }
             SampleType::ReadySubscription => {
-                if self.pending_ready_subscriptions.remove(&peer) {
-                    return self.add_confirmed_peer_to_sample(SampleType::ReadySubscription, &peer);
+                if self.pending_subscriptions.ready.remove(&peer) {
+                    return self.add_confirmed_subscription_peer_to_sample(
+                        SampleType::ReadySubscription,
+                        &peer,
+                    );
                 }
             }
             SampleType::DeliverySubscription => {
-                if self.pending_delivery_subscriptions.remove(&peer) {
-                    return self
-                        .add_confirmed_peer_to_sample(SampleType::DeliverySubscription, &peer);
+                if self.pending_subscriptions.delivery.remove(&peer) {
+                    return self.add_confirmed_subscription_peer_to_sample(
+                        SampleType::DeliverySubscription,
+                        &peer,
+                    );
                 }
             }
 
             SampleType::EchoSubscriber => {
-                let _ = self.add_confirmed_peer_to_sample(SampleType::EchoSubscriber, &peer);
+                self.add_confirmed_subscriber_peer_to_sample(SampleType::EchoSubscriber, &peer)?;
+                if let Err(error) = self
+                    .subscribers_update_sender
+                    .send(SubscribersUpdate::NewEchoSubscriber(peer.clone()))
+                    .await
+                {
+                    error!("Unable to send NewEchoSubscriber message {:?}", error);
+                    return Err(());
+                } else {
+                    return Ok(());
+                }
             }
             SampleType::ReadySubscriber => {
-                let _ = self.add_confirmed_peer_to_sample(SampleType::ReadySubscriber, &peer);
+                self.add_confirmed_subscriber_peer_to_sample(SampleType::ReadySubscriber, &peer)?;
+                if let Err(error) = self
+                    .subscribers_update_sender
+                    .send(SubscribersUpdate::NewReadySubscriber(peer.clone()))
+                    .await
+                {
+                    error!("Unable to send NewReadySubscriber message {:?}", error);
+                    return Err(());
+                } else {
+                    return Ok(());
+                }
             }
         }
 
         Err(())
     }
 
-    fn reset_samples(&mut self) {
+    async fn reset_samples(&mut self) {
         self.status = SampleProviderStatus::BuildingNewView;
 
-        // Reset unvisible subscribers
-        if let Some(echo_subscribers) = self.view.get_mut(&SampleType::EchoSubscriber) {
-            echo_subscribers.retain(|p| self.visible_peers.contains(p));
-        } else {
-            self.view.insert(SampleType::EchoSubscriber, HashSet::new());
+        // Reset invisible echo subscribers
+        let (echo_peers_to_keep, echo_peers_to_remove): (HashSet<Peer>, HashSet<Peer>) = self
+            .subscribers
+            .echo
+            .drain()
+            .partition(|p| self.visible_peers.contains(p));
+        self.subscribers.echo = echo_peers_to_keep;
+        // Generate remove echo subscriber event
+        if let Err(error) = self
+            .subscribers_update_sender
+            .send(SubscribersUpdate::RemoveEchoSubscribers(
+                echo_peers_to_remove,
+            ))
+            .await
+        {
+            error!("Unable to send RemoveEchoSubscribers event {:?}", error);
         }
 
-        if let Some(ready_subscribers) = self.view.get_mut(&SampleType::ReadySubscriber) {
-            ready_subscribers.retain(|p| self.visible_peers.contains(p));
-        } else {
-            self.view
-                .insert(SampleType::ReadySubscriber, HashSet::new());
+        // Reset invisible ready subscribers
+        let (ready_peers_to_keep, ready_peers_to_remove): (HashSet<Peer>, HashSet<Peer>) = self
+            .subscribers
+            .ready
+            .drain()
+            .partition(|p| self.visible_peers.contains(p));
+        self.subscribers.ready = ready_peers_to_keep;
+        // Generate remove ready subscriber event
+        if let Err(error) = self
+            .subscribers_update_sender
+            .send(SubscribersUpdate::RemoveReadySubscribers(
+                ready_peers_to_remove,
+            ))
+            .await
+        {
+            error!("Unable to send RemoveReadySubscribers event {:?}", error);
         }
 
         // Reset subscriptions
-        self.view
-            .insert(SampleType::EchoSubscription, HashSet::new());
-        self.view
-            .insert(SampleType::ReadySubscription, HashSet::new());
-        self.view
-            .insert(SampleType::DeliverySubscription, HashSet::new());
+        self.subscriptions.echo.clear();
+        self.subscriptions.ready.clear();
+        self.subscriptions.delivery.clear();
 
         self.reset_echo_subscription_sample();
         self.reset_ready_subscription_sample();
@@ -217,7 +329,7 @@ impl Sampler {
 
     /// subscription echo sampling
     fn reset_echo_subscription_sample(&mut self) {
-        self.pending_echo_subscriptions.clear();
+        self.pending_subscriptions.echo.clear();
 
         let echo_sizer = |len| min(len, self.params.echo_sample_size);
         match sample_reduce_from(&self.visible_peers, echo_sizer) {
@@ -229,7 +341,7 @@ impl Sampler {
 
                 for peer in &echo_candidates.value {
                     info!("Adding {peer} to pending echo subscriptions");
-                    self.pending_echo_subscriptions.insert(peer.clone());
+                    self.pending_subscriptions.echo.insert(peer.clone());
                 }
 
                 if let Err(error) = self.event_sender.send(TrbpEvents::EchoSubscribeReq {
@@ -249,7 +361,7 @@ impl Sampler {
 
     /// subscription ready sampling
     fn reset_ready_subscription_sample(&mut self) {
-        self.pending_ready_subscriptions.clear();
+        self.pending_subscriptions.ready.clear();
 
         let ready_sizer = |len| min(len, self.params.ready_sample_size);
         match sample_reduce_from(&self.visible_peers, ready_sizer) {
@@ -261,7 +373,7 @@ impl Sampler {
 
                 for peer in &ready_candidates.value {
                     info!("Adding {peer} to pending ready subscriptions");
-                    self.pending_ready_subscriptions.insert(peer.clone());
+                    self.pending_subscriptions.ready.insert(peer.clone());
                 }
 
                 if let Err(error) = self.event_sender.send(TrbpEvents::ReadySubscribeReq {
@@ -281,7 +393,7 @@ impl Sampler {
 
     /// subscription delivery sampling
     fn reset_delivery_subscription_sample(&mut self) {
-        self.pending_delivery_subscriptions.clear();
+        self.pending_subscriptions.delivery.clear();
 
         let delivery_sizer = |len| min(len, self.params.delivery_sample_size);
         match sample_reduce_from(&self.visible_peers, delivery_sizer) {
@@ -293,7 +405,7 @@ impl Sampler {
 
                 for peer in &delivery_candidates.value {
                     info!("Adding {peer} to pending delivery subscriptions");
-                    self.pending_delivery_subscriptions.insert(peer.clone());
+                    self.pending_subscriptions.delivery.insert(peer.clone());
                 }
 
                 if let Err(error) = self.event_sender.send(TrbpEvents::ReadySubscribeReq {
@@ -322,15 +434,30 @@ pub struct SamplerClient {
 mod tests {
 
     use super::*;
+    use rand::{seq::IteratorRandom, Rng};
     use tokio::sync::broadcast::error::TryRecvError;
+    use tokio::sync::mpsc::Receiver;
 
-    #[test]
-    fn on_peer_change_sample_view_is_reset() {
+    fn get_sample(peers: &[Peer], sample_size: usize) -> HashSet<Peer> {
+        let mut rng = rand::thread_rng();
+        HashSet::from_iter(peers.iter().cloned().choose_multiple(&mut rng, sample_size))
+    }
+
+    fn get_subscriber_view(peers: &[Peer], sample_size: usize) -> SubscribersView {
+        let mut expected_view = SubscribersView::default();
+        expected_view.echo = get_sample(&peers, sample_size);
+        expected_view.ready = get_sample(&peers, sample_size);
+        expected_view
+    }
+
+    #[tokio::test]
+    async fn on_peer_change_subscription_sample_view_is_reset() {
         cyclerng::utils::set_cycle([1]);
 
         let (_, cmd_receiver) = mpsc::channel(10);
         let (event_sender, mut event_receiver) = broadcast::channel(10);
-        let (view_sender, _) = mpsc::channel(10);
+        let (subscriptions_view_sender, _) = mpsc::channel(10);
+        let (subscribers_update_sender, _) = mpsc::channel(10);
 
         let nb_peers = 100;
         let sample_size = 10;
@@ -346,7 +473,8 @@ mod tests {
             },
             cmd_receiver,
             event_sender,
-            view_sender,
+            subscriptions_view_sender,
+            subscribers_update_sender,
         );
 
         let mut peers = Vec::new();
@@ -354,7 +482,7 @@ mod tests {
             peers.push(format!("peer_{i}"));
         }
 
-        sampler.peer_changed(peers);
+        sampler.peers_changed(peers).await;
 
         assert!(matches!(
             sampler.status,
@@ -379,57 +507,39 @@ mod tests {
             Err(TryRecvError::Empty)
         ));
 
-        assert_eq!(
-            sampler
-                .view
-                .get(&SampleType::EchoSubscription)
-                .unwrap()
-                .len(),
-            0
-        );
+        assert_eq!(sampler.subscriptions.echo.len(), 0);
 
-        assert_eq!(
-            sampler
-                .view
-                .get(&SampleType::ReadySubscription)
-                .unwrap()
-                .len(),
-            0
-        );
+        assert_eq!(sampler.subscriptions.ready.len(), 0);
 
-        assert_eq!(
-            sampler
-                .view
-                .get(&SampleType::DeliverySubscription)
-                .unwrap()
-                .len(),
-            0
-        );
+        assert_eq!(sampler.subscriptions.delivery.len(), 0);
     }
 
     #[tokio::test]
-    async fn confirming_peers_and_create_expected_view() {
+    async fn on_peer_change_subscribers_sample_view_is_updated() {
         cyclerng::utils::set_cycle([1]);
 
-        let (_, cmd_receiver) = mpsc::channel(100);
-        let (event_sender, mut _event_receiver) = broadcast::channel(100);
-        let (view_sender, mut view_receiver) = mpsc::channel(10);
+        let (_, cmd_receiver) = mpsc::channel(10);
+        let (event_sender, mut _event_receiver) = broadcast::channel(10);
+        let (subscriptions_view_sender, _) = mpsc::channel(10);
+        let (subscribers_update_sender, _) = mpsc::channel(10);
 
-        let g = |a, b| ((a as f32) * b) as usize;
         let nb_peers = 100;
-        let sample_size = 10;
+        let subscription_sample_size = 10;
+        let subscriber_sample_size = 8;
+        let g = |a, b| ((a as f32) * b) as usize;
         let mut sampler = Sampler::new(
             ReliableBroadcastParams {
-                echo_threshold: g(sample_size, 0.5),
-                echo_sample_size: sample_size,
-                ready_threshold: g(sample_size, 0.5),
-                ready_sample_size: sample_size,
-                delivery_threshold: g(sample_size, 0.5),
-                delivery_sample_size: sample_size,
+                echo_threshold: g(subscription_sample_size, 0.5),
+                echo_sample_size: subscription_sample_size,
+                ready_threshold: g(subscription_sample_size, 0.5),
+                ready_sample_size: subscription_sample_size,
+                delivery_threshold: g(subscription_sample_size, 0.5),
+                delivery_sample_size: subscription_sample_size,
             },
             cmd_receiver,
             event_sender,
-            view_sender,
+            subscriptions_view_sender,
+            subscribers_update_sender,
         );
 
         let mut peers = Vec::new();
@@ -437,53 +547,255 @@ mod tests {
             peers.push(format!("peer_{i}"));
         }
 
-        sampler.peer_changed(peers);
+        let mut subscribers_view = get_subscriber_view(&peers, subscriber_sample_size);
+        sampler.subscribers = subscribers_view.clone();
 
-        let mut expected_view = SampleView::default();
-        expected_view.insert(SampleType::EchoSubscriber, HashSet::new());
-        expected_view.insert(SampleType::ReadySubscriber, HashSet::new());
-        expected_view.insert(
-            SampleType::EchoSubscription,
-            sampler.pending_echo_subscriptions.clone(),
+        // Change the peer pool
+        let mut rng = rand::thread_rng();
+        let (new_echo_subscribers, removed_echo_subscribers): (HashSet<Peer>, HashSet<Peer>) =
+            subscribers_view
+                .echo
+                .drain()
+                .partition(|_p| rng.gen_range(0..20) > 10);
+        let (new_ready_subscribers, removed_ready_subscribers): (HashSet<Peer>, HashSet<Peer>) =
+            subscribers_view
+                .ready
+                .drain()
+                .partition(|_p| rng.gen_range(0..20) > 10);
+
+        // Remove from peers
+        let new_peers = peers
+            .into_iter()
+            .filter(|p| {
+                !(removed_echo_subscribers.contains(p) || removed_ready_subscribers.contains(p))
+            })
+            .collect();
+
+        let expected_echo_subscribers = new_echo_subscribers
+            .into_iter()
+            .filter(|p| !removed_ready_subscribers.contains(p))
+            .collect::<HashSet<Peer>>();
+        let expected_ready_subscribers = new_ready_subscribers
+            .into_iter()
+            .filter(|p| !removed_echo_subscribers.contains(p))
+            .collect::<HashSet<Peer>>();
+
+        sampler.peers_changed(new_peers).await;
+
+        assert_eq!(
+            sampler.subscribers.echo.len(),
+            expected_echo_subscribers.len()
         );
-        expected_view.insert(
-            SampleType::ReadySubscription,
-            sampler.pending_ready_subscriptions.clone(),
+        assert_eq!(
+            sampler.subscribers.ready.len(),
+            expected_ready_subscribers.len()
         );
-        expected_view.insert(
-            SampleType::DeliverySubscription,
-            sampler.pending_delivery_subscriptions.clone(),
+        assert_eq!(sampler.subscribers.echo, expected_echo_subscribers);
+        assert_eq!(sampler.subscribers.ready, expected_ready_subscribers);
+    }
+
+    #[tokio::test]
+    async fn confirming_peers_and_create_expected_subscriptions_view() {
+        cyclerng::utils::set_cycle([1]);
+
+        let (_, cmd_receiver) = mpsc::channel(100);
+        let (event_sender, mut _event_receiver) = broadcast::channel(100);
+        let (subscriptions_view_sender, mut subscriptions_view_receiver) = mpsc::channel(10);
+        let (subscribers_update_sender, mut _subscribers_update_receiver) = mpsc::channel(10);
+
+        let g = |a, b| ((a as f32) * b) as usize;
+        let nb_peers = 100;
+        let subscription_sample_size = 10;
+        let mut sampler = Sampler::new(
+            ReliableBroadcastParams {
+                echo_threshold: g(subscription_sample_size, 0.5),
+                echo_sample_size: subscription_sample_size,
+                ready_threshold: g(subscription_sample_size, 0.5),
+                ready_sample_size: subscription_sample_size,
+                delivery_threshold: g(subscription_sample_size, 0.5),
+                delivery_sample_size: subscription_sample_size,
+            },
+            cmd_receiver,
+            event_sender,
+            subscriptions_view_sender,
+            subscribers_update_sender,
         );
 
-        for p in sampler.pending_echo_subscriptions.clone() {
+        let mut peers = Vec::new();
+        for i in 0..nb_peers {
+            peers.push(format!("peer_{i}"));
+        }
+
+        sampler.peers_changed(peers).await;
+
+        let expected_subscriptions_view = sampler.pending_subscriptions.clone();
+
+        for p in sampler.pending_subscriptions.echo.clone() {
             sampler
-                .handle_peer_confirmation(SampleType::EchoSubscription, p.to_owned())
+                .handle_peer_confirmation(SampleType::EchoSubscription, p)
                 .await
                 .expect("Handle peer confirmation");
         }
 
-        for p in sampler.pending_ready_subscriptions.clone() {
+        for p in sampler.pending_subscriptions.ready.clone() {
             sampler
-                .handle_peer_confirmation(SampleType::ReadySubscription, p.to_owned())
+                .handle_peer_confirmation(SampleType::ReadySubscription, p)
                 .await
                 .expect("Handle peer confirmation");
         }
 
-        for p in sampler.pending_delivery_subscriptions.clone() {
+        for p in sampler.pending_subscriptions.delivery.clone() {
             sampler
-                .handle_peer_confirmation(SampleType::DeliverySubscription, p.to_owned())
+                .handle_peer_confirmation(SampleType::DeliverySubscription, p)
                 .await
                 .expect("Handle peer confirmation");
         }
 
-        assert!(sampler.pending_echo_subscriptions.is_empty());
-        assert!(sampler.pending_ready_subscriptions.is_empty());
-        assert!(sampler.pending_delivery_subscriptions.is_empty());
+        assert!(sampler.pending_subscriptions.echo.is_empty());
+        assert!(sampler.pending_subscriptions.ready.is_empty());
+        assert!(sampler.pending_subscriptions.delivery.is_empty());
 
         sampler.pending_subs_state_change_follow_up().await;
 
         assert!(
-            matches!(view_receiver.try_recv(), Ok(produced_view) if produced_view == expected_view)
+            matches!(subscriptions_view_receiver.try_recv(), Ok(produced_view) if produced_view == expected_subscriptions_view)
         );
+    }
+
+    fn handle_subscriber_update(
+        subscribers_update_receiver: &mut Receiver<SubscribersUpdate>,
+        resulting_echo_subscribers: HashSet<Peer>,
+        resulting_ready_subscribers: HashSet<Peer>,
+    ) -> (HashSet<Peer>, HashSet<Peer>) {
+        let mut resulting_echo_subscribers = resulting_echo_subscribers;
+        let mut resulting_ready_subscribers = resulting_ready_subscribers;
+        while let Ok(update) = subscribers_update_receiver.try_recv() {
+            match update {
+                SubscribersUpdate::NewEchoSubscriber(subscriber) => {
+                    resulting_echo_subscribers.insert(subscriber);
+                }
+                SubscribersUpdate::NewReadySubscriber(subscriber) => {
+                    resulting_ready_subscribers.insert(subscriber);
+                }
+                SubscribersUpdate::RemoveEchoSubscriber(subscriber) => {
+                    resulting_echo_subscribers.remove(&subscriber);
+                }
+                SubscribersUpdate::RemoveReadySubscriber(subscriber) => {
+                    resulting_ready_subscribers.remove(&subscriber);
+                }
+                SubscribersUpdate::RemoveEchoSubscribers(subscribers) => {
+                    resulting_echo_subscribers = resulting_echo_subscribers
+                        .into_iter()
+                        .filter(|p| !subscribers.contains(p))
+                        .collect::<HashSet<Peer>>();
+                }
+                SubscribersUpdate::RemoveReadySubscribers(subscribers) => {
+                    resulting_ready_subscribers = resulting_ready_subscribers
+                        .into_iter()
+                        .filter(|p| !subscribers.contains(p))
+                        .collect::<HashSet<Peer>>();
+                }
+            }
+        }
+        (resulting_echo_subscribers, resulting_ready_subscribers)
+    }
+
+    #[tokio::test]
+    async fn confirming_peers_and_create_expected_subscribers_view() {
+        cyclerng::utils::set_cycle([1]);
+
+        let (_, cmd_receiver) = mpsc::channel(100);
+        let (event_sender, mut _event_receiver) = broadcast::channel(100);
+        let (subscriptions_view_sender, mut _subscriptions_view_receiver) = mpsc::channel(10);
+        let (subscribers_update_sender, mut subscribers_update_receiver) = mpsc::channel(100);
+
+        let g = |a, b| ((a as f32) * b) as usize;
+        let nb_peers = 100;
+        let subscription_sample_size = 10;
+        let subscribers_sample_size = 10;
+        let mut sampler = Sampler::new(
+            ReliableBroadcastParams {
+                echo_threshold: g(subscription_sample_size, 0.5),
+                echo_sample_size: subscription_sample_size,
+                ready_threshold: g(subscription_sample_size, 0.5),
+                ready_sample_size: subscription_sample_size,
+                delivery_threshold: g(subscription_sample_size, 0.5),
+                delivery_sample_size: subscription_sample_size,
+            },
+            cmd_receiver,
+            event_sender,
+            subscriptions_view_sender,
+            subscribers_update_sender,
+        );
+
+        let mut peers = Vec::new();
+        for i in 0..nb_peers {
+            peers.push(format!("peer_{i}"));
+        }
+
+        sampler.peers_changed(peers.clone()).await;
+
+        let initial_subscribers_view = get_subscriber_view(&peers, subscribers_sample_size);
+        for p in initial_subscribers_view.echo.clone() {
+            sampler
+                .handle_peer_confirmation(SampleType::EchoSubscriber, p)
+                .await
+                .expect("Handle peer confirmation");
+        }
+
+        for p in initial_subscribers_view.ready.clone() {
+            sampler
+                .handle_peer_confirmation(SampleType::ReadySubscriber, p)
+                .await
+                .expect("Handle peer confirmation");
+        }
+
+        sampler.pending_subs_state_change_follow_up().await;
+
+        let resulting_echo_subscribers: HashSet<Peer> = HashSet::new();
+        let resulting_ready_subscribers: HashSet<Peer> = HashSet::new();
+        let (resulting_echo_subscribers, resulting_ready_subscribers) = handle_subscriber_update(
+            &mut subscribers_update_receiver,
+            resulting_echo_subscribers,
+            resulting_ready_subscribers,
+        );
+
+        assert_eq!(sampler.subscribers.echo, resulting_echo_subscribers);
+        assert_eq!(sampler.subscribers.ready, resulting_ready_subscribers);
+
+        //Remove some and add additional peers
+        let mut rng = rand::thread_rng();
+        let (mut new_peers, _removed_peers): (Vec<Peer>, Vec<Peer>) =
+            peers.into_iter().partition(|_p| rng.gen_range(0..20) > 10);
+        for i in nb_peers..nb_peers + 20 {
+            new_peers.push(format!("peer_{i}"));
+        }
+        // Cleanup subscribers according to new peers
+        sampler.peers_changed(new_peers.clone()).await;
+
+        // Add some more subscribers
+        let additional_subscribers_view = get_subscriber_view(&new_peers, subscribers_sample_size);
+        for p in additional_subscribers_view.echo.clone() {
+            sampler
+                .handle_peer_confirmation(SampleType::EchoSubscriber, p)
+                .await
+                .unwrap_or_default()
+        }
+
+        for p in additional_subscribers_view.ready.clone() {
+            sampler
+                .handle_peer_confirmation(SampleType::ReadySubscriber, p)
+                .await
+                .unwrap_or_default();
+        }
+
+        let (resulting_echo_subscribers, resulting_ready_subscribers) = handle_subscriber_update(
+            &mut subscribers_update_receiver,
+            resulting_echo_subscribers,
+            resulting_ready_subscribers,
+        );
+
+        assert_eq!(sampler.subscribers.echo, resulting_echo_subscribers);
+        assert_eq!(sampler.subscribers.ready, resulting_ready_subscribers);
     }
 }
