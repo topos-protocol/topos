@@ -13,6 +13,13 @@
   </p>
 </div>
 
+<br/>
+
+[![codecov](https://codecov.io/gh/toposware/tce/branch/main/graph/badge.svg?token=FOH2B2GRL9)](https://codecov.io/gh/toposware/tce)
+![example workflow](https://github.com/toposware/tce/actions/workflows/test.yml/badge.svg)
+![example workflow](https://github.com/toposware/tce/actions/workflows/format.yml/badge.svg)
+![example workflow](https://github.com/toposware/tce/actions/workflows/lint.yml/badge.svg)
+
 The [Transmission Control Engine](https://docs.toposware.com/learn/tce/overview) serves as the foundation for consistent cross-subnet communication, which is core to the [Topos](https://docs.toposware.com/general-overview) ecosystem.
 This repository includes the core implementation of TCE client.
 
