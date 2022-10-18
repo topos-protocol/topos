@@ -8,7 +8,7 @@
 
   <h1>Transmission Control Engine</h1>
   
-  <p width="70%">
+  <p>
     The <a href="https://docs.toposware.com/learn/tce/overview" target="_blank">Transmission Control Engine</a> serves as the foundation for consistent cross-subnet communication, <br/> which is core to the <a href="https://docs.toposware.com/general-overview" target="_blank">Topos</a> ecosystem.
   </p>
   
