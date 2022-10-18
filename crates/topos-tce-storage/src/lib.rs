@@ -10,6 +10,30 @@ pub mod errors;
 
 pub type PendingCertificateId = u64;
 
+/// Certificate index in the history of its emitter subnet
+pub type Height = u64;
+
+/// Uniquely identify the tip of one subnet.
+/// The tip represent the internal state of the TCE regarding a source subnet stream
+#[derive(Serialize, Deserialize)]
+pub struct Tip {
+    /// Certificate id of the tip
+    cert_id: CertificateId,
+    /// Subnet id of the tip
+    subnet_id: SubnetId,
+    /// Height of the Certificate
+    height: Height,
+    /// Timestamp of the Certificate
+    timestamp: SystemTime,
+}
+
+/// Define possible status of a certificate
+#[derive(Debug, Deserialize, Serialize)]
+pub enum CertificateStatus {
+    Pending,
+    Delivered,
+}
+
 #[async_trait::async_trait]
 pub trait Storage: Sync + Send + 'static {
     /// Add a pending certificate to the pool
@@ -72,26 +96,4 @@ pub trait Storage: Sync + Send + 'static {
 
     /// Remove a certificate from pending pool
     async fn remove_pending_certificate(&self, index: u64) -> Result<(), InternalStorageError>;
-}
-
-/// Certificate index in the history of its emitter subnet
-pub type Height = u64;
-
-/// Uniquely identify the tip of which subnet
-#[derive(Serialize, Deserialize)]
-pub struct Tip {
-    /// Certificate id of the tip
-    cert_id: CertificateId,
-    /// Subnet id of the tip
-    subnet_id: SubnetId,
-    /// Height of the Certificate
-    height: Height,
-    /// Timestamp of the Certificate
-    timestamp: SystemTime,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub enum CertificateStatus {
-    Pending,
-    Delivered,
 }
