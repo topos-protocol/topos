@@ -1,54 +1,54 @@
 use std::net::SocketAddr;
 
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use tce_transport::ReliableBroadcastParams;
 use topos_p2p::{Multiaddr, PeerId};
 use tracing::info;
 
 /// Application configuration
 #[derive(Debug, Parser)]
-#[clap(name = "TCE node (toposware.com)")]
+#[command(name = "TCE node (toposware.com)")]
 pub struct AppArgs {
     /// Boot nodes to connect to, pairs of <PeerId> <Multiaddr>, space separated,
     /// quoted list like --boot-peers='a a1 b b1'
-    #[clap(long, default_value = "", env = "TCE_BOOT_PEERS")]
+    #[arg(long, default_value = "", env = "TCE_BOOT_PEERS")]
     pub boot_peers: String,
 
     /// Advertised (externally visible) <host|address:port>,
     /// if empty this machine ip address(es) are used
-    #[clap(long, env = "TCE_EXT_HOST")]
+    #[arg(long, env = "TCE_EXT_HOST")]
     pub tce_ext_host: Option<String>,
 
     /// Port to listen on (host is 0.0.0.0, should be good for most installations)
-    #[clap(long, default_value_t = 0, env = "TCE_PORT")]
+    #[arg(long, default_value_t = 0, env = "TCE_PORT")]
     pub tce_local_port: u16,
 
     /// WebAPI external url <host|address:port> (optional)
-    #[clap(long, env = "TCE_WEB_API_EXT_URL")]
+    #[arg(long, env = "TCE_WEB_API_EXT_URL")]
     pub web_api_ext_url: Option<String>,
 
     /// WebAPI port
-    #[clap(long, default_value_t = 8080, env = "TCE_WEB_API_PORT")]
+    #[arg(long, default_value_t = 8080, env = "TCE_WEB_API_PORT")]
     pub web_api_local_port: u16,
 
     /// Local peer secret key seed (optional, used for testing)
-    #[clap(long, env = "TCE_LOCAL_KS")]
+    #[arg(long, env = "TCE_LOCAL_KS")]
     pub local_key_seed: Option<u8>,
 
     /// Local peer key-pair (in base64 format)
-    #[clap(long, env = "TCE_LOCAL_KEYPAIR")]
+    #[arg(long, env = "TCE_LOCAL_KEYPAIR")]
     pub local_key_pair: Option<String>,
 
     /// Storage database path, if not set RAM storage is used
-    #[clap(long, env = "TCE_DB_PATH")]
+    #[arg(long, env = "TCE_DB_PATH")]
     pub db_path: Option<String>,
 
     /// Socket of the Jaeger agent endpoint
-    #[clap(long, default_value = "127.0.0.1:6831", env = "TCE_JAEGER_AGENT")]
+    #[arg(long, default_value = "127.0.0.1:6831", env = "TCE_JAEGER_AGENT")]
     pub jaeger_agent: String,
 
     /// Jaeger service name
-    #[clap(
+    #[arg(
         long,
         default_value = "tce-jaeger-service",
         env = "TCE_JAEGER_SERVICE_NAME"
@@ -56,12 +56,15 @@ pub struct AppArgs {
     pub jaeger_service_name: String,
 
     /// gRPC API Addr
-    #[clap(long, env = "TCE_API_ADDR", default_value = "[::1]:1340")]
+    #[arg(long, env = "TCE_API_ADDR", default_value = "[::1]:1340")]
     pub api_addr: SocketAddr,
 
     /// TRBP parameters
-    #[clap(flatten)]
+    #[command(flatten)]
     pub trbp_params: ReliableBroadcastParams,
+
+    #[command(subcommand)]
+    pub(crate) command: Option<Command>,
 }
 
 impl AppArgs {
@@ -84,4 +87,10 @@ impl AppArgs {
             })
             .collect()
     }
+}
+
+#[derive(Debug, Subcommand)]
+pub(crate) enum Command {
+    Run,
+    GeneratePeerId { seed: u8 },
 }

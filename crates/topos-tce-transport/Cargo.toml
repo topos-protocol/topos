@@ -12,4 +12,4 @@ serde.workspace = true
 
 topos-core = { workspace = true, features = ["uci"] }
 
-clap = { version = "3.0.10", features = ["derive", "env"] }
+clap = { version = "4.0", features = ["derive", "env"] }

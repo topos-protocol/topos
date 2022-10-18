@@ -18,6 +18,11 @@ async fn main() {
     info!("Initializing application");
     let args = AppArgs::parse();
 
+    if let Some(cli::Command::GeneratePeerId { seed }) = args.command {
+        println!("{}", local_key_pair(Some(seed)).public().to_peer_id());
+        return;
+    }
+
     tce_telemetry::init_tracer(&args.jaeger_agent, &args.jaeger_service_name);
 
     // launch data store
