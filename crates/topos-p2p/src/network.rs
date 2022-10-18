@@ -105,17 +105,25 @@ impl NetworkBuilder {
                 .listen_addr
                 .take()
                 .expect("P2P runtime expect a MultiAddr"),
+            bootstrapped: false,
         };
 
-        let transport = TokioDnsConfig::system(tcp::TokioTcpTransport::new(
-            tcp::GenTcpConfig::new().nodelay(true),
-        ))
-        .expect("DNS config made")
-        .upgrade(upgrade::Version::V1)
-        .authenticate(noise::NoiseConfig::xx(noise_keys).into_authenticated())
-        .multiplex(mplex::MplexConfig::new())
-        .timeout(TWO_HOURS)
-        .boxed();
+        let transport = {
+            let dns_tcp = TokioDnsConfig::system(tcp::TokioTcpTransport::new(
+                tcp::GenTcpConfig::new().nodelay(true),
+            ))
+            .unwrap();
+
+            let tcp = tcp::TokioTcpTransport::new(tcp::GenTcpConfig::default().nodelay(true));
+            dns_tcp.or_transport(tcp)
+        };
+
+        let transport = transport
+            .upgrade(upgrade::Version::V1)
+            .authenticate(noise::NoiseConfig::xx(noise_keys).into_authenticated())
+            .multiplex(mplex::MplexConfig::new())
+            .timeout(TWO_HOURS)
+            .boxed();
 
         let swarm = SwarmBuilder::new(transport, behaviour, peer_id)
             .executor(Box::new(|future| {
