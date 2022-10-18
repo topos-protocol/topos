@@ -71,5 +71,6 @@ async fn main() {
         network_client,
         api_client,
     );
+
     app_context.run(event_stream, trb_stream, api_stream).await;
 }
