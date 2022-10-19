@@ -1,4 +1,4 @@
-use tokio::sync::oneshot;
+use tokio::sync::{mpsc, oneshot};
 use topos_core::uci::{Certificate, CertificateId};
 
 use crate::{errors::StorageError, PendingCertificateId};
@@ -16,14 +16,15 @@ macro_rules! RegisterCommands {
         }
 
         $(
-            impl From<$command> for (StorageCommand, oneshot::Receiver<Result<<$command as Command>::Result, StorageError>>) {
-                fn from(command: $command) -> (StorageCommand, oneshot::Receiver<Result<<$command as Command>::Result, StorageError>>) {
+
+            impl $command {
+                #[allow(dead_code)]
+                async fn send_to(self, tx: &mpsc::Sender<StorageCommand>) -> Result<<Self as Command>::Result, StorageError> {
                     let (response_channel, receiver) = oneshot::channel();
 
-                    (
-                        StorageCommand::$command(command, response_channel),
-                        receiver
-                    )
+                    tx.send(StorageCommand::$command(self, response_channel)).await?;
+
+                    receiver.await?
                 }
             }
         )*
@@ -65,4 +66,35 @@ pub struct GetCertificate {
 
 impl Command for GetCertificate {
     type Result = Certificate;
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use tokio::spawn;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn send_command() {
+        let cert = Certificate::new("0".to_string(), "0".to_string(), vec![]);
+        let command = AddPendingCertificate { certificate: cert };
+
+        let (sender, mut receiver) = mpsc::channel(1);
+
+        spawn(async move {
+            tokio::time::timeout(Duration::from_micros(100), async move {
+                match receiver.recv().await {
+                    Some(StorageCommand::AddPendingCertificate(_, response_channel)) => {
+                        _ = response_channel.send(Ok(1));
+                    }
+                    _ => unreachable!(),
+                }
+            })
+            .await
+        });
+
+        assert!(command.send_to(&sender).await.is_ok());
+    }
 }
