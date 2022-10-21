@@ -10,10 +10,7 @@ use std::{
 use rocksdb::{ColumnFamilyDescriptor, MultiThreaded};
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
 
-use crate::{
-    errors::{InternalStorageError, StorageError},
-    PendingCertificateId, Storage,
-};
+use crate::{errors::InternalStorageError, PendingCertificateId, Storage};
 
 use self::{db::RocksDB, map::Map};
 use self::{db::DB, db_column::DBColumn};
@@ -64,14 +61,14 @@ impl RocksDBStorage {
     }
 
     #[allow(dead_code)]
-    pub async fn open(path: &PathBuf) -> Result<Self, StorageError> {
+    pub async fn open(path: &PathBuf) -> Result<Self, InternalStorageError> {
         let mut options = rocksdb::Options::default();
         options.create_if_missing(true);
         options.create_missing_column_families(true);
         let default_rocksdb_options = rocksdb::Options::default();
 
         let db = DB.get_or_try_init(|| {
-            Ok::<_, StorageError>(RocksDB {
+            Ok::<_, InternalStorageError>(RocksDB {
                 rocksdb: Arc::new(
                     rocksdb::DBWithThreadMode::<MultiThreaded>::open_cf_descriptors(
                         &options,
@@ -94,20 +91,26 @@ impl RocksDBStorage {
                                 default_rocksdb_options,
                             ),
                         ],
-                    )
-                    .unwrap(),
+                    )?,
                 ),
                 batch_in_progress: Default::default(),
                 atomic_batch: Default::default(),
             })
         })?;
 
+        let pending_certificates = DBColumn::reopen(db, constants::PENDING_CERTIFICATES);
+
+        let next_pending_id = match pending_certificates.iter()?.last() {
+            Some((pending_id, _)) => AtomicU64::new(pending_id),
+            None => AtomicU64::new(0),
+        };
+
         Ok(Self {
-            pending_certificates: DBColumn::reopen(db, constants::PENDING_CERTIFICATES),
+            pending_certificates,
             certificates: DBColumn::reopen(db, constants::CERTIFICATES),
             source_subnet_streams: DBColumn::reopen(db, constants::SOURCE_SUBNET_STREAMS),
             target_subnet_streams: DBColumn::reopen(db, constants::TARGET_SUBNET_STREAMS),
-            next_pending_id: AtomicU64::new(0),
+            next_pending_id,
         })
     }
 }
@@ -168,18 +171,18 @@ impl Storage for RocksDBStorage {
         self.certificates.get(&certificate_id)
     }
 
-    async fn get_emitted_certificates(
+    async fn get_certificates_by_source(
         &self,
-        _subnet_id: topos_core::uci::SubnetId,
+        _source_subnet_id: SubnetId,
         _from: crate::Height,
         _to: crate::Height,
     ) -> Result<Vec<CertificateId>, InternalStorageError> {
         unimplemented!();
     }
 
-    async fn get_received_certificates(
+    async fn get_certificates_by_target(
         &self,
-        _subnet_id: topos_core::uci::SubnetId,
+        _target_subnet_id: SubnetId,
         _from: std::time::Instant,
         _to: std::time::Instant,
     ) -> Result<Vec<CertificateId>, InternalStorageError> {
@@ -189,7 +192,7 @@ impl Storage for RocksDBStorage {
     async fn get_pending_certificates(
         &self,
     ) -> Result<Vec<(u64, Certificate)>, InternalStorageError> {
-        Ok(self.pending_certificates.iter().collect())
+        Ok(self.pending_certificates.iter()?.collect())
     }
 
     async fn remove_pending_certificate(&self, index: u64) -> Result<(), InternalStorageError> {
