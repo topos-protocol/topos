@@ -31,11 +31,13 @@ fn db_load() {
         ro.set_iterate_upper_bound(b"my key:z".to_vec());
         let iter = db.iterator_opt(IteratorMode::Start, ro);
         for a in iter {
-            debug!(
-                "key:'{}', val: '{}'",
-                String::from_utf8_lossy(a.0.as_ref()),
-                String::from_utf8_lossy(a.1.as_ref())
-            );
+            if let Ok(a) = a {
+                debug!(
+                    "key:'{}', val: '{}'",
+                    String::from_utf8_lossy(a.0.as_ref()),
+                    String::from_utf8_lossy(a.1.as_ref())
+                );
+            }
         }
     }
     let _ = DB::destroy(&Options::default(), path);
@@ -65,7 +67,7 @@ fn new_offset() {
         ro.set_iterate_lower_bound(jkey("nokey".into(), 0));
         ro.set_iterate_upper_bound(jkey("nokey".into(), u64::MAX));
         let mut iter = db.iterator_opt(IteratorMode::End, ro);
-        if let Some(a) = iter.next() {
+        if let Some(Ok(a)) = iter.next() {
             debug!(
                 "key:'{}', val: '{}'",
                 String::from_utf8_lossy(a.0.as_ref()),
