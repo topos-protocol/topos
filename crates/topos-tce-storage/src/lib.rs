@@ -10,7 +10,7 @@ pub mod errors;
 
 pub type PendingCertificateId = u64;
 
-/// Certificate index in the history of its emitter subnet
+/// Certificate index in the history of the source subnet
 pub type Height = u64;
 
 /// Uniquely identify the tip of one subnet.
@@ -34,6 +34,7 @@ pub enum CertificateStatus {
     Delivered,
 }
 
+/// The `Storage` trait defines methods to interact and manage with the persistency layer
 #[async_trait::async_trait]
 pub trait Storage: Sync + Send + 'static {
     /// Add a pending certificate to the pool
@@ -65,7 +66,7 @@ pub trait Storage: Sync + Send + 'static {
         certificate_ids: Vec<CertificateId>,
     ) -> Result<Vec<Certificate>, InternalStorageError>;
 
-    /// Returns the certificate data given their id
+    /// Returns the certificate data given its id
     async fn get_certificate(
         &self,
         certificate_id: CertificateId,
@@ -73,18 +74,18 @@ pub trait Storage: Sync + Send + 'static {
 
     /// Returns the certificate emitted by given subnet
     /// Ranged by height since emitted Certificate are totally ordered
-    async fn get_emitted_certificates(
+    async fn get_certificates_by_source(
         &self,
-        subnet_id: SubnetId,
+        source_subnet_id: SubnetId,
         from: Height,
         to: Height,
     ) -> Result<Vec<CertificateId>, InternalStorageError>;
 
     /// Returns the certificate received by given subnet
     /// Ranged by timestamps since received Certificate are not referrable by height
-    async fn get_received_certificates(
+    async fn get_certificates_by_target(
         &self,
-        subnet_id: SubnetId,
+        target_subnet_id: SubnetId,
         from: Instant,
         to: Instant,
     ) -> Result<Vec<CertificateId>, InternalStorageError>;
@@ -92,8 +93,11 @@ pub trait Storage: Sync + Send + 'static {
     /// Returns all the known Certificate that are not delivered yet
     async fn get_pending_certificates(
         &self,
-    ) -> Result<Vec<(u64, Certificate)>, InternalStorageError>;
+    ) -> Result<Vec<(PendingCertificateId, Certificate)>, InternalStorageError>;
 
     /// Remove a certificate from pending pool
-    async fn remove_pending_certificate(&self, index: u64) -> Result<(), InternalStorageError>;
+    async fn remove_pending_certificate(
+        &self,
+        index: PendingCertificateId,
+    ) -> Result<(), InternalStorageError>;
 }
