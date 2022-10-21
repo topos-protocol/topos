@@ -19,7 +19,7 @@ macro_rules! RegisterCommands {
 
             impl $command {
                 #[allow(dead_code)]
-                async fn send_to(self, tx: &mpsc::Sender<StorageCommand>) -> Result<<Self as Command>::Result, StorageError> {
+                pub(crate) async fn send_to(self, tx: &mpsc::Sender<StorageCommand>) -> Result<<Self as Command>::Result, StorageError> {
                     let (response_channel, receiver) = oneshot::channel();
 
                     tx.send(StorageCommand::$command(self, response_channel)).await?;

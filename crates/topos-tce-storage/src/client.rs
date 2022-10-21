@@ -26,11 +26,9 @@ impl StorageClient {
         &self,
         certificate: Certificate,
     ) -> Result<PendingCertificateId, StorageError> {
-        let (command, receiver) = AddPendingCertificate { certificate }.into();
-
-        self.sender.send(command).await?;
-
-        receiver.await?
+        AddPendingCertificate { certificate }
+            .send_to(&self.sender)
+            .await
     }
 
     /// Ask the storage to tag this certificate as delivered.
@@ -38,11 +36,9 @@ impl StorageClient {
         &self,
         certificate_id: CertificateId,
     ) -> Result<(), StorageError> {
-        let (command, receiver) = CertificateDelivered { certificate_id }.into();
-
-        self.sender.send(command).await?;
-
-        receiver.await?
+        CertificateDelivered { certificate_id }
+            .send_to(&self.sender)
+            .await
     }
 
     /// Retrieves the certificates delivered to one subnet
@@ -61,11 +57,9 @@ impl StorageClient {
         &self,
         certificate_id: CertificateId,
     ) -> Result<Certificate, StorageError> {
-        let (command, receiver) = GetCertificate { certificate_id }.into();
-
-        self.sender.send(command).await?;
-
-        receiver.await?
+        GetCertificate { certificate_id }
+            .send_to(&self.sender)
+            .await
     }
 
     /// Used to see if a certificate is ready to be delivered
