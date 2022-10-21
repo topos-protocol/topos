@@ -1,0 +1,27 @@
+[package]
+name = "topos-tce-storage"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+async-trait.workspace = true
+tracing.workspace = true
+tokio.workspace = true
+futures.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+tokio-stream.workspace = true
+
+bincode = "1.3.3"
+topos-core = { workspace = true, features = ["uci"] }
+rocksdb = { version = "0.19.0", optional = true }
+serde_derive = "1.0.145"
+
+[features]
+default = ["rocksdb", "inmemory"]
+inmemory = []
+rocksdb = ["dep:rocksdb"]
+
+[dev-dependencies]
+rand.workspace = true
+rstest = "0.15.0"

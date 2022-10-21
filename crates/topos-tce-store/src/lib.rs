@@ -121,7 +121,7 @@ impl Store {
         ro.set_iterate_lower_bound(Self::add_offset(&key_prefix, 0));
         ro.set_iterate_upper_bound(Self::add_offset(&key_prefix, u64::MAX));
         let mut iter = self.db.iterator_opt(IteratorMode::End, ro);
-        let offset = if let Some(a) = iter.next() {
+        let offset = if let Some(Ok(a)) = iter.next() {
             Self::extract_offset(a.0.as_ref().into()) + 1
         } else {
             0u64
