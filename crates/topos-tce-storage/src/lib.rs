@@ -5,8 +5,14 @@ use serde::{Deserialize, Serialize};
 
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
 
+pub mod client;
 pub(crate) mod command;
+pub(crate) mod connection;
 pub mod errors;
+pub(crate) mod events;
+
+pub use client::StorageClient;
+pub use connection::Connection;
 
 pub type PendingCertificateId = u64;
 
