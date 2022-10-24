@@ -19,6 +19,10 @@ pub enum InternalStorageError {
     #[error("Unable to execute query: {0}")]
     RocksDBError(#[from] rocksdb::Error),
 
+    #[cfg(feature = "rocksdb")]
+    #[error("Accessing invalid column family: {0}")]
+    InvalidColumnFamily(&'static str),
+
     #[error("Unable to deserialize database value")]
     UnableToDeserializeValue,
 
