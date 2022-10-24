@@ -11,6 +11,9 @@ pub(crate) mod connection;
 pub mod errors;
 pub(crate) mod events;
 
+#[cfg(feature = "rocksdb")]
+pub(crate) mod rocks;
+
 pub use client::StorageClient;
 pub use connection::Connection;
 
