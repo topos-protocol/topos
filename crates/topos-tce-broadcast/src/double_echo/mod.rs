@@ -128,11 +128,9 @@ impl DoubleEcho {
                 Some(new_subscribers_update) = self.subscribers_update_receiver.recv() => {
                     info!("peer_id {} new subscribers update {:?}", &self.my_peer_id, &new_subscribers_update);
                     match new_subscribers_update {
-                        //TODO check if we handle appropriately case in sampler where subscriber is already subscription
                         SubscribersUpdate::NewEchoSubscriber(peer) if !self.subscriptions.echo.contains(&peer) => {
                             self.subscribers.echo.insert(peer);
                         }
-                        //TODO check if we handle appropriately case in sampler where subscriber is already subscription
                         SubscribersUpdate::NewReadySubscriber(peer) if !self.subscriptions.ready.contains(&peer) => {
                             self.subscribers.ready.insert(peer);
                         }
@@ -220,7 +218,7 @@ impl DoubleEcho {
             return;
         }
 
-        // Gossip the certificate to all my ready and echo subscriptions
+        // Gossip the certificate to all my peers
         let gossip_peers = self.gossip_peers();
         debug!(
             "peer_id: {} dispatching gossip event cert_id: {} to gossip peers {:?}",
@@ -239,7 +237,13 @@ impl DoubleEcho {
     /// Make gossip peer list from echo and ready
     /// subscribers that listen to me
     fn gossip_peers(&self) -> Vec<Peer> {
-        self.subscribers.get_subscribers()
+        self.subscriptions
+            .get_subscriptions()
+            .into_iter()
+            .chain(self.subscribers.get_subscribers().into_iter())
+            .collect::<HashSet<_>>() //Filter duplicates
+            .into_iter()
+            .collect::<Vec<Peer>>()
     }
 
     fn start_delivery(&mut self, cert: Certificate, digest: DigestCompressed) {
@@ -279,12 +283,15 @@ impl DoubleEcho {
 
     /// Build initial delivery state
     fn delivery_state_for_new_cert(&mut self) -> Option<DeliveryState> {
-        let ds = self.subscriptions.clone();
+        let subscriptions = self.subscriptions.clone();
         // check inbound sets are not empty
-        if ds.echo.is_empty() || ds.ready.is_empty() || ds.delivery.is_empty() {
+        if subscriptions.echo.is_empty()
+            || subscriptions.ready.is_empty()
+            || subscriptions.delivery.is_empty()
+        {
             None
         } else {
-            Some(DeliveryState { subscriptions: ds })
+            Some(DeliveryState { subscriptions })
         }
     }
 
@@ -653,12 +660,16 @@ mod tests {
             &expected_subscriber_view.ready,
             received_gossip_commands[0].0
         );
-        // Check if gossip Event are sent to all subscribed peers
-        let mut all_subscribers: HashSet<Peer> = expected_subscriber_view.echo.clone();
-        all_subscribers.extend(expected_subscriber_view.ready);
+        // Check if gossip Event is sent to all peers
+        let mut all_gossip_peers: HashSet<Peer> = expected_subscriptions_view
+            .get_subscriptions()
+            .into_iter()
+            .collect::<HashSet<Peer>>();
+        all_gossip_peers.extend(expected_subscriber_view.echo);
+        all_gossip_peers.extend(expected_subscriber_view.ready);
 
         assert_eq!(received_gossip_commands.len(), 1);
-        assert_eq!(received_gossip_commands[0].0, all_subscribers);
+        assert_eq!(received_gossip_commands[0].0, all_gossip_peers);
         assert_eq!(received_gossip_commands[0].1.cert_id, le_cert.cert_id);
     }
 }

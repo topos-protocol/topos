@@ -79,11 +79,22 @@ pub struct SubscriptionsView {
 
 impl SubscriptionsView {
     pub fn is_some(&self) -> bool {
-        !(self.echo.is_empty() || self.echo.is_empty() || self.echo.is_empty())
+        !self.is_none()
     }
 
     pub fn is_none(&self) -> bool {
-        self.echo.is_empty() && self.echo.is_empty() && self.echo.is_empty()
+        self.echo.is_empty() && self.ready.is_empty() && self.delivery.is_empty()
+    }
+
+    pub fn get_subscriptions(&self) -> Vec<Peer> {
+        self.echo
+            .iter()
+            .chain(self.ready.iter())
+            .chain(self.delivery.iter())
+            .cloned()
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>()
     }
 }
 
@@ -145,43 +156,6 @@ impl Sampler {
 }
 
 impl Sampler {
-    pub(crate) fn add_confirmed_subscription_peer_to_sample(
-        &mut self,
-        sample_type: SampleType,
-        peer: &str,
-    ) -> Result<(), ()> {
-        let result = match sample_type {
-            SampleType::EchoSubscription => self.subscriptions.echo.insert(peer.to_string()),
-            SampleType::ReadySubscription => self.subscriptions.ready.insert(peer.to_string()),
-            SampleType::DeliverySubscription => {
-                self.subscriptions.delivery.insert(peer.to_string())
-            }
-            _ => false,
-        };
-        if result {
-            Ok(())
-        } else {
-            Err(())
-        }
-    }
-
-    pub(crate) fn add_confirmed_subscriber_peer_to_sample(
-        &mut self,
-        sample_type: SampleType,
-        peer: &str,
-    ) -> Result<(), ()> {
-        let result = match sample_type {
-            SampleType::EchoSubscriber => self.subscribers.echo.insert(peer.to_string()),
-            SampleType::ReadySubscriber => self.subscribers.ready.insert(peer.to_string()),
-            _ => false,
-        };
-        if result {
-            Ok(())
-        } else {
-            Err(())
-        }
-    }
-
     async fn peers_changed(&mut self, peers: Vec<Peer>) {
         self.visible_peers = peers;
         self.reset_samples().await;
@@ -219,36 +193,33 @@ impl Sampler {
         &mut self,
         sample_type: SampleType,
         peer: Peer,
-    ) -> Result<(), ()> {
+    ) -> Result<bool, ()> {
         debug!("ConfirmPeer {peer} in {sample_type:?}",);
-        match sample_type {
+        let inserted = match sample_type {
             SampleType::EchoSubscription => {
                 if self.pending_subscriptions.echo.remove(&peer) {
-                    return self.add_confirmed_subscription_peer_to_sample(
-                        SampleType::EchoSubscription,
-                        &peer,
-                    );
+                    self.subscriptions.echo.insert(peer.to_string())
+                } else {
+                    false
                 }
             }
             SampleType::ReadySubscription => {
                 if self.pending_subscriptions.ready.remove(&peer) {
-                    return self.add_confirmed_subscription_peer_to_sample(
-                        SampleType::ReadySubscription,
-                        &peer,
-                    );
+                    self.subscriptions.ready.insert(peer.to_string())
+                } else {
+                    false
                 }
             }
             SampleType::DeliverySubscription => {
                 if self.pending_subscriptions.delivery.remove(&peer) {
-                    return self.add_confirmed_subscription_peer_to_sample(
-                        SampleType::DeliverySubscription,
-                        &peer,
-                    );
+                    self.subscriptions.delivery.insert(peer.to_string())
+                } else {
+                    false
                 }
             }
 
             SampleType::EchoSubscriber => {
-                self.add_confirmed_subscriber_peer_to_sample(SampleType::EchoSubscriber, &peer)?;
+                let inserted = self.subscribers.echo.insert(peer.to_string());
                 if let Err(error) = self
                     .subscribers_update_sender
                     .send(SubscribersUpdate::NewEchoSubscriber(peer.clone()))
@@ -256,12 +227,11 @@ impl Sampler {
                 {
                     error!("Unable to send NewEchoSubscriber message {:?}", error);
                     return Err(());
-                } else {
-                    return Ok(());
                 }
+                inserted
             }
             SampleType::ReadySubscriber => {
-                self.add_confirmed_subscriber_peer_to_sample(SampleType::ReadySubscriber, &peer)?;
+                let inserted = self.subscribers.ready.insert(peer.to_string());
                 if let Err(error) = self
                     .subscribers_update_sender
                     .send(SubscribersUpdate::NewReadySubscriber(peer.clone()))
@@ -269,13 +239,11 @@ impl Sampler {
                 {
                     error!("Unable to send NewReadySubscriber message {:?}", error);
                     return Err(());
-                } else {
-                    return Ok(());
                 }
+                inserted
             }
-        }
-
-        Err(())
+        };
+        Ok(inserted)
     }
 
     async fn reset_samples(&mut self) {
@@ -779,7 +747,7 @@ mod tests {
             sampler
                 .handle_peer_confirmation(SampleType::EchoSubscriber, p)
                 .await
-                .unwrap_or_default()
+                .unwrap_or_default();
         }
 
         for p in additional_subscribers_view.ready.clone() {

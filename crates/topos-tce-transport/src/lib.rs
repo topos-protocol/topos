@@ -80,7 +80,8 @@ pub enum TrbpEvents {
     Broadcast { cert: Certificate },
     /// After sampling is done we ask peers to participate in the protocol (and provide us echo feedback)
     EchoSubscribeReq { peers: Vec<String> },
-    /// After sampling is done we ask peers to participate in the protocol (and provide us ready/delivery feedback)
+    /// After sampling is done we ask peers to participate in the protocol
+    /// (and provide us ready/delivery feedback (both with Ready message))
     ReadySubscribeReq { peers: Vec<String> },
     /// We are ok to participate in the protocol and confirm that to subscriber
     EchoSubscribeOk { to_peer: String },

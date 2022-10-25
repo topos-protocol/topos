@@ -260,7 +260,7 @@ impl AppContext {
                     "peer_id: {} processing on_protocol_event TrbpEvents::Echo peers {:?} cert id: {}",
                     &my_peer_id, &peers, &cert.cert_id
                 );
-                // Broadcast echo message
+                // Send echo message
                 let data: Vec<u8> = NetworkMessage::from(TrbpCommands::OnEcho {
                     from_peer: self.network_client.local_peer_id.to_base58(),
                     cert,
