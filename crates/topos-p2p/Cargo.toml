@@ -13,7 +13,7 @@ tokio-stream.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 
-libp2p = { workspace = true, features = ["tcp-tokio", "dns-tokio", "request-response", "identify", "mplex", "mdns", "kad"] }
+libp2p = { workspace = true, features = ["tcp-tokio", "dns-tokio", "request-response", "identify", "mplex", "mdns", "kad", "ping"] }
 
 [dev-dependencies]
 bincode = "1.3"

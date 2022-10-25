@@ -21,6 +21,7 @@ tracing.workspace = true
 
 tce_store = { package = "topos-tce-store", path = "./crates/topos-tce-store" }
 tce_telemetry = { package = "topos-tce-telemetry", path = "./crates/topos-tce-telemetry" }
+console-subscriber = { package = "topos-tce-console-subscriber", path = "./crates/topos-tce-console-subscriber" }
 tce_transport = { package = "topos-tce-transport", path = "./crates/topos-tce-transport" }
 topos-p2p = { path = "./crates/topos-p2p" }
 topos-tce-api = { path = "./crates/topos-tce-api"}

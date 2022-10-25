@@ -9,8 +9,6 @@ use tokio::spawn;
 use tokio_stream::wrappers::BroadcastStream;
 
 use futures::{Future, Stream, TryStreamExt};
-#[allow(unused)]
-use opentelemetry::global;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::{broadcast, mpsc, oneshot};
 

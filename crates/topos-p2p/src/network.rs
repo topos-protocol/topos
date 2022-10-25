@@ -18,7 +18,7 @@ use libp2p::{
     mplex, noise,
     swarm::SwarmBuilder,
     tcp::{self},
-    Multiaddr, PeerId, Swarm, Transport,
+    Multiaddr, PeerId, Transport,
 };
 use std::{collections::VecDeque, time::Duration};
 use tokio::sync::mpsc;

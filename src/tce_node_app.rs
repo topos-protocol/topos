@@ -6,7 +6,6 @@ use crate::app_context::AppContext;
 use crate::cli::AppArgs;
 
 use clap::Parser;
-use tce_store::{Store, StoreConfig};
 use tokio::spawn;
 use topos_p2p::{utils::local_key_pair, Multiaddr};
 use topos_tce_broadcast::mem_store::TrbMemStore;

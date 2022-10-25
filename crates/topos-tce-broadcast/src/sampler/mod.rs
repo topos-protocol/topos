@@ -138,19 +138,7 @@ impl Sampler {
 
         let stable_view = self.pending_echo_subscriptions.is_empty()
             && self.pending_ready_subscriptions.is_empty()
-            && self.pending_delivery_subscriptions.is_empty()
-            && self
-                .view
-                .get(&SampleType::EchoSubscriber)
-                .map(|v| if v.is_empty() { None } else { Some(v) })
-                .flatten()
-                .is_some()
-            && self
-                .view
-                .get(&SampleType::ReadySubscriber)
-                .map(|v| if v.is_empty() { None } else { Some(v) })
-                .flatten()
-                .is_some();
+            && self.pending_delivery_subscriptions.is_empty();
 
         if stable_view {
             // Attempt to send the new view to the Broadcaster
@@ -495,9 +483,12 @@ mod tests {
         assert!(sampler.pending_delivery_subscriptions.is_empty());
 
         sampler.pending_subs_state_change_follow_up().await;
+        let produced_view = view_receiver.try_recv().unwrap();
 
-        assert!(
-            matches!(view_receiver.try_recv(), Ok(produced_view) if produced_view == expected_view)
+        assert_eq!(
+            produced_view, expected_view,
+            "{:?} == {:?}",
+            produced_view, expected_view
         );
     }
 }

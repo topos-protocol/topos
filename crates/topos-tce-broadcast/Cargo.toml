@@ -20,7 +20,6 @@ tce_telemetry = { package = "topos-tce-telemetry", path = "../topos-tce-telemetr
 
 byteorder = "1.4.3"
 thiserror = "1.0.36"
-tracing = "0.1"
 tracing-subscriber = "0.3"
 serde_json = "1.0.85"
 
