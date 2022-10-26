@@ -16,7 +16,7 @@ use topos_core::{
     uci::Certificate,
 };
 use topos_tce_broadcast::{uci::SubnetId, DoubleEchoCommand, SamplerCommand};
-use tracing::info;
+use tracing::log::{debug, info};
 
 #[test(tokio::test)]
 async fn cert_delivery() {
@@ -28,12 +28,13 @@ async fn cert_delivery() {
     let all_subnets: Vec<SubnetId> = (1..=2).map(|v| v.to_string()).collect();
 
     let mut clients = support::network::start_peer_pool(peer_number as u8, correct_sample, g).await;
-
+    debug!("RELIABLE BROADCAST CLIENTS {:#?}", &clients);
     let cert = generate_cert(&all_subnets, 1);
 
     let mut expected_delivery: Vec<oneshot::Receiver<Certificate>> = Vec::new();
 
     for (_key, ctx) in clients.iter_mut().filter(|(k, _)| *k != "peer_1") {
+        let peer_id = ctx.peer_id.clone();
         let (tx, rx) = oneshot::channel::<Certificate>();
         expected_delivery.push(rx);
 
@@ -54,6 +55,10 @@ async fn cert_delivery() {
                         certificate: Some(certificate),
                     })) = received.event
                     {
+                        debug!(
+                            "Client peer_id: {} received certificate {}",
+                            &peer_id, &certificate.cert_id
+                        );
                         if let Some(tx) = tx.take() {
                             _ = tx.send(certificate.into());
                         } else {
@@ -97,7 +102,7 @@ async fn cert_delivery() {
     tokio::time::sleep(std::time::Duration::from_secs(4)).await;
 
     // Broadcast one certificate
-    info!("Broadcast 1 Certificate");
+    info!("Broadcast 1 Certificate from peer_1");
     if let Some(client) = clients.get("peer_1") {
         let _ = client
             .command_broadcast
@@ -111,8 +116,9 @@ async fn cert_delivery() {
     let expected_cert = cert.first().cloned().unwrap();
 
     let assertion = async {
+        info!("Waiting for expected delivery {:?}", expected_delivery);
         let results = join_all(expected_delivery).await;
-
+        info!("All expected channels delivered");
         assert_eq!(results.len(), peer_number - 1);
         for result in results {
             assert!(result.is_ok());
@@ -122,7 +128,7 @@ async fn cert_delivery() {
         info!("Cert delivered to all GRPC client");
     };
 
-    if let Err(_) = tokio::time::timeout(std::time::Duration::from_millis(1000), assertion).await {
+    if let Err(_) = tokio::time::timeout(std::time::Duration::from_secs(10), assertion).await {
         panic!("Timeout waiting for command");
     }
     // FIXME: assert properly
