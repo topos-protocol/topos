@@ -9,9 +9,7 @@ use libp2p::{
 };
 use libp2p::{
     kad::{record::Key, Record},
-    swarm::{
-        NetworkBehaviour, NetworkBehaviourAction, NetworkBehaviourEventProcess, PollParameters,
-    },
+    swarm::{NetworkBehaviour, NetworkBehaviourAction, PollParameters},
 };
 use std::{
     collections::VecDeque,
@@ -71,7 +69,9 @@ impl Behaviour {
     }
 }
 
-impl NetworkBehaviourEventProcess<TransmissionOut> for Behaviour {
+// TODO: Upgrade libp2p to 0.49
+#[allow(deprecated)]
+impl libp2p::swarm::NetworkBehaviourEventProcess<TransmissionOut> for Behaviour {
     fn inject_event(&mut self, event: TransmissionOut) {
         match event {
             TransmissionOut::Request {
@@ -89,7 +89,9 @@ impl NetworkBehaviourEventProcess<TransmissionOut> for Behaviour {
     }
 }
 
-impl NetworkBehaviourEventProcess<DiscoveryOut> for Behaviour {
+// TODO: Upgrade libp2p to 0.49
+#[allow(deprecated)]
+impl libp2p::swarm::NetworkBehaviourEventProcess<DiscoveryOut> for Behaviour {
     #[instrument(name = "Behaviour::inject_event", skip(self), fields(peer_id = %self.peer_id))]
     fn inject_event(&mut self, event: DiscoveryOut) {
         match event {
@@ -126,7 +128,9 @@ impl NetworkBehaviourEventProcess<DiscoveryOut> for Behaviour {
     }
 }
 
-impl NetworkBehaviourEventProcess<PeerInfoOut> for Behaviour {
+// TODO: Upgrade libp2p to 0.49
+#[allow(deprecated)]
+impl libp2p::swarm::NetworkBehaviourEventProcess<PeerInfoOut> for Behaviour {
     fn inject_event(&mut self, event: PeerInfoOut) {
         match event {
             PeerInfoOut::Identified { peer_id, info } => {

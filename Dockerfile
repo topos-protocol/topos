@@ -48,6 +48,13 @@ RUN cargo chef cook --recipe-path recipe.json
 COPY . .
 RUN cargo clippy --all
 
+FROM base AS audit
+COPY --from=planner /usr/src/app/recipe.json recipe.json
+RUN cargo chef cook --recipe-path recipe.json
+RUN cargo install cargo-audit --locked
+COPY . .
+RUN cargo audit
+
 FROM debian:bullseye-slim
 
 ENV RUST_LOG=trace
