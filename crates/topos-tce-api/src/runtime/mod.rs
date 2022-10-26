@@ -8,7 +8,7 @@ use tokio::{
 };
 use tonic_health::server::HealthReporter;
 use topos_core::api::tce::v1::api_service_server::ApiServiceServer;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 use uuid::Uuid;
 
 use crate::{
@@ -76,27 +76,40 @@ impl Runtime {
     async fn handle_runtime_command(&mut self, command: RuntimeCommand) {
         match command {
             RuntimeCommand::DispatchCertificate { certificate } => {
-                info!("Received DispatchCertificate");
-                if let Some(stream_list) =
-                    self.subnet_subscription.get(&certificate.initial_subnet_id)
-                {
-                    let uuids: Vec<&Uuid> = stream_list.iter().collect();
+                info!(
+                    "Received DispatchCertificate for certificate cert_id: {}",
+                    certificate.cert_id
+                );
+                // Collect terminal subnets from certificate cross chain transaction list
+                let terminal_subnets = certificate
+                    .calls
+                    .iter()
+                    .map(|ctx| &ctx.terminal_subnet_id)
+                    .cloned()
+                    .collect::<HashSet<_>>();
+                debug!(
+                    "Dispatching certificate cert_id: {} to terminal subnets: {:?}",
+                    &cert.cert_id, &terminal_subnets
+                );
+                for terminal_subnet_id in terminal_subnets {
+                    if let Some(stream_list) = self.subnet_subscription.get(&terminal_subnet_id) {
+                        let uuids: Vec<&Uuid> = stream_list.iter().collect();
+                        for uuid in uuids {
+                            if let Some(sender) = self.active_streams.get(uuid) {
+                                let sender = sender.clone();
+                                // TODO: Switch to arc
+                                let certificate = certificate.clone();
 
-                    for uuid in uuids {
-                        if let Some(sender) = self.active_streams.get(uuid) {
-                            let sender = sender.clone();
-                            // TODO: Switch to arc
-                            let certificate = certificate.clone();
-
-                            info!("Sending certificate to {uuid}");
-                            spawn(async move {
-                                if let Err(error) = sender
-                                    .send(StreamCommand::PushCertificate { certificate })
-                                    .await
-                                {
-                                    error!(%error, "Can't push certificate because receiver is dropped");
-                                }
-                            });
+                                info!("Sending certificate to {uuid}");
+                                spawn(async move {
+                                    if let Err(error) = sender
+                                        .send(StreamCommand::PushCertificate { certificate })
+                                        .await
+                                    {
+                                        error!(%error, "Can't push certificate because receiver is dropped");
+                                    }
+                                });
+                            }
                         }
                     }
                 }
