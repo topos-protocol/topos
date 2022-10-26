@@ -85,14 +85,13 @@ impl Runtime {
                     .calls
                     .iter()
                     .map(|ctx| &ctx.terminal_subnet_id)
-                    .cloned()
                     .collect::<HashSet<_>>();
                 debug!(
                     "Dispatching certificate cert_id: {} to terminal subnets: {:?}",
-                    &certificate.cert_id, &terminal_subnets
+                    &certificate.cert_id, terminal_subnets
                 );
                 for terminal_subnet_id in terminal_subnets {
-                    if let Some(stream_list) = self.subnet_subscription.get(&terminal_subnet_id) {
+                    if let Some(stream_list) = self.subnet_subscription.get(terminal_subnet_id) {
                         let uuids: Vec<&Uuid> = stream_list.iter().collect();
                         for uuid in uuids {
                             if let Some(sender) = self.active_streams.get(uuid) {
