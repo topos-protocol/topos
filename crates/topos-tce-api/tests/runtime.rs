@@ -16,8 +16,8 @@ use topos_tce_api::Runtime;
 
 #[test(tokio::test)]
 async fn runtime_can_dispatch_a_cert() {
-    let receiving_subnet_id = "subneta".to_string();
-    let sending_subnet_id = "subnetb".to_string();
+    let target_subnet_id = "subneta".to_string();
+    let source_subnet_id = "subnetb".to_string();
     let (tx, rx) = oneshot::channel::<Certificate>();
 
     let socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
@@ -36,7 +36,7 @@ async fn runtime_can_dispatch_a_cert() {
         .unwrap();
 
     // This block represent a subnet A
-    let subnet_a = receiving_subnet_id.clone();
+    let subnet_a = target_subnet_id.clone();
     spawn(async move {
         let channel = channel::Channel::builder(uri).connect_lazy();
         let mut client = ApiServiceClient::new(channel);
@@ -69,11 +69,11 @@ async fn runtime_can_dispatch_a_cert() {
 
     let cert = topos_core::uci::Certificate::new(
         "previous_cert".to_string(),
-        sending_subnet_id.to_string(),
+        source_subnet_id.to_string(),
         vec![CrossChainTransaction {
-            terminal_subnet_id: receiving_subnet_id.clone().into(),
+            terminal_subnet_id: target_subnet_id.clone().into(),
             transaction_data: CrossChainTransactionData::AssetTransfer {
-                asset_id: "TST_SUBNET_".to_string() + &receiving_subnet_id,
+                asset_id: "TST_SUBNET_".to_string() + &target_subnet_id,
                 amount: Amount::from(1000),
             },
             recipient_addr: Address::from("0x0000000000000000000000000000000000000002"),

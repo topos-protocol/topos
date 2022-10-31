@@ -22,13 +22,13 @@ pub fn generate_cert(
     let mut gen_cert = |selected_subnet: String| -> Certificate {
         let last_cert_id = nonce_state.get_mut(&selected_subnet).unwrap();
         // Add one cross chain transaction for every other subnet
-        let terminal_subnets = subnets
+        let target_subnets = subnets
             .iter()
             .filter(|sub| *sub != &selected_subnet)
             .cloned()
             .collect::<Vec<_>>();
         let mut cross_chain_transactions = Vec::new();
-        for (index, terminal_subnet_id) in terminal_subnets.into_iter().enumerate() {
+        for (index, terminal_subnet_id) in target_subnets.into_iter().enumerate() {
             cross_chain_transactions.push(CrossChainTransaction {
                 terminal_subnet_id: terminal_subnet_id.clone(),
                 transaction_data: CrossChainTransactionData::AssetTransfer {

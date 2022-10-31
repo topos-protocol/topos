@@ -171,7 +171,7 @@ async fn cert_delivery() {
     // Waiting for new network view
     tokio::time::sleep(std::time::Duration::from_secs(4)).await;
 
-    // Broadcast multiple certificates on every subnet
+    // Broadcast multiple certificates from all subnets
     info!("Broadcasting certificates...");
     for (peer_id, client) in clients {
         // If there exist of connected subnets to particular TCE
