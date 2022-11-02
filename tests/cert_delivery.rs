@@ -53,7 +53,8 @@ async fn cert_delivery() {
         &subnet_certificates
     );
 
-    // Calculate expected final set of delivered certificates
+    // Calculate expected final set of delivered certificates (every subnet  should receive certificates that has cross
+    // chain transaction targeting it)
     let mut expected_certificates: HashMap<SubnetId, HashSet<Certificate>> = HashMap::new();
     for (_source_subnet_id, certificates) in &subnet_certificates {
         for cert in certificates {
