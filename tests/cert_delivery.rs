@@ -42,7 +42,7 @@ async fn cert_delivery() {
 
     let all_subnets: Vec<SubnetId> = (1..=number_of_subnets).map(|v| v.to_string()).collect();
 
-    // List of peers with their context, and al
+    // List of peers (tce nodes) with their context
     let mut peers_context =
         support::network::start_peer_pool(peer_number as u8, correct_sample, g).await;
 
