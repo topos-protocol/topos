@@ -20,14 +20,14 @@ use topos_tce_broadcast::{
 
 #[derive(Debug)]
 pub struct TestAppContext {
-    pub id: String,
-    pub peer_id: PeerId,
+    pub id: String,      // Peer id like "peer_1", one TCE node instance
+    pub peer_id: PeerId, // P2P ID
     pub command_sampler: mpsc::Sender<SamplerCommand>,
     pub command_broadcast: mpsc::Sender<DoubleEchoCommand>,
-    pub(crate) api_grpc_client: Option<ApiServiceClient<Channel>>,
+    pub(crate) api_grpc_client: Option<ApiServiceClient<Channel>>, // GRPC Client for this peer (tce node)
     pub runtime_join_handle: JoinHandle<()>,
     pub app_join_handle: JoinHandle<()>,
-    pub connected_subnets: Option<Vec<SubnetId>>, // Particular subnet clients connected to this tce node
+    pub connected_subnets: Option<Vec<SubnetId>>, // Particular subnet clients (topos nodes) connected to this tce node
 }
 
 pub type Seed = u8;

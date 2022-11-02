@@ -42,8 +42,9 @@ async fn cert_delivery() {
 
     let all_subnets: Vec<SubnetId> = (1..=number_of_subnets).map(|v| v.to_string()).collect();
 
-    // Clients connected to TCE API Service
-    let mut clients = support::network::start_peer_pool(peer_number as u8, correct_sample, g).await;
+    // List of peers with their context, and al
+    let mut peers_context =
+        support::network::start_peer_pool(peer_number as u8, correct_sample, g).await;
 
     // Generate certificates with respect to parameters
     let mut subnet_certificates = generate_cert(&all_subnets, number_of_certificates_per_subnet);
@@ -70,7 +71,7 @@ async fn cert_delivery() {
     let mut client_tasks: Vec<tokio::task::JoinHandle<()>> = Vec::new(); // Clients connected to TCE API Service run in async tasks
 
     let mut assign_at_least_one_client_to_every_subnet = all_subnets.clone();
-    for (peer_id, ctx) in clients.iter_mut() {
+    for (peer_id, ctx) in peers_context.iter_mut() {
         let peer_id = peer_id.clone();
         // Make sure that every subnet is represented (connected through client) to at least 1 peer
         // After that assign subnets randomly to clients, 1 subnet per connection to TCE
@@ -146,13 +147,13 @@ async fn cert_delivery() {
 
     // Force TCE nodes to recreate subscriptions and subscribers
     info!("Trigger the new network view");
-    for i in 0..clients.len() {
+    for i in 0..peers_context.len() {
         let current_peer = format!("peer_{i}");
-        if let Some(client) = clients.get(&current_peer) {
+        if let Some(client) = peers_context.get(&current_peer) {
             let _ = client
                 .command_sampler
                 .send(SamplerCommand::PeersChanged {
-                    peers: clients
+                    peers: peers_context
                         .iter()
                         .filter_map(|(key, ctx)| {
                             if key == &current_peer {
@@ -173,7 +174,7 @@ async fn cert_delivery() {
 
     // Broadcast multiple certificates from all subnets
     info!("Broadcasting certificates...");
-    for (peer_id, client) in clients {
+    for (peer_id, client) in peers_context {
         // If there exist of connected subnets to particular TCE
         if let Some(connected_subnets) = client.connected_subnets {
             // Iterate all subnets connected to TCE (normally 1)
