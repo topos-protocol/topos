@@ -1,30 +1,28 @@
-use std::path::PathBuf;
-
 use rstest::fixture;
 
 use crate::rocks::{
-    constants, db_column::DBColumn, CertificatesColumn, PendingCertificatesColumn,
+    constants, db::RocksDB, db_column::DBColumn, CertificatesColumn, PendingCertificatesColumn,
     SourceSubnetStreamsColumn, TargetSubnetStreamsColumn,
 };
 
-use super::folder::created_folder;
+use super::rocks_db;
 
 #[fixture]
-pub(crate) fn pending_column(created_folder: Box<PathBuf>) -> PendingCertificatesColumn {
-    DBColumn::open(*created_folder, None, constants::PENDING_CERTIFICATES).unwrap()
+pub(crate) fn pending_column(rocks_db: &RocksDB) -> PendingCertificatesColumn {
+    DBColumn::reopen(rocks_db, constants::PENDING_CERTIFICATES)
 }
 
 #[fixture]
-pub(crate) fn certificates_column(created_folder: Box<PathBuf>) -> CertificatesColumn {
-    DBColumn::open(*created_folder, None, constants::CERTIFICATES).unwrap()
+pub(crate) fn certificates_column(rocks_db: &RocksDB) -> CertificatesColumn {
+    DBColumn::reopen(rocks_db, constants::CERTIFICATES)
 }
 
 #[fixture]
-pub(crate) fn source_streams_column(created_folder: Box<PathBuf>) -> SourceSubnetStreamsColumn {
-    DBColumn::open(*created_folder, None, constants::SOURCE_SUBNET_STREAMS).unwrap()
+pub(crate) fn source_streams_column(rocks_db: &RocksDB) -> SourceSubnetStreamsColumn {
+    DBColumn::reopen(rocks_db, constants::SOURCE_SUBNET_STREAMS)
 }
 
 #[fixture]
-pub(crate) fn target_streams_column(created_folder: Box<PathBuf>) -> TargetSubnetStreamsColumn {
-    DBColumn::open(*created_folder, None, constants::TARGET_SUBNET_STREAMS).unwrap()
+pub(crate) fn target_streams_column(rocks_db: &RocksDB) -> TargetSubnetStreamsColumn {
+    DBColumn::reopen(rocks_db, constants::TARGET_SUBNET_STREAMS)
 }

@@ -1,24 +1,24 @@
-use std::{
-    path::PathBuf,
-    sync::{atomic::AtomicU64, Arc},
-};
+use std::{path::PathBuf, sync::atomic::AtomicU64};
 
-use rocksdb::MultiThreaded;
 use rocksdb::Options;
 use rstest::fixture;
 
 use crate::{
     rocks::{
-        db::RocksDB, CertificatesColumn, PendingCertificatesColumn, SourceSubnetStreamsColumn,
-        TargetSubnetStreamsColumn,
+        db::init_db, db::RocksDB, CertificatesColumn, PendingCertificatesColumn,
+        SourceSubnetStreamsColumn, TargetSubnetStreamsColumn,
     },
-    RocksDBStorage,
+    RocksDBStorage, SubnetId,
 };
 
 use self::{
     columns::{certificates_column, pending_column, source_streams_column, target_streams_column},
     folder::created_folder,
 };
+
+pub(crate) const INITIAL_SUBNET_ID: SubnetId = SubnetId { inner: [1u8; 32] };
+pub(crate) const TARGET_SUBNET_ID_A: SubnetId = SubnetId { inner: [2u8; 32] };
+pub(crate) const TARGET_SUBNET_ID_B: SubnetId = SubnetId { inner: [3u8; 32] };
 
 pub(crate) mod columns;
 pub(crate) mod folder;
@@ -40,14 +40,11 @@ pub(crate) fn storage(
 }
 
 #[fixture]
+#[once]
 pub(crate) fn rocks_db(created_folder: Box<PathBuf>) -> RocksDB {
     let mut options = Options::default();
     options.create_if_missing(true);
-    RocksDB {
-        rocksdb: Arc::new(
-            rocksdb::DBWithThreadMode::<MultiThreaded>::open(&options, *created_folder).unwrap(),
-        ),
-        batch_in_progress: Default::default(),
-        atomic_batch: Default::default(),
-    }
+    options.create_missing_column_families(true);
+
+    init_db(&created_folder, &mut options).unwrap()
 }

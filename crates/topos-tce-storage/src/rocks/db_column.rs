@@ -1,11 +1,11 @@
-use std::{marker::PhantomData, sync::Arc};
+use std::{borrow::Borrow, marker::PhantomData, sync::Arc};
 
 #[cfg(test)]
 use std::path::Path;
 
-use rocksdb::BoundColumnFamily;
 #[cfg(test)]
 use rocksdb::ColumnFamilyDescriptor;
+use rocksdb::{BoundColumnFamily, DBWithThreadMode, MultiThreaded, WriteBatch};
 
 use bincode::Options;
 use serde::{de::DeserializeOwned, Serialize};
@@ -15,18 +15,14 @@ use crate::errors::InternalStorageError;
 use super::{iterator::ColumnIterator, map::Map, RocksDB};
 
 /// A DBColumn represents a CF structure
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct DBColumn<K, V> {
-    db: RocksDB,
+    pub(crate) rocksdb: RocksDB,
     _phantom: PhantomData<fn(K) -> V>,
     cf: &'static str,
 }
 
-impl<K, V> DBColumn<K, V>
-where
-    K: DeserializeOwned + Serialize,
-    V: DeserializeOwned + Serialize,
-{
+impl<K, V> DBColumn<K, V> {
     #[cfg(test)]
     #[allow(dead_code)]
     pub fn open<P: AsRef<Path>>(
@@ -39,24 +35,20 @@ where
 
         let primary = path.as_ref().to_path_buf();
 
-        let db = {
+        let rocksdb = {
             options.create_if_missing(true);
             options.create_missing_column_families(true);
-            RocksDB {
-                rocksdb: Arc::new(
-                    rocksdb::DBWithThreadMode::<rocksdb::MultiThreaded>::open_cf_descriptors(
-                        &options,
-                        &primary,
-                        vec![ColumnFamilyDescriptor::new(column, default_rocksdb_options)],
-                    )?,
-                ),
-                batch_in_progress: Default::default(),
-                atomic_batch: Default::default(),
-            }
+            Arc::new(
+                rocksdb::DBWithThreadMode::<rocksdb::MultiThreaded>::open_cf_descriptors(
+                    &options,
+                    &primary,
+                    vec![ColumnFamilyDescriptor::new(column, default_rocksdb_options)],
+                )?,
+            )
         };
 
         Ok(Self {
-            db,
+            rocksdb,
             _phantom: PhantomData,
             cf: column,
         })
@@ -64,7 +56,7 @@ where
 
     pub fn reopen(db: &RocksDB, column: &'static str) -> Self {
         Self {
-            db: db.clone(),
+            rocksdb: db.clone(),
             _phantom: PhantomData,
             cf: column,
         }
@@ -72,12 +64,17 @@ where
 
     /// Returns the CF of the DBColumn, used to build queries.
     fn cf(&self) -> Result<Arc<BoundColumnFamily<'_>>, InternalStorageError> {
-        self.db
-            .rocksdb
+        self.rocksdb
             .cf_handle(self.cf)
             .ok_or(InternalStorageError::InvalidColumnFamily(self.cf))
     }
+}
 
+impl<K, V> DBColumn<K, V>
+where
+    K: DeserializeOwned + Serialize,
+    V: DeserializeOwned + Serialize,
+{
     /// Insert a record into the storage by passing a Key and a Value.
     ///
     /// Key are fixed length bincode serialized.
@@ -88,7 +85,7 @@ where
 
         let value_buf = bincode::serialize(value)?;
 
-        self.db.rocksdb.put_cf(&cf, &key_buf, &value_buf)?;
+        self.rocksdb.put_cf(&cf, &key_buf, &value_buf)?;
 
         Ok(())
     }
@@ -99,7 +96,7 @@ where
     pub(crate) fn delete(&self, key: &K) -> Result<(), InternalStorageError> {
         let key_buf = be_fix_int_ser(key)?;
 
-        self.db.rocksdb.delete_cf(&self.cf()?, key_buf)?;
+        self.rocksdb.delete_cf(&self.cf()?, key_buf)?;
 
         Ok(())
     }
@@ -111,12 +108,78 @@ where
         let key_buf = be_fix_int_ser(key)?;
 
         let data = self
-            .db
             .rocksdb
             .get_pinned_cf(&self.cf()?, key_buf)?
             .ok_or(InternalStorageError::UnableToDeserializeValue)?;
 
         Ok(bincode::deserialize(&data)?)
+    }
+
+    pub(crate) fn batch(&self) -> DBBatch {
+        DBBatch::new(&self.rocksdb)
+    }
+}
+
+pub(crate) struct DBBatch {
+    rocksdb: Arc<DBWithThreadMode<MultiThreaded>>,
+    batch: WriteBatch,
+}
+
+impl DBBatch {
+    fn new(rocksdb: &Arc<DBWithThreadMode<MultiThreaded>>) -> Self {
+        Self {
+            rocksdb: rocksdb.clone(),
+            batch: WriteBatch::default(),
+        }
+    }
+
+    pub(crate) fn delete<K, V, Key>(
+        mut self,
+        db: &DBColumn<K, V>,
+        key: Key,
+    ) -> Result<Self, InternalStorageError>
+    where
+        K: Serialize,
+        V: Serialize,
+        Key: Borrow<K>,
+    {
+        check_cross_batch(&self.rocksdb, &db.rocksdb)?;
+
+        let key_buffer = be_fix_int_ser(key.borrow())?;
+        self.batch.delete_cf(&db.cf()?, key_buffer);
+
+        Ok(self)
+    }
+
+    pub(crate) fn insert_batch<K, V, Key, Value>(
+        mut self,
+        db: &DBColumn<K, V>,
+        values: impl IntoIterator<Item = (Key, Value)>,
+    ) -> Result<Self, InternalStorageError>
+    where
+        K: Serialize,
+        V: Serialize,
+        Key: Borrow<K>,
+        Value: Borrow<V>,
+    {
+        check_cross_batch(&self.rocksdb, &db.rocksdb)?;
+
+        values
+            .into_iter()
+            .try_for_each::<_, Result<(), InternalStorageError>>(|(k, v)| {
+                let key_buffer = be_fix_int_ser(k.borrow())?;
+                let value_buffer = bincode::serialize(v.borrow())?;
+                self.batch.put_cf(&db.cf()?, key_buffer, value_buffer);
+                Ok(())
+            })?;
+
+        Ok(self)
+    }
+
+    pub(crate) fn write(self) -> Result<(), InternalStorageError> {
+        self.rocksdb.write(self.batch)?;
+
+        Ok(())
     }
 }
 
@@ -128,7 +191,7 @@ where
     type Iterator = ColumnIterator<'a, K, V>;
 
     fn iter(&'a self) -> Result<Self::Iterator, InternalStorageError> {
-        let mut raw_iterator = self.db.rocksdb.raw_iterator_cf(&self.cf()?);
+        let mut raw_iterator = self.rocksdb.raw_iterator_cf(&self.cf()?);
         raw_iterator.seek_to_first();
 
         Ok(ColumnIterator::new(raw_iterator))
@@ -139,7 +202,6 @@ where
         prefix: &P,
     ) -> Result<Self::Iterator, InternalStorageError> {
         let iterator = self
-            .db
             .rocksdb
             .prefix_iterator_cf(&self.cf()?, be_fix_int_ser(prefix)?)
             .into();
@@ -157,4 +219,12 @@ where
         .with_big_endian()
         .with_fixint_encoding()
         .serialize(t)?)
+}
+
+fn check_cross_batch(base: &RocksDB, current: &RocksDB) -> Result<(), InternalStorageError> {
+    if !Arc::ptr_eq(base, current) {
+        return Err(InternalStorageError::ConcurrentDBBatchDetected);
+    }
+
+    Ok(())
 }

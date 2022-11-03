@@ -1,41 +1,34 @@
 use std::{
     fmt::Debug,
     path::PathBuf,
-    sync::{
-        atomic::{AtomicU64, Ordering},
-        Arc,
-    },
+    sync::atomic::{AtomicU64, Ordering},
 };
 
-use rocksdb::{ColumnFamilyDescriptor, MultiThreaded};
-use topos_core::uci::{Certificate, CertificateId, SubnetId};
+use topos_core::uci::{Certificate, CertificateId};
 
-use crate::{errors::InternalStorageError, PendingCertificateId, Storage};
+use crate::{errors::InternalStorageError, Height, PendingCertificateId, Storage, SubnetId};
 
-use self::{db::RocksDB, map::Map};
 use self::{db::DB, db_column::DBColumn};
+use self::{
+    db::{init_db, RocksDB},
+    map::Map,
+};
 
 pub(crate) mod constants;
 pub(crate) mod db;
 pub(crate) mod db_column;
 pub(crate) mod iterator;
 pub(crate) mod map;
+mod types;
 
-pub(crate) type SourceStreamRef = (SubnetId, u64);
-pub(crate) type TargetStreamRef = (SubnetId, SubnetId, u64);
-pub(crate) type PendingCertificatesColumn = DBColumn<u64, Certificate>;
-pub(crate) type CertificatesColumn = DBColumn<CertificateId, Certificate>;
-pub(crate) type SourceSubnetStreamsColumn = DBColumn<SourceStreamRef, CertificateId>;
-pub(crate) type TargetSubnetStreamsColumn = DBColumn<TargetStreamRef, CertificateId>;
+pub(crate) use types::*;
 
 #[derive(Debug)]
 pub struct RocksDBStorage {
     pending_certificates: PendingCertificatesColumn,
     certificates: CertificatesColumn,
 
-    #[allow(dead_code)]
     source_subnet_streams: SourceSubnetStreamsColumn,
-    #[allow(dead_code)]
     target_subnet_streams: TargetSubnetStreamsColumn,
 
     next_pending_id: AtomicU64,
@@ -60,42 +53,12 @@ impl RocksDBStorage {
         }
     }
 
-    #[allow(dead_code)]
-    pub async fn open(path: &PathBuf) -> Result<Self, InternalStorageError> {
-        let mut options = rocksdb::Options::default();
-        options.create_if_missing(true);
-        options.create_missing_column_families(true);
-        let default_rocksdb_options = rocksdb::Options::default();
-
+    pub fn open(path: &PathBuf) -> Result<Self, InternalStorageError> {
         let db = DB.get_or_try_init(|| {
-            Ok::<_, InternalStorageError>(RocksDB {
-                rocksdb: Arc::new(
-                    rocksdb::DBWithThreadMode::<MultiThreaded>::open_cf_descriptors(
-                        &options,
-                        &path,
-                        vec![
-                            ColumnFamilyDescriptor::new(
-                                constants::PENDING_CERTIFICATES,
-                                default_rocksdb_options.clone(),
-                            ),
-                            ColumnFamilyDescriptor::new(
-                                constants::CERTIFICATES,
-                                default_rocksdb_options.clone(),
-                            ),
-                            ColumnFamilyDescriptor::new(
-                                constants::SOURCE_SUBNET_STREAMS,
-                                default_rocksdb_options.clone(),
-                            ),
-                            ColumnFamilyDescriptor::new(
-                                constants::TARGET_SUBNET_STREAMS,
-                                default_rocksdb_options,
-                            ),
-                        ],
-                    )?,
-                ),
-                batch_in_progress: Default::default(),
-                atomic_batch: Default::default(),
-            })
+            let mut options = rocksdb::Options::default();
+            options.create_if_missing(true);
+            options.create_missing_column_families(true);
+            init_db(path, &mut options)
         })?;
 
         let pending_certificates = DBColumn::reopen(db, constants::PENDING_CERTIFICATES);
@@ -130,10 +93,92 @@ impl Storage for RocksDBStorage {
 
     async fn persist(
         &self,
-        _certificate: Certificate,
-        _status: crate::CertificateStatus,
-    ) -> Result<PendingCertificateId, InternalStorageError> {
-        unimplemented!();
+        certificate: Certificate,
+        pending_certificate_id: Option<PendingCertificateId>,
+    ) -> Result<(), InternalStorageError> {
+        let mut batch = self.certificates.batch();
+
+        let source_subnet_id: SubnetId = certificate.initial_subnet_id.as_str().try_into()?;
+
+        // Inserting the certificate data into the CERTIFICATES cf
+        batch = batch.insert_batch(&self.certificates, [(&certificate.cert_id, &certificate)])?;
+
+        if let Some(pending_id) = pending_certificate_id {
+            // Removing the pending certificate from the PENDING_CERTIFICATES cf
+            batch = batch.delete(&self.pending_certificates, pending_id)?;
+        }
+
+        let source_subnet_height = if certificate.prev_cert_id.is_empty() {
+            Height::ZERO
+        } else if let Some((SourceStreamRef(_, height), _)) = self
+            .source_subnet_streams
+            .prefix_iter(&source_subnet_id)?
+            .last()
+        {
+            height.increment().map_err(|error| {
+                InternalStorageError::HeightError(error, certificate.initial_subnet_id.clone())
+            })?
+        } else {
+            // TODO: Better error to define that we were expecting a previous defined height
+            return Err(InternalStorageError::CertificateNotFound(
+                certificate.prev_cert_id,
+            ));
+        };
+
+        // Adding the certificate to the stream
+        batch = batch.insert_batch(
+            &self.source_subnet_streams,
+            [(
+                SourceStreamRef(source_subnet_id, source_subnet_height),
+                certificate.cert_id.clone(),
+            )],
+        )?;
+
+        // Adding certificate to target_subnet_streams
+        // TODO: Add expected version instead of calculating on the go
+        let mut targets = Vec::new();
+
+        for transaction in certificate.calls {
+            let target = if let Some((TargetStreamRef(target, source, height), _)) = self
+                .target_subnet_streams
+                .prefix_iter(&TargetStreamPrefix(
+                    transaction.terminal_subnet_id.as_str().try_into()?,
+                    source_subnet_id,
+                ))?
+                .last()
+            {
+                (
+                    TargetStreamRef(
+                        target,
+                        source,
+                        height.increment().map_err(|error| {
+                            InternalStorageError::HeightError(
+                                error,
+                                certificate.initial_subnet_id.clone(),
+                            )
+                        })?,
+                    ),
+                    certificate.cert_id.clone(),
+                )
+            } else {
+                (
+                    TargetStreamRef(
+                        transaction.terminal_subnet_id.as_str().try_into()?,
+                        source_subnet_id,
+                        Height::ZERO,
+                    ),
+                    certificate.cert_id.clone(),
+                )
+            };
+
+            targets.push(target);
+        }
+
+        batch = batch.insert_batch(&self.target_subnet_streams, targets)?;
+
+        batch.write()?;
+
+        Ok(())
     }
 
     async fn update(
@@ -146,7 +191,7 @@ impl Storage for RocksDBStorage {
 
     async fn get_tip(
         &self,
-        _subnets: Vec<topos_core::uci::SubnetId>,
+        _subnets: Vec<SubnetId>,
     ) -> Result<Vec<crate::Tip>, InternalStorageError> {
         unimplemented!();
     }
