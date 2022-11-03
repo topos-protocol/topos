@@ -1,9 +1,14 @@
 {
   "nodes": [
-    "http://peer:1340",
-    "http://peer:1340",
-    "http://peer:1340",
-    "http://peer:1340",
-    "http://peer:1340"
+    "http://tools_peer_1:1340",
+    "http://tools_peer_2:1340",
+    "http://tools_peer_3:1340",
+    "http://tools_peer_4:1340",
+    "http://tools_peer_5:1340",
+    "http://tools_peer_6:1340",
+    "http://tools_peer_7:1340",
+    "http://tools_peer_8:1340",
+    "http://tools_peer_9:1340",
+    "http://tools_peer_10:1340"
   ]
 }

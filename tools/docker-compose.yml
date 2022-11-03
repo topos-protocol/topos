@@ -11,7 +11,11 @@ services:
   boot:
     container_name: boot
     image: ghcr.io/toposware/tce:pr-4
-
+    build:
+      context: ../
+      args:
+        - TOOLCHAIN_VERSION=stable
+        - GITHUB_TOKEN
     ports:
       - "9090"
     environment:
@@ -39,7 +43,6 @@ services:
       args:
         - TOOLCHAIN_VERSION=stable
         - GITHUB_TOKEN
-
     ports:
       - "9090"
       - "1340"
@@ -66,10 +69,10 @@ services:
 
   cert-spammer:
     container_name: spam
-    image: ghcr.io/toposware/cert-spammer:feat-grpc-tce-client
+    image: ghcr.io/toposware/cert-spammer:main
     environment:
       - RUST_LOG=debug
-      - TARGET_NODE_LIST=/nodes.json
+      - TARGET_NODES_PATH=/nodes.json
     depends_on:
       # - jaeger
       - peer
