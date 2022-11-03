@@ -11,6 +11,7 @@ services:
   boot:
     container_name: boot
     image: ghcr.io/toposware/tce:pr-4
+    init: true
     build:
       context: ../
       args:
@@ -38,6 +39,7 @@ services:
 
   peer:
     image: ghcr.io/toposware/tce:pr-4
+    init: true
     build:
       context: ../
       args:
@@ -70,6 +72,7 @@ services:
   cert-spammer:
     container_name: spam
     image: ghcr.io/toposware/cert-spammer:main
+    init: true
     environment:
       - RUST_LOG=debug
       - TARGET_NODES_PATH=/nodes.json
