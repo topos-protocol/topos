@@ -1,11 +1,13 @@
 use std::{collections::HashMap, net::UdpSocket, str::FromStr};
 
+use crate::SubnetId;
 use futures::{Stream, StreamExt};
 use libp2p::{
     identity::{self, Keypair},
     Multiaddr, PeerId,
 };
 use tce_transport::{ReliableBroadcastParams, TrbpEvents};
+use tokio::task::JoinHandle;
 use tokio::{spawn, sync::mpsc};
 use tonic::transport::{channel, Channel};
 use topos_core::api::tce::v1::api_service_client::ApiServiceClient;
@@ -18,11 +20,14 @@ use topos_tce_broadcast::{
 
 #[derive(Debug)]
 pub struct TestAppContext {
-    pub id: String,
-    pub peer_id: PeerId,
+    pub id: String,      // Peer id like "peer_1", one TCE node instance
+    pub peer_id: PeerId, // P2P ID
     pub command_sampler: mpsc::Sender<SamplerCommand>,
     pub command_broadcast: mpsc::Sender<DoubleEchoCommand>,
-    pub(crate) api_grpc_client: Option<ApiServiceClient<Channel>>,
+    pub(crate) api_grpc_client: Option<ApiServiceClient<Channel>>, // GRPC Client for this peer (tce node)
+    pub runtime_join_handle: JoinHandle<()>,
+    pub app_join_handle: JoinHandle<()>,
+    pub connected_subnets: Option<Vec<SubnetId>>, // Particular subnet clients (topos nodes) connected to this tce node
 }
 
 pub type Seed = u8;
@@ -61,8 +66,8 @@ where
             .await;
         let app = AppContext::new(InmemoryStorage::default(), rb_client, client, api_client);
 
-        spawn(runtime.run());
-        spawn(app.run(event_stream, trb_events, api_events));
+        let runtime_join_handle = spawn(runtime.run());
+        let app_join_handle = spawn(app.run(event_stream, trb_events, api_events));
         let api_endpoint = format!("http://127.0.0.1:{api_port}");
 
         let channel = channel::Endpoint::from_str(&api_endpoint)
@@ -76,6 +81,9 @@ where
             command_sampler,
             command_broadcast,
             api_grpc_client: Some(api_grpc_client),
+            runtime_join_handle,
+            app_join_handle,
+            connected_subnets: None,
         };
         clients.insert(peer_id, client);
     }
