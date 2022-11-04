@@ -15,7 +15,7 @@ jobs:
         target:
           - {
               name: Linux,
-              os: ubuntu-latest-32-cores,
+              os: ubuntu-latest-64-cores,
               triple: x86_64-unknown-linux-gnu,
             }
         version:
