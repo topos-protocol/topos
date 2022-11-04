@@ -3,6 +3,9 @@ FROM rust:latest AS base
 ARG TOOLCHAIN_VERSION
 ARG GITHUB_TOKEN
 ARG CODECOV_TOKEN
+ARG SCCACHE_AZURE_CONNECTION_STRING
+ARG SCCACHE_AZURE_BLOB_CONTAINER
+ARG SCCACHE_AZURE_KEY_PREFIX
 
 ENV CARGO_TERM_COLOR=always
 ENV RUSTFLAGS=-Dwarnings
@@ -16,23 +19,16 @@ RUN apt update && \
 RUN rustup toolchain install ${TOOLCHAIN_VERSION} && \
     rustup default ${TOOLCHAIN_VERSION} && \
     rustup target add x86_64-unknown-linux-musl && \
-    cargo install cargo-chef --locked
+    cargo install sccache --locked
 
 WORKDIR /usr/src/app
 
-FROM base AS planner
-COPY . .
-RUN cargo chef prepare --recipe-path recipe.json
-
 FROM base AS build
-COPY --from=planner /usr/src/app/recipe.json recipe.json
-RUN cargo chef cook --release --recipe-path recipe.json
+ENV RUSTC_WRAPPER=/usr/local/cargo/bin/sccache
 COPY . .
-RUN cargo build --release
+RUN cargo build --release && sccache --show-stats
 
 FROM base AS test
-COPY --from=planner /usr/src/app/recipe.json recipe.json
-RUN cargo chef cook --all-targets --recipe-path recipe.json
 COPY . .
 RUN cargo test --workspace
 
@@ -43,17 +39,13 @@ RUN cargo fmt --all -- --check
 
 FROM base AS lint
 RUN rustup component add clippy
-COPY --from=planner /usr/src/app/recipe.json recipe.json
-RUN cargo chef cook --recipe-path recipe.json
 COPY . .
 RUN cargo clippy --all
 
 FROM base AS audit
-COPY --from=planner /usr/src/app/recipe.json recipe.json
-RUN cargo chef cook --recipe-path recipe.json
 RUN cargo install cargo-audit --locked
 COPY . .
-RUN cargo audit
+RUN cargo audit && sccache --show-stats
 
 FROM debian:bullseye-slim
 
