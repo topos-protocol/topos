@@ -21,10 +21,11 @@ RUN rustup toolchain install ${TOOLCHAIN_VERSION} && \
     rustup target add x86_64-unknown-linux-musl && \
     cargo install sccache --locked
 
+ENV RUSTC_WRAPPER=/usr/local/cargo/bin/sccache
+
 WORKDIR /usr/src/app
 
 FROM base AS build
-ENV RUSTC_WRAPPER=/usr/local/cargo/bin/sccache
 COPY . .
 RUN cargo build --release && sccache --show-stats
 
