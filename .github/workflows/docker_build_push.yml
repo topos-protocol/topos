@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - "main"
+      - "tools-ci"
 
 env:
   REGISTRY: ghcr.io
