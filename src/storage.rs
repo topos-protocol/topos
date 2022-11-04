@@ -11,6 +11,6 @@ pub trait Storage: Send + 'static {
 
 #[derive(Error, Debug)]
 pub enum StorageError {
-    #[error("The certificate already exists")]
+    #[error("The certificate already exists.")]
     CertificateAlreadyExists,
 }
