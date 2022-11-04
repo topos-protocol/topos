@@ -1,13 +1,13 @@
 services:
-  # jaeger:
-  #   image: jaegertracing/all-in-one:latest
-  #   container_name: jaeger
-  #   restart: always
-  #   ports:
-  #     - "6831/udp"
-  #     - "6832/udp"
-  #     - "16685"
-  #     - "16686:16686"
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: jaeger
+    restart: always
+    ports:
+      - "6831/udp"
+      - "6832/udp"
+      - "16685"
+      - "16686:16686"
   boot:
     container_name: boot
     image: ghcr.io/toposware/tce:pr-4
@@ -17,6 +17,8 @@ services:
       args:
         - TOOLCHAIN_VERSION=stable
         - GITHUB_TOKEN
+    depends_on:
+      - jaeger
     ports:
       - "9090"
     environment:

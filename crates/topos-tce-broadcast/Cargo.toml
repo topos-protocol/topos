@@ -16,7 +16,6 @@ tracing.workspace = true
 
 topos-core = { workspace = true, features = ["uci"] }
 tce_transport = { package = "topos-tce-transport", path = "../topos-tce-transport"}
-tce_telemetry = { package = "topos-tce-telemetry", path = "../topos-tce-telemetry" }
 
 byteorder = "1.4.3"
 opentelemetry = { version = "0.17", default-features = false, features = ["trace", "rt-tokio"] }
