@@ -3,15 +3,15 @@ use topos_core::uci::{Amount, Certificate, CrossChainTransaction};
 
 use crate::{
     rocks::{
-        map::Map, CertificatesColumn, SourceSubnetStreamsColumn, TargetStreamRef,
-        TargetSubnetStreamsColumn,
+        map::Map, CertificatesColumn, PendingCertificatesColumn, SourceSubnetStreamsColumn,
+        TargetStreamRef, TargetSubnetStreamsColumn,
     },
     tests::support::{INITIAL_SUBNET_ID, TARGET_SUBNET_ID_A, TARGET_SUBNET_ID_B},
     Height, RocksDBStorage, Storage, SubnetId,
 };
 
 use self::support::{
-    columns::{certificates_column, source_streams_column, target_streams_column},
+    columns::{certificates_column, pending_column, source_streams_column, target_streams_column},
     storage,
 };
 
@@ -140,4 +140,38 @@ async fn delivered_certificate_are_added_to_target_stream(
         .unwrap();
 
     assert_eq!(stream_element.0 .2, Height::ZERO);
+}
+
+#[rstest]
+#[tokio::test]
+async fn pending_certificate_are_removed_during_persist_action(
+    storage: RocksDBStorage,
+    pending_column: PendingCertificatesColumn,
+) {
+    let certificate = Certificate::new(
+        "".into(),
+        INITIAL_SUBNET_ID.to_string(),
+        vec![CrossChainTransaction {
+            recipient_addr: "".into(),
+            sender_addr: "source_subnet_a".into(),
+            terminal_subnet_id: TARGET_SUBNET_ID_A.to_string(),
+            transaction_data: topos_core::uci::CrossChainTransactionData::AssetTransfer {
+                asset_id: "asset_id".into(),
+                amount: Amount::from(1),
+            },
+        }],
+    );
+
+    let pending_id = storage
+        .add_pending_certificate(certificate.clone())
+        .await
+        .unwrap();
+
+    assert!(pending_column.get(&pending_id).is_ok());
+    _ = storage
+        .persist(certificate, Some(pending_id))
+        .await
+        .unwrap();
+
+    assert!(pending_column.get(&pending_id).is_err());
 }
