@@ -18,7 +18,7 @@ async fn main() {
     info!("Initializing application");
     let args = AppArgs::parse();
 
-    _ = tce_telemetry::init_tracer(&args.jaeger_agent, &args.jaeger_service_name);
+    tce_telemetry::init_tracer(&args.jaeger_agent, &args.jaeger_service_name);
 
     // launch data store
     info!(
