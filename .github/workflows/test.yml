@@ -13,7 +13,11 @@ jobs:
       fail-fast: false
       matrix:
         target:
-          - { name: Linux, os: ubuntu-latest, triple: x86_64-unknown-linux-gnu }
+          - {
+              name: Linux,
+              os: ubuntu-latest-16-cores,
+              triple: x86_64-unknown-linux-gnu,
+            }
         version:
           - stable
           - nightly
