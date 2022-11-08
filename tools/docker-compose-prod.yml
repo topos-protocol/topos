@@ -26,13 +26,18 @@ services:
       - TOOLCHAIN_VERSION=stable
       - RUST_BACKTRACE=full
       - TCE_LOCAL_KS=1 # 12D3KooWPjceQrSwdWXPyLLeABRXmuqt69Rg3sBYbU1Nft9HyQ6X
-      - TCE_JAEGER_AGENT=udp://localhost:6831
+      - TCE_JAEGER_AGENT=udp://jaeger.tce.toposware.com:6831
       - TCE_TRBP_ECHO_SAMPLE_SIZE=3
       - TCE_TRBP_READY_SAMPLE_SIZE=3
       - TCE_TRBP_DELIVERY_SAMPLE_SIZE=3
       - TCE_TRBP_ECHO_THRESHOLD=3
       - TCE_TRBP_READY_THRESHOLD=3
       - TCE_TRBP_DELIVERY_THRESHOLD=3
+    logging:
+      driver: gelf
+      options:
+        gelf-address: "udp://logstash.tce.toposware.com:12201"
+        tag: "boot"
 
   peer:
     image: ghcr.io/toposware/tce:pr-4
@@ -42,9 +47,6 @@ services:
       args:
         - TOOLCHAIN_VERSION=stable
         - GITHUB_TOKEN
-    depends_on:
-      - jaeger
-      - boot
     ports:
       - "9090"
       - "1340"
@@ -61,6 +63,13 @@ services:
       - TCE_TRBP_ECHO_THRESHOLD=3
       - TCE_TRBP_READY_THRESHOLD=3
       - TCE_TRBP_DELIVERY_THRESHOLD=3
+    depends_on:
+      - boot
+    logging:
+      driver: gelf
+      options:
+        gelf-address: "udp://logstash.tce.toposware.com:12201"
+        tag: "peer"
 
   cert-spammer:
     container_name: spam
@@ -70,7 +79,62 @@ services:
       - RUST_LOG=debug
       - TARGET_NODES_PATH=/nodes.json
     depends_on:
-      - jaeger
+      # - jaeger
       - peer
     volumes:
       - ./peer_nodes.json:/nodes.json
+    logging:
+      driver: gelf
+      options:
+        gelf-address: "udp://logstash.tce.toposware.com:12201"
+        tag: "cert-spammer"
+
+  cadvisor:
+    container_name: cadvisor
+    image: gcr.io/cadvisor/cadvisor:v0.45.0
+    ports:
+      - "8080:8080"
+    privileged: true
+    depends_on:
+      - boot
+      - peer
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/run/docker.sock:/var/run/docker.sock:rw
+
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus:v2.38.0
+    ports:
+      - "9090:9090"
+    restart: always
+    depends_on:
+      - cadvisor
+    volumes:
+      - "./config/prometheus/:/etc/prometheus/"
+      - "prometheus-storage:/prometheus"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/etc/prometheus/console_libraries"
+      - "--web.console.templates=/etc/prometheus/consoles"
+
+  grafana:
+    container_name: grafana
+    image: grafana/grafana:9.0.6
+    ports:
+      - "3000:3000"
+    restart: always
+    depends_on:
+      - prometheus
+    volumes:
+      - "grafana-storage:/var/lib/grafana"
+      - ./config/grafana/provisioning/:/etc/grafana/provisioning/
+    env_file:
+      - ./config/grafana/config.monitoring
+
+volumes:
+  prometheus-storage:
+  grafana-storage:
