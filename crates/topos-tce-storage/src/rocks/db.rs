@@ -32,7 +32,7 @@ pub(crate) fn init_db(
     Ok(Arc::new(
         rocksdb::DBWithThreadMode::<MultiThreaded>::open_cf_descriptors(
             options,
-            &path,
+            path,
             vec![
                 ColumnFamilyDescriptor::new(
                     constants::PENDING_CERTIFICATES,

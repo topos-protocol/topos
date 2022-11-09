@@ -5,13 +5,13 @@ use crate::{Height, SubnetId};
 
 use super::db_column::DBColumn;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct TargetStreamRef(pub(crate) SubnetId, pub(crate) SubnetId, pub(crate) Height);
 
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct TargetStreamPrefix(pub(crate) SubnetId, pub(crate) SubnetId);
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct SourceStreamRef(pub(crate) SubnetId, pub(crate) Height);
 
 pub(crate) type PendingCertificatesColumn = DBColumn<u64, Certificate>;

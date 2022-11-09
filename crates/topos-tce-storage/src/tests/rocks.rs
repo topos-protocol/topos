@@ -2,14 +2,15 @@ use std::thread;
 
 use rstest::rstest;
 
-use crate::rocks::db::RocksDB;
 use crate::rocks::db_column::DBColumn;
+use crate::tests::support::database_name;
 use crate::tests::support::rocks_db;
 
 #[rstest]
 #[tokio::test]
-async fn create_batch_multithread(rocks_db: &RocksDB) {
-    let column: DBColumn<String, String> = DBColumn::reopen(&rocks_db, "default");
+async fn create_batch_multithread(database_name: &'static str) {
+    let db = rocks_db(database_name);
+    let column: DBColumn<String, String> = DBColumn::reopen(&db, "default");
 
     let column_clone = column.clone();
 

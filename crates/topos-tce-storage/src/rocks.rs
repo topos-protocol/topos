@@ -244,3 +244,22 @@ impl Storage for RocksDBStorage {
         self.pending_certificates.delete(&index)
     }
 }
+
+#[cfg(test)]
+impl RocksDBStorage {
+    pub(crate) fn pending_certificates_column(&self) -> PendingCertificatesColumn {
+        self.pending_certificates.clone()
+    }
+
+    pub(crate) fn certificates_column(&self) -> CertificatesColumn {
+        self.certificates.clone()
+    }
+
+    pub(crate) fn source_subnet_streams_column(&self) -> SourceSubnetStreamsColumn {
+        self.source_subnet_streams.clone()
+    }
+
+    pub(crate) fn target_subnet_streams_column(&self) -> TargetSubnetStreamsColumn {
+        self.target_subnet_streams.clone()
+    }
+}

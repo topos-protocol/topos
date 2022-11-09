@@ -2,18 +2,12 @@ use rstest::rstest;
 use topos_core::uci::{Amount, Certificate, CrossChainTransaction};
 
 use crate::{
-    rocks::{
-        map::Map, CertificatesColumn, PendingCertificatesColumn, SourceSubnetStreamsColumn,
-        TargetStreamRef, TargetSubnetStreamsColumn,
-    },
+    rocks::{map::Map, TargetStreamRef},
     tests::support::{INITIAL_SUBNET_ID, TARGET_SUBNET_ID_A, TARGET_SUBNET_ID_B},
     Height, RocksDBStorage, Storage, SubnetId,
 };
 
-use self::support::{
-    columns::{certificates_column, pending_column, source_streams_column, target_streams_column},
-    storage,
-};
+use self::support::storage;
 
 mod db_columns;
 mod height;
@@ -30,12 +24,11 @@ async fn can_persist_a_pending_certificate(storage: RocksDBStorage) {
 
 #[rstest]
 #[tokio::test]
-async fn can_persist_a_delivered_certificate(
-    storage: RocksDBStorage,
-    certificates_column: CertificatesColumn,
-    source_streams_column: SourceSubnetStreamsColumn,
-    target_streams_column: TargetSubnetStreamsColumn,
-) {
+async fn can_persist_a_delivered_certificate(storage: RocksDBStorage) {
+    let certificates_column = storage.certificates_column();
+    let source_streams_column = storage.source_subnet_streams_column();
+    let target_streams_column = storage.target_subnet_streams_column();
+
     let certificate = Certificate::new(
         "".into(),
         INITIAL_SUBNET_ID.to_string(),
@@ -74,12 +67,11 @@ async fn can_persist_a_delivered_certificate(
 
 #[rstest]
 #[tokio::test]
-async fn delivered_certificate_are_added_to_target_stream(
-    storage: RocksDBStorage,
-    certificates_column: CertificatesColumn,
-    source_streams_column: SourceSubnetStreamsColumn,
-    target_streams_column: TargetSubnetStreamsColumn,
-) {
+async fn delivered_certificate_are_added_to_target_stream(storage: RocksDBStorage) {
+    let certificates_column = storage.certificates_column();
+    let source_streams_column = storage.source_subnet_streams_column();
+    let target_streams_column = storage.target_subnet_streams_column();
+
     _ = target_streams_column
         .insert(
             &TargetStreamRef(TARGET_SUBNET_ID_A, INITIAL_SUBNET_ID, Height::ZERO),
@@ -144,10 +136,9 @@ async fn delivered_certificate_are_added_to_target_stream(
 
 #[rstest]
 #[tokio::test]
-async fn pending_certificate_are_removed_during_persist_action(
-    storage: RocksDBStorage,
-    pending_column: PendingCertificatesColumn,
-) {
+async fn pending_certificate_are_removed_during_persist_action(storage: RocksDBStorage) {
+    let pending_column = storage.pending_certificates_column();
+
     let certificate = Certificate::new(
         "".into(),
         INITIAL_SUBNET_ID.to_string(),

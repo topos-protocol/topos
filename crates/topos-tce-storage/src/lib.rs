@@ -61,7 +61,7 @@ impl ToString for SubnetId {
 }
 
 /// Certificate index in the history of the source subnet
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Height(pub(crate) u64);
 
 impl Height {
