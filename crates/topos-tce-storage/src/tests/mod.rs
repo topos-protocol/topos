@@ -3,7 +3,7 @@ use topos_core::uci::{Amount, Certificate, CrossChainTransaction};
 
 use crate::{
     rocks::{map::Map, TargetStreamRef},
-    tests::support::{INITIAL_SUBNET_ID, TARGET_SUBNET_ID_A, TARGET_SUBNET_ID_B},
+    tests::support::{SOURCE_SUBNET_ID, TARGET_SUBNET_ID_A, TARGET_SUBNET_ID_B},
     Height, RocksDBStorage, Storage, SubnetId,
 };
 
@@ -31,7 +31,7 @@ async fn can_persist_a_delivered_certificate(storage: RocksDBStorage) {
 
     let certificate = Certificate::new(
         "".into(),
-        INITIAL_SUBNET_ID.to_string(),
+        SOURCE_SUBNET_ID.to_string(),
         vec![CrossChainTransaction {
             recipient_addr: "".into(),
             sender_addr: "source_subnet_a".into(),
@@ -49,7 +49,7 @@ async fn can_persist_a_delivered_certificate(storage: RocksDBStorage) {
     assert!(certificates_column.get(&cert_id).is_ok());
 
     let stream_element = source_streams_column
-        .prefix_iter(&INITIAL_SUBNET_ID)
+        .prefix_iter(&SOURCE_SUBNET_ID)
         .unwrap()
         .last()
         .unwrap();
@@ -57,7 +57,7 @@ async fn can_persist_a_delivered_certificate(storage: RocksDBStorage) {
     assert_eq!(stream_element.0 .1, Height::ZERO);
 
     let stream_element = target_streams_column
-        .prefix_iter::<(SubnetId, SubnetId)>(&(TARGET_SUBNET_ID_A, INITIAL_SUBNET_ID))
+        .prefix_iter::<(SubnetId, SubnetId)>(&(TARGET_SUBNET_ID_A, SOURCE_SUBNET_ID))
         .unwrap()
         .last()
         .unwrap();
@@ -74,14 +74,14 @@ async fn delivered_certificate_are_added_to_target_stream(storage: RocksDBStorag
 
     _ = target_streams_column
         .insert(
-            &TargetStreamRef(TARGET_SUBNET_ID_A, INITIAL_SUBNET_ID, Height::ZERO),
+            &TargetStreamRef(TARGET_SUBNET_ID_A, SOURCE_SUBNET_ID, Height::ZERO),
             &"certificate_one".to_string(),
         )
         .unwrap();
 
     let certificate = Certificate::new(
         "".into(),
-        INITIAL_SUBNET_ID.to_string(),
+        SOURCE_SUBNET_ID.to_string(),
         vec![
             CrossChainTransaction {
                 recipient_addr: "".into(),
@@ -110,7 +110,7 @@ async fn delivered_certificate_are_added_to_target_stream(storage: RocksDBStorag
     assert!(certificates_column.get(&cert_id).is_ok());
 
     let stream_element = source_streams_column
-        .prefix_iter(&INITIAL_SUBNET_ID)
+        .prefix_iter(&SOURCE_SUBNET_ID)
         .unwrap()
         .last()
         .unwrap();
@@ -118,7 +118,7 @@ async fn delivered_certificate_are_added_to_target_stream(storage: RocksDBStorag
     assert_eq!(stream_element.0 .1, Height::ZERO);
 
     let stream_element = target_streams_column
-        .prefix_iter(&(&TARGET_SUBNET_ID_A, &INITIAL_SUBNET_ID))
+        .prefix_iter(&(&TARGET_SUBNET_ID_A, &SOURCE_SUBNET_ID))
         .unwrap()
         .last()
         .unwrap();
@@ -126,7 +126,7 @@ async fn delivered_certificate_are_added_to_target_stream(storage: RocksDBStorag
     assert_eq!(stream_element.0 .2, Height(1));
 
     let stream_element = target_streams_column
-        .prefix_iter(&(&TARGET_SUBNET_ID_B, &INITIAL_SUBNET_ID))
+        .prefix_iter(&(&TARGET_SUBNET_ID_B, &SOURCE_SUBNET_ID))
         .unwrap()
         .last()
         .unwrap();
@@ -141,7 +141,7 @@ async fn pending_certificate_are_removed_during_persist_action(storage: RocksDBS
 
     let certificate = Certificate::new(
         "".into(),
-        INITIAL_SUBNET_ID.to_string(),
+        SOURCE_SUBNET_ID.to_string(),
         vec![CrossChainTransaction {
             recipient_addr: "".into(),
             sender_addr: "source_subnet_a".into(),

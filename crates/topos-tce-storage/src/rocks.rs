@@ -5,6 +5,7 @@ use std::{
 };
 
 use topos_core::uci::{Certificate, CertificateId};
+use tracing::warn;
 
 use crate::{errors::InternalStorageError, Height, PendingCertificateId, Storage, SubnetId};
 
@@ -104,8 +105,21 @@ impl Storage for RocksDBStorage {
         batch = batch.insert_batch(&self.certificates, [(&certificate.cert_id, &certificate)])?;
 
         if let Some(pending_id) = pending_certificate_id {
-            // Removing the pending certificate from the PENDING_CERTIFICATES cf
-            batch = batch.delete(&self.pending_certificates, pending_id)?;
+            match self.pending_certificates.get(&pending_id) {
+                Ok(pending_certificate) if pending_certificate == certificate => {
+                    batch = batch.delete(&self.pending_certificates, pending_id)?;
+                }
+                Ok(_) => {
+                    warn!("PendingCertificateId {} ignored during persist execution: Difference in certificates", pending_id);
+                }
+
+                _ => {
+                    warn!(
+                        "PendingCertificateId {} ignored during persist execution: Not Found",
+                        pending_id
+                    );
+                }
+            }
         }
 
         let source_subnet_height = if certificate.prev_cert_id.is_empty() {

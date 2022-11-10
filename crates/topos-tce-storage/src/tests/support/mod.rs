@@ -22,7 +22,7 @@ use self::{
     folder::created_folder,
 };
 
-pub(crate) const INITIAL_SUBNET_ID: SubnetId = SubnetId { inner: [1u8; 32] };
+pub(crate) const SOURCE_SUBNET_ID: SubnetId = SubnetId { inner: [1u8; 32] };
 pub(crate) const TARGET_SUBNET_ID_A: SubnetId = SubnetId { inner: [2u8; 32] };
 pub(crate) const TARGET_SUBNET_ID_B: SubnetId = SubnetId { inner: [3u8; 32] };
 

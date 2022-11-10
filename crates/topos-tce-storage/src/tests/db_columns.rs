@@ -6,7 +6,7 @@ use crate::{
         map::Map, CertificatesColumn, PendingCertificatesColumn, SourceStreamRef,
         SourceSubnetStreamsColumn,
     },
-    tests::support::INITIAL_SUBNET_ID,
+    tests::support::SOURCE_SUBNET_ID,
     Height,
 };
 
@@ -48,7 +48,7 @@ async fn delivered_certificate_height_are_incremented(
         .is_ok());
     assert!(source_streams_column
         .insert(
-            &SourceStreamRef(INITIAL_SUBNET_ID, Height::ZERO),
+            &SourceStreamRef(SOURCE_SUBNET_ID, Height::ZERO),
             &certificate.cert_id
         )
         .is_ok());
@@ -61,14 +61,14 @@ async fn height_can_be_fetch_for_one_subnet(source_streams_column: SourceSubnetS
 
     assert!(source_streams_column
         .insert(
-            &SourceStreamRef(INITIAL_SUBNET_ID, Height::ZERO),
+            &SourceStreamRef(SOURCE_SUBNET_ID, Height::ZERO),
             &certificate.cert_id
         )
         .is_ok());
 
     assert!(matches!(
         source_streams_column
-            .prefix_iter(&INITIAL_SUBNET_ID)
+            .prefix_iter(&SOURCE_SUBNET_ID)
             .unwrap()
             .last(),
         Some((SourceStreamRef(_, Height::ZERO), _))
@@ -78,14 +78,14 @@ async fn height_can_be_fetch_for_one_subnet(source_streams_column: SourceSubnetS
 
     assert!(source_streams_column
         .insert(
-            &SourceStreamRef(INITIAL_SUBNET_ID, Height(1)),
+            &SourceStreamRef(SOURCE_SUBNET_ID, Height(1)),
             &certificate.cert_id
         )
         .is_ok());
 
     assert!(matches!(
         source_streams_column
-            .prefix_iter(&INITIAL_SUBNET_ID)
+            .prefix_iter(&SOURCE_SUBNET_ID)
             .unwrap()
             .last(),
         Some((SourceStreamRef(_, Height(1)), _))
@@ -99,7 +99,3 @@ async fn height_can_be_fetch_for_multiple_subnets() {}
 #[tokio::test]
 #[ignore = "not yet implemented"]
 async fn height_can_be_fetch_for_all_subnets() {}
-
-// #[tokio::test]
-// #[ignore = "not yet implemented"]
-// async fn delivered_certificate_are_added_to_target_stream() {}
