@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 async-trait.workspace = true
 tracing.workspace = true
-tokio.workspace = true
+tokio = { workspace = true, features = ["full"] }
 futures.workspace = true
 thiserror.workspace = true
 serde.workspace = true
@@ -24,5 +24,6 @@ inmemory = []
 rocksdb = ["dep:rocksdb"]
 
 [dev-dependencies]
-rand.workspace = true
+rand = { workspace = true, features = ["default"] }
 rstest = "0.15.0"
+uuid = { version = "1.2.1", features = ["v4", "serde"] }

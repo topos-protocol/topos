@@ -1,9 +1,9 @@
 use std::time::{Instant, SystemTime};
 
-use errors::InternalStorageError;
+use errors::{HeightError, InternalStorageError};
 use serde::{Deserialize, Serialize};
 
-use topos_core::uci::{Certificate, CertificateId, SubnetId};
+use topos_core::uci::{Certificate, CertificateId};
 
 pub mod client;
 pub(crate) mod command;
@@ -25,8 +25,58 @@ pub use rocks::RocksDBStorage;
 
 pub type PendingCertificateId = u64;
 
+#[derive(Debug, Serialize, Clone, Copy, Deserialize)]
+// TODO: Replace in UCI
+pub struct SubnetId {
+    inner: [u8; 32],
+}
+
+impl TryFrom<&str> for SubnetId {
+    type Error = InternalStorageError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        if value.len() != 32 {
+            return Err(InternalStorageError::InvalidSubnetId);
+        }
+
+        Ok(Self {
+            inner: value
+                .as_bytes()
+                .try_into()
+                .map_err(|_| InternalStorageError::InvalidSubnetId)?,
+        })
+    }
+}
+
+impl From<[u8; 32]> for SubnetId {
+    fn from(inner: [u8; 32]) -> Self {
+        Self { inner }
+    }
+}
+
+impl ToString for SubnetId {
+    fn to_string(&self) -> String {
+        String::from_utf8_lossy(&self.inner).to_string()
+    }
+}
+
 /// Certificate index in the history of the source subnet
-pub type Height = u64;
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct Height(pub(crate) u64);
+
+impl Height {
+    const ZERO: Self = Self(0);
+
+    pub(crate) fn increment(self) -> Result<Self, HeightError> {
+        match self {
+            Self::ZERO => Ok(Self(1)),
+            Self(value) => value
+                .checked_add(1)
+                .ok_or(HeightError::MaximumHeightReached)
+                .map(Self),
+        }
+    }
+}
 
 /// Uniquely identify the tip of one subnet.
 /// The tip represent the internal state of the TCE regarding a source subnet stream
@@ -62,8 +112,8 @@ pub trait Storage: Sync + Send + 'static {
     async fn persist(
         &self,
         certificate: Certificate,
-        status: CertificateStatus,
-    ) -> Result<PendingCertificateId, InternalStorageError>;
+        pending_certificate_id: Option<PendingCertificateId>,
+    ) -> Result<(), InternalStorageError>;
 
     /// Update the certificate entry with new status
     async fn update(
