@@ -10,7 +10,7 @@ use std::{
 use tce_transport::{ReliableBroadcastParams, TrbpEvents};
 use tokio::sync::{broadcast, mpsc};
 use topos_core::uci::{Certificate, CertificateId, DigestCompressed};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info, instrument, warn};
 
 /// Processing data associated to a Certificate candidate for delivery
 /// Sample repartition, one peer may belongs to multiple samples
@@ -68,6 +68,7 @@ impl DoubleEcho {
         }
     }
 
+    #[instrument(name = "DoubleEcho::Runtime", skip_all)]
     pub(crate) async fn run(mut self) {
         info!("DoubleEcho started");
         loop {

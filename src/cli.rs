@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 use clap::Parser;
 use tce_transport::ReliableBroadcastParams;
 use topos_p2p::{Multiaddr, PeerId};
-use tracing::info;
+use tracing::{info, instrument};
 
 /// Application configuration
 #[derive(Debug, Parser)]
@@ -65,6 +65,7 @@ pub struct AppArgs {
 }
 
 impl AppArgs {
+    #[instrument(skip_all)]
     pub fn parse_boot_peers(&self) -> Vec<(PeerId, Multiaddr)> {
         info!("boot_peers: {:?}", self.boot_peers);
         self.boot_peers
