@@ -8,6 +8,7 @@ path = 'src/lib.rs'
 
 [dependencies]
 tracing.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 
 topos-core = { workspace = true, features = ["uci"] }
 

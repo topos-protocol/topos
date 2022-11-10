@@ -10,25 +10,24 @@ use tokio::spawn;
 use topos_p2p::{utils::local_key_pair, Multiaddr};
 use topos_tce_broadcast::mem_store::TrbMemStore;
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
-use tracing::info;
+use tracing::{instrument, Instrument, Span};
 
 #[tokio::main]
+#[instrument(name = "TCE", fields(peer_id))]
 async fn main() {
-    pretty_env_logger::init_timed();
-    info!("Initializing application");
+    #[cfg(feature = "log-json")]
+    tracing_subscriber::fmt().json().init();
+
+    #[cfg(not(feature = "log-json"))]
+    tracing_subscriber::fmt::init();
+
     let args = AppArgs::parse();
+    let key = local_key_pair(args.local_key_seed);
+    let peer_id = key.public().to_peer_id();
+    tracing::Span::current().record("peer_id", &peer_id.to_string());
 
     tce_telemetry::init_tracer(&args.jaeger_agent, &args.jaeger_service_name);
 
-    // launch data store
-    info!(
-        "Storage: {}",
-        if let Some(db_path) = args.db_path.clone() {
-            format!("RocksDB: {}", &db_path)
-        } else {
-            "RAM".to_string()
-        }
-    );
     let config = ReliableBroadcastConfig {
         store: if let Some(db_path) = args.db_path.clone() {
             // Use RocksDB
@@ -41,7 +40,6 @@ async fn main() {
         my_peer_id: "main".to_string(),
     };
 
-    info!("Starting application");
     let addr: Multiaddr = format!("/ip4/0.0.0.0/tcp/{}", args.tce_local_port)
         .parse()
         .unwrap();
@@ -52,17 +50,19 @@ async fn main() {
     let (api_client, api_stream) = topos_tce_api::Runtime::builder()
         .serve_addr(args.api_addr)
         .build_and_launch()
+        .instrument(Span::current())
         .await;
 
     let (network_client, event_stream, runtime) = topos_p2p::network::builder()
-        .peer_key(local_key_pair(args.local_key_seed))
+        .peer_key(key)
         .listen_addr(addr)
-        .known_peers(args.parse_boot_peers())
+        .known_peers(Span::current().in_scope(|| args.parse_boot_peers()))
         .build()
+        .instrument(Span::current())
         .await
         .expect("Can't create network system");
 
-    spawn(runtime.run());
+    spawn(runtime.run().instrument(Span::current()));
 
     // setup transport-trbp-storage-api connector
     let app_context = AppContext::new(
@@ -71,5 +71,8 @@ async fn main() {
         network_client,
         api_client,
     );
-    app_context.run(event_stream, trb_stream, api_stream).await;
+    app_context
+        .run(event_stream, trb_stream, api_stream)
+        .instrument(Span::current())
+        .await;
 }

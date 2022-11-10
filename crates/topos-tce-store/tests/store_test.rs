@@ -1,22 +1,10 @@
 use rocksdb::{IteratorMode, Options, ReadOptions, DB};
-use std::sync::Once;
 use topos_core::uci::Certificate;
 use tracing::debug;
-
-static DB_TEST_SETUP: Once = Once::new();
-
-pub fn setup() {
-    DB_TEST_SETUP.call_once(|| {
-        // initialization code here
-        pretty_env_logger::init_timed();
-    });
-}
 
 // small take on rocks-db functionality
 #[test]
 fn db_load() {
-    setup();
-
     let path = "db_data";
     {
         let db = DB::open_default(path).unwrap();
@@ -47,7 +35,6 @@ fn db_load() {
 #[test]
 fn new_offset() {
     println!("new_offset");
-    setup();
 
     let zero_key = format!("{:020}", 0u64);
     let max_key = format!("{:020}", u64::MAX);
