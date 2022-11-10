@@ -1,8 +1,8 @@
-name: Docker and Kubernetes jobs
+name: E2E tests on Kubernetes
 
 on:
   workflow_run:
-    workflows: [Docker build and push]
+    workflows: [Docker_build_push] # This is the name of the .github/workflows/docker_build_push.yml workflow
     types:
       - completed
 

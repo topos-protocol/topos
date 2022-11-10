@@ -1,4 +1,4 @@
-name: Docker_build_push
+name: Docker_build_push # This is used in the .github/workflows/k8s_perf_tests.yml workflow
 
 on:
   pull_request:
@@ -54,7 +54,7 @@ jobs:
             type=registry,ref=ghcr.io/${{ github.repository }}:build-cache-main-${{ github.workflow }}-stable
           cache-to: type=registry,ref=ghcr.io/${{ github.repository }}:build-cache-${{ env.GITHUB_REF_SLUG_URL }}-${{ github.workflow }}-${{ matrix.version }},mode=max
 
-      - name: Save docker tags
+      - name: Save docker tags for upcoming e2e test on Kubernetes
         run: |
           mkdir -p ./docker
           echo ${{ steps.meta.outputs.tags }} > ./docker/docker_tags
