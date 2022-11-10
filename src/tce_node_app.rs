@@ -13,27 +13,21 @@ use tokio::spawn;
 use topos_p2p::{utils::local_key_pair, Multiaddr};
 use topos_tce_broadcast::mem_store::TrbMemStore;
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
-use tracing::{instrument, Instrument, Span};
+use tracing::{info, instrument, Instrument, Span};
 
 use tracing_subscriber::{prelude::*, EnvFilter};
 
 #[tokio::main]
 #[instrument(name = "TCE", fields(peer_id))]
 async fn main() {
-    #[cfg(feature = "log-json")]
-    tracing_subscriber::fmt().json().init();
-
-    #[cfg(not(feature = "log-json"))]
-    tracing_subscriber::fmt::init();
-
     let args = AppArgs::parse();
     let key = local_key_pair(args.local_key_seed);
     let peer_id = key.public().to_peer_id();
     tracing::Span::current().record("peer_id", &peer_id.to_string());
 
     let tracer = opentelemetry_jaeger::new_agent_pipeline()
-        .with_endpoint("jaeger:6831")
-        .with_service_name("my_app")
+        .with_endpoint(args.jaeger_agent.clone())
+        .with_service_name(args.jaeger_service_name.clone())
         .with_max_packet_size(9_216)
         .with_auto_split_batch(true)
         .with_instrumentation_library_tags(false)
@@ -53,10 +47,16 @@ async fn main() {
         .install_batch(opentelemetry::runtime::Tokio)
         .unwrap();
 
+    #[cfg(feature = "log-json")]
+    let formatting_layer = tracing_subscriber::fmt::layer().json();
+
+    #[cfg(not(feature = "log-json"))]
+    let formatting_layer = tracing_subscriber::fmt::layer();
+
     let opentelemetry = tracing_opentelemetry::layer().with_tracer(tracer);
     tracing_subscriber::registry()
         .with(EnvFilter::try_from_default_env().unwrap())
-        .with(tracing_subscriber::fmt::layer())
+        .with(formatting_layer)
         .with(opentelemetry)
         .try_init()
         .unwrap();
