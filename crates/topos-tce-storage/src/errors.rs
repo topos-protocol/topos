@@ -31,6 +31,15 @@ pub enum InternalStorageError {
 
     #[error(transparent)]
     Bincode(#[from] Box<bincode::ErrorKind>),
+
+    #[error("A concurrent DBBatch has been detected")]
+    ConcurrentDBBatchDetected,
+
+    #[error("{0}: {1}")]
+    HeightError(#[source] HeightError, String),
+
+    #[error("InvalidSubnetId")]
+    InvalidSubnetId,
 }
 
 #[derive(Debug, Error)]
@@ -46,4 +55,10 @@ pub enum StorageError {
 
     #[error("Unable to receive expected response from storage: {0}")]
     ResponseChannel(#[from] oneshot::error::RecvError),
+}
+
+#[derive(Debug, Error)]
+pub enum HeightError {
+    #[error("Maximum height reached for subnet")]
+    MaximumHeightReached,
 }

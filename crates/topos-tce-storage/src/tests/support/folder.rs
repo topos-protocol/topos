@@ -14,9 +14,6 @@ pub(crate) fn random_path() -> Box<PathBuf> {
     Box::new(Path::new(&format!("./tests/databases/{random}")).to_path_buf())
 }
 
-#[fixture]
-pub(crate) fn created_folder(random_path: Box<PathBuf>) -> Box<PathBuf> {
-    fs::create_dir_all(*random_path.clone()).unwrap();
-
-    random_path
+pub(crate) fn created_folder(random_path: &PathBuf) {
+    fs::create_dir_all(random_path.clone()).unwrap();
 }
