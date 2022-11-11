@@ -116,5 +116,6 @@ async fn main() {
 
         app_context.run(event_stream, trb_stream, api_stream).await;
     }
+
     global::shutdown_tracer_provider();
 }
