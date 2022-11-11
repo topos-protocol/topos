@@ -28,7 +28,7 @@ async fn main() {
     let tracer = opentelemetry_jaeger::new_agent_pipeline()
         .with_endpoint(args.jaeger_agent.clone())
         .with_service_name(args.jaeger_service_name.clone())
-        .with_max_packet_size(9_216)
+        .with_max_packet_size(1500)
         .with_auto_split_batch(true)
         .with_instrumentation_library_tags(false)
         .with_trace_config(
