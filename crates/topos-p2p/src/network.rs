@@ -11,13 +11,8 @@ use crate::{
 };
 use futures::Stream;
 use libp2p::{
-    core::upgrade,
-    identity::Keypair,
-    kad::store::MemoryStore,
-    mplex, noise,
-    swarm::SwarmBuilder,
-    tcp::{GenTcpConfig, TokioTcpTransport},
-    Multiaddr, PeerId, Transport,
+    core::upgrade, dns::TokioDnsConfig, identity::Keypair, kad::store::MemoryStore, mplex, noise,
+    swarm::SwarmBuilder, tcp, Multiaddr, PeerId, Transport,
 };
 use std::{collections::VecDeque, time::Duration};
 use tokio::sync::mpsc;
@@ -110,9 +105,20 @@ impl NetworkBuilder {
                 .listen_addr
                 .take()
                 .expect("P2P runtime expect a MultiAddr"),
+            bootstrapped: false,
         };
 
-        let transport = TokioTcpTransport::new(GenTcpConfig::default().nodelay(true))
+        let transport = {
+            let dns_tcp = TokioDnsConfig::system(tcp::TokioTcpTransport::new(
+                tcp::GenTcpConfig::new().nodelay(true),
+            ))
+            .unwrap();
+
+            let tcp = tcp::TokioTcpTransport::new(tcp::GenTcpConfig::default().nodelay(true));
+            dns_tcp.or_transport(tcp)
+        };
+
+        let transport = transport
             .upgrade(upgrade::Version::V1)
             .authenticate(noise::NoiseConfig::xx(noise_keys).into_authenticated())
             .multiplex(mplex::MplexConfig::new())
