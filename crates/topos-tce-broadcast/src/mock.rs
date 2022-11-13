@@ -126,17 +126,6 @@ impl SimulationConfig {
     }
 }
 
-use std::sync::Once;
-
-static INIT: Once = Once::new();
-
-pub fn initialize_tracing() {
-    INIT.call_once(|| {
-        let agent_endpoint = "127.0.0.1:6831".to_string();
-        tce_telemetry::init_tracer(&agent_endpoint, "local-integration-test");
-    });
-}
-
 pub fn viable_run(
     sample_size: usize,
     echo_ratio: f32,
@@ -153,10 +142,7 @@ pub fn viable_run(
 
     let rt = Runtime::new().unwrap();
     let current_config = config.clone();
-    let res = rt.block_on(async {
-        initialize_tracing();
-        run_tce_network(current_config).await
-    });
+    let res = rt.block_on(async { run_tce_network(current_config).await });
 
     match res {
         Ok(()) => Some(config),

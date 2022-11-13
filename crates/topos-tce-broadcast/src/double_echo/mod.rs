@@ -340,13 +340,14 @@ impl DoubleEcho {
                         *duration = from.elapsed().unwrap();
                         d = *duration;
 
-                        tce_telemetry::span_cert_delivery(
-                            self.my_peer_id.clone(),
-                            &cert.cert_id,
-                            *from,
-                            time::SystemTime::now(),
-                            Default::default(),
-                        )
+                        info!("certificate delivered {} => {:?}", cert.cert_id, d);
+                        // tce_telemetry::span_cert_delivery(
+                        //     self.my_peer_id.clone(),
+                        //     &cert.cert_id,
+                        //     *from,
+                        //     time::SystemTime::now(),
+                        //     Default::default(),
+                        // )
                     }
                     self.pending_delivery.remove(cert);
                     debug!(

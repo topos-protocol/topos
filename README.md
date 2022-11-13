@@ -91,8 +91,6 @@ Some tools are implemented in this repository, namely,
 
 The [params-minimizer](./params-minimizer/) aims at figuring out the protocol parameters of the TCE. Specifically, the TCE runs on simulated environment, with various parameters in order to understand what are the optimal values.
 
-The [cert-spammer](./cert-spammer/) aims at spamming a deployed TCE network with a constant load of dummy Certificate.
-
 ## License
 
 This project is released under the terms specified in the [LICENSE](LICENSE) file.

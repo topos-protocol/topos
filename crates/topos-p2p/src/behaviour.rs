@@ -52,6 +52,9 @@ pub(crate) struct Behaviour {
 
     #[behaviour(ignore)]
     pub(crate) addresses: Multiaddr,
+
+    #[behaviour(ignore)]
+    pub(crate) bootstrapped: bool,
 }
 
 impl Behaviour {
@@ -98,7 +101,7 @@ impl libp2p::swarm::NetworkBehaviourEventProcess<DiscoveryOut> for Behaviour {
             DiscoveryOut::SelfDiscovered(peer, addr) => {
                 self.transmission.inner.add_address(&peer, addr);
             }
-            DiscoveryOut::Discovered(peer) => {
+            DiscoveryOut::Discovered(peer) if self.bootstrapped => {
                 if self.discovery.peers.insert(peer) {
                     self.events
                         .push_back(ComposedEvent::OutEvent(Event::PeersChanged {
@@ -106,7 +109,7 @@ impl libp2p::swarm::NetworkBehaviourEventProcess<DiscoveryOut> for Behaviour {
                         }))
                 }
             }
-            DiscoveryOut::UnroutablePeer(peer) => {
+            DiscoveryOut::UnroutablePeer(peer) if self.bootstrapped => {
                 if self.discovery.peers.remove(&peer) {
                     let peers = self.discovery.peers.iter().cloned().collect();
                     self.events
@@ -124,6 +127,7 @@ impl libp2p::swarm::NetworkBehaviourEventProcess<DiscoveryOut> for Behaviour {
                     .kademlia
                     .put_record(Record::new(key, self.addresses.to_vec()), Quorum::All);
             }
+            _ => {}
         }
     }
 }
