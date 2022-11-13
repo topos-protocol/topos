@@ -27,9 +27,15 @@ variable "docker_registry_auth_pwd" {
   type = string
 }
 
-// Jaeger instance endpoint
+// Jaeger agent endpoint
 variable "jaeger_endpoint" {
   type = string
+}
+
+// Jaeger service name
+variable "jaeger_service_name" {
+  type = string
+  default = "undefined"
 }
 
 variable "location" {

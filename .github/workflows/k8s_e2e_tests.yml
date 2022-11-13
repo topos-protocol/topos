@@ -15,6 +15,7 @@ env:
     -var="tce_node_image=${{ needs.retrieve-docker-tags.outputs.docker_tags }}"
     -var="cert_spammer_image=${{ env.CERT_SPAMMER_IMAGE }}"
     -var="jaeger_endpoint=${{ env.TELEMETRY_ENDPOINT }}"
+    -var="jaeger_service_name=${{ github.sha }}
     -var="docker_registry_auth_user=${{ github.actor }}"
     -var="docker_registry_auth_pwd=${{ secrets.GITHUB_TOKEN }}"
 

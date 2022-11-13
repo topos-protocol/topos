@@ -46,6 +46,7 @@ module "kubernetes-config" {
   docker_registry_auth_user  = var.docker_registry_auth_user
   docker_registry_auth_pwd   = var.docker_registry_auth_pwd
   jaeger_endpoint            = var.jaeger_endpoint
+  jaeger_service_name        = var.jaeger_service_name
   kubeconfig                 = data.azurerm_kubernetes_cluster.default.kube_config_raw
   replica_count              = var.replica_count
 }

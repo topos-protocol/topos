@@ -77,6 +77,11 @@ resource "kubernetes_deployment" "bootnode" {
             name  = "TCE_JAEGER_AGENT"
             value = var.jaeger_endpoint
           }
+
+          env {
+            name  = "TCE_JAEGER_SERVICE_NAME"
+            value = "${var.jaeger_service_name}-boot"
+          }
         }
       }
     }
@@ -156,6 +161,11 @@ resource "kubernetes_deployment" "replicas" {
           env {
             name  = "TCE_JAEGER_AGENT"
             value = var.jaeger_endpoint
+          }
+
+          env {
+            name  = "TCE_JAEGER_SERVICE_NAME"
+            value = "${var.jaeger_service_name}-replicas"
           }
 
           env {

@@ -26,6 +26,10 @@ variable "jaeger_endpoint" {
   type = string
 }
 
+variable "jaeger_service_name" {
+  type = string
+}
+
 variable "kubeconfig" {
   type = string
 }
