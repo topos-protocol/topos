@@ -12,7 +12,6 @@ env:
   SPAM_DURATION_SECONDS: 10
   TERRAFORM_INPUTS: >
     -var="cluster_name=${{ github.sha }}"
-    -var="tce_node_image=${{ needs.retrieve-docker-tags.outputs.docker_tags }}"
     -var="cert_spammer_image=${{ env.CERT_SPAMMER_IMAGE }}"
     -var="jaeger_endpoint=${{ env.TELEMETRY_ENDPOINT }}"
     -var="jaeger_service_name=${{ github.sha }}
@@ -61,10 +60,10 @@ jobs:
       - name: Terraform init
         run: terraform -chdir=./tools/terraform init
       - name: Terraform plan
-        run: terraform -chdir=./tools/terraform plan  ${{ env.TERRAFORM_INPUTS }}
+        run: terraform -chdir=./tools/terraform plan ${{ env.TERRAFORM_INPUTS }} -var="tce_node_image=${{ needs.retrieve-docker-tags.outputs.docker_tags }}"
       - name: Spam certificates for ${{ env.SPAM_DURATION_SECONDS }} seconds
         uses: jakejarvis/wait-action@master
         with:
           time: "${{ env.SPAM_DURATION_SECONDS }}s"
       - name: Terraform destroy
-        run: terraform -chdir=./tools/terraform destroy ${{ env.TERRAFORM_INPUTS }}
+        run: terraform -chdir=./tools/terraform destroy ${{ env.TERRAFORM_INPUTS }} -var="tce_node_image=${{ needs.retrieve-docker-tags.outputs.docker_tags }}"
