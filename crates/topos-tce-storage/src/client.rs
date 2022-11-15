@@ -4,7 +4,7 @@ use topos_core::uci::{Certificate, CertificateId};
 use crate::{
     command::{
         AddPendingCertificate, CertificateDelivered, FetchCertificates, GetCertificate,
-        StorageCommand,
+        RemovePendingCertificate, StorageCommand,
     },
     errors::StorageError,
     FetchCertificatesFilter, PendingCertificateId,
@@ -32,6 +32,18 @@ impl StorageClient {
         AddPendingCertificate { certificate }
             .send_to(&self.sender)
             .await
+    }
+
+    /// Ask the storage to remove a pending certificate
+    pub async fn remove_pending_certificate(
+        &self,
+        pending_certificate_id: PendingCertificateId,
+    ) -> Result<PendingCertificateId, StorageError> {
+        RemovePendingCertificate {
+            pending_certificate_id,
+        }
+        .send_to(&self.sender)
+        .await
     }
 
     /// Ask the storage to tag this certificate as delivered.

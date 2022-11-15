@@ -234,6 +234,69 @@ async fn fetch_certificates_for_subnets(storage: RocksDBStorage) {
     assert_eq!(expected_certificates, certificates);
 }
 
+#[rstest]
+#[tokio::test]
+async fn pending_certificate_can_be_removed(storage: RocksDBStorage) {
+    let pending_column = storage.pending_certificates_column();
+
+    let certificate = Certificate::new(
+        "".into(),
+        SOURCE_SUBNET_ID.to_string(),
+        vec![CrossChainTransaction {
+            recipient_addr: "".into(),
+            sender_addr: "source_subnet_a".into(),
+            terminal_subnet_id: TARGET_SUBNET_ID_A.to_string(),
+            transaction_data: topos_core::uci::CrossChainTransactionData::AssetTransfer {
+                asset_id: "asset_id".into(),
+                amount: Amount::from(1),
+            },
+        }],
+    );
+
+    let pending_id = storage
+        .add_pending_certificate(certificate.clone())
+        .await
+        .unwrap();
+
+    assert!(pending_column.get(&pending_id).is_ok());
+    _ = storage
+        .remove_pending_certificate(pending_id)
+        .await
+        .unwrap();
+
+    assert!(pending_column.get(&pending_id).is_err());
+
+    _ = storage.remove_pending_certificate(1234).await.unwrap();
+
+    assert!(pending_column
+        .iter()
+        .unwrap()
+        .collect::<Vec<_>>()
+        .is_empty());
+
+    let _ = storage
+        .add_pending_certificate(certificate.clone())
+        .await
+        .unwrap();
+
+    let pending_id = storage
+        .add_pending_certificate(certificate.clone())
+        .await
+        .unwrap();
+
+    assert!(pending_column.get(&pending_id).is_ok());
+    _ = storage
+        .remove_pending_certificate(pending_id)
+        .await
+        .unwrap();
+
+    assert!(!pending_column
+        .iter()
+        .unwrap()
+        .collect::<Vec<_>>()
+        .is_empty());
+}
+
 fn create_certificate_chain(
     source_subnet: String,
     target_subnet: String,

@@ -105,8 +105,10 @@ impl<S: Storage> IntoFuture for Connection<S> {
                     Some(command) = self.queries.recv() => {
                         match command {
                             StorageCommand::AddPendingCertificate(command, response_channel) => {
-                                let res = self.handle(command).await;
-                                _ = response_channel.send(res);
+                                _ = response_channel.send(self.handle(command).await)
+                            },
+                            StorageCommand::RemovePendingCertificate(command, response_channel) => {
+                                _ = response_channel.send(self.handle(command).await)
                             },
 
                             StorageCommand::FetchCertificates(command, response_channel) => {
