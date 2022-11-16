@@ -2,9 +2,9 @@ use async_trait::async_trait;
 use topos_core::uci::Certificate;
 
 use crate::{
-    command::{AddPendingCertificate, CertificateDelivered, GetCertificate},
+    command::{AddPendingCertificate, CertificateDelivered, FetchCertificates, GetCertificate},
     errors::StorageError,
-    Connection, PendingCertificateId, Storage,
+    Connection, FetchCertificatesFilter, Height, PendingCertificateId, Storage,
 };
 
 use super::handler::CommandHandler;
@@ -54,5 +54,49 @@ where
         GetCertificate { certificate_id }: GetCertificate,
     ) -> Result<Certificate, StorageError> {
         Ok(self.storage.get_certificate(certificate_id).await?)
+    }
+}
+
+/// Handle a FetchCertificates query
+///
+/// The FetchCertificates query will fetch certificates from the storage based on the provided
+/// filter
+#[async_trait]
+impl<S> CommandHandler<FetchCertificates> for Connection<S>
+where
+    S: Storage,
+{
+    async fn handle(
+        &mut self,
+        FetchCertificates { filter }: FetchCertificates,
+    ) -> Result<Vec<Certificate>, StorageError> {
+        let certificate_ids = match filter {
+            FetchCertificatesFilter::Source {
+                subnet_id,
+                version,
+                limit,
+            } => {
+                self.storage
+                    .get_certificates_by_source(subnet_id, Height(version), limit)
+                    .await?
+            }
+            FetchCertificatesFilter::Target {
+                target_subnet_id,
+                source_subnet_id,
+                version,
+                limit,
+            } => {
+                self.storage
+                    .get_certificates_by_target(
+                        target_subnet_id,
+                        source_subnet_id,
+                        Height(version),
+                        limit,
+                    )
+                    .await?
+            }
+        };
+
+        Ok(self.storage.get_certificates(certificate_ids).await?)
     }
 }
