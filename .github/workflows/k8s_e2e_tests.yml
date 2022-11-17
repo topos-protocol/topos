@@ -8,7 +8,7 @@ on:
 
 env:
   CERT_SPAMMER_IMAGE: ghcr.io/toposware/cert-spammer:main
-  TELEMETRY_ENDPOINT: jaeger.tce.toposware.com:6831
+  TELEMETRY_ENDPOINT: jaeger.tce.devnet-1.toposware.com:6831
   SPAM_DURATION_SECONDS: 10
   TERRAFORM_INPUTS: >
     -var="cluster_name=${{ github.sha }}"
