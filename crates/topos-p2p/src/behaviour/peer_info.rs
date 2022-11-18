@@ -5,7 +5,10 @@ use std::{
 
 use libp2p::{
     core::{connection::ConnectionId, ConnectedPoint},
-    identify::{Identify, IdentifyConfig, IdentifyEvent, IdentifyInfo},
+    identify::Behaviour as Identify,
+    identify::Config as IdentifyConfig,
+    identify::Event as IdentifyEvent,
+    identify::Info as IdentifyInfo,
     identity::Keypair,
     swarm::{
         ConnectionHandler, IntoConnectionHandler, NetworkBehaviour, NetworkBehaviourAction,

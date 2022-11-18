@@ -1,11 +1,12 @@
 use std::{
+    borrow::Cow,
     collections::{hash_map::Entry, HashMap, HashSet, VecDeque},
     num::NonZeroUsize,
     task::{Context, Poll},
 };
 
 use crate::error::{CommandExecutionError, P2PError};
-use futures::{future::BoxFuture, FutureExt};
+use futures::future::BoxFuture;
 use libp2p::{
     core::{connection::ConnectionId, transport::ListenerId, ConnectedPoint},
     identity::Keypair,
@@ -13,7 +14,7 @@ use libp2p::{
         record::Key, store::MemoryStore, AddProviderOk, GetClosestPeersError, Kademlia,
         KademliaConfig, KademliaEvent, QueryId, QueryResult, Quorum,
     },
-    mdns::{Mdns, MdnsConfig, MdnsEvent},
+    mdns::{MdnsEvent, TokioMdns as Mdns},
     swarm::{
         ConnectionHandler, DialError, IntoConnectionHandler, NetworkBehaviour,
         NetworkBehaviourAction, PollParameters,
@@ -30,9 +31,6 @@ type PendingRecordRequest = oneshot::Sender<Result<Vec<Multiaddr>, CommandExecut
 pub(crate) struct DiscoveryBehaviour {
     /// Kademlia requests and answers.
     pub kademlia: Kademlia<MemoryStore>,
-
-    /// Discovers nodes on the local network.
-    pub mdns: MdnsWrapper,
 
     /// Contains current listenerId of the swarm
     pub active_listeners: HashSet<ListenerId>,
@@ -74,6 +72,7 @@ pub(crate) struct DiscoveryBehaviour {
 
 /// [`Mdns::new`] returns a future. Instead of forcing [`DiscoveryConfig::finish`] and all its
 /// callers to be async, lazily instantiate [`Mdns`].
+#[allow(dead_code)]
 pub enum MdnsWrapper {
     Instantiating(BoxFuture<'static, std::io::Result<Mdns>>),
     Ready(Box<Mdns>),
@@ -81,6 +80,7 @@ pub enum MdnsWrapper {
 }
 
 impl MdnsWrapper {
+    #[allow(dead_code)]
     fn addresses_of_peer(&mut self, peer_id: &PeerId) -> Vec<Multiaddr> {
         match self {
             Self::Instantiating(_) => Vec::new(),
@@ -89,6 +89,7 @@ impl MdnsWrapper {
         }
     }
 
+    #[allow(dead_code)]
     fn poll(
         &mut self,
         cx: &mut Context<'_>,
@@ -132,9 +133,7 @@ impl NetworkBehaviour for DiscoveryBehaviour {
 
     fn addresses_of_peer(&mut self, peer_id: &PeerId) -> Vec<Multiaddr> {
         trace!("addresses_of_peer");
-        let mut list = self.kademlia.addresses_of_peer(peer_id);
-        list.extend_from_slice(&self.mdns.addresses_of_peer(peer_id));
-        list
+        self.kademlia.addresses_of_peer(peer_id)
     }
 
     fn inject_connection_established(
@@ -455,41 +454,6 @@ impl NetworkBehaviour for DiscoveryBehaviour {
             }
         }
 
-        // Poll mDNS.
-        while let Poll::Ready(ev) = self.mdns.poll(cx, params) {
-            match ev {
-                NetworkBehaviourAction::GenerateEvent(event) => match event {
-                    MdnsEvent::Discovered(list) => {
-                        self.events
-                            .extend(list.map(|(peer_id, _)| DiscoveryOut::Discovered(peer_id)));
-                        if let Some(ev) = self.events.pop_front() {
-                            return Poll::Ready(NetworkBehaviourAction::GenerateEvent(ev));
-                        }
-                    }
-                    MdnsEvent::Expired(_) => {}
-                },
-                NetworkBehaviourAction::Dial { .. } => {
-                    unreachable!("mDNS never dials!");
-                }
-                NetworkBehaviourAction::ReportObservedAddr { address, score } => {
-                    return Poll::Ready(NetworkBehaviourAction::ReportObservedAddr {
-                        address,
-                        score,
-                    })
-                }
-                NetworkBehaviourAction::CloseConnection {
-                    peer_id,
-                    connection,
-                } => {
-                    return Poll::Ready(NetworkBehaviourAction::CloseConnection {
-                        peer_id,
-                        connection,
-                    })
-                }
-
-                NetworkBehaviourAction::NotifyHandler { .. } => {}
-            }
-        }
         Poll::Pending
     }
 }
@@ -498,13 +462,13 @@ impl DiscoveryBehaviour {
     #[instrument(name = "DiscoveryBehaviour", skip_all, fields(peer_id = %peer_key.public().to_peer_id()))]
     pub fn new(
         peer_key: Keypair,
-        discovery_protocol: &'static str,
+        discovery_protocol: Cow<'static, [u8]>,
         known_peers: &[(PeerId, Multiaddr)],
-        with_mdns: bool,
+        _with_mdns: bool,
     ) -> Self {
         let local_peer_id = peer_key.public().to_peer_id();
         let kademlia_config = KademliaConfig::default()
-            .set_protocol_name(discovery_protocol.as_bytes())
+            .set_protocol_names(vec![discovery_protocol])
             .set_replication_factor(NonZeroUsize::new(1).unwrap())
             // .set_replication_interval(Some(Duration::from_secs(30)))
             // .set_publication_interval(Some(Duration::from_secs(30)))
@@ -535,11 +499,6 @@ impl DiscoveryBehaviour {
 
         Self {
             kademlia,
-            mdns: if with_mdns {
-                MdnsWrapper::Instantiating(Mdns::new(MdnsConfig::default()).boxed())
-            } else {
-                MdnsWrapper::Disabled
-            },
             active_listeners: HashSet::new(),
             events: VecDeque::new(),
             inner_commands: VecDeque::new(),

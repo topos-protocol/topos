@@ -16,7 +16,7 @@ use libp2p::{
     Multiaddr, PeerId,
 };
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::HashMap,
     iter,
     task::{Context, Poll},
     time::Duration,
@@ -34,22 +34,12 @@ pub(crate) struct TransmissionBehaviour {
     pub inner: RequestResponse<TransmissionCodec>,
 
     pending_requests: PendingRequests,
-    events: VecDeque<TransmissionOut>,
-}
-
-#[derive(Debug)]
-pub enum TransmissionOut {
-    Request {
-        from: PeerId,
-        data: Vec<u8>,
-        channel: ResponseChannel<TransmissionResponse>,
-    },
 }
 
 impl NetworkBehaviour for TransmissionBehaviour {
     type ConnectionHandler = RequestResponseHandler<TransmissionCodec>;
 
-    type OutEvent = TransmissionOut;
+    type OutEvent = RequestResponseEvent<TransmissionRequest, TransmissionResponse>;
 
     fn new_handler(&mut self) -> Self::ConnectionHandler {
         self.inner.new_handler()
@@ -184,27 +174,18 @@ impl NetworkBehaviour for TransmissionBehaviour {
         cx: &mut Context<'_>,
         params: &mut impl PollParameters,
     ) -> Poll<NetworkBehaviourAction<Self::OutEvent, Self::ConnectionHandler>> {
-        if let Some(event) = self.events.pop_front() {
-            return Poll::Ready(NetworkBehaviourAction::GenerateEvent(event));
-        }
+        // if let Some(event) = self.events.pop_front() {
+        //     return Poll::Ready(NetworkBehaviourAction::GenerateEvent(event));
+        // }
 
         while let Poll::Ready(req_action) = self.inner.poll(cx, params) {
             match req_action {
                 NetworkBehaviourAction::GenerateEvent(event) => match event {
                     RequestResponseEvent::Message {
-                        peer,
-                        message:
-                            RequestResponseMessage::Request {
-                                request, channel, ..
-                            },
+                        message: RequestResponseMessage::Request { .. },
+                        ..
                     } => {
-                        return Poll::Ready(NetworkBehaviourAction::GenerateEvent(
-                            TransmissionOut::Request {
-                                channel,
-                                from: peer,
-                                data: request.0,
-                            },
-                        ));
+                        return Poll::Ready(NetworkBehaviourAction::GenerateEvent(event));
                     }
 
                     RequestResponseEvent::Message {
@@ -282,7 +263,6 @@ impl TransmissionBehaviour {
                 cfg,
             ),
             pending_requests: HashMap::new(),
-            events: VecDeque::new(),
         }
     }
 

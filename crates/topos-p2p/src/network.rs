@@ -11,10 +11,16 @@ use crate::{
 };
 use futures::Stream;
 use libp2p::{
-    core::upgrade, dns::TokioDnsConfig, identity::Keypair, kad::store::MemoryStore, mplex, noise,
-    swarm::SwarmBuilder, tcp, Multiaddr, PeerId, Transport,
+    core::upgrade,
+    dns::TokioDnsConfig,
+    identity::Keypair,
+    kad::store::MemoryStore,
+    mplex, noise,
+    swarm::SwarmBuilder,
+    tcp::{GenTcpConfig, TokioTcpTransport},
+    Multiaddr, PeerId, Transport,
 };
-use std::{collections::VecDeque, time::Duration};
+use std::{borrow::Cow, time::Duration};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
@@ -94,27 +100,23 @@ impl NetworkBuilder {
 
             discovery: DiscoveryBehaviour::new(
                 peer_key.clone(),
-                self.discovery_protocol.unwrap_or(DISCOVERY_PROTOCOL),
+                Cow::Borrowed(
+                    self.discovery_protocol
+                        .unwrap_or(DISCOVERY_PROTOCOL)
+                        .as_bytes(),
+                ),
                 &self.known_peers[..],
                 false,
             ),
             transmission: TransmissionBehaviour::new(),
-            events: VecDeque::new(),
-            peer_id,
-            addresses: self
-                .listen_addr
-                .take()
-                .expect("P2P runtime expect a MultiAddr"),
-            bootstrapped: false,
         };
 
         let transport = {
-            let dns_tcp = TokioDnsConfig::system(tcp::TokioTcpTransport::new(
-                tcp::GenTcpConfig::new().nodelay(true),
-            ))
-            .unwrap();
+            let dns_tcp =
+                TokioDnsConfig::system(TokioTcpTransport::new(GenTcpConfig::new().nodelay(true)))
+                    .unwrap();
 
-            let tcp = tcp::TokioTcpTransport::new(tcp::GenTcpConfig::default().nodelay(true));
+            let tcp = TokioTcpTransport::new(GenTcpConfig::default().nodelay(true));
             dns_tcp.or_transport(tcp)
         };
 
@@ -137,7 +139,17 @@ impl NetworkBuilder {
                 sender: command_sender,
             },
             ReceiverStream::new(event_receiver),
-            Runtime::new(swarm, command_receiver, event_sender, peer_id),
+            Runtime {
+                swarm,
+                command_receiver,
+                event_sender,
+                local_peer_id: peer_id,
+                addresses: self
+                    .listen_addr
+                    .take()
+                    .expect("P2P runtime expect a MultiAddr"),
+                bootstrapped: false,
+            },
         ))
     }
 }
