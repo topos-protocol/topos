@@ -1,9 +1,10 @@
-/target/
-/.idea/
-/.github/
-/.vscode/
-/docs/
-*.iml
-/.git/
-Dockerfile
-docker-compose.yml
+# Ignore everything
+**
+
+# Allow Rust source code
+!src
+!crates
+!tests
+!Cargo.*
+
+!LICENSE
