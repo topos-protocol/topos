@@ -1,4 +1,5 @@
 use libp2p::{
+    identify,
     kad::KademliaEvent,
     request_response::{RequestResponseEvent, ResponseChannel},
     PeerId,
@@ -6,7 +7,7 @@ use libp2p::{
 
 use crate::behaviour::{
     discovery::DiscoveryOut,
-    peer_info::PeerInfoOut,
+    // peer_info::PeerInfoOut,
     transmission::codec::{TransmissionRequest, TransmissionResponse},
 };
 
@@ -17,7 +18,7 @@ pub enum ComposedEvent {
     #[allow(dead_code)]
     OutEvent(Event),
     Discovery(DiscoveryOut),
-    PeerInfo(PeerInfoOut),
+    PeerInfo(identify::Event),
 }
 
 impl From<KademliaEvent> for ComposedEvent {
@@ -31,8 +32,9 @@ impl From<DiscoveryOut> for ComposedEvent {
         ComposedEvent::Discovery(event)
     }
 }
-impl From<PeerInfoOut> for ComposedEvent {
-    fn from(event: PeerInfoOut) -> Self {
+
+impl From<identify::Event> for ComposedEvent {
+    fn from(event: identify::Event) -> Self {
         ComposedEvent::PeerInfo(event)
     }
 }

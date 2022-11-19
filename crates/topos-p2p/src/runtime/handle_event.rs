@@ -5,6 +5,7 @@ use libp2p::core::ProtocolName;
 use libp2p::request_response::{RequestResponseEvent, RequestResponseMessage};
 use libp2p::{
     core::either::EitherError,
+    identify::Event as IdentifyEvent,
     identify::Info as IdentifyInfo,
     kad::{record::Key, Quorum, Record},
     multiaddr::Protocol,
@@ -13,10 +14,7 @@ use libp2p::{
 use tracing::{error, info, instrument, warn};
 
 use crate::{
-    behaviour::{
-        discovery::DiscoveryOut, peer_info::PeerInfoOut,
-        transmission::protocol::TransmissionProtocol,
-    },
+    behaviour::{discovery::DiscoveryOut, transmission::protocol::TransmissionProtocol},
     event::ComposedEvent,
     Event, Runtime,
 };
@@ -65,7 +63,26 @@ impl Runtime {
                 );
             }
 
-            SwarmEvent::ConnectionClosed { peer_id, .. } => info!("ConnectionClosed {peer_id}"),
+            SwarmEvent::ConnectionClosed { peer_id, .. } => {
+                info!("ConnectionClosed {peer_id}");
+                if self.swarm.behaviour_mut().discovery.peers.remove(&peer_id) {
+                    _ = self
+                        .event_sender
+                        .try_send(Event::PeerDisconnected { peer_id });
+
+                    let peers = self
+                        .swarm
+                        .behaviour_mut()
+                        .discovery
+                        .peers
+                        .iter()
+                        .cloned()
+                        .collect();
+                    _ = self
+                        .event_sender
+                        .try_send(Event::PeersChanged { new_peers: peers });
+                }
+            }
 
             SwarmEvent::Dialing(peer_id) => {
                 info!("Dial {:?} from {:?}", peer_id, *self.swarm.local_peer_id());
@@ -120,60 +137,42 @@ impl Runtime {
                 }
                 _ => {}
             },
-            SwarmEvent::Behaviour(ComposedEvent::PeerInfo(event)) => match event {
-                PeerInfoOut::Identified { peer_id, info } => {
-                    let IdentifyInfo {
-                        protocol_version,
-                        listen_addrs,
-                        protocols,
-                        ..
-                    } = *info;
+            SwarmEvent::Behaviour(ComposedEvent::PeerInfo(IdentifyEvent::Received {
+                peer_id,
+                info,
+                ..
+            })) => {
+                let IdentifyInfo {
+                    protocol_version,
+                    listen_addrs,
+                    protocols,
+                    ..
+                } = info;
 
-                    if protocol_version.as_bytes() == TransmissionProtocol().protocol_name()
-                        && protocols.iter().any(|p| {
-                            self.swarm
-                                .behaviour()
-                                .discovery
-                                .kademlia
-                                .protocol_names()
-                                .contains(&Cow::Borrowed(p.as_bytes()))
-                        })
-                    {
-                        for addr in listen_addrs {
-                            self.swarm
-                                .behaviour_mut()
-                                .transmission
-                                .inner
-                                .add_address(&peer_id, addr.clone());
-                            self.swarm
-                                .behaviour_mut()
-                                .discovery
-                                .kademlia
-                                .add_address(&peer_id, addr);
-                        }
-                    }
-                }
-
-                PeerInfoOut::Disconnected { peer_id } => {
-                    if self.swarm.behaviour_mut().discovery.peers.remove(&peer_id) {
-                        _ = self
-                            .event_sender
-                            .try_send(Event::PeerDisconnected { peer_id });
-
-                        let peers = self
-                            .swarm
+                if protocol_version.as_bytes() == TransmissionProtocol().protocol_name()
+                    && protocols.iter().any(|p| {
+                        self.swarm
+                            .behaviour()
+                            .discovery
+                            .kademlia
+                            .protocol_names()
+                            .contains(&Cow::Borrowed(p.as_bytes()))
+                    })
+                {
+                    for addr in listen_addrs {
+                        self.swarm
+                            .behaviour_mut()
+                            .transmission
+                            .inner
+                            .add_address(&peer_id, addr.clone());
+                        self.swarm
                             .behaviour_mut()
                             .discovery
-                            .peers
-                            .iter()
-                            .cloned()
-                            .collect();
-                        _ = self
-                            .event_sender
-                            .try_send(Event::PeersChanged { new_peers: peers });
+                            .kademlia
+                            .add_address(&peer_id, addr);
                     }
                 }
-            },
+            }
 
             SwarmEvent::Behaviour(ComposedEvent::Transmission(RequestResponseEvent::Message {
                 peer,
