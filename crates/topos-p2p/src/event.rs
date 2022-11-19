@@ -5,11 +5,7 @@ use libp2p::{
     PeerId,
 };
 
-use crate::behaviour::{
-    discovery::DiscoveryOut,
-    // peer_info::PeerInfoOut,
-    transmission::codec::{TransmissionRequest, TransmissionResponse},
-};
+use crate::behaviour::transmission::codec::{TransmissionRequest, TransmissionResponse};
 
 #[derive(Debug)]
 pub enum ComposedEvent {
@@ -17,8 +13,7 @@ pub enum ComposedEvent {
     Transmission(RequestResponseEvent<TransmissionRequest, TransmissionResponse>),
     #[allow(dead_code)]
     OutEvent(Event),
-    Discovery(DiscoveryOut),
-    PeerInfo(identify::Event),
+    PeerInfo(Box<identify::Event>),
 }
 
 impl From<KademliaEvent> for ComposedEvent {
@@ -27,15 +22,9 @@ impl From<KademliaEvent> for ComposedEvent {
     }
 }
 
-impl From<DiscoveryOut> for ComposedEvent {
-    fn from(event: DiscoveryOut) -> Self {
-        ComposedEvent::Discovery(event)
-    }
-}
-
 impl From<identify::Event> for ComposedEvent {
     fn from(event: identify::Event) -> Self {
-        ComposedEvent::PeerInfo(event)
+        ComposedEvent::PeerInfo(Box::new(event))
     }
 }
 

@@ -20,7 +20,11 @@ use libp2p::{
     tcp::{GenTcpConfig, TokioTcpTransport},
     Multiaddr, PeerId, Transport,
 };
-use std::{borrow::Cow, time::Duration};
+use std::{
+    borrow::Cow,
+    collections::{HashMap, HashSet},
+    time::Duration,
+};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
@@ -98,7 +102,7 @@ impl NetworkBuilder {
                 &peer_key,
             ),
 
-            discovery: DiscoveryBehaviour::new(
+            discovery: DiscoveryBehaviour::create(
                 peer_key.clone(),
                 Cow::Borrowed(
                     self.discovery_protocol
@@ -108,7 +112,7 @@ impl NetworkBuilder {
                 &self.known_peers[..],
                 false,
             ),
-            transmission: TransmissionBehaviour::new(),
+            transmission: TransmissionBehaviour::create(),
         };
 
         let transport = {
@@ -149,6 +153,11 @@ impl NetworkBuilder {
                     .take()
                     .expect("P2P runtime expect a MultiAddr"),
                 bootstrapped: false,
+                pending_requests: HashMap::new(),
+                pending_dial: HashMap::new(),
+                active_listeners: HashSet::new(),
+                peers: HashSet::new(),
+                pending_record_requests: HashMap::new(),
             },
         ))
     }

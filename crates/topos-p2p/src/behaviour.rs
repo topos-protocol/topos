@@ -1,9 +1,10 @@
-use self::{
-    discovery::DiscoveryBehaviour, peer_info::PeerInfoBehaviour,
-    transmission::TransmissionBehaviour,
-};
+use self::{peer_info::PeerInfoBehaviour, transmission::codec::TransmissionCodec};
 use crate::event::ComposedEvent;
-use libp2p::NetworkBehaviour;
+use libp2p::{
+    kad::{store::MemoryStore, Kademlia},
+    request_response::RequestResponse,
+    NetworkBehaviour,
+};
 
 pub(crate) mod discovery;
 pub(crate) mod peer_info;
@@ -21,8 +22,8 @@ pub(crate) struct Behaviour {
     pub(crate) peer_info: PeerInfoBehaviour,
 
     /// DiscoveryBehaviour which handle every aspect of the node discovery
-    pub(crate) discovery: DiscoveryBehaviour,
+    pub(crate) discovery: Kademlia<MemoryStore>,
 
     /// TransmissionBehaviour handle how we communicate with nodes
-    pub(crate) transmission: TransmissionBehaviour,
+    pub(crate) transmission: RequestResponse<TransmissionCodec>,
 }

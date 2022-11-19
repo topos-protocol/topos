@@ -1,5 +1,14 @@
-use crate::{error::P2PError, Behaviour, Command, Event};
-use libp2p::{Multiaddr, PeerId, Swarm};
+use std::collections::{HashMap, HashSet};
+
+use crate::{
+    behaviour::{
+        discovery::{PendingDials, PendingRecordRequest},
+        transmission::PendingRequests,
+    },
+    error::P2PError,
+    Behaviour, Command, Event,
+};
+use libp2p::{core::transport::ListenerId, kad::QueryId, Multiaddr, PeerId, Swarm};
 use tokio::sync::mpsc;
 use tokio_stream::StreamExt;
 use tracing::error;
@@ -12,6 +21,20 @@ pub struct Runtime {
     pub(crate) addresses: Multiaddr,
     #[allow(dead_code)]
     pub(crate) bootstrapped: bool,
+
+    pub(crate) pending_requests: PendingRequests,
+
+    /// Contains peer ids of dialled node
+    pub peers: HashSet<PeerId>,
+
+    /// Holds the pending dials and their sender
+    pub pending_dial: PendingDials,
+
+    /// Contains current listenerId of the swarm
+    pub active_listeners: HashSet<ListenerId>,
+
+    /// Pending DHT queries
+    pub pending_record_requests: HashMap<QueryId, PendingRecordRequest>,
 }
 
 mod handle_command;
