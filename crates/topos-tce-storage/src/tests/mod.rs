@@ -195,12 +195,21 @@ async fn fetch_certificates_for_subnets(storage: RocksDBStorage) {
         storage.persist(cert, None).await.unwrap();
     }
 
-    let certificate_ids = storage
-        .get_certificates_by_source(SOURCE_SUBNET_ID, Height::ZERO, 100)
+    let mut certificate_ids = storage
+        .get_certificates_by_source(SOURCE_SUBNET_ID, Height::ZERO, 5)
         .await
         .unwrap();
 
-    assert_eq!(10, certificate_ids.len());
+    assert_eq!(5, certificate_ids.len());
+
+    let certificate_ids_second = storage
+        .get_certificates_by_source(SOURCE_SUBNET_ID, Height(5), 5)
+        .await
+        .unwrap();
+
+    assert_eq!(5, certificate_ids_second.len());
+
+    certificate_ids.extend(certificate_ids_second.into_iter());
 
     let certificates = storage.get_certificates(certificate_ids).await.unwrap();
     assert_eq!(expected_certificates, certificates);
@@ -225,18 +234,22 @@ async fn fetch_certificates_for_subnets(storage: RocksDBStorage) {
     assert_eq!(expected_certificates, certificates);
 }
 
-fn create_certificate_chain(subnet: String, target: String, number: usize) -> Vec<Certificate> {
+fn create_certificate_chain(
+    source_subnet: String,
+    target_subnet: String,
+    number: usize,
+) -> Vec<Certificate> {
     let mut certificates = Vec::new();
     let mut parent = None;
 
     for _ in 0..number {
         let cert = Certificate::new(
             parent.take().unwrap_or(String::new()),
-            subnet.clone(),
+            source_subnet.clone(),
             vec![CrossChainTransaction {
-                recipient_addr: target.clone(),
-                sender_addr: subnet.clone(),
-                terminal_subnet_id: target.clone(),
+                recipient_addr: target_subnet.clone(),
+                sender_addr: source_subnet.clone(),
+                terminal_subnet_id: target_subnet.clone(),
                 transaction_data: topos_core::uci::CrossChainTransactionData::AssetTransfer {
                     asset_id: "asset_id".into(),
                     amount: Amount::from(1),
