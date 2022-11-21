@@ -1,4 +1,4 @@
-use std::time::{Instant, SystemTime};
+use std::time::SystemTime;
 
 use errors::{HeightError, InternalStorageError};
 use serde::{Deserialize, Serialize};
@@ -24,6 +24,22 @@ pub use connection::Connection;
 pub use rocks::RocksDBStorage;
 
 pub type PendingCertificateId = u64;
+
+#[derive(Debug)]
+pub enum FetchCertificatesFilter {
+    Source {
+        subnet_id: SubnetId,
+        version: u64,
+        limit: usize,
+    },
+
+    Target {
+        target_subnet_id: SubnetId,
+        source_subnet_id: SubnetId,
+        version: u64,
+        limit: usize,
+    },
+}
 
 #[derive(Debug, Serialize, Clone, Copy, Deserialize)]
 // TODO: Replace in UCI
@@ -111,7 +127,7 @@ pub trait Storage: Sync + Send + 'static {
     /// Persist the certificate with given status
     async fn persist(
         &self,
-        certificate: Certificate,
+        certificate: &Certificate,
         pending_certificate_id: Option<PendingCertificateId>,
     ) -> Result<(), InternalStorageError>;
 
@@ -143,7 +159,7 @@ pub trait Storage: Sync + Send + 'static {
         &self,
         source_subnet_id: SubnetId,
         from: Height,
-        to: Height,
+        limit: usize,
     ) -> Result<Vec<CertificateId>, InternalStorageError>;
 
     /// Returns the certificate received by given subnet
@@ -151,8 +167,9 @@ pub trait Storage: Sync + Send + 'static {
     async fn get_certificates_by_target(
         &self,
         target_subnet_id: SubnetId,
-        from: Instant,
-        to: Instant,
+        source_subnet_id: SubnetId,
+        from: Height,
+        limit: usize,
     ) -> Result<Vec<CertificateId>, InternalStorageError>;
 
     /// Returns all the known Certificate that are not delivered yet

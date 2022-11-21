@@ -1,7 +1,7 @@
 use tokio::sync::{mpsc, oneshot};
 use topos_core::uci::{Certificate, CertificateId};
 
-use crate::{errors::StorageError, PendingCertificateId};
+use crate::{errors::StorageError, FetchCertificatesFilter, PendingCertificateId};
 
 macro_rules! RegisterCommands {
     ($($command:ident),+) => {
@@ -32,7 +32,12 @@ macro_rules! RegisterCommands {
 }
 
 // TODO: Replace by inventory
-RegisterCommands!(AddPendingCertificate, CertificateDelivered, GetCertificate);
+RegisterCommands!(
+    AddPendingCertificate,
+    CertificateDelivered,
+    GetCertificate,
+    FetchCertificates
+);
 
 pub trait Command {
     type Result: 'static;
@@ -66,6 +71,15 @@ pub struct GetCertificate {
 
 impl Command for GetCertificate {
     type Result = Certificate;
+}
+
+#[derive(Debug)]
+pub struct FetchCertificates {
+    pub(crate) filter: FetchCertificatesFilter,
+}
+
+impl Command for FetchCertificates {
+    type Result = Vec<Certificate>;
 }
 
 #[cfg(test)]

@@ -94,7 +94,7 @@ impl Storage for RocksDBStorage {
 
     async fn persist(
         &self,
-        certificate: Certificate,
+        certificate: &Certificate,
         pending_certificate_id: Option<PendingCertificateId>,
     ) -> Result<(), InternalStorageError> {
         let mut batch = self.certificates.batch();
@@ -102,11 +102,11 @@ impl Storage for RocksDBStorage {
         let source_subnet_id: SubnetId = certificate.initial_subnet_id.as_str().try_into()?;
 
         // Inserting the certificate data into the CERTIFICATES cf
-        batch = batch.insert_batch(&self.certificates, [(&certificate.cert_id, &certificate)])?;
+        batch = batch.insert_batch(&self.certificates, [(&certificate.cert_id, certificate)])?;
 
         if let Some(pending_id) = pending_certificate_id {
             match self.pending_certificates.get(&pending_id) {
-                Ok(pending_certificate) if pending_certificate == certificate => {
+                Ok(ref pending_certificate) if pending_certificate == certificate => {
                     batch = batch.delete(&self.pending_certificates, pending_id)?;
                 }
                 Ok(_) => {
@@ -135,7 +135,7 @@ impl Storage for RocksDBStorage {
         } else {
             // TODO: Better error to define that we were expecting a previous defined height
             return Err(InternalStorageError::CertificateNotFound(
-                certificate.prev_cert_id,
+                certificate.prev_cert_id.clone(),
             ));
         };
 
@@ -152,7 +152,7 @@ impl Storage for RocksDBStorage {
         // TODO: Add expected version instead of calculating on the go
         let mut targets = Vec::new();
 
-        for transaction in certificate.calls {
+        for transaction in &certificate.calls {
             let target = if let Some((TargetStreamRef(target, source, height), _)) = self
                 .target_subnet_streams
                 .prefix_iter(&TargetStreamPrefix(
@@ -232,20 +232,35 @@ impl Storage for RocksDBStorage {
 
     async fn get_certificates_by_source(
         &self,
-        _source_subnet_id: SubnetId,
-        _from: crate::Height,
-        _to: crate::Height,
+        source_subnet_id: SubnetId,
+        from: crate::Height,
+        limit: usize,
     ) -> Result<Vec<CertificateId>, InternalStorageError> {
-        unimplemented!();
+        Ok(self
+            .source_subnet_streams
+            .prefix_iter(&source_subnet_id)?
+            // TODO: Find a better way to convert u64 to usize
+            .skip(from.0.try_into().unwrap())
+            .take(limit)
+            .map(|(_, certificate_id)| certificate_id)
+            .collect())
     }
 
     async fn get_certificates_by_target(
         &self,
-        _target_subnet_id: SubnetId,
-        _from: std::time::Instant,
-        _to: std::time::Instant,
+        target_subnet_id: SubnetId,
+        source_subnet_id: SubnetId,
+        from: Height,
+        limit: usize,
     ) -> Result<Vec<CertificateId>, InternalStorageError> {
-        unimplemented!()
+        Ok(self
+            .target_subnet_streams
+            .prefix_iter(&(&target_subnet_id, &source_subnet_id))?
+            // TODO: Find a better way to convert u64 to usize
+            .skip(from.0.try_into().unwrap())
+            .take(limit)
+            .map(|(_, certificate_id)| certificate_id)
+            .collect())
     }
 
     async fn get_pending_certificates(
