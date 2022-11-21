@@ -1,10 +1,13 @@
 use tokio::sync::mpsc;
-use topos_core::uci::{Certificate, CertificateId, SubnetId};
+use topos_core::uci::{Certificate, CertificateId};
 
 use crate::{
-    command::{AddPendingCertificate, CertificateDelivered, GetCertificate, StorageCommand},
+    command::{
+        AddPendingCertificate, CertificateDelivered, FetchCertificates, GetCertificate,
+        StorageCommand,
+    },
     errors::StorageError,
-    PendingCertificateId,
+    FetchCertificatesFilter, PendingCertificateId,
 };
 
 #[derive(Debug, Clone)]
@@ -41,13 +44,11 @@ impl StorageClient {
             .await
     }
 
-    /// Retrieves the certificates delivered to one subnet
-    pub async fn recent_certificates_for_subnet(
+    pub async fn fetch_certificates(
         &self,
-        _subnet_id: SubnetId,
-        _limit: u64,
+        filter: FetchCertificatesFilter,
     ) -> Result<Vec<Certificate>, StorageError> {
-        unimplemented!()
+        FetchCertificates { filter }.send_to(&self.sender).await
     }
 
     /// Fetch a certificate from the storage
