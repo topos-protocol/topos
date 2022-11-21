@@ -16,7 +16,6 @@ macro_rules! RegisterCommands {
         }
 
         $(
-
             impl $command {
                 #[allow(dead_code)]
                 pub(crate) async fn send_to(self, tx: &mpsc::Sender<StorageCommand>) -> Result<<Self as Command>::Result, StorageError> {
@@ -36,7 +35,8 @@ RegisterCommands!(
     AddPendingCertificate,
     CertificateDelivered,
     GetCertificate,
-    FetchCertificates
+    FetchCertificates,
+    RemovePendingCertificate
 );
 
 pub trait Command {
@@ -50,6 +50,15 @@ pub struct AddPendingCertificate {
 }
 
 impl Command for AddPendingCertificate {
+    type Result = PendingCertificateId;
+}
+
+#[derive(Debug)]
+pub struct RemovePendingCertificate {
+    pub(crate) pending_certificate_id: PendingCertificateId,
+}
+
+impl Command for RemovePendingCertificate {
     type Result = PendingCertificateId;
 }
 

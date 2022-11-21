@@ -2,7 +2,10 @@ use async_trait::async_trait;
 use topos_core::uci::Certificate;
 
 use crate::{
-    command::{AddPendingCertificate, CertificateDelivered, FetchCertificates, GetCertificate},
+    command::{
+        AddPendingCertificate, CertificateDelivered, FetchCertificates, GetCertificate,
+        RemovePendingCertificate,
+    },
     errors::StorageError,
     Connection, FetchCertificatesFilter, Height, PendingCertificateId, Storage,
 };
@@ -27,6 +30,37 @@ where
         self.pending_certificates.push_back(pending_id);
 
         Ok(pending_id)
+    }
+}
+
+/// Handle a RemovePendingCertificate query
+///
+/// a RemovePendingCertificate query will try to remove the pending certificate from the storage
+/// and remove the pending_id from the pending_certificates queue
+#[async_trait]
+impl<S> CommandHandler<RemovePendingCertificate> for Connection<S>
+where
+    S: Storage,
+{
+    async fn handle(
+        &mut self,
+        RemovePendingCertificate {
+            pending_certificate_id,
+        }: RemovePendingCertificate,
+    ) -> Result<PendingCertificateId, StorageError> {
+        _ = self
+            .storage
+            .remove_pending_certificate(pending_certificate_id)
+            .await?;
+
+        if let Some(index) = self
+            .pending_certificates
+            .iter()
+            .position(|p| *p == pending_certificate_id)
+        {
+            self.pending_certificates.remove(index);
+        }
+        Ok(pending_certificate_id)
     }
 }
 
