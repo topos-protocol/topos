@@ -1,0 +1,11 @@
+[package]
+name = "topos-node-types"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+serde = { version = "1.0.136", features = ["derive"] }
+
+topos-core = { git = "https://github.com/toposware/topos-core", branch = "main", features = ["uci"], version = "0.1.0" }
+sp-core = "6.0"

@@ -3,11 +3,10 @@ use libp2p::{Multiaddr, PeerId};
 
 use crate::app_context::AppContext;
 use log::info;
-use topos_api::{ApiConfig, ApiWorker};
-use topos_core_certification::CertificationWorker;
-use topos_core_runtime_proxy::{RuntimeProxyConfig, RuntimeProxyWorker};
-use topos_core_tce_proxy::{TceProxyConfig, TceProxyWorker};
-use topos_net::{NetworkWorker, NetworkWorkerConfig};
+use topos_node_api::{ApiConfig, ApiWorker};
+use topos_node_certification::CertificationWorker;
+use topos_node_subnet_runtime_proxy::{RuntimeProxyConfig, RuntimeProxyWorker};
+use topos_node_tce_proxy::{TceProxyConfig, TceProxyWorker};
 
 mod app_context;
 
@@ -46,19 +45,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         web_port: args.web_api_local_port,
     });
 
-    let srv = NetworkWorker::new(NetworkWorkerConfig {
-        known_peers: args.parse_boot_peers(),
-        local_port: args.topos_local_port,
-        secret_key_seed: args.local_key_seed,
-        local_key_pair: args.local_key_pair.clone(),
-    });
-
     let mut app_context = AppContext::new(
         args.clone(),
         certification,
         runtime_proxy,
         api,
-        srv,
         tce_proxy_worker,
     );
     app_context.run().await

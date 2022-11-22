@@ -26,12 +26,10 @@ tokio = { version = "1.15.0", features = [
 rpassword = "7.0.0"
 
 topos-core = { git = "https://github.com/toposware/topos-core", branch = "main", features = ["uci"], version = "0.1.0" }
-topos_net = { package = "topos-node-net", path = "../../node/net" }
-topos_api = { package = "topos-node-api", path = "../topos-node-api" }
-#topos_store = { package = "topos-node-store", path = "node/store" }
-topos_core_certification = { package = "topos-core-certification", path = "../../node/core/certification" }
-topos_core_types = { package = "topos-core-types", path = "../../node/core/types" }
-topos_core_runtime_proxy = { package = "topos-core-substrate-runtime-proxy", path = "../../node/core/substrate-runtime-proxy" }
-topos_core_tce_proxy = { package = "topos-core-tce-proxy", path = "../../node/core/tce-proxy" }
+topos-node-api = { package = "topos-node-api", path = "../topos-node-api" }
+topos-node-certification = { package = "topos-node-certification", path = "../topos-node-certification" }
+topos-node-types = { package = "topos-node-types", path = "../topos-node-types" }
+topos-node-subnet-runtime-proxy = { package = "topos-node-subnet-runtime-proxy", path = "../topos-node-subnet-runtime-proxy" }
+topos-node-tce-proxy = { package = "topos-node-tce-proxy", path = "../topos-node-tce-proxy" }
 
 

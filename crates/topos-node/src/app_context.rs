@@ -3,16 +3,11 @@
 //!
 use crate::AppArgs;
 use serde::{Deserialize, Serialize};
-use topos_api::{ApiRequests, ApiWorker};
-use topos_core_certification::CertificationWorker;
-use topos_core_runtime_proxy::RuntimeProxyWorker;
-use topos_core_tce_proxy::TceProxyWorker;
-use topos_core_types::*;
-use topos_net::{NetworkEvents, NetworkWorker};
-
-// pub struct CertificationWorker;
-// pub struct DistributedKeyGenerationWorker;
-// pub struct ThresholdSignatureWorker;
+use topos_node_api::{ApiRequests, ApiWorker};
+use topos_node_certification::CertificationWorker;
+use topos_node_subnet_runtime_proxy::RuntimeProxyWorker;
+use topos_node_tce_proxy::TceProxyWorker;
+use topos_node_types::*;
 
 /// Top-level transducer main app context & driver (alike)
 ///
@@ -28,7 +23,6 @@ pub struct AppContext {
     pub certification_worker: CertificationWorker,
     pub runtime_proxy_worker: RuntimeProxyWorker,
     pub api_worker: ApiWorker,
-    pub network_worker: NetworkWorker,
     pub tce_proxy_worker: TceProxyWorker,
 }
 
@@ -39,7 +33,6 @@ impl AppContext {
         certification_worker: CertificationWorker,
         runtime_proxy_worker: RuntimeProxyWorker,
         api_worker: ApiWorker,
-        network_worker: NetworkWorker,
         tce_proxy_worker: TceProxyWorker,
     ) -> Self {
         Self {
@@ -47,7 +40,6 @@ impl AppContext {
             certification_worker,
             runtime_proxy_worker,
             api_worker,
-            network_worker,
             tce_proxy_worker,
         }
     }
@@ -79,12 +71,6 @@ impl AppContext {
                     log::debug!("tce_proxy_worker.next_event(): {:?}", &tce_evt);
                     self.on_tce_proxy_event(tce_evt).await;
                 },
-
-                // Network Worker
-                Ok(net_evt) = self.network_worker.next_event() => {
-                    log::debug!("network_worker.next_event(): {:?}", &net_evt);
-                    self.on_net_event(net_evt).await;
-                }
             }
         }
     }
@@ -124,8 +110,6 @@ impl AppContext {
             }
         }
     }
-
-    async fn on_net_event(&mut self, _evt: NetworkEvents) {}
 }
 
 /// Definition of networking payload.
