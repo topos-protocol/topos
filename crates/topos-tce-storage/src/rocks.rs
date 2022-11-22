@@ -7,7 +7,7 @@ use std::{
 use topos_core::uci::{Certificate, CertificateId};
 use tracing::warn;
 
-use crate::{errors::InternalStorageError, Height, PendingCertificateId, Storage, SubnetId};
+use crate::{errors::InternalStorageError, PendingCertificateId, Position, Storage, SubnetId};
 
 use self::{db::DB, db_column::DBColumn};
 use self::{
@@ -29,8 +29,8 @@ pub struct RocksDBStorage {
     pending_certificates: PendingCertificatesColumn,
     certificates: CertificatesColumn,
 
-    source_subnet_streams: SourceSubnetStreamsColumn,
-    target_subnet_streams: TargetSubnetStreamsColumn,
+    source_streams: SourceStreamsColumn,
+    target_streams: TargetStreamsColumn,
 
     next_pending_id: AtomicU64,
 }
@@ -41,15 +41,15 @@ impl RocksDBStorage {
     pub(crate) fn new(
         pending_certificates: PendingCertificatesColumn,
         certificates: CertificatesColumn,
-        source_subnet_streams: SourceSubnetStreamsColumn,
-        target_subnet_streams: TargetSubnetStreamsColumn,
+        source_streams: SourceStreamsColumn,
+        target_streams: TargetStreamsColumn,
         next_pending_id: AtomicU64,
     ) -> Self {
         Self {
             pending_certificates,
             certificates,
-            source_subnet_streams,
-            target_subnet_streams,
+            source_streams,
+            target_streams,
             next_pending_id,
         }
     }
@@ -72,8 +72,8 @@ impl RocksDBStorage {
         Ok(Self {
             pending_certificates,
             certificates: DBColumn::reopen(db, constants::CERTIFICATES),
-            source_subnet_streams: DBColumn::reopen(db, constants::SOURCE_SUBNET_STREAMS),
-            target_subnet_streams: DBColumn::reopen(db, constants::TARGET_SUBNET_STREAMS),
+            source_streams: DBColumn::reopen(db, constants::SOURCE_STREAMS),
+            target_streams: DBColumn::reopen(db, constants::TARGET_STREAMS),
             next_pending_id,
         })
     }
@@ -122,18 +122,16 @@ impl Storage for RocksDBStorage {
             }
         }
 
-        let source_subnet_height = if certificate.prev_cert_id.is_empty() {
-            Height::ZERO
-        } else if let Some((SourceStreamRef(_, height), _)) = self
-            .source_subnet_streams
-            .prefix_iter(&source_subnet_id)?
-            .last()
+        let source_subnet_position = if certificate.prev_cert_id.is_empty() {
+            Position::ZERO
+        } else if let Some((SourceStreamPosition(_, position), _)) =
+            self.source_streams.prefix_iter(&source_subnet_id)?.last()
         {
-            height.increment().map_err(|error| {
-                InternalStorageError::HeightError(error, certificate.initial_subnet_id.clone())
+            position.increment().map_err(|error| {
+                InternalStorageError::PositionError(error, certificate.initial_subnet_id.clone())
             })?
         } else {
-            // TODO: Better error to define that we were expecting a previous defined height
+            // TODO: Better error to define that we were expecting a previous defined position
             return Err(InternalStorageError::CertificateNotFound(
                 certificate.prev_cert_id.clone(),
             ));
@@ -141,20 +139,20 @@ impl Storage for RocksDBStorage {
 
         // Adding the certificate to the stream
         batch = batch.insert_batch(
-            &self.source_subnet_streams,
+            &self.source_streams,
             [(
-                SourceStreamRef(source_subnet_id, source_subnet_height),
+                SourceStreamPosition(source_subnet_id, source_subnet_position),
                 certificate.cert_id.clone(),
             )],
         )?;
 
-        // Adding certificate to target_subnet_streams
+        // Adding certificate to target_streams
         // TODO: Add expected version instead of calculating on the go
         let mut targets = Vec::new();
 
         for transaction in &certificate.calls {
-            let target = if let Some((TargetStreamRef(target, source, height), _)) = self
-                .target_subnet_streams
+            let target = if let Some((TargetStreamPosition(target, source, position), _)) = self
+                .target_streams
                 .prefix_iter(&TargetStreamPrefix(
                     transaction.terminal_subnet_id.as_str().try_into()?,
                     source_subnet_id,
@@ -162,11 +160,11 @@ impl Storage for RocksDBStorage {
                 .last()
             {
                 (
-                    TargetStreamRef(
+                    TargetStreamPosition(
                         target,
                         source,
-                        height.increment().map_err(|error| {
-                            InternalStorageError::HeightError(
+                        position.increment().map_err(|error| {
+                            InternalStorageError::PositionError(
                                 error,
                                 certificate.initial_subnet_id.clone(),
                             )
@@ -176,10 +174,10 @@ impl Storage for RocksDBStorage {
                 )
             } else {
                 (
-                    TargetStreamRef(
+                    TargetStreamPosition(
                         transaction.terminal_subnet_id.as_str().try_into()?,
                         source_subnet_id,
-                        Height::ZERO,
+                        Position::ZERO,
                     ),
                     certificate.cert_id.clone(),
                 )
@@ -188,7 +186,7 @@ impl Storage for RocksDBStorage {
             targets.push(target);
         }
 
-        batch = batch.insert_batch(&self.target_subnet_streams, targets)?;
+        batch = batch.insert_batch(&self.target_streams, targets)?;
 
         batch.write()?;
 
@@ -203,10 +201,10 @@ impl Storage for RocksDBStorage {
         unimplemented!();
     }
 
-    async fn get_tip(
+    async fn get_heads(
         &self,
         _subnets: Vec<SubnetId>,
-    ) -> Result<Vec<crate::Tip>, InternalStorageError> {
+    ) -> Result<Vec<crate::Head>, InternalStorageError> {
         unimplemented!();
     }
 
@@ -233,11 +231,11 @@ impl Storage for RocksDBStorage {
     async fn get_certificates_by_source(
         &self,
         source_subnet_id: SubnetId,
-        from: crate::Height,
+        from: crate::Position,
         limit: usize,
     ) -> Result<Vec<CertificateId>, InternalStorageError> {
         Ok(self
-            .source_subnet_streams
+            .source_streams
             .prefix_iter(&source_subnet_id)?
             // TODO: Find a better way to convert u64 to usize
             .skip(from.0.try_into().unwrap())
@@ -250,11 +248,11 @@ impl Storage for RocksDBStorage {
         &self,
         target_subnet_id: SubnetId,
         source_subnet_id: SubnetId,
-        from: Height,
+        from: Position,
         limit: usize,
     ) -> Result<Vec<CertificateId>, InternalStorageError> {
         Ok(self
-            .target_subnet_streams
+            .target_streams
             .prefix_iter(&(&target_subnet_id, &source_subnet_id))?
             // TODO: Find a better way to convert u64 to usize
             .skip(from.0.try_into().unwrap())
@@ -284,11 +282,11 @@ impl RocksDBStorage {
         self.certificates.clone()
     }
 
-    pub(crate) fn source_subnet_streams_column(&self) -> SourceSubnetStreamsColumn {
-        self.source_subnet_streams.clone()
+    pub(crate) fn source_streams_column(&self) -> SourceStreamsColumn {
+        self.source_streams.clone()
     }
 
-    pub(crate) fn target_subnet_streams_column(&self) -> TargetSubnetStreamsColumn {
-        self.target_subnet_streams.clone()
+    pub(crate) fn target_streams_column(&self) -> TargetStreamsColumn {
+        self.target_streams.clone()
     }
 }

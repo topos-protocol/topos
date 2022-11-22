@@ -2,15 +2,15 @@ use rstest::rstest;
 use topos_core::uci::{Amount, Certificate, CrossChainTransaction};
 
 use crate::{
-    rocks::{map::Map, TargetStreamRef},
+    rocks::{map::Map, TargetStreamPosition},
     tests::support::{SOURCE_SUBNET_ID, TARGET_SUBNET_ID_A, TARGET_SUBNET_ID_B},
-    Height, RocksDBStorage, Storage, SubnetId,
+    Position, RocksDBStorage, Storage, SubnetId,
 };
 
 use self::support::storage;
 
 mod db_columns;
-mod height;
+mod position;
 mod rocks;
 pub(crate) mod support;
 
@@ -26,8 +26,8 @@ async fn can_persist_a_pending_certificate(storage: RocksDBStorage) {
 #[tokio::test]
 async fn can_persist_a_delivered_certificate(storage: RocksDBStorage) {
     let certificates_column = storage.certificates_column();
-    let source_streams_column = storage.source_subnet_streams_column();
-    let target_streams_column = storage.target_subnet_streams_column();
+    let source_streams_column = storage.source_streams_column();
+    let target_streams_column = storage.target_streams_column();
 
     let certificate = Certificate::new(
         "".into(),
@@ -54,7 +54,7 @@ async fn can_persist_a_delivered_certificate(storage: RocksDBStorage) {
         .last()
         .unwrap();
 
-    assert_eq!(stream_element.0 .1, Height::ZERO);
+    assert_eq!(stream_element.0 .1, Position::ZERO);
 
     let stream_element = target_streams_column
         .prefix_iter::<(SubnetId, SubnetId)>(&(TARGET_SUBNET_ID_A, SOURCE_SUBNET_ID))
@@ -62,19 +62,19 @@ async fn can_persist_a_delivered_certificate(storage: RocksDBStorage) {
         .last()
         .unwrap();
 
-    assert_eq!(stream_element.0 .2, Height::ZERO);
+    assert_eq!(stream_element.0 .2, Position::ZERO);
 }
 
 #[rstest]
 #[tokio::test]
 async fn delivered_certificate_are_added_to_target_stream(storage: RocksDBStorage) {
     let certificates_column = storage.certificates_column();
-    let source_streams_column = storage.source_subnet_streams_column();
-    let target_streams_column = storage.target_subnet_streams_column();
+    let source_streams_column = storage.source_streams_column();
+    let target_streams_column = storage.target_streams_column();
 
     _ = target_streams_column
         .insert(
-            &TargetStreamRef(TARGET_SUBNET_ID_A, SOURCE_SUBNET_ID, Height::ZERO),
+            &TargetStreamPosition(TARGET_SUBNET_ID_A, SOURCE_SUBNET_ID, Position::ZERO),
             &"certificate_one".to_string(),
         )
         .unwrap();
@@ -115,7 +115,7 @@ async fn delivered_certificate_are_added_to_target_stream(storage: RocksDBStorag
         .last()
         .unwrap();
 
-    assert_eq!(stream_element.0 .1, Height::ZERO);
+    assert_eq!(stream_element.0 .1, Position::ZERO);
 
     let stream_element = target_streams_column
         .prefix_iter(&(&TARGET_SUBNET_ID_A, &SOURCE_SUBNET_ID))
@@ -123,7 +123,7 @@ async fn delivered_certificate_are_added_to_target_stream(storage: RocksDBStorag
         .last()
         .unwrap();
 
-    assert_eq!(stream_element.0 .2, Height(1));
+    assert_eq!(stream_element.0 .2, Position(1));
 
     let stream_element = target_streams_column
         .prefix_iter(&(&TARGET_SUBNET_ID_B, &SOURCE_SUBNET_ID))
@@ -131,7 +131,7 @@ async fn delivered_certificate_are_added_to_target_stream(storage: RocksDBStorag
         .last()
         .unwrap();
 
-    assert_eq!(stream_element.0 .2, Height::ZERO);
+    assert_eq!(stream_element.0 .2, Position::ZERO);
 }
 
 #[rstest]
@@ -196,14 +196,14 @@ async fn fetch_certificates_for_subnets(storage: RocksDBStorage) {
     }
 
     let mut certificate_ids = storage
-        .get_certificates_by_source(SOURCE_SUBNET_ID, Height::ZERO, 5)
+        .get_certificates_by_source(SOURCE_SUBNET_ID, Position::ZERO, 5)
         .await
         .unwrap();
 
     assert_eq!(5, certificate_ids.len());
 
     let certificate_ids_second = storage
-        .get_certificates_by_source(SOURCE_SUBNET_ID, Height(5), 5)
+        .get_certificates_by_source(SOURCE_SUBNET_ID, Position(5), 5)
         .await
         .unwrap();
 
@@ -215,13 +215,13 @@ async fn fetch_certificates_for_subnets(storage: RocksDBStorage) {
     assert_eq!(expected_certificates, certificates);
 
     let mut certificate_ids = storage
-        .get_certificates_by_target(TARGET_SUBNET_ID_A, SOURCE_SUBNET_ID, Height::ZERO, 100)
+        .get_certificates_by_target(TARGET_SUBNET_ID_A, SOURCE_SUBNET_ID, Position::ZERO, 100)
         .await
         .unwrap();
 
     certificate_ids.extend(
         storage
-            .get_certificates_by_target(TARGET_SUBNET_ID_A, TARGET_SUBNET_ID_B, Height::ZERO, 100)
+            .get_certificates_by_target(TARGET_SUBNET_ID_A, TARGET_SUBNET_ID_B, Position::ZERO, 100)
             .await
             .unwrap()
             .into_iter(),
