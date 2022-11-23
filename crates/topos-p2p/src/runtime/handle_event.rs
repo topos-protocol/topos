@@ -193,9 +193,10 @@ impl Runtime {
                     ..
                 } if self.bootstrapped => {
                     if self.peers.insert(peer) {
-                        _ = self.event_sender.try_send(Event::PeersChanged {
-                            new_peers: vec![peer],
-                        });
+                        let peers = self.peers.iter().cloned().collect();
+                        _ = self
+                            .event_sender
+                            .try_send(Event::PeersChanged { new_peers: peers });
                     }
                 }
                 KademliaEvent::UnroutablePeer { peer } => {
