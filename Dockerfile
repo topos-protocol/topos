@@ -60,8 +60,8 @@ RUN adduser \
 
 WORKDIR /usr/src/app
 
-COPY --from=build /usr/src/app/target/release/topos-tce-app .
+COPY --from=build /usr/src/app/target/release/topos-tce .
 
 USER topos:topos
 
-CMD ./topos-tce-app
+CMD ./topos-tce
