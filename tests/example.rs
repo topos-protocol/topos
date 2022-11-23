@@ -7,7 +7,7 @@ use std::process::Child as Process;
 use std::process::Command;
 
 /// Path to the binary
-const TCE_BIN: &str = env!("CARGO_BIN_EXE_topos-tce-app");
+const TCE_BIN: &str = env!("CARGO_BIN_EXE_topos-tce");
 
 /// Trigger graceful termination to given process
 fn shutdown(process: &Process) {
