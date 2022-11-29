@@ -4,21 +4,46 @@ services:
     container_name: jaeger
     restart: always
     ports:
-      - "6831/udp"
-      - "6832/udp"
-      - "16685"
       - "16686:16686"
+      - "14250:14250"
+      - "16685:16685"
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib-dev:latest
+    restart: always
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "1888:1888"   # pprof extension
+      - "8888:8888"   # Prometheus metrics exposed by the collector
+      - "8889:8889"   # Prometheus exporter metrics
+      - "13133:13133" # health_check extension
+      - "4317:4317"   # OTLP gRPC receiver
+      - "55679:55679" # zpages extension
+    depends_on:
+      - jaeger
+
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus:latest
+    restart: always
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+
   boot:
     container_name: boot
-    image: ghcr.io/toposware/tce:pr-4
+    image: tce:develop
     init: true
     build:
       context: ../
       args:
-        - TOOLCHAIN_VERSION=stable
-        - GITHUB_TOKEN
+        - TOOLCHAIN_VERSION=${TOOLCHAIN_VERSION}
+        - GITHUB_TOKEN=${GITHUB_TOKEN}
     depends_on:
-      - jaeger
+      - otel-collector
     ports:
       - "9090"
     environment:
@@ -36,15 +61,15 @@ services:
       - TCE_TRBP_DELIVERY_THRESHOLD=3
 
   peer:
-    image: ghcr.io/toposware/tce:pr-4
+    image: tce:develop
     init: true
     build:
       context: ../
       args:
-        - TOOLCHAIN_VERSION=stable
-        - GITHUB_TOKEN
+        - TOOLCHAIN_VERSION=${TOOLCHAIN_VERSION}
+        - GITHUB_TOKEN=${GITHUB_TOKEN}
     depends_on:
-      - jaeger
+      - otel-collector
       - boot
     ports:
       - "9090"
@@ -72,7 +97,7 @@ services:
       - RUST_LOG=debug
       - TARGET_NODES_PATH=/nodes.json
     depends_on:
-      - jaeger
+      - otel-collector
       - peer
     volumes:
       - ./peer_nodes.json:/nodes.json

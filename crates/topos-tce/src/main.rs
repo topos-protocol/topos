@@ -5,9 +5,15 @@ mod storage;
 use crate::app_context::AppContext;
 use crate::cli::AppArgs;
 use clap::Parser;
+use opentelemetry::global;
+use opentelemetry::runtime;
+use opentelemetry::sdk::export::metrics::aggregation::cumulative_temporality_selector;
+use opentelemetry::sdk::metrics::selectors;
 use opentelemetry::sdk::trace::{self, RandomIdGenerator, Sampler};
 use opentelemetry::sdk::Resource;
-use opentelemetry::{global, KeyValue};
+use opentelemetry::KeyValue;
+use opentelemetry_otlp::{ExportConfig, Protocol, WithExportConfig};
+use std::time::Duration;
 use tce_store::{Store, StoreConfig};
 use tokio::spawn;
 use topos_p2p::{utils::local_key_pair, Multiaddr};
@@ -25,12 +31,13 @@ async fn main() {
     let peer_id = key.public().to_peer_id();
     tracing::Span::current().record("peer_id", &peer_id.to_string());
 
-    let tracer = opentelemetry_jaeger::new_agent_pipeline()
-        .with_endpoint(args.jaeger_agent.clone())
-        .with_service_name(args.jaeger_service_name.clone())
-        .with_max_packet_size(1500)
-        .with_auto_split_batch(true)
-        .with_instrumentation_library_tags(false)
+    let tracer = opentelemetry_otlp::new_pipeline()
+        .tracing()
+        .with_exporter(
+            opentelemetry_otlp::new_exporter()
+                .tonic()
+                .with_endpoint("http://otel-collector:4317"),
+        )
         .with_trace_config(
             trace::config()
                 .with_sampler(Sampler::AlwaysOn)
@@ -46,6 +53,25 @@ async fn main() {
         )
         .install_batch(opentelemetry::runtime::Tokio)
         .unwrap();
+
+    let export_config = ExportConfig {
+        endpoint: "http://otel-collector:4317".to_string(),
+        timeout: Duration::from_secs(3),
+        protocol: Protocol::Grpc,
+    };
+
+    let _meter = opentelemetry_otlp::new_pipeline()
+        .metrics(
+            selectors::simple::inexpensive(),
+            cumulative_temporality_selector(),
+            runtime::Tokio,
+        )
+        .with_exporter(
+            opentelemetry_otlp::new_exporter()
+                .tonic()
+                .with_export_config(export_config),
+        )
+        .build();
 
     #[cfg(feature = "log-json")]
     let formatting_layer = tracing_subscriber::fmt::layer().json();
