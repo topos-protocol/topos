@@ -7,6 +7,7 @@ use topos_core::{
     },
     uci::Certificate,
 };
+use topos_p2p::PeerId;
 use uuid::Uuid;
 
 use super::error::RuntimeError;
@@ -47,6 +48,12 @@ pub(crate) enum InternalRuntimeCommand {
     /// This command will be used to trigger the DoubleEcho process.
     CertificateSubmitted {
         certificate: Certificate,
+        sender: oneshot::Sender<Result<(), RuntimeError>>,
+    },
+
+    /// Push a new list of PeerId to be used by the Gatekeeper
+    PushPeerList {
+        peers: Vec<PeerId>,
         sender: oneshot::Sender<Result<(), RuntimeError>>,
     },
 }

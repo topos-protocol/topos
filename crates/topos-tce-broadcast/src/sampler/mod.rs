@@ -7,6 +7,7 @@ use std::{cmp::min, collections::HashSet};
 
 use tce_transport::{ReliableBroadcastParams, TrbpEvents};
 use tokio::sync::{broadcast, mpsc};
+use topos_p2p::PeerId;
 use tracing::{debug, error, info, warn};
 
 use crate::SamplerCommand;
@@ -44,12 +45,12 @@ pub enum SampleType {
 
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct SubscribersView {
-    pub echo: HashSet<Peer>,
-    pub ready: HashSet<Peer>,
+    pub echo: HashSet<PeerId>,
+    pub ready: HashSet<PeerId>,
 }
 
 impl SubscribersView {
-    pub fn get_subscribers(&self) -> Vec<Peer> {
+    pub fn get_subscribers(&self) -> Vec<PeerId> {
         self.echo
             .iter()
             .chain(self.ready.iter())
@@ -62,19 +63,19 @@ impl SubscribersView {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum SubscribersUpdate {
-    NewEchoSubscriber(Peer),
-    RemoveEchoSubscriber(Peer),
-    RemoveEchoSubscribers(HashSet<Peer>),
-    NewReadySubscriber(Peer),
-    RemoveReadySubscriber(Peer),
-    RemoveReadySubscribers(HashSet<Peer>),
+    NewEchoSubscriber(PeerId),
+    RemoveEchoSubscriber(PeerId),
+    RemoveEchoSubscribers(HashSet<PeerId>),
+    NewReadySubscriber(PeerId),
+    RemoveReadySubscriber(PeerId),
+    RemoveReadySubscribers(HashSet<PeerId>),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct SubscriptionsView {
-    pub echo: HashSet<Peer>,
-    pub ready: HashSet<Peer>,
-    pub delivery: HashSet<Peer>,
+    pub echo: HashSet<PeerId>,
+    pub ready: HashSet<PeerId>,
+    pub delivery: HashSet<PeerId>,
 }
 
 impl SubscriptionsView {
@@ -86,7 +87,7 @@ impl SubscriptionsView {
         self.echo.is_empty() && self.ready.is_empty() && self.delivery.is_empty()
     }
 
-    pub fn get_subscriptions(&self) -> Vec<Peer> {
+    pub fn get_subscriptions(&self) -> Vec<PeerId> {
         self.echo
             .iter()
             .chain(self.ready.iter())
@@ -94,7 +95,7 @@ impl SubscriptionsView {
             .cloned()
             .collect::<HashSet<_>>()
             .into_iter()
-            .collect::<Vec<_>>()
+            .collect()
     }
 }
 
@@ -102,7 +103,7 @@ pub struct Sampler {
     params: ReliableBroadcastParams,
     command_receiver: mpsc::Receiver<SamplerCommand>,
     event_sender: broadcast::Sender<TrbpEvents>,
-    visible_peers: Vec<Peer>,
+    visible_peers: Vec<PeerId>,
 
     pending_subscriptions: SubscriptionsView,
     subscriptions: SubscriptionsView,
@@ -156,7 +157,7 @@ impl Sampler {
 }
 
 impl Sampler {
-    async fn peers_changed(&mut self, peers: Vec<Peer>) {
+    async fn peers_changed(&mut self, peers: Vec<PeerId>) {
         self.visible_peers = peers;
         self.reset_samples().await;
     }
@@ -192,37 +193,37 @@ impl Sampler {
     async fn handle_peer_confirmation(
         &mut self,
         sample_type: SampleType,
-        peer: Peer,
+        peer: PeerId,
     ) -> Result<bool, ()> {
         debug!("ConfirmPeer {peer} in {sample_type:?}",);
         let inserted = match sample_type {
             SampleType::EchoSubscription => {
                 if self.pending_subscriptions.echo.remove(&peer) {
-                    self.subscriptions.echo.insert(peer.to_string())
+                    self.subscriptions.echo.insert(peer)
                 } else {
                     false
                 }
             }
             SampleType::ReadySubscription => {
                 if self.pending_subscriptions.ready.remove(&peer) {
-                    self.subscriptions.ready.insert(peer.to_string())
+                    self.subscriptions.ready.insert(peer)
                 } else {
                     false
                 }
             }
             SampleType::DeliverySubscription => {
                 if self.pending_subscriptions.delivery.remove(&peer) {
-                    self.subscriptions.delivery.insert(peer.to_string())
+                    self.subscriptions.delivery.insert(peer)
                 } else {
                     false
                 }
             }
 
             SampleType::EchoSubscriber => {
-                let inserted = self.subscribers.echo.insert(peer.to_string());
+                let inserted = self.subscribers.echo.insert(peer);
                 if let Err(error) = self
                     .subscribers_update_sender
-                    .send(SubscribersUpdate::NewEchoSubscriber(peer.clone()))
+                    .send(SubscribersUpdate::NewEchoSubscriber(peer))
                     .await
                 {
                     error!("Unable to send NewEchoSubscriber message {:?}", error);
@@ -231,10 +232,10 @@ impl Sampler {
                 inserted
             }
             SampleType::ReadySubscriber => {
-                let inserted = self.subscribers.ready.insert(peer.to_string());
+                let inserted = self.subscribers.ready.insert(peer);
                 if let Err(error) = self
                     .subscribers_update_sender
-                    .send(SubscribersUpdate::NewReadySubscriber(peer.clone()))
+                    .send(SubscribersUpdate::NewReadySubscriber(peer))
                     .await
                 {
                     error!("Unable to send NewReadySubscriber message {:?}", error);
@@ -250,12 +251,14 @@ impl Sampler {
         self.status = SampleProviderStatus::BuildingNewView;
 
         // Reset invisible echo subscribers
-        let (echo_peers_to_keep, echo_peers_to_remove): (HashSet<Peer>, HashSet<Peer>) = self
+        let (echo_peers_to_keep, echo_peers_to_remove) = self
             .subscribers
             .echo
             .drain()
             .partition(|p| self.visible_peers.contains(p));
+
         self.subscribers.echo = echo_peers_to_keep;
+
         // Generate remove echo subscriber event
         if let Err(error) = self
             .subscribers_update_sender
@@ -268,12 +271,14 @@ impl Sampler {
         }
 
         // Reset invisible ready subscribers
-        let (ready_peers_to_keep, ready_peers_to_remove): (HashSet<Peer>, HashSet<Peer>) = self
+        let (ready_peers_to_keep, ready_peers_to_remove) = self
             .subscribers
             .ready
             .drain()
             .partition(|p| self.visible_peers.contains(p));
+
         self.subscribers.ready = ready_peers_to_keep;
+
         // Generate remove ready subscriber event
         if let Err(error) = self
             .subscribers_update_sender
@@ -309,7 +314,7 @@ impl Sampler {
 
                 for peer in &echo_candidates.value {
                     info!("Adding {peer} to pending echo subscriptions");
-                    self.pending_subscriptions.echo.insert(peer.clone());
+                    self.pending_subscriptions.echo.insert(*peer);
                 }
 
                 if let Err(error) = self.event_sender.send(TrbpEvents::EchoSubscribeReq {
@@ -341,7 +346,7 @@ impl Sampler {
 
                 for peer in &ready_candidates.value {
                     info!("Adding {peer} to pending ready subscriptions");
-                    self.pending_subscriptions.ready.insert(peer.clone());
+                    self.pending_subscriptions.ready.insert(*peer);
                 }
 
                 if let Err(error) = self.event_sender.send(TrbpEvents::ReadySubscribeReq {
@@ -373,7 +378,7 @@ impl Sampler {
 
                 for peer in &delivery_candidates.value {
                     info!("Adding {peer} to pending delivery subscriptions");
-                    self.pending_subscriptions.delivery.insert(peer.clone());
+                    self.pending_subscriptions.delivery.insert(*peer);
                 }
 
                 if let Err(error) = self.event_sender.send(TrbpEvents::ReadySubscribeReq {
@@ -406,12 +411,12 @@ mod tests {
     use tokio::sync::broadcast::error::TryRecvError;
     use tokio::sync::mpsc::Receiver;
 
-    fn get_sample(peers: &[Peer], sample_size: usize) -> HashSet<Peer> {
+    fn get_sample(peers: &[PeerId], sample_size: usize) -> HashSet<PeerId> {
         let mut rng = rand::thread_rng();
         HashSet::from_iter(peers.iter().cloned().choose_multiple(&mut rng, sample_size))
     }
 
-    fn get_subscriber_view(peers: &[Peer], sample_size: usize) -> SubscribersView {
+    fn get_subscriber_view(peers: &[PeerId], sample_size: usize) -> SubscribersView {
         let mut expected_view = SubscribersView::default();
         expected_view.echo = get_sample(&peers, sample_size);
         expected_view.ready = get_sample(&peers, sample_size);
@@ -447,7 +452,10 @@ mod tests {
 
         let mut peers = Vec::new();
         for i in 0..nb_peers {
-            peers.push(format!("peer_{i}"));
+            let peer = topos_p2p::utils::local_key_pair(Some(i))
+                .public()
+                .to_peer_id();
+            peers.push(peer);
         }
 
         sampler.peers_changed(peers).await;
@@ -512,7 +520,10 @@ mod tests {
 
         let mut peers = Vec::new();
         for i in 0..nb_peers {
-            peers.push(format!("peer_{i}"));
+            let peer = topos_p2p::utils::local_key_pair(Some(i))
+                .public()
+                .to_peer_id();
+            peers.push(peer);
         }
 
         let mut subscribers_view = get_subscriber_view(&peers, subscriber_sample_size);
@@ -520,16 +531,15 @@ mod tests {
 
         // Change the peer pool
         let mut rng = rand::thread_rng();
-        let (new_echo_subscribers, removed_echo_subscribers): (HashSet<Peer>, HashSet<Peer>) =
-            subscribers_view
-                .echo
-                .drain()
-                .partition(|_p| rng.gen_range(0..20) > 10);
-        let (new_ready_subscribers, removed_ready_subscribers): (HashSet<Peer>, HashSet<Peer>) =
-            subscribers_view
-                .ready
-                .drain()
-                .partition(|_p| rng.gen_range(0..20) > 10);
+        let (new_echo_subscribers, removed_echo_subscribers): (HashSet<_>, _) = subscribers_view
+            .echo
+            .drain()
+            .partition(|_p| rng.gen_range(0..20) > 10);
+
+        let (new_ready_subscribers, removed_ready_subscribers): (HashSet<_>, _) = subscribers_view
+            .ready
+            .drain()
+            .partition(|_p| rng.gen_range(0..20) > 10);
 
         // Remove from peers
         let new_peers = peers
@@ -539,14 +549,15 @@ mod tests {
             })
             .collect();
 
-        let expected_echo_subscribers = new_echo_subscribers
+        let expected_echo_subscribers: HashSet<_> = new_echo_subscribers
             .into_iter()
             .filter(|p| !removed_ready_subscribers.contains(p))
-            .collect::<HashSet<Peer>>();
-        let expected_ready_subscribers = new_ready_subscribers
+            .collect();
+
+        let expected_ready_subscribers: HashSet<_> = new_ready_subscribers
             .into_iter()
             .filter(|p| !removed_echo_subscribers.contains(p))
-            .collect::<HashSet<Peer>>();
+            .collect();
 
         sampler.peers_changed(new_peers).await;
 
@@ -591,7 +602,10 @@ mod tests {
 
         let mut peers = Vec::new();
         for i in 0..nb_peers {
-            peers.push(format!("peer_{i}"));
+            let peer = topos_p2p::utils::local_key_pair(Some(i))
+                .public()
+                .to_peer_id();
+            peers.push(peer);
         }
 
         sampler.peers_changed(peers).await;
@@ -632,9 +646,9 @@ mod tests {
 
     fn handle_subscriber_update(
         subscribers_update_receiver: &mut Receiver<SubscribersUpdate>,
-        resulting_echo_subscribers: HashSet<Peer>,
-        resulting_ready_subscribers: HashSet<Peer>,
-    ) -> (HashSet<Peer>, HashSet<Peer>) {
+        resulting_echo_subscribers: HashSet<PeerId>,
+        resulting_ready_subscribers: HashSet<PeerId>,
+    ) -> (HashSet<PeerId>, HashSet<PeerId>) {
         let mut resulting_echo_subscribers = resulting_echo_subscribers;
         let mut resulting_ready_subscribers = resulting_ready_subscribers;
         while let Ok(update) = subscribers_update_receiver.try_recv() {
@@ -655,13 +669,13 @@ mod tests {
                     resulting_echo_subscribers = resulting_echo_subscribers
                         .into_iter()
                         .filter(|p| !subscribers.contains(p))
-                        .collect::<HashSet<Peer>>();
+                        .collect();
                 }
                 SubscribersUpdate::RemoveReadySubscribers(subscribers) => {
                     resulting_ready_subscribers = resulting_ready_subscribers
                         .into_iter()
                         .filter(|p| !subscribers.contains(p))
-                        .collect::<HashSet<Peer>>();
+                        .collect();
                 }
             }
         }
@@ -698,7 +712,10 @@ mod tests {
 
         let mut peers = Vec::new();
         for i in 0..nb_peers {
-            peers.push(format!("peer_{i}"));
+            let peer = topos_p2p::utils::local_key_pair(Some(i))
+                .public()
+                .to_peer_id();
+            peers.push(peer);
         }
 
         sampler.peers_changed(peers.clone()).await;
@@ -720,8 +737,8 @@ mod tests {
 
         sampler.pending_subs_state_change_follow_up().await;
 
-        let resulting_echo_subscribers: HashSet<Peer> = HashSet::new();
-        let resulting_ready_subscribers: HashSet<Peer> = HashSet::new();
+        let resulting_echo_subscribers = HashSet::new();
+        let resulting_ready_subscribers = HashSet::new();
         let (resulting_echo_subscribers, resulting_ready_subscribers) = handle_subscriber_update(
             &mut subscribers_update_receiver,
             resulting_echo_subscribers,
@@ -733,10 +750,14 @@ mod tests {
 
         //Remove some and add additional peers
         let mut rng = rand::thread_rng();
-        let (mut new_peers, _removed_peers): (Vec<Peer>, Vec<Peer>) =
+        let (mut new_peers, _removed_peers): (Vec<_>, _) =
             peers.into_iter().partition(|_p| rng.gen_range(0..20) > 10);
+
         for i in nb_peers..nb_peers + 20 {
-            new_peers.push(format!("peer_{i}"));
+            let peer = topos_p2p::utils::local_key_pair(Some(i))
+                .public()
+                .to_peer_id();
+            new_peers.push(peer);
         }
         // Cleanup subscribers according to new peers
         sampler.peers_changed(new_peers.clone()).await;

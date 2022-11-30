@@ -96,6 +96,7 @@ impl Runtime {
                         .try_send(Event::PeerDisconnected { peer_id });
 
                     let peers = self.peers.iter().cloned().collect();
+
                     _ = self
                         .event_sender
                         .try_send(Event::PeersChanged { new_peers: peers });
