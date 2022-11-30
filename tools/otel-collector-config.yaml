@@ -21,8 +21,6 @@ exporters:
     resource_to_telemetry_conversion:
       enabled: true
 
-  logging:
-
   jaeger:
     endpoint: jaeger:14250
     tls:
@@ -44,9 +42,9 @@ service:
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [logging, jaeger]
+      exporters: [jaeger]
     metrics:
       receivers: [otlp]
       processors: [batch]
-      exporters: [logging, prometheus]
+      exporters: [prometheus]
 
