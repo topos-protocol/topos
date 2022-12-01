@@ -5,6 +5,7 @@ use topos_p2p::{Multiaddr, PeerId};
 use topos_tce_transport::ReliableBroadcastParams;
 
 #[derive(Args, Debug)]
+#[command(about = "Run a full TCE instance")]
 pub struct Run {
     /// Boot nodes to connect to, pairs of <PeerId> <Multiaddr>, space separated,
     /// quoted list like --boot-peers='a a1 b b1'
