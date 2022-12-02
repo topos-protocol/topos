@@ -6,7 +6,7 @@ use std::{
     sync::Arc,
 };
 
-use tokio::sync::Mutex;
+use tokio::{signal, spawn, sync::Mutex};
 use tonic::transport::Channel;
 use topos_core::api::tce::v1::console_service_client::ConsoleServiceClient;
 use topos_p2p::PeerId;
@@ -86,7 +86,13 @@ pub(crate) async fn handle_command(
                 api_addr: cmd.api_addr,
             };
 
-            topos_tce::run(&config).await;
+            spawn(async move {
+                topos_tce::run(&config).await;
+            });
+
+            signal::ctrl_c()
+                .await
+                .expect("failed to listen for signals");
         }
         None => {}
     }
