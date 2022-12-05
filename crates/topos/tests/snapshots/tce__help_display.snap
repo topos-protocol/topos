@@ -11,6 +11,8 @@ Options:
           Boot nodes to connect to, pairs of <PeerId> <Multiaddr>, space separated, quoted list like --boot-peers='a a1 b b1' [env: TCE_BOOT_PEERS=] [default: ]
   -e, --endpoint <ENDPOINT>
           [default: http://[::1]:1340]
+  -v, --verbose...
+          
       --tce-ext-host <TCE_EXT_HOST>
           Advertised (externally visible) <host|address:port>, if empty this machine ip address(es) are used [env: TCE_EXT_HOST=]
       --tce-local-port <TCE_LOCAL_PORT>

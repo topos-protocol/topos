@@ -12,6 +12,7 @@ use topos_core::api::tce::v1::console_service_client::ConsoleServiceClient;
 use topos_p2p::PeerId;
 use topos_tce::TceConfiguration;
 use tower::Service;
+use tracing::{debug, trace};
 
 use crate::options::input_format::{InputFormat, Parser};
 
@@ -58,20 +59,27 @@ pub(crate) async fn handle_command(
         mut endpoint,
         subcommands,
     }: TceCommand,
-) {
+) -> Result<(), Box<dyn std::error::Error>> {
     match subcommands {
         Some(TceCommands::PushPeerList(cmd)) => {
+            debug!("Start executing PushPeerList command");
+            trace!("Building the gRPC client with {:?}", endpoint);
+
             let client = Arc::new(Mutex::new(
                 ConsoleServiceClient::connect(endpoint.take().unwrap())
                     .await
                     .unwrap(),
             ));
+            trace!("gRPC client successfully built");
 
             let mut tce_service = TCEService {
                 client: client.clone(),
             };
 
-            _ = tce_service.call(cmd).await;
+            debug!("Executing the PushPeerList on the TCE service");
+            tce_service.call(cmd).await?;
+
+            Ok(())
         }
 
         Some(TceCommands::Run(cmd)) => {
@@ -93,7 +101,9 @@ pub(crate) async fn handle_command(
             signal::ctrl_c()
                 .await
                 .expect("failed to listen for signals");
+
+            Ok(())
         }
-        None => {}
+        None => Ok(()),
     }
 }

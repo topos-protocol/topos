@@ -69,8 +69,8 @@ pub async fn run(config: &TceConfiguration) {
         .with(EnvFilter::try_from_default_env().unwrap())
         .with(formatting_layer)
         .with(opentelemetry)
-        .try_init()
-        .unwrap();
+        .set_default();
+    // .unwrap();
     {
         // launch data store
         info!(
