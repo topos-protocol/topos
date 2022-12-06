@@ -15,7 +15,6 @@ rand_distr.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 
-tce_store = { package = "topos-tce-store", path = "../topos-tce-store" }
 tce_transport = { package = "topos-tce-transport", path = "../topos-tce-transport" }
 topos-core = { workspace = true, features = ["uci"] }
 topos-tce-broadcast = { path = "../topos-tce-broadcast" }
