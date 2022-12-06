@@ -36,7 +36,6 @@ pub mod trb_store;
 
 /// Configuration of TRB implementation
 pub struct ReliableBroadcastConfig {
-    pub store: Box<dyn TrbStore + Send>,
     pub trbp_params: ReliableBroadcastParams,
     pub my_peer_id: Peer,
 }

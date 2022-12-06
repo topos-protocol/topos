@@ -3966,6 +3966,7 @@ dependencies = [
  "topos-p2p",
  "topos-tce-api",
  "topos-tce-broadcast",
+ "topos-tce-storage",
  "topos-tce-store",
  "topos-tce-transport",
  "tracing",

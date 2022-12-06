@@ -1,19 +1,20 @@
 mod app_context;
 pub mod storage;
 
+use std::future::IntoFuture;
 use std::net::SocketAddr;
+use std::path::PathBuf;
 
 pub use app_context::AppContext;
 use opentelemetry::sdk::trace::{self, RandomIdGenerator, Sampler};
 use opentelemetry::sdk::Resource;
 use opentelemetry::{global, KeyValue};
-use tce_store::{Store, StoreConfig};
 use tce_transport::ReliableBroadcastParams;
 use tokio::spawn;
 use topos_p2p::{utils::local_key_pair, Multiaddr, PeerId};
-use topos_tce_broadcast::mem_store::TrbMemStore;
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
-use tracing::{info, instrument, Instrument, Span};
+use topos_tce_storage::{Connection, RocksDBStorage};
+use tracing::{instrument, Instrument, Span};
 
 use tracing_subscriber::{prelude::*, EnvFilter};
 
@@ -22,15 +23,21 @@ pub struct TceConfiguration {
     pub local_key_seed: Option<u8>,
     pub jaeger_agent: String,
     pub jaeger_service_name: String,
-    pub db_path: Option<String>,
     pub trbp_params: ReliableBroadcastParams,
     pub boot_peers: Vec<(PeerId, Multiaddr)>,
     pub api_addr: SocketAddr,
     pub tce_local_port: u16,
+    pub storage: StorageConfiguration,
+}
+
+#[derive(Debug)]
+pub enum StorageConfiguration {
+    RAM,
+    RocksDB(Option<PathBuf>),
 }
 
 #[instrument(name = "TCE", fields(peer_id), skip(config))]
-pub async fn run(config: &TceConfiguration) {
+pub async fn run(config: &TceConfiguration) -> Result<(), Box<dyn std::error::Error>> {
     let key = local_key_pair(config.local_key_seed);
     let peer_id = key.public().to_peer_id();
 
@@ -70,26 +77,10 @@ pub async fn run(config: &TceConfiguration) {
         .with(formatting_layer)
         .with(opentelemetry)
         .set_default();
-    // .unwrap();
+
     {
         // launch data store
-        info!(
-            "Storage: {}",
-            if let Some(db_path) = config.db_path.clone() {
-                format!("RocksDB: {}", &db_path)
-            } else {
-                "RAM".to_string()
-            }
-        );
-
         let trb_config = ReliableBroadcastConfig {
-            store: if let Some(db_path) = config.db_path.clone() {
-                // Use RocksDB
-                Box::new(Store::new(StoreConfig { db_path }))
-            } else {
-                // Use in RAM storage
-                Box::new(TrbMemStore::new(Vec::new()))
-            },
             trbp_params: config.trbp_params.clone(),
             my_peer_id: "main".to_string(),
         };
@@ -117,16 +108,27 @@ pub async fn run(config: &TceConfiguration) {
 
         spawn(runtime.run().instrument(Span::current()));
 
-        // setup transport-trbp-storage-api connector
-        let app_context = AppContext::new(
-            storage::inmemory::InmemoryStorage::default(),
-            trbp_cli,
-            network_client,
-            api_client,
-        );
+        let (storage, storage_client, storage_stream) =
+            if let StorageConfiguration::RocksDB(Some(ref path)) = config.storage {
+                let storage = RocksDBStorage::open(path)?;
+                Connection::build(Box::pin(async { Ok(storage) }))
+            } else {
+                return Err(Box::new(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "Unsupported storage type",
+                )));
+            };
 
-        app_context.run(event_stream, trb_stream, api_stream).await;
+        spawn(storage.into_future());
+
+        // setup transport-trbp-storage-api connector
+        let app_context = AppContext::new(storage_client, trbp_cli, network_client, api_client);
+
+        app_context
+            .run(event_stream, trb_stream, api_stream, storage_stream)
+            .await;
     }
 
     global::shutdown_tracer_provider();
+    Ok(())
 }
