@@ -85,7 +85,7 @@ where
 
         let value_buf = bincode::serialize(value)?;
 
-        self.rocksdb.put_cf(&cf, &key_buf, &value_buf)?;
+        self.rocksdb.put_cf(&cf, key_buf, value_buf)?;
 
         Ok(())
     }

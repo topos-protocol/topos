@@ -3,11 +3,13 @@ use std::net::SocketAddr;
 use futures::{future::BoxFuture, FutureExt};
 use tokio::sync::mpsc::Sender;
 use tonic_health::server::HealthReporter;
-use topos_core::api::tce::v1::api_service_server::ApiServiceServer;
+use topos_core::api::tce::v1::{
+    api_service_server::ApiServiceServer, console_service_server::ConsoleServiceServer,
+};
 
 use crate::runtime::InternalRuntimeCommand;
 
-use super::TceGrpcService;
+use super::{console::TceConsoleService, TceGrpcService};
 
 #[derive(Debug, Default)]
 pub struct ServerBuilder {
@@ -39,6 +41,10 @@ impl ServerBuilder {
             .take()
             .expect("Cannot build gRPC without an InternalRuntimeCommand sender");
 
+        let console = ConsoleServiceServer::new(TceConsoleService {
+            command_sender: command_sender.clone(),
+        });
+
         let service = ApiServiceServer::new(TceGrpcService { command_sender });
 
         let (mut health_reporter, health_service) = tonic_health::server::health_reporter();
@@ -60,6 +66,7 @@ impl ServerBuilder {
         let grpc = tonic::transport::Server::builder()
             .add_service(health_service)
             .add_service(service)
+            .add_service(console)
             .add_service(reflexion)
             .serve(serve_addr)
             .boxed();

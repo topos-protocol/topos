@@ -1,6 +1,6 @@
 use crate::sampler::SubscribersView;
 use crate::{
-    sampler::SampleType, trb_store::TrbStore, DoubleEchoCommand, Peer, SubscribersUpdate,
+    sampler::SampleType, trb_store::TrbStore, DoubleEchoCommand, SubscribersUpdate,
     SubscriptionsView,
 };
 use std::{
@@ -10,6 +10,7 @@ use std::{
 use tce_transport::{ReliableBroadcastParams, TrbpEvents};
 use tokio::sync::{broadcast, mpsc};
 use topos_core::uci::{Certificate, CertificateId, DigestCompressed};
+use topos_p2p::PeerId;
 use tracing::{debug, error, info, instrument, warn};
 
 /// Processing data associated to a Certificate candidate for delivery
@@ -139,13 +140,13 @@ impl DoubleEcho {
                             self.subscribers.echo.remove(&peer);
                         }
                         SubscribersUpdate::RemoveEchoSubscribers(peers) => {
-                            self.subscribers.echo = self.subscribers.echo.drain().filter(|v| !peers.contains(v.as_str())).collect();
+                            self.subscribers.echo = self.subscribers.echo.drain().filter(|v| !peers.contains(v)).collect();
                         }
                         SubscribersUpdate::RemoveReadySubscriber(peer) => {
                             self.subscribers.ready.remove(&peer);
                         }
                         SubscribersUpdate::RemoveReadySubscribers(peers) => {
-                            self.subscribers.ready = self.subscribers.ready.drain().filter(|v| !peers.contains(v.as_str())).collect();
+                            self.subscribers.ready = self.subscribers.ready.drain().filter(|v| !peers.contains(v)).collect();
                         }
                         _ => {}
                     }
@@ -163,7 +164,7 @@ impl DoubleEcho {
 }
 
 impl DoubleEcho {
-    fn sample_consume_peer(from_peer: &str, state: &mut DeliveryState, sample_type: SampleType) {
+    fn sample_consume_peer(from_peer: &PeerId, state: &mut DeliveryState, sample_type: SampleType) {
         match sample_type {
             SampleType::EchoSubscription => state.subscriptions.echo.remove(from_peer),
             SampleType::ReadySubscription => state.subscriptions.ready.remove(from_peer),
@@ -172,13 +173,13 @@ impl DoubleEcho {
         };
     }
 
-    fn handle_echo(&mut self, from_peer: Peer, cert: Certificate) {
+    fn handle_echo(&mut self, from_peer: PeerId, cert: Certificate) {
         if let Some(state) = self.cert_candidate.get_mut(&cert) {
             Self::sample_consume_peer(&from_peer, state, SampleType::EchoSubscription);
         }
     }
 
-    fn handle_ready(&mut self, from_peer: Peer, cert: Certificate) {
+    fn handle_ready(&mut self, from_peer: PeerId, cert: Certificate) {
         if let Some(state) = self.cert_candidate.get_mut(&cert) {
             Self::sample_consume_peer(&from_peer, state, SampleType::ReadySubscription);
             Self::sample_consume_peer(&from_peer, state, SampleType::DeliverySubscription);
@@ -237,14 +238,14 @@ impl DoubleEcho {
 
     /// Make gossip peer list from echo and ready
     /// subscribers that listen to me
-    fn gossip_peers(&self) -> Vec<Peer> {
+    fn gossip_peers(&self) -> Vec<PeerId> {
         self.subscriptions
             .get_subscriptions()
             .into_iter()
             .chain(self.subscribers.get_subscribers().into_iter())
             .collect::<HashSet<_>>() //Filter duplicates
             .into_iter()
-            .collect::<Vec<Peer>>()
+            .collect()
     }
 
     fn start_delivery(&mut self, cert: Certificate, digest: DigestCompressed) {
@@ -437,12 +438,12 @@ mod tests {
     use rand::seq::IteratorRandom;
     use tokio::{spawn, sync::broadcast::error::TryRecvError};
 
-    fn get_sample(peers: &[Peer], sample_size: usize) -> HashSet<Peer> {
+    fn get_sample(peers: &[PeerId], sample_size: usize) -> HashSet<PeerId> {
         let mut rng = rand::thread_rng();
         HashSet::from_iter(peers.iter().cloned().choose_multiple(&mut rng, sample_size))
     }
 
-    fn get_subscriptions_view(peers: &[Peer], sample_size: usize) -> SubscriptionsView {
+    fn get_subscriptions_view(peers: &[PeerId], sample_size: usize) -> SubscriptionsView {
         let mut expected_view = SubscriptionsView::default();
         expected_view.echo = get_sample(&peers, sample_size);
         expected_view.ready = get_sample(&peers, sample_size);
@@ -450,7 +451,7 @@ mod tests {
         expected_view
     }
 
-    fn get_subscriber_view(peers: &[Peer], sample_size: usize) -> SubscribersView {
+    fn get_subscriber_view(peers: &[PeerId], sample_size: usize) -> SubscribersView {
         let mut expected_view = SubscribersView::default();
         expected_view.echo = get_sample(&peers, sample_size);
         expected_view.ready = get_sample(&peers, sample_size);
@@ -479,7 +480,10 @@ mod tests {
         // List of peers
         let mut peers = Vec::new();
         for i in 0..nb_peers {
-            peers.push(format!("peer_{i}"));
+            let peer = topos_p2p::utils::local_key_pair(Some(i))
+                .public()
+                .to_peer_id();
+            peers.push(peer);
         }
 
         let my_peer_id = peers[0].clone();
@@ -490,7 +494,7 @@ mod tests {
         let (_cmd_sender, cmd_receiver) = mpsc::channel(10);
         let (event_sender, mut event_receiver) = broadcast::channel(10);
         let mut double_echo = DoubleEcho::new(
-            my_peer_id,
+            my_peer_id.to_string(),
             broadcast_params.clone(),
             cmd_receiver,
             subscriptions_view_receiver,
@@ -589,7 +593,10 @@ mod tests {
         // List of peers
         let mut peers = Vec::new();
         for i in 0..nb_peers {
-            peers.push(format!("peer_{i}"));
+            let peer = topos_p2p::utils::local_key_pair(Some(i))
+                .public()
+                .to_peer_id();
+            peers.push(peer);
         }
 
         let my_peer_id = peers[0].clone();
@@ -600,7 +607,7 @@ mod tests {
         let (cmd_sender, cmd_receiver) = mpsc::channel(10);
         let (event_sender, mut event_receiver) = broadcast::channel(10);
         let double_echo = DoubleEcho::new(
-            my_peer_id,
+            my_peer_id.to_string(),
             broadcast_params.clone(),
             cmd_receiver,
             subscriptions_view_receiver,
@@ -641,13 +648,12 @@ mod tests {
             .await
             .expect("Cannot send expected view");
 
-        let mut received_gossip_commands: Vec<(HashSet<Peer>, Certificate)> = Vec::new();
+        let mut received_gossip_commands: Vec<(HashSet<PeerId>, Certificate)> = Vec::new();
         let assertion = async {
             loop {
                 while let Ok(event) = event_receiver.try_recv() {
                     if let TrbpEvents::Gossip { peers, cert, .. } = event {
-                        received_gossip_commands
-                            .push((peers.into_iter().collect::<HashSet<Peer>>(), cert));
+                        received_gossip_commands.push((peers.into_iter().collect(), cert));
                     }
                 }
                 tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
@@ -663,10 +669,10 @@ mod tests {
             received_gossip_commands[0].0
         );
         // Check if gossip Event is sent to all peers
-        let mut all_gossip_peers: HashSet<Peer> = expected_subscriptions_view
+        let mut all_gossip_peers: HashSet<PeerId> = expected_subscriptions_view
             .get_subscriptions()
             .into_iter()
-            .collect::<HashSet<Peer>>();
+            .collect();
         all_gossip_peers.extend(expected_subscriber_view.echo);
         all_gossip_peers.extend(expected_subscriber_view.ready);
 

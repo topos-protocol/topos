@@ -19,7 +19,7 @@ use crate::{
 pub(crate) mod builder;
 mod client;
 mod commands;
-pub(crate) mod error;
+pub mod error;
 mod events;
 
 #[cfg(test)]
@@ -186,6 +186,21 @@ impl Runtime {
                     error!(
                         %error,
                         "Can't send certificate submission to runtime, receiver is dropped"
+                    );
+                }
+            }
+
+            InternalRuntimeCommand::PushPeerList { peers, sender } => {
+                info!("A peer list has been pushed {:?}", peers);
+
+                if let Err(error) = self
+                    .api_event_sender
+                    .send(RuntimeEvent::PeerListPushed { peers, sender })
+                    .await
+                {
+                    error!(
+                        %error,
+                        "Can't send new peer list to runtime, receiver is dropped"
                     );
                 }
             }

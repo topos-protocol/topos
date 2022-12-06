@@ -5,4 +5,7 @@ use uuid::Uuid;
 pub enum RuntimeError {
     #[error("The pending stream {0} was not found")]
     PendingStreamNotFound(Uuid),
+
+    #[error("Unable to push peer list")]
+    UnableToPushPeerList,
 }

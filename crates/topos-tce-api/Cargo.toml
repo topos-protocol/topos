@@ -12,6 +12,7 @@ tokio.workspace = true
 tonic.workspace = true
 tracing.workspace = true
 
+topos-p2p = { path = "../topos-p2p" }
 topos-core = { workspace = true, features = ["uci", "api"] }
 
 async-stream = "0.3.3"

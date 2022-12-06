@@ -1,26 +1,24 @@
 use std::net::SocketAddr;
 
-use clap::Parser;
-use tce_transport::ReliableBroadcastParams;
+use clap::Args;
 use topos_p2p::{Multiaddr, PeerId};
-use tracing::{info, instrument};
+use topos_tce_transport::ReliableBroadcastParams;
 
-/// Application configuration
-#[derive(Debug, Parser)]
-#[clap(name = "TCE node (toposware.com)")]
-pub struct AppArgs {
+#[derive(Args, Debug)]
+#[command(about = "Run a full TCE instance")]
+pub struct Run {
     /// Boot nodes to connect to, pairs of <PeerId> <Multiaddr>, space separated,
     /// quoted list like --boot-peers='a a1 b b1'
-    #[clap(long, default_value = "", env = "TCE_BOOT_PEERS")]
+    #[arg(long, default_value = "", env = "TCE_BOOT_PEERS")]
     pub boot_peers: String,
 
     /// Advertised (externally visible) <host|address:port>,
     /// if empty this machine ip address(es) are used
-    #[clap(long, env = "TCE_EXT_HOST")]
+    #[arg(long, env = "TCE_EXT_HOST")]
     pub tce_ext_host: Option<String>,
 
     /// Port to listen on (host is 0.0.0.0, should be good for most installations)
-    #[clap(long, default_value_t = 0, env = "TCE_PORT")]
+    #[arg(long, default_value_t = 0, env = "TCE_PORT")]
     pub tce_local_port: u16,
 
     /// WebAPI external url <host|address:port> (optional)
@@ -60,14 +58,12 @@ pub struct AppArgs {
     pub api_addr: SocketAddr,
 
     /// TRBP parameters
-    #[clap(flatten)]
+    #[command(flatten)]
     pub trbp_params: ReliableBroadcastParams,
 }
 
-impl AppArgs {
-    #[instrument(skip_all)]
+impl Run {
     pub fn parse_boot_peers(&self) -> Vec<(PeerId, Multiaddr)> {
-        info!("boot_peers: {:?}", self.boot_peers);
         self.boot_peers
             .split(' ')
             .map(|s| s.to_string())
