@@ -5,16 +5,16 @@ The `CheckpointsCollector` is the component that will communicate with other pee
 ## General design
 
 The `CheckpointsCollector` will use the P2P network to ask for the `Checkpoints` of others peers. The selected peers will be provided by the `Gatekeeper`, returning a chunk of random peers to communicate with.
-This component asks for Peer's `Checkpoints`. `Peers` will send their current checkpoint as a response. This is the responsibility of the `CheckpointsCollector` to communicate with others peers to build and find a network `Checkpoint` that can be use to `sync`.
+This component asks for Peer's `Checkpoint`. `Peers` will respond with their current `Checkpoint`. This is the responsibility of the `CheckpointsCollector` to communicate with others peers to build and find a network `Checkpoint` that can be used to `sync`.
 
 ## Internal design
 
 The `CheckpointsCollector`, as describe above, has a main goal of negotiating a common checkpoint to start syncing the node.
 
 The first thing to do for the `CheckpointsCollector` is to contact the `Gatekeeper` for a list of peers to sync with.
-Upon receiving the list of peers, the `CheckpointsCollector` will open connections and send a message to ask for checkpoint, it is pretty streightforward but it's the first step to define if the peers are trustable to sync.
+Upon receiving the list of peers, the `CheckpointsCollector` will open connections and send a message to ask for checkpoint, it is pretty straightforward, but it's the first step to define if the peers are trustable to sync.
 
-The message sent to every peers look like this:
+The message sent to all peers as the following:
 
 ```protobuf
 message CheckpointRequest {
@@ -38,13 +38,13 @@ RECV from peer1: CheckpointResponse { heads: [SourceStreamPosition { subnet_id: 
 
 ```
 
-Upon receiving the response of every peers, the `CheckpointsCollector` will gather every `CheckpointResponse` and analyze them in order to decide if it can trust the peers that respond.
-For every subnets contained in the `CheckpointResponse` of every peers, the `CheckpointsCollector` will ask the local storage for the current node `SourceStreamPosition` head.
+Upon receiving the response of every peer, the `CheckpointsCollector` will gather every `CheckpointResponse` and analyze them in order to decide if it can trust the peers that respond.
+For all subnets contained in the `CheckpointResponse` of every peer, the `CheckpointsCollector` will ask the local storage for the current node `SourceStreamPosition` head.
 For every `SourceStreamPosition` that are lower than our current head, we don't have to sync.
 
 ### TTL on CheckpointRequest
 
-If a peer doesn't respond following a TTL on the request, this peer will be tagged as byzantine.
+If a peer does not respond following a TTL on the request, this peer will be tagged as byzantine.
 If the `CheckpointsCollector` find itself having less responses than expected regarding a preconfigured threshold, it can decide to dump every response and ask for a new set of peers from the `Gatekeeper`. (Informing the `Gatekeeper` with the list of peers that didn't respond in time).
 
 ### Selecting the smallest Position across responses per subnet
@@ -77,7 +77,7 @@ Apart from TTL there are some cases which can represent an inconsistent set of `
 #### Receiving different certificate_id for the same Position
 
 The `Position` of a `certificate` in the `SourceStream` of a subnet is guaranteed to be the same across all TCE node. It is enforced by the topos protocol itself and more precisely by the `Broadcast` mechanisms.
-When receiving inconsistent `SourceStreamPosition` for a `subnet` across multiples `CheckpointResponse`, if it hits a threshold, the node needs to dump every responses and fetch a new set of peers from the `Gatekeeper`.
+When receiving inconsistent `SourceStreamPosition` for a `subnet` across multiples `CheckpointResponse`, if it hits a threshold, the node needs to dump every response and fetch a new set of peers from the `Gatekeeper`.
 
 ```
 Responses:
@@ -91,8 +91,8 @@ Fallback: Requesting another batch of TCE nodes until receiving consistent respo
 
 #### Receiving different Position for the same certificate_id
 
-The `Position` of a `certificate` in the `SourceStream` of a subnet is guaranteed to be the same across all TCE node. It is enforced by the topos protocol itself and more precisely by the `Broadcast` mechanisms.
-When receiving inconsistent `SourceStreamPosition` for a `subnet` across multiples `CheckpointResponse`, if it hits a threshold, the node needs to dump every responses and fetch a new set of peers from the `Gatekeeper`.
+The `Position` of a `certificate` in the `SourceStream` of a subnet is guaranteed to be the same across all TCE node. It is enforced by the Topos protocol itself and more precisely by the `Broadcast` mechanisms.
+When receiving inconsistent `SourceStreamPosition` for a `subnet` across multiples `CheckpointResponse`, if it hits a threshold, the node needs to dump every response and fetch a new set of peers from the `Gatekeeper`.
 
 ```
 Responses:
