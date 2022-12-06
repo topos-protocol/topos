@@ -15,10 +15,10 @@ pub type Hash = String;
 pub enum SubnetEvent {
     SendToken {
         terminal_subnet_id: String,
-        asset_id: sp_core::U256,
+        asset_id: ethereum_types::U256,
         sender_addr: String,
         recipient_addr: String,
-        amount: sp_core::U256,
+        amount: ethereum_types::U256,
     },
 }
 
