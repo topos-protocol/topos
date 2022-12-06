@@ -1,11 +1,12 @@
 use crate::{mem_store::TrbMemStore, ReliableBroadcastClient, ReliableBroadcastConfig};
-use crate::{DoubleEchoCommand, Errors, SamplerCommand};
+use crate::{DoubleEchoCommand, Errors};
 /// Mock for the network and broadcast
 use rand::Rng;
 use rand_distr::Distribution;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Display, Formatter};
 use tokio_stream::StreamExt;
+use topos_p2p::PeerId;
 use tracing::{debug, error, info, trace, warn};
 
 use tce_transport::{ReliableBroadcastParams, TrbpEvents};
@@ -24,7 +25,7 @@ static MAX_TEST_DURATION: Duration = Duration::from_secs(60 * 2);
 /// Stall in the sense no messages get exchanged across the nodes
 static MAX_STALL_DURATION: Duration = Duration::from_secs(60);
 
-pub type PeersContainer = HashMap<String, ReliableBroadcastClient>;
+pub type PeersContainer = HashMap<PeerId, ReliableBroadcastClient>;
 
 #[derive(Debug, Default, Clone)]
 pub struct InputConfig {
@@ -226,10 +227,10 @@ fn test_cert_conflict_generation() {
 fn submit_test_cert(
     certificates: Vec<Certificate>,
     peers_container: PeersContainer,
-    to_peer: String,
+    to_peer: PeerId,
 ) {
     for cert in certificates {
-        let mb_cli = peers_container.get(&*to_peer);
+        let mb_cli = peers_container.get(&to_peer);
         if let Some(w_cli) = mb_cli {
             let sender = w_cli.get_double_echo_channel();
             tokio::spawn(async move {
@@ -244,10 +245,17 @@ fn submit_test_cert(
 
 async fn run_tce_network(simu_config: SimulationConfig) -> Result<(), ()> {
     info!("{:?}", simu_config);
+    let peer_1 = topos_p2p::utils::local_key_pair(Some(1))
+        .public()
+        .to_peer_id();
 
     let conflict_ratio = 0.;
-    let all_peer_ids: Vec<String> = (1..=simu_config.input.nb_peers)
-        .map(|e| format!("peer{}", e))
+    let all_peer_ids: Vec<PeerId> = (1..=simu_config.input.nb_peers)
+        .map(|e| {
+            topos_p2p::utils::local_key_pair(Some(e as u8))
+                .public()
+                .to_peer_id()
+        })
         .collect();
     let all_subnets: Vec<SubnetId> = (1..=simu_config.input.nb_subnets)
         .map(|id| id.to_string())
@@ -255,7 +263,7 @@ async fn run_tce_network(simu_config: SimulationConfig) -> Result<(), ()> {
 
     // channel for combined event's from all the instances
     let (tx_combined_events, rx_combined_events) =
-        mpsc::unbounded_channel::<(String, TrbpEvents)>();
+        mpsc::unbounded_channel::<(PeerId, TrbpEvents)>();
 
     let trbp_peers = launch_broadcast_protocol_instances(
         all_peer_ids.clone(),
@@ -292,7 +300,7 @@ async fn run_tce_network(simu_config: SimulationConfig) -> Result<(), ()> {
     // and check for the certificate propagation
     // have to give the nodes some time to arrange with peers
     time::sleep(Duration::from_secs(30)).await;
-    submit_test_cert(all_cert.clone(), trbp_peers.clone(), "peer1".to_string());
+    submit_test_cert(all_cert.clone(), trbp_peers.clone(), peer_1);
 
     watch_cert_delivered(
         trbp_peers.clone(),
@@ -314,10 +322,10 @@ fn watch_cert_delivered(
     peers_container: PeersContainer,
     certs: Vec<Certificate>,
     tx_exit: mpsc::UnboundedSender<Result<(), ()>>,
-    to_peers: Vec<String>,
+    to_peers: Vec<PeerId>,
 ) {
     tokio::spawn(async move {
-        let mut remaining_peers_to_finish: HashSet<String> = to_peers.iter().cloned().collect();
+        let mut remaining_peers_to_finish: HashSet<PeerId> = to_peers.iter().cloned().collect();
 
         let mut interval = time::interval(Duration::from_secs(4));
         while !remaining_peers_to_finish.is_empty() {
@@ -368,7 +376,7 @@ type SimulationResponse = (
 /// * join handle of the main loop (to await upon)
 fn launch_simulation_main_loop(
     peers_container: PeersContainer,
-    mut rx_combined_events: mpsc::UnboundedReceiver<(String, TrbpEvents)>,
+    mut rx_combined_events: mpsc::UnboundedReceiver<(PeerId, TrbpEvents)>,
 ) -> SimulationResponse {
     // 'exit' command channel & max test duration
     // do tx_exit.send(()) when the condition is met
@@ -417,31 +425,30 @@ fn launch_simulation_main_loop(
 
 /// Initialize protocol instances and build-in them into orchestrated event handling
 fn launch_broadcast_protocol_instances(
-    peer_ids: Vec<String>,
-    tx_combined_events: mpsc::UnboundedSender<(String, TrbpEvents)>,
+    peer_ids: Vec<PeerId>,
+    tx_combined_events: mpsc::UnboundedSender<(PeerId, TrbpEvents)>,
     all_subnets: Vec<SubnetId>,
     global_trb_params: ReliableBroadcastParams,
 ) -> PeersContainer {
-    let mut peers_container = HashMap::<String, ReliableBroadcastClient>::new();
+    let mut peers_container = HashMap::<PeerId, ReliableBroadcastClient>::new();
 
     // create instances
     for peer in peer_ids {
         let (client, mut event_stream) = ReliableBroadcastClient::new(ReliableBroadcastConfig {
             store: Box::new(TrbMemStore::new(all_subnets.clone())),
             trbp_params: global_trb_params.clone(),
-            my_peer_id: peer.clone(),
+            my_peer_id: peer.to_string(),
         });
 
-        let _ = peers_container.insert(peer.clone(), client.clone());
+        let _ = peers_container.insert(peer, client.clone());
 
         // configure combined events' listener
         let ev_tx = tx_combined_events.clone();
-        let ev_peer = peer.clone();
         let _ = tokio::spawn(async move {
             loop {
                 tokio::select! {
                     Some(Ok(evt)) = event_stream.next() => {
-                        let _ = ev_tx.send((ev_peer.clone(), evt.clone()));
+                        let _ = ev_tx.send((peer, evt.clone()));
                     },
                     else => {}
                 }
@@ -464,23 +471,12 @@ fn network_delay() -> time::Sleep {
     time::sleep(Duration::from_millis(delay))
 }
 
-/// Allows to tune which peers are 'visible' to other peers.
-///
-/// For now everybody sees whole simulated net
-fn visible_peers_for(peer: String, peers_container: PeersContainer) -> Vec<String> {
-    peers_container
-        .keys()
-        .cloned()
-        .filter(|p| *p != peer)
-        .collect()
-}
-
 /// Simulation of the networking
 ///
 /// For now without delays, timeouts, unavailable peers
 /// and similar real-life situations.
 pub async fn handle_peer_event(
-    from_peer: String,
+    from_peer: PeerId,
     evt: TrbpEvents,
     peers_container: PeersContainer,
 ) -> Result<(), Errors> {
@@ -488,20 +484,9 @@ pub async fn handle_peer_event(
         network_delay().await;
     }
     match evt.to_owned() {
-        TrbpEvents::NeedPeers => {
-            let visible_peers = visible_peers_for(from_peer.clone(), peers_container.clone());
-            let mb_cli = peers_container.get(&*from_peer);
-            if let Some(w_cli) = mb_cli {
-                let sender = w_cli.get_sampler_channel();
-                sender
-                    .send(SamplerCommand::PeersChanged {
-                        peers: visible_peers,
-                    })
-                    .await?;
-            }
-        }
+        TrbpEvents::NeedPeers => {}
         TrbpEvents::Broadcast { cert } => {
-            let mb_cli = peers_container.get(&*from_peer);
+            let mb_cli = peers_container.get(&from_peer);
             if let Some(w_cli) = mb_cli {
                 w_cli
                     .get_double_echo_channel()
@@ -509,49 +494,14 @@ pub async fn handle_peer_event(
                     .await?;
             }
         }
-        // TrbpEvents::EchoSubscribeReq { peers } => {
-        //     for to_peer in peers {
-        //         let mb_cli = peers_container.get(&*to_peer);
-        //         if let Some(w_cli) = mb_cli {
-        //             let cli = w_cli.lock().unwrap();
-        //             cli.eval(TrbpCommands::OnEchoSubscribeReq {
-        //                 from_peer: from_peer.clone(),
-        //             })?;
-        //         }
-        //     }
-        // }
-        // TrbpEvents::EchoSubscribeOk { to_peer } => {
-        //     let mb_cli = peers_container.get(&*to_peer);
-        //     if let Some(w_cli) = mb_cli {
-        //         let cli = w_cli.lock().unwrap();
-        //         cli.eval(TrbpCommands::OnEchoSubscribeOk { from_peer })?;
-        //     }
-        // }
-        // TrbpEvents::ReadySubscribeReq { peers } => {
-        //     for to_peer in peers {
-        //         let mb_cli = peers_container.get(&*to_peer);
-        //         if let Some(w_cli) = mb_cli {
-        //             let cli = w_cli.lock().unwrap();
-        //             cli.eval(TrbpCommands::OnReadySubscribeReq {
-        //                 from_peer: from_peer.clone(),
-        //             })?;
-        //         }
-        //     }
-        // }
-        // TrbpEvents::ReadySubscribeOk { to_peer } => {
-        //     let mb_cli = peers_container.get(&*to_peer);
-        //     if let Some(w_cli) = mb_cli {
-        //         let cli = w_cli.lock().unwrap();
-        //         cli.eval(TrbpCommands::OnReadySubscribeOk { from_peer })?;
-        //     }
-        // }
+
         TrbpEvents::Gossip {
             peers,
             cert,
             digest,
         } => {
             for to_peer in peers {
-                let mb_cli = peers_container.get(&*to_peer);
+                let mb_cli = peers_container.get(&to_peer);
                 if let Some(w_cli) = mb_cli {
                     w_cli
                         .get_double_echo_channel()
@@ -565,12 +515,12 @@ pub async fn handle_peer_event(
         }
         TrbpEvents::Echo { peers, cert } => {
             for to_peer in peers {
-                let mb_cli = peers_container.get(&*to_peer);
+                let mb_cli = peers_container.get(&to_peer);
                 if let Some(w_cli) = mb_cli {
                     w_cli
                         .get_double_echo_channel()
                         .send(DoubleEchoCommand::Echo {
-                            from_peer: from_peer.clone(),
+                            from_peer,
                             cert: cert.clone(),
                         })
                         .await?;
@@ -579,12 +529,12 @@ pub async fn handle_peer_event(
         }
         TrbpEvents::Ready { peers, cert } => {
             for to_peer in peers {
-                let mb_cli = peers_container.get(&*to_peer);
+                let mb_cli = peers_container.get(&to_peer);
                 if let Some(w_cli) = mb_cli {
                     w_cli
                         .get_double_echo_channel()
                         .send(DoubleEchoCommand::Ready {
-                            from_peer: from_peer.clone(),
+                            from_peer,
                             cert: cert.clone(),
                         })
                         .await?;

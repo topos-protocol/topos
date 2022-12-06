@@ -18,6 +18,7 @@ use double_echo::DoubleEcho;
 use tce_transport::{ReliableBroadcastParams, TrbpEvents};
 
 use topos_core::uci::{Certificate, CertificateId, DigestCompressed, SubnetId};
+use topos_p2p::PeerId;
 use tracing::{error, info, instrument, Instrument, Span};
 
 use crate::mem_store::TrbMemStore;
@@ -43,10 +44,10 @@ pub struct ReliableBroadcastConfig {
 #[derive(Debug)]
 pub enum SamplerCommand {
     PeersChanged {
-        peers: Vec<String>,
+        peers: Vec<PeerId>,
     },
     ConfirmPeer {
-        peer: String,
+        peer: PeerId,
         sample_type: SampleType,
         sender: oneshot::Sender<Result<(), ()>>,
     },
@@ -72,13 +73,13 @@ pub enum DoubleEchoCommand {
 
     /// When echo reply received
     Echo {
-        from_peer: String,
+        from_peer: PeerId,
         cert: Certificate,
     },
 
     /// When ready reply received
     Ready {
-        from_peer: String,
+        from_peer: PeerId,
         cert: Certificate,
     },
     DeliveredCerts {
@@ -157,7 +158,7 @@ impl ReliableBroadcastClient {
 
     pub fn peer_changed(
         &self,
-        peers: Vec<String>,
+        peers: Vec<PeerId>,
     ) -> impl Future<Output = Result<(), ()>> + 'static + Send {
         let command_channel = self.get_sampler_channel();
         async move {
@@ -172,7 +173,7 @@ impl ReliableBroadcastClient {
         }
     }
 
-    pub async fn add_confirmed_peer_to_sample(&self, sample_type: SampleType, peer: Peer) {
+    pub async fn add_confirmed_peer_to_sample(&self, sample_type: SampleType, peer: PeerId) {
         let (sender, receiver) = oneshot::channel();
 
         if self

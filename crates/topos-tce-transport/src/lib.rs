@@ -1,30 +1,31 @@
 //! implementation of Topos Network Transport
 //!
-use clap::Parser;
+use clap::Args;
 use serde::{Deserialize, Serialize};
 use topos_core::uci::{Certificate, DigestCompressed};
+use topos_p2p::PeerId;
 
 /// Protocol parameters of the TRB
-#[derive(Default, Clone, Debug, Parser)]
-#[clap(name = "Protocol parameters of the TRB")]
+#[derive(Args, Default, Clone, Debug)]
+#[command(name = "Protocol parameters of the TRB")]
 pub struct ReliableBroadcastParams {
     /// Echo threshold
-    #[clap(long, default_value_t = 1, env = "TCE_TRBP_ECHO_THRESHOLD")]
+    #[arg(long, default_value_t = 1, env = "TCE_TRBP_ECHO_THRESHOLD")]
     pub echo_threshold: usize,
     /// Echo sample size
-    #[clap(long, default_value_t = 1, env = "TCE_TRBP_ECHO_SAMPLE_SIZE")]
+    #[arg(long, default_value_t = 1, env = "TCE_TRBP_ECHO_SAMPLE_SIZE")]
     pub echo_sample_size: usize,
     /// Ready threshold
-    #[clap(long, default_value_t = 1, env = "TCE_TRBP_READY_THRESHOLD")]
+    #[arg(long, default_value_t = 1, env = "TCE_TRBP_READY_THRESHOLD")]
     pub ready_threshold: usize,
     /// Ready sample size
-    #[clap(long, default_value_t = 1, env = "TCE_TRBP_READY_SAMPLE_SIZE")]
+    #[arg(long, default_value_t = 1, env = "TCE_TRBP_READY_SAMPLE_SIZE")]
     pub ready_sample_size: usize,
     /// Delivery threshold
-    #[clap(long, default_value_t = 1, env = "TCE_TRBP_DELIVERY_THRESHOLD")]
+    #[arg(long, default_value_t = 1, env = "TCE_TRBP_DELIVERY_THRESHOLD")]
     pub delivery_threshold: usize,
     /// Delivery sample size
-    #[clap(long, default_value_t = 1, env = "TCE_TRBP_DELIVERY_SAMPLE_SIZE")]
+    #[arg(long, default_value_t = 1, env = "TCE_TRBP_DELIVERY_SAMPLE_SIZE")]
     pub delivery_sample_size: usize,
 }
 
@@ -38,15 +39,15 @@ pub enum TrbpCommands {
     /// Entry point for new certificate to submit as initial sender
     OnBroadcast { cert: Certificate },
     /// We got updated list of visible peers to work with, let protocol do the sampling
-    OnVisiblePeersChanged { peers: Vec<String> },
+    OnVisiblePeersChanged { peers: Vec<PeerId> },
     /// Given peer sent EchoSubscribe request
-    OnEchoSubscribeReq { from_peer: String },
+    OnEchoSubscribeReq { from_peer: PeerId },
     /// Given peer sent ReadySubscribe request
-    OnReadySubscribeReq { from_peer: String },
+    OnReadySubscribeReq { from_peer: PeerId },
     /// Given peer replied ok to the EchoSubscribe request
-    OnEchoSubscribeOk { from_peer: String },
+    OnEchoSubscribeOk { from_peer: PeerId },
     /// Given peer replied ok to the ReadySubscribe request
-    OnReadySubscribeOk { from_peer: String },
+    OnReadySubscribeOk { from_peer: PeerId },
     /// Upon new certificate to start delivery
     OnStartDelivery {
         cert: Certificate,
@@ -59,16 +60,16 @@ pub enum TrbpCommands {
     },
     /// When echo reply received
     OnEcho {
-        from_peer: String,
+        from_peer: PeerId,
         cert: Certificate,
     },
     /// When ready reply received
     OnReady {
-        from_peer: String,
+        from_peer: PeerId,
         cert: Certificate,
     },
     /// Given peer replied ok to the double echo request
-    OnDoubleEchoOk { from_peer: String },
+    OnDoubleEchoOk { from_peer: PeerId },
 }
 
 /// Protocol events
@@ -79,28 +80,28 @@ pub enum TrbpEvents {
     /// (pb.Broadcast)
     Broadcast { cert: Certificate },
     /// After sampling is done we ask peers to participate in the protocol (and provide us echo feedback)
-    EchoSubscribeReq { peers: Vec<String> },
+    EchoSubscribeReq { peers: Vec<PeerId> },
     /// After sampling is done we ask peers to participate in the protocol
     /// (and provide us ready/delivery feedback (both with Ready message))
-    ReadySubscribeReq { peers: Vec<String> },
+    ReadySubscribeReq { peers: Vec<PeerId> },
     /// We are ok to participate in the protocol and confirm that to subscriber
-    EchoSubscribeOk { to_peer: String },
+    EchoSubscribeOk { to_peer: PeerId },
     /// We are ok to participate in the protocol and confirm that to subscriber
-    ReadySubscribeOk { to_peer: String },
+    ReadySubscribeOk { to_peer: PeerId },
     /// Indicates that 'gossip' message broadcasting is required
     Gossip {
-        peers: Vec<String>,
+        peers: Vec<PeerId>,
         cert: Certificate,
         digest: DigestCompressed,
     },
     /// Indicates that 'echo' message broadcasting is required
     Echo {
-        peers: Vec<String>,
+        peers: Vec<PeerId>,
         cert: Certificate,
     },
     /// Indicates that 'ready' message broadcasting is required
     Ready {
-        peers: Vec<String>,
+        peers: Vec<PeerId>,
         cert: Certificate,
     },
     /// For simulation purpose, for now only caused by ill-formed sampling

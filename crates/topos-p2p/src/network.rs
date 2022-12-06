@@ -28,24 +28,24 @@ use std::{
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
-pub fn builder() -> NetworkBuilder {
+pub fn builder<'a>() -> NetworkBuilder<'a> {
     NetworkBuilder::default()
 }
 
 const TWO_HOURS: Duration = Duration::from_secs(60 * 60 * 2);
 
 #[derive(Default)]
-pub struct NetworkBuilder {
+pub struct NetworkBuilder<'a> {
     discovery_protocol: Option<&'static str>,
     transmission_protocol: Option<&'static str>,
     peer_key: Option<Keypair>,
     listen_addr: Option<Multiaddr>,
     store: Option<MemoryStore>,
-    known_peers: Vec<(PeerId, Multiaddr)>,
+    known_peers: &'a [(PeerId, Multiaddr)],
     local_port: Option<u8>,
 }
 
-impl NetworkBuilder {
+impl<'a> NetworkBuilder<'a> {
     pub fn peer_key(mut self, peer_key: Keypair) -> Self {
         self.peer_key = Some(peer_key);
 
@@ -63,7 +63,7 @@ impl NetworkBuilder {
         self
     }
 
-    pub fn known_peers(mut self, known_peers: Vec<(PeerId, Multiaddr)>) -> Self {
+    pub fn known_peers(mut self, known_peers: &'a [(PeerId, Multiaddr)]) -> Self {
         self.known_peers = known_peers;
 
         self
@@ -109,7 +109,7 @@ impl NetworkBuilder {
                         .unwrap_or(DISCOVERY_PROTOCOL)
                         .as_bytes(),
                 ),
-                &self.known_peers[..],
+                self.known_peers,
                 false,
             ),
             transmission: TransmissionBehaviour::create(),

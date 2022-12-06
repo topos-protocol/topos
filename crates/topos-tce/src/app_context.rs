@@ -3,14 +3,12 @@
 //!
 use futures::{future::join_all, Stream, StreamExt};
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
 use tce_transport::{TrbpCommands, TrbpEvents};
 use tokio::spawn;
 use tokio::sync::oneshot;
-use topos_p2p::PeerId;
 use topos_p2p::{Client as NetworkClient, Event as NetEvent};
-use topos_tce_api::RuntimeClient as ApiClient;
 use topos_tce_api::RuntimeEvent as ApiEvent;
+use topos_tce_api::{RuntimeClient as ApiClient, RuntimeError};
 use topos_tce_broadcast::sampler::SampleType;
 use topos_tce_broadcast::DoubleEchoCommand;
 use topos_tce_broadcast::{ReliableBroadcastClient, SamplerCommand};
@@ -88,6 +86,17 @@ impl AppContext {
                 spawn(self.trbp_cli.broadcast_new_certificate(certificate));
                 _ = sender.send(Ok(()));
             }
+
+            ApiEvent::PeerListPushed { peers, sender } => {
+                let fut = self.trbp_cli.peer_changed(peers);
+                spawn(async move {
+                    if fut.await.is_err() {
+                        _ = sender.send(Err(RuntimeError::UnableToPushPeerList));
+                    } else {
+                        _ = sender.send(Ok(()));
+                    }
+                });
+            }
         }
     }
 
@@ -106,7 +115,7 @@ impl AppContext {
                 // Preparing echo subscribe message
                 let my_peer_id = self.network_client.local_peer_id;
                 let data: Vec<u8> = NetworkMessage::from(TrbpCommands::OnEchoSubscribeReq {
-                    from_peer: self.network_client.local_peer_id.to_base58(),
+                    from_peer: self.network_client.local_peer_id,
                 })
                 .into();
                 let command_sender = self.trbp_cli.get_sampler_channel();
@@ -118,10 +127,8 @@ impl AppContext {
                             "peer_id: {} sending echo subscribe to {}",
                             &my_peer_id, &peer_id
                         );
-                        self.network_client.send_request::<_, NetworkMessage>(
-                            PeerId::from_str(peer_id).expect("correct peer_id"),
-                            data.clone(),
-                        )
+                        self.network_client
+                            .send_request::<_, NetworkMessage>(*peer_id, data.clone())
                     })
                     .collect::<Vec<_>>();
 
@@ -164,7 +171,7 @@ impl AppContext {
                 // Preparing ready subscribe message
                 let my_peer_id = self.network_client.local_peer_id;
                 let data: Vec<u8> = NetworkMessage::from(TrbpCommands::OnReadySubscribeReq {
-                    from_peer: self.network_client.local_peer_id.to_base58(),
+                    from_peer: self.network_client.local_peer_id,
                 })
                 .into();
                 let command_sender = self.trbp_cli.get_sampler_channel();
@@ -176,10 +183,8 @@ impl AppContext {
                             "peer_id: {} sending ready subscribe to {}",
                             &my_peer_id, &peer_id
                         );
-                        self.network_client.send_request::<_, NetworkMessage>(
-                            PeerId::from_str(peer_id).expect("correct peer_id"),
-                            data.clone(),
-                        )
+                        self.network_client
+                            .send_request::<_, NetworkMessage>(*peer_id, data.clone())
                     })
                     .collect::<Vec<_>>();
 
@@ -199,7 +204,7 @@ impl AppContext {
                                     let (sender_ready, receiver_ready) = oneshot::channel();
                                     let _ = command_sender
                                         .send(SamplerCommand::ConfirmPeer {
-                                            peer: from_peer.clone(),
+                                            peer: from_peer,
                                             sample_type: SampleType::ReadySubscription,
                                             sender: sender_ready,
                                         })
@@ -242,10 +247,8 @@ impl AppContext {
                             "peer_id: {} sending gossip cert id: {} to peer {:?}",
                             &self.network_client.local_peer_id, &cert_id, &peer_id
                         );
-                        self.network_client.send_request::<_, NetworkMessage>(
-                            PeerId::from_str(peer_id).expect("correct peer_id"),
-                            data.clone(),
-                        )
+                        self.network_client
+                            .send_request::<_, NetworkMessage>(*peer_id, data.clone())
                     })
                     .collect::<Vec<_>>();
 
@@ -262,7 +265,7 @@ impl AppContext {
                 );
                 // Send echo message
                 let data: Vec<u8> = NetworkMessage::from(TrbpCommands::OnEcho {
-                    from_peer: self.network_client.local_peer_id.to_base58(),
+                    from_peer: self.network_client.local_peer_id,
                     cert,
                 })
                 .into();
@@ -271,10 +274,8 @@ impl AppContext {
                     .iter()
                     .map(|peer_id| {
                         debug!("peer_id: {} sending Echo to {}", &my_peer_id, &peer_id);
-                        self.network_client.send_request::<_, NetworkMessage>(
-                            PeerId::from_str(peer_id).expect("correct peer_id"),
-                            data.clone(),
-                        )
+                        self.network_client
+                            .send_request::<_, NetworkMessage>(*peer_id, data.clone())
                     })
                     .collect::<Vec<_>>();
 
@@ -290,7 +291,7 @@ impl AppContext {
                     &my_peer_id, &peers, &cert.cert_id
                 );
                 let data: Vec<u8> = NetworkMessage::from(TrbpCommands::OnReady {
-                    from_peer: self.network_client.local_peer_id.to_base58(),
+                    from_peer: self.network_client.local_peer_id,
                     cert,
                 })
                 .into();
@@ -299,10 +300,8 @@ impl AppContext {
                     .iter()
                     .map(|peer_id| {
                         debug!("peer_id: {} sending Ready to {}", &my_peer_id, &peer_id);
-                        self.network_client.send_request::<_, NetworkMessage>(
-                            PeerId::from_str(peer_id).expect("correct peer_id"),
-                            data.clone(),
-                        )
+                        self.network_client
+                            .send_request::<_, NetworkMessage>(*peer_id, data.clone())
                     })
                     .collect::<Vec<_>>();
 
@@ -323,19 +322,7 @@ impl AppContext {
             &evt
         );
         match evt {
-            NetEvent::PeersChanged { new_peers } => {
-                let sender = self.trbp_cli.get_sampler_channel().clone();
-
-                info!("Sending PeersChanged to Sampler {new_peers:?}");
-                _ = sender
-                    .send(SamplerCommand::PeersChanged {
-                        peers: new_peers
-                            .iter()
-                            .map(|peer_id| peer_id.to_string())
-                            .collect(),
-                    })
-                    .await;
-            }
+            NetEvent::PeersChanged { .. } => {}
 
             NetEvent::TransmissionOnReq {
                 from: _,
@@ -365,7 +352,7 @@ impl AppContext {
                                 // We are responding that we are accepting echo subscriber
                                 spawn(self.network_client.respond_to_request(
                                     NetworkMessage::from(TrbpCommands::OnEchoSubscribeOk {
-                                        from_peer: my_peer.to_base58(),
+                                        from_peer: my_peer,
                                     }),
                                     channel,
                                 ));
@@ -386,7 +373,7 @@ impl AppContext {
                                 // We are responding that we are accepting ready subscriber
                                 spawn(self.network_client.respond_to_request(
                                     NetworkMessage::from(TrbpCommands::OnReadySubscribeOk {
-                                        from_peer: my_peer.to_base58(),
+                                        from_peer: my_peer,
                                     }),
                                     channel,
                                 ));
@@ -405,7 +392,7 @@ impl AppContext {
 
                                 spawn(self.network_client.respond_to_request(
                                     NetworkMessage::from(TrbpCommands::OnDoubleEchoOk {
-                                        from_peer: my_peer.to_base58(),
+                                        from_peer: my_peer,
                                     }),
                                     channel,
                                 ));
@@ -425,7 +412,7 @@ impl AppContext {
                                 //We are responding with OnDoubleEchoOk to remote peer
                                 spawn(self.network_client.respond_to_request(
                                     NetworkMessage::from(TrbpCommands::OnDoubleEchoOk {
-                                        from_peer: my_peer.to_base58(),
+                                        from_peer: my_peer,
                                     }),
                                     channel,
                                 ));
@@ -444,7 +431,7 @@ impl AppContext {
 
                                 spawn(self.network_client.respond_to_request(
                                     NetworkMessage::from(TrbpCommands::OnDoubleEchoOk {
-                                        from_peer: my_peer.to_base58(),
+                                        from_peer: my_peer,
                                     }),
                                     channel,
                                 ));

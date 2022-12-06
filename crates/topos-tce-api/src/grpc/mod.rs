@@ -11,6 +11,7 @@ use tracing::info;
 
 use crate::runtime::InternalRuntimeCommand;
 
+pub(crate) mod console;
 #[cfg(test)]
 mod tests;
 
