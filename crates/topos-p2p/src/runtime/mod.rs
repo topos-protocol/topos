@@ -6,6 +6,7 @@ use crate::{
         transmission::PendingRequests,
     },
     error::P2PError,
+    runtime::handle_event::EventHandler,
     Behaviour, Command, Event,
 };
 use libp2p::{core::transport::ListenerId, kad::QueryId, Multiaddr, PeerId, Swarm};
@@ -59,7 +60,7 @@ impl Runtime {
 
         loop {
             tokio::select! {
-                Some(event) = self.swarm.next() => self.handle_event(event).await,
+                Some(event) = self.swarm.next() => self.handle(event).await,
                 command = self.command_receiver.recv() =>
                     match command {
                         Some(command) => self.handle_command(command).await,

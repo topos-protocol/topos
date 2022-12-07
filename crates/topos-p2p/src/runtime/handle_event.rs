@@ -1,27 +1,54 @@
-use std::borrow::Cow;
 use std::io;
 
-use libp2p::core::ProtocolName;
-use libp2p::kad::{KademliaEvent, QueryResult};
-use libp2p::request_response::{RequestResponseEvent, RequestResponseMessage};
-use libp2p::Multiaddr;
 use libp2p::{
     core::either::EitherError,
-    identify::Event as IdentifyEvent,
-    identify::Info as IdentifyInfo,
-    kad::{record::Key, Quorum, Record},
     multiaddr::Protocol,
     swarm::{ConnectionHandlerUpgrErr, SwarmEvent},
 };
-use tracing::{error, info, instrument, warn};
+use tracing::{error, info, warn};
 
-use crate::{
-    behaviour::transmission::protocol::TransmissionProtocol, event::ComposedEvent, Event, Runtime,
-};
+use crate::{event::ComposedEvent, Event, Runtime};
 
-impl Runtime {
-    #[instrument(name = "Runtime::handle_event", skip_all, fields(peer_id = %self.local_peer_id))]
-    pub(crate) async fn handle_event(
+mod discovery;
+mod peer_info;
+mod transmission;
+
+#[async_trait::async_trait]
+pub(crate) trait EventHandler<T> {
+    async fn handle(&mut self, event: T);
+}
+
+#[async_trait::async_trait]
+impl EventHandler<Event> for Runtime {
+    async fn handle(&mut self, event: Event) {
+        if let Err(error) = self.event_sender.try_send(event) {
+            warn!(reason = %error, "Unable to send NetworkEvent event to outer stream");
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl EventHandler<ComposedEvent> for Runtime {
+    async fn handle(&mut self, event: ComposedEvent) {
+        match event {
+            ComposedEvent::Kademlia(event) => self.handle(event).await,
+            ComposedEvent::PeerInfo(event) => self.handle(event).await,
+            ComposedEvent::Transmission(event) => self.handle(event).await,
+            ComposedEvent::OutEvent(event) => self.handle(event).await,
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl
+    EventHandler<
+        SwarmEvent<
+            ComposedEvent,
+            EitherError<EitherError<io::Error, io::Error>, ConnectionHandlerUpgrErr<io::Error>>,
+        >,
+    > for Runtime
+{
+    async fn handle(
         &mut self,
         event: SwarmEvent<
             ComposedEvent,
@@ -107,165 +134,9 @@ impl Runtime {
                 info!("Dial {:?} from {:?}", peer_id, *self.swarm.local_peer_id());
             }
 
-            SwarmEvent::Behaviour(ComposedEvent::OutEvent(event)) => {
-                if let Err(error) = self.event_sender.try_send(event) {
-                    warn!(reason = %error, "Unable to send NetworkEvent event to outer stream");
-                }
+            SwarmEvent::Behaviour(event) => {
+                self.handle(event).await;
             }
-
-            SwarmEvent::Behaviour(ComposedEvent::PeerInfo(event)) => {
-                if let IdentifyEvent::Received { peer_id, info, .. } = *event {
-                    let IdentifyInfo {
-                        protocol_version,
-                        listen_addrs,
-                        protocols,
-                        ..
-                    } = info;
-
-                    if protocol_version.as_bytes() == TransmissionProtocol().protocol_name()
-                        && protocols.iter().any(|p| {
-                            self.swarm
-                                .behaviour()
-                                .discovery
-                                .protocol_names()
-                                .contains(&Cow::Borrowed(p.as_bytes()))
-                        })
-                    {
-                        for addr in listen_addrs {
-                            self.swarm
-                                .behaviour_mut()
-                                .transmission
-                                .add_address(&peer_id, addr.clone());
-                            self.swarm
-                                .behaviour_mut()
-                                .discovery
-                                .add_address(&peer_id, addr);
-                        }
-                    }
-                }
-            }
-
-            SwarmEvent::Behaviour(ComposedEvent::Transmission(RequestResponseEvent::Message {
-                peer,
-                message:
-                    RequestResponseMessage::Request {
-                        request, channel, ..
-                    },
-            })) => {
-                _ = self.event_sender.try_send(Event::TransmissionOnReq {
-                    from: peer,
-                    data: request.0,
-                    channel,
-                });
-            }
-
-            SwarmEvent::Behaviour(ComposedEvent::Transmission(RequestResponseEvent::Message {
-                message:
-                    RequestResponseMessage::Response {
-                        request_id,
-                        response,
-                    },
-                ..
-            })) => {
-                if let Some(sender) = self.pending_requests.remove(&request_id) {
-                    if sender.send(Ok(response.0)).is_err() {
-                        warn!("Could not send response to request {request_id} because initiator is dropped");
-                    }
-                }
-            }
-            SwarmEvent::Behaviour(ComposedEvent::Transmission(
-                RequestResponseEvent::OutboundFailure {
-                    request_id, error, ..
-                },
-            )) => {
-                if let Some(sender) = self.pending_requests.remove(&request_id) {
-                    if sender.send(Err(error.into())).is_err() {
-                        warn!("Could not send RequestFailure for request {request_id} because initiator is dropped");
-                    }
-                } else {
-                    warn!("Received an OutboundRequest failure for an unknown request {request_id}")
-                }
-            }
-
-            SwarmEvent::Behaviour(ComposedEvent::Kademlia(event)) => match event {
-                KademliaEvent::RoutingUpdated {
-                    peer,
-                    is_new_peer: true,
-                    ..
-                } if self.bootstrapped => {
-                    if self.peers.insert(peer) {
-                        let peers = self.peers.iter().cloned().collect();
-                        _ = self
-                            .event_sender
-                            .try_send(Event::PeersChanged { new_peers: peers });
-                    }
-                }
-                KademliaEvent::UnroutablePeer { peer } => {
-                    if self.peers.remove(&peer) {
-                        let peers = self.peers.iter().cloned().collect();
-                        _ = self
-                            .event_sender
-                            .try_send(Event::PeersChanged { new_peers: peers });
-                    }
-                }
-                KademliaEvent::OutboundQueryCompleted {
-                    result: QueryResult::Bootstrap(res),
-                    ..
-                } => match res {
-                    Ok(_) => {
-                        info!("Bootstrapping finished");
-                        let key = Key::new(&self.local_peer_id.to_string());
-                        _ = self
-                            .swarm
-                            .behaviour_mut()
-                            .discovery
-                            .put_record(Record::new(key, self.addresses.to_vec()), Quorum::All);
-                    }
-                    Err(e) => error!("Error: bootstrap : {e:?}"),
-                },
-                KademliaEvent::OutboundQueryCompleted {
-                    result: QueryResult::PutRecord(Err(e)),
-                    ..
-                } => {
-                    error!("{e:?}");
-                }
-                KademliaEvent::OutboundQueryCompleted {
-                    result: QueryResult::GetRecord(res),
-                    id,
-                    ..
-                } => match res {
-                    Ok(result) => {
-                        if let Some(sender) = self.pending_record_requests.remove(&id) {
-                            if let Some(peer_record) = result.records.first() {
-                                if let Ok(addr) =
-                                    Multiaddr::try_from(peer_record.record.value.clone())
-                                {
-                                    if let Some(peer_id) = peer_record.record.publisher {
-                                        if !sender.is_closed() {
-                                            self.swarm
-                                                .behaviour_mut()
-                                                .discovery
-                                                .add_address(&peer_id, addr.clone());
-
-                                            if sender.send(Ok(vec![addr.clone()])).is_err() {
-                                                // TODO: Hash the QueryId
-                                                warn!("Could not notify Record query ({id:?}) response because initiator is dropped");
-                                            }
-                                        }
-                                        self.swarm
-                                            .behaviour_mut()
-                                            .transmission
-                                            .add_address(&peer_id, addr);
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    Err(error) => error!("{error:?}"),
-                },
-                _ => {}
-            },
 
             event => error!("Unhandled event: {event:?}"),
         }
