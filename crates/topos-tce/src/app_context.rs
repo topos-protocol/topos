@@ -12,6 +12,7 @@ use topos_tce_api::{RuntimeClient as ApiClient, RuntimeError};
 use topos_tce_broadcast::sampler::SampleType;
 use topos_tce_broadcast::DoubleEchoCommand;
 use topos_tce_broadcast::{ReliableBroadcastClient, SamplerCommand};
+use topos_tce_gatekeeper::GatekeeperClient;
 use topos_tce_storage::events::StorageEvent;
 use topos_tce_storage::StorageClient;
 use tracing::{debug, error, info, trace};
@@ -29,6 +30,7 @@ pub struct AppContext {
     pub network_client: NetworkClient,
     pub api_client: ApiClient,
     pub pending_storage: StorageClient,
+    pub gatekeeper: GatekeeperClient,
 }
 
 impl AppContext {
@@ -38,12 +40,14 @@ impl AppContext {
         trbp_cli: ReliableBroadcastClient,
         network_client: NetworkClient,
         api_client: ApiClient,
+        gatekeeper: GatekeeperClient,
     ) -> Self {
         Self {
             trbp_cli,
             network_client,
             api_client,
             pending_storage,
+            gatekeeper,
         }
     }
 

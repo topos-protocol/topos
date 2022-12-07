@@ -120,8 +120,20 @@ pub async fn run(config: &TceConfiguration) -> Result<(), Box<dyn std::error::Er
 
         spawn(storage.into_future());
 
+        let (gatekeeper_client, gatekeeper_runtime) = topos_tce_gatekeeper::Gatekeeper::builder()
+            .await
+            .expect("Can't create the Gatekeeper");
+
+        spawn(gatekeeper_runtime.into_future());
+
         // setup transport-trbp-storage-api connector
-        let app_context = AppContext::new(storage_client, trbp_cli, network_client, api_client);
+        let app_context = AppContext::new(
+            storage_client,
+            trbp_cli,
+            network_client,
+            api_client,
+            gatekeeper_client,
+        );
 
         app_context
             .run(event_stream, trb_stream, api_stream, storage_stream)

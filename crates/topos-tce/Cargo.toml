@@ -20,6 +20,7 @@ tce_transport = { package = "topos-tce-transport", path = "../topos-tce-transpor
 topos-p2p = { path = "../topos-p2p" }
 topos-tce-api = { path = "../topos-tce-api"}
 topos-tce-broadcast = { path = "../topos-tce-broadcast" }
+topos-tce-gatekeeper = { path = "../topos-tce-gatekeeper" }
 
 # external dependencies
 bincode = "1.3.3"
