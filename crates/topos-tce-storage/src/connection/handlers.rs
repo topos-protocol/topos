@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use topos_commands::CommandHandler;
 use topos_core::uci::Certificate;
 
 use crate::{
@@ -10,8 +11,6 @@ use crate::{
     Connection, FetchCertificatesFilter, PendingCertificateId, Position, Storage,
 };
 
-use super::handler::CommandHandler;
-
 /// Handle a AddPendingCertificate query
 ///
 /// a AddPendingCertificate query will put the pending certificate into the storage
@@ -21,6 +20,8 @@ impl<S> CommandHandler<AddPendingCertificate> for Connection<S>
 where
     S: Storage,
 {
+    type Error = StorageError;
+
     async fn handle(
         &mut self,
         AddPendingCertificate { certificate }: AddPendingCertificate,
@@ -42,6 +43,8 @@ impl<S> CommandHandler<RemovePendingCertificate> for Connection<S>
 where
     S: Storage,
 {
+    type Error = StorageError;
+
     async fn handle(
         &mut self,
         RemovePendingCertificate {
@@ -70,6 +73,8 @@ impl<S> CommandHandler<CertificateDelivered> for Connection<S>
 where
     S: Storage,
 {
+    type Error = StorageError;
+
     async fn handle(&mut self, _command: CertificateDelivered) -> Result<(), StorageError> {
         Ok(())
     }
@@ -83,6 +88,8 @@ impl<S> CommandHandler<GetCertificate> for Connection<S>
 where
     S: Storage,
 {
+    type Error = StorageError;
+
     async fn handle(
         &mut self,
         GetCertificate { certificate_id }: GetCertificate,
@@ -100,6 +107,8 @@ impl<S> CommandHandler<FetchCertificates> for Connection<S>
 where
     S: Storage,
 {
+    type Error = StorageError;
+
     async fn handle(
         &mut self,
         FetchCertificates { filter }: FetchCertificates,
