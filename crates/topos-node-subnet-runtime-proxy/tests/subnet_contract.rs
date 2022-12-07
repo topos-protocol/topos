@@ -4,9 +4,9 @@ use serial_test::serial;
 use std::future::Future;
 use std::str::FromStr;
 use tokio::sync::oneshot;
-// use topos_core::uci::Certificate;
+use topos_core::uci::Certificate;
 use web3::transports::http::Http;
-// use web3::types::{BlockNumber, Log};
+use web3::types::{BlockNumber, Log};
 
 mod common;
 use common::subnet_test_data::{
@@ -158,32 +158,32 @@ fn spawn_subnet_node(
     Ok(handle)
 }
 
-// async fn read_logs_for_address(
-//     contract_address: &str,
-//     web3_client: &web3::Web3<Http>,
-//     event_signature: &str,
-// ) -> Result<Vec<Log>, Box<dyn std::error::Error>> {
-//     let event_topic: [u8; 32] = tiny_keccak::keccak256(event_signature.as_bytes());
-//     println!(
-//         "Looking for event signature {} and from address {}",
-//         hex::encode(&event_topic),
-//         contract_address
-//     );
-//     let filter = web3::types::FilterBuilder::default()
-//         .from_block(BlockNumber::Number(web3::types::U64::from(0)))
-//         .to_block(BlockNumber::Number(web3::types::U64::from(1000)))
-//         .address(vec![
-//             web3::ethabi::Address::from_str(contract_address).unwrap()
-//         ])
-//         .topics(
-//             Some(vec![web3::types::H256::from(event_topic)]),
-//             None,
-//             None,
-//             None,
-//         )
-//         .build();
-//     Ok(web3_client.eth().logs(filter).await?)
-// }
+async fn read_logs_for_address(
+    contract_address: &str,
+    web3_client: &web3::Web3<Http>,
+    event_signature: &str,
+) -> Result<Vec<Log>, Box<dyn std::error::Error>> {
+    let event_topic: [u8; 32] = tiny_keccak::keccak256(event_signature.as_bytes());
+    println!(
+        "Looking for event signature {} and from address {}",
+        hex::encode(&event_topic),
+        contract_address
+    );
+    let filter = web3::types::FilterBuilder::default()
+        .from_block(BlockNumber::Number(web3::types::U64::from(0)))
+        .to_block(BlockNumber::Number(web3::types::U64::from(1000)))
+        .address(vec![
+            web3::ethabi::Address::from_str(contract_address).unwrap()
+        ])
+        .topics(
+            Some(vec![web3::types::H256::from(event_topic)]),
+            None,
+            None,
+            None,
+        )
+        .build();
+    Ok(web3_client.eth().logs(filter).await?)
+}
 
 #[allow(dead_code)]
 struct Context {
@@ -264,6 +264,7 @@ async fn context_running_subnet_node() -> Context {
 #[rstest]
 #[tokio::test]
 #[serial]
+#[ignore = "needs to be updated to the new smart contract api"]
 async fn test_subnet_node_contract_deployment(
     context_running_subnet_node: impl Future<Output = Context>,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -278,6 +279,7 @@ async fn test_subnet_node_contract_deployment(
 #[rstest]
 #[tokio::test]
 #[serial]
+#[ignore = "needs to be updated to the new smart contract api"]
 async fn test_subnet_node_get_nonce(
     context_running_subnet_node: impl Future<Output = Context>,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -307,6 +309,7 @@ async fn test_subnet_node_get_nonce(
 #[rstest]
 #[tokio::test]
 #[serial]
+#[ignore = "needs to be updated to the new smart contract api"]
 async fn test_create_runtime() -> Result<(), Box<dyn std::error::Error>> {
     let keystore_file_path = generate_test_keystore_file()?;
     println!("Creating runtime proxy...");
@@ -324,64 +327,65 @@ async fn test_create_runtime() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-// /// Test mint call
-// #[rstest]
-// #[tokio::test]
-// #[serial]
-// async fn test_subnet_mint_call(
-//     context_running_subnet_node: impl Future<Output = Context>,
-// ) -> Result<(), Box<dyn std::error::Error>> {
-//     let context = context_running_subnet_node.await;
-//     let keystore_file_path = generate_test_keystore_file()?;
-//     let subnet_smart_contract_address =
-//         "0x".to_string() + &hex::encode(context.subnet_contract.address());
-//     let runtime_proxy_worker = RuntimeProxyWorker::new(RuntimeProxyConfig {
-//         subnet_id: SUBNET_ID.to_string(),
-//         endpoint: SUBNET_WEBSOCKET_ENDPOINT.to_string(),
-//         subnet_contract: subnet_smart_contract_address.clone(),
-//         keystore_file: keystore_file_path,
-//         keystore_password: TEST_KEYSTORE_FILE_PASSWORD.to_string(),
-//     })?;
-//
-//     // TODO: Adjust this mock certificate when ToposCoreContract gets stable enough
-//     let mock_cert = Certificate {
-//         initial_subnet_id: "1".to_string(),
-//         cert_id: "9735390752919344387".to_string(),
-//         prev_cert_id: "3389456612167443923".to_string(),
-//         calls: vec![topos_core::uci::CrossChainTransaction {
-//             terminal_subnet_id: SUBNET_ID.to_string(),
-//             sender_addr: "0x000000000000000000000000000000000000FFFF".to_string(),
-//             recipient_addr: subnet_smart_contract_address.clone(),
-//             transaction_data: topos_core::uci::CrossChainTransactionData::AssetTransfer {
-//                 asset_id: "1".to_string(),
-//                 amount: topos_core::uci::Amount::from(10000),
-//             },
-//         }],
-//     };
-//
-//     println!("Sending mock certificate to subnet smart contract...");
-//     if let Err(e) = runtime_proxy_worker.eval(
-//         topos_node_types::RuntimeProxyCommand::OnNewDeliveredTxns(mock_cert),
-//     ) {
-//         eprintln!("Failed to send OnNewDeliveredTxns command: {}", e);
-//         return Err(Box::from(e));
-//     }
-//     println!("Waiting for 10 seconds...");
-//     tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
-//     println!("Checking logs for event...");
-//     let logs = read_logs_for_address(
-//         &subnet_smart_contract_address,
-//         &context.web3_client,
-//         "CertificateApplied(bool)",
-//     )
-//     .await?;
-//     println!("Acquired logs from subnet smart contract: {:#?}", logs);
-//     assert_eq!(logs.len(), 1);
-//     assert_eq!(
-//         hex::encode(logs[0].address),
-//         subnet_smart_contract_address[2..]
-//     );
-//     println!("Shutting down context...");
-//     context.shutdown().await?;
-//     Ok(())
-// }
+/// Test mint call
+#[rstest]
+#[tokio::test]
+#[serial]
+#[ignore = "needs to be updated to the new smart contract api"]
+async fn test_subnet_mint_call(
+    context_running_subnet_node: impl Future<Output = Context>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let context = context_running_subnet_node.await;
+    let keystore_file_path = generate_test_keystore_file()?;
+    let subnet_smart_contract_address =
+        "0x".to_string() + &hex::encode(context.subnet_contract.address());
+    let runtime_proxy_worker = RuntimeProxyWorker::new(RuntimeProxyConfig {
+        subnet_id: SUBNET_ID.to_string(),
+        endpoint: SUBNET_WEBSOCKET_ENDPOINT.to_string(),
+        subnet_contract: subnet_smart_contract_address.clone(),
+        keystore_file: keystore_file_path,
+        keystore_password: TEST_KEYSTORE_FILE_PASSWORD.to_string(),
+    })?;
+
+    // TODO: Adjust this mock certificate when ToposCoreContract gets stable enough
+    let mock_cert = Certificate {
+        initial_subnet_id: "1".to_string(),
+        cert_id: "9735390752919344387".to_string(),
+        prev_cert_id: "3389456612167443923".to_string(),
+        calls: vec![topos_core::uci::CrossChainTransaction {
+            terminal_subnet_id: SUBNET_ID.to_string(),
+            sender_addr: "0x000000000000000000000000000000000000FFFF".to_string(),
+            recipient_addr: subnet_smart_contract_address.clone(),
+            transaction_data: topos_core::uci::CrossChainTransactionData::AssetTransfer {
+                asset_id: "1".to_string(),
+                amount: topos_core::uci::Amount::from(10000),
+            },
+        }],
+    };
+
+    println!("Sending mock certificate to subnet smart contract...");
+    if let Err(e) = runtime_proxy_worker.eval(
+        topos_node_types::RuntimeProxyCommand::OnNewDeliveredTxns(mock_cert),
+    ) {
+        eprintln!("Failed to send OnNewDeliveredTxns command: {}", e);
+        return Err(Box::from(e));
+    }
+    println!("Waiting for 10 seconds...");
+    tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+    println!("Checking logs for event...");
+    let logs = read_logs_for_address(
+        &subnet_smart_contract_address,
+        &context.web3_client,
+        "CertificateApplied(bool)",
+    )
+    .await?;
+    println!("Acquired logs from subnet smart contract: {:#?}", logs);
+    assert_eq!(logs.len(), 1);
+    assert_eq!(
+        hex::encode(logs[0].address),
+        subnet_smart_contract_address[2..]
+    );
+    println!("Shutting down context...");
+    context.shutdown().await?;
+    Ok(())
+}
