@@ -7,13 +7,15 @@ use topos_commands::{Command, RegisterCommands};
 
 // TODO: Replace by inventory
 RegisterCommands!(
-    StorageCommand,
-    StorageError,
-    AddPendingCertificate,
-    CertificateDelivered,
-    GetCertificate,
-    FetchCertificates,
-    RemovePendingCertificate
+    name = StorageCommand,
+    error = StorageError,
+    commands = [
+        AddPendingCertificate,
+        CertificateDelivered,
+        GetCertificate,
+        FetchCertificates,
+        RemovePendingCertificate
+    ]
 );
 
 #[derive(Debug)]

@@ -1,7 +1,4 @@
 use async_trait::async_trait;
-// use topos_commands::Command;
-//
-// use crate::errors::StorageError;
 
 pub trait Command {
     type Result: 'static;
@@ -22,7 +19,7 @@ pub trait CommandHandler<C: Command> {
 #[macro_export]
 macro_rules! RegisterCommands {
 
-    ($enum_name:ident, $error:ident, $($command:ident),+) => {
+    (name = $enum_name:ident, error = $error:ident, commands = [$($command:ident),+]) => {
         #[derive(Debug)]
         pub enum $enum_name {
             $(
@@ -50,7 +47,7 @@ macro_rules! RegisterCommands {
         )*
     };
 
-    ($enum_name:ident, $handler:ty, $($command:ident),+) => {
-        RegisterCommands!($enum_name, (), $($command)*);
+    (name = $enum_name:ident, error = $handler:ty, commands = [$($command:ident),+]) => {
+        RegisterCommands!(name = $enum_name, error = (), commands = [$($command)*]);
     };
 }

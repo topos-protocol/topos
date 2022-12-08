@@ -32,6 +32,27 @@ async fn can_push_a_peer_list(
     assert_eq!(10, gatekeeper.get_all_peers().await.unwrap().len());
 }
 
+#[rstest]
+#[tokio::test]
+async fn can_fetch_full_or_partial_list(
+    #[future] gatekeeper: GatekeeperClient,
+    #[with(10)] peer_list: Vec<PeerId>,
+) {
+    let gatekeeper = gatekeeper.await;
+
+    gatekeeper.push_peer_list(peer_list).await.unwrap();
+
+    assert_eq!(10, gatekeeper.get_all_peers().await.unwrap().len());
+
+    let first = gatekeeper.get_random_peers(5).await.unwrap();
+    assert_eq!(5, first.len());
+
+    let second = gatekeeper.get_random_peers(5).await.unwrap();
+    assert_eq!(5, second.len());
+
+    assert_ne!(first, second);
+}
+
 #[fixture]
 async fn gatekeeper() -> GatekeeperClient {
     let (client, server) = Gatekeeper::builder().await.unwrap();

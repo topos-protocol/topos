@@ -1,7 +1,7 @@
 use tokio::sync::{mpsc, oneshot};
 use topos_p2p::PeerId;
 
-use crate::{GatekeeperCommand, GetAllPeers, PushPeerList};
+use crate::{GatekeeperCommand, GetAllPeers, GetRandomPeers, PushPeerList};
 
 pub struct GatekeeperClient {
     #[allow(dead_code)]
@@ -22,10 +22,17 @@ impl GatekeeperClient {
         &self,
         peer_list: Vec<PeerId>,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        Ok(PushPeerList(peer_list).send_to(&self.commands).await?)
+        Ok(PushPeerList { peer_list }.send_to(&self.commands).await?)
     }
 
     pub async fn get_all_peers(&self) -> Result<Vec<PeerId>, Box<dyn std::error::Error>> {
         Ok(GetAllPeers.send_to(&self.commands).await?)
+    }
+
+    pub async fn get_random_peers(
+        &self,
+        number: usize,
+    ) -> Result<Vec<PeerId>, Box<dyn std::error::Error>> {
+        Ok(GetRandomPeers { number }.send_to(&self.commands).await?)
     }
 }
