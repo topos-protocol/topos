@@ -1,7 +1,7 @@
 use std::{
     fs::File,
     io::{self, Read},
-    path::Path,
+    path::{Path, PathBuf},
     str::FromStr,
     sync::Arc,
 };
@@ -10,9 +10,9 @@ use tokio::{signal, spawn, sync::Mutex};
 use tonic::transport::Channel;
 use topos_core::api::tce::v1::console_service_client::ConsoleServiceClient;
 use topos_p2p::PeerId;
-use topos_tce::TceConfiguration;
+use topos_tce::{StorageConfiguration, TceConfiguration};
 use tower::Service;
-use tracing::{debug, trace};
+use tracing::{debug, error, trace};
 
 use crate::options::input_format::{InputFormat, Parser};
 
@@ -85,17 +85,26 @@ pub(crate) async fn handle_command(
         Some(TceCommands::Run(cmd)) => {
             let config = TceConfiguration {
                 boot_peers: cmd.parse_boot_peers(),
-                db_path: cmd.db_path,
                 local_key_seed: cmd.local_key_seed,
                 jaeger_agent: cmd.jaeger_agent,
                 jaeger_service_name: cmd.jaeger_service_name,
                 tce_local_port: cmd.tce_local_port,
                 trbp_params: cmd.trbp_params,
                 api_addr: cmd.api_addr,
+                storage: StorageConfiguration::RocksDB(
+                    cmd.db_path
+                        .as_ref()
+                        .and_then(|path| PathBuf::from_str(path).ok()),
+                ),
             };
 
             spawn(async move {
-                topos_tce::run(&config).await;
+                if let Err(error) = topos_tce::run(&config).await {
+                    error!("Unable to start the TCE node due to : {error:?}");
+
+                    // TODO: Find a better way
+                    panic!();
+                }
             });
 
             signal::ctrl_c()

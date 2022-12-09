@@ -9,7 +9,7 @@ pub mod client;
 pub(crate) mod command;
 pub(crate) mod connection;
 pub mod errors;
-pub(crate) mod events;
+pub mod events;
 
 #[cfg(feature = "rocksdb")]
 pub(crate) mod rocks;
