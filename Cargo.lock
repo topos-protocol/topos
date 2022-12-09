@@ -3929,6 +3929,7 @@ dependencies = [
  "topos-p2p",
  "topos-tce-api",
  "topos-tce-broadcast",
+ "topos-tce-gatekeeper",
  "topos-tce-storage",
  "topos-tce-transport",
  "tracing",
@@ -3983,6 +3984,14 @@ dependencies = [
  "topos-p2p",
  "topos-tce-transport",
  "tracing",
+]
+
+[[package]]
+name = "topos-tce-gatekeeper"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "tokio",
 ]
 
 [[package]]
