@@ -1,0 +1,8 @@
+[package]
+name = "topos-tce-gatekeeper"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+futures.workspace = true
+tokio = { workspace = true, features = ["full"] }
