@@ -1,5 +1,5 @@
-use crate::{mem_store::TrbMemStore, ReliableBroadcastClient, ReliableBroadcastConfig};
 use crate::{DoubleEchoCommand, Errors};
+use crate::{ReliableBroadcastClient, ReliableBroadcastConfig};
 /// Mock for the network and broadcast
 use rand::Rng;
 use rand_distr::Distribution;
@@ -427,7 +427,7 @@ fn launch_simulation_main_loop(
 fn launch_broadcast_protocol_instances(
     peer_ids: Vec<PeerId>,
     tx_combined_events: mpsc::UnboundedSender<(PeerId, TrbpEvents)>,
-    all_subnets: Vec<SubnetId>,
+    _all_subnets: Vec<SubnetId>,
     global_trb_params: ReliableBroadcastParams,
 ) -> PeersContainer {
     let mut peers_container = HashMap::<PeerId, ReliableBroadcastClient>::new();
@@ -435,7 +435,6 @@ fn launch_broadcast_protocol_instances(
     // create instances
     for peer in peer_ids {
         let (client, mut event_stream) = ReliableBroadcastClient::new(ReliableBroadcastConfig {
-            store: Box::new(TrbMemStore::new(all_subnets.clone())),
             trbp_params: global_trb_params.clone(),
             my_peer_id: peer.to_string(),
         });

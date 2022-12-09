@@ -12,9 +12,9 @@ use topos_tce_api::{RuntimeClient as ApiClient, RuntimeError};
 use topos_tce_broadcast::sampler::SampleType;
 use topos_tce_broadcast::DoubleEchoCommand;
 use topos_tce_broadcast::{ReliableBroadcastClient, SamplerCommand};
+use topos_tce_storage::events::StorageEvent;
+use topos_tce_storage::StorageClient;
 use tracing::{debug, error, info, trace};
-
-use crate::storage::Storage;
 
 /// Top-level transducer main app context & driver (alike)
 ///
@@ -28,13 +28,13 @@ pub struct AppContext {
     pub trbp_cli: ReliableBroadcastClient,
     pub network_client: NetworkClient,
     pub api_client: ApiClient,
-    pub pending_storage: Box<dyn Storage>,
+    pub pending_storage: StorageClient,
 }
 
 impl AppContext {
     /// Factory
     pub fn new(
-        pending_storage: impl Storage,
+        pending_storage: StorageClient,
         trbp_cli: ReliableBroadcastClient,
         network_client: NetworkClient,
         api_client: ApiClient,
@@ -43,7 +43,7 @@ impl AppContext {
             trbp_cli,
             network_client,
             api_client,
-            pending_storage: Box::new(pending_storage),
+            pending_storage,
         }
     }
 
@@ -53,6 +53,7 @@ impl AppContext {
         mut network_stream: impl Stream<Item = NetEvent> + Unpin,
         mut trb_stream: impl Stream<Item = Result<TrbpEvents, ()>> + Unpin,
         mut api_stream: impl Stream<Item = ApiEvent> + Unpin,
+        mut storage_stream: impl Stream<Item = StorageEvent> + Unpin,
     ) {
         loop {
             tokio::select! {
@@ -72,6 +73,9 @@ impl AppContext {
                     self.on_api_event(event).await;
                 }
 
+                // Storage events
+                Some(_event) = storage_stream.next() => {
+                }
             }
         }
     }
@@ -82,7 +86,10 @@ impl AppContext {
                 certificate,
                 sender,
             } => {
-                _ = self.pending_storage.persist(certificate.clone()).await;
+                _ = self
+                    .pending_storage
+                    .add_pending_certificate(certificate.clone())
+                    .await;
                 spawn(self.trbp_cli.broadcast_new_certificate(certificate));
                 _ = sender.send(Ok(()));
             }
@@ -107,7 +114,10 @@ impl AppContext {
         );
         match evt {
             TrbpEvents::CertificateDelivered { certificate } => {
-                _ = self.pending_storage.remove(&certificate.cert_id).await;
+                _ = self
+                    .pending_storage
+                    .certificate_delivered(certificate.cert_id.clone())
+                    .await;
                 spawn(self.api_client.dispatch_certificate(certificate));
             }
 

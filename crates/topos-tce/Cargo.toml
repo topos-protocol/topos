@@ -14,7 +14,7 @@ topos-core.workspace = true
 tracing.workspace = true
 tracing-subscriber = { workspace = true, default-features = false,  features = ["std", "env-filter", "fmt", "ansi"] }
 
-tce_store = { package = "topos-tce-store", path = "../topos-tce-store" }
+topos-tce-storage = { package = "topos-tce-storage", path = "../topos-tce-storage" }
 tce_transport = { package = "topos-tce-transport", path = "../topos-tce-transport" }
 topos-p2p = { path = "../topos-p2p" }
 topos-tce-api = { path = "../topos-tce-api"}
