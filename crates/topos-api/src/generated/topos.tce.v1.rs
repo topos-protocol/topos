@@ -184,14 +184,14 @@ pub mod api_service_client {
 pub mod api_service_server {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
-    ///Generated trait containing gRPC methods that should be implemented for use with ApiServiceServer.
+    /// Generated trait containing gRPC methods that should be implemented for use with ApiServiceServer.
     #[async_trait]
     pub trait ApiService: Send + Sync + 'static {
         async fn submit_certificate(
             &self,
             request: tonic::Request<super::SubmitCertificateRequest>,
         ) -> Result<tonic::Response<super::SubmitCertificateResponse>, tonic::Status>;
-        ///Server streaming response type for the WatchCertificates method.
+        /// Server streaming response type for the WatchCertificates method.
         type WatchCertificatesStream: futures_core::Stream<
                 Item = Result<super::WatchCertificatesResponse, tonic::Status>,
             >
@@ -487,7 +487,7 @@ pub mod console_service_client {
 pub mod console_service_server {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
-    ///Generated trait containing gRPC methods that should be implemented for use with ConsoleServiceServer.
+    /// Generated trait containing gRPC methods that should be implemented for use with ConsoleServiceServer.
     #[async_trait]
     pub trait ConsoleService: Send + Sync + 'static {
         async fn push_peer_list(

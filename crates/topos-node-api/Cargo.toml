@@ -20,6 +20,6 @@ tokio = { version = "1.15.0", features = [
     "sync",
 ] }
 
-topos-core = { git = "https://github.com/toposware/topos-core", branch = "main", features = ["uci"], version = "0.1.0" }
+topos-core = { workspace = true, features = ["uci"] }
 
 bytes = "1.1.0"

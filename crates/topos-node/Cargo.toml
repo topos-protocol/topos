@@ -25,7 +25,7 @@ tokio = { version = "1.15.0", features = [
 ] }
 rpassword = "7.0.0"
 
-topos-core = { git = "https://github.com/toposware/topos-core", branch = "main", features = ["uci"], version = "0.1.0" }
+topos-core = { workspace = true, features = ["uci"] }
 topos-node-api = { package = "topos-node-api", path = "../topos-node-api" }
 topos-node-certification = { package = "topos-node-certification", path = "../topos-node-certification" }
 topos-node-types = { package = "topos-node-types", path = "../topos-node-types" }
