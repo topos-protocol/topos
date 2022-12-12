@@ -7,7 +7,7 @@ pub fn get_private_key(
     password: &str,
 ) -> Result<Vec<u8>, eth_keystore::KeystoreError> {
     let keypath = Path::new(file_name);
-    let private_key = eth_keystore::decrypt_key(&keypath, password)?;
+    let private_key = eth_keystore::decrypt_key(keypath, password)?;
     Ok(private_key)
 }
 
@@ -46,16 +46,16 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
             .expect("invalid key, expected 32 bytes key");
         // Encrypt private key and store to keystore file
         eth_keystore::encrypt_key(
-            &path.parent().expect("valid parent directory"),
+            path.parent().expect("valid parent directory"),
             &mut rng,
-            &private_key,
+            private_key,
             &args.password,
             Some(path.file_name().expect("valid filename").to_str().unwrap()),
         )?;
     } else {
         println!("Extracting private key from keystore {}", args.filename);
         let keypath = Path::new(&args.filename);
-        let private_key = eth_keystore::decrypt_key(&keypath, args.password)?;
+        let private_key = eth_keystore::decrypt_key(keypath, args.password)?;
         println!(
             "Extracted private key:0x{}",
             hex::encode(&private_key).replace('\"', "")
