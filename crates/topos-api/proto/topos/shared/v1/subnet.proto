@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package topos.shared.v1;
+
+message SubnetId {
+  string value = 1;
+}
