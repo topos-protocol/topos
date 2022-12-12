@@ -1,0 +1,37 @@
+[package]
+name = "topos-node-tce-proxy"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = { version = "1.0.136", features = ["derive"] }
+serde_json = "1.0.78"
+pretty_env_logger = "0.4.0"
+
+byteorder = "1.4.3"
+log = "0.4.14"
+tokio = { version = "1.15.0", features = [
+    "io-util",
+    "io-std",
+    "macros",
+    "rt",
+    "rt-multi-thread",
+    "fs",
+    "time",
+    "sync",
+] }
+tokio-stream = "0.1.10"
+futures = "0.3.24"
+async-stream = "0.3.3"
+uuid = "1.1.2"
+tonic = { version = "0.8.0", features = ["transport"] }
+topos-node-types = { package = "topos-node-types", path = "../topos-node-types" }
+topos-core = { git = "https://github.com/toposware/topos-core", branch = "main", features = ["uci", "api"], version = "0.1.0" }
+hyper = { version = "0.14", features = ["full"] }
+thiserror = "1.0"
+backoff = { version = "0.4", features = ["tokio"] }
+
+[dev-dependencies]
+rstest = "0.15"
+serial_test = "0.9"
+dockertest = "0.3.1"
