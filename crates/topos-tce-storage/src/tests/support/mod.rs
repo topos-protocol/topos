@@ -12,7 +12,7 @@ use rstest::fixture;
 use crate::{
     rocks::{
         db::init_db, db::RocksDB, CertificatesColumn, PendingCertificatesColumn,
-        SourceSubnetStreamsColumn, TargetSubnetStreamsColumn,
+        SourceStreamsColumn, TargetStreamsColumn,
     },
     RocksDBStorage, SubnetId,
 };
@@ -44,8 +44,8 @@ pub(crate) fn database_name() -> &'static str {
 pub(crate) fn storage(database_name: &'static str) -> RocksDBStorage {
     let pending_column: PendingCertificatesColumn = pending_column(database_name);
     let certificates_column: CertificatesColumn = certificates_column(database_name);
-    let source_streams_column: SourceSubnetStreamsColumn = source_streams_column(database_name);
-    let target_streams_column: TargetSubnetStreamsColumn = target_streams_column(database_name);
+    let source_streams_column: SourceStreamsColumn = source_streams_column(database_name);
+    let target_streams_column: TargetStreamsColumn = target_streams_column(database_name);
 
     RocksDBStorage::new(
         pending_column,

@@ -7,7 +7,7 @@ use crate::{
         RemovePendingCertificate,
     },
     errors::StorageError,
-    Connection, FetchCertificatesFilter, Height, PendingCertificateId, Storage,
+    Connection, FetchCertificatesFilter, PendingCertificateId, Position, Storage,
 };
 
 use super::handler::CommandHandler;
@@ -111,7 +111,7 @@ where
                 limit,
             } => {
                 self.storage
-                    .get_certificates_by_source(subnet_id, Height(version), limit)
+                    .get_certificates_by_source(subnet_id, Position(version), limit)
                     .await?
             }
             FetchCertificatesFilter::Target {
@@ -124,7 +124,7 @@ where
                     .get_certificates_by_target(
                         target_subnet_id,
                         source_subnet_id,
-                        Height(version),
+                        Position(version),
                         limit,
                     )
                     .await?

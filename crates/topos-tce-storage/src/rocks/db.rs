@@ -20,13 +20,13 @@ pub(crate) fn init_db(
     let mut options_source = Options::default();
     options_source.create_if_missing(true);
     options_source.set_prefix_extractor(rocksdb::SliceTransform::create_fixed_prefix(
-        constants::SOURCE_SUBNET_STREAMS_PREFIX_SIZE,
+        constants::SOURCE_STREAMS_PREFIX_SIZE,
     ));
 
     let mut options_target = Options::default();
     options_target.create_if_missing(true);
     options_target.set_prefix_extractor(rocksdb::SliceTransform::create_fixed_prefix(
-        constants::TARGET_SUBNET_STREAMS_PREFIX_SIZE,
+        constants::TARGET_STREAMS_PREFIX_SIZE,
     ));
 
     Ok(Arc::new(
@@ -39,8 +39,8 @@ pub(crate) fn init_db(
                     default_rocksdb_options.clone(),
                 ),
                 ColumnFamilyDescriptor::new(constants::CERTIFICATES, default_rocksdb_options),
-                ColumnFamilyDescriptor::new(constants::SOURCE_SUBNET_STREAMS, options_source),
-                ColumnFamilyDescriptor::new(constants::TARGET_SUBNET_STREAMS, options_target),
+                ColumnFamilyDescriptor::new(constants::SOURCE_STREAMS, options_source),
+                ColumnFamilyDescriptor::new(constants::TARGET_STREAMS, options_target),
             ],
         )?,
     ))
