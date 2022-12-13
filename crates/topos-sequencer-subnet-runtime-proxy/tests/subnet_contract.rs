@@ -13,7 +13,7 @@ use common::subnet_test_data::{
     generate_test_keystore_file, SUBNET_ERC20_CONTRACT_ABI, SUBNET_ERC20_CONTRACT_CODE,
     TEST_KEYSTORE_FILE_PASSWORD,
 };
-use topos_node_subnet_runtime_proxy::{RuntimeProxyConfig, RuntimeProxyWorker};
+use topos_sequencer_subnet_runtime_proxy::{RuntimeProxyConfig, RuntimeProxyWorker};
 
 const SUBNET_ID: u32 = 0x01;
 const SUBNET_CONTRACT_JSON_DEFINITION: &'static str = "ToposCoreContract.json";
@@ -287,9 +287,12 @@ async fn test_subnet_node_get_nonce(
     let context = context_running_subnet_node.await;
     let eth_private_key = hex::decode(TEST_SECRET_ETHEREUM_KEY)?;
     let eth_address =
-        topos_node_subxt_client::subnet_contract::derive_eth_address(&eth_private_key)?;
-    match topos_node_subxt_client::Subxt::new(SUBNET_WEBSOCKET_ENDPOINT.as_ref(), eth_private_key)
-        .await
+        topos_sequencer_subxt_client::subnet_contract::derive_eth_address(&eth_private_key)?;
+    match topos_sequencer_subxt_client::Subxt::new(
+        SUBNET_WEBSOCKET_ENDPOINT.as_ref(),
+        eth_private_key,
+    )
+    .await
     {
         Ok(subxt) => {
             let nonce = subxt.get_eth_nonce(&eth_address).await?;
@@ -321,7 +324,7 @@ async fn test_create_runtime() -> Result<(), Box<dyn std::error::Error>> {
         keystore_password: TEST_KEYSTORE_FILE_PASSWORD.to_string(),
     })?;
     let runtime_proxy =
-        topos_node_subnet_runtime_proxy::testing::get_runtime(&runtime_proxy_worker);
+        topos_sequencer_subnet_runtime_proxy::testing::get_runtime(&runtime_proxy_worker);
     let runtime_proxy = runtime_proxy.lock();
     println!("New runtime proxy created:{:?}", &runtime_proxy);
     Ok(())
@@ -364,9 +367,9 @@ async fn test_subnet_mint_call(
     };
 
     println!("Sending mock certificate to subnet smart contract...");
-    if let Err(e) = runtime_proxy_worker.eval(
-        topos_node_types::RuntimeProxyCommand::OnNewDeliveredTxns(mock_cert),
-    ) {
+    if let Err(e) = runtime_proxy_worker
+        .eval(topos_sequencer_types::RuntimeProxyCommand::OnNewDeliveredTxns(mock_cert))
+    {
         eprintln!("Failed to send OnNewDeliveredTxns command: {}", e);
         return Err(Box::from(e));
     }

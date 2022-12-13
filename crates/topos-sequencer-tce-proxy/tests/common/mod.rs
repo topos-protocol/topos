@@ -1,5 +1,6 @@
 use async_stream::stream;
 use futures::{channel::oneshot, FutureExt, Stream, StreamExt};
+use std::net::UdpSocket;
 use std::pin::Pin;
 use tokio::sync::mpsc;
 use tonic::{transport::Server, Request, Response, Status, Streaming};
@@ -10,7 +11,6 @@ use topos_core::api::tce::v1::{
 };
 use topos_core::api::uci::v1::Certificate;
 
-pub const TCE_MOCK_NODE_TEST_URL: &str = "127.0.0.1:1341";
 pub const TCE_MOCK_NODE_SOURCE_SUBNET_ID: &str = "5";
 const DEFAULT_CHANNEL_STREAM_CAPACITY: usize = 10;
 
@@ -103,22 +103,24 @@ pub async fn start_mock_tce_service() -> Result<
     (
         tokio::task::JoinHandle<()>,
         futures::channel::oneshot::Sender<()>,
+        String,
     ),
     Box<dyn std::error::Error>,
 > {
     println!("Starting mock TCE node...");
     let (shutdown_tx, shutdown_rx) = oneshot::channel();
     let svc = ApiServiceServer::new(TceMockServer);
+    let socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
+    let addr = socket.local_addr().ok().unwrap();
+
     let service = tokio::spawn(async move {
         Server::builder()
             .add_service(svc)
-            .serve_with_shutdown(
-                TCE_MOCK_NODE_TEST_URL.parse().unwrap(),
-                shutdown_rx.map(drop),
-            )
+            .serve_with_shutdown(addr.clone(), shutdown_rx.map(drop))
             .await
             .expect("mock node server successfully started")
     });
     println!("Mock TCE node successfully started");
-    Ok((service, shutdown_tx))
+
+    Ok((service, shutdown_tx, addr.to_string()))
 }

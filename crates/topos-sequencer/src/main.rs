@@ -1,5 +1,5 @@
 use clap::Parser;
-use libp2p::{Multiaddr, PeerId};
+use topos_p2p::{Multiaddr, PeerId};
 
 use crate::app_context::AppContext;
 use log::info;

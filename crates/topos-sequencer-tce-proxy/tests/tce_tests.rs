@@ -12,6 +12,7 @@ mod common;
 
 #[allow(dead_code)]
 struct Context {
+    endpoint: String,
     service_handle: tokio::task::JoinHandle<()>,
     shutdown_tce_node_signal: futures::channel::oneshot::Sender<()>,
 }
@@ -26,7 +27,8 @@ impl Context {
 #[fixture]
 async fn context_running_tce_mock_node() -> Context {
     println!("Starting TCE node mock service...");
-    let (handle, shutdown_tce_node_signal) = match common::start_mock_tce_service().await {
+    let (handle, shutdown_tce_node_signal, endpoint) = match common::start_mock_tce_service().await
+    {
         Ok(result) => result,
         Err(e) => {
             eprint!("Unable to start mock tce node, details: {}", e);
@@ -35,6 +37,7 @@ async fn context_running_tce_mock_node() -> Context {
     };
     tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
     Context {
+        endpoint,
         service_handle: handle,
         shutdown_tce_node_signal,
     }
@@ -50,7 +53,7 @@ async fn test_tce_submit_certificate(
 
     println!("Creating TCE node client");
     let mut client = match topos_core::api::tce::v1::api_service_client::ApiServiceClient::connect(
-        "http://".to_string() + common::TCE_MOCK_NODE_TEST_URL,
+        format!("http://{}", context.endpoint),
     )
     .await
     {
@@ -96,7 +99,7 @@ async fn test_tce_watch_certificates(
 
     println!("Creating TCE node client");
     let mut client = match topos_core::api::tce::v1::api_service_client::ApiServiceClient::connect(
-        "http://".to_string() + common::TCE_MOCK_NODE_TEST_URL,
+        format!("http://{}", context.endpoint),
     )
     .await
     {
