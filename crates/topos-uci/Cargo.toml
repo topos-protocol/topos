@@ -1,0 +1,9 @@
+[package]
+name = "topos-uci"
+version = "0.1.1"
+edition = "2021"
+
+[dependencies]
+
+serde = { version = "1.0.136", features = ["derive"] }
+ethereum-types = "0.13.1"

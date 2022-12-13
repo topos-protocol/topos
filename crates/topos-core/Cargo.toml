@@ -1,0 +1,20 @@
+[package]
+name = "topos-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+topos-uci = { path = "../topos-uci", optional = true }
+topos-api = { path = "../topos-api", optional = true }
+
+[features]
+default = []
+
+uci = ["topos-uci"]
+api = ["topos-api"]
+
+[package.metadata.docs.rs]
+all-features = true
+# enable unstable features in the documentation
+rustdoc-args = ["--cfg", "docsrs"]
+rustc-args = []
