@@ -1,0 +1,2 @@
+[advisories]
+ignore = ["RUSTSEC-2022-0061", "RUSTSEC-2021-0139"]
