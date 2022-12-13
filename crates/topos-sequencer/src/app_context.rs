@@ -3,11 +3,11 @@
 //!
 use crate::AppArgs;
 use serde::{Deserialize, Serialize};
-use topos_node_api::{ApiRequests, ApiWorker};
-use topos_node_certification::CertificationWorker;
-use topos_node_subnet_runtime_proxy::RuntimeProxyWorker;
-use topos_node_tce_proxy::TceProxyWorker;
-use topos_node_types::*;
+use topos_sequencer_api::{ApiRequests, ApiWorker};
+use topos_sequencer_certification::CertificationWorker;
+use topos_sequencer_subnet_runtime_proxy::RuntimeProxyWorker;
+use topos_sequencer_tce_proxy::TceProxyWorker;
+use topos_sequencer_types::*;
 
 /// Top-level transducer main app context & driver (alike)
 ///
@@ -48,7 +48,7 @@ impl AppContext {
     pub(crate) async fn run(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         loop {
             tokio::select! {
-                // Topos Node API
+                // Topos Sequencer API
                 Ok(req) = self.api_worker.next_request() => {
                     log::debug!("api_worker.next_request(): {:?}", &req);
                     self.on_api_request(req);

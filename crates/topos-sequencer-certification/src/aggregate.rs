@@ -9,7 +9,7 @@ use tokio::time::{self, Duration};
 use topos_core::uci::{
     Certificate, CertificateId, CrossChainTransaction, CrossChainTransactionData, SubnetId,
 };
-use topos_node_types::{BlockInfo, CertificationCommand, CertificationEvent, SubnetEvent};
+use topos_sequencer_types::{BlockInfo, CertificationCommand, CertificationEvent, SubnetEvent};
 
 pub struct Certification {
     pub commands_channel: mpsc::UnboundedSender<CertificationCommand>,

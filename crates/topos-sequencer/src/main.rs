@@ -3,10 +3,10 @@ use libp2p::{Multiaddr, PeerId};
 
 use crate::app_context::AppContext;
 use log::info;
-use topos_node_api::{ApiConfig, ApiWorker};
-use topos_node_certification::CertificationWorker;
-use topos_node_subnet_runtime_proxy::{RuntimeProxyConfig, RuntimeProxyWorker};
-use topos_node_tce_proxy::{TceProxyConfig, TceProxyWorker};
+use topos_sequencer_api::{ApiConfig, ApiWorker};
+use topos_sequencer_certification::CertificationWorker;
+use topos_sequencer_subnet_runtime_proxy::{RuntimeProxyConfig, RuntimeProxyWorker};
+use topos_sequencer_tce_proxy::{TceProxyConfig, TceProxyWorker};
 
 mod app_context;
 

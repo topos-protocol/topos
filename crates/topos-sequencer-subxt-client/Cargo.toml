@@ -1,5 +1,5 @@
 [package]
-name = "topos-node-subxt-client"
+name = "topos-sequencer-subxt-client"
 version = "0.1.0"
 edition = "2021"
 
@@ -9,7 +9,7 @@ edition = "2021"
 codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive", "full", "bit-vec"] }
 log = "0.4.14"
 subxt = { git = "https://github.com/paritytech/subxt.git", tag = "v0.22.0" }
-topos-node-types = { package = "topos-node-types", path = "../topos-node-types" }
+topos-sequencer-types = { package = "topos-sequencer-types", path = "../topos-sequencer-types" }
 jsonrpsee-types = "0.14.0"
 serde_json = "1.0"
 thiserror = "1.0"

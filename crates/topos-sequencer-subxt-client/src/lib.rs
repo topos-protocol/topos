@@ -11,7 +11,7 @@ use subxt::{
     RpcClient,
 };
 use thiserror::Error;
-use topos_node_types::{BlockInfo, SubnetEvent};
+use topos_sequencer_types::{BlockInfo, SubnetEvent};
 
 #[subxt::subxt(runtime_metadata_path = "./artifacts/metadata.scale")]
 pub mod runtime {}

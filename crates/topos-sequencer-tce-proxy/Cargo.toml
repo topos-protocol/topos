@@ -1,5 +1,5 @@
 [package]
-name = "topos-node-tce-proxy"
+name = "topos-sequencer-tce-proxy"
 version = "0.1.0"
 edition = "2021"
 
@@ -25,7 +25,7 @@ futures = "0.3.24"
 async-stream = "0.3.3"
 uuid = "1.1.2"
 tonic = { version = "0.8.0", features = ["transport"] }
-topos-node-types = { package = "topos-node-types", path = "../topos-node-types" }
+topos-sequencer-types = { package = "topos-sequencer-types", path = "../topos-sequencer-types" }
 topos-core = { workspace = true, features = ["uci", "api"] }
 hyper = { version = "0.14", features = ["full"] }
 thiserror = "1.0"

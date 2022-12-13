@@ -2,7 +2,7 @@ use crate::Error;
 use ethabi::{ParamType, Token};
 use ethereum_tx_sign::LegacyTransaction;
 use secp256k1::{PublicKey, SecretKey};
-use topos_node_types::{Certificate, CrossChainTransaction, CrossChainTransactionData};
+use topos_sequencer_types::{Certificate, CrossChainTransaction, CrossChainTransactionData};
 
 const ETH_CHAIN_ID: u64 = 43; // TODO: parametrize this in app config
 const ETH_GAS_PRICE: u128 = 20 * 10u128.pow(9); // TODO: derive dynamically

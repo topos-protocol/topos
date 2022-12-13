@@ -8,10 +8,10 @@ use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 use tokio::time::{self, Duration};
 use topos_core::uci::{Certificate, CrossChainTransaction};
-use topos_node_subxt_client;
-use topos_node_subxt_client::subnet_contract;
-use topos_node_subxt_client::Subxt;
-use topos_node_types::{RuntimeProxyCommand, RuntimeProxyEvent};
+use topos_sequencer_subxt_client;
+use topos_sequencer_subxt_client::subnet_contract;
+use topos_sequencer_subxt_client::Subxt;
+use topos_sequencer_types::{RuntimeProxyCommand, RuntimeProxyEvent};
 
 pub struct RuntimeProxy {
     pub commands_channel: mpsc::UnboundedSender<RuntimeProxyCommand>,
@@ -71,7 +71,7 @@ impl RuntimeProxy {
             let eth_admin_private_key = eth_admin_private_key.clone();
             tokio::spawn(async move {
                 let mut interval = time::interval(Duration::from_secs(6)); // arbitrary time for 1 block
-                if let Ok(mut subxt) = topos_node_subxt_client::Subxt::new(
+                if let Ok(mut subxt) = topos_sequencer_subxt_client::Subxt::new(
                     runtime_endpoint.as_ref(),
                     eth_admin_private_key,
                 )
@@ -118,7 +118,7 @@ impl RuntimeProxy {
 
         let _runtime_command_task = {
             tokio::spawn(async move {
-                if let Ok(mut subxt) = topos_node_subxt_client::Subxt::new(
+                if let Ok(mut subxt) = topos_sequencer_subxt_client::Subxt::new(
                     runtime_endpoint.as_ref(),
                     eth_admin_private_key,
                 )
@@ -167,7 +167,7 @@ impl RuntimeProxy {
         );
         // Pack transaction data (certificate and asset transfers) to Eth encoded abi call
         let transaction_data =
-            topos_node_subxt_client::subnet_contract::subnet_encode_mint_call(cert, txs)?;
+            topos_sequencer_subxt_client::subnet_contract::subnet_encode_mint_call(cert, txs)?;
         // Get nonce so that we can prepare eth transaction
         let nonce = subxt.get_eth_nonce(&subxt.eth_admin_address).await?;
         debug!(

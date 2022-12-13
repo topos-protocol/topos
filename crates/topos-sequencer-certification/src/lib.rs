@@ -7,7 +7,7 @@ use aggregate::Certification;
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 use topos_core::uci::SubnetId;
-use topos_node_types::*;
+use topos_sequencer_types::*;
 pub type Peer = String;
 
 pub mod aggregate;

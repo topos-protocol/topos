@@ -1,5 +1,5 @@
 [package]
-name = "topos-node"
+name = "topos-sequencer"
 description = "Implementation of the Topos protocol"
 license = "MIT"
 version = "0.1.0"
@@ -26,10 +26,8 @@ tokio = { version = "1.15.0", features = [
 rpassword = "7.0.0"
 
 topos-core = { workspace = true, features = ["uci"] }
-topos-node-api = { package = "topos-node-api", path = "../topos-node-api" }
-topos-node-certification = { package = "topos-node-certification", path = "../topos-node-certification" }
-topos-node-types = { package = "topos-node-types", path = "../topos-node-types" }
-topos-node-subnet-runtime-proxy = { package = "topos-node-subnet-runtime-proxy", path = "../topos-node-subnet-runtime-proxy" }
-topos-node-tce-proxy = { package = "topos-node-tce-proxy", path = "../topos-node-tce-proxy" }
-
-
+topos-sequencer-api = { package = "topos-sequencer-api", path = "../topos-sequencer-api" }
+topos-sequencer-certification = { package = "topos-sequencer-certification", path = "../topos-sequencer-certification" }
+topos-sequencer-types = { package = "topos-sequencer-types", path = "../topos-sequencer-types" }
+topos-sequencer-subnet-runtime-proxy = { package = "topos-sequencer-subnet-runtime-proxy", path = "../topos-sequencer-subnet-runtime-proxy" }
+topos-sequencer-tce-proxy = { package = "topos-sequencer-tce-proxy", path = "../topos-sequencer-tce-proxy" }

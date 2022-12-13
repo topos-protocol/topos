@@ -7,7 +7,7 @@ use aggregate::RuntimeProxy;
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
 use tokio::sync::mpsc;
-use topos_node_types::*;
+use topos_sequencer_types::*;
 
 pub type Peer = String;
 
@@ -34,7 +34,7 @@ pub enum Error {
     #[error("subxt client error: {source}")]
     SubxtError {
         #[from]
-        source: topos_node_subxt_client::Error,
+        source: topos_sequencer_subxt_client::Error,
     },
     #[error("keystore error: {source}")]
     KeystoreError {

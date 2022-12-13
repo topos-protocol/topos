@@ -18,7 +18,7 @@ use topos_core::{
     },
     uci::{Certificate, CertificateId, SubnetId},
 };
-use topos_node_types::*;
+use topos_sequencer_types::*;
 
 const CERTIFICATE_OUTBOUND_CHANNEL_SIZE: usize = 100;
 const CERTIFICATE_INBOUND_CHANNEL_SIZE: usize = 100;

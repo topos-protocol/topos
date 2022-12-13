@@ -1,5 +1,5 @@
 [package]
-name = "topos-node-certification"
+name = "topos-sequencer-certification"
 version = "0.1.0"
 edition = "2021"
 
@@ -22,7 +22,7 @@ rand_core = "0.6.0"
 rand = "0.8.5"
 thiserror = "1.0"
 
-topos-node-types = { package = "topos-node-types", path = "../topos-node-types" }
+topos-sequencer-types = { package = "topos-sequencer-types", path = "../topos-sequencer-types" }
 topos-core = { workspace = true, features = ["uci"] }
 
 [dev-dependencies]
