@@ -3,11 +3,11 @@ use topos_core::uci::Certificate;
 
 use crate::{
     rocks::{
-        map::Map, CertificatesColumn, PendingCertificatesColumn, SourceStreamRef,
-        SourceSubnetStreamsColumn,
+        map::Map, CertificatesColumn, PendingCertificatesColumn, SourceStreamPosition,
+        SourceStreamsColumn,
     },
     tests::support::SOURCE_SUBNET_ID,
-    Height,
+    Position,
 };
 
 use super::support::columns::{certificates_column, pending_column, source_streams_column};
@@ -37,9 +37,9 @@ async fn can_persist_a_delivered_certificate(certificates_column: CertificatesCo
 
 #[rstest]
 #[tokio::test]
-async fn delivered_certificate_height_are_incremented(
+async fn delivered_certificate_position_are_incremented(
     certificates_column: CertificatesColumn,
-    source_streams_column: SourceSubnetStreamsColumn,
+    source_streams_column: SourceStreamsColumn,
 ) {
     let certificate = Certificate::new("".into(), "source_subnet_id".into(), Vec::new());
 
@@ -48,7 +48,7 @@ async fn delivered_certificate_height_are_incremented(
         .is_ok());
     assert!(source_streams_column
         .insert(
-            &SourceStreamRef(SOURCE_SUBNET_ID, Height::ZERO),
+            &SourceStreamPosition(SOURCE_SUBNET_ID, Position::ZERO),
             &certificate.cert_id
         )
         .is_ok());
@@ -56,12 +56,12 @@ async fn delivered_certificate_height_are_incremented(
 
 #[rstest]
 #[tokio::test]
-async fn height_can_be_fetch_for_one_subnet(source_streams_column: SourceSubnetStreamsColumn) {
+async fn position_can_be_fetch_for_one_subnet(source_streams_column: SourceStreamsColumn) {
     let certificate = Certificate::new("".into(), "source_subnet_id".into(), Vec::new());
 
     assert!(source_streams_column
         .insert(
-            &SourceStreamRef(SOURCE_SUBNET_ID, Height::ZERO),
+            &SourceStreamPosition(SOURCE_SUBNET_ID, Position::ZERO),
             &certificate.cert_id
         )
         .is_ok());
@@ -71,14 +71,14 @@ async fn height_can_be_fetch_for_one_subnet(source_streams_column: SourceSubnetS
             .prefix_iter(&SOURCE_SUBNET_ID)
             .unwrap()
             .last(),
-        Some((SourceStreamRef(_, Height::ZERO), _))
+        Some((SourceStreamPosition(_, Position::ZERO), _))
     ));
 
     let certificate = Certificate::new("".into(), "source_subnet_id".into(), Vec::new());
 
     assert!(source_streams_column
         .insert(
-            &SourceStreamRef(SOURCE_SUBNET_ID, Height(1)),
+            &SourceStreamPosition(SOURCE_SUBNET_ID, Position(1)),
             &certificate.cert_id
         )
         .is_ok());
@@ -88,14 +88,14 @@ async fn height_can_be_fetch_for_one_subnet(source_streams_column: SourceSubnetS
             .prefix_iter(&SOURCE_SUBNET_ID)
             .unwrap()
             .last(),
-        Some((SourceStreamRef(_, Height(1)), _))
+        Some((SourceStreamPosition(_, Position(1)), _))
     ));
 }
 
 #[tokio::test]
 #[ignore = "not yet implemented"]
-async fn height_can_be_fetch_for_multiple_subnets() {}
+async fn position_can_be_fetch_for_multiple_subnets() {}
 
 #[tokio::test]
 #[ignore = "not yet implemented"]
-async fn height_can_be_fetch_for_all_subnets() {}
+async fn position_can_be_fetch_for_all_subnets() {}

@@ -36,7 +36,7 @@ pub enum InternalStorageError {
     ConcurrentDBBatchDetected,
 
     #[error("{0}: {1}")]
-    HeightError(#[source] HeightError, String),
+    PositionError(#[source] PositionError, String),
 
     #[error("InvalidSubnetId")]
     InvalidSubnetId,
@@ -58,7 +58,7 @@ pub enum StorageError {
 }
 
 #[derive(Debug, Error)]
-pub enum HeightError {
-    #[error("Maximum height reached for subnet")]
-    MaximumHeightReached,
+pub enum PositionError {
+    #[error("Maximum position reached for subnet")]
+    MaximumPositionReached,
 }

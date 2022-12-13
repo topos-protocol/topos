@@ -2,7 +2,7 @@ use rstest::fixture;
 
 use crate::rocks::{
     constants, db_column::DBColumn, CertificatesColumn, PendingCertificatesColumn,
-    SourceSubnetStreamsColumn, TargetSubnetStreamsColumn,
+    SourceStreamsColumn, TargetStreamsColumn,
 };
 
 use super::database_name;
@@ -19,11 +19,11 @@ pub(crate) fn certificates_column(database_name: &'static str) -> CertificatesCo
 }
 
 #[fixture]
-pub(crate) fn source_streams_column(database_name: &'static str) -> SourceSubnetStreamsColumn {
-    DBColumn::reopen(&rocks_db(database_name), constants::SOURCE_SUBNET_STREAMS)
+pub(crate) fn source_streams_column(database_name: &'static str) -> SourceStreamsColumn {
+    DBColumn::reopen(&rocks_db(database_name), constants::SOURCE_STREAMS)
 }
 
 #[fixture]
-pub(crate) fn target_streams_column(database_name: &'static str) -> TargetSubnetStreamsColumn {
-    DBColumn::reopen(&rocks_db(database_name), constants::TARGET_SUBNET_STREAMS)
+pub(crate) fn target_streams_column(database_name: &'static str) -> TargetStreamsColumn {
+    DBColumn::reopen(&rocks_db(database_name), constants::TARGET_STREAMS)
 }

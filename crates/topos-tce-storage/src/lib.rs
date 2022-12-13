@@ -1,6 +1,6 @@
 use std::time::SystemTime;
 
-use errors::{HeightError, InternalStorageError};
+use errors::{InternalStorageError, PositionError};
 use serde::{Deserialize, Serialize};
 
 use topos_core::uci::{Certificate, CertificateId};
@@ -78,32 +78,32 @@ impl ToString for SubnetId {
 
 /// Certificate index in the history of the source subnet
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub struct Height(pub(crate) u64);
+pub struct Position(pub(crate) u64);
 
-impl Height {
+impl Position {
     const ZERO: Self = Self(0);
 
-    pub(crate) fn increment(self) -> Result<Self, HeightError> {
+    pub(crate) fn increment(self) -> Result<Self, PositionError> {
         match self {
             Self::ZERO => Ok(Self(1)),
             Self(value) => value
                 .checked_add(1)
-                .ok_or(HeightError::MaximumHeightReached)
+                .ok_or(PositionError::MaximumPositionReached)
                 .map(Self),
         }
     }
 }
 
-/// Uniquely identify the tip of one subnet.
-/// The tip represent the internal state of the TCE regarding a source subnet stream
+/// Uniquely identify the head of one subnet.
+/// The head represent the internal state of the TCE regarding a source subnet stream
 #[derive(Serialize, Deserialize)]
-pub struct Tip {
-    /// Certificate id of the tip
+pub struct Head {
+    /// Certificate id of the head
     cert_id: CertificateId,
-    /// Subnet id of the tip
+    /// Subnet id of the head
     subnet_id: SubnetId,
-    /// Height of the Certificate
-    height: Height,
+    /// Position of the Certificate
+    position: Position,
     /// Timestamp of the Certificate
     timestamp: SystemTime,
 }
@@ -138,8 +138,8 @@ pub trait Storage: Sync + Send + 'static {
         status: CertificateStatus,
     ) -> Result<(), InternalStorageError>;
 
-    /// Returns the tips of given subnets
-    async fn get_tip(&self, subnets: Vec<SubnetId>) -> Result<Vec<Tip>, InternalStorageError>;
+    /// Returns the heads of given subnets
+    async fn get_heads(&self, subnets: Vec<SubnetId>) -> Result<Vec<Head>, InternalStorageError>;
 
     /// Returns the certificate data given their id
     async fn get_certificates(
@@ -154,21 +154,21 @@ pub trait Storage: Sync + Send + 'static {
     ) -> Result<Certificate, InternalStorageError>;
 
     /// Returns the certificate emitted by given subnet
-    /// Ranged by height since emitted Certificate are totally ordered
+    /// Ranged by position since emitted Certificate are totally ordered
     async fn get_certificates_by_source(
         &self,
         source_subnet_id: SubnetId,
-        from: Height,
+        from: Position,
         limit: usize,
     ) -> Result<Vec<CertificateId>, InternalStorageError>;
 
     /// Returns the certificate received by given subnet
-    /// Ranged by timestamps since received Certificate are not referrable by height
+    /// Ranged by timestamps since received Certificate are not referrable by position
     async fn get_certificates_by_target(
         &self,
         target_subnet_id: SubnetId,
         source_subnet_id: SubnetId,
-        from: Height,
+        from: Position,
         limit: usize,
     ) -> Result<Vec<CertificateId>, InternalStorageError>;
 
