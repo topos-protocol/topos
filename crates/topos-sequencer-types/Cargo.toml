@@ -1,0 +1,11 @@
+[package]
+name = "topos-sequencer-types"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+serde = { version = "1.0.136", features = ["derive"] }
+
+topos-core = { workspace = true, features = ["uci"] }
+ethereum-types = "0.13.1"
