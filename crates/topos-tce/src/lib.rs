@@ -126,6 +126,13 @@ pub async fn run(config: &TceConfiguration) -> Result<(), Box<dyn std::error::Er
 
         spawn(gatekeeper_runtime.into_future());
 
+        let (synchronizer_client, synchronizer_runtime, synchronizer_stream) =
+            topos_tce_synchronizer::Synchronizer::builder()
+                .await
+                .expect("Can't create the Synchronizer");
+
+        spawn(synchronizer_runtime.into_future());
+
         // setup transport-trbp-storage-api connector
         let app_context = AppContext::new(
             storage_client,
@@ -133,10 +140,17 @@ pub async fn run(config: &TceConfiguration) -> Result<(), Box<dyn std::error::Er
             network_client,
             api_client,
             gatekeeper_client,
+            synchronizer_client,
         );
 
         app_context
-            .run(event_stream, trb_stream, api_stream, storage_stream)
+            .run(
+                event_stream,
+                trb_stream,
+                api_stream,
+                storage_stream,
+                synchronizer_stream,
+            )
             .await;
     }
 
