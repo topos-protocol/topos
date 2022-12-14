@@ -6010,27 +6010,45 @@ dependencies = [
 ]
 
 [[package]]
-name = "topos-node"
+name = "topos-p2p"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "bincode",
+ "env_logger 0.9.3",
+ "futures",
+ "libp2p",
+ "serde",
+ "test-log",
+ "thiserror",
+ "tokio",
+ "tokio-stream",
+ "tracing",
+ "tracing-subscriber 0.3.16",
+]
+
+[[package]]
+name = "topos-sequencer"
 version = "0.1.0"
 dependencies = [
  "bincode",
  "clap 3.2.23",
- "libp2p",
  "log",
  "pretty_env_logger",
  "rpassword",
  "serde",
  "tokio",
  "topos-core",
- "topos-node-api",
- "topos-node-certification",
- "topos-node-subnet-runtime-proxy",
- "topos-node-tce-proxy",
- "topos-node-types",
+ "topos-p2p",
+ "topos-sequencer-api",
+ "topos-sequencer-certification",
+ "topos-sequencer-subnet-runtime-proxy",
+ "topos-sequencer-tce-proxy",
+ "topos-sequencer-types",
 ]
 
 [[package]]
-name = "topos-node-api"
+name = "topos-sequencer-api"
 version = "0.1.0"
 dependencies = [
  "bytes",
@@ -6043,7 +6061,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "topos-node-certification"
+name = "topos-sequencer-certification"
 version = "0.1.0"
 dependencies = [
  "byteorder",
@@ -6056,11 +6074,11 @@ dependencies = [
  "thiserror",
  "tokio",
  "topos-core",
- "topos-node-types",
+ "topos-sequencer-types",
 ]
 
 [[package]]
-name = "topos-node-subnet-runtime-proxy"
+name = "topos-sequencer-subnet-runtime-proxy"
 version = "0.1.0"
 dependencies = [
  "byteorder",
@@ -6083,12 +6101,13 @@ dependencies = [
  "tiny-keccak 1.5.0",
  "tokio",
  "topos-core",
- "topos-node-types",
+ "topos-sequencer-subxt-client",
+ "topos-sequencer-types",
  "web3",
 ]
 
 [[package]]
-name = "topos-node-subxt-client"
+name = "topos-sequencer-subxt-client"
 version = "0.1.0"
 dependencies = [
  "ethabi 17.2.0",
@@ -6104,11 +6123,11 @@ dependencies = [
  "subxt",
  "thiserror",
  "tiny-keccak 1.5.0",
- "topos-node-types",
+ "topos-sequencer-types",
 ]
 
 [[package]]
-name = "topos-node-tce-proxy"
+name = "topos-sequencer-tce-proxy"
 version = "0.1.0"
 dependencies = [
  "async-stream",
@@ -6128,35 +6147,17 @@ dependencies = [
  "tokio-stream",
  "tonic",
  "topos-core",
- "topos-node-types",
+ "topos-sequencer-types",
  "uuid 1.2.2",
 ]
 
 [[package]]
-name = "topos-node-types"
+name = "topos-sequencer-types"
 version = "0.1.0"
 dependencies = [
  "ethereum-types 0.13.1",
  "serde",
  "topos-core",
-]
-
-[[package]]
-name = "topos-p2p"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "bincode",
- "env_logger 0.9.3",
- "futures",
- "libp2p",
- "serde",
- "test-log",
- "thiserror",
- "tokio",
- "tokio-stream",
- "tracing",
- "tracing-subscriber 0.3.16",
 ]
 
 [[package]]
@@ -6560,7 +6561,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97fee6b57c6a41524a810daee9286c02d7752c4253064d0b05472833a438f675"
 dependencies = [
  "cfg-if",
- "rand 0.7.3",
+ "rand 0.8.5",
  "static_assertions",
 ]
 

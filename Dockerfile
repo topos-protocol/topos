@@ -19,8 +19,9 @@ RUN cargo build --release
 FROM base AS test
 COPY --from=planner /usr/src/app/recipe.json recipe.json
 RUN cargo chef cook --all-targets --recipe-path recipe.json
+RUN cargo install cargo-nextest --locked
 COPY . .
-RUN cargo test --workspace
+RUN cargo nextest run --workspace && cargo test --doc --workspace
 
 FROM base AS fmt
 RUN rustup component add rustfmt
