@@ -1,0 +1,10 @@
+[package]
+name = "topos-tce-synchronizer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+futures.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["full"] }
+tokio-stream.workspace = true
