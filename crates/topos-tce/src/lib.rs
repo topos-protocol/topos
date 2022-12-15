@@ -72,7 +72,11 @@ pub async fn run(config: &TceConfiguration) -> Result<(), Box<dyn std::error::Er
 
     let opentelemetry = tracing_opentelemetry::layer().with_tracer(tracer);
     tracing_subscriber::registry()
-        .with(EnvFilter::try_from_default_env().unwrap())
+        .with(
+            EnvFilter::try_from_default_env()
+                .or_else(|_| EnvFilter::try_new("info"))
+                .unwrap(),
+        )
         .with(formatting_layer)
         .with(opentelemetry)
         .set_default();
