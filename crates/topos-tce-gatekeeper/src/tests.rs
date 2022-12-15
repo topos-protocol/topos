@@ -7,7 +7,7 @@ use topos_p2p::PeerId;
 use crate::{Gatekeeper, GatekeeperClient};
 
 #[tokio::test]
-async fn can_be_start_and_stop() -> Result<(), Box<dyn std::error::Error>> {
+async fn can_start_and_stop() -> Result<(), Box<dyn std::error::Error>> {
     let (client, server) = Gatekeeper::builder().await?;
 
     let handler = spawn(server.into_future());
