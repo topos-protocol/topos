@@ -6002,6 +6002,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "topos-commands"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+]
+
+[[package]]
 name = "topos-core"
 version = "0.1.0"
 dependencies = [
@@ -6250,8 +6257,14 @@ dependencies = [
 name = "topos-tce-gatekeeper"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "futures",
+ "rand 0.8.5",
+ "rstest",
+ "thiserror",
  "tokio",
+ "topos-commands",
+ "topos-p2p",
 ]
 
 [[package]]
@@ -6287,6 +6300,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-stream",
+ "topos-commands",
  "topos-core",
  "tracing",
  "uuid 1.2.2",

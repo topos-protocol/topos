@@ -3,45 +3,20 @@ use topos_core::uci::{Certificate, CertificateId};
 
 use crate::{errors::StorageError, FetchCertificatesFilter, PendingCertificateId};
 
-macro_rules! RegisterCommands {
-    ($($command:ident),+) => {
-        #[derive(Debug)]
-        pub enum StorageCommand {
-            $(
-                $command(
-                    $command,
-                    oneshot::Sender<Result<<$command as Command>::Result, StorageError>>,
-                ),
-            )*
-        }
-
-        $(
-            impl $command {
-                #[allow(dead_code)]
-                pub(crate) async fn send_to(self, tx: &mpsc::Sender<StorageCommand>) -> Result<<Self as Command>::Result, StorageError> {
-                    let (response_channel, receiver) = oneshot::channel();
-
-                    tx.send(StorageCommand::$command(self, response_channel)).await?;
-
-                    receiver.await?
-                }
-            }
-        )*
-    };
-}
+use topos_commands::{Command, RegisterCommands};
 
 // TODO: Replace by inventory
 RegisterCommands!(
-    AddPendingCertificate,
-    CertificateDelivered,
-    GetCertificate,
-    FetchCertificates,
-    RemovePendingCertificate
+    name = StorageCommand,
+    error = StorageError,
+    commands = [
+        AddPendingCertificate,
+        CertificateDelivered,
+        GetCertificate,
+        FetchCertificates,
+        RemovePendingCertificate
+    ]
 );
-
-pub trait Command {
-    type Result: 'static;
-}
 
 #[derive(Debug)]
 pub struct AddPendingCertificate {
