@@ -6198,6 +6198,7 @@ dependencies = [
  "topos-tce-broadcast",
  "topos-tce-gatekeeper",
  "topos-tce-storage",
+ "topos-tce-synchronizer",
  "topos-tce-transport",
  "tracing",
  "tracing-attributes",
@@ -6304,6 +6305,16 @@ dependencies = [
  "topos-core",
  "tracing",
  "uuid 1.2.2",
+]
+
+[[package]]
+name = "topos-tce-synchronizer"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "thiserror",
+ "tokio",
+ "tokio-stream",
 ]
 
 [[package]]

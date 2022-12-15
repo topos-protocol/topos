@@ -20,6 +20,7 @@ topos-p2p = { path = "../topos-p2p" }
 topos-tce-api = { path = "../topos-tce-api"}
 topos-tce-broadcast = { path = "../topos-tce-broadcast" }
 topos-tce-gatekeeper = { path = "../topos-tce-gatekeeper" }
+topos-tce-synchronizer = { path = "../topos-tce-synchronizer" }
 
 # external dependencies
 bincode = "1.3.3"

@@ -15,6 +15,7 @@ use topos_tce_broadcast::{ReliableBroadcastClient, SamplerCommand};
 use topos_tce_gatekeeper::GatekeeperClient;
 use topos_tce_storage::events::StorageEvent;
 use topos_tce_storage::StorageClient;
+use topos_tce_synchronizer::{SynchronizerClient, SynchronizerEvent};
 use tracing::{debug, error, info, trace};
 
 /// Top-level transducer main app context & driver (alike)
@@ -31,6 +32,7 @@ pub struct AppContext {
     pub api_client: ApiClient,
     pub pending_storage: StorageClient,
     pub gatekeeper: GatekeeperClient,
+    pub synchronizer: SynchronizerClient,
 }
 
 impl AppContext {
@@ -41,6 +43,7 @@ impl AppContext {
         network_client: NetworkClient,
         api_client: ApiClient,
         gatekeeper: GatekeeperClient,
+        synchronizer: SynchronizerClient,
     ) -> Self {
         Self {
             trbp_cli,
@@ -48,6 +51,7 @@ impl AppContext {
             api_client,
             pending_storage,
             gatekeeper,
+            synchronizer,
         }
     }
 
@@ -58,6 +62,7 @@ impl AppContext {
         mut trb_stream: impl Stream<Item = Result<TrbpEvents, ()>> + Unpin,
         mut api_stream: impl Stream<Item = ApiEvent> + Unpin,
         mut storage_stream: impl Stream<Item = StorageEvent> + Unpin,
+        mut synchronizer_stream: impl Stream<Item = SynchronizerEvent> + Unpin,
     ) {
         loop {
             tokio::select! {
@@ -79,6 +84,10 @@ impl AppContext {
 
                 // Storage events
                 Some(_event) = storage_stream.next() => {
+                }
+
+                // Synchronizer events
+                Some(_event) = synchronizer_stream.next() => {
                 }
             }
         }
