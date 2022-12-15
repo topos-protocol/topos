@@ -118,7 +118,7 @@ pub async fn run(config: &TceConfiguration) -> Result<(), Box<dyn std::error::Er
             } else {
                 return Err(Box::new(std::io::Error::new(
                     std::io::ErrorKind::Other,
-                    "Unsupported storage type",
+                    format!("Unsupported storage type {:?}", config.storage),
                 )));
             };
 
