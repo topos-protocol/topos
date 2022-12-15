@@ -4,5 +4,14 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+async-trait.workspace = true
 futures.workspace = true
+thiserror.workspace = true
+rand.workspace = true
 tokio = { workspace = true, features = ["full"] }
+
+topos-p2p = { path = "../topos-p2p" }
+topos-commands = { path = "../topos-commands/" }
+
+[dev-dependencies]
+rstest.workspace = true

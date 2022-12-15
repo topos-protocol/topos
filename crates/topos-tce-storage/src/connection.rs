@@ -3,11 +3,11 @@ use std::{collections::VecDeque, future::IntoFuture, sync::Arc};
 use futures::{future::BoxFuture, FutureExt, Stream, TryFutureExt};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
+use topos_commands::CommandHandler;
 
 use crate::{
     client::StorageClient,
     command::StorageCommand,
-    connection::handler::CommandHandler,
     errors::{InternalStorageError, StorageError},
     events::StorageEvent,
     PendingCertificateId, Storage,
@@ -18,7 +18,6 @@ use self::builder::{ConnectionBuilder, StorageBuilder};
 const MAX_PENDING_CERTIFICATES: usize = 1000;
 
 mod builder;
-mod handler;
 mod handlers;
 
 /// This struct is responsible of managing the Storage connection.
