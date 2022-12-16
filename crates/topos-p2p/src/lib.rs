@@ -2,7 +2,7 @@ mod behaviour;
 mod client;
 mod command;
 mod constant;
-mod error;
+pub mod error;
 mod event;
 mod runtime;
 

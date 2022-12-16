@@ -3,13 +3,17 @@ use std::future::IntoFuture;
 use futures::{future::BoxFuture, FutureExt, TryFutureExt};
 use tokio::{spawn, sync::mpsc};
 use tokio_stream::wrappers::ReceiverStream;
+use topos_tce_gatekeeper::GatekeeperClient;
 
 use crate::{
     checkpoints_collector::CheckpointsCollector, client::SynchronizerClient, Synchronizer,
     SynchronizerError, SynchronizerEvent,
 };
 
-pub struct SynchronizerBuilder {}
+#[derive(Default)]
+pub struct SynchronizerBuilder {
+    gatekeeper_client: Option<GatekeeperClient>,
+}
 
 impl IntoFuture for SynchronizerBuilder {
     type Output = Result<
@@ -23,12 +27,13 @@ impl IntoFuture for SynchronizerBuilder {
 
     type IntoFuture = BoxFuture<'static, Self::Output>;
 
-    fn into_future(self) -> Self::IntoFuture {
+    fn into_future(mut self) -> Self::IntoFuture {
         let (shutdown_channel, shutdown) = mpsc::channel(1);
         let (commands, commands_recv) = mpsc::channel(100);
         let (events, events_recv) = mpsc::channel(100);
 
         CheckpointsCollector::builder()
+            .set_gatekeeper_client(self.gatekeeper_client.take())
             .into_future()
             .map_err(Into::into)
             .and_then(
@@ -52,5 +57,13 @@ impl IntoFuture for SynchronizerBuilder {
                 },
             )
             .boxed()
+    }
+}
+
+impl SynchronizerBuilder {
+    pub fn with_gatekeeper_client(mut self, gatekeeper_client: GatekeeperClient) -> Self {
+        self.gatekeeper_client = Some(gatekeeper_client);
+
+        self
     }
 }
