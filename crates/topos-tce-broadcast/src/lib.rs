@@ -19,7 +19,7 @@ use tce_transport::{ReliableBroadcastParams, TrbpEvents};
 
 use topos_core::uci::{Certificate, CertificateId, DigestCompressed, SubnetId};
 use topos_p2p::PeerId;
-use tracing::{error, info, instrument, Instrument, Span};
+use tracing::{error, instrument, Instrument, Span};
 
 use crate::mem_store::TrbMemStore;
 use crate::sampler::{Sampler, SubscribersUpdate, SubscriptionsView};
@@ -106,13 +106,6 @@ impl ReliableBroadcastClient {
     pub fn new(
         config: ReliableBroadcastConfig,
     ) -> (Self, impl Stream<Item = Result<TrbpEvents, ()>>) {
-        info!(
-            "Initial new ReliableBroadcastClient with: echo [ sample_size: {}, threashold: {}, ], ready [ sample_size: {}, threashold: {}, ], delivery [ sample_size: {}, threashold: {}, ])",
-            config.trbp_params.echo_sample_size, config.trbp_params.echo_threshold,
-            config.trbp_params.ready_sample_size, config.trbp_params.ready_threshold,
-            config.trbp_params.delivery_sample_size, config.trbp_params.delivery_threshold,
-        );
-
         let peer_id = config.my_peer_id.clone();
 
         let (subscriptions_view_sender, subscriptions_view_receiver) =

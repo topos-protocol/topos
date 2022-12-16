@@ -14,7 +14,6 @@ use topos_p2p::{utils::local_key_pair, Multiaddr, PeerId};
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
 use topos_tce_storage::{Connection, RocksDBStorage};
 use tracing::{instrument, Instrument, Span};
-
 use tracing_subscriber::{prelude::*, EnvFilter};
 
 #[derive(Debug)]
