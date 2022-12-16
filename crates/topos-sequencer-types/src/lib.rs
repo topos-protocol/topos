@@ -7,17 +7,38 @@ pub use topos_core::uci::{
 
 // TODO: proper type definitions
 pub type BlockData = Vec<u8>;
-pub type BlockNumber = u32;
+pub type BlockNumber = u64;
 pub type Hash = String;
+pub type SubnetId = [u8; 32];
+pub type Address = Vec<u8>;
 
 /// Event collected from the sending subnet
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SubnetEvent {
-    SendToken {
-        target_subnet_id: String,
-        asset_id: ethereum_types::U256,
-        sender_addr: String,
-        recipient_addr: String,
+    TokenSent {
+        sender: Address,
+        source_subnet_id: SubnetId,
+        target_subnet_id: SubnetId,
+        receiver: Address,
+        symbol: String,
+        amount: ethereum_types::U256,
+    },
+    ContractCall {
+        source_subnet_id: SubnetId,
+        source_contract_addr: Address,
+        target_subnet_id: SubnetId,
+        target_contract_addr: Address,
+        payload_hash: [u8; 32],
+        payload: Vec<u8>,
+    },
+    ContractCallWithToken {
+        source_subnet_id: SubnetId,
+        source_contract_addr: Address,
+        target_subnet_id: SubnetId,
+        target_contract_addr: Address,
+        payload_hash: [u8; 32],
+        payload: Vec<u8>,
+        symbol: String,
         amount: ethereum_types::U256,
     },
 }
