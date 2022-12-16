@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package topos.tce.v1;
+
+import "topos/shared/v1/subnet.proto";
+import "topos/shared/v1/certificate.proto";
+import "topos/shared/v1/uuid.proto";
+
+message CheckpointRequest {
+   // Provide a request_id to track response
+  topos.shared.v1.UUID request_id = 1;
+
+  // The type of request
+  oneof request_type {
+    Heads heads = 2;
+    SamePosition same_position = 3;
+    Zero zero = 4;
+  }
+  
+  message Heads {
+    repeated topos.shared.v1.SubnetId subnet_ids = 1;
+  }
+
+  message SamePosition {
+    repeated topos.shared.v1.SubnetId subnet_ids = 1;
+    uint64 position = 2;
+  }
+
+  message Zero {
+    repeated topos.shared.v1.SubnetId subnet_ids = 1;
+  }
+}
+
+message CheckpointResponse {
+  // If the response is directly linked to a request this ID allow one to track it
+  topos.shared.v1.UUID request_id = 1;
+
+  repeated SourceStreamPosition positions = 2;
+}
+
+message SourceStreamPosition {
+  topos.shared.v1.SubnetId subnet_id = 1;
+  topos.shared.v1.CertificateId certificate_id = 2;
+  uint64 position = 3;
+}

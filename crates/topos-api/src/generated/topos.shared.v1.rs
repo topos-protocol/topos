@@ -11,3 +11,8 @@ pub struct SubnetId {
     #[prost(string, tag = "1")]
     pub value: ::prost::alloc::string::String,
 }
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CertificateId {
+    #[prost(bytes = "vec", tag = "1")]
+    pub value: ::prost::alloc::vec::Vec<u8>,
+}

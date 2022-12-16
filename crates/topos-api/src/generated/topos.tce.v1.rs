@@ -633,3 +633,65 @@ pub mod console_service_server {
         const NAME: &'static str = "topos.tce.v1.ConsoleService";
     }
 }
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CheckpointRequest {
+    /// Provide a request_id to track response
+    #[prost(message, optional, tag = "1")]
+    pub request_id: ::core::option::Option<super::super::shared::v1::Uuid>,
+    /// The type of request
+    #[prost(oneof = "checkpoint_request::RequestType", tags = "2, 3, 4")]
+    pub request_type: ::core::option::Option<checkpoint_request::RequestType>,
+}
+/// Nested message and enum types in `CheckpointRequest`.
+pub mod checkpoint_request {
+    #[derive(Clone, PartialEq, ::prost::Message)]
+    pub struct Heads {
+        #[prost(message, repeated, tag = "1")]
+        pub subnet_ids: ::prost::alloc::vec::Vec<
+            super::super::super::shared::v1::SubnetId,
+        >,
+    }
+    #[derive(Clone, PartialEq, ::prost::Message)]
+    pub struct SamePosition {
+        #[prost(message, repeated, tag = "1")]
+        pub subnet_ids: ::prost::alloc::vec::Vec<
+            super::super::super::shared::v1::SubnetId,
+        >,
+        #[prost(uint64, tag = "2")]
+        pub position: u64,
+    }
+    #[derive(Clone, PartialEq, ::prost::Message)]
+    pub struct Zero {
+        #[prost(message, repeated, tag = "1")]
+        pub subnet_ids: ::prost::alloc::vec::Vec<
+            super::super::super::shared::v1::SubnetId,
+        >,
+    }
+    /// The type of request
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum RequestType {
+        #[prost(message, tag = "2")]
+        Heads(Heads),
+        #[prost(message, tag = "3")]
+        SamePosition(SamePosition),
+        #[prost(message, tag = "4")]
+        Zero(Zero),
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CheckpointResponse {
+    /// If the response is directly linked to a request this ID allow one to track it
+    #[prost(message, optional, tag = "1")]
+    pub request_id: ::core::option::Option<super::super::shared::v1::Uuid>,
+    #[prost(message, repeated, tag = "2")]
+    pub positions: ::prost::alloc::vec::Vec<SourceStreamPosition>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SourceStreamPosition {
+    #[prost(message, optional, tag = "1")]
+    pub subnet_id: ::core::option::Option<super::super::shared::v1::SubnetId>,
+    #[prost(message, optional, tag = "2")]
+    pub certificate_id: ::core::option::Option<super::super::shared::v1::CertificateId>,
+    #[prost(uint64, tag = "3")]
+    pub position: u64,
+}
