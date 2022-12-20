@@ -139,6 +139,7 @@ impl ReliableBroadcastClient {
             subscriptions_view_receiver,
             subscribers_update_receiver,
             event_sender,
+            #[allow(clippy::box_default)]
             Box::new(TrbMemStore::default()),
         );
 

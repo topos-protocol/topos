@@ -13,7 +13,7 @@ pub(crate) struct Opt {
         action = clap::ArgAction::Count,
         global = true
     )]
-    pub(crate) verbose: Option<u8>,
+    pub(crate) verbose: u8,
 
     #[command(subcommand)]
     pub(crate) commands: ToposCommand,

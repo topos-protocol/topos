@@ -40,6 +40,7 @@ async fn do_not_push_empty_list() -> Result<(), Box<dyn std::error::Error>> {
     tokio::time::sleep(Duration::from_millis(100)).await;
     let mut cmd = Command::cargo_bin("topos")?;
     cmd.env("TOPOS_LOG_FORMAT", "json");
+    cmd.env("RUST_LOG", "topos=error");
     cmd.arg("tce")
         .arg("push-peer-list")
         .arg("1234")
@@ -48,6 +49,7 @@ async fn do_not_push_empty_list() -> Result<(), Box<dyn std::error::Error>> {
 
     let output = cmd.assert().failure();
 
+    println!("{:?}", String::from_utf8_lossy(&output.get_output().stdout));
     insta::assert_json_snapshot!(serde_json::from_slice::<serde_json::Value>(&output.get_output().stdout).unwrap(), {".timestamp" => "[timestamp]"});
 
     Ok(())

@@ -58,7 +58,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         let private_key = eth_keystore::decrypt_key(keypath, args.password)?;
         println!(
             "Extracted private key:0x{}",
-            hex::encode(&private_key).replace('\"', "")
+            hex::encode(private_key).replace('\"', "")
         );
     }
     Ok(())

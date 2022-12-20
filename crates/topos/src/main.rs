@@ -11,10 +11,10 @@ mod options;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = options::Opt::parse();
 
-    let level_filter = if let Some(verbosity) = args.verbose {
-        EnvFilter::try_new(format!("topos={}", verbose_to_level(verbosity).as_str())).unwrap()
+    let level_filter = if args.verbose > 0 {
+        EnvFilter::try_new(format!("topos={}", verbose_to_level(args.verbose).as_str())).unwrap()
     } else {
-        EnvFilter::try_from_default_env().unwrap()
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("topos=error"))
     };
 
     let tracing = tracing_subscriber::registry().with(level_filter);
