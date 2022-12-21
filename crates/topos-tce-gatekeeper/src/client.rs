@@ -3,6 +3,7 @@ use topos_p2p::PeerId;
 
 use crate::{GatekeeperCommand, GetAllPeers, GetRandomPeers, PushPeerList};
 
+#[derive(Clone)]
 pub struct GatekeeperClient {
     #[allow(dead_code)]
     pub(crate) shutdown_channel: mpsc::Sender<oneshot::Sender<()>>,

@@ -128,6 +128,7 @@ pub async fn run(config: &TceConfiguration) -> Result<(), Box<dyn std::error::Er
 
         let (synchronizer_client, synchronizer_runtime, synchronizer_stream) =
             topos_tce_synchronizer::Synchronizer::builder()
+                .with_gatekeeper_client(gatekeeper_client.clone())
                 .await
                 .expect("Can't create the Synchronizer");
 

@@ -6,7 +6,10 @@ use checkpoints_collector::{
 };
 use futures::{future::BoxFuture, FutureExt};
 use thiserror::Error;
-use tokio::sync::mpsc;
+use tokio::sync::{
+    mpsc::{self, error::SendError},
+    oneshot::{self, error::RecvError},
+};
 use tokio_stream::StreamExt;
 
 mod builder;
@@ -37,7 +40,7 @@ impl IntoFuture for Synchronizer {
             loop {
                 tokio::select! {
                     _ = self.shutdown.recv() => { break; }
-                    _command = self.commands.recv() => {}
+                    Some(command) = self.commands.recv() => self.handle_command(command).await?,
                     _checkpoint_event = self.checkpoints_collector_stream.next() => {}
                 }
             }
@@ -51,7 +54,25 @@ impl IntoFuture for Synchronizer {
 impl Synchronizer {
     #[allow(dead_code)]
     pub fn builder() -> SynchronizerBuilder {
-        SynchronizerBuilder {}
+        SynchronizerBuilder::default()
+    }
+
+    async fn handle_command(
+        &mut self,
+        command: SynchronizerCommand,
+    ) -> Result<(), SynchronizerError> {
+        match command {
+            SynchronizerCommand::Start { response_channel } => {
+                if self.checkpoints_collector.start().await.is_err() {
+                    _ = response_channel.send(Err(SynchronizerError::UnableToStart));
+
+                    return Err(SynchronizerError::UnableToStart);
+                }
+                _ = response_channel.send(Ok(()));
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -59,6 +80,28 @@ impl Synchronizer {
 pub enum SynchronizerError {
     #[error("Error while dealing with CheckpointsCollector: {0}")]
     CheckpointsCollectorError(#[from] CheckpointsCollectorError),
+
+    #[error("Error while dealing with Start command: unable to start")]
+    UnableToStart,
+
+    #[error("Error while dealing with Start command: already starting")]
+    AlreadyStarting,
+
+    #[error("Error while dealing with state locking: unable to lock status")]
+    UnableToLockStatus,
+
+    #[error(transparent)]
+    OneshotCommunicationChannel(#[from] RecvError),
+
+    #[error(transparent)]
+    InternalCommunicationChannel(#[from] SendError<SynchronizerCommand>),
 }
-pub enum SynchronizerCommand {}
+
+#[derive(Debug)]
+pub enum SynchronizerCommand {
+    Start {
+        response_channel: oneshot::Sender<Result<(), SynchronizerError>>,
+    },
+}
+
 pub enum SynchronizerEvent {}

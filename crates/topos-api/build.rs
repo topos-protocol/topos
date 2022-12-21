@@ -5,6 +5,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tonic_build::configure()
         .file_descriptor_set_path(descriptor_path)
+        .type_attribute(".topos.shared.v1.UUID", "#[derive(Copy)]")
         .out_dir("src/generated")
         .compile(
             &[
