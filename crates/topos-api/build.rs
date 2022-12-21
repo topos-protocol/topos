@@ -4,7 +4,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let descriptor_path = PathBuf::from("src/generated").join("topos.bin");
 
     tonic_build::configure()
-        .file_descriptor_set_path(&descriptor_path)
+        .file_descriptor_set_path(descriptor_path)
         .out_dir("src/generated")
         .compile(
             &[
