@@ -44,9 +44,7 @@ RUN cargo audit
 
 FROM debian:bullseye-slim
 
-ENV RUST_LOG=trace
 ENV TCE_PORT=9090
-ENV TCE_RAM_STORAGE=true
 ENV USER=topos
 ENV UID=10001
 
