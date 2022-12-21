@@ -1,19 +1,29 @@
 use std::future::IntoFuture;
 
 use builder::CheckpointsCollectorBuilder;
-use futures::{future::BoxFuture, FutureExt};
+use futures::{future::BoxFuture, stream::FuturesUnordered, FutureExt};
 use thiserror::Error;
 use tokio::sync::{
     mpsc::{self, error::SendError},
     oneshot::{self, error::RecvError},
 };
+use tracing::error;
 
 mod builder;
 mod client;
 
 pub use client::CheckpointsCollectorClient;
-use topos_p2p::Client as NetworkClient;
+use tokio_stream::StreamExt;
+use topos_api::{
+    shared::v1::Uuid as APIUuid,
+    tce::v1::{
+        checkpoint_request::{self, RequestType},
+        CheckpointRequest, CheckpointResponse,
+    },
+};
+use topos_p2p::{error::CommandExecutionError, Client as NetworkClient};
 use topos_tce_gatekeeper::GatekeeperClient;
+use uuid::Uuid;
 
 pub struct CheckpointsCollectorConfig {
     peer_number: usize,
@@ -37,6 +47,11 @@ pub struct CheckpointsCollector {
     #[allow(dead_code)]
     network: NetworkClient,
 
+    current_request_id: Option<APIUuid>,
+
+    pending_checkpoint_requests:
+        FuturesUnordered<BoxFuture<'static, Result<CheckpointResponse, CommandExecutionError>>>,
+
     pub(crate) shutdown: mpsc::Receiver<()>,
     pub(crate) commands: mpsc::Receiver<CheckpointsCollectorCommand>,
     #[allow(dead_code)]
@@ -54,6 +69,9 @@ impl IntoFuture for CheckpointsCollector {
             loop {
                 tokio::select! {
                     _ = self.shutdown.recv() => { break; }
+                    Some(response) = self.pending_checkpoint_requests.next() => {
+                        self.handle_checkpoint_response(response).await;
+                    }
                     Some(command) = self.commands.recv() => self.handle(command).await?
                 }
             }
@@ -69,6 +87,25 @@ impl CheckpointsCollector {
         CheckpointsCollectorBuilder::default()
     }
 
+    async fn handle_checkpoint_response(
+        &mut self,
+        response: Result<CheckpointResponse, CommandExecutionError>,
+    ) {
+        match response {
+            Ok(response) => {
+                if response.request_id != self.current_request_id {
+                    return;
+                }
+                // Handle the valid request here
+                let _heads = response.positions;
+            }
+            Err(_error) => {
+                // TODO: add context about the error
+                error!("Received a command execution error when dealing with checkpoint");
+            }
+        }
+    }
+
     async fn handle(
         &mut self,
         command: CheckpointsCollectorCommand,
@@ -80,7 +117,7 @@ impl CheckpointsCollector {
                 _ = response_channel.send(Ok(()));
 
                 // Need to fetch random peers
-                let _peers = match self
+                let peers = match self
                     .gatekeeper
                     .get_random_peers(self.config.peer_number)
                     .await
@@ -88,6 +125,26 @@ impl CheckpointsCollector {
                     Ok(peers) => peers,
                     Err(_) => return Err(CheckpointsCollectorError::UnableToFetchRandomPeer),
                 };
+
+                self.current_request_id = Some(Uuid::new_v4().into());
+
+                // upon receiving random peers send network messages
+                for peer in peers {
+                    // Sending CheckpointRequest
+                    let req = CheckpointRequest {
+                        request_id: self.current_request_id,
+                        request_type: Some(RequestType::Heads(checkpoint_request::Heads {
+                            subnet_ids: vec![],
+                        })),
+                    };
+
+                    // TODO: Put rate limit on the futures pool
+                    self.pending_checkpoint_requests.push(
+                        self.network
+                            .send_request::<_, CheckpointResponse>(peer, req)
+                            .boxed(),
+                    );
+                }
             }
             CheckpointsCollectorCommand::StartCollecting { response_channel } => {
                 _ = response_channel.send(Err(CheckpointsCollectorError::AlreadyStarting));

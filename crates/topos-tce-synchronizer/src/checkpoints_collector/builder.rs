@@ -1,6 +1,6 @@
 use std::future::IntoFuture;
 
-use futures::{future::BoxFuture, FutureExt};
+use futures::{future::BoxFuture, stream::FuturesUnordered, FutureExt};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use topos_p2p::Client as NetworkClient;
@@ -63,6 +63,8 @@ impl IntoFuture for CheckpointsCollectorBuilder {
                 started: false,
                 config: CheckpointsCollectorConfig::default(),
                 network,
+                current_request_id: None,
+                pending_checkpoint_requests: FuturesUnordered::new(),
                 shutdown,
                 commands: commands_recv,
                 events,
