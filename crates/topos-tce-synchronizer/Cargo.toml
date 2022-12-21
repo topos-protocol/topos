@@ -8,7 +8,7 @@ futures.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full"] }
 tokio-stream.workspace = true
-
+tracing.workspace = true
 
 topos-api = { path = "../topos-api" }
 topos-p2p = { path = "../topos-p2p" }
