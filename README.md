@@ -36,24 +36,24 @@ cargo install topos --git https://github.com/toposware/topos
 topos --help
 ```
 
-Reach our [documentation](https://docs.toposware.com/) for the next steps!
-
-## Contributions and support
-
-Contributions are welcomed, the contributing guidelines are outlined in [`CONTRIBUTING.md`](./CONTRIBUTING.md).<br />
-Feel free to [open an issue](https://github.com/toposware/topos/issues/new) if you have any feature request or bug report.<br />
-If you have any questions, do not hesitate to reach us on [Discord](https.//discord.com/)!
+Find more in the [documentation](https://docs.toposware.com/).
 
 ## Development
 
-The workflow with docker and docker compose are described [here](`./tools/README.md`).
+Contributions are very welcomed, the guidelines are outlined in [`CONTRIBUTING.md`](./CONTRIBUTING.md).<br />
+Running a minimal local setup with docker compose is described [here](`./tools/README.md`).
+
+## Support
+
+Feel free to [open an issue](https://github.com/toposware/topos/issues/new) if you have any feature request or bug report.<br />
+If you have any questions, do not hesitate to reach us on [Discord](https://discord.gg/7HZ8F8ykBT)!
 
 ## Resources
 
 - [docs.toposware.com](https://docs.toposware.com/)
 - [toposware.medium.com](https://toposware.medium.com/)
-- *[Topos: A Secure, Trustless, and Decentralized
-Interoperability Protocol](https://arxiv.org/pdf/2206.03481.pdf)*
+- [Topos: A Secure, Trustless, and Decentralized
+Interoperability Protocol](https://arxiv.org/pdf/2206.03481.pdf)
 
 ## License
 
