@@ -3,89 +3,64 @@
 <br />
 <div align="right">
 
-  <img src="./.github/assets/logo.png#gh-light-mode-only" alt="Logo" width="200">
-  <img src="./.github/assets/logo_dark.png#gh-dark-mode-only" alt="Logo" width="200">
+  <img src="./.github/assets/logo.png#gh-light-mode-only" alt="Logo" width="250">
+  <img src="./.github/assets/logo_dark.png#gh-dark-mode-only" alt="Logo" width="250">
 
 </div>
 
-The `topos` utility provides a unified command line interface to the [Topos](https://docs.toposware.com/general-overview) network.
+<br />
 
-[![codecov](https://codecov.io/gh/toposware/topos/branch/main/graph/badge.svg?token=FOH2B2GRL9)](https://codecov.io/gh/toposware/topos)
+**`topos` is the unified command line interface to the [Topos](https://docs.toposware.com/general-overview) network.**
+
+[![codecov](https://codecov.io/gh/toposware/topos/branch/main/graph/badge.svg?token=FOH2B2GRL9&style=flat)](https://codecov.io/gh/toposware/topos)
 ![example workflow](https://github.com/toposware/topos/actions/workflows/test.yml/badge.svg)
 ![example workflow](https://github.com/toposware/topos/actions/workflows/format.yml/badge.svg)
 ![example workflow](https://github.com/toposware/topos/actions/workflows/lint.yml/badge.svg)
+<!-- [![](https://dcbadge.vercel.app/api/server/INVITEID)](https://discord.gg/INVITEID?style=flat) -->
 
-## Building
-
-```shell
-cargo build --release
-```
 
 ## Getting Started
 
+**Install Rust**
+
+The first step is to install Rust along with `cargo` by following [those instructions](https://doc.rust-lang.org/book/ch01-01-installation.html#installing-rustup-on-linux-or-macos).
+
+**Install `topos`**
+
 ```
-# Run a local node
-topos tce run
+cargo install topos --git https://github.com/toposware/topos
 ```
+
+**Try out `topos`!**
+```
+topos --help
+```
+
+## Development
 
 If you want to be part of the development, make sure to have your workflow complete.
 
-### Testing
-
 ```
-cargo test --all
-```
+# Building
+cargo build
 
-### Formatting
+# Testing
+cargo test --workspace
 
-```
+# Formatting
 cargo fmt --check
-```
 
-### Linting
-
-```
+# Linting
 cargo clippy --all
 ```
 
-## Docker
+The workflow with docker and docker compose are described on `./tools/README.md`
 
-The above actions can also be run in docker, using the corresponding docker `target`.
+## Contributions and support
 
-A few build arguments are required:
-
-- GITHUB_TOKEN: PAT with `read` permission on repos
-- TOOLCHAIN_VERSION: `(stable|nightly-2022-07-20|...)`
-
-Targeted docker build commands follow the following pattern:
-
-```
-docker build . --build-arg GITHUB_TOKEN=*** --build-arg TOOLCHAIN_VERSION=[...] --target [TARGET]
-```
-
-### Build
-
-```
-docker build . ... --target build
-```
-
-### Testing
-
-```
-docker build . ... --target test
-```
-
-### Formatting
-
-```
-docker build . ... --target fmt
-```
-
-### Linting
-
-```
-docker build . ... --target lint
-```
+Contributions are pretty welcomed, you can reach the contributing guidelines in [`CONTRIBUTING.md`](./CONTRIBUTING.md).<br />
+Feel free to [open an issue](https://github.com/toposware/topos/issues/new) if you have any feature request or bug report.<br />
+If you have any questions, do not hesitate to reach us on [Discord](https.//discord.com/)!
 
 ## License
 
