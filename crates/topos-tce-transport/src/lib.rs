@@ -10,22 +10,22 @@ use topos_p2p::PeerId;
 #[command(name = "Protocol parameters of the TRB")]
 pub struct ReliableBroadcastParams {
     /// Echo threshold
-    #[arg(long, default_value_t = 1, env = "TCE_TRBP_ECHO_THRESHOLD")]
+    #[arg(long, default_value_t = 1, env = "TCE_ECHO_THRESHOLD")]
     pub echo_threshold: usize,
     /// Echo sample size
-    #[arg(long, default_value_t = 1, env = "TCE_TRBP_ECHO_SAMPLE_SIZE")]
+    #[arg(long, default_value_t = 1, env = "TCE_ECHO_SAMPLE_SIZE")]
     pub echo_sample_size: usize,
     /// Ready threshold
-    #[arg(long, default_value_t = 1, env = "TCE_TRBP_READY_THRESHOLD")]
+    #[arg(long, default_value_t = 1, env = "TCE_READY_THRESHOLD")]
     pub ready_threshold: usize,
     /// Ready sample size
-    #[arg(long, default_value_t = 1, env = "TCE_TRBP_READY_SAMPLE_SIZE")]
+    #[arg(long, default_value_t = 1, env = "TCE_READY_SAMPLE_SIZE")]
     pub ready_sample_size: usize,
     /// Delivery threshold
-    #[arg(long, default_value_t = 1, env = "TCE_TRBP_DELIVERY_THRESHOLD")]
+    #[arg(long, default_value_t = 1, env = "TCE_DELIVERY_THRESHOLD")]
     pub delivery_threshold: usize,
     /// Delivery sample size
-    #[arg(long, default_value_t = 1, env = "TCE_TRBP_DELIVERY_SAMPLE_SIZE")]
+    #[arg(long, default_value_t = 1, env = "TCE_DELIVERY_SAMPLE_SIZE")]
     pub delivery_sample_size: usize,
 }
 
