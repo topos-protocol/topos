@@ -129,7 +129,7 @@ impl AppContext {
             TceEvents::CertificateDelivered { certificate } => {
                 _ = self
                     .pending_storage
-                    .certificate_delivered(certificate.cert_id.clone())
+                    .certificate_delivered(certificate.id)
                     .await;
                 spawn(self.api_client.dispatch_certificate(certificate));
             }
@@ -256,7 +256,7 @@ impl AppContext {
             }
 
             TceEvents::Gossip { peers, cert, .. } => {
-                let cert_id = cert.cert_id.clone();
+                let cert_id = cert.id;
                 let data: Vec<u8> = NetworkMessage::from(TceCommands::OnGossip {
                     cert,
                     digest: vec![],
@@ -267,7 +267,7 @@ impl AppContext {
                     .iter()
                     .map(|peer_id| {
                         debug!(
-                            "peer_id: {} sending gossip cert id: {} to peer {:?}",
+                            "peer_id: {} sending gossip cert id: {:?} to peer {}",
                             &self.network_client.local_peer_id, &cert_id, &peer_id
                         );
                         self.network_client
@@ -283,8 +283,8 @@ impl AppContext {
             TceEvents::Echo { peers, cert } => {
                 let my_peer_id = self.network_client.local_peer_id;
                 debug!(
-                    "peer_id: {} processing on_protocol_event TceEvents::Echo peers {:?} cert id: {}",
-                    &my_peer_id, &peers, &cert.cert_id
+                    "peer_id: {} processing on_protocol_event TceEvents::Echo peers {:?} cert id: {:?}",
+                    &my_peer_id, &peers, &cert.id
                 );
                 // Send echo message
                 let data: Vec<u8> = NetworkMessage::from(TceCommands::OnEcho {
@@ -310,8 +310,8 @@ impl AppContext {
             TceEvents::Ready { peers, cert } => {
                 let my_peer_id = self.network_client.local_peer_id;
                 debug!(
-                    "peer_id: {} processing TceEvents::Ready peers {:?} cert id: {}",
-                    &my_peer_id, &peers, &cert.cert_id
+                    "peer_id: {} processing TceEvents::Ready peers {:?} cert id: {:?}",
+                    &my_peer_id, &peers, &cert.id
                 );
                 let data: Vec<u8> = NetworkMessage::from(TceCommands::OnReady {
                     from_peer: self.network_client.local_peer_id,
@@ -404,8 +404,8 @@ impl AppContext {
 
                             TceCommands::OnGossip { cert, digest: _ } => {
                                 debug!(
-                                    "peer_id {} on_net_event TceCommands::OnGossip cert id: {}",
-                                    &self.network_client.local_peer_id, &cert.cert_id
+                                    "peer_id {} on_net_event TceCommands::OnGossip cert id: {:?}",
+                                    &self.network_client.local_peer_id, &cert.id
                                 );
                                 _ = self
                                     .pending_storage
@@ -428,8 +428,8 @@ impl AppContext {
                             TceCommands::OnEcho { from_peer, cert } => {
                                 // We have received Echo echo message, we are responding with OnDoubleEchoOk
                                 debug!(
-                                    "peer_id: {} on_net_event TceCommands::OnEcho from peer {} cert id: {}",
-                                    &self.network_client.local_peer_id, &from_peer, &cert.cert_id
+                                    "peer_id: {} on_net_event TceCommands::OnEcho from peer {} cert id: {:?}",
+                                    &self.network_client.local_peer_id, &from_peer, &cert.id
                                 );
                                 // We have received echo message from external peer
                                 let command_sender = self.tce_cli.get_double_echo_channel();
@@ -448,8 +448,8 @@ impl AppContext {
                             TceCommands::OnReady { from_peer, cert } => {
                                 // We have received Ready echo message, we are responding with OnDoubleEchoOk
                                 debug!(
-                                    "peer_id {} on_net_event TceCommands::OnReady from peer {} cert id: {}",
-                                    &self.network_client.local_peer_id, &from_peer, &cert.cert_id
+                                    "peer_id {} on_net_event TceCommands::OnReady from peer {} cert id: {:?}",
+                                    &self.network_client.local_peer_id, &from_peer, &cert.id
                                 );
                                 let command_sender = self.tce_cli.get_double_echo_channel();
                                 command_sender

@@ -12,6 +12,7 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 hex.workspace = true
 web3.workspace = true
+
 jsonrpsee-types = "0.14.0"
 ethereum-tx-sign = "6.0.0"
 keccak-hash = "0.9"

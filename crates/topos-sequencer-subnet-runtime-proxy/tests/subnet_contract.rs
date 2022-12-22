@@ -4,7 +4,7 @@ use serial_test::serial;
 use std::future::Future;
 use std::str::FromStr;
 use tokio::sync::oneshot;
-use topos_core::uci::Certificate;
+use topos_core::uci::{Address, Certificate, CertificateId, SubnetId};
 use web3::transports::http::Http;
 use web3::types::{BlockNumber, Log};
 
@@ -15,10 +15,8 @@ use common::subnet_test_data::{
 };
 use topos_sequencer_subnet_runtime_proxy::{RuntimeProxyConfig, RuntimeProxyWorker};
 
-const SUBNET_ID: u32 = 0x01;
 const SUBNET_CONTRACT_JSON_DEFINITION: &'static str = "ToposCoreContract.json";
 const SUBNET_CHAIN_ID: u64 = 43;
-const SUBNET_RPC_ENDPOINT: &'static str = "http://127.0.0.1:8545/";
 const SUBNET_RPC_PORT: u32 = 9933;
 const SUBNET_JSONRPC_ENDPOINT: &'static str = "ws://127.0.0.1:8545/ws";
 const SUBNET_HTTP_PORT: u32 = 8545;
@@ -28,6 +26,12 @@ const DOCKER_IMAGE: &'static str = "ghcr.io/toposware/substrate-subnet-node";
 const DOCKER_IMAGE_TAG: &str = "test";
 const SUBNET_STARTUP_DELAY: u64 = 10; // seconds left for subnet startup
 const TOPOS_SMART_CONTRACTS_BUILD_PATH: &str = "TOPOS_SMART_CONTRACTS_BUILD_PATH";
+
+const SOURCE_SUBNET_ID: SubnetId = [1u8; 32];
+const PREV_CERTIFICATE_ID: CertificateId = [4u8; 32];
+const CERTIFICATE_ID: CertificateId = [5u8; 32];
+const SENDER_ID: Address = [6u8; 20];
+const RECEIVER_ID: Address = [7u8; 20];
 
 async fn deploy_contracts(
     web3_client: &web3::Web3<Http>,
@@ -101,7 +105,7 @@ async fn deploy_contracts(
         }))
         .sign_with_key_and_execute(
             subnet_bytecode,
-            web3::types::U256::from(SUBNET_ID),
+            web3::types::U256::from(SOURCE_SUBNET_ID),
             &eth_private_key,
             Some(SUBNET_CHAIN_ID),
         )
@@ -231,7 +235,7 @@ async fn context_running_subnet_node() -> Context {
         }
     };
     // Web3 client for setup/mocking of contracts
-    let http = web3::transports::http::Http::new(SUBNET_RPC_ENDPOINT).unwrap();
+    let http = web3::transports::http::Http::new(SUBNET_JSONRPC_ENDPOINT).unwrap();
     let web3_client = web3::Web3::new(http);
     // Wait for subnet node to start
     subnet_ready_receiver
@@ -318,8 +322,8 @@ async fn test_create_runtime() -> Result<(), Box<dyn std::error::Error>> {
     let keystore_file_path = generate_test_keystore_file()?;
     println!("Creating runtime proxy...");
     let runtime_proxy_worker = RuntimeProxyWorker::new(RuntimeProxyConfig {
-        subnet_id: SUBNET_ID.to_string(),
-        endpoint: SUBNET_RPC_ENDPOINT.to_string(),
+        subnet_id: SOURCE_SUBNET_ID,
+        endpoint: SUBNET_JSONRPC_ENDPOINT.to_string(),
         subnet_contract: "0x0000000000000000000000000000000000000000".to_string(),
         keystore_file: keystore_file_path,
         keystore_password: TEST_KEYSTORE_FILE_PASSWORD.to_string(),
@@ -344,7 +348,7 @@ async fn test_subnet_mint_call(
     let subnet_smart_contract_address =
         "0x".to_string() + &hex::encode(context.subnet_contract.address());
     let runtime_proxy_worker = RuntimeProxyWorker::new(RuntimeProxyConfig {
-        subnet_id: SUBNET_ID.to_string(),
+        subnet_id: SOURCE_SUBNET_ID,
         endpoint: SUBNET_JSONRPC_ENDPOINT.to_string(),
         subnet_contract: subnet_smart_contract_address.clone(),
         keystore_file: keystore_file_path,
@@ -353,15 +357,15 @@ async fn test_subnet_mint_call(
 
     // TODO: Adjust this mock certificate when ToposCoreContract gets stable enough
     let mock_cert = Certificate {
-        source_subnet_id: "1".to_string(),
-        cert_id: "9735390752919344387".to_string(),
-        prev_cert_id: "3389456612167443923".to_string(),
+        source_subnet_id: SOURCE_SUBNET_ID,
+        id: CERTIFICATE_ID,
+        prev_id: PREV_CERTIFICATE_ID,
         calls: vec![topos_core::uci::CrossChainTransaction {
-            target_subnet_id: SUBNET_ID.to_string(),
-            sender_addr: "0x000000000000000000000000000000000000FFFF".to_string(),
-            recipient_addr: subnet_smart_contract_address.clone(),
+            target_subnet_id: SOURCE_SUBNET_ID,
             transaction_data: topos_core::uci::CrossChainTransactionData::AssetTransfer {
-                asset_id: "1".to_string(),
+                sender: SENDER_ID,
+                receiver: RECEIVER_ID,
+                symbol: "1".to_string(),
                 amount: topos_core::uci::Amount::from(10000),
             },
         }],

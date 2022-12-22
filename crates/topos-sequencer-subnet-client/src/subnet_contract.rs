@@ -34,9 +34,9 @@ pub(crate) fn parse_events_from_json() -> Result<Vec<web3::ethabi::Event>, Error
     Ok(result)
 }
 
-fn get_event_type_from_log<'a, 'b>(
+fn get_event_type_from_log<'a>(
     events: &'a [web3::ethabi::Event],
-    log: &'b web3::types::Log,
+    log: &web3::types::Log,
 ) -> Option<&'a web3::ethabi::Event> {
     events
         .iter()
@@ -48,7 +48,7 @@ pub(crate) fn parse_events_from_log(
     logs: Vec<web3::types::Log>,
 ) -> Result<Vec<SubnetEvent>, Error> {
     let mut result = Vec::new();
-    println!("Logs: {:?}", logs);
+    println!("Logs: {logs:?}");
     for log in &logs {
         if let Some(event) = get_event_type_from_log(events, log) {
             match event.name.as_str() {

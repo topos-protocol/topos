@@ -228,7 +228,7 @@ impl ReliableBroadcastClient {
     ) -> Result<Vec<CertificateId>, Errors> {
         self.delivered_certs(subnet_id, from_cert_id)
             .await
-            .map(|mut v| v.iter_mut().map(|c| c.cert_id.clone()).collect())
+            .map(|mut v| v.iter_mut().map(|c| c.id).collect())
     }
 
     pub fn get_sampler_channel(&self) -> Sender<SamplerCommand> {
@@ -282,6 +282,6 @@ pub enum Errors {
     #[error("Requested certificate not found")]
     CertificateNotFound,
 
-    #[error("Requested digest not found for certificate {0}")]
+    #[error("Requested digest not found for certificate {0:?}")]
     DigestNotFound(CertificateId),
 }

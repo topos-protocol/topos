@@ -1,12 +1,12 @@
 use futures::{Future, StreamExt};
 use rstest::*;
 use serial_test::serial;
+use topos_core::api::shared::v1::{CertificateId, SubnetId};
 use topos_core::api::tce::v1::{
     watch_certificates_request, watch_certificates_response,
     watch_certificates_response::CertificatePushed, SubmitCertificateRequest,
 };
 use topos_core::api::uci::v1::Certificate;
-pub const CLIENT_SUBNET_ID: &str = "0";
 
 mod common;
 
@@ -51,6 +51,16 @@ async fn test_tce_submit_certificate(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let context = context_running_tce_mock_node.await;
 
+    let source_subnet_id: SubnetId = SubnetId {
+        value: [1u8; 32].to_vec(),
+    };
+    let prev_certificate_id: CertificateId = CertificateId {
+        value: [01u8; 32].to_vec(),
+    };
+    let certificate_id: CertificateId = CertificateId {
+        value: [02u8; 32].to_vec(),
+    };
+
     println!("Creating TCE node client");
     let mut client = match topos_core::api::tce::v1::api_service_client::ApiServiceClient::connect(
         format!("http://{}", context.endpoint),
@@ -67,9 +77,9 @@ async fn test_tce_submit_certificate(
     match client
         .submit_certificate(SubmitCertificateRequest {
             certificate: Some(Certificate {
-                source_subnet_id: "subnet_id".into(),
-                cert_id: "id".to_string(),
-                prev_cert_id: "previous_id".to_string(),
+                source_subnet_id: Some(source_subnet_id),
+                id: Some(certificate_id),
+                prev_id: Some(prev_certificate_id),
                 calls: vec![],
             }),
         })
@@ -97,6 +107,18 @@ async fn test_tce_watch_certificates(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let context = context_running_tce_mock_node.await;
 
+    let source_subnet_id: SubnetId = SubnetId {
+        value: [1u8; 32].to_vec(),
+    };
+
+    let expected_certificate = CertificateId {
+        value: [
+            1u8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0,
+        ]
+        .to_vec(),
+    };
+
     println!("Creating TCE node client");
     let mut client = match topos_core::api::tce::v1::api_service_client::ApiServiceClient::connect(
         format!("http://{}", context.endpoint),
@@ -111,8 +133,9 @@ async fn test_tce_watch_certificates(
     };
 
     //Outbound stream
+    let subnet_id_instream = source_subnet_id.clone();
     let in_stream = async_stream::stream! {
-        yield watch_certificates_request::OpenStream { subnet_ids: vec![CLIENT_SUBNET_ID.into()] }.into();
+        yield watch_certificates_request::OpenStream { subnet_ids: vec![ subnet_id_instream] }.into();
     };
     let response = client.watch_certificates(in_stream).await.unwrap();
     let mut resp_stream = response.into_inner();
@@ -125,18 +148,15 @@ async fn test_tce_watch_certificates(
                 certificate: Some(certificate),
             })) => {
                 println!("Certificate received {:?}", certificate);
-                assert_eq!(certificate.cert_id, "1");
-                assert_eq!(
-                    certificate.source_subnet_id,
-                    common::TCE_MOCK_NODE_SOURCE_SUBNET_ID
-                );
+                assert_eq!(certificate.id, Some(expected_certificate));
+                assert_eq!(certificate.source_subnet_id, Some(source_subnet_id));
                 break;
             }
             Some(watch_certificates_response::Event::StreamOpened(
                 watch_certificates_response::StreamOpened { subnet_ids },
             )) => {
                 println!("TCE client: stream opened for subnet_ids {:?}", subnet_ids);
-                assert_eq!(&subnet_ids[0].value, CLIENT_SUBNET_ID);
+                assert_eq!(subnet_ids[0].value, source_subnet_id.value);
             }
             Some(watch_certificates_response::Event::CertificatePushed(CertificatePushed {
                 certificate: None,

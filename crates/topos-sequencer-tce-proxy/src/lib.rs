@@ -42,6 +42,11 @@ pub enum Error {
     InvalidTceEndpoint,
     #[error("invalid subnet id error")]
     InvalidSubnetId,
+    #[error("hex conversion error {source}")]
+    HexConversionError {
+        #[from]
+        source: hex::FromHexError,
+    },
 }
 
 pub struct TceProxyConfig {
@@ -78,7 +83,7 @@ impl TceClient {
     pub async fn open_stream(&self) -> Result<(), Error> {
         self.command_sender
             .send(TceClientCommand::OpenStream {
-                subnet_id: self.subnet_id.clone(),
+                subnet_id: self.subnet_id,
             })
             .await
             .map_err(|_| InvalidChannelError)?;
@@ -103,7 +108,7 @@ impl TceClient {
 #[derive(Default)]
 pub struct TceClientBuilder {
     tce_endpoint: Option<String>,
-    subnet_id: Option<String>,
+    subnet_id: Option<SubnetId>,
 }
 
 impl TceClientBuilder {
@@ -112,8 +117,8 @@ impl TceClientBuilder {
         self
     }
 
-    pub fn set_subnet_id<T: ToString>(mut self, subnet_id: T) -> Self {
-        self.subnet_id = Some(subnet_id.to_string());
+    pub fn set_subnet_id(mut self, subnet_id: SubnetId) -> Self {
+        self.subnet_id = Some(subnet_id);
         self
     }
 
@@ -166,17 +171,13 @@ impl TceClientBuilder {
         let (inbound_shutdown_sender, mut inbound_shutdown_receiver) =
             mpsc::unbounded_channel::<()>();
 
-        let subnet_id = self
-            .subnet_id
-            .as_ref()
-            .ok_or(Error::InvalidSubnetId)?
-            .clone();
+        let subnet_id = *self.subnet_id.as_ref().ok_or(Error::InvalidSubnetId)?;
         //let tce_endpoint = self.tce_endpoint.ok_or(Error::InvalidTceEndpoint)?.clone();
         // Run task and process inbound watch certificate stream responses
         tokio::spawn(async move {
             // Listen for feedback from TCE service (WatchCertificatesResponse)
             info!(
-                "Entering watch certificate response loop for tce node {} for subnet id {}",
+                "Entering watch certificate response loop for tce node {} for subnet id {:?}",
                 &tce_endpoint, &subnet_id
             );
             loop {
@@ -216,7 +217,7 @@ impl TceClientBuilder {
                             },
                             Err(e) => {
                                 error!(
-                                    "Watch certificates response error for tce node {} subnet_id {}, error details: {}",
+                                    "Watch certificates response error for tce node {} subnet_id {:?}, error details: {}",
                                     &tce_endpoint, &subnet_id, e.to_string()
                                 )
                             }
@@ -229,7 +230,7 @@ impl TceClientBuilder {
                 }
             }
             info!(
-                "Finishing watch certificate task for tce node {} subnet_id {}",
+                "Finishing watch certificate task for tce node {} subnet_id {:?}",
                 &tce_endpoint, &subnet_id
             );
         });
@@ -255,8 +256,8 @@ impl TceClientBuilder {
                    command = tce_command_receiver.recv() => {
                         match command {
                            Some(TceClientCommand::SendCertificate {cert}) =>  {
-                                let cert_id = cert.cert_id.clone();
-                                let previous_cert_id = cert.prev_cert_id.clone();
+                                let cert_id = cert.id;
+                                let previous_cert_id = cert.prev_id;
                                 match tce_grpc_client
                                 .submit_certificate(SubmitCertificateRequest {
                                     certificate: Some(topos_core::api::uci::v1::Certificate::from(cert)),
@@ -264,7 +265,7 @@ impl TceClientBuilder {
                                 .await
                                 .map(|r| r.into_inner()) {
                                     Ok(_response)=> {
-                                        info!("Certificate cert_id: {} previous_cert_id: {} successfully sent to tce {}", &cert_id, &previous_cert_id, &tce_endpoint);
+                                        info!("Certificate cert_id: {:?} previous_cert_id: {:?} successfully sent to tce {}", &cert_id, &previous_cert_id, &tce_endpoint);
                                     }
                                     Err(e) => {
                                         error!("Certificate submit failed, error details: {}", e);
@@ -274,14 +275,14 @@ impl TceClientBuilder {
                             Some(TceClientCommand::OpenStream {subnet_id}) =>  {
                                 // Send command to TCE to open stream with my subnet id
                                 info!(
-                                    "Sending OpenStream command to tce node {} for subnet id {}",
+                                    "Sending OpenStream command to tce node {} for subnet id {:?}",
                                     &tce_endpoint, &subnet_id
                                 );
                                 if let Err(e) = outbound_stream_command_sender
                                     .send(
                                             watch_certificates_request::OpenStream {
                                                 subnet_ids: vec![topos_core::api::shared::v1::SubnetId {
-                                                    value: subnet_id.clone(),
+                                                    value: subnet_id.to_vec(),
                                                 }],
                                             }.into(),
                                     )
@@ -313,7 +314,11 @@ impl TceClientBuilder {
 
         Ok((
             TceClient {
-                subnet_id: self.subnet_id.ok_or(Error::InvalidSubnetId)?,
+                subnet_id: hex::decode(self.subnet_id.ok_or(Error::InvalidSubnetId)?)
+                    .map_err(|e| Error::HexConversionError { source: e })?
+                    .as_slice()
+                    .try_into()
+                    .map_err(|_| Error::InvalidSubnetId)?,
                 tce_endpoint: self.tce_endpoint.ok_or(Error::InvalidTceEndpoint)?,
                 command_sender: tce_command_sender,
             },
@@ -366,7 +371,7 @@ impl TceProxyWorker {
         let (evt_sender, evt_rcv) = mpsc::unbounded_channel::<TceProxyEvent>();
 
         let (mut tce_client, mut receiving_certificate_stream) = TceClientBuilder::default()
-            .set_subnet_id(&config.subnet_id)
+            .set_subnet_id(config.subnet_id)
             .set_tce_endpoint(&config.base_tce_api_url)
             .build_and_launch()
             .await?;
@@ -441,8 +446,8 @@ impl TceProxyWorker {
         from_cert_id: &CertificateId,
     ) -> Result<Vec<Certificate>, String> {
         let post_data = DeliveredCertsReq {
-            subnet_id: subnet_id.clone(),
-            from_cert_id: from_cert_id.clone(),
+            subnet_id: *subnet_id,
+            from_cert_id: *from_cert_id,
         };
 
         // setup the client
@@ -470,7 +475,7 @@ impl TceProxyWorker {
                         }
                         Err(e) => {
                             warn!("check_new_certificates - failed to parse the body:{:?}", e);
-                            Err(format!("{:?}", e))
+                            Err(format!("{e:?}"))
                         }
                     }
                 }
@@ -479,12 +484,12 @@ impl TceProxyWorker {
                         "check_new_certificates - failed to aggregate the body:{:?}",
                         e
                     );
-                    Err(format!("{:?}", e))
+                    Err(format!("{e:?}"))
                 }
             },
             Err(e) => {
                 warn!("check_new_certificates failed: {:?}", e);
-                Err(format!("{:?}", e))
+                Err(format!("{e:?}"))
             }
         }
     }
@@ -510,13 +515,18 @@ struct DeliveredCerts {
 mod should {
     use crate::TceProxyWorker;
 
+    const SOURCE_SUBNET_ID: topos_core::uci::SubnetId = [1u8; 32];
+    const PREV_CERTIFICATE_ID: topos_core::uci::CertificateId = [4u8; 32];
+
     #[tokio::test]
     async fn call_into_tce() {
+        pretty_env_logger::init_timed();
+
         let jh = tokio::spawn(async move {
             let _ = TceProxyWorker::check_new_certificates(
                 &"http://localhost:8080".to_string(),
-                &100.to_string(),
-                &0.to_string(),
+                &SOURCE_SUBNET_ID,
+                &PREV_CERTIFICATE_ID,
             )
             .await;
         });

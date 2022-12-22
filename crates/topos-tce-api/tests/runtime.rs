@@ -4,6 +4,7 @@ use tokio::{spawn, sync::oneshot};
 use tokio_stream::StreamExt;
 use tonic::transport::channel;
 use tonic::transport::Uri;
+use topos_core::api::shared::v1::SubnetId;
 use topos_core::{
     api::tce::v1::{
         api_service_client::ApiServiceClient,
@@ -14,10 +15,14 @@ use topos_core::{
 };
 use topos_tce_api::Runtime;
 
+const SOURCE_SUBNET_ID: topos_core::uci::SubnetId = [1u8; 32];
+const TARGET_SUBNET_ID: topos_core::uci::SubnetId = [2u8; 32];
+const PREV_CERTIFICATE_ID: topos_core::uci::CertificateId = [4u8; 32];
+const SENDER_ID: Address = [6u8; 20];
+const RECEIVER_ID: Address = [7u8; 20];
+
 #[test(tokio::test)]
 async fn runtime_can_dispatch_a_cert() {
-    let target_subnet_id = "subneta".to_string();
-    let source_subnet_id = "subnetb".to_string();
     let (tx, rx) = oneshot::channel::<Certificate>();
 
     let socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
@@ -36,12 +41,11 @@ async fn runtime_can_dispatch_a_cert() {
         .unwrap();
 
     // This block represent a subnet A
-    let subnet_a = target_subnet_id.clone();
     spawn(async move {
         let channel = channel::Channel::builder(uri).connect_lazy();
         let mut client = ApiServiceClient::new(channel);
         let in_stream = async_stream::stream! {
-            yield OpenStream { subnet_ids: vec![subnet_a.into()] }.into();
+            yield OpenStream { subnet_ids: vec![SubnetId {value: TARGET_SUBNET_ID.into()}] }.into();
         };
 
         let response = client.watch_certificates(in_stream).await.unwrap();
@@ -68,18 +72,19 @@ async fn runtime_can_dispatch_a_cert() {
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     let cert = topos_core::uci::Certificate::new(
-        "previous_cert".to_string(),
-        source_subnet_id.to_string(),
+        PREV_CERTIFICATE_ID,
+        SOURCE_SUBNET_ID,
         vec![CrossChainTransaction {
-            target_subnet_id: target_subnet_id.clone().into(),
+            target_subnet_id: TARGET_SUBNET_ID,
             transaction_data: CrossChainTransactionData::AssetTransfer {
-                asset_id: "TST_SUBNET_".to_string() + &target_subnet_id,
+                sender: SENDER_ID,
+                receiver: RECEIVER_ID,
+                symbol: "TST_SUBNET_".to_string(),
                 amount: Amount::from(1000),
             },
-            recipient_addr: Address::from("0x0000000000000000000000000000000000000002"),
-            sender_addr: Address::from("0x0000000000000000000000000000000000000001"),
         }],
-    );
+    )
+    .unwrap();
 
     // Send a dispatch command that will be push to the subnet A
     runtime_client.dispatch_certificate(cert.clone()).await;

@@ -74,9 +74,12 @@ mod tests {
 
     use super::*;
 
+    const SOURCE_SUBNET_ID: topos_core::uci::SubnetId = [1u8; 32];
+    const PREV_CERTIFICATE_ID: topos_core::uci::CertificateId = [4u8; 32];
+
     #[tokio::test]
     async fn send_command() {
-        let cert = Certificate::new("0".to_string(), "0".to_string(), vec![]);
+        let cert = Certificate::new(PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID, vec![]).unwrap();
         let command = AddPendingCertificate { certificate: cert };
 
         let (sender, mut receiver) = mpsc::channel(1);

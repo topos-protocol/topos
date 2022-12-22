@@ -6,6 +6,7 @@ use std::time::Duration;
 use tokio::sync::mpsc;
 use tonic::{transport::Server, Request, Response, Status, Streaming};
 use topos_api::shared;
+use topos_api::shared::v1::{CertificateId, SubnetId};
 use topos_api::tce::v1::api_service_server::{ApiService, ApiServiceServer};
 use topos_api::tce::v1::watch_certificates_request::{Command, OpenStream};
 use topos_api::tce::v1::{
@@ -85,12 +86,23 @@ async fn create_tce_layer() {
             .await
             .unwrap();
 
+    let source_subnet_id: SubnetId = SubnetId {
+        value: [1u8; 32].to_vec(),
+    };
+
+    let prev_certificate_id: CertificateId = CertificateId {
+        value: [01u8; 32].to_vec(),
+    };
+    let certificate_id: CertificateId = CertificateId {
+        value: [02u8; 32].to_vec(),
+    };
+
     let response = client
         .submit_certificate(SubmitCertificateRequest {
             certificate: Some(Certificate {
-                source_subnet_id: "subnet_id".into(),
-                cert_id: "id".to_string(),
-                prev_cert_id: "previous_id".to_string(),
+                source_subnet_id: Some(source_subnet_id.clone()),
+                id: Some(certificate_id),
+                prev_id: Some(prev_certificate_id),
                 calls: vec![],
             }),
         })
@@ -100,7 +112,7 @@ async fn create_tce_layer() {
     assert!(matches!(response, Ok(SubmitCertificateResponse {})));
 
     let command = Some(Command::OpenStream(OpenStream {
-        subnet_ids: vec!["subnet_id".into()],
+        subnet_ids: vec![source_subnet_id.clone()],
     }));
     let request_id: shared::v1::Uuid = Uuid::new_v4().into();
     let first_request = WatchCertificatesRequest {
@@ -109,7 +121,7 @@ async fn create_tce_layer() {
     };
 
     let mut first_request_short: WatchCertificatesRequest = OpenStream {
-        subnet_ids: vec!["subnet_id".into()],
+        subnet_ids: vec![source_subnet_id.clone()],
     }
     .into();
     first_request_short.request_id = Some(request_id);

@@ -1,9 +1,11 @@
 use async_stream::stream;
+use byteorder::ByteOrder;
 use futures::{channel::oneshot, FutureExt, Stream, StreamExt};
 use std::net::UdpSocket;
 use std::pin::Pin;
 use tokio::sync::mpsc;
 use tonic::{transport::Server, Request, Response, Status, Streaming};
+use topos_core::api::shared::v1::{CertificateId, SubnetId};
 use topos_core::api::tce::v1::api_service_server::{ApiService, ApiServiceServer};
 use topos_core::api::tce::v1::{
     watch_certificates_request, watch_certificates_response, SubmitCertificateRequest,
@@ -11,7 +13,6 @@ use topos_core::api::tce::v1::{
 };
 use topos_core::api::uci::v1::Certificate;
 
-pub const TCE_MOCK_NODE_SOURCE_SUBNET_ID: &str = "5";
 const DEFAULT_CHANNEL_STREAM_CAPACITY: usize = 10;
 
 struct TceMockServer;
@@ -46,6 +47,9 @@ impl ApiService for TceMockServer {
             let mut counter: u32 = 0;
             println!("TCE node service output stream functioning");
             loop {
+                let source_subnet_id: SubnetId = SubnetId {
+                    value: [1u8; 32].to_vec(),
+                };
                 println!("TCE node service loop entered counter {}", counter);
                 tokio::select! {
                     Some(watch_certificate_request) = stream.next() => {
@@ -73,9 +77,22 @@ impl ApiService for TceMockServer {
                                     let _ = tx.send(WatchCertificatesResponse {
                                         request_id: watch_certificate_request.as_ref().unwrap().request_id.clone(),
                                         event: Some(watch_certificates_response::Event::CertificatePushed(watch_certificates_response::CertificatePushed {certificate: Some(Certificate{
-                                            source_subnet_id: TCE_MOCK_NODE_SOURCE_SUBNET_ID.to_string(),
-                                            cert_id: counter.to_string(),
-                                            prev_cert_id: (counter-1).to_string(),
+                                            source_subnet_id: Some(source_subnet_id.clone()),
+                                            id: {
+
+                                                let mut bytes = vec![0,0,0,0];
+                                                byteorder::LittleEndian::write_u32(&mut bytes, counter);
+                                                bytes.resize(32, 0);
+                                                Some(CertificateId {
+                                                value: bytes,
+                                            })},
+                                            prev_id: {
+                                                let mut bytes = vec![0,0,0,0];
+                                                byteorder::LittleEndian::write_u32(&mut bytes, counter-1);
+                                                bytes.resize(32, 0);
+                                                Some(CertificateId {
+                                                value: bytes,
+                                            })},
                                             calls: vec![]
                                         })}))}).await;
                                 };

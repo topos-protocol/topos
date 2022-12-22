@@ -8,6 +8,7 @@ use topos_sequencer_subnet_runtime_proxy::{RuntimeProxyConfig, RuntimeProxyWorke
 use topos_sequencer_tce_proxy::{TceProxyConfig, TceProxyWorker};
 use tracing::info;
 use tracing_subscriber::{prelude::*, EnvFilter};
+use topos_sequencer_types::SubnetId;
 
 mod app_context;
 
@@ -32,11 +33,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         rpassword::prompt_password("Keystore password:").expect("Valid keystore password")
     });
 
+    let subnet_id: SubnetId = hex::decode(&args.subnet_id)?.as_slice().try_into()?;
+
     // Launch the workers
-    let certification = CertificationWorker::new(args.subnet_id.clone())?;
+    let certification = CertificationWorker::new(subnet_id)?;
 
     let runtime_proxy = RuntimeProxyWorker::new(RuntimeProxyConfig {
-        subnet_id: args.subnet_id.clone(),
+        subnet_id,
         endpoint: args.subnet_jsonrpc_endpoint.clone(),
         subnet_contract: args.subnet_contract.clone(),
         keystore_file: args.topos_node_keystore_file.clone(),
@@ -45,7 +48,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // downstream flow processor worker
     let tce_proxy_worker = TceProxyWorker::new(TceProxyConfig {
-        subnet_id: args.subnet_id.clone(),
+        subnet_id,
         base_tce_api_url: args.base_tce_api_url.clone(),
     })
     .await?;

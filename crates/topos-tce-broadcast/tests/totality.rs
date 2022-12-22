@@ -5,6 +5,10 @@ mod totality {
     use topos_core::uci::SubnetId;
     use topos_tce_broadcast::mock;
 
+    const SOURCE_SUBNET_1: SubnetId = [1u8; 32];
+    const SOURCE_SUBNET_2: SubnetId = [1u8; 32];
+    const SOURCE_SUBNET_3: SubnetId = [1u8; 32];
+
     #[test]
     fn disclaimer() {
         println!(
@@ -40,7 +44,7 @@ mod totality {
     fn with_1cert_100nodes() {
         let nb_peers: usize = 100;
         let nb_certificates = 1;
-        let subnets: Vec<SubnetId> = vec![1.to_string(), 2.to_string(), 3.to_string()];
+        let subnets: Vec<SubnetId> = vec![SOURCE_SUBNET_1, SOURCE_SUBNET_2, SOURCE_SUBNET_3];
 
         test_totality_boundaries(mock::InputConfig {
             nb_peers,
@@ -54,7 +58,7 @@ mod totality {
     fn with_1cert_1000nodes() {
         let nb_peers: usize = 1000;
         let nb_certificates = 1;
-        let subnets: Vec<SubnetId> = vec![1.to_string(), 2.to_string(), 3.to_string()];
+        let subnets: Vec<SubnetId> = vec![SOURCE_SUBNET_1, SOURCE_SUBNET_2, SOURCE_SUBNET_3];
 
         test_totality_boundaries(mock::InputConfig {
             nb_peers,
@@ -68,7 +72,7 @@ mod totality {
     fn with_10cert_100nodes() {
         let nb_peers: usize = 100;
         let nb_certificates = 10;
-        let subnets: Vec<SubnetId> = vec![0.to_string(), 1.to_string(), 2.to_string()];
+        let subnets: Vec<SubnetId> = vec![SOURCE_SUBNET_1, SOURCE_SUBNET_2, SOURCE_SUBNET_3];
 
         test_totality_boundaries(mock::InputConfig {
             nb_peers,

@@ -79,12 +79,10 @@ impl StorageClient {
     ///
     /// TODO: Will be removed to use the queue of the connection
     pub async fn check_precedence(&self, cert: &Certificate) -> Result<(), StorageError> {
-        if cert.prev_cert_id == "0" {
+        if cert.prev_id == [0u8; 32] {
             return Ok(());
         }
 
-        self.get_certificate(cert.prev_cert_id.clone())
-            .await
-            .map(|_| Ok(()))?
+        self.get_certificate(cert.prev_id).await.map(|_| Ok(()))?
     }
 }

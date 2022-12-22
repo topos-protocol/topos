@@ -22,5 +22,3 @@ tce_transport = { package = "topos-tce-transport", path = "../topos-tce-transpor
 
 opentelemetry = { version = "0.17", default-features = false, features = ["trace", "rt-tokio"] }
 
-[dev-dependencies]
-

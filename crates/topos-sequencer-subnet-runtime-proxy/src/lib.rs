@@ -45,7 +45,7 @@ pub enum Error {
 
 #[derive(Debug, Clone)]
 pub struct RuntimeProxyConfig {
-    pub subnet_id: String,
+    pub subnet_id: SubnetId,
     pub endpoint: String,
     pub subnet_contract: String,
     pub keystore_file: String,

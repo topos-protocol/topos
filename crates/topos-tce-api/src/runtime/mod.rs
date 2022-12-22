@@ -77,8 +77,8 @@ impl Runtime {
         match command {
             RuntimeCommand::DispatchCertificate { certificate } => {
                 info!(
-                    "Received DispatchCertificate for certificate cert_id: {}",
-                    certificate.cert_id
+                    "Received DispatchCertificate for certificate cert_id: {:?}",
+                    certificate.id
                 );
                 // Collect target subnets from certificate cross chain transaction list
                 let target_subnets = certificate
@@ -87,11 +87,13 @@ impl Runtime {
                     .map(|ctx| &ctx.target_subnet_id)
                     .collect::<HashSet<_>>();
                 debug!(
-                    "Dispatching certificate cert_id: {} to target subnets: {:?}",
-                    &certificate.cert_id, target_subnets
+                    "Dispatching certificate cert_id: {:?} to terminal subnets: {:?}",
+                    &certificate.id, target_subnets
                 );
                 for target_subnet_id in target_subnets {
-                    if let Some(stream_list) = self.subnet_subscription.get(target_subnet_id) {
+                    if let Some(stream_list) =
+                        self.subnet_subscription.get(&hex::encode(target_subnet_id))
+                    {
                         let uuids: Vec<&Uuid> = stream_list.iter().collect();
                         for uuid in uuids {
                             if let Some(sender) = self.active_streams.get(uuid) {
@@ -160,7 +162,7 @@ impl Runtime {
                 info!("{stream_id} is registered as subscriber for {subnet_ids:?}");
                 for subnet_id in subnet_ids {
                     self.subnet_subscription
-                        .entry(subnet_id.value)
+                        .entry(subnet_id.into())
                         .or_default()
                         .insert(stream_id);
                 }

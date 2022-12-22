@@ -14,17 +14,13 @@ use crate::{
         db::init_db, db::RocksDB, CertificatesColumn, PendingCertificatesColumn,
         SourceStreamsColumn, TargetStreamsColumn,
     },
-    RocksDBStorage, SubnetId,
+    RocksDBStorage,
 };
 
 use self::{
     columns::{certificates_column, pending_column, source_streams_column, target_streams_column},
     folder::created_folder,
 };
-
-pub(crate) const SOURCE_SUBNET_ID: SubnetId = SubnetId { inner: [1u8; 32] };
-pub(crate) const TARGET_SUBNET_ID_A: SubnetId = SubnetId { inner: [2u8; 32] };
-pub(crate) const TARGET_SUBNET_ID_B: SubnetId = SubnetId { inner: [3u8; 32] };
 
 pub(crate) mod columns;
 pub(crate) mod folder;
