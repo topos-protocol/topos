@@ -16,7 +16,7 @@
 ![example workflow](https://github.com/toposware/topos/actions/workflows/test.yml/badge.svg)
 ![example workflow](https://github.com/toposware/topos/actions/workflows/format.yml/badge.svg)
 ![example workflow](https://github.com/toposware/topos/actions/workflows/lint.yml/badge.svg)
-<!-- [![](https://dcbadge.vercel.app/api/server/INVITEID)](https://discord.gg/INVITEID?style=flat) -->
+[![](https://dcbadge.vercel.app/api/server/7HZ8F8ykBT?style=flat)](https://discord.gg/7HZ8F8ykBT)
 
 
 ## Getting Started
