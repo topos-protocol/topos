@@ -1,30 +1,32 @@
 <div id="top"></div>
 <!-- PROJECT LOGO -->
 <br />
-<div align="center">
+<div align="right">
 
-  <img src="./.github/assets/logo.png#gh-light-mode-only" alt="Logo" width="300">
-  <img src="./.github/assets/logo_dark.png#gh-dark-mode-only" alt="Logo" width="300">
+  <img src="./.github/assets/logo.png#gh-light-mode-only" alt="Logo" width="200">
+  <img src="./.github/assets/logo_dark.png#gh-dark-mode-only" alt="Logo" width="200">
 
-  <h1>Transmission Control Engine</h1>
-  
-  <p>
-    The <a href="https://docs.toposware.com/learn/tce/overview" target="_blank">Transmission Control Engine</a> serves as the foundation for consistent cross-subnet communication, <br/> which is core to the <a href="https://docs.toposware.com/general-overview" target="_blank">Topos</a> ecosystem.
-  </p>
-  
-  [![codecov](https://codecov.io/gh/toposware/tce/branch/main/graph/badge.svg?token=FOH2B2GRL9)](https://codecov.io/gh/toposware/tce)
-  ![example workflow](https://github.com/toposware/tce/actions/workflows/test.yml/badge.svg)
-  ![example workflow](https://github.com/toposware/tce/actions/workflows/format.yml/badge.svg)
-  ![example workflow](https://github.com/toposware/tce/actions/workflows/lint.yml/badge.svg)
 </div>
 
-## Build
+The `topos` utility provides a unified command line interface to the [Topos](https://docs.toposware.com/general-overview) network.
+
+[![codecov](https://codecov.io/gh/toposware/topos/branch/main/graph/badge.svg?token=FOH2B2GRL9)](https://codecov.io/gh/toposware/topos)
+![example workflow](https://github.com/toposware/topos/actions/workflows/test.yml/badge.svg)
+![example workflow](https://github.com/toposware/topos/actions/workflows/format.yml/badge.svg)
+![example workflow](https://github.com/toposware/topos/actions/workflows/lint.yml/badge.svg)
+
+## Building
 
 ```shell
 cargo build --release
 ```
 
-## Development
+## Getting Started
+
+```
+# Run a local node
+topos tce run
+```
 
 If you want to be part of the development, make sure to have your workflow complete.
 
@@ -84,12 +86,6 @@ docker build . ... --target fmt
 ```
 docker build . ... --target lint
 ```
-
-## Tools
-
-Some tools are implemented in this repository, namely,
-
-The [params-minimizer](./params-minimizer/) aims at figuring out the protocol parameters of the TCE. Specifically, the TCE runs on simulated environment, with various parameters in order to understand what are the optimal values.
 
 ## License
 
