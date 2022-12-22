@@ -36,31 +36,24 @@ cargo install topos --git https://github.com/toposware/topos
 topos --help
 ```
 
-## Development
-
-If you want to be part of the development, make sure to have your workflow complete.
-
-```
-# Building
-cargo build
-
-# Testing
-cargo test --workspace
-
-# Formatting
-cargo fmt --check
-
-# Linting
-cargo clippy --all
-```
-
-The workflow with docker and docker compose are described on `./tools/README.md`
+Reach our [documentation](https://docs.toposware.com/) for the next steps!
 
 ## Contributions and support
 
-Contributions are pretty welcomed, you can reach the contributing guidelines in [`CONTRIBUTING.md`](./CONTRIBUTING.md).<br />
+Contributions are welcomed, the contributing guidelines are outlined in [`CONTRIBUTING.md`](./CONTRIBUTING.md).<br />
 Feel free to [open an issue](https://github.com/toposware/topos/issues/new) if you have any feature request or bug report.<br />
 If you have any questions, do not hesitate to reach us on [Discord](https.//discord.com/)!
+
+## Development
+
+The workflow with docker and docker compose are described [here](`./tools/README.md`).
+
+## Resources
+
+- [docs.toposware.com](https://docs.toposware.com/)
+- [toposware.medium.com](https://toposware.medium.com/)
+- *[Topos: A Secure, Trustless, and Decentralized
+Interoperability Protocol](https://arxiv.org/pdf/2206.03481.pdf)*
 
 ## License
 
