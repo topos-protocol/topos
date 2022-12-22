@@ -6,7 +6,7 @@ use libp2p::{
     identity::{self, Keypair},
     Multiaddr, PeerId,
 };
-use tce_transport::{ReliableBroadcastParams, TrbpEvents};
+use tce_transport::{ReliableBroadcastParams, TceEvents};
 use tokio::task::JoinHandle;
 use tokio::{spawn, sync::mpsc};
 use tonic::transport::{channel, Channel};
@@ -14,7 +14,7 @@ use topos_core::api::tce::v1::api_service_client::ApiServiceClient;
 use topos_p2p::{Client, Event, Runtime};
 use topos_tce::{storage::inmemory::InmemoryStorage, AppContext};
 use topos_tce_broadcast::{
-    mem_store::TrbMemStore, DoubleEchoCommand, ReliableBroadcastClient, ReliableBroadcastConfig,
+    mem_store::TceMemStore, DoubleEchoCommand, ReliableBroadcastClient, ReliableBroadcastConfig,
     SamplerCommand,
 };
 
@@ -47,7 +47,7 @@ where
 
     for (index, (seed, port, keypair, addr)) in peers.iter().enumerate() {
         let peer_id = format!("peer_{index}");
-        let (rb_client, trb_events) = create_reliable_broadcast_client(
+        let (rb_client, tce_events) = create_reliable_broadcast_client(
             &peer_id,
             create_reliable_broadcast_params(correct_sample, &g),
         );
@@ -67,7 +67,7 @@ where
         let app = AppContext::new(InmemoryStorage::default(), rb_client, client, api_client);
 
         let runtime_join_handle = spawn(runtime.run());
-        let app_join_handle = spawn(app.run(event_stream, trb_events, api_events));
+        let app_join_handle = spawn(app.run(event_stream, tce_events, api_events));
         let api_endpoint = format!("http://127.0.0.1:{api_port}");
 
         let channel = channel::Endpoint::from_str(&api_endpoint)
@@ -160,14 +160,14 @@ async fn create_network_worker(
 
 fn create_reliable_broadcast_client(
     peer_id: &str,
-    trbp_params: ReliableBroadcastParams,
+    tce_params: ReliableBroadcastParams,
 ) -> (
     ReliableBroadcastClient,
-    impl Stream<Item = Result<TrbpEvents, ()>> + Unpin,
+    impl Stream<Item = Result<TceEvents, ()>> + Unpin,
 ) {
     let config = ReliableBroadcastConfig {
-        store: Box::new(TrbMemStore::new(vec![])),
-        trbp_params,
+        store: Box::new(TceMemStore::new(vec![])),
+        tce_params,
         my_peer_id: peer_id.to_string(),
     };
 

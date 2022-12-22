@@ -89,7 +89,7 @@ pub(crate) async fn handle_command(
                 jaeger_agent: cmd.jaeger_agent,
                 jaeger_service_name: cmd.jaeger_service_name,
                 tce_local_port: cmd.tce_local_port,
-                trbp_params: cmd.trbp_params,
+                tce_params: cmd.tce_params,
                 api_addr: cmd.api_addr,
                 storage: StorageConfiguration::RocksDB(
                     cmd.db_path
@@ -129,5 +129,5 @@ pub fn print_node_info(config: &TceConfiguration) {
 
     info!("gRPC at {}", config.api_addr);
     info!("Jaeger at {}", config.jaeger_agent);
-    info!("Broadcast params {:?}", config.trbp_params);
+    info!("Broadcast params {:?}", config.tce_params);
 }

@@ -3,7 +3,7 @@
 //!
 use futures::{future::join_all, Stream, StreamExt};
 use serde::{Deserialize, Serialize};
-use tce_transport::{TrbpCommands, TrbpEvents};
+use tce_transport::{TceCommands, TceEvents};
 use tokio::spawn;
 use tokio::sync::oneshot;
 use topos_p2p::{Client as NetworkClient, Event as NetEvent};
@@ -27,7 +27,7 @@ use tracing::{debug, error, info, trace};
 /// config+data as input and runs app returning data as output
 ///
 pub struct AppContext {
-    pub trbp_cli: ReliableBroadcastClient,
+    pub tce_cli: ReliableBroadcastClient,
     pub network_client: NetworkClient,
     pub api_client: ApiClient,
     pub pending_storage: StorageClient,
@@ -39,14 +39,14 @@ impl AppContext {
     /// Factory
     pub fn new(
         pending_storage: StorageClient,
-        trbp_cli: ReliableBroadcastClient,
+        tce_cli: ReliableBroadcastClient,
         network_client: NetworkClient,
         api_client: ApiClient,
         gatekeeper: GatekeeperClient,
         synchronizer: SynchronizerClient,
     ) -> Self {
         Self {
-            trbp_cli,
+            tce_cli,
             network_client,
             api_client,
             pending_storage,
@@ -59,7 +59,7 @@ impl AppContext {
     pub async fn run(
         mut self,
         mut network_stream: impl Stream<Item = NetEvent> + Unpin,
-        mut trb_stream: impl Stream<Item = Result<TrbpEvents, ()>> + Unpin,
+        mut tce_stream: impl Stream<Item = Result<TceEvents, ()>> + Unpin,
         mut api_stream: impl Stream<Item = ApiEvent> + Unpin,
         mut storage_stream: impl Stream<Item = StorageEvent> + Unpin,
         mut synchronizer_stream: impl Stream<Item = SynchronizerEvent> + Unpin,
@@ -68,7 +68,7 @@ impl AppContext {
             tokio::select! {
 
                 // protocol
-                Some(Ok(evt)) = trb_stream.next() => {
+                Some(Ok(evt)) = tce_stream.next() => {
                     self.on_protocol_event(evt).await;
                 },
 
@@ -103,12 +103,12 @@ impl AppContext {
                     .pending_storage
                     .add_pending_certificate(certificate.clone())
                     .await;
-                spawn(self.trbp_cli.broadcast_new_certificate(certificate));
+                spawn(self.tce_cli.broadcast_new_certificate(certificate));
                 _ = sender.send(Ok(()));
             }
 
             ApiEvent::PeerListPushed { peers, sender } => {
-                let fut = self.trbp_cli.peer_changed(peers);
+                let fut = self.tce_cli.peer_changed(peers);
                 spawn(async move {
                     if fut.await.is_err() {
                         _ = sender.send(Err(RuntimeError::UnableToPushPeerList));
@@ -120,13 +120,13 @@ impl AppContext {
         }
     }
 
-    async fn on_protocol_event(&mut self, evt: TrbpEvents) {
+    async fn on_protocol_event(&mut self, evt: TceEvents) {
         debug!(
             "on_protocol_event: peer: {} event {:?}",
             &self.network_client.local_peer_id, &evt
         );
         match evt {
-            TrbpEvents::CertificateDelivered { certificate } => {
+            TceEvents::CertificateDelivered { certificate } => {
                 _ = self
                     .pending_storage
                     .certificate_delivered(certificate.cert_id.clone())
@@ -134,14 +134,14 @@ impl AppContext {
                 spawn(self.api_client.dispatch_certificate(certificate));
             }
 
-            TrbpEvents::EchoSubscribeReq { peers } => {
+            TceEvents::EchoSubscribeReq { peers } => {
                 // Preparing echo subscribe message
                 let my_peer_id = self.network_client.local_peer_id;
-                let data: Vec<u8> = NetworkMessage::from(TrbpCommands::OnEchoSubscribeReq {
+                let data: Vec<u8> = NetworkMessage::from(TceCommands::OnEchoSubscribeReq {
                     from_peer: self.network_client.local_peer_id,
                 })
                 .into();
-                let command_sender = self.trbp_cli.get_sampler_channel();
+                let command_sender = self.tce_cli.get_sampler_channel();
                 // Sending echo subscribe message to send to a number of remote peers
                 let future_pool = peers
                     .iter()
@@ -164,7 +164,7 @@ impl AppContext {
                         match result {
                             Ok(message) => match message {
                                 // Remote peer has replied us that he is accepting us as echo subscriber
-                                NetworkMessage::Cmd(TrbpCommands::OnEchoSubscribeOk {
+                                NetworkMessage::Cmd(TceCommands::OnEchoSubscribeOk {
                                     from_peer,
                                 }) => {
                                     info!("Receive response to EchoSubscribe",);
@@ -190,14 +190,14 @@ impl AppContext {
                     }
                 });
             }
-            TrbpEvents::ReadySubscribeReq { peers } => {
+            TceEvents::ReadySubscribeReq { peers } => {
                 // Preparing ready subscribe message
                 let my_peer_id = self.network_client.local_peer_id;
-                let data: Vec<u8> = NetworkMessage::from(TrbpCommands::OnReadySubscribeReq {
+                let data: Vec<u8> = NetworkMessage::from(TceCommands::OnReadySubscribeReq {
                     from_peer: self.network_client.local_peer_id,
                 })
                 .into();
-                let command_sender = self.trbp_cli.get_sampler_channel();
+                let command_sender = self.tce_cli.get_sampler_channel();
                 // Sending ready subscribe message to send to a number of remote peers
                 let future_pool = peers
                     .iter()
@@ -220,7 +220,7 @@ impl AppContext {
                         match result {
                             Ok(message) => match message {
                                 // Remote peer has replied us that he is accepting us as ready subscriber
-                                NetworkMessage::Cmd(TrbpCommands::OnReadySubscribeOk {
+                                NetworkMessage::Cmd(TceCommands::OnReadySubscribeOk {
                                     from_peer,
                                 }) => {
                                     info!("Receive response to ReadySubscribe");
@@ -255,9 +255,9 @@ impl AppContext {
                 });
             }
 
-            TrbpEvents::Gossip { peers, cert, .. } => {
+            TceEvents::Gossip { peers, cert, .. } => {
                 let cert_id = cert.cert_id.clone();
-                let data: Vec<u8> = NetworkMessage::from(TrbpCommands::OnGossip {
+                let data: Vec<u8> = NetworkMessage::from(TceCommands::OnGossip {
                     cert,
                     digest: vec![],
                 })
@@ -280,14 +280,14 @@ impl AppContext {
                 });
             }
 
-            TrbpEvents::Echo { peers, cert } => {
+            TceEvents::Echo { peers, cert } => {
                 let my_peer_id = self.network_client.local_peer_id;
                 debug!(
-                    "peer_id: {} processing on_protocol_event TrbpEvents::Echo peers {:?} cert id: {}",
+                    "peer_id: {} processing on_protocol_event TceEvents::Echo peers {:?} cert id: {}",
                     &my_peer_id, &peers, &cert.cert_id
                 );
                 // Send echo message
-                let data: Vec<u8> = NetworkMessage::from(TrbpCommands::OnEcho {
+                let data: Vec<u8> = NetworkMessage::from(TceCommands::OnEcho {
                     from_peer: self.network_client.local_peer_id,
                     cert,
                 })
@@ -307,13 +307,13 @@ impl AppContext {
                 });
             }
 
-            TrbpEvents::Ready { peers, cert } => {
+            TceEvents::Ready { peers, cert } => {
                 let my_peer_id = self.network_client.local_peer_id;
                 debug!(
-                    "peer_id: {} processing TrbpEvents::Ready peers {:?} cert id: {}",
+                    "peer_id: {} processing TceEvents::Ready peers {:?} cert id: {}",
                     &my_peer_id, &peers, &cert.cert_id
                 );
-                let data: Vec<u8> = NetworkMessage::from(TrbpCommands::OnReady {
+                let data: Vec<u8> = NetworkMessage::from(TceCommands::OnReady {
                     from_peer: self.network_client.local_peer_id,
                     cert,
                 })
@@ -360,12 +360,12 @@ impl AppContext {
                         info!("peer_id: {} received TransmissionOnReq {:?}", &my_peer, cmd);
                         match cmd {
                             // We received echo subscription request from external peer
-                            TrbpCommands::OnEchoSubscribeReq { from_peer } => {
+                            TceCommands::OnEchoSubscribeReq { from_peer } => {
                                 debug!(
-                                    "on_net_event peer {} TrbpCommands::OnEchoSubscribeReq from_peer: {}",
+                                    "on_net_event peer {} TceCommands::OnEchoSubscribeReq from_peer: {}",
                                     &self.network_client.local_peer_id, &from_peer
                                 );
-                                self.trbp_cli
+                                self.tce_cli
                                     .add_confirmed_peer_to_sample(
                                         SampleType::EchoSubscriber,
                                         from_peer,
@@ -374,7 +374,7 @@ impl AppContext {
 
                                 // We are responding that we are accepting echo subscriber
                                 spawn(self.network_client.respond_to_request(
-                                    NetworkMessage::from(TrbpCommands::OnEchoSubscribeOk {
+                                    NetworkMessage::from(TceCommands::OnEchoSubscribeOk {
                                         from_peer: my_peer,
                                     }),
                                     channel,
@@ -382,12 +382,12 @@ impl AppContext {
                             }
 
                             // We received ready subscription request from external peer
-                            TrbpCommands::OnReadySubscribeReq { from_peer } => {
+                            TceCommands::OnReadySubscribeReq { from_peer } => {
                                 debug!(
-                                    "peer_id {} on_net_event TrbpCommands::OnReadySubscribeReq from_peer: {}",
+                                    "peer_id {} on_net_event TceCommands::OnReadySubscribeReq from_peer: {}",
                                     &self.network_client.local_peer_id, &from_peer
                                 );
-                                self.trbp_cli
+                                self.tce_cli
                                     .add_confirmed_peer_to_sample(
                                         SampleType::ReadySubscriber,
                                         from_peer,
@@ -395,16 +395,16 @@ impl AppContext {
                                     .await;
                                 // We are responding that we are accepting ready subscriber
                                 spawn(self.network_client.respond_to_request(
-                                    NetworkMessage::from(TrbpCommands::OnReadySubscribeOk {
+                                    NetworkMessage::from(TceCommands::OnReadySubscribeOk {
                                         from_peer: my_peer,
                                     }),
                                     channel,
                                 ));
                             }
 
-                            TrbpCommands::OnGossip { cert, digest: _ } => {
+                            TceCommands::OnGossip { cert, digest: _ } => {
                                 debug!(
-                                    "peer_id {} on_net_event TrbpCommands::OnGossip cert id: {}",
+                                    "peer_id {} on_net_event TceCommands::OnGossip cert id: {}",
                                     &self.network_client.local_peer_id, &cert.cert_id
                                 );
                                 _ = self
@@ -412,53 +412,53 @@ impl AppContext {
                                     .add_pending_certificate(cert.clone())
                                     .await;
 
-                                let command_sender = self.trbp_cli.get_double_echo_channel();
+                                let command_sender = self.tce_cli.get_double_echo_channel();
                                 command_sender
                                     .send(DoubleEchoCommand::Broadcast { cert })
                                     .await
                                     .expect("Gossip the certificate");
 
                                 spawn(self.network_client.respond_to_request(
-                                    NetworkMessage::from(TrbpCommands::OnDoubleEchoOk {
+                                    NetworkMessage::from(TceCommands::OnDoubleEchoOk {
                                         from_peer: my_peer,
                                     }),
                                     channel,
                                 ));
                             }
-                            TrbpCommands::OnEcho { from_peer, cert } => {
+                            TceCommands::OnEcho { from_peer, cert } => {
                                 // We have received Echo echo message, we are responding with OnDoubleEchoOk
                                 debug!(
-                                    "peer_id: {} on_net_event TrbpCommands::OnEcho from peer {} cert id: {}",
+                                    "peer_id: {} on_net_event TceCommands::OnEcho from peer {} cert id: {}",
                                     &self.network_client.local_peer_id, &from_peer, &cert.cert_id
                                 );
                                 // We have received echo message from external peer
-                                let command_sender = self.trbp_cli.get_double_echo_channel();
+                                let command_sender = self.tce_cli.get_double_echo_channel();
                                 command_sender
                                     .send(DoubleEchoCommand::Echo { from_peer, cert })
                                     .await
                                     .expect("Receive the Echo");
                                 //We are responding with OnDoubleEchoOk to remote peer
                                 spawn(self.network_client.respond_to_request(
-                                    NetworkMessage::from(TrbpCommands::OnDoubleEchoOk {
+                                    NetworkMessage::from(TceCommands::OnDoubleEchoOk {
                                         from_peer: my_peer,
                                     }),
                                     channel,
                                 ));
                             }
-                            TrbpCommands::OnReady { from_peer, cert } => {
+                            TceCommands::OnReady { from_peer, cert } => {
                                 // We have received Ready echo message, we are responding with OnDoubleEchoOk
                                 debug!(
-                                    "peer_id {} on_net_event TrbpCommands::OnReady from peer {} cert id: {}",
+                                    "peer_id {} on_net_event TceCommands::OnReady from peer {} cert id: {}",
                                     &self.network_client.local_peer_id, &from_peer, &cert.cert_id
                                 );
-                                let command_sender = self.trbp_cli.get_double_echo_channel();
+                                let command_sender = self.tce_cli.get_double_echo_channel();
                                 command_sender
                                     .send(DoubleEchoCommand::Ready { from_peer, cert })
                                     .await
                                     .expect("Receive the Ready");
 
                                 spawn(self.network_client.respond_to_request(
-                                    NetworkMessage::from(TrbpCommands::OnDoubleEchoOk {
+                                    NetworkMessage::from(TceCommands::OnDoubleEchoOk {
                                         from_peer: my_peer,
                                     }),
                                     channel,
@@ -480,7 +480,7 @@ impl AppContext {
 /// [Response] is used to allow reporting of logic errors to the caller.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 enum NetworkMessage {
-    Cmd(TrbpCommands),
+    Cmd(TceCommands),
 }
 
 // deserializer
@@ -498,8 +498,8 @@ impl From<NetworkMessage> for Vec<u8> {
 }
 
 // transformer of protocol commands into network commands
-impl From<TrbpCommands> for NetworkMessage {
-    fn from(cmd: TrbpCommands) -> Self {
+impl From<TceCommands> for NetworkMessage {
+    fn from(cmd: TceCommands) -> Self {
         Self::Cmd(cmd)
     }
 }

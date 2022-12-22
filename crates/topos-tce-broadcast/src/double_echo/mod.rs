@@ -1,13 +1,13 @@
 use crate::sampler::SubscribersView;
 use crate::{
-    sampler::SampleType, trb_store::TrbStore, DoubleEchoCommand, SubscribersUpdate,
+    sampler::SampleType, tce_store::TceStore, DoubleEchoCommand, SubscribersUpdate,
     SubscriptionsView,
 };
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     time,
 };
-use tce_transport::{ReliableBroadcastParams, TrbpEvents};
+use tce_transport::{ReliableBroadcastParams, TceEvents};
 use tokio::sync::{broadcast, mpsc};
 use topos_core::uci::{Certificate, CertificateId, DigestCompressed};
 use topos_p2p::PeerId;
@@ -26,9 +26,9 @@ pub struct DoubleEcho {
     command_receiver: mpsc::Receiver<DoubleEchoCommand>,
     subscriptions_view_receiver: mpsc::Receiver<SubscriptionsView>,
     subscribers_update_receiver: mpsc::Receiver<SubscribersUpdate>,
-    event_sender: broadcast::Sender<TrbpEvents>,
+    event_sender: broadcast::Sender<TceEvents>,
 
-    store: Box<dyn TrbStore + Send>,
+    store: Box<dyn TceStore + Send>,
 
     cert_candidate: HashMap<Certificate, DeliveryState>,
     pending_delivery: HashSet<Certificate>,
@@ -48,8 +48,8 @@ impl DoubleEcho {
         command_receiver: mpsc::Receiver<DoubleEchoCommand>,
         subscriptions_view_receiver: mpsc::Receiver<SubscriptionsView>,
         subscribers_update_receiver: mpsc::Receiver<SubscribersUpdate>,
-        event_sender: broadcast::Sender<TrbpEvents>,
-        store: Box<dyn TrbStore + Send>,
+        event_sender: broadcast::Sender<TceEvents>,
+        store: Box<dyn TceStore + Send>,
     ) -> Self {
         Self {
             my_peer_id,
@@ -204,7 +204,7 @@ impl DoubleEcho {
     }
 
     /// Called to process potentially new certificate:
-    /// - either submitted from API ( [tce_transport::TrbpCommands::Broadcast] command)
+    /// - either submitted from API ( [tce_transport::TceCommands::Broadcast] command)
     /// - or received through the gossip (first step of protocol exchange)
     fn dispatch(&mut self, cert: Certificate, digest: DigestCompressed) {
         if self.cert_pre_delivery_check(&cert).is_err() {
@@ -226,7 +226,7 @@ impl DoubleEcho {
             "peer_id: {} dispatching gossip event cert_id: {} to gossip peers {:?}",
             &self.my_peer_id, cert.cert_id, &gossip_peers
         );
-        let _ = self.event_sender.send(TrbpEvents::Gossip {
+        let _ = self.event_sender.send(TceEvents::Gossip {
             peers: gossip_peers, // considered as the G-set for erdos-renyi
             cert: cert.clone(),
             digest: digest.clone(),
@@ -260,7 +260,7 @@ impl DoubleEcho {
             }
             None => {
                 error!("[{:?}] Ill-formed samples", self.my_peer_id);
-                let _ = self.event_sender.send(TrbpEvents::Die);
+                let _ = self.event_sender.send(TceEvents::Die);
                 return;
             }
         }
@@ -277,7 +277,7 @@ impl DoubleEcho {
             return;
         }
 
-        let _ = self.event_sender.send(TrbpEvents::Echo {
+        let _ = self.event_sender.send(TceEvents::Echo {
             peers: echo_peers,
             cert,
         });
@@ -299,7 +299,7 @@ impl DoubleEcho {
 
     fn state_change_follow_up(&mut self) {
         let mut state_modified = false;
-        let mut gen_evts = Vec::<TrbpEvents>::new();
+        let mut gen_evts = Vec::<TceEvents>::new();
         // For all current Cert on processing
         for (cert, state_to_delivery) in &mut self.cert_candidate {
             if !state_to_delivery.subscriptions.ready.is_empty()
@@ -309,7 +309,7 @@ impl DoubleEcho {
                 // Fanout the Ready messages to my subscribers
                 let readies = self.subscribers.ready.iter().cloned().collect::<Vec<_>>();
                 if !readies.is_empty() {
-                    gen_evts.push(TrbpEvents::Ready {
+                    gen_evts.push(TceEvents::Ready {
                         peers: readies.clone(),
                         cert: cert.clone(),
                     });
@@ -356,7 +356,7 @@ impl DoubleEcho {
                         &cert.cert_id, self.my_peer_id, d
                     );
 
-                    _ = self.event_sender.send(TrbpEvents::CertificateDelivered {
+                    _ = self.event_sender.send(TceEvents::CertificateDelivered {
                         certificate: cert.clone(),
                     });
                 }
@@ -433,7 +433,7 @@ mod tests {
     use std::{iter::FromIterator, usize};
 
     use super::*;
-    use crate::mem_store::TrbMemStore;
+    use crate::mem_store::TceMemStore;
     // use rand::{distributions::Uniform, Rng};
     use rand::seq::IteratorRandom;
     use tokio::{spawn, sync::broadcast::error::TryRecvError};
@@ -500,7 +500,7 @@ mod tests {
             subscriptions_view_receiver,
             subscribers_update_receiver,
             event_sender,
-            Box::new(TrbMemStore::default()),
+            Box::new(TceMemStore::default()),
         );
 
         assert!(double_echo.subscriptions.is_none());
@@ -514,12 +514,12 @@ mod tests {
 
         assert!(matches!(
             event_receiver.try_recv(),
-            Ok(TrbpEvents::Gossip { peers, .. }) if peers.len() == double_echo.gossip_peers().len()
+            Ok(TceEvents::Gossip { peers, .. }) if peers.len() == double_echo.gossip_peers().len()
         ));
 
         assert!(matches!(
             event_receiver.try_recv(),
-            Ok(TrbpEvents::Echo { peers, .. }) if peers.len() == subscriber_sample_size));
+            Ok(TceEvents::Echo { peers, .. }) if peers.len() == subscriber_sample_size));
 
         assert!(matches!(
             event_receiver.try_recv(),
@@ -545,7 +545,7 @@ mod tests {
 
         assert!(matches!(
             event_receiver.try_recv(),
-            Ok(TrbpEvents::Ready { peers, .. }) if peers.len() == subscriber_sample_size
+            Ok(TceEvents::Ready { peers, .. }) if peers.len() == subscriber_sample_size
         ));
 
         // Ready phase
@@ -567,7 +567,7 @@ mod tests {
 
         assert!(matches!(
             event_receiver.try_recv(),
-            Ok(TrbpEvents::CertificateDelivered { certificate }) if certificate == le_cert
+            Ok(TceEvents::CertificateDelivered { certificate }) if certificate == le_cert
         ));
     }
 
@@ -613,7 +613,7 @@ mod tests {
             subscriptions_view_receiver,
             subscribers_update_receiver,
             event_sender,
-            Box::new(TrbMemStore::default()),
+            Box::new(TceMemStore::default()),
         );
 
         spawn(double_echo.run());
@@ -652,7 +652,7 @@ mod tests {
         let assertion = async {
             loop {
                 while let Ok(event) = event_receiver.try_recv() {
-                    if let TrbpEvents::Gossip { peers, cert, .. } = event {
+                    if let TceEvents::Gossip { peers, cert, .. } = event {
                         received_gossip_commands.push((peers.into_iter().collect(), cert));
                     }
                 }

@@ -9,7 +9,7 @@ use tokio_stream::StreamExt;
 use topos_p2p::PeerId;
 use tracing::{debug, error, info, trace, warn};
 
-use tce_transport::{ReliableBroadcastParams, TrbpEvents};
+use tce_transport::{ReliableBroadcastParams, TceEvents};
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
@@ -262,16 +262,15 @@ async fn run_tce_network(simu_config: SimulationConfig) -> Result<(), ()> {
         .collect();
 
     // channel for combined event's from all the instances
-    let (tx_combined_events, rx_combined_events) =
-        mpsc::unbounded_channel::<(PeerId, TrbpEvents)>();
+    let (tx_combined_events, rx_combined_events) = mpsc::unbounded_channel::<(PeerId, TceEvents)>();
 
-    let trbp_peers = launch_broadcast_protocol_instances(
+    let tce_peers = launch_broadcast_protocol_instances(
         all_peer_ids.clone(),
         tx_combined_events,
         all_subnets.clone(),
         simu_config.params.clone(),
     );
-    let (tx_exit, main_jh) = launch_simulation_main_loop(trbp_peers.clone(), rx_combined_events);
+    let (tx_exit, main_jh) = launch_simulation_main_loop(tce_peers.clone(), rx_combined_events);
     let cert_list = generate_cert(
         &all_subnets,
         simu_config.input.nb_certificates,
@@ -300,10 +299,10 @@ async fn run_tce_network(simu_config: SimulationConfig) -> Result<(), ()> {
     // and check for the certificate propagation
     // have to give the nodes some time to arrange with peers
     time::sleep(Duration::from_secs(30)).await;
-    submit_test_cert(all_cert.clone(), trbp_peers.clone(), peer_1);
+    submit_test_cert(all_cert.clone(), tce_peers.clone(), peer_1);
 
     watch_cert_delivered(
-        trbp_peers.clone(),
+        tce_peers.clone(),
         node_history,
         tx_exit.clone(),
         all_peer_ids.clone(),
@@ -376,23 +375,23 @@ type SimulationResponse = (
 /// * join handle of the main loop (to await upon)
 fn launch_simulation_main_loop(
     peers_container: PeersContainer,
-    mut rx_combined_events: mpsc::UnboundedReceiver<(PeerId, TrbpEvents)>,
+    mut rx_combined_events: mpsc::UnboundedReceiver<(PeerId, TceEvents)>,
 ) -> SimulationResponse {
     // 'exit' command channel & max test duration
     // do tx_exit.send(()) when the condition is met
     let (tx_exit, mut rx_exit) = mpsc::unbounded_channel::<Result<(), ()>>();
     let max_test_duration = time::sleep(MAX_TEST_DURATION);
-    let trbp_peers_2 = peers_container;
+    let tce_peers_2 = peers_container;
     let main_jh = tokio::spawn(async move {
         tokio::pin!(max_test_duration);
-        let peers = trbp_peers_2;
+        let peers = tce_peers_2;
         loop {
             tokio::select! {
                 val = time::timeout(MAX_STALL_DURATION, rx_combined_events.recv()) => {
                     match val {
                         Ok(Some((from_peer, evt))) => {
                             match evt {
-                                TrbpEvents::Die => {
+                                TceEvents::Die => {
                                     error!("The peer {:?} died", from_peer);
                                     return Err(());
                                 },
@@ -426,16 +425,16 @@ fn launch_simulation_main_loop(
 /// Initialize protocol instances and build-in them into orchestrated event handling
 fn launch_broadcast_protocol_instances(
     peer_ids: Vec<PeerId>,
-    tx_combined_events: mpsc::UnboundedSender<(PeerId, TrbpEvents)>,
+    tx_combined_events: mpsc::UnboundedSender<(PeerId, TceEvents)>,
     _all_subnets: Vec<SubnetId>,
-    global_trb_params: ReliableBroadcastParams,
+    global_tce_params: ReliableBroadcastParams,
 ) -> PeersContainer {
     let mut peers_container = HashMap::<PeerId, ReliableBroadcastClient>::new();
 
     // create instances
     for peer in peer_ids {
         let (client, mut event_stream) = ReliableBroadcastClient::new(ReliableBroadcastConfig {
-            trbp_params: global_trb_params.clone(),
+            tce_params: global_tce_params.clone(),
             my_peer_id: peer.to_string(),
         });
 
@@ -476,15 +475,15 @@ fn network_delay() -> time::Sleep {
 /// and similar real-life situations.
 pub async fn handle_peer_event(
     from_peer: PeerId,
-    evt: TrbpEvents,
+    evt: TceEvents,
     peers_container: PeersContainer,
 ) -> Result<(), Errors> {
     if NETWORK_DELAY_SIMULATION {
         network_delay().await;
     }
     match evt.to_owned() {
-        TrbpEvents::NeedPeers => {}
-        TrbpEvents::Broadcast { cert } => {
+        TceEvents::NeedPeers => {}
+        TceEvents::Broadcast { cert } => {
             let mb_cli = peers_container.get(&from_peer);
             if let Some(w_cli) = mb_cli {
                 w_cli
@@ -494,7 +493,7 @@ pub async fn handle_peer_event(
             }
         }
 
-        TrbpEvents::Gossip {
+        TceEvents::Gossip {
             peers,
             cert,
             digest,
@@ -512,7 +511,7 @@ pub async fn handle_peer_event(
                 }
             }
         }
-        TrbpEvents::Echo { peers, cert } => {
+        TceEvents::Echo { peers, cert } => {
             for to_peer in peers {
                 let mb_cli = peers_container.get(&to_peer);
                 if let Some(w_cli) = mb_cli {
@@ -526,7 +525,7 @@ pub async fn handle_peer_event(
                 }
             }
         }
-        TrbpEvents::Ready { peers, cert } => {
+        TceEvents::Ready { peers, cert } => {
             for to_peer in peers {
                 let mb_cli = peers_container.get(&to_peer);
                 if let Some(w_cli) = mb_cli {

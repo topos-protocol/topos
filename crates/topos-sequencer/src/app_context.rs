@@ -118,7 +118,7 @@ impl AppContext {
 /// [Response] is used to allow reporting of logic errors to the caller.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 enum NetworkMessage {
-    Cmd(TrbpCommands),
+    Cmd(TceCommands),
     Response(Result<(), String>),
 }
 
@@ -137,8 +137,8 @@ impl From<NetworkMessage> for Vec<u8> {
 }
 
 // transformer of protocol commands into network commands
-impl From<TrbpCommands> for NetworkMessage {
-    fn from(cmd: TrbpCommands) -> Self {
+impl From<TceCommands> for NetworkMessage {
+    fn from(cmd: TceCommands) -> Self {
         Self::Cmd(cmd)
     }
 }

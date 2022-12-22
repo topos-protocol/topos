@@ -57,9 +57,9 @@ pub struct Run {
     #[clap(long, env = "TCE_API_ADDR", default_value = "[::1]:1340")]
     pub api_addr: SocketAddr,
 
-    /// TRBP parameters
+    /// Broadcast parameters
     #[command(flatten)]
-    pub trbp_params: ReliableBroadcastParams,
+    pub tce_params: ReliableBroadcastParams,
 }
 
 impl Run {

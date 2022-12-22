@@ -5,9 +5,9 @@ use serde::{Deserialize, Serialize};
 use topos_core::uci::{Certificate, DigestCompressed};
 use topos_p2p::PeerId;
 
-/// Protocol parameters of the TRB
+/// Protocol parameters of the TCE
 #[derive(Args, Default, Clone, Debug)]
-#[command(name = "Protocol parameters of the TRB")]
+#[command(name = "Protocol parameters of the TCE")]
 pub struct ReliableBroadcastParams {
     /// Echo threshold
     #[arg(long, default_value_t = 1, env = "TCE_ECHO_THRESHOLD")]
@@ -31,7 +31,7 @@ pub struct ReliableBroadcastParams {
 
 /// Protocol commands
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum TrbpCommands {
+pub enum TceCommands {
     /// Initialize the instance, signals the environment is ready
     StartUp,
     /// Shuts down the instance
@@ -74,7 +74,7 @@ pub enum TrbpCommands {
 
 /// Protocol events
 #[derive(Clone, Debug)]
-pub enum TrbpEvents {
+pub enum TceEvents {
     /// Emitted to get peers list, expected that Commands.ApplyPeers will come as reaction
     NeedPeers,
     /// (pb.Broadcast)
