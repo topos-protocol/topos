@@ -193,7 +193,7 @@ impl DoubleEcho {
         );
         let digest = self
             .store
-            .flush_digest_view(&cert.initial_subnet_id)
+            .flush_digest_view(&cert.source_subnet_id)
             .unwrap_or_default();
 
         self.dispatch(cert, digest);

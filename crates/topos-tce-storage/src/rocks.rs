@@ -99,7 +99,7 @@ impl Storage for RocksDBStorage {
     ) -> Result<(), InternalStorageError> {
         let mut batch = self.certificates.batch();
 
-        let source_subnet_id: SubnetId = certificate.initial_subnet_id.as_str().try_into()?;
+        let source_subnet_id: SubnetId = certificate.source_subnet_id.as_str().try_into()?;
 
         // Inserting the certificate data into the CERTIFICATES cf
         batch = batch.insert_batch(&self.certificates, [(&certificate.cert_id, certificate)])?;
@@ -128,7 +128,7 @@ impl Storage for RocksDBStorage {
             self.source_streams.prefix_iter(&source_subnet_id)?.last()
         {
             position.increment().map_err(|error| {
-                InternalStorageError::PositionError(error, certificate.initial_subnet_id.clone())
+                InternalStorageError::PositionError(error, certificate.source_subnet_id.clone())
             })?
         } else {
             // TODO: Better error to define that we were expecting a previous defined position
@@ -166,7 +166,7 @@ impl Storage for RocksDBStorage {
                         position.increment().map_err(|error| {
                             InternalStorageError::PositionError(
                                 error,
-                                certificate.initial_subnet_id.clone(),
+                                certificate.source_subnet_id.clone(),
                             )
                         })?,
                     ),

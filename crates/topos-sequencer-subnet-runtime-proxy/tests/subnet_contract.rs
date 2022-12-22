@@ -352,7 +352,7 @@ async fn test_subnet_mint_call(
 
     // TODO: Adjust this mock certificate when ToposCoreContract gets stable enough
     let mock_cert = Certificate {
-        initial_subnet_id: "1".to_string(),
+        source_subnet_id: "1".to_string(),
         cert_id: "9735390752919344387".to_string(),
         prev_cert_id: "3389456612167443923".to_string(),
         calls: vec![topos_core::uci::CrossChainTransaction {

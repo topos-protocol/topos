@@ -82,7 +82,7 @@ impl From<topos_uci::CrossChainTransaction> for proto_v1::CrossChainTransaction 
 impl From<proto_v1::Certificate> for topos_uci::Certificate {
     fn from(certificate: proto_v1::Certificate) -> Self {
         topos_uci::Certificate {
-            initial_subnet_id: certificate.initial_subnet_id,
+            source_subnet_id: certificate.source_subnet_id,
             cert_id: certificate.cert_id,
             prev_cert_id: certificate.prev_cert_id,
             calls: certificate
@@ -97,7 +97,7 @@ impl From<proto_v1::Certificate> for topos_uci::Certificate {
 impl From<topos_uci::Certificate> for proto_v1::Certificate {
     fn from(certificate: topos_uci::Certificate) -> Self {
         proto_v1::Certificate {
-            initial_subnet_id: certificate.initial_subnet_id,
+            source_subnet_id: certificate.source_subnet_id,
             cert_id: certificate.cert_id,
             prev_cert_id: certificate.prev_cert_id,
             calls: certificate

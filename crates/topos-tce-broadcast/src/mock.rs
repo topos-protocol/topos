@@ -336,7 +336,7 @@ fn watch_cert_delivered(
                     for cert in &certs {
                         if let Ok(delivered) = w_cli
                             .delivered_certs_ids(
-                                cert.initial_subnet_id.clone(),
+                                cert.source_subnet_id.clone(),
                                 cert.cert_id.clone(),
                             )
                             .await

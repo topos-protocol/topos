@@ -222,8 +222,8 @@ async fn cert_delivery() {
                 client_delivered_certificates.recv().await
             {
                 debug!(
-                    "Delivered certificate on peer_Id: {} cert id: {} from initial subnet id: {} to target subnet id {}",
-                    &peer_id, cert.cert_id, cert.initial_subnet_id, receiving_subnet_id
+                    "Delivered certificate on peer_Id: {} cert id: {} from source subnet id: {} to target subnet id {}",
+                    &peer_id, cert.cert_id, cert.source_subnet_id, receiving_subnet_id
                 );
                 // Send certificates from every peer to one delivery_rx receiver
                 delivery_tx
