@@ -407,6 +407,11 @@ impl AppContext {
                                     "peer_id {} on_net_event TrbpCommands::OnGossip cert id: {}",
                                     &self.network_client.local_peer_id, &cert.cert_id
                                 );
+                                _ = self
+                                    .pending_storage
+                                    .add_pending_certificate(cert.clone())
+                                    .await;
+
                                 let command_sender = self.trbp_cli.get_double_echo_channel();
                                 command_sender
                                     .send(DoubleEchoCommand::Broadcast { cert })
