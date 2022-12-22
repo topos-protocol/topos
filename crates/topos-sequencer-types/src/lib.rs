@@ -14,7 +14,7 @@ pub type Hash = String;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SubnetEvent {
     SendToken {
-        terminal_subnet_id: String,
+        target_subnet_id: String,
         asset_id: ethereum_types::U256,
         sender_addr: String,
         recipient_addr: String,

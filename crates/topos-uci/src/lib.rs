@@ -116,7 +116,7 @@ pub enum CrossChainTransactionData {
 /// Cross chain txn
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct CrossChainTransaction {
-    pub terminal_subnet_id: SubnetId,
+    pub target_subnet_id: SubnetId,
     pub sender_addr: Address,
     pub recipient_addr: Address,
     pub transaction_data: CrossChainTransactionData,

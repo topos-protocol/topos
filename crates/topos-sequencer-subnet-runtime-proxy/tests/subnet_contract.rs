@@ -356,7 +356,7 @@ async fn test_subnet_mint_call(
         cert_id: "9735390752919344387".to_string(),
         prev_cert_id: "3389456612167443923".to_string(),
         calls: vec![topos_core::uci::CrossChainTransaction {
-            terminal_subnet_id: SUBNET_ID.to_string(),
+            target_subnet_id: SUBNET_ID.to_string(),
             sender_addr: "0x000000000000000000000000000000000000FFFF".to_string(),
             recipient_addr: subnet_smart_contract_address.clone(),
             transaction_data: topos_core::uci::CrossChainTransactionData::AssetTransfer {

@@ -60,7 +60,7 @@ async fn cert_delivery() {
         for cert in certificates {
             for cross_chain_tx in &cert.calls {
                 expected_certificates
-                    .entry(cross_chain_tx.terminal_subnet_id.clone())
+                    .entry(cross_chain_tx.target_subnet_id.clone())
                     .or_insert(HashSet::new())
                     .insert(cert.clone());
             }

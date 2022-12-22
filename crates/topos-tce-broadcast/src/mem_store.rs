@@ -46,10 +46,10 @@ impl TceStore for TceMemStore {
         // Add the entry in the history <SubnetId, CertId>
         let _ = self.add_cert_in_hist(&cert.source_subnet_id, cert);
 
-        // Add the cert into the history of each Terminal
+        // Add the cert into the history of each Target
         for call in &cert.calls {
-            self.add_cert_in_hist(&call.terminal_subnet_id, cert);
-            self.add_cert_in_digest(&call.terminal_subnet_id, &cert.cert_id);
+            self.add_cert_in_hist(&call.target_subnet_id, cert);
+            self.add_cert_in_digest(&call.target_subnet_id, &cert.cert_id);
         }
 
         Ok(())

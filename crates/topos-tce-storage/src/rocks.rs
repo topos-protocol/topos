@@ -154,7 +154,7 @@ impl Storage for RocksDBStorage {
             let target = if let Some((TargetStreamPosition(target, source, position), _)) = self
                 .target_streams
                 .prefix_iter(&TargetStreamPrefix(
-                    transaction.terminal_subnet_id.as_str().try_into()?,
+                    transaction.target_subnet_id.as_str().try_into()?,
                     source_subnet_id,
                 ))?
                 .last()
@@ -175,7 +175,7 @@ impl Storage for RocksDBStorage {
             } else {
                 (
                     TargetStreamPosition(
-                        transaction.terminal_subnet_id.as_str().try_into()?,
+                        transaction.target_subnet_id.as_str().try_into()?,
                         source_subnet_id,
                         Position::ZERO,
                     ),

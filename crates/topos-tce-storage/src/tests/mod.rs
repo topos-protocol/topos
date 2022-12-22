@@ -35,7 +35,7 @@ async fn can_persist_a_delivered_certificate(storage: RocksDBStorage) {
         vec![CrossChainTransaction {
             recipient_addr: "".into(),
             sender_addr: "source_subnet_a".into(),
-            terminal_subnet_id: TARGET_SUBNET_ID_A.to_string(),
+            target_subnet_id: TARGET_SUBNET_ID_A.to_string(),
             transaction_data: topos_core::uci::CrossChainTransactionData::AssetTransfer {
                 asset_id: "asset_id".into(),
                 amount: Amount::from(1),
@@ -86,7 +86,7 @@ async fn delivered_certificate_are_added_to_target_stream(storage: RocksDBStorag
             CrossChainTransaction {
                 recipient_addr: "".into(),
                 sender_addr: "source_subnet_a".into(),
-                terminal_subnet_id: TARGET_SUBNET_ID_A.to_string(),
+                target_subnet_id: TARGET_SUBNET_ID_A.to_string(),
                 transaction_data: topos_core::uci::CrossChainTransactionData::AssetTransfer {
                     asset_id: "asset_id".into(),
                     amount: Amount::from(1),
@@ -95,7 +95,7 @@ async fn delivered_certificate_are_added_to_target_stream(storage: RocksDBStorag
             CrossChainTransaction {
                 recipient_addr: "".into(),
                 sender_addr: "source_subnet_a".into(),
-                terminal_subnet_id: TARGET_SUBNET_ID_B.to_string(),
+                target_subnet_id: TARGET_SUBNET_ID_B.to_string(),
                 transaction_data: topos_core::uci::CrossChainTransactionData::AssetTransfer {
                     asset_id: "asset_id".into(),
                     amount: Amount::from(1),
@@ -145,7 +145,7 @@ async fn pending_certificate_are_removed_during_persist_action(storage: RocksDBS
         vec![CrossChainTransaction {
             recipient_addr: "".into(),
             sender_addr: "source_subnet_a".into(),
-            terminal_subnet_id: TARGET_SUBNET_ID_A.to_string(),
+            target_subnet_id: TARGET_SUBNET_ID_A.to_string(),
             transaction_data: topos_core::uci::CrossChainTransactionData::AssetTransfer {
                 asset_id: "asset_id".into(),
                 amount: Amount::from(1),
@@ -176,7 +176,7 @@ async fn fetch_certificates_for_subnets(storage: RocksDBStorage) {
         vec![CrossChainTransaction {
             recipient_addr: "".into(),
             sender_addr: "source_subnet_a".into(),
-            terminal_subnet_id: TARGET_SUBNET_ID_A.to_string(),
+            target_subnet_id: TARGET_SUBNET_ID_A.to_string(),
             transaction_data: topos_core::uci::CrossChainTransactionData::AssetTransfer {
                 asset_id: "asset_id".into(),
                 amount: Amount::from(1),
@@ -245,7 +245,7 @@ async fn pending_certificate_can_be_removed(storage: RocksDBStorage) {
         vec![CrossChainTransaction {
             recipient_addr: "".into(),
             sender_addr: "source_subnet_a".into(),
-            terminal_subnet_id: TARGET_SUBNET_ID_A.to_string(),
+            target_subnet_id: TARGET_SUBNET_ID_A.to_string(),
             transaction_data: topos_core::uci::CrossChainTransactionData::AssetTransfer {
                 asset_id: "asset_id".into(),
                 amount: Amount::from(1),
@@ -312,7 +312,7 @@ fn create_certificate_chain(
             vec![CrossChainTransaction {
                 recipient_addr: target_subnet.clone(),
                 sender_addr: source_subnet.clone(),
-                terminal_subnet_id: target_subnet.clone(),
+                target_subnet_id: target_subnet.clone(),
                 transaction_data: topos_core::uci::CrossChainTransactionData::AssetTransfer {
                     asset_id: "asset_id".into(),
                     amount: Amount::from(1),

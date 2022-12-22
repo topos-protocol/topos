@@ -194,7 +194,7 @@ impl ReliableBroadcastClient {
         Ok(vec![])
     }
 
-    /// delivered certificates for given terminal chain after the given certificate
+    /// delivered certificates for given target chain after the given certificate
     pub fn delivered_certs(
         &self,
         subnet_id: SubnetId,
