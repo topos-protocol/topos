@@ -644,6 +644,7 @@ pub struct CheckpointRequest {
 }
 /// Nested message and enum types in `CheckpointRequest`.
 pub mod checkpoint_request {
+    /// Heads defines a request for every head positions for the listed subnets
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct Heads {
         #[prost(message, repeated, tag = "1")]
@@ -651,6 +652,7 @@ pub mod checkpoint_request {
             super::super::super::shared::v1::SubnetId,
         >,
     }
+    /// SamePosition defines a request for the same position for the listed subnets
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct SamePosition {
         #[prost(message, repeated, tag = "1")]
@@ -660,6 +662,7 @@ pub mod checkpoint_request {
         #[prost(uint64, tag = "2")]
         pub position: u64,
     }
+    /// Zero defines a request for the zero position for the listed subnets
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct Zero {
         #[prost(message, repeated, tag = "1")]
@@ -670,10 +673,13 @@ pub mod checkpoint_request {
     /// The type of request
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum RequestType {
+        /// This type of request will ask for heads of subnets
         #[prost(message, tag = "2")]
         Heads(Heads),
+        /// This type of request will ask for the same position for every subnets
         #[prost(message, tag = "3")]
         SamePosition(SamePosition),
+        /// This type of request will ask for the zero position for every subnets
         #[prost(message, tag = "4")]
         Zero(Zero),
     }
@@ -683,9 +689,13 @@ pub struct CheckpointResponse {
     /// If the response is directly linked to a request this ID allow one to track it
     #[prost(message, optional, tag = "1")]
     pub request_id: ::core::option::Option<super::super::shared::v1::Uuid>,
+    /// Contains the positions returned by the peer, this can be empty if the peer
+    /// doesn't have any position regarding the subnets list
     #[prost(message, repeated, tag = "2")]
     pub positions: ::prost::alloc::vec::Vec<SourceStreamPosition>,
 }
+/// Type that represents a SourceStreamPosition, or position, it represents a
+/// particular position in the stream of a subnet in a peer context.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SourceStreamPosition {
     #[prost(message, optional, tag = "1")]
