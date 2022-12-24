@@ -3,8 +3,8 @@
 <br />
 <div align="right">
 
-  <img src="./.github/assets/logo.png#gh-light-mode-only" alt="Logo" width="250">
-  <img src="./.github/assets/logo_dark.png#gh-dark-mode-only" alt="Logo" width="250">
+  <img src="./.github/assets/topos_logo.png#gh-light-mode-only" alt="Logo" width="200">
+  <img src="./.github/assets/topos_logo_dark.png#gh-dark-mode-only" alt="Logo" width="200">
 
 </div>
 
@@ -49,11 +49,11 @@ Feel free to [open an issue](https://github.com/toposware/topos/issues/new) if y
 If you have any questions, do not hesitate to reach us on [Discord](https://discord.gg/7HZ8F8ykBT)!
 
 ## Resources
-
-- [docs.toposware.com](https://docs.toposware.com/)
-- [toposware.medium.com](https://toposware.medium.com/)
-- [Topos: A Secure, Trustless, and Decentralized
-Interoperability Protocol](https://arxiv.org/pdf/2206.03481.pdf)
+- Website: https://toposware.com
+- Technical Documentation: https://docs.toposware.com
+- Medium: https://toposware.medium.com
+- Whitepaper: [Topos: A Secure, Trustless, and Decentralized
+  Interoperability Protocol](https://arxiv.org/pdf/2206.03481.pdf)
 
 ## License
 
