@@ -442,7 +442,7 @@ fn launch_broadcast_protocol_instances(
 
         // configure combined events' listener
         let ev_tx = tx_combined_events.clone();
-        let _ = tokio::spawn(async move {
+        tokio::spawn(async move {
             loop {
                 tokio::select! {
                     Some(Ok(evt)) = event_stream.next() => {

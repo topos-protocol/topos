@@ -1,7 +1,7 @@
 use crate::Error;
-use log::debug;
 use secp256k1::{PublicKey, SecretKey};
 use topos_sequencer_types::SubnetEvent;
+use tracing::debug;
 use web3::ethabi;
 use web3::ethabi::ParamType;
 use web3::transports::WebSocket;
@@ -58,7 +58,7 @@ pub(crate) fn parse_events_from_log(
                         vec![event.inputs[0].kind.clone()].as_slice(),
                         &log.topics[1].0,
                     )?;
-                    let event_arguments = ethabi::decode(
+                    let event_arguments = web3::ethabi::decode(
                         &event
                             .inputs
                             .iter()
@@ -121,7 +121,7 @@ pub(crate) fn parse_events_from_log(
                                 message: "invalid symbol".to_string(),
                             });
                         },
-                        amount: if let ethabi::Token::Uint(value) = event_arguments[4] {
+                        amount: if let web3::ethabi::Token::Uint(value) = event_arguments[4] {
                             value
                         } else {
                             return Err(Error::InvalidArgument {
@@ -316,7 +316,7 @@ pub(crate) fn parse_events_from_log(
                                 message: "invalid symbol".to_string(),
                             });
                         },
-                        amount: if let ethabi::Token::Uint(value) = event_arguments[6] {
+                        amount: if let web3::ethabi::Token::Uint(value) = event_arguments[6] {
                             value
                         } else {
                             return Err(Error::InvalidArgument {
