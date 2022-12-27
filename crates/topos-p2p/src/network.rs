@@ -57,6 +57,7 @@ impl<'a> NetworkBuilder<'a> {
 
         self
     }
+
     pub fn store(mut self, store: MemoryStore) -> Self {
         self.store = Some(store);
 

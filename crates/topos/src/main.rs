@@ -24,8 +24,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .with(tracing_subscriber::fmt::layer().json())
             .try_init()
             .unwrap(),
-        _ => tracing
+        Ok(format) if format == "pretty" => tracing
             .with(tracing_subscriber::fmt::layer().pretty())
+            .try_init()
+            .unwrap(),
+        _ => tracing
+            .with(tracing_subscriber::fmt::layer().compact())
             .try_init()
             .unwrap(),
     }

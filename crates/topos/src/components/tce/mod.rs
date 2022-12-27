@@ -12,7 +12,7 @@ use topos_core::api::tce::v1::console_service_client::ConsoleServiceClient;
 use topos_p2p::PeerId;
 use topos_tce::{StorageConfiguration, TceConfiguration};
 use tower::Service;
-use tracing::{debug, error, trace};
+use tracing::{debug, error, info, trace};
 
 use crate::options::input_format::{InputFormat, Parser};
 
@@ -98,6 +98,8 @@ pub(crate) async fn handle_command(
                 ),
             };
 
+            print_node_info(&config);
+
             spawn(async move {
                 if let Err(error) = topos_tce::run(&config).await {
                     error!("Unable to start the TCE node due to : {error:?}");
@@ -115,4 +117,17 @@ pub(crate) async fn handle_command(
         }
         None => Ok(()),
     }
+}
+
+pub fn print_node_info(config: &TceConfiguration) {
+    // TODO: print commit hash, tag, release, year
+    info!("TCE Node");
+
+    if let StorageConfiguration::RocksDB(Some(ref path)) = config.storage {
+        info!("RocksDB at {:?}", path);
+    }
+
+    info!("gRPC at {}", config.api_addr);
+    info!("Jaeger at {}", config.jaeger_agent);
+    info!("Broadcast params {:?}", config.trbp_params);
 }
