@@ -6,11 +6,17 @@
   <img src="./.github/assets/topos_logo.png#gh-light-mode-only" alt="Logo" width="200">
   <img src="./.github/assets/topos_logo_dark.png#gh-dark-mode-only" alt="Logo" width="200">
 
-</div>
+<br />
+
+<p align="center">
+topos is the unified command line interface to the <a href="https://docs.toposware.com/general-overview">Topos</a> network.
+</p>
 
 <br />
 
-**`topos` is the unified command line interface to the [Topos](https://docs.toposware.com/general-overview) network.**
+</div>
+
+<!-- **`topos` is the unified command line interface to the [Topos](https://docs.toposware.com/general-overview) network.** -->
 
 [![codecov](https://codecov.io/gh/toposware/topos/branch/main/graph/badge.svg?token=FOH2B2GRL9&style=flat)](https://codecov.io/gh/toposware/topos)
 ![example workflow](https://github.com/toposware/topos/actions/workflows/test.yml/badge.svg)
