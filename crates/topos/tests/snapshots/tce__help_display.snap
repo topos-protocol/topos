@@ -26,7 +26,7 @@ Options:
       --local-key-pair <LOCAL_KEY_PAIR>
           Local peer key-pair (in base64 format) [env: TCE_LOCAL_KEYPAIR=]
       --db-path <DB_PATH>
-          Storage database path, if not set RAM storage is used [env: TCE_DB_PATH=]
+          Storage database path, if not set RAM storage is used [env: TCE_DB_PATH=] [default: ./default_db/]
       --jaeger-agent <JAEGER_AGENT>
           Socket of the Jaeger agent endpoint [env: TCE_JAEGER_AGENT=] [default: 127.0.0.1:6831]
       --jaeger-service-name <JAEGER_SERVICE_NAME>

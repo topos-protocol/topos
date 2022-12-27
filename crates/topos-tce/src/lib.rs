@@ -14,7 +14,6 @@ use topos_p2p::{utils::local_key_pair, Multiaddr, PeerId};
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
 use topos_tce_storage::{Connection, RocksDBStorage};
 use tracing::{instrument, Instrument, Span};
-
 use tracing_subscriber::{prelude::*, EnvFilter};
 
 #[derive(Debug)]
@@ -72,7 +71,11 @@ pub async fn run(config: &TceConfiguration) -> Result<(), Box<dyn std::error::Er
 
     let opentelemetry = tracing_opentelemetry::layer().with_tracer(tracer);
     tracing_subscriber::registry()
-        .with(EnvFilter::try_from_default_env().unwrap())
+        .with(
+            EnvFilter::try_from_default_env()
+                .or_else(|_| EnvFilter::try_new("info"))
+                .unwrap(),
+        )
         .with(formatting_layer)
         .with(opentelemetry)
         .set_default();
@@ -114,7 +117,7 @@ pub async fn run(config: &TceConfiguration) -> Result<(), Box<dyn std::error::Er
             } else {
                 return Err(Box::new(std::io::Error::new(
                     std::io::ErrorKind::Other,
-                    "Unsupported storage type",
+                    format!("Unsupported storage type {:?}", config.storage),
                 )));
             };
 
