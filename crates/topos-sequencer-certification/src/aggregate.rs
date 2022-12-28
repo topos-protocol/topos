@@ -29,21 +29,57 @@ impl Debug for Certification {
 
 fn create_cross_chain_transaction(event: &SubnetEvent) -> CrossChainTransaction {
     match event {
-        SubnetEvent::SendToken {
+        SubnetEvent::TokenSent {
+            sender,
+            source_subnet_id: _,
             target_subnet_id,
-            asset_id,
-            sender_addr,
-            recipient_addr,
+            receiver,
+            symbol,
             amount,
         } => CrossChainTransaction {
-            target_subnet_id: target_subnet_id.clone(),
-            sender_addr: sender_addr.clone(),
-            recipient_addr: recipient_addr.clone(),
+            target_subnet_id: hex::encode(target_subnet_id),
+            sender_addr: hex::encode(sender),
+            recipient_addr: hex::encode(receiver),
             transaction_data: CrossChainTransactionData::AssetTransfer {
-                asset_id: asset_id.to_string(),
+                asset_id: symbol.clone(),
                 amount: *amount,
             },
         },
+        SubnetEvent::ContractCall {
+            source_subnet_id: _,
+            source_contract_addr,
+            target_subnet_id,
+            target_contract_addr,
+            payload_hash: _,
+            payload,
+        } => CrossChainTransaction {
+            target_subnet_id: hex::encode(target_subnet_id),
+            sender_addr: "0x".to_string() + hex::encode(source_contract_addr).as_str(),
+            recipient_addr: hex::encode(target_contract_addr),
+            transaction_data: CrossChainTransactionData::FunctionCall {
+                data: payload.clone(),
+            },
+        },
+        SubnetEvent::ContractCallWithToken {
+            source_subnet_id: _,
+            source_contract_addr,
+            target_subnet_id,
+            target_contract_addr,
+            payload_hash: _,
+            payload,
+            symbol: _,
+            amount: _,
+        } => {
+            //TODO fix, update Cross chain transaction
+            CrossChainTransaction {
+                target_subnet_id: hex::encode(target_subnet_id),
+                sender_addr: "0x".to_string() + hex::encode(source_contract_addr).as_str(),
+                recipient_addr: hex::encode(target_contract_addr),
+                transaction_data: CrossChainTransactionData::FunctionCall {
+                    data: payload.clone(),
+                },
+            }
+        }
     }
 }
 

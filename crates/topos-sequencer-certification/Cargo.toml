@@ -21,6 +21,7 @@ rand_distr = "0.4.1"
 rand_core = "0.6.0"
 rand = "0.8.5"
 thiserror = "1.0"
+hex = "0.4.3"
 
 topos-sequencer-types = { package = "topos-sequencer-types", path = "../topos-sequencer-types" }
 topos-core = { workspace = true, features = ["uci"] }
