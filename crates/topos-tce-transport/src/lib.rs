@@ -7,7 +7,7 @@ use topos_p2p::PeerId;
 
 /// Protocol parameters of the TCE
 #[derive(Args, Default, Clone, Debug)]
-#[command(name = "Protocol parameters of the TCE")]
+#[command(name = "Parameters of the reliable broadcast")]
 pub struct ReliableBroadcastParams {
     /// Echo threshold
     #[arg(long, default_value_t = 1, env = "TCE_ECHO_THRESHOLD")]
