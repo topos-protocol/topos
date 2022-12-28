@@ -7,4 +7,4 @@ edition = "2021"
 serde = { version = "1.0.136", features = ["derive"] }
 
 topos-core = { workspace = true, features = ["uci"] }
-ethereum-types = "0.13.1"
+ethereum-types = "0.12.1"

@@ -31,10 +31,10 @@ pub enum Error {
     #[error("Unexpected type of transaction")]
     InvalidTransactionType,
 
-    #[error("subxt client error: {source}")]
-    SubxtError {
+    #[error("subnet client error: {source}")]
+    SubnetError {
         #[from]
-        source: topos_sequencer_subxt_client::Error,
+        source: topos_sequencer_subnet_client::Error,
     },
     #[error("keystore error: {source}")]
     KeystoreError {

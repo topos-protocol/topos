@@ -8,9 +8,7 @@ use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 use tokio::time::{self, Duration};
 use topos_core::uci::{Certificate, CrossChainTransaction};
-use topos_sequencer_subxt_client;
-use topos_sequencer_subxt_client::subnet_contract;
-use topos_sequencer_subxt_client::Subxt;
+use topos_sequencer_subnet_client::{self, SubnetClient};
 use topos_sequencer_types::{RuntimeProxyCommand, RuntimeProxyEvent};
 
 pub struct RuntimeProxy {
@@ -69,19 +67,31 @@ impl RuntimeProxy {
             let runtime_proxy = runtime_proxy.clone();
             let runtime_endpoint = runtime_endpoint.clone();
             let eth_admin_private_key = eth_admin_private_key.clone();
+            let subnet_contract = subnet_contract.clone();
             tokio::spawn(async move {
                 let mut interval = time::interval(Duration::from_secs(6)); // arbitrary time for 1 block
-                if let Ok(mut subxt) = topos_sequencer_subxt_client::Subxt::new(
-                    runtime_endpoint.as_ref(),
-                    eth_admin_private_key,
-                )
-                .await
-                {
+                loop {
+                    let mut subnet = match topos_sequencer_subnet_client::SubnetClient::new(
+                        runtime_endpoint.as_ref(),
+                        eth_admin_private_key.clone(),
+                        subnet_contract.as_str(),
+                    )
+                    .await
+                    {
+                        Ok(subnet) => subnet,
+                        Err(err) => {
+                            error!(
+                                "Unable to instantiate subnet client, error: {}",
+                                err.to_string()
+                            );
+                            continue;
+                        }
+                    };
                     loop {
                         interval.tick().await;
 
                         loop {
-                            match subxt.get_next_finalized_block(&subnet_contract).await {
+                            match subnet.get_next_finalized_block(&subnet_contract).await {
                                 Ok(block_info) => {
                                     let block_number = block_info.number;
                                     match Self::send_new_block(
@@ -112,23 +122,35 @@ impl RuntimeProxy {
                             }
                         }
                     }
-                };
+                }
             })
         };
 
         let _runtime_command_task = {
             tokio::spawn(async move {
-                if let Ok(mut subxt) = topos_sequencer_subxt_client::Subxt::new(
-                    runtime_endpoint.as_ref(),
-                    eth_admin_private_key,
-                )
-                .await
-                {
+                loop {
+                    let mut subnet_client = match topos_sequencer_subnet_client::SubnetClient::new(
+                        runtime_endpoint.as_ref(),
+                        eth_admin_private_key.clone(),
+                        subnet_contract.as_str(),
+                    )
+                    .await
+                    {
+                        Ok(subnet) => subnet,
+                        Err(err) => {
+                            error!(
+                                "Unable to instantiate subnet client, error: {}",
+                                err.to_string()
+                            );
+                            continue;
+                        }
+                    };
+
                     loop {
                         tokio::select! {
                             // Poll runtime proxy commands channel
                             cmd = command_rcv.recv() => {
-                                Self::on_command(&config, &mut subxt, subnet_id.as_str(), cmd).await;
+                                Self::on_command(&config, &mut subnet_client, subnet_id.as_str(), cmd).await;
                             },
                             Some(_) = rx_exit.recv() => {
                                 break;
@@ -136,7 +158,6 @@ impl RuntimeProxy {
                         }
                     }
                 }
-                Result::<(), Error>::Ok(())
             })
         };
 
@@ -157,35 +178,25 @@ impl RuntimeProxy {
     /// where these cross chain transactions are processed
     async fn process_asset_transfers(
         runtime_proxy_config: &RuntimeProxyConfig,
-        subxt: &mut Subxt,
-        cert: &Certificate,
-        txs: &Vec<&CrossChainTransaction>,
+        _subnet_client: &mut SubnetClient,
+        _cert: &Certificate,
+        _txs: &[&CrossChainTransaction],
     ) -> Result<String, Error> {
         debug!(
             "Processing asset transfers for topos core contract {}",
             runtime_proxy_config.subnet_contract
         );
-        // Pack transaction data (certificate and asset transfers) to Eth encoded abi call
-        let transaction_data =
-            topos_sequencer_subxt_client::subnet_contract::subnet_encode_mint_call(cert, txs)?;
-        // Get nonce so that we can prepare eth transaction
-        let nonce = subxt.get_eth_nonce(&subxt.eth_admin_address).await?;
-        debug!(
-            "Nonce for admin account {} is {}, preparing transaction",
-            subxt.eth_admin_address, nonce
-        );
-        let transaction = subnet_contract::subnet_prepare_transation(
-            &runtime_proxy_config.subnet_contract,
-            nonce,
-            &transaction_data,
-        )?;
-        // Perform Topos core contract mint call
-        Ok(subxt.call_subnet_contract(transaction).await?)
+
+        ////////////////////////////////////////////
+        //TODO implement subnet contract mint call here
+        ////////////////////////////////////////////
+
+        Ok(String::new())
     }
 
     async fn on_command(
         runtime_proxy_config: &RuntimeProxyConfig,
-        subxt: &mut Subxt,
+        subnet_client: &mut SubnetClient,
         subnet_id: &str,
         mb_cmd: Option<RuntimeProxyCommand>,
     ) {
@@ -208,7 +219,7 @@ impl RuntimeProxy {
                     // Topos core contract
                     match RuntimeProxy::process_asset_transfers(
                         runtime_proxy_config,
-                        subxt,
+                        subnet_client,
                         &cert,
                         &asset_transfer_txs,
                     )

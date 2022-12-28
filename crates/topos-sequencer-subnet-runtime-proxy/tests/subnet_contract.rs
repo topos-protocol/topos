@@ -18,10 +18,10 @@ use topos_sequencer_subnet_runtime_proxy::{RuntimeProxyConfig, RuntimeProxyWorke
 const SUBNET_ID: u32 = 0x01;
 const SUBNET_CONTRACT_JSON_DEFINITION: &'static str = "ToposCoreContract.json";
 const SUBNET_CHAIN_ID: u64 = 43;
-const SUBNET_RPC_ENDPOINT: &'static str = "http://127.0.0.1:9933/";
+const SUBNET_RPC_ENDPOINT: &'static str = "http://127.0.0.1:8545/";
 const SUBNET_RPC_PORT: u32 = 9933;
-const SUBNET_WEBSOCKET_ENDPOINT: &'static str = "ws://127.0.0.1:9944";
-const SUBNET_WEBSOCKET_PORT: u32 = 9944;
+const SUBNET_JSONRPC_ENDPOINT: &'static str = "ws://127.0.0.1:8545/ws";
+const SUBNET_HTTP_PORT: u32 = 8545;
 const TEST_SECRET_ETHEREUM_KEY: &'static str =
     "99B3C12287537E38C90A9219D4CB074A89A16E9CDB20BF85728EBD97C343E342";
 const DOCKER_IMAGE: &'static str = "ghcr.io/toposware/substrate-subnet-node";
@@ -135,7 +135,7 @@ fn spawn_subnet_node(
         let mut substrate_subnet_node = Composition::with_image(img);
         substrate_subnet_node
             .port_map(SUBNET_RPC_PORT, SUBNET_RPC_PORT)
-            .port_map(SUBNET_WEBSOCKET_PORT, SUBNET_WEBSOCKET_PORT);
+            .port_map(SUBNET_HTTP_PORT, SUBNET_HTTP_PORT);
         let mut substrate_subnet_node_docker = DockerTest::new().with_default_source(source);
         substrate_subnet_node_docker.add_composition(substrate_subnet_node);
         substrate_subnet_node_docker.run(|ops| async move {
@@ -275,7 +275,7 @@ async fn test_subnet_node_contract_deployment(
     Ok(())
 }
 
-/// Test subxt client RPC connection to subnet
+/// Test subnet client RPC connection to subnet
 #[rstest]
 #[tokio::test]
 #[serial]
@@ -287,15 +287,16 @@ async fn test_subnet_node_get_nonce(
     let context = context_running_subnet_node.await;
     let eth_private_key = hex::decode(TEST_SECRET_ETHEREUM_KEY)?;
     let eth_address =
-        topos_sequencer_subxt_client::subnet_contract::derive_eth_address(&eth_private_key)?;
-    match topos_sequencer_subxt_client::Subxt::new(
-        SUBNET_WEBSOCKET_ENDPOINT.as_ref(),
+        topos_sequencer_subnet_client::subnet_contract::derive_eth_address(&eth_private_key)?;
+    match topos_sequencer_subnet_client::SubnetClient::new(
+        SUBNET_JSONRPC_ENDPOINT.as_ref(),
         eth_private_key,
+        &("0x".to_string() + &hex::encode(context.subnet_contract.address())),
     )
     .await
     {
-        Ok(subxt) => {
-            let nonce = subxt.get_eth_nonce(&eth_address).await?;
+        Ok(subnet_client) => {
+            let nonce = subnet_client.get_eth_nonce(&eth_address).await?;
             assert_eq!(nonce, 2);
         }
         Err(e) => {
@@ -344,7 +345,7 @@ async fn test_subnet_mint_call(
         "0x".to_string() + &hex::encode(context.subnet_contract.address());
     let runtime_proxy_worker = RuntimeProxyWorker::new(RuntimeProxyConfig {
         subnet_id: SUBNET_ID.to_string(),
-        endpoint: SUBNET_WEBSOCKET_ENDPOINT.to_string(),
+        endpoint: SUBNET_JSONRPC_ENDPOINT.to_string(),
         subnet_contract: subnet_smart_contract_address.clone(),
         keystore_file: keystore_file_path,
         keystore_password: TEST_KEYSTORE_FILE_PASSWORD.to_string(),

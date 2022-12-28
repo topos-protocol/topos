@@ -31,7 +31,7 @@ eth-keystore = "0.5.0"
 ethereum-tx-sign = "6.0"
 
 topos-sequencer-types = { package = "topos-sequencer-types", path = "../topos-sequencer-types" }
-topos-sequencer-subxt-client = { package = "topos-sequencer-subxt-client", path = "../topos-sequencer-subxt-client" }
+topos-sequencer-subnet-client = { package = "topos-sequencer-subnet-client", path = "../topos-sequencer-subnet-client" }
 topos-core = { workspace = true, features = ["uci"] }
 
 [dev-dependencies]
