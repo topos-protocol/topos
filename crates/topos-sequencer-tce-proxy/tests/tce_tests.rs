@@ -67,7 +67,7 @@ async fn test_tce_submit_certificate(
     match client
         .submit_certificate(SubmitCertificateRequest {
             certificate: Some(Certificate {
-                initial_subnet_id: "subnet_id".into(),
+                source_subnet_id: "subnet_id".into(),
                 cert_id: "id".to_string(),
                 prev_cert_id: "previous_id".to_string(),
                 calls: vec![],
@@ -127,7 +127,7 @@ async fn test_tce_watch_certificates(
                 println!("Certificate received {:?}", certificate);
                 assert_eq!(certificate.cert_id, "1");
                 assert_eq!(
-                    certificate.initial_subnet_id,
+                    certificate.source_subnet_id,
                     common::TCE_MOCK_NODE_SOURCE_SUBNET_ID
                 );
                 break;

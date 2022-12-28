@@ -14,7 +14,7 @@ pub type Hash = String;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SubnetEvent {
     SendToken {
-        terminal_subnet_id: String,
+        target_subnet_id: String,
         asset_id: ethereum_types::U256,
         sender_addr: String,
         recipient_addr: String,
@@ -94,7 +94,7 @@ pub enum Event {
 
 /// Protocol commands
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum TrbpCommands {
+pub enum TceCommands {
     /// Initialize the instance, signals the environment is ready
     StartUp,
     /// Shuts down the instance
@@ -137,7 +137,7 @@ pub enum TrbpCommands {
 
 /// Protocol events
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum TrbpEvents {
+pub enum TceEvents {
     /// Emitted to get peers list, expected that Commands.ApplyPeers will come as reaction
     NeedPeers,
     /// (pb.Broadcast)

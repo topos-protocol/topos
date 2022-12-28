@@ -141,7 +141,7 @@ async fn request_response() {
             .unwrap()
     );
     let receiver_peer = receiver.peer_id;
-    let expected_data = TrbpCommands::Response(Ok(()));
+    let expected_data = TceCommands::Response(Ok(()));
     let response_data = expected_data.clone();
 
     let join_receive = tokio::spawn(Box::pin(async move {
@@ -162,9 +162,9 @@ async fn request_response() {
     let join_send = tokio::spawn(Box::pin(async move {
         let x = sender
             .client
-            .send_request::<_, TrbpCommands>(
+            .send_request::<_, TceCommands>(
                 receiver_peer,
-                TrbpCommands::OnEchoSubscribeReq {
+                TceCommands::OnEchoSubscribeReq {
                     from_peer: sender.peer_id.to_base58(),
                 },
             )
@@ -177,7 +177,7 @@ async fn request_response() {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub enum TrbpCommands {
+pub enum TceCommands {
     /// Given peer sent EchoSubscribe request
     OnEchoSubscribeReq {
         from_peer: String,
@@ -185,13 +185,13 @@ pub enum TrbpCommands {
     Response(Result<(), ()>),
 }
 
-impl From<TrbpCommands> for Vec<u8> {
-    fn from(cmd: TrbpCommands) -> Self {
+impl From<TceCommands> for Vec<u8> {
+    fn from(cmd: TceCommands) -> Self {
         bincode::serialize(&cmd).expect("Can't serialize")
     }
 }
 
-impl From<Vec<u8>> for TrbpCommands {
+impl From<Vec<u8>> for TceCommands {
     fn from(data: Vec<u8>) -> Self {
         bincode::deserialize(data.as_ref()).expect("Can't Deserialize")
     }

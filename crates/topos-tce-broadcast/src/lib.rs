@@ -15,15 +15,15 @@ use tokio::sync::mpsc::Sender;
 use tokio::sync::{broadcast, mpsc, oneshot};
 
 use double_echo::DoubleEcho;
-use tce_transport::{ReliableBroadcastParams, TrbpEvents};
+use tce_transport::{ReliableBroadcastParams, TceEvents};
 
 use topos_core::uci::{Certificate, CertificateId, DigestCompressed, SubnetId};
 use topos_p2p::PeerId;
 use tracing::{error, instrument, Instrument, Span};
 
-use crate::mem_store::TrbMemStore;
+use crate::mem_store::TceMemStore;
 use crate::sampler::{Sampler, SubscribersUpdate, SubscriptionsView};
-use crate::trb_store::TrbStore;
+use crate::tce_store::TceStore;
 pub use topos_core::uci;
 
 pub type Peer = String;
@@ -32,11 +32,11 @@ pub mod double_echo;
 pub mod mem_store;
 pub mod mock;
 pub mod sampler;
-pub mod trb_store;
+pub mod tce_store;
 
-/// Configuration of TRB implementation
+/// Configuration of TCE implementation
 pub struct ReliableBroadcastConfig {
-    pub trbp_params: ReliableBroadcastParams,
+    pub tce_params: ReliableBroadcastParams,
     pub my_peer_id: Peer,
 }
 
@@ -105,7 +105,7 @@ impl ReliableBroadcastClient {
     #[instrument(name = "ReliableBroadcastClient", skip_all, fields(peer_id = config.my_peer_id))]
     pub fn new(
         config: ReliableBroadcastConfig,
-    ) -> (Self, impl Stream<Item = Result<TrbpEvents, ()>>) {
+    ) -> (Self, impl Stream<Item = Result<TceEvents, ()>>) {
         let peer_id = config.my_peer_id.clone();
 
         let (subscriptions_view_sender, subscriptions_view_receiver) =
@@ -116,7 +116,7 @@ impl ReliableBroadcastClient {
         let (event_sender, event_receiver) = broadcast::channel(2048);
 
         let sampler = Sampler::new(
-            config.trbp_params.clone(),
+            config.tce_params.clone(),
             command_receiver,
             event_sender.clone(),
             subscriptions_view_sender,
@@ -127,13 +127,13 @@ impl ReliableBroadcastClient {
 
         let double_echo = DoubleEcho::new(
             peer_id.clone(),
-            config.trbp_params,
+            config.tce_params,
             command_receiver,
             subscriptions_view_receiver,
             subscribers_update_receiver,
             event_sender,
             #[allow(clippy::box_default)]
-            Box::new(TrbMemStore::default()),
+            Box::new(TceMemStore::default()),
         );
 
         spawn(sampler.run().instrument(Span::current()));
@@ -194,7 +194,7 @@ impl ReliableBroadcastClient {
         Ok(vec![])
     }
 
-    /// delivered certificates for given terminal chain after the given certificate
+    /// delivered certificates for given target chain after the given certificate
     pub fn delivered_certs(
         &self,
         subnet_id: SubnetId,

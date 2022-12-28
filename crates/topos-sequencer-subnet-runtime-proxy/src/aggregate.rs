@@ -153,7 +153,7 @@ impl RuntimeProxy {
     }
 
     /// Process asset transfer to target subnet
-    /// As a result return terminal subnet topos core contract call tx hash
+    /// As a result return target subnet topos core contract call tx hash
     /// where these cross chain transactions are processed
     async fn process_asset_transfers(
         runtime_proxy_config: &RuntimeProxyConfig,
@@ -200,7 +200,7 @@ impl RuntimeProxy {
                     // Make list (by reference) of asset transfer transactions
                     let mut asset_transfer_txs: Vec<&CrossChainTransaction> = Vec::new();
                     for tx in &cert.calls {
-                        if tx.terminal_subnet_id == subnet_id {
+                        if tx.target_subnet_id == subnet_id {
                             asset_transfer_txs.push(tx);
                         }
                     }
@@ -216,7 +216,7 @@ impl RuntimeProxy {
                     {
                         Ok(tx_hash) => {
                             debug!(
-                                "Successfully processed transactions {:?} with the terminal subnet transaction {} ",
+                                "Successfully processed transactions {:?} with the target subnet transaction {} ",
                                 &asset_transfer_txs, &tx_hash
                             );
                         }

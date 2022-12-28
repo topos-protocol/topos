@@ -57,7 +57,7 @@ impl From<topos_uci::CrossChainTransactionData> for proto_v1::CrossChainTransact
 impl From<proto_v1::CrossChainTransaction> for topos_uci::CrossChainTransaction {
     fn from(transaction: proto_v1::CrossChainTransaction) -> Self {
         topos_uci::CrossChainTransaction {
-            terminal_subnet_id: transaction.terminal_subnet_id,
+            target_subnet_id: transaction.target_subnet_id,
             sender_addr: transaction.sender_addr,
             recipient_addr: transaction.recipient_addr,
             transaction_data: transaction
@@ -71,7 +71,7 @@ impl From<proto_v1::CrossChainTransaction> for topos_uci::CrossChainTransaction 
 impl From<topos_uci::CrossChainTransaction> for proto_v1::CrossChainTransaction {
     fn from(transaction: topos_uci::CrossChainTransaction) -> Self {
         proto_v1::CrossChainTransaction {
-            terminal_subnet_id: transaction.terminal_subnet_id,
+            target_subnet_id: transaction.target_subnet_id,
             sender_addr: transaction.sender_addr,
             recipient_addr: transaction.recipient_addr,
             transaction_data: Some(transaction.transaction_data.into()),
@@ -82,7 +82,7 @@ impl From<topos_uci::CrossChainTransaction> for proto_v1::CrossChainTransaction 
 impl From<proto_v1::Certificate> for topos_uci::Certificate {
     fn from(certificate: proto_v1::Certificate) -> Self {
         topos_uci::Certificate {
-            initial_subnet_id: certificate.initial_subnet_id,
+            source_subnet_id: certificate.source_subnet_id,
             cert_id: certificate.cert_id,
             prev_cert_id: certificate.prev_cert_id,
             calls: certificate
@@ -97,7 +97,7 @@ impl From<proto_v1::Certificate> for topos_uci::Certificate {
 impl From<topos_uci::Certificate> for proto_v1::Certificate {
     fn from(certificate: topos_uci::Certificate) -> Self {
         proto_v1::Certificate {
-            initial_subnet_id: certificate.initial_subnet_id,
+            source_subnet_id: certificate.source_subnet_id,
             cert_id: certificate.cert_id,
             prev_cert_id: certificate.prev_cert_id,
             calls: certificate

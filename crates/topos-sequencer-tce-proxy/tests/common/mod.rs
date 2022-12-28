@@ -73,7 +73,7 @@ impl ApiService for TceMockServer {
                                     let _ = tx.send(WatchCertificatesResponse {
                                         request_id: watch_certificate_request.as_ref().unwrap().request_id.clone(),
                                         event: Some(watch_certificates_response::Event::CertificatePushed(watch_certificates_response::CertificatePushed {certificate: Some(Certificate{
-                                            initial_subnet_id: TCE_MOCK_NODE_SOURCE_SUBNET_ID.to_string(),
+                                            source_subnet_id: TCE_MOCK_NODE_SOURCE_SUBNET_ID.to_string(),
                                             cert_id: counter.to_string(),
                                             prev_cert_id: (counter-1).to_string(),
                                             calls: vec![]

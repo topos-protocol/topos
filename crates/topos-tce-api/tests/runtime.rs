@@ -71,7 +71,7 @@ async fn runtime_can_dispatch_a_cert() {
         "previous_cert".to_string(),
         source_subnet_id.to_string(),
         vec![CrossChainTransaction {
-            terminal_subnet_id: target_subnet_id.clone().into(),
+            target_subnet_id: target_subnet_id.clone().into(),
             transaction_data: CrossChainTransactionData::AssetTransfer {
                 asset_id: "TST_SUBNET_".to_string() + &target_subnet_id,
                 amount: Amount::from(1000),

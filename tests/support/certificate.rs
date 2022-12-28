@@ -28,11 +28,11 @@ pub fn generate_cert(
             .cloned()
             .collect::<Vec<_>>();
         let mut cross_chain_transactions = Vec::new();
-        for (index, terminal_subnet_id) in target_subnets.into_iter().enumerate() {
+        for (index, target_subnet_id) in target_subnets.into_iter().enumerate() {
             cross_chain_transactions.push(CrossChainTransaction {
-                terminal_subnet_id: terminal_subnet_id.clone(),
+                target_subnet_id: target_subnet_id.clone(),
                 transaction_data: CrossChainTransactionData::AssetTransfer {
-                    asset_id: "TST_SUBNET_".to_string() + &terminal_subnet_id,
+                    asset_id: "TST_SUBNET_".to_string() + &target_subnet_id,
                     amount: Amount::from((index + 1) * 100),
                 },
                 recipient_addr: Address::from("0x0000000000000000000000000000000000000002"),

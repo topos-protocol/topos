@@ -80,18 +80,18 @@ impl Runtime {
                     "Received DispatchCertificate for certificate cert_id: {}",
                     certificate.cert_id
                 );
-                // Collect terminal subnets from certificate cross chain transaction list
-                let terminal_subnets = certificate
+                // Collect target subnets from certificate cross chain transaction list
+                let target_subnets = certificate
                     .calls
                     .iter()
-                    .map(|ctx| &ctx.terminal_subnet_id)
+                    .map(|ctx| &ctx.target_subnet_id)
                     .collect::<HashSet<_>>();
                 debug!(
-                    "Dispatching certificate cert_id: {} to terminal subnets: {:?}",
-                    &certificate.cert_id, terminal_subnets
+                    "Dispatching certificate cert_id: {} to target subnets: {:?}",
+                    &certificate.cert_id, target_subnets
                 );
-                for terminal_subnet_id in terminal_subnets {
-                    if let Some(stream_list) = self.subnet_subscription.get(terminal_subnet_id) {
+                for target_subnet_id in target_subnets {
+                    if let Some(stream_list) = self.subnet_subscription.get(target_subnet_id) {
                         let uuids: Vec<&Uuid> = stream_list.iter().collect();
                         for uuid in uuids {
                             if let Some(sender) = self.active_streams.get(uuid) {

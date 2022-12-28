@@ -30,13 +30,13 @@ impl Debug for Certification {
 fn create_cross_chain_transaction(event: &SubnetEvent) -> CrossChainTransaction {
     match event {
         SubnetEvent::SendToken {
-            terminal_subnet_id,
+            target_subnet_id,
             asset_id,
             sender_addr,
             recipient_addr,
             amount,
         } => CrossChainTransaction {
-            terminal_subnet_id: terminal_subnet_id.clone(),
+            target_subnet_id: target_subnet_id.clone(),
             sender_addr: sender_addr.clone(),
             recipient_addr: recipient_addr.clone(),
             transaction_data: CrossChainTransactionData::AssetTransfer {

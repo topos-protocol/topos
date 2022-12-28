@@ -116,9 +116,9 @@ fn parse_subxt_subnet_event(event_data: JsonValue) -> Result<Vec<SubnetEvent>, E
             // Decode event data fields
             let event_arguments = ethabi::decode(
                 &[
-                    ethabi::ParamType::Uint(64),  // terminal subnet id
-                    ethabi::ParamType::Uint(256), // terminal token id
-                    ethabi::ParamType::Address,   // terminal contract address (not used)
+                    ethabi::ParamType::Uint(64),  // target subnet id
+                    ethabi::ParamType::Uint(256), // target token id
+                    ethabi::ParamType::Address,   // target contract address (not used)
                     ethabi::ParamType::Address,   // sender address
                     ethabi::ParamType::Address,   // recepient address
                     ethabi::ParamType::Uint(256), // amount
@@ -128,7 +128,7 @@ fn parse_subxt_subnet_event(event_data: JsonValue) -> Result<Vec<SubnetEvent>, E
 
             // Create subnet event from parsed data
             events.push(SubnetEvent::SendToken {
-                terminal_subnet_id: if let ethabi::Token::Uint(value) = event_arguments[0] {
+                target_subnet_id: if let ethabi::Token::Uint(value) = event_arguments[0] {
                     value.to_string()
                 } else {
                     return Err(Error::InvalidArgument {
@@ -139,7 +139,7 @@ fn parse_subxt_subnet_event(event_data: JsonValue) -> Result<Vec<SubnetEvent>, E
                     value
                 } else {
                     return Err(Error::InvalidArgument {
-                        message: "invalid terminal token id event argument".to_string(),
+                        message: "invalid target token id event argument".to_string(),
                     });
                 },
                 sender_addr: if let ethabi::Token::Address(address) = event_arguments[3] {
