@@ -2,8 +2,6 @@ name: Docker_build_push # This is used in the .github/workflows/k8s_perf_tests.y
 
 on:
   pull_request:
-    branches:
-      - "main"
 
 env:
   REGISTRY: ghcr.io
@@ -38,6 +36,8 @@ jobs:
         uses: docker/metadata-action@v4
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=pr-80
 
       - name: Push to GitHub Container Registry
         uses: docker/build-push-action@v3
