@@ -36,7 +36,7 @@ async fn main() {
         .with_exporter(
             opentelemetry_otlp::new_exporter()
                 .tonic()
-                .with_endpoint("http://otel-collector:4317"),
+                .with_endpoint("http://otel-collector-opentelemetry-collector:4317"),
         )
         .with_trace_config(
             trace::config()
