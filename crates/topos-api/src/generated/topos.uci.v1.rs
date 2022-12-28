@@ -34,7 +34,7 @@ pub mod cross_chain_transaction_data {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CrossChainTransaction {
     #[prost(string, tag = "1")]
-    pub terminal_subnet_id: ::prost::alloc::string::String,
+    pub target_subnet_id: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub sender_addr: ::prost::alloc::string::String,
     #[prost(string, tag = "3")]
@@ -46,7 +46,7 @@ pub struct CrossChainTransaction {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Certificate {
     #[prost(string, tag = "1")]
-    pub initial_subnet_id: ::prost::alloc::string::String,
+    pub source_subnet_id: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub cert_id: ::prost::alloc::string::String,
     #[prost(string, tag = "3")]

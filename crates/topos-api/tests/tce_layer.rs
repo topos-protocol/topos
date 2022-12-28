@@ -88,7 +88,7 @@ async fn create_tce_layer() {
     let response = client
         .submit_certificate(SubmitCertificateRequest {
             certificate: Some(Certificate {
-                initial_subnet_id: "subnet_id".into(),
+                source_subnet_id: "subnet_id".into(),
                 cert_id: "id".to_string(),
                 prev_cert_id: "previous_id".to_string(),
                 calls: vec![],

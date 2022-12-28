@@ -1,5 +1,5 @@
 //!
-//! Storage interface required to support TRB
+//! Storage interface required to support TCE
 //!
 use topos_core::uci::{Certificate, CertificateId, DigestCompressed, SubnetId};
 
@@ -8,7 +8,7 @@ use crate::Errors;
 /// Defines abstract storage suitable for protocol handler.
 ///
 /// Implemented in node/store.
-pub trait TrbStore {
+pub trait TceStore {
     /// Saves (or replaces) the certificate
     fn apply_cert(&mut self, cert: &Certificate) -> Result<(), Errors>;
 
@@ -49,5 +49,5 @@ pub trait TrbStore {
     /// Check on the previous cert
     fn check_precedence(&self, cert: &Certificate) -> Result<(), Errors>;
 
-    fn clone_box(&self) -> Box<dyn TrbStore + Send>;
+    fn clone_box(&self) -> Box<dyn TceStore + Send>;
 }

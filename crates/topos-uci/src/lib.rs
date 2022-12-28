@@ -24,7 +24,7 @@ const DUMMY_STARK_DELAY: time::Duration = time::Duration::from_millis(0);
 /// Certificate - main exchange item
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Certificate {
-    pub initial_subnet_id: SubnetId,
+    pub source_subnet_id: SubnetId,
     pub cert_id: CertificateId,
     pub prev_cert_id: CertificateId,
     //pub proof: StarkProof,
@@ -45,13 +45,13 @@ pub type DigestCompressed = Vec<CertificateId>; // TODO: optimize cmp to hash of
 impl Certificate {
     pub fn new(
         prev: CertificateId,
-        initial: SubnetId,
+        source: SubnetId,
         calls: Vec<CrossChainTransaction>,
     ) -> Certificate {
         let mut cert = Certificate {
             cert_id: 0.to_string(),
             prev_cert_id: prev,
-            initial_subnet_id: initial,
+            source_subnet_id: source,
             calls,
         };
 
@@ -81,7 +81,7 @@ fn calculate_hash<T: Hash>(t: &T) -> String {
 impl Hash for Certificate {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.prev_cert_id.hash(state);
-        self.initial_subnet_id.hash(state);
+        self.source_subnet_id.hash(state);
         //self.proof.hash(state);
         self.calls.hash(state);
     }
@@ -116,7 +116,7 @@ pub enum CrossChainTransactionData {
 /// Cross chain txn
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct CrossChainTransaction {
-    pub terminal_subnet_id: SubnetId,
+    pub target_subnet_id: SubnetId,
     pub sender_addr: Address,
     pub recipient_addr: Address,
     pub transaction_data: CrossChainTransactionData,

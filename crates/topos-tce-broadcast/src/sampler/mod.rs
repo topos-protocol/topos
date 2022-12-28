@@ -5,7 +5,7 @@ mod sampling;
 pub type Peer = String;
 use std::{cmp::min, collections::HashSet};
 
-use tce_transport::{ReliableBroadcastParams, TrbpEvents};
+use tce_transport::{ReliableBroadcastParams, TceEvents};
 use tokio::sync::{broadcast, mpsc};
 use topos_p2p::PeerId;
 use tracing::{debug, error, info, warn};
@@ -102,7 +102,7 @@ impl SubscriptionsView {
 pub struct Sampler {
     params: ReliableBroadcastParams,
     command_receiver: mpsc::Receiver<SamplerCommand>,
-    event_sender: broadcast::Sender<TrbpEvents>,
+    event_sender: broadcast::Sender<TceEvents>,
     visible_peers: Vec<PeerId>,
 
     pending_subscriptions: SubscriptionsView,
@@ -117,7 +117,7 @@ impl Sampler {
     pub fn new(
         params: ReliableBroadcastParams,
         command_receiver: mpsc::Receiver<SamplerCommand>,
-        event_sender: broadcast::Sender<TrbpEvents>,
+        event_sender: broadcast::Sender<TceEvents>,
         subscriptions_sender: mpsc::Sender<SubscriptionsView>,
         subscribers_update_sender: mpsc::Sender<SubscribersUpdate>,
     ) -> Self {
@@ -317,7 +317,7 @@ impl Sampler {
                     self.pending_subscriptions.echo.insert(*peer);
                 }
 
-                if let Err(error) = self.event_sender.send(TrbpEvents::EchoSubscribeReq {
+                if let Err(error) = self.event_sender.send(TceEvents::EchoSubscribeReq {
                     peers: echo_candidates.value,
                 }) {
                     error!("Unable to send event {:?}", error);
@@ -349,7 +349,7 @@ impl Sampler {
                     self.pending_subscriptions.ready.insert(*peer);
                 }
 
-                if let Err(error) = self.event_sender.send(TrbpEvents::ReadySubscribeReq {
+                if let Err(error) = self.event_sender.send(TceEvents::ReadySubscribeReq {
                     peers: ready_candidates.value,
                 }) {
                     error!("Unable to send event {:?}", error);
@@ -381,7 +381,7 @@ impl Sampler {
                     self.pending_subscriptions.delivery.insert(*peer);
                 }
 
-                if let Err(error) = self.event_sender.send(TrbpEvents::ReadySubscribeReq {
+                if let Err(error) = self.event_sender.send(TceEvents::ReadySubscribeReq {
                     peers: delivery_candidates.value,
                 }) {
                     error!("Unable to send event {:?}", error);
@@ -468,15 +468,15 @@ mod tests {
         assert_eq!(event_receiver.len(), 3);
         assert!(matches!(
             event_receiver.try_recv(),
-            Ok(TrbpEvents::EchoSubscribeReq { peers }) if peers.len() == sampler.params.echo_sample_size
+            Ok(TceEvents::EchoSubscribeReq { peers }) if peers.len() == sampler.params.echo_sample_size
         ));
         assert!(matches!(
             event_receiver.try_recv(),
-            Ok(TrbpEvents::ReadySubscribeReq { peers }) if peers.len() == sampler.params.ready_sample_size
+            Ok(TceEvents::ReadySubscribeReq { peers }) if peers.len() == sampler.params.ready_sample_size
         ));
         assert!(matches!(
             event_receiver.try_recv(),
-            Ok(TrbpEvents::ReadySubscribeReq { peers }) if peers.len() == sampler.params.delivery_sample_size
+            Ok(TceEvents::ReadySubscribeReq { peers }) if peers.len() == sampler.params.delivery_sample_size
         ));
         assert!(matches!(
             event_receiver.try_recv(),

@@ -30,7 +30,7 @@ curl -X POST http://localhost:8012/certs -H "Content-Type: application/json" -d 
                                                  "cert" : {
                                                      "id": 1,
                                                      "prev_cert_id": 0,
-                                                     "initial_subnet_id": 100,
+                                                     "source_subnet_id": 100,
                                                      "calls": []
                                                  }
                                              }
@@ -40,7 +40,7 @@ curl -X POST http://localhost:8012/certs -H "Content-Type: application/json" -d 
                                                  "cert" : {
                                                      "id": 2,
                                                      "prev_cert_id": 1,
-                                                     "initial_subnet_id": 100,
+                                                     "source_subnet_id": 100,
                                                      "calls": []
                                                  }
                                              }
@@ -50,7 +50,7 @@ curl -X POST http://localhost:8012/certs -H "Content-Type: application/json" -d 
                                                  "cert" : {
                                                      "id": 3,
                                                      "prev_cert_id": 2,
-                                                     "initial_subnet_id": 100,
+                                                     "source_subnet_id": 100,
                                                      "calls": []
                                                  }
                                              }

@@ -65,7 +65,7 @@ pub fn subnet_encode_mint_call(
     let mut mint_transaction_data: Vec<Token> = vec![Token::Bytes(cert_bytes)];
     // CrossSubnetMessage
     let token_sending_subnet_id =
-        Token::Uint(ethabi::Uint::from_str_radix(&cert.initial_subnet_id, 10)?);
+        Token::Uint(ethabi::Uint::from_str_radix(&cert.source_subnet_id, 10)?);
     let mut cross_chain_transaction_inputs: Vec<Token> = Vec::new();
     for tx in txs {
         if let CrossChainTransactionData::AssetTransfer { asset_id, amount } = &tx.transaction_data
@@ -76,7 +76,7 @@ pub fn subnet_encode_mint_call(
                     message: "Invalid recipient address".to_string(),
                 })?;
             cross_chain_transaction_inputs.push(Token::Tuple(vec![
-                Token::Uint(ethabi::Uint::from_str_radix(&tx.terminal_subnet_id, 10)?),
+                Token::Uint(ethabi::Uint::from_str_radix(&tx.target_subnet_id, 10)?),
                 Token::String(asset_id.clone()),
                 Token::Address(ethabi::Address::from(recipient_address)),
                 Token::Uint(ethabi::Uint::from(amount)),

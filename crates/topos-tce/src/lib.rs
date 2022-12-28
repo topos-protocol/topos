@@ -21,7 +21,7 @@ pub struct TceConfiguration {
     pub local_key_seed: Option<u8>,
     pub jaeger_agent: String,
     pub jaeger_service_name: String,
-    pub trbp_params: ReliableBroadcastParams,
+    pub tce_params: ReliableBroadcastParams,
     pub boot_peers: Vec<(PeerId, Multiaddr)>,
     pub api_addr: SocketAddr,
     pub tce_local_port: u16,
@@ -82,12 +82,12 @@ pub async fn run(config: &TceConfiguration) -> Result<(), Box<dyn std::error::Er
 
     {
         // launch data store
-        let trb_config = ReliableBroadcastConfig {
-            trbp_params: config.trbp_params.clone(),
+        let tce_config = ReliableBroadcastConfig {
+            tce_params: config.tce_params.clone(),
             my_peer_id: "main".to_string(),
         };
 
-        let (trbp_cli, trb_stream) = ReliableBroadcastClient::new(trb_config);
+        let (tce_cli, tce_stream) = ReliableBroadcastClient::new(tce_config);
 
         let (api_client, api_stream) = topos_tce_api::Runtime::builder()
             .serve_addr(config.api_addr)
@@ -137,10 +137,10 @@ pub async fn run(config: &TceConfiguration) -> Result<(), Box<dyn std::error::Er
 
         spawn(synchronizer_runtime.into_future());
 
-        // setup transport-trbp-storage-api connector
+        // setup transport-tce-storage-api connector
         let app_context = AppContext::new(
             storage_client,
-            trbp_cli,
+            tce_cli,
             network_client,
             api_client,
             gatekeeper_client,
@@ -150,7 +150,7 @@ pub async fn run(config: &TceConfiguration) -> Result<(), Box<dyn std::error::Er
         app_context
             .run(
                 event_stream,
-                trb_stream,
+                tce_stream,
                 api_stream,
                 storage_stream,
                 synchronizer_stream,

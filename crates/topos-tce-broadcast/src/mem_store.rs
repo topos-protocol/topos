@@ -1,12 +1,12 @@
-use crate::{Errors, TrbStore};
+use crate::{Errors, TceStore};
 use std::collections::{BTreeSet, HashMap};
 use topos_core::uci::{Certificate, CertificateId, DigestCompressed, SubnetId};
 
 /// Store implementation in RAM good enough for functional tests
-/// Might need to split through a new layer of TRBState
+/// Might need to split through a new layer of TCEState
 /// between ReliableBroadcast and rocksdb
 #[derive(Default, Clone)]
-pub struct TrbMemStore {
+pub struct TceMemStore {
     /// Global map of delivered and accepted certificates
     all_certs: HashMap<CertificateId, Certificate>,
     /// Mapping SubnetId -> Delivered certificated
@@ -21,9 +21,9 @@ pub struct TrbMemStore {
     followed_subnet: Vec<SubnetId>,
 }
 
-impl TrbMemStore {
-    pub fn new(subnets: Vec<SubnetId>) -> TrbMemStore {
-        let mut store = TrbMemStore {
+impl TceMemStore {
+    pub fn new(subnets: Vec<SubnetId>) -> TceMemStore {
+        let mut store = TceMemStore {
             all_certs: Default::default(),
             history: Default::default(),
             tracked_digest: Default::default(),
@@ -40,16 +40,16 @@ impl TrbMemStore {
     }
 }
 
-impl TrbStore for TrbMemStore {
+impl TceStore for TceMemStore {
     // JAEGER START DELIVERY TRACE [ cert, peer ]
     fn apply_cert(&mut self, cert: &Certificate) -> Result<(), Errors> {
         // Add the entry in the history <SubnetId, CertId>
-        let _ = self.add_cert_in_hist(&cert.initial_subnet_id, cert);
+        let _ = self.add_cert_in_hist(&cert.source_subnet_id, cert);
 
-        // Add the cert into the history of each Terminal
+        // Add the cert into the history of each Target
         for call in &cert.calls {
-            self.add_cert_in_hist(&call.terminal_subnet_id, cert);
-            self.add_cert_in_digest(&call.terminal_subnet_id, &cert.cert_id);
+            self.add_cert_in_hist(&call.target_subnet_id, cert);
+            self.add_cert_in_digest(&call.target_subnet_id, &cert.cert_id);
         }
 
         Ok(())
@@ -142,7 +142,7 @@ impl TrbStore for TrbMemStore {
         }
     }
 
-    fn clone_box(&self) -> Box<dyn TrbStore + Send> {
+    fn clone_box(&self) -> Box<dyn TceStore + Send> {
         Box::new(self.clone())
     }
 }

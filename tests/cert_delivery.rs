@@ -60,7 +60,7 @@ async fn cert_delivery() {
         for cert in certificates {
             for cross_chain_tx in &cert.calls {
                 expected_certificates
-                    .entry(cross_chain_tx.terminal_subnet_id.clone())
+                    .entry(cross_chain_tx.target_subnet_id.clone())
                     .or_insert(HashSet::new())
                     .insert(cert.clone());
             }
@@ -222,8 +222,8 @@ async fn cert_delivery() {
                 client_delivered_certificates.recv().await
             {
                 debug!(
-                    "Delivered certificate on peer_Id: {} cert id: {} from initial subnet id: {} to target subnet id {}",
-                    &peer_id, cert.cert_id, cert.initial_subnet_id, receiving_subnet_id
+                    "Delivered certificate on peer_Id: {} cert id: {} from source subnet id: {} to target subnet id {}",
+                    &peer_id, cert.cert_id, cert.source_subnet_id, receiving_subnet_id
                 );
                 // Send certificates from every peer to one delivery_rx receiver
                 delivery_tx
