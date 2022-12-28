@@ -79,6 +79,7 @@ async fn main() {
     #[cfg(not(feature = "log-json"))]
     let formatting_layer = tracing_subscriber::fmt::layer();
 
+    // opentelemetry config
     let opentelemetry = tracing_opentelemetry::layer().with_tracer(tracer);
     tracing_subscriber::registry()
         .with(EnvFilter::try_from_default_env().unwrap())
