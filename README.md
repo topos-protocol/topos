@@ -1,7 +1,7 @@
 <div id="top"></div>
 <!-- PROJECT LOGO -->
 <br />
-<div align="right">
+<div align="center">
 
   <img src="./.github/assets/topos_logo.png#gh-light-mode-only" alt="Logo" width="200">
   <img src="./.github/assets/topos_logo_dark.png#gh-dark-mode-only" alt="Logo" width="200">
