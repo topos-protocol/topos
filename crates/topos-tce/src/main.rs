@@ -55,7 +55,7 @@ async fn main() {
         .unwrap();
 
     let export_config = ExportConfig {
-        endpoint: "http://otel-collector:4317".to_string(),
+        endpoint: "http://otel-collector-opentelemetry-collector:4317".to_string(),
         timeout: Duration::from_secs(3),
         protocol: Protocol::Grpc,
     };
