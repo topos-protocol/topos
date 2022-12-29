@@ -3,93 +3,63 @@
 <br />
 <div align="center">
 
-  <img src="./.github/assets/logo.png#gh-light-mode-only" alt="Logo" width="300">
-  <img src="./.github/assets/logo_dark.png#gh-dark-mode-only" alt="Logo" width="300">
+  <img src="./.github/assets/topos_logo.png#gh-light-mode-only" alt="Logo" width="200">
+  <img src="./.github/assets/topos_logo_dark.png#gh-dark-mode-only" alt="Logo" width="200">
 
-  <h1>Transmission Control Engine</h1>
-  
-  <p>
-    The <a href="https://docs.toposware.com/learn/tce/overview" target="_blank">Transmission Control Engine</a> serves as the foundation for consistent cross-subnet communication, <br/> which is core to the <a href="https://docs.toposware.com/general-overview" target="_blank">Topos</a> ecosystem.
-  </p>
-  
-  [![codecov](https://codecov.io/gh/toposware/tce/branch/main/graph/badge.svg?token=FOH2B2GRL9)](https://codecov.io/gh/toposware/tce)
-  ![example workflow](https://github.com/toposware/tce/actions/workflows/test.yml/badge.svg)
-  ![example workflow](https://github.com/toposware/tce/actions/workflows/format.yml/badge.svg)
-  ![example workflow](https://github.com/toposware/tce/actions/workflows/lint.yml/badge.svg)
+<br />
+
+<p align="center">
+topos is the unified command line interface to the <a href="https://docs.toposware.com/general-overview">Topos</a> network.
+</p>
+
+<br />
+
 </div>
 
-## Build
+<!-- **`topos` is the unified command line interface to the [Topos](https://docs.toposware.com/general-overview) network.** -->
 
-```shell
-cargo build --release
+[![codecov](https://codecov.io/gh/toposware/topos/branch/main/graph/badge.svg?token=FOH2B2GRL9&style=flat)](https://codecov.io/gh/toposware/topos)
+![example workflow](https://github.com/toposware/topos/actions/workflows/test.yml/badge.svg)
+![example workflow](https://github.com/toposware/topos/actions/workflows/format.yml/badge.svg)
+![example workflow](https://github.com/toposware/topos/actions/workflows/lint.yml/badge.svg)
+[![](https://dcbadge.vercel.app/api/server/7HZ8F8ykBT?style=flat)](https://discord.gg/7HZ8F8ykBT)
+
+
+## Getting Started
+
+**Install Rust**
+
+The first step is to install Rust along with `cargo` by following the instructions [here](https://doc.rust-lang.org/book/ch01-01-installation.html#installing-rustup-on-linux-or-macos).
+
+**Install `topos`**
+
 ```
+cargo install topos --git https://github.com/toposware/topos
+```
+
+**Try out `topos`!**
+```
+topos --help
+```
+
+Find more about how topos works in the [documentation](https://docs.toposware.com/).
 
 ## Development
 
-If you want to be part of the development, make sure to have your workflow complete.
+Contributions are very welcomed, the guidelines are outlined in [`CONTRIBUTING.md`](./CONTRIBUTING.md).<br />
+Running a minimal local setup with docker compose is described [here](./tools/README.md).
 
-### Testing
+## Support
 
-```
-cargo test --all
-```
+Feel free to [open an issue](https://github.com/toposware/topos/issues/new) if you have any feature request or bug report.<br />
+If you have any questions, do not hesitate to reach us on [Discord](https://discord.gg/7HZ8F8ykBT)!
 
-### Formatting
-
-```
-cargo fmt --check
-```
-
-### Linting
-
-```
-cargo clippy --all
-```
-
-## Docker
-
-The above actions can also be run in docker, using the corresponding docker `target`.
-
-A few build arguments are required:
-
-- GITHUB_TOKEN: PAT with `read` permission on repos
-- TOOLCHAIN_VERSION: `(stable|nightly-2022-07-20|...)`
-
-Targeted docker build commands follow the following pattern:
-
-```
-docker build . --build-arg GITHUB_TOKEN=*** --build-arg TOOLCHAIN_VERSION=[...] --target [TARGET]
-```
-
-### Build
-
-```
-docker build . ... --target build
-```
-
-### Testing
-
-```
-docker build . ... --target test
-```
-
-### Formatting
-
-```
-docker build . ... --target fmt
-```
-
-### Linting
-
-```
-docker build . ... --target lint
-```
-
-## Tools
-
-Some tools are implemented in this repository, namely,
-
-The [params-minimizer](./params-minimizer/) aims at figuring out the protocol parameters of the TCE. Specifically, the TCE runs on simulated environment, with various parameters in order to understand what are the optimal values.
+## Resources
+- Website: https://toposware.com
+- Technical Documentation: https://docs.toposware.com
+- Medium: https://toposware.medium.com
+- Whitepaper: [Topos: A Secure, Trustless, and Decentralized
+  Interoperability Protocol](https://arxiv.org/pdf/2206.03481.pdf)
 
 ## License
 
