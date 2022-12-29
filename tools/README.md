@@ -30,7 +30,10 @@ Several services are exposed:
 - `tce-boot-node`: a TCE boot node
 - `tce-regular-node`: multiple replicas of TCE node
 
-Each service has its own set of environment variables that are configurable in the `docker-compose.yml`.
+> **Note**
+>
+> Each service has its own set of environment variables that are configurable in the `docker-compose.yml`.<br/>
+> The possible configuration through environment variables are outlined by `topos tce run --help`.
 
 The default number of TCE (non-boot) nodes is defined by the variable `replicas` in the docker-compose file, that you can later update by running the following command:
 
