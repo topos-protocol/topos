@@ -47,7 +47,7 @@ Find more about how topos works in the [documentation](https://docs.toposware.co
 ## Development
 
 Contributions are very welcomed, the guidelines are outlined in [`CONTRIBUTING.md`](./CONTRIBUTING.md).<br />
-Running a minimal local setup with docker compose is described [here](`./tools/README.md`).
+Running a minimal local setup with docker compose is described [here](./tools/README.md).
 
 ## Support
 
