@@ -15,7 +15,7 @@ docker build . ... --target (build|test|fmt|lint)
 ```
 # Docker Compose Setup
 
-The [`docker-compose.yml`](./docker-compose.yml) provides a pre-configured TCE local network setup.
+The [`docker-compose.yml`](./docker-compose.yml) provides a pre-configured local TCE network setup.
 
 You can run it with the following command,
 
@@ -23,19 +23,19 @@ You can run it with the following command,
 docker compose up -d
 ```
 
-Several services are exposed,
+Several services are exposed:
 
-- Instrumentation with `jaeger` on `ip:port`
-- Spammer of Certificate `cert-spammer` which is used to benchmark the TCE
-- `tce-boot-node` which is a TCE bootnode
-- Several replicas `tce-regular-node` which are the TCE participants
+- `jaeger`: all-in-one observability stack for distributed tracing
+- `cert-spammer`: tool to submit mocked certificates to the TCE network (for benchmark)
+- `tce-boot-node`: a TCE boot node
+- `tce-regular-node`: multiple replicas of TCE node
 
-Each service are having their own set of environment variable that are configurable in the `docker-compose.yml`.
+Each service has its own set of environment variables that are configurable in the `docker-compose.yml`.
 
-The default number of TCE nodes is defined by the variable `replicats` in the docker-compose file, that you can specify in the command line
+The default number of TCE (non-boot) nodes is defined by the variable `replicas` in the docker-compose file, that you can later update by running the following command:
 
 ```
 docker compose up -d --no-recreate --scale node=<number>
 ```
 
-The `cert-spammer` can be customized through environment variable defined in the compose file in order to change the number of certificates or the frequency of publish.
+The `cert-spammer` can be customized through environment variables defined in the compose file in order to change the number of certificates or the frequency of their publication.

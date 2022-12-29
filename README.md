@@ -29,7 +29,7 @@ topos is the unified command line interface to the <a href="https://docs.toposwa
 
 **Install Rust**
 
-The first step is to install Rust along with `cargo` by following [those instructions](https://doc.rust-lang.org/book/ch01-01-installation.html#installing-rustup-on-linux-or-macos).
+The first step is to install Rust along with `cargo` by following the instructions [here](https://doc.rust-lang.org/book/ch01-01-installation.html#installing-rustup-on-linux-or-macos).
 
 **Install `topos`**
 
@@ -42,7 +42,7 @@ cargo install topos --git https://github.com/toposware/topos
 topos --help
 ```
 
-Find more in the [documentation](https://docs.toposware.com/).
+Find more about how topos works in the [documentation](https://docs.toposware.com/).
 
 ## Development
 
