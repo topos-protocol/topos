@@ -311,7 +311,7 @@ pub(crate) fn parse_events_from_log(
     Ok(result)
 }
 
-pub fn derive_eth_address(secret_key: &[u8]) -> Result<String, crate::Error> {
+pub fn derive_eth_address(secret_key: &[u8]) -> Result<H160, crate::Error> {
     let eth_public_key: Vec<u8> = PublicKey::from_secret_key(
         &secp256k1::Secp256k1::new(),
         &SecretKey::from_slice(secret_key)?,
@@ -319,6 +319,5 @@ pub fn derive_eth_address(secret_key: &[u8]) -> Result<String, crate::Error> {
     .serialize_uncompressed()[1..]
         .to_vec();
     let keccak = tiny_keccak::keccak256(&eth_public_key);
-
-    Ok("0x".to_string() + &hex::encode(&keccak[..])[24..])
+    Ok(H160::from_slice(&keccak[12..]))
 }
