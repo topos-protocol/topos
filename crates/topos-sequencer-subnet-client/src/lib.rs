@@ -4,11 +4,12 @@ use crate::subnet_contract::{
     create_topos_core_contract_from_json, parse_events_from_json, parse_events_from_log,
 };
 use thiserror::Error;
-use topos_sequencer_types::BlockInfo;
+use topos_sequencer_types::{BlockInfo, Certificate};
 use tracing::{debug, error, info};
+use web3::ethabi::Token;
 use web3::futures::StreamExt;
 use web3::transports::WebSocket;
-use web3::types::{BlockId, BlockNumber, U64};
+use web3::types::{Address, BlockId, BlockNumber, H160, U64};
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -36,6 +37,11 @@ pub enum Error {
     EthAbiError {
         #[from]
         source: web3::ethabi::Error,
+    },
+    #[error("ethereum contract error: {source}")]
+    EthContractError {
+        #[from]
+        source: web3::contract::Error,
     },
     #[error("invalid argument: {message}")]
     InvalidArgument { message: String },
@@ -77,7 +83,7 @@ pub enum Error {
 
 // A to hold subnet client related entities
 pub struct SubnetClient {
-    pub eth_admin_address: String,
+    pub eth_admin_address: H160,
     #[allow(dead_code)]
     eth_admin_key: Vec<u8>,
     web3_client: web3::Web3<web3::transports::WebSocket>,
@@ -216,9 +222,27 @@ impl SubnetClient {
         Ok(block_info)
     }
 
-    pub async fn get_eth_nonce(&self, _address: &str) -> Result<u128, Error> {
-        // Get transaction count from native blockchain for particular account
-        // TODO implement with web3 client
-        Ok(0)
+    pub async fn get_eth_nonce(&self, address: Address) -> Result<u128, Error> {
+        let nonce = self
+            .web3_client
+            .eth()
+            .transaction_count(address, None)
+            .await?;
+        Ok(nonce.as_u128())
+    }
+
+    pub async fn push_certificate(&self, cert: &Certificate) -> Result<(), Error> {
+        let call_options = web3::contract::Options::default();
+        let cert_id_token: Token = web3::ethabi::Token::FixedBytes(cert.id.to_vec());
+        let encoded_cert_id = web3::ethabi::encode(&[cert_id_token]);
+        self.contract
+            .call(
+                "pushCertificate",
+                encoded_cert_id,
+                self.eth_admin_address,
+                call_options,
+            )
+            .await?;
+        Ok(())
     }
 }

@@ -6,7 +6,7 @@ use std::fmt::{Debug, Formatter};
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 use tokio::time::{self, Duration};
-use topos_core::uci::{Certificate, CrossChainTransaction, SubnetId};
+use topos_core::uci::Certificate;
 use topos_sequencer_subnet_client::{self, SubnetClient};
 use topos_sequencer_types::{RuntimeProxyCommand, RuntimeProxyEvent};
 use tracing::{debug, error, info, trace, warn};
@@ -33,7 +33,6 @@ impl RuntimeProxy {
         let (command_sender, mut command_rcv) = mpsc::unbounded_channel::<RuntimeProxyCommand>();
         let runtime_endpoint = Arc::new(config.endpoint.clone());
         let subnet_contract = Arc::new(config.subnet_contract.clone());
-        let subnet_id: Arc<SubnetId> = Arc::new(config.subnet_id);
         let (_tx_exit, mut rx_exit) = mpsc::unbounded_channel::<()>();
 
         // Get ethereum private key from keystore
@@ -150,7 +149,7 @@ impl RuntimeProxy {
                         tokio::select! {
                             // Poll runtime proxy commands channel
                             cmd = command_rcv.recv() => {
-                                Self::on_command(&config, &mut subnet_client, &subnet_id, cmd).await;
+                                Self::on_command(&config, &mut subnet_client, cmd).await;
                             },
                             Some(_) = rx_exit.recv() => {
                                 break;
@@ -173,23 +172,18 @@ impl RuntimeProxy {
         Ok(())
     }
 
-    /// Process asset transfer to target subnet
-    /// As a result return target subnet topos core contract call tx hash
-    /// where these cross chain transactions are processed
-    async fn process_asset_transfers(
+    /// Send certificate to target subnet Topos Core contract for verification
+    async fn deliver_certificate(
         runtime_proxy_config: &RuntimeProxyConfig,
-        _subnet_client: &mut SubnetClient,
-        _cert: &Certificate,
-        _txs: &[&CrossChainTransaction],
+        subnet_client: &mut SubnetClient,
+        cert: &Certificate,
     ) -> Result<String, Error> {
         debug!(
-            "Processing asset transfers for topos core contract {}",
-            runtime_proxy_config.subnet_contract
+            "Pushing certificate with id {:?} to target subnet {:?}, tcc {}",
+            cert.id, runtime_proxy_config.subnet_id, runtime_proxy_config.subnet_contract,
         );
 
-        ////////////////////////////////////////////
-        //TODO implement subnet contract mint call here
-        ////////////////////////////////////////////
+        subnet_client.push_certificate(cert).await?;
 
         Ok(String::new())
     }
@@ -197,7 +191,6 @@ impl RuntimeProxy {
     async fn on_command(
         runtime_proxy_config: &RuntimeProxyConfig,
         subnet_client: &mut SubnetClient,
-        subnet_id: &SubnetId,
         mb_cmd: Option<RuntimeProxyCommand>,
     ) {
         match mb_cmd {
@@ -208,34 +201,25 @@ impl RuntimeProxy {
                 // Process certificate retrieved from TCE node
                 RuntimeProxyCommand::OnNewDeliveredTxns(cert) => {
                     info!("on_command - OnNewDeliveredTxns cert_id={:?}", &cert.id);
-                    // Make list (by reference) of asset transfer transactions
-                    let mut asset_transfer_txs: Vec<&CrossChainTransaction> = Vec::new();
-                    for tx in &cert.calls {
-                        if tx.target_subnet_id == hex::decode(subnet_id).unwrap_or_default()[0..20]
-                        {
-                            asset_transfer_txs.push(tx);
-                        }
-                    }
-                    // Process all asset transfer transactions and call
-                    // Topos core contract
-                    match RuntimeProxy::process_asset_transfers(
+
+                    // Pass certificate to target subnet Topos core contract
+                    match RuntimeProxy::deliver_certificate(
                         runtime_proxy_config,
                         subnet_client,
                         &cert,
-                        &asset_transfer_txs,
                     )
                     .await
                     {
                         Ok(tx_hash) => {
                             debug!(
-                                "Successfully processed transactions {:?} with the target subnet transaction {} ",
-                                &asset_transfer_txs, &tx_hash
+                                "Successfully sent certificate id={:?} to target subnet with tx hash {} ",
+                                &cert.id, &tx_hash
                             );
                         }
                         Err(e) => {
                             error!(
-                                "Failed to process transactions {:?} error details: {}",
-                                asset_transfer_txs, e
+                                "Failed to send certificate id={:?} to target subnet, error details: {}",
+                                &cert.id, e
                             );
                         }
                     }

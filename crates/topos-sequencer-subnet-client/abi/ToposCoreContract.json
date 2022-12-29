@@ -674,6 +674,19 @@
   {
     "inputs": [
       {
+        "internalType": "bytes",
+        "name": "certBytes",
+        "type": "bytes"
+      }
+    ],
+    "name": "pushCertificate",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "subnetId",
         "name": "targetSubnetId",
         "type": "bytes32"
@@ -785,19 +798,6 @@
       }
     ],
     "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes",
-        "name": "certBytes",
-        "type": "bytes"
-      }
-    ],
-    "name": "verifyCertificate",
-    "outputs": [],
-    "stateMutability": "nonpayable",
     "type": "function"
   },
   {

@@ -23,7 +23,7 @@ const SUBNET_HTTP_PORT: u32 = 8545;
 const TEST_SECRET_ETHEREUM_KEY: &'static str =
     "99B3C12287537E38C90A9219D4CB074A89A16E9CDB20BF85728EBD97C343E342";
 const DOCKER_IMAGE: &'static str = "ghcr.io/toposware/substrate-subnet-node";
-const DOCKER_IMAGE_TAG: &str = "test";
+const DOCKER_IMAGE_TAG: &str = "main";
 const SUBNET_STARTUP_DELAY: u64 = 10; // seconds left for subnet startup
 const TOPOS_SMART_CONTRACTS_BUILD_PATH: &str = "TOPOS_SMART_CONTRACTS_BUILD_PATH";
 
@@ -300,7 +300,7 @@ async fn test_subnet_node_get_nonce(
     .await
     {
         Ok(subnet_client) => {
-            let nonce = subnet_client.get_eth_nonce(&eth_address).await?;
+            let nonce = subnet_client.get_eth_nonce(eth_address).await?;
             assert_eq!(nonce, 2);
         }
         Err(e) => {
@@ -340,7 +340,7 @@ async fn test_create_runtime() -> Result<(), Box<dyn std::error::Error>> {
 #[tokio::test]
 #[serial]
 #[ignore = "needs to be updated to the new smart contract api"]
-async fn test_subnet_mint_call(
+async fn test_subnet_certificate_push_call(
     context_running_subnet_node: impl Future<Output = Context>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let context = context_running_subnet_node.await;
