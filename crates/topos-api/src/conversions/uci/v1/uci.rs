@@ -35,10 +35,6 @@ impl From<proto_v1::CrossChainTransactionData> for topos_uci::CrossChainTransact
                         .target_contract_addr
                         .try_into()
                         .expect("expected valid target contract address with correct length"),
-                    payload_hash: contract_call
-                        .payload_hash
-                        .try_into()
-                        .expect("expected valid payload hash with correct length"),
                     payload: contract_call.payload,
                 }
             }
@@ -53,10 +49,6 @@ impl From<proto_v1::CrossChainTransactionData> for topos_uci::CrossChainTransact
                     .target_contract_addr
                     .try_into()
                     .expect("expected valid target contract address with correct length"),
-                payload_hash: contract_call_with_token
-                    .payload_hash
-                    .try_into()
-                    .expect("expected valid payload hash with correct length"),
                 payload: contract_call_with_token.payload,
                 symbol: contract_call_with_token.symbol,
                 amount: U256::from_little_endian(&contract_call_with_token.amount[..]),
@@ -90,14 +82,12 @@ impl From<topos_uci::CrossChainTransactionData> for proto_v1::CrossChainTransact
             topos_uci::CrossChainTransactionData::ContractCall {
                 source_contract_addr,
                 target_contract_addr,
-                payload_hash,
                 payload,
             } => proto_v1::CrossChainTransactionData {
                 data: Some(proto_v1::cross_chain_transaction_data::Data::ContractCall(
                     proto_v1::cross_chain_transaction_data::ContractCall {
                         source_contract_addr: source_contract_addr.as_slice().to_vec(),
                         target_contract_addr: target_contract_addr.as_slice().to_vec(),
-                        payload_hash: payload_hash.to_vec(),
                         payload,
                     },
                 )),
@@ -105,7 +95,6 @@ impl From<topos_uci::CrossChainTransactionData> for proto_v1::CrossChainTransact
             topos_uci::CrossChainTransactionData::ContractCallWithToken {
                 source_contract_addr,
                 target_contract_addr,
-                payload_hash,
                 payload,
                 symbol,
                 amount,
@@ -115,7 +104,6 @@ impl From<topos_uci::CrossChainTransactionData> for proto_v1::CrossChainTransact
                         proto_v1::cross_chain_transaction_data::ContractCallWithToken {
                             source_contract_addr: source_contract_addr.as_slice().to_vec(),
                             target_contract_addr: target_contract_addr.as_slice().to_vec(),
-                            payload_hash: payload_hash.to_vec(),
                             payload,
                             symbol,
                             amount: {

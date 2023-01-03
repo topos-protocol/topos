@@ -97,13 +97,11 @@ pub enum CrossChainTransactionData {
     ContractCall {
         source_contract_addr: Address,
         target_contract_addr: Address,
-        payload_hash: [u8; 32],
         payload: Vec<u8>,
     },
     ContractCallWithToken {
         source_contract_addr: Address,
         target_contract_addr: Address,
-        payload_hash: [u8; 32],
         payload: Vec<u8>,
         symbol: String,
         amount: Amount,

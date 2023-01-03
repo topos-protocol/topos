@@ -28,18 +28,16 @@ message CrossChainTransactionData {
   message ContractCall {
     bytes source_contract_addr = 1;
     bytes target_contract_addr = 2;
-    bytes payload_hash = 3;
-    bytes payload = 4;
+    bytes payload = 3;
   }
 
   // Data describing cross chain function call with token transfer
   message ContractCallWithToken {
     bytes source_contract_addr = 1;
     bytes target_contract_addr = 2;
-    bytes payload_hash = 3;
-    bytes payload = 4;
-    string symbol = 5;
-    bytes amount = 6;
+    bytes payload = 3;
+    string symbol = 4;
+    bytes amount = 5;
   }
 }
 

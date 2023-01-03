@@ -6,9 +6,9 @@ use topos_sequencer_api::{ApiConfig, ApiWorker};
 use topos_sequencer_certification::CertificationWorker;
 use topos_sequencer_subnet_runtime_proxy::{RuntimeProxyConfig, RuntimeProxyWorker};
 use topos_sequencer_tce_proxy::{TceProxyConfig, TceProxyWorker};
+use topos_sequencer_types::SubnetId;
 use tracing::info;
 use tracing_subscriber::{prelude::*, EnvFilter};
-use topos_sequencer_types::SubnetId;
 
 mod app_context;
 

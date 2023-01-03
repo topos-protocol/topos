@@ -31,8 +31,6 @@ pub mod cross_chain_transaction_data {
         #[prost(bytes = "vec", tag = "2")]
         pub target_contract_addr: ::prost::alloc::vec::Vec<u8>,
         #[prost(bytes = "vec", tag = "3")]
-        pub payload_hash: ::prost::alloc::vec::Vec<u8>,
-        #[prost(bytes = "vec", tag = "4")]
         pub payload: ::prost::alloc::vec::Vec<u8>,
     }
     /// Data describing cross chain function call with token transfer
@@ -44,12 +42,10 @@ pub mod cross_chain_transaction_data {
         #[prost(bytes = "vec", tag = "2")]
         pub target_contract_addr: ::prost::alloc::vec::Vec<u8>,
         #[prost(bytes = "vec", tag = "3")]
-        pub payload_hash: ::prost::alloc::vec::Vec<u8>,
-        #[prost(bytes = "vec", tag = "4")]
         pub payload: ::prost::alloc::vec::Vec<u8>,
-        #[prost(string, tag = "5")]
+        #[prost(string, tag = "4")]
         pub symbol: ::prost::alloc::string::String,
-        #[prost(bytes = "vec", tag = "6")]
+        #[prost(bytes = "vec", tag = "5")]
         pub amount: ::prost::alloc::vec::Vec<u8>,
     }
     #[allow(clippy::derive_partial_eq_without_eq)]

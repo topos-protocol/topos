@@ -58,7 +58,6 @@ fn create_cross_chain_transaction(event: &SubnetEvent) -> Result<CrossChainTrans
             source_contract_addr,
             target_subnet_id,
             target_contract_addr,
-            payload_hash,
             payload,
         } => Ok(CrossChainTransaction {
             target_subnet_id: *target_subnet_id,
@@ -71,7 +70,6 @@ fn create_cross_chain_transaction(event: &SubnetEvent) -> Result<CrossChainTrans
                     .as_slice()
                     .try_into()
                     .map_err(Error::InvalidAddress)?,
-                payload_hash: *payload_hash,
                 payload: payload.clone(),
             },
         }),
@@ -80,7 +78,6 @@ fn create_cross_chain_transaction(event: &SubnetEvent) -> Result<CrossChainTrans
             source_contract_addr,
             target_subnet_id,
             target_contract_addr,
-            payload_hash,
             payload,
             symbol,
             amount,
@@ -97,7 +94,6 @@ fn create_cross_chain_transaction(event: &SubnetEvent) -> Result<CrossChainTrans
                         .as_slice()
                         .try_into()
                         .map_err(Error::InvalidAddress)?,
-                    payload_hash: *payload_hash,
                     payload: payload.clone(),
                     symbol: symbol.clone(),
                     amount: *amount,

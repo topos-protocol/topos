@@ -4799,6 +4799,7 @@ dependencies = [
  "futures",
  "hex",
  "hyper",
+ "pretty_env_logger",
  "rstest",
  "serde",
  "serde_json",
