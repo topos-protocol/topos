@@ -2,20 +2,29 @@ use clap::Parser;
 use topos_p2p::{Multiaddr, PeerId};
 
 use crate::app_context::AppContext;
-use log::info;
 use topos_sequencer_api::{ApiConfig, ApiWorker};
 use topos_sequencer_certification::CertificationWorker;
 use topos_sequencer_subnet_runtime_proxy::{RuntimeProxyConfig, RuntimeProxyWorker};
 use topos_sequencer_tce_proxy::{TceProxyConfig, TceProxyWorker};
+use tracing::info;
+use tracing_subscriber::{prelude::*, EnvFilter};
 
 mod app_context;
 
-// use topos_store::{Store, StoreConfig};
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    pretty_env_logger::init_timed();
-    info!("Starting application");
+    #[cfg(feature = "log-json")]
+    let formatting_layer = tracing_subscriber::fmt::layer().json();
+
+    #[cfg(not(feature = "log-json"))]
+    let formatting_layer = tracing_subscriber::fmt::layer();
+
+    tracing_subscriber::registry()
+        .with(EnvFilter::try_from_default_env().unwrap())
+        .with(formatting_layer)
+        .set_default();
+
+    info!("Starting topos-sequencer application");
 
     let mut args = AppArgs::parse();
 

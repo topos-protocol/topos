@@ -1,6 +1,7 @@
 /// Two types of transactions available:
 /// Asset transfer
 /// Smart contract function call
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CrossChainTransactionData {
     #[prost(oneof = "cross_chain_transaction_data::Data", tags = "1, 2")]
@@ -9,6 +10,7 @@ pub struct CrossChainTransactionData {
 /// Nested message and enum types in `CrossChainTransactionData`.
 pub mod cross_chain_transaction_data {
     /// Cross chain transaction data for asset transfer
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct AssetTransfer {
         #[prost(string, tag = "1")]
@@ -17,11 +19,13 @@ pub mod cross_chain_transaction_data {
         pub amount: ::prost::alloc::vec::Vec<u8>,
     }
     /// Data describing cross chain function call
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct FunctionCall {
         #[prost(bytes = "vec", tag = "1")]
         pub data: ::prost::alloc::vec::Vec<u8>,
     }
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Data {
         #[prost(message, tag = "1")]
@@ -31,6 +35,7 @@ pub mod cross_chain_transaction_data {
     }
 }
 /// Cross chain transaction exchanged between subnets
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CrossChainTransaction {
     #[prost(string, tag = "1")]
@@ -43,6 +48,7 @@ pub struct CrossChainTransaction {
     pub transaction_data: ::core::option::Option<CrossChainTransactionData>,
 }
 /// Certificate - main exchange item
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Certificate {
     #[prost(string, tag = "1")]

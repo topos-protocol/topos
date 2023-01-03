@@ -10,6 +10,7 @@ use topos_core::uci::{
     Certificate, CertificateId, CrossChainTransaction, CrossChainTransactionData, SubnetId,
 };
 use topos_sequencer_types::{BlockInfo, CertificationCommand, CertificationEvent, SubnetEvent};
+use tracing::{debug, error, warn};
 
 pub struct Certification {
     pub commands_channel: mpsc::UnboundedSender<CertificationCommand>,
@@ -146,14 +147,14 @@ impl Certification {
             Some(cmd) => match cmd {
                 CertificationCommand::AddFinalizedBlock(block_info) => {
                     certification.finalized_blocks.push(block_info);
-                    log::debug!(
+                    debug!(
                         "Finalized blocks mempool updated: {:?}",
                         &certification.finalized_blocks
                     );
                 }
             },
             _ => {
-                log::warn!("Empty command was passed");
+                warn!("Empty command was passed");
             }
         }
     }
@@ -193,7 +194,7 @@ impl Certification {
                 None => 0.to_string(),
             },
             None => {
-                log::error!("ill-formed subnet history for {:?}", subnet_id);
+                error!("ill-formed subnet history for {:?}", subnet_id);
                 return None;
             }
         };

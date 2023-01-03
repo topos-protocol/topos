@@ -8,6 +8,7 @@ use topos_sequencer_certification::CertificationWorker;
 use topos_sequencer_subnet_runtime_proxy::RuntimeProxyWorker;
 use topos_sequencer_tce_proxy::TceProxyWorker;
 use topos_sequencer_types::*;
+use tracing::debug;
 
 /// Top-level transducer main app context & driver (alike)
 ///
@@ -50,25 +51,25 @@ impl AppContext {
             tokio::select! {
                 // Topos Sequencer API
                 Ok(req) = self.api_worker.next_request() => {
-                    log::debug!("api_worker.next_request(): {:?}", &req);
+                    debug!("api_worker.next_request(): {:?}", &req);
                     self.on_api_request(req);
                 }
 
                 // Runtime View Worker
                 Ok(evt) = self.runtime_proxy_worker.next_event() => {
-                    log::debug!("runtime_proxy_worker.next_event(): {:?}", &evt);
+                    debug!("runtime_proxy_worker.next_event(): {:?}", &evt);
                     self.on_runtime_proxy_event(evt).await;
                 },
 
                 // Certification Worker
                 Ok(evt) = self.certification_worker.next_event() => {
-                    log::debug!("certification_worker.next_event(): {:?}", &evt);
+                    debug!("certification_worker.next_event(): {:?}", &evt);
                     self.on_certification_event(evt).await;
                 },
 
                 // TCE events
                 Ok(tce_evt) = self.tce_proxy_worker.next_event() => {
-                    log::debug!("tce_proxy_worker.next_event(): {:?}", &tce_evt);
+                    debug!("tce_proxy_worker.next_event(): {:?}", &tce_evt);
                     self.on_tce_proxy_event(tce_evt).await;
                 },
             }
@@ -78,7 +79,7 @@ impl AppContext {
     fn on_api_request(&mut self, _req: ApiRequests) {}
 
     async fn on_runtime_proxy_event(&mut self, evt: RuntimeProxyEvent) {
-        log::debug!("on_runtime_proxy_event : {:?}", &evt);
+        debug!("on_runtime_proxy_event : {:?}", &evt);
         // This will always be a runtime proxy event
         let event = Event::RuntimeProxyEvent(evt);
         // TODO: error handling
@@ -87,7 +88,7 @@ impl AppContext {
     }
 
     async fn on_certification_event(&mut self, evt: CertificationEvent) {
-        log::debug!("on_certification_event : {:?}", &evt);
+        debug!("on_certification_event : {:?}", &evt);
         match evt {
             CertificationEvent::NewCertificate(cert) => {
                 self.tce_proxy_worker

@@ -4,7 +4,6 @@
 
 use crate::Error::InvalidChannelError;
 use hyper::{body::Buf, header, Client, Method, Request};
-use log::{error, info, warn};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 use tokio_stream::StreamExt;
@@ -19,6 +18,7 @@ use topos_core::{
     uci::{Certificate, CertificateId, SubnetId},
 };
 use topos_sequencer_types::*;
+use tracing::{debug, error, info, warn};
 
 const CERTIFICATE_OUTBOUND_CHANNEL_SIZE: usize = 100;
 const CERTIFICATE_INBOUND_CHANNEL_SIZE: usize = 100;
@@ -465,17 +465,17 @@ impl TceProxyWorker {
                 Ok(res_body) => {
                     match serde_json::from_reader::<_, DeliveredCerts>(res_body.reader()) {
                         Ok(new_certs) => {
-                            log::debug!("check_new_certificates, post ok: {:?}", new_certs);
+                            debug!("check_new_certificates, post ok: {:?}", new_certs);
                             Ok(new_certs.certs)
                         }
                         Err(e) => {
-                            log::warn!("check_new_certificates - failed to parse the body:{:?}", e);
+                            warn!("check_new_certificates - failed to parse the body:{:?}", e);
                             Err(format!("{:?}", e))
                         }
                     }
                 }
                 Err(e) => {
-                    log::warn!(
+                    warn!(
                         "check_new_certificates - failed to aggregate the body:{:?}",
                         e
                     );
@@ -483,7 +483,7 @@ impl TceProxyWorker {
                 }
             },
             Err(e) => {
-                log::warn!("check_new_certificates failed: {:?}", e);
+                warn!("check_new_certificates failed: {:?}", e);
                 Err(format!("{:?}", e))
             }
         }
@@ -512,8 +512,6 @@ mod should {
 
     #[tokio::test]
     async fn call_into_tce() {
-        pretty_env_logger::init_timed();
-
         let jh = tokio::spawn(async move {
             let _ = TceProxyWorker::check_new_certificates(
                 &"http://localhost:8080".to_string(),
@@ -523,6 +521,5 @@ mod should {
             .await;
         });
         let _ = tokio::join!(jh);
-        log::debug!("ok");
     }
 }

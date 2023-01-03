@@ -2,7 +2,6 @@
 //!
 
 use crate::{Error, RuntimeProxyConfig};
-use log::{debug, error, info, trace, warn};
 use std::fmt::{Debug, Formatter};
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
@@ -10,6 +9,7 @@ use tokio::time::{self, Duration};
 use topos_core::uci::{Certificate, CrossChainTransaction};
 use topos_sequencer_subnet_client::{self, SubnetClient};
 use topos_sequencer_types::{RuntimeProxyCommand, RuntimeProxyEvent};
+use tracing::{debug, error, info, trace, warn};
 
 pub struct RuntimeProxy {
     pub commands_channel: mpsc::UnboundedSender<RuntimeProxyCommand>,
