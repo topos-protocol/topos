@@ -17,13 +17,12 @@ use topos_sequencer_subnet_runtime_proxy::{RuntimeProxyConfig, RuntimeProxyWorke
 
 const SUBNET_CONTRACT_JSON_DEFINITION: &'static str = "ToposCoreContract.json";
 const SUBNET_CHAIN_ID: u64 = 43;
-const SUBNET_RPC_PORT: u32 = 9933;
-const SUBNET_JSONRPC_ENDPOINT: &'static str = "ws://127.0.0.1:8545/ws";
-const SUBNET_HTTP_PORT: u32 = 8545;
+const SUBNET_RPC_PORT: u32 = 8545;
+const TOPOS_SUBNET_JSONRPC_ENDPOINT: &'static str = "ws://127.0.0.1:8545/ws";
 const TEST_SECRET_ETHEREUM_KEY: &'static str =
-    "99B3C12287537E38C90A9219D4CB074A89A16E9CDB20BF85728EBD97C343E342";
-const DOCKER_IMAGE: &'static str = "ghcr.io/toposware/substrate-subnet-node";
-const DOCKER_IMAGE_TAG: &str = "main";
+    "5fb92d6e98884f76de468fa3f6278f8807c48bebc13595d45af5bdc4da702133";
+const DOCKER_IMAGE: &'static str = "ghcr.io/toposware/polygon-edge";
+const DOCKER_IMAGE_TAG: &str = "develop";
 const SUBNET_STARTUP_DELAY: u64 = 10; // seconds left for subnet startup
 const TOPOS_SMART_CONTRACTS_BUILD_PATH: &str = "TOPOS_SMART_CONTRACTS_BUILD_PATH";
 
@@ -138,8 +137,7 @@ fn spawn_subnet_node(
             .pull_policy(PullPolicy::IfNotPresent);
         let mut substrate_subnet_node = Composition::with_image(img);
         substrate_subnet_node
-            .port_map(SUBNET_RPC_PORT, SUBNET_RPC_PORT)
-            .port_map(SUBNET_HTTP_PORT, SUBNET_HTTP_PORT);
+            .port_map(SUBNET_RPC_PORT, SUBNET_RPC_PORT);
         let mut substrate_subnet_node_docker = DockerTest::new().with_default_source(source);
         substrate_subnet_node_docker.add_composition(substrate_subnet_node);
         substrate_subnet_node_docker.run(|ops| async move {
@@ -235,7 +233,7 @@ async fn context_running_subnet_node() -> Context {
         }
     };
     // Web3 client for setup/mocking of contracts
-    let http = web3::transports::http::Http::new(SUBNET_JSONRPC_ENDPOINT).unwrap();
+    let http = web3::transports::http::Http::new(TOPOS_SUBNET_JSONRPC_ENDPOINT).unwrap();
     let web3_client = web3::Web3::new(http);
     // Wait for subnet node to start
     subnet_ready_receiver
@@ -283,7 +281,6 @@ async fn test_subnet_node_contract_deployment(
 #[rstest]
 #[tokio::test]
 #[serial]
-#[ignore = "needs to be updated to the new smart contract api"]
 async fn test_subnet_node_get_nonce(
     context_running_subnet_node: impl Future<Output = Context>,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -293,7 +290,7 @@ async fn test_subnet_node_get_nonce(
     let _eth_address =
         topos_sequencer_subnet_client::subnet_contract::derive_eth_address(&eth_private_key)?;
     match topos_sequencer_subnet_client::SubnetClient::new(
-        SUBNET_JSONRPC_ENDPOINT.as_ref(),
+        TOPOS_SUBNET_JSONRPC_ENDPOINT.as_ref(),
         eth_private_key,
         &("0x".to_string() + &hex::encode(context.subnet_contract.address())),
     )
@@ -317,13 +314,12 @@ async fn test_subnet_node_get_nonce(
 #[rstest]
 #[tokio::test]
 #[serial]
-#[ignore = "needs to be updated to the new smart contract api"]
 async fn test_create_runtime() -> Result<(), Box<dyn std::error::Error>> {
     let keystore_file_path = generate_test_keystore_file()?;
     println!("Creating runtime proxy...");
     let runtime_proxy_worker = RuntimeProxyWorker::new(RuntimeProxyConfig {
         subnet_id: SOURCE_SUBNET_ID,
-        endpoint: SUBNET_JSONRPC_ENDPOINT.to_string(),
+        endpoint: TOPOS_SUBNET_JSONRPC_ENDPOINT.to_string(),
         subnet_contract: "0x0000000000000000000000000000000000000000".to_string(),
         keystore_file: keystore_file_path,
         keystore_password: TEST_KEYSTORE_FILE_PASSWORD.to_string(),
@@ -349,7 +345,7 @@ async fn test_subnet_certificate_push_call(
         "0x".to_string() + &hex::encode(context.subnet_contract.address());
     let runtime_proxy_worker = RuntimeProxyWorker::new(RuntimeProxyConfig {
         subnet_id: SOURCE_SUBNET_ID,
-        endpoint: SUBNET_JSONRPC_ENDPOINT.to_string(),
+        endpoint: TOPOS_SUBNET_JSONRPC_ENDPOINT.to_string(),
         subnet_contract: subnet_smart_contract_address.clone(),
         keystore_file: keystore_file_path,
         keystore_password: TEST_KEYSTORE_FILE_PASSWORD.to_string(),
