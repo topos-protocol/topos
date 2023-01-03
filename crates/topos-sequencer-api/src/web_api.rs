@@ -13,6 +13,7 @@ use hyper::{header, Body, Method, Request, Response, Server, StatusCode};
 use serde::{de::DeserializeOwned, Serialize};
 use std::convert::Infallible;
 use tokio::sync::mpsc;
+use tracing::{debug, warn};
 
 /// Handler of [get]/health_check
 async fn health_check() -> Result<Response<Body>, Infallible> {
@@ -46,7 +47,7 @@ async fn dispatch_req(
     req: Request<Body>,
     _tx: mpsc::Sender<ApiRequests>,
 ) -> Result<Response<Body>, Infallible> {
-    log::debug!("dispatch_req: {:?}", req);
+    debug!("dispatch_req: {:?}", req);
     match (req.method(), req.uri().path()) {
         // matches
         (&Method::GET, "/health_check") => health_check().await,
@@ -71,7 +72,7 @@ where
                 return Ok(deser_req);
             }
             Err(e) => {
-                log::warn!("from_post_params failed due to: {:?}", &e);
+                warn!("from_post_params failed due to: {:?}", &e);
             }
         }
     }

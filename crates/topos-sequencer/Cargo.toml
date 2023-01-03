@@ -6,12 +6,8 @@ authors = ["Toposware Developers <dev@toposware.com>"]
 edition = "2021"
 
 [dependencies]
-serde = { version = "1.0.136", features = ["derive"] }
-bincode = "1.3.3"
-clap = { version = "3.0.10", features = ["derive", "env"] }
-log = "0.4.14"
-pretty_env_logger = "0.4.0"
-tokio = { version = "1.15.0", features = [
+serde = { workspace = true, features = ["derive"] }
+tokio = { workspace = true, features = [
     "io-util",
     "io-std",
     "macros",
@@ -21,6 +17,12 @@ tokio = { version = "1.15.0", features = [
     "time",
     "sync",
 ] }
+tracing.workspace = true
+tracing-subscriber.workspace = true
+hex.workspace = true
+clap.workspace = true
+bincode.workspace = true
+
 rpassword = "7.0.0"
 
 topos-p2p = { path = "../topos-p2p/" }

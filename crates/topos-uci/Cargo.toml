@@ -4,6 +4,5 @@ version = "0.1.1"
 edition = "2021"
 
 [dependencies]
-
-serde = { version = "1.0.136", features = ["derive"] }
-ethereum-types = "0.12.1"
+serde = { workspace = true, features = ["derive"] }
+ethereum-types.workspace = true

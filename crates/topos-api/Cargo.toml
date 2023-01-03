@@ -5,15 +5,16 @@ edition = "2021"
 
 [dependencies]
 topos-uci = { path = "../topos-uci"}
-tonic = { version = "0.8", default-features = false, features = [
+
+tonic = { workspace = true, default-features = false, features = [
     "prost",
     "codegen",
     "transport",
 ] }
+ethereum-types.workspace = true
+uuid.workspace = true
 prost = "0.11"
 prost-types = "0.10"
-ethereum-types = "0.12.1"
-uuid = { version = "1.1.2", features = ["v4"] }
 
 [build-dependencies]
 tonic-build = { version = "0.8", default-features = false, features = [
@@ -21,8 +22,8 @@ tonic-build = { version = "0.8", default-features = false, features = [
 ] }
 
 [dev-dependencies]
-async-stream = "0.3.3"
+tokio.workspace = true
+futures.workspace = true
+tokio-stream.workspace = true
+async-stream.workspace = true
 tower = "0.4.13"
-tokio = "1.20.1"
-tokio-stream = "0.1.9"
-futures = "0.3.24"

@@ -13,8 +13,8 @@ tracing.workspace = true
 topos-api = { path = "../topos-api" }
 topos-p2p = { path = "../topos-p2p" }
 topos-tce-gatekeeper = { path = "../topos-tce-gatekeeper/" }
-uuid = { version = "1.2.2", features = ["v4", "serde"] }
+uuid = { workspace = true, features = ["v4", "serde"] }
 
 [dev-dependencies]
-rstest = "0.16.0"
+rstest.workspace = true
 tokio-test = "0.4.2"

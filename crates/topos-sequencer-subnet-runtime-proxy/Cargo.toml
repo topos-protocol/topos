@@ -8,10 +8,12 @@ name = "create-keystore"
 path = "src/keystore.rs"
 
 [dependencies]
-serde = { version = "1.0.136", features = ["derive"] }
-byteorder = "1.4.3"
-log = "0.4.14"
-tokio = { version = "1.15.0", features = [
+serde = { workspace = true, features = ["derive"] }
+rand = { workspace = true, features = ["default"] }
+rand_core.workspace = true
+rand_distr.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = [
     "io-util",
     "io-std",
     "macros",
@@ -21,12 +23,11 @@ tokio = { version = "1.15.0", features = [
     "time",
     "sync",
 ] }
-rand_distr = "0.4.1"
-rand_core = "0.6.0"
-rand = "0.8.5"
-thiserror = "1.0"
-clap = { version = "3.0.10", features = ["derive", "env"] }
-hex = "0.4.3"
+byteorder.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+hex.workspace = true
+clap.workspace = true
 eth-keystore = "0.5.0"
 ethereum-tx-sign = "6.0"
 
@@ -35,11 +36,10 @@ topos-sequencer-subnet-client = { package = "topos-sequencer-subnet-client", pat
 topos-core = { workspace = true, features = ["uci"] }
 
 [dev-dependencies]
-pretty_env_logger = "0.4.0"
-rstest = "0.15"
+rstest.workspace = true
+serde_json.workspace = true
+web3.workspace = true
 serial_test = "0.9"
 dockertest = "0.3.1"
-web3 = { version = "0.18.0", features = ["signing"]}
-serde_json = "1.0.85"
 secp256k1 = { version = "0.21", features = ["recovery"]}
 tiny-keccak = "1.2"

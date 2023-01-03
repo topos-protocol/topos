@@ -3,9 +3,9 @@ pub mod subnet_contract;
 use crate::subnet_contract::{
     create_topos_core_contract_from_json, parse_events_from_json, parse_events_from_log,
 };
-use log::{debug, error, info};
 use thiserror::Error;
 use topos_sequencer_types::BlockInfo;
+use tracing::{debug, error, info};
 use web3::futures::StreamExt;
 use web3::transports::WebSocket;
 use web3::types::{BlockId, BlockNumber, U64};

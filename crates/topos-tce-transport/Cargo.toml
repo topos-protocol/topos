@@ -8,9 +8,9 @@ path = 'src/lib.rs'
 
 [dependencies]
 serde.workspace = true
+clap.workspace = true
 
 topos-core = { workspace = true, features = ["uci"] }
-
 topos-p2p = { path = "../topos-p2p/"}
 
-clap = { version = "4.0.27", features = ["derive", "env"] }
+

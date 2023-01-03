@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-serde = { version = "1.0.136", features = ["derive"] }
-
 topos-core = { workspace = true, features = ["uci"] }
-ethereum-types = "0.12.1"
+
+serde = { workspace = true, features = ["derive"] }
+ethereum-types.workspace = true

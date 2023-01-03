@@ -9,17 +9,17 @@ rand.workspace = true
 rand_core.workspace = true
 rand_distr.workspace = true
 serde.workspace = true
+thiserror.workspace = true
 tokio-stream = { workspace = true, features = ["sync"] }
 tokio = { workspace = true, features = ["full"] }
 tracing.workspace = true
+byteorder.workspace = true
 
 topos-core = { workspace = true, features = ["uci"] }
 topos-p2p = { path = "../topos-p2p/"}
 tce_transport = { package = "topos-tce-transport", path = "../topos-tce-transport"}
 
-byteorder = "1.4.3"
 opentelemetry = { version = "0.17", default-features = false, features = ["trace", "rt-tokio"] }
-thiserror = "1.0.36"
 
 [dev-dependencies]
-pretty_env_logger = "0.4.0"
+

@@ -1,10 +1,13 @@
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SubmitCertificateRequest {
     #[prost(message, optional, tag = "1")]
     pub certificate: ::core::option::Option<super::super::uci::v1::Certificate>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SubmitCertificateResponse {}
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct WatchCertificatesRequest {
     /// Provide a request_id to track response
@@ -17,6 +20,7 @@ pub struct WatchCertificatesRequest {
 /// Nested message and enum types in `WatchCertificatesRequest`.
 pub mod watch_certificates_request {
     /// Sent once to start receiving events and being able to send further command
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct OpenStream {
         #[prost(message, repeated, tag = "1")]
@@ -25,12 +29,14 @@ pub mod watch_certificates_request {
         >,
     }
     /// Define which command needs to be performed
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Command {
         #[prost(message, tag = "2")]
         OpenStream(OpenStream),
     }
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct WatchCertificatesResponse {
     /// If the response is directly linked to a request this ID allow one to track it
@@ -42,6 +48,7 @@ pub struct WatchCertificatesResponse {
 /// Nested message and enum types in `WatchCertificatesResponse`.
 pub mod watch_certificates_response {
     /// Sent by the TCE when the stream is ready to be used and that certificates will start being push
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct StreamOpened {
         #[prost(message, repeated, tag = "1")]
@@ -50,6 +57,7 @@ pub mod watch_certificates_response {
         >,
     }
     /// Main message pushed to the stream
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct CertificatePushed {
         #[prost(message, optional, tag = "1")]
@@ -57,6 +65,7 @@ pub mod watch_certificates_response {
             super::super::super::uci::v1::Certificate,
         >,
     }
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Event {
         #[prost(message, tag = "2")]
@@ -384,6 +393,7 @@ pub mod api_service_server {
         const NAME: &'static str = "topos.tce.v1.APIService";
     }
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PushPeerListRequest {
     #[prost(message, optional, tag = "1")]
@@ -391,6 +401,7 @@ pub struct PushPeerListRequest {
     #[prost(string, repeated, tag = "2")]
     pub peers: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PushPeerListResponse {}
 /// Generated client implementations.
@@ -633,6 +644,7 @@ pub mod console_service_server {
         const NAME: &'static str = "topos.tce.v1.ConsoleService";
     }
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CheckpointRequest {
     /// Provide a request_id to track response
@@ -645,6 +657,7 @@ pub struct CheckpointRequest {
 /// Nested message and enum types in `CheckpointRequest`.
 pub mod checkpoint_request {
     /// Heads defines a request for every head positions for the listed subnets
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct Heads {
         #[prost(message, repeated, tag = "1")]
@@ -653,6 +666,7 @@ pub mod checkpoint_request {
         >,
     }
     /// SamePosition defines a request for the same position for the listed subnets
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct SamePosition {
         #[prost(message, repeated, tag = "1")]
@@ -663,6 +677,7 @@ pub mod checkpoint_request {
         pub position: u64,
     }
     /// Zero defines a request for the zero position for the listed subnets
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct Zero {
         #[prost(message, repeated, tag = "1")]
@@ -671,6 +686,7 @@ pub mod checkpoint_request {
         >,
     }
     /// The type of request
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum RequestType {
         /// This type of request will ask for heads of subnets
@@ -684,6 +700,7 @@ pub mod checkpoint_request {
         Zero(Zero),
     }
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CheckpointResponse {
     /// If the response is directly linked to a request this ID allow one to track it
@@ -696,6 +713,7 @@ pub struct CheckpointResponse {
 }
 /// Type that represents a SourceStreamPosition, or position, it represents a
 /// particular position in the stream of a subnet in a peer context.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SourceStreamPosition {
     #[prost(message, optional, tag = "1")]
