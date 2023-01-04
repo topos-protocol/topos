@@ -173,7 +173,7 @@ impl RuntimeProxy {
     }
 
     /// Send certificate to target subnet Topos Core contract for verification
-    async fn deliver_certificate(
+    async fn push_certificate(
         runtime_proxy_config: &RuntimeProxyConfig,
         subnet_client: &mut SubnetClient,
         cert: &Certificate,
@@ -203,22 +203,18 @@ impl RuntimeProxy {
                     info!("on_command - OnNewDeliveredTxns cert_id={:?}", &cert.id);
 
                     // Pass certificate to target subnet Topos core contract
-                    match RuntimeProxy::deliver_certificate(
-                        runtime_proxy_config,
-                        subnet_client,
-                        &cert,
-                    )
-                    .await
+                    match RuntimeProxy::push_certificate(runtime_proxy_config, subnet_client, &cert)
+                        .await
                     {
                         Ok(tx_hash) => {
                             debug!(
-                                "Successfully sent certificate id={:?} to target subnet with tx hash {} ",
+                                "Successfully pushed certificate id={:?} to target subnet with tx hash {} ",
                                 &cert.id, &tx_hash
                             );
                         }
                         Err(e) => {
                             error!(
-                                "Failed to send certificate id={:?} to target subnet, error details: {}",
+                                "Failed to push certificate id={:?} to target subnet, error details: {}",
                                 &cert.id, e
                             );
                         }
