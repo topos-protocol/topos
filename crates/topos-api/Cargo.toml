@@ -15,8 +15,9 @@ tonic = { workspace = true, default-features = false, features = [
 ] }
 ethereum-types.workspace = true
 uuid.workspace = true
-prost = "0.11"
-prost-types = "0.10"
+hex.workspace = true
+prost.workspace = true
+
 
 [build-dependencies]
 tonic-build = { version = "0.8", default-features = false, features = [

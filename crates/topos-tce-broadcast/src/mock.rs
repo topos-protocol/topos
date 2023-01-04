@@ -162,25 +162,23 @@ fn generate_cert(
 
     // Initialize the genesis of all subnets
     for subnet in subnets {
-        nonce_state.insert(subnet.clone(), 0.to_string());
-        history_state.insert(subnet.clone(), HashMap::new());
+        nonce_state.insert(*subnet, [0u8; 32]);
+        history_state.insert(*subnet, HashMap::new());
     }
 
     let mut gen_cert = |is_conflicting| -> (SubnetId, Certificate) {
         let mut rng = rand::thread_rng();
-        let selected_subnet = subnets[rng.gen_range(0..subnets.len())].clone();
+        let selected_subnet = subnets[rng.gen_range(0..subnets.len())];
         let last_cert_id = nonce_state.get_mut(&selected_subnet).unwrap();
 
         let gen_cert: Certificate;
         if is_conflicting {
-            gen_cert = Certificate::new(0.to_string(), selected_subnet.clone(), Default::default());
+            gen_cert = Certificate::new([0u8; 32], selected_subnet, Default::default())
+                .unwrap_or_default();
         } else {
-            gen_cert = Certificate::new(
-                last_cert_id.clone(),
-                selected_subnet.clone(),
-                Default::default(),
-            );
-            *last_cert_id = gen_cert.cert_id.clone();
+            gen_cert = Certificate::new(*last_cert_id, selected_subnet, Default::default())
+                .unwrap_or_default();
+            *last_cert_id = gen_cert.id;
         }
 
         (selected_subnet, gen_cert)
@@ -191,7 +189,7 @@ fn generate_cert(
         let (current_subnet_id, current_cert) = gen_cert(is_conflicting);
         if let Some(subnet_history) = history_state.get_mut(&current_subnet_id) {
             subnet_history
-                .entry(current_cert.prev_cert_id.clone())
+                .entry(current_cert.prev_id)
                 .and_modify(|v| v.push(current_cert.clone()))
                 .or_insert_with(|| vec![current_cert]);
         }
@@ -202,7 +200,7 @@ fn generate_cert(
         let (current_subnet_id, current_cert) = gen_cert(is_conflicting);
         if let Some(subnet_history) = history_state.get_mut(&current_subnet_id) {
             subnet_history
-                .entry(current_cert.prev_cert_id.clone())
+                .entry(current_cert.prev_id)
                 .and_modify(|v| v.push(current_cert.clone()))
                 .or_insert_with(|| vec![current_cert]);
         }
@@ -215,7 +213,13 @@ fn test_cert_conflict_generation() {
     let nb_subnet = 3;
     let nb_cert = 50;
     let conflict_ratio = 0.3;
-    let all_subnets: Vec<SubnetId> = (1..=nb_subnet as u64).map(|v| v.to_string()).collect();
+    let all_subnets: Vec<SubnetId> = (1..=nb_subnet as u64)
+        .map(|v| {
+            let mut val: SubnetId = [8u8; 32];
+            val[31] = v as u8;
+            val
+        })
+        .collect();
     let history_state = generate_cert(&all_subnets, nb_cert, conflict_ratio);
     let mut conflict = false;
     for (_, history_of_subnet) in history_state {
@@ -258,7 +262,11 @@ async fn run_tce_network(simu_config: SimulationConfig) -> Result<(), ()> {
         })
         .collect();
     let all_subnets: Vec<SubnetId> = (1..=simu_config.input.nb_subnets)
-        .map(|id| id.to_string())
+        .map(|id| {
+            let mut subnet_id = [0u8; 32];
+            subnet_id[31] = id as u8;
+            subnet_id
+        })
         .collect();
 
     // channel for combined event's from all the instances
@@ -335,14 +343,11 @@ fn watch_cert_delivered(
                     let mut delivered_all_cert = true;
                     for cert in &certs {
                         if let Ok(delivered) = w_cli
-                            .delivered_certs_ids(
-                                cert.source_subnet_id.clone(),
-                                cert.cert_id.clone(),
-                            )
+                            .delivered_certs_ids(cert.source_subnet_id, cert.id)
                             .await
                         {
                             // if something was returned, we'd expect our certificate to be on the list
-                            if !delivered.contains(&cert.cert_id) {
+                            if !delivered.contains(&cert.id) {
                                 delivered_all_cert = false;
                             }
                         }
@@ -427,14 +432,14 @@ fn launch_broadcast_protocol_instances(
     peer_ids: Vec<PeerId>,
     tx_combined_events: mpsc::UnboundedSender<(PeerId, TceEvents)>,
     _all_subnets: Vec<SubnetId>,
-    global_tce_params: ReliableBroadcastParams,
+    global_trb_params: ReliableBroadcastParams,
 ) -> PeersContainer {
     let mut peers_container = HashMap::<PeerId, ReliableBroadcastClient>::new();
 
     // create instances
     for peer in peer_ids {
         let (client, mut event_stream) = ReliableBroadcastClient::new(ReliableBroadcastConfig {
-            tce_params: global_tce_params.clone(),
+            tce_params: global_trb_params.clone(),
             my_peer_id: peer.to_string(),
         });
 

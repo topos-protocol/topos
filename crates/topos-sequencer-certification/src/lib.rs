@@ -4,6 +4,7 @@
 //! Abstracted from actual storage implementation.
 //!
 use aggregate::Certification;
+use std::array::TryFromSliceError;
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 use topos_core::uci::SubnetId;
@@ -16,6 +17,14 @@ pub mod aggregate;
 pub enum Error {
     #[error("Failed to lock object")]
     LockError,
+    #[error("Invalid address conversion: {0}")]
+    InvalidAddress(TryFromSliceError),
+    #[error("Certificate empty")]
+    EmptyCertificate,
+    #[error("Ill formed subnet history")]
+    IllFormedSubnetHistory,
+    #[error("Unable to create certificate {0}")]
+    CertificateGenerationError(Box<dyn std::error::Error>),
 }
 
 /// Thread safe client to the protocol aggregate
@@ -73,7 +82,7 @@ impl CertificationWorker {
 
 impl Default for CertificationWorker {
     fn default() -> Self {
-        Self::new(String::from("0")).expect("valid default certificatino worker")
+        Self::new([0u8; 32]).expect("valid default certificatino worker")
     }
 }
 

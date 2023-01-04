@@ -9,7 +9,7 @@ pub enum InternalStorageError {
     #[error("The certificate already exists")]
     CertificateAlreadyExists,
 
-    #[error("Unable to find a certificate: {0}")]
+    #[error("Unable to find a certificate: {0:?}")]
     CertificateNotFound(CertificateId),
 
     #[error("Unable to start storage")]
@@ -35,8 +35,8 @@ pub enum InternalStorageError {
     #[error("A concurrent DBBatch has been detected")]
     ConcurrentDBBatchDetected,
 
-    #[error("{0}: {1}")]
-    PositionError(#[source] PositionError, String),
+    #[error("{0}: {1:?}")]
+    PositionError(#[source] PositionError, [u8; 32]),
 
     #[error("InvalidSubnetId")]
     InvalidSubnetId,

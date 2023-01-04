@@ -28,7 +28,6 @@ pub enum SubnetEvent {
         source_contract_addr: Address,
         target_subnet_id: SubnetId,
         target_contract_addr: Address,
-        payload_hash: [u8; 32],
         payload: Vec<u8>,
     },
     ContractCallWithToken {
@@ -36,7 +35,6 @@ pub enum SubnetEvent {
         source_contract_addr: Address,
         target_subnet_id: SubnetId,
         target_contract_addr: Address,
-        payload_hash: [u8; 32],
         payload: Vec<u8>,
         symbol: String,
         amount: ethereum_types::U256,

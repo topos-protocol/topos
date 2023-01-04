@@ -21,6 +21,3 @@ topos-p2p = { path = "../topos-p2p/"}
 tce_transport = { package = "topos-tce-transport", path = "../topos-tce-transport"}
 
 opentelemetry = { version = "0.17", default-features = false, features = ["trace", "rt-tokio"] }
-
-[dev-dependencies]
-

@@ -3,6 +3,7 @@ use crate::tests::encode;
 use crate::wait_for_command;
 use test_log::test;
 use tokio::spawn;
+use topos_core::api::shared::v1::SubnetId;
 use topos_core::api::tce::v1::watch_certificates_request::OpenStream;
 use topos_core::api::tce::v1::WatchCertificatesRequest;
 
@@ -38,7 +39,9 @@ pub async fn sending_open_stream_message() -> Result<(), Box<dyn std::error::Err
     spawn(async move { stream.run().await });
 
     let msg: WatchCertificatesRequest = OpenStream {
-        subnet_ids: vec!["subnet_id".into()],
+        subnet_ids: vec![SubnetId {
+            value: "stream_a".into(),
+        }],
     }
     .into();
     {
@@ -50,7 +53,7 @@ pub async fn sending_open_stream_message() -> Result<(), Box<dyn std::error::Err
 
     wait_for_command!(
         context.runtime_receiver,
-        matches: InternalRuntimeCommand::Register { stream_id, ref subnet_ids, .. } if stream_id == expected_stream_id && subnet_ids == &vec!["subnet_id".into()]
+        matches: InternalRuntimeCommand::Register { stream_id, ref subnet_ids, .. } if stream_id == expected_stream_id && subnet_ids == &vec![SubnetId {value: "stream_a".into()}]
     );
 
     Ok(())

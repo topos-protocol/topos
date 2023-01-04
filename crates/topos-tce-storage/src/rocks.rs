@@ -24,6 +24,8 @@ mod types;
 
 pub(crate) use types::*;
 
+const EMPTY_PREVIOUS_CERT_ID: [u8; 32] = [0u8; 32];
+
 #[derive(Debug)]
 pub struct RocksDBStorage {
     pending_certificates: PendingCertificatesColumn,
@@ -99,10 +101,13 @@ impl Storage for RocksDBStorage {
     ) -> Result<(), InternalStorageError> {
         let mut batch = self.certificates.batch();
 
-        let source_subnet_id: SubnetId = certificate.source_subnet_id.as_str().try_into()?;
+        let source_subnet_id: SubnetId = certificate
+            .source_subnet_id
+            .try_into()
+            .map_err(|_| InternalStorageError::InvalidSubnetId)?;
 
         // Inserting the certificate data into the CERTIFICATES cf
-        batch = batch.insert_batch(&self.certificates, [(&certificate.cert_id, certificate)])?;
+        batch = batch.insert_batch(&self.certificates, [(&certificate.id, certificate)])?;
 
         if let Some(pending_id) = pending_certificate_id {
             match self.pending_certificates.get(&pending_id) {
@@ -122,18 +127,18 @@ impl Storage for RocksDBStorage {
             }
         }
 
-        let source_subnet_position = if certificate.prev_cert_id.is_empty() {
+        let source_subnet_position = if certificate.prev_id == EMPTY_PREVIOUS_CERT_ID {
             Position::ZERO
         } else if let Some((SourceStreamPosition(_, position), _)) =
             self.source_streams.prefix_iter(&source_subnet_id)?.last()
         {
             position.increment().map_err(|error| {
-                InternalStorageError::PositionError(error, certificate.source_subnet_id.clone())
+                InternalStorageError::PositionError(error, certificate.source_subnet_id)
             })?
         } else {
             // TODO: Better error to define that we were expecting a previous defined position
             return Err(InternalStorageError::CertificateNotFound(
-                certificate.prev_cert_id.clone(),
+                certificate.prev_id,
             ));
         };
 
@@ -142,7 +147,7 @@ impl Storage for RocksDBStorage {
             &self.source_streams,
             [(
                 SourceStreamPosition(source_subnet_id, source_subnet_position),
-                certificate.cert_id.clone(),
+                certificate.id,
             )],
         )?;
 
@@ -154,7 +159,10 @@ impl Storage for RocksDBStorage {
             let target = if let Some((TargetStreamPosition(target, source, position), _)) = self
                 .target_streams
                 .prefix_iter(&TargetStreamPrefix(
-                    transaction.target_subnet_id.as_str().try_into()?,
+                    transaction
+                        .target_subnet_id
+                        .try_into()
+                        .map_err(|_| InternalStorageError::InvalidSubnetId)?,
                     source_subnet_id,
                 ))?
                 .last()
@@ -164,22 +172,22 @@ impl Storage for RocksDBStorage {
                         target,
                         source,
                         position.increment().map_err(|error| {
-                            InternalStorageError::PositionError(
-                                error,
-                                certificate.source_subnet_id.clone(),
-                            )
+                            InternalStorageError::PositionError(error, certificate.source_subnet_id)
                         })?,
                     ),
-                    certificate.cert_id.clone(),
+                    certificate.id,
                 )
             } else {
                 (
                     TargetStreamPosition(
-                        transaction.target_subnet_id.as_str().try_into()?,
+                        transaction
+                            .target_subnet_id
+                            .try_into()
+                            .map_err(|_| InternalStorageError::InvalidSubnetId)?,
                         source_subnet_id,
                         Position::ZERO,
                     ),
-                    certificate.cert_id.clone(),
+                    certificate.id,
                 )
             };
 

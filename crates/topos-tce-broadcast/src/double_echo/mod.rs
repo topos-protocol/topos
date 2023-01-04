@@ -77,7 +77,7 @@ impl DoubleEcho {
                 Some(command) = self.command_receiver.recv() => {
                     match command {
                         DoubleEchoCommand::DeliveredCerts { subnet_id, limit, sender } => {
-                            debug!("peer_id: {} DoubleEchoCommand::DeliveredCerts, subnet_id: {}, limit: {}", self.my_peer_id, &subnet_id, &limit);
+                            debug!("peer_id: {} DoubleEchoCommand::DeliveredCerts, subnet_id: {:?}, limit: {}", self.my_peer_id, &subnet_id, &limit);
                             let value = self
                                 .store
                                 .recent_certificates_for_subnet(&subnet_id, limit)
@@ -91,12 +91,12 @@ impl DoubleEcho {
 
                         DoubleEchoCommand::BroadcastMany { certificates } if self.buffer.is_empty() => {
                             debug!("peer_id: {} DoubleEchoCommand::BroadcastMany cert ids: {:?}", self.my_peer_id,
-                                certificates.iter().map(|cert| &cert.cert_id).collect::<Vec<&CertificateId>>());
+                                certificates.iter().map(|cert| &cert.id).collect::<Vec<&CertificateId>>());
                             self.buffer = certificates.into();
                         }
 
                         DoubleEchoCommand::Broadcast { cert } => {
-                            debug!("peer_id: {} DoubleEchoCommand::Broadcast cert_id: {}", self.my_peer_id, &cert.cert_id);
+                            debug!("peer_id: {} DoubleEchoCommand::Broadcast cert_id: {:?}", self.my_peer_id, &cert.id);
                             if self.buffer.len() < Self::MAX_BUFFER_SIZE {
                                 self.buffer.push_back(cert);
                             }
@@ -105,13 +105,13 @@ impl DoubleEcho {
                         command if self.subscriptions.is_some() => {
                             match command {
                                 DoubleEchoCommand::Echo { from_peer, cert } => {
-                                    debug!("peer_id: {} handling DoubleEchoCommand::Echo from_peer: {} cert_id: {}", self.my_peer_id, &from_peer, &cert.cert_id);
+                                    debug!("peer_id: {} handling DoubleEchoCommand::Echo from_peer: {} cert_id: {:?}", self.my_peer_id, &from_peer, &cert.id);
                                     self.handle_echo(from_peer, cert)},
                                 DoubleEchoCommand::Ready { from_peer, cert } => {
-                                    debug!("peer_id: {} handling DoubleEchoCommand::Ready from_peer: {} cert_id: {}", self.my_peer_id, &from_peer, &cert.cert_id);
+                                    debug!("peer_id: {} handling DoubleEchoCommand::Ready from_peer: {} cert_id: {:?}", self.my_peer_id, &from_peer, &cert.id);
                                     self.handle_ready(from_peer, cert)},
                                 DoubleEchoCommand::Deliver { cert, digest } => {
-                                    debug!("peer_id: {} handling DoubleEchoCommand::Deliver cert_id: {} digest: {:?}", self.my_peer_id, &cert.cert_id, &digest);
+                                    debug!("peer_id: {} handling DoubleEchoCommand::Deliver cert_id: {:?} digest: {:?}", self.my_peer_id, &cert.id, &digest);
                                     self.handle_deliver(cert, digest)},
                                 _ => {}
                             }
@@ -188,8 +188,8 @@ impl DoubleEcho {
 
     fn handle_broadcast(&mut self, cert: Certificate) {
         info!(
-            "peer_id: {} handling broadcast of cert_id {}",
-            &self.my_peer_id, &cert.cert_id
+            "peer_id: {} handling broadcast of cert_id {:?}",
+            &self.my_peer_id, &cert.id
         );
         let digest = self
             .store
@@ -216,15 +216,15 @@ impl DoubleEcho {
             return;
         }
 
-        if self.store.cert_by_id(&cert.cert_id).is_ok() {
+        if self.store.cert_by_id(&cert.id).is_ok() {
             return;
         }
 
         // Gossip the certificate to all my peers
         let gossip_peers = self.gossip_peers();
         debug!(
-            "peer_id: {} dispatching gossip event cert_id: {} to gossip peers {:?}",
-            &self.my_peer_id, cert.cert_id, &gossip_peers
+            "peer_id: {} dispatching gossip event cert_id: {:?} to gossip peers {:?}",
+            &self.my_peer_id, cert.id, &gossip_peers
         );
         let _ = self.event_sender.send(TceEvents::Gossip {
             peers: gossip_peers, // considered as the G-set for erdos-renyi
@@ -251,7 +251,7 @@ impl DoubleEcho {
     fn start_delivery(&mut self, cert: Certificate, digest: DigestCompressed) {
         debug!(
             "🙌 StartDelivery[{:?}]\t Peer:{:?}",
-            &cert.cert_id, &self.my_peer_id
+            &cert.id, &self.my_peer_id
         );
         // Add new entry for the new Cert candidate
         match self.delivery_state_for_new_cert() {
@@ -266,10 +266,8 @@ impl DoubleEcho {
         }
         self.all_known_certs.push(cert.clone());
         self.store.new_cert_candidate(&cert, &digest);
-        self.delivery_time.insert(
-            cert.cert_id.clone(),
-            (time::SystemTime::now(), Default::default()),
-        );
+        self.delivery_time
+            .insert(cert.id, (time::SystemTime::now(), Default::default()));
         // Send Echo to the echo sample
         let echo_peers = self.subscribers.echo.iter().cloned().collect::<Vec<_>>();
         if echo_peers.is_empty() {
@@ -337,11 +335,11 @@ impl DoubleEcho {
             for cert in &cert_to_pending {
                 if self.store.apply_cert(cert).is_ok() {
                     let mut d = time::Duration::from_millis(0);
-                    if let Some((from, duration)) = self.delivery_time.get_mut(&cert.cert_id) {
+                    if let Some((from, duration)) = self.delivery_time.get_mut(&cert.id) {
                         *duration = from.elapsed().unwrap();
                         d = *duration;
 
-                        info!("certificate delivered {} => {:?}", cert.cert_id, d);
+                        info!("certificate delivered {:?} => {:?}", cert.id, d);
                         // tce_telemetry::span_cert_delivery(
                         //     self.my_peer_id.clone(),
                         //     &cert.cert_id,
@@ -353,7 +351,7 @@ impl DoubleEcho {
                     self.pending_delivery.remove(cert);
                     debug!(
                         "📝 Accepted[{:?}]\t Peer:{:?}\t Delivery time: {:?}",
-                        &cert.cert_id, self.my_peer_id, d
+                        &cert.id, self.my_peer_id, d
                     );
 
                     _ = self.event_sender.send(TceEvents::CertificateDelivered {
@@ -438,6 +436,9 @@ mod tests {
     use rand::seq::IteratorRandom;
     use tokio::{spawn, sync::broadcast::error::TryRecvError};
 
+    const PREV_CERTIFICATE_ID: topos_core::uci::CertificateId = [4u8; 32];
+    const SOURCE_SUBNET_ID: topos_core::uci::SubnetId = [1u8; 32];
+
     fn get_sample(peers: &[PeerId], sample_size: usize) -> HashSet<PeerId> {
         let mut rng = rand::thread_rng();
         HashSet::from_iter(peers.iter().cloned().choose_multiple(&mut rng, sample_size))
@@ -507,7 +508,7 @@ mod tests {
         double_echo.subscriptions = expected_subscriptions_view.clone();
         double_echo.subscribers = expected_subscriber_view;
 
-        let le_cert = Certificate::new("0".to_string(), "0".to_string(), vec![]);
+        let le_cert = Certificate::new(PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID, vec![]).unwrap();
         double_echo.handle_broadcast(le_cert.clone());
 
         assert_eq!(event_receiver.len(), 2);
@@ -678,6 +679,6 @@ mod tests {
 
         assert_eq!(received_gossip_commands.len(), 1);
         assert_eq!(received_gossip_commands[0].0, all_gossip_peers);
-        assert_eq!(received_gossip_commands[0].1.cert_id, le_cert.cert_id);
+        assert_eq!(received_gossip_commands[0].1.id, le_cert.id);
     }
 }
