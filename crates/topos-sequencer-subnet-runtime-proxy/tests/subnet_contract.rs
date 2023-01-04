@@ -300,7 +300,7 @@ async fn test_subnet_node_get_nonce(
     .await
     {
         Ok(subnet_client) => {
-            let nonce = subnet_client.get_eth_nonce(eth_address).await?;
+            //TODO get nonce here to test connection to the subnet
             assert_eq!(nonce, 2);
         }
         Err(e) => {

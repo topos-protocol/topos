@@ -222,15 +222,6 @@ impl SubnetClient {
         Ok(block_info)
     }
 
-    pub async fn get_eth_nonce(&self, address: Address) -> Result<u128, Error> {
-        let nonce = self
-            .web3_client
-            .eth()
-            .transaction_count(address, None)
-            .await?;
-        Ok(nonce.as_u128())
-    }
-
     pub async fn push_certificate(&self, cert: &Certificate) -> Result<(), Error> {
         let call_options = web3::contract::Options::default();
         let cert_id_token: Token = web3::ethabi::Token::FixedBytes(cert.id.to_vec());
