@@ -55,7 +55,7 @@ pub fn minimize_params(input: InputConfig) -> Option<SimulationConfig> {
                     &input,
                 ) {
                     best_run = Some(record);
-                    println!("ECHO THRESHOLD : {}", e);
+                    println!("ECHO THRESHOLD : {e}");
                     break;
                 }
             }
@@ -113,7 +113,7 @@ pub fn main() -> Result<(), Error> {
         match minimize_params(input_config.clone()) {
             Some(best_record) => {
                 info!("🥇 Best Values:\t{:?}", best_record);
-                std::writeln!(output, "{}", format_args!("{}", best_record)).ok();
+                std::writeln!(output, "{}", format_args!("{best_record}")).ok();
                 // std::writeln!(
                 //     output,
                 //     "{};{};{};{};{};{};{}",

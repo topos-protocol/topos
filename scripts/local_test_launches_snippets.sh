@@ -29,7 +29,7 @@ cargo run -- --local-key-seed 5 --tce-local-port 30005 --web-api-local-port 8015
 curl -X POST http://localhost:8012/certs -H "Content-Type: application/json" -d '{
                                                  "cert" : {
                                                      "id": 1,
-                                                     "prev_cert_id": 0,
+                                                     "prev_id": 0,
                                                      "source_subnet_id": 100,
                                                      "calls": []
                                                  }
@@ -39,7 +39,7 @@ curl -X POST http://localhost:8012/certs -H "Content-Type: application/json" -d 
 curl -X POST http://localhost:8012/certs -H "Content-Type: application/json" -d '{
                                                  "cert" : {
                                                      "id": 2,
-                                                     "prev_cert_id": 1,
+                                                     "prev_id": 1,
                                                      "source_subnet_id": 100,
                                                      "calls": []
                                                  }
@@ -49,7 +49,7 @@ curl -X POST http://localhost:8012/certs -H "Content-Type: application/json" -d 
 curl -X POST http://localhost:8012/certs -H "Content-Type: application/json" -d '{
                                                  "cert" : {
                                                      "id": 3,
-                                                     "prev_cert_id": 2,
+                                                     "prev_id": 2,
                                                      "source_subnet_id": 100,
                                                      "calls": []
                                                  }

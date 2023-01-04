@@ -31,11 +31,11 @@ impl TceMemStore {
             followed_subnet: subnets,
         };
         for subnet in &store.followed_subnet {
-            store.tracked_digest.insert(subnet.clone(), BTreeSet::new());
-            store.history.insert(subnet.clone(), BTreeSet::new());
+            store.tracked_digest.insert(*subnet, BTreeSet::new());
+            store.history.insert(*subnet, BTreeSet::new());
         }
         // Add the genesis
-        store.all_certs.insert(0.to_string(), Default::default());
+        store.all_certs.insert([0u8; 32], Default::default());
         store
     }
 }
@@ -49,25 +49,22 @@ impl TceStore for TceMemStore {
         // Add the cert into the history of each Target
         for call in &cert.calls {
             self.add_cert_in_hist(&call.target_subnet_id, cert);
-            self.add_cert_in_digest(&call.target_subnet_id, &cert.cert_id);
+            self.add_cert_in_digest(&call.target_subnet_id, &cert.id);
         }
 
         Ok(())
     }
 
     fn add_cert_in_hist(&mut self, subnet_id: &SubnetId, cert: &Certificate) -> bool {
-        self.all_certs.insert(cert.cert_id.clone(), cert.clone());
-        self.history
-            .entry(subnet_id.clone())
-            .or_default()
-            .insert(cert.cert_id.clone())
+        self.all_certs.insert(cert.id, cert.clone());
+        self.history.entry(*subnet_id).or_default().insert(cert.id)
     }
 
     fn add_cert_in_digest(&mut self, subnet_id: &SubnetId, cert_id: &CertificateId) -> bool {
         self.tracked_digest
-            .entry(subnet_id.clone())
+            .entry(*subnet_id)
             .or_default()
-            .insert(cert_id.clone())
+            .insert(*cert_id)
     }
 
     fn read_journal(
@@ -111,8 +108,7 @@ impl TceStore for TceMemStore {
 
     // JAEGER END DELIVERY TRACE [ cert, peer ]
     fn new_cert_candidate(&mut self, cert: &Certificate, digest: &DigestCompressed) {
-        self.received_digest
-            .insert(cert.cert_id.clone(), digest.clone());
+        self.received_digest.insert(cert.id, digest.clone());
     }
 
     ///
@@ -121,8 +117,8 @@ impl TceStore for TceMemStore {
     fn check_digest_inclusion(&self, cert: &Certificate) -> Result<(), Errors> {
         let received_digest = self
             .received_digest
-            .get(&cert.cert_id)
-            .ok_or_else(|| Errors::DigestNotFound(cert.cert_id.clone()))?;
+            .get(&cert.id)
+            .ok_or_else(|| Errors::DigestNotFound(cert.id))?;
 
         // Check that all cert in digest are in my history
         received_digest
@@ -133,10 +129,10 @@ impl TceStore for TceMemStore {
     }
 
     fn check_precedence(&self, cert: &Certificate) -> Result<(), Errors> {
-        if cert.prev_cert_id == "0" {
+        if cert.prev_id == [0u8; 32] {
             return Ok(());
         }
-        match self.cert_by_id(&cert.prev_cert_id) {
+        match self.cert_by_id(&cert.prev_id) {
             Ok(_) => Ok(()),
             _ => Err(Errors::CertificateNotFound),
         }

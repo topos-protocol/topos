@@ -34,9 +34,9 @@ pub(crate) fn parse_events_from_json() -> Result<Vec<web3::ethabi::Event>, Error
     Ok(result)
 }
 
-fn get_event_type_from_log<'a, 'b>(
+fn get_event_type_from_log<'a>(
     events: &'a [web3::ethabi::Event],
-    log: &'b web3::types::Log,
+    log: &web3::types::Log,
 ) -> Option<&'a web3::ethabi::Event> {
     events
         .iter()
@@ -48,7 +48,7 @@ pub(crate) fn parse_events_from_log(
     logs: Vec<web3::types::Log>,
 ) -> Result<Vec<SubnetEvent>, Error> {
     let mut result = Vec::new();
-    println!("Logs: {:?}", logs);
+    println!("Logs: {logs:?}");
     for log in &logs {
         if let Some(event) = get_event_type_from_log(events, log) {
             match event.name.as_str() {
@@ -133,7 +133,7 @@ pub(crate) fn parse_events_from_log(
                 }
                 "ContractCall" => {
                     // Parse ContractCall event
-                    let payload_hash = ethabi::decode(
+                    let _payload_hash = ethabi::decode(
                         vec![event.inputs[0].kind.clone()].as_slice(),
                         &log.topics[1].0,
                     )?;
@@ -197,20 +197,6 @@ pub(crate) fn parse_events_from_log(
                                 message: "invalid target contract address".to_string(),
                             });
                         },
-                        payload_hash: if let ethabi::Token::FixedBytes(bytes) = &payload_hash[0] {
-                            match bytes.clone().try_into() {
-                                Ok(sender) => sender,
-                                Err(_) => {
-                                    return Err(Error::InvalidArgument {
-                                        message: "invalid payload hash".to_string(),
-                                    });
-                                }
-                            }
-                        } else {
-                            return Err(Error::InvalidArgument {
-                                message: "invalid payload hash".to_string(),
-                            });
-                        },
                         payload: if let ethabi::Token::Bytes(bytes) = &event_arguments[4] {
                             bytes.to_vec()
                         } else {
@@ -224,7 +210,7 @@ pub(crate) fn parse_events_from_log(
                 }
                 "ContractCallWithToken" => {
                     // Parse ContractCallWithToken event
-                    let payload_hash = ethabi::decode(
+                    let _payload_hash = ethabi::decode(
                         vec![event.inputs[0].kind.clone()].as_slice(),
                         &log.topics[1].0,
                     )?;
@@ -286,20 +272,6 @@ pub(crate) fn parse_events_from_log(
                         } else {
                             return Err(Error::InvalidArgument {
                                 message: "invalid target contract address".to_string(),
-                            });
-                        },
-                        payload_hash: if let ethabi::Token::FixedBytes(bytes) = &payload_hash[0] {
-                            match bytes.clone().try_into() {
-                                Ok(sender) => sender,
-                                Err(_) => {
-                                    return Err(Error::InvalidArgument {
-                                        message: "invalid payload hash".to_string(),
-                                    });
-                                }
-                            }
-                        } else {
-                            return Err(Error::InvalidArgument {
-                                message: "invalid payload hash".to_string(),
                             });
                         },
                         payload: if let ethabi::Token::Bytes(bytes) = &event_arguments[4] {

@@ -30,10 +30,13 @@ hyper.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 backoff = { version = "0.4", features = ["tokio"] }
+hex = "0.4.3"
 
 [dev-dependencies]
 rstest.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
+pretty_env_logger.workspace = true
 serial_test = "0.9"
 dockertest = "0.3.1"
+byteorder = "1.4.3"

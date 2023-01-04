@@ -1,6 +1,7 @@
 //! Protocol implementation guts.
 //!
 
+use crate::Error;
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::sync::{Arc, Mutex};
@@ -28,7 +29,7 @@ impl Debug for Certification {
     }
 }
 
-fn create_cross_chain_transaction(event: &SubnetEvent) -> CrossChainTransaction {
+fn create_cross_chain_transaction(event: &SubnetEvent) -> Result<CrossChainTransaction, Error> {
     match event {
         SubnetEvent::TokenSent {
             sender,
@@ -37,49 +38,67 @@ fn create_cross_chain_transaction(event: &SubnetEvent) -> CrossChainTransaction 
             receiver,
             symbol,
             amount,
-        } => CrossChainTransaction {
-            target_subnet_id: hex::encode(target_subnet_id),
-            sender_addr: hex::encode(sender),
-            recipient_addr: hex::encode(receiver),
+        } => Ok(CrossChainTransaction {
+            target_subnet_id: *target_subnet_id,
             transaction_data: CrossChainTransactionData::AssetTransfer {
-                asset_id: symbol.clone(),
+                sender: sender
+                    .as_slice()
+                    .try_into()
+                    .map_err(Error::InvalidAddress)?,
+                receiver: receiver
+                    .as_slice()
+                    .try_into()
+                    .map_err(Error::InvalidAddress)?,
+                symbol: symbol.clone(),
                 amount: *amount,
             },
-        },
+        }),
         SubnetEvent::ContractCall {
             source_subnet_id: _,
             source_contract_addr,
             target_subnet_id,
             target_contract_addr,
-            payload_hash: _,
             payload,
-        } => CrossChainTransaction {
-            target_subnet_id: hex::encode(target_subnet_id),
-            sender_addr: "0x".to_string() + hex::encode(source_contract_addr).as_str(),
-            recipient_addr: hex::encode(target_contract_addr),
-            transaction_data: CrossChainTransactionData::FunctionCall {
-                data: payload.clone(),
+        } => Ok(CrossChainTransaction {
+            target_subnet_id: *target_subnet_id,
+            transaction_data: CrossChainTransactionData::ContractCall {
+                source_contract_addr: source_contract_addr
+                    .as_slice()
+                    .try_into()
+                    .map_err(Error::InvalidAddress)?,
+                target_contract_addr: target_contract_addr
+                    .as_slice()
+                    .try_into()
+                    .map_err(Error::InvalidAddress)?,
+                payload: payload.clone(),
             },
-        },
+        }),
         SubnetEvent::ContractCallWithToken {
             source_subnet_id: _,
             source_contract_addr,
             target_subnet_id,
             target_contract_addr,
-            payload_hash: _,
             payload,
-            symbol: _,
-            amount: _,
+            symbol,
+            amount,
         } => {
             //TODO fix, update Cross chain transaction
-            CrossChainTransaction {
-                target_subnet_id: hex::encode(target_subnet_id),
-                sender_addr: "0x".to_string() + hex::encode(source_contract_addr).as_str(),
-                recipient_addr: hex::encode(target_contract_addr),
-                transaction_data: CrossChainTransactionData::FunctionCall {
-                    data: payload.clone(),
+            Ok(CrossChainTransaction {
+                target_subnet_id: *target_subnet_id,
+                transaction_data: CrossChainTransactionData::ContractCallWithToken {
+                    source_contract_addr: source_contract_addr
+                        .as_slice()
+                        .try_into()
+                        .map_err(Error::InvalidAddress)?,
+                    target_contract_addr: target_contract_addr
+                        .as_slice()
+                        .try_into()
+                        .map_err(Error::InvalidAddress)?,
+                    payload: payload.clone(),
+                    symbol: symbol.clone(),
+                    amount: *amount,
                 },
-            }
+            })
         }
     }
 }
@@ -92,7 +111,7 @@ impl Certification {
 
         // Initialize the history
         let mut history = HashMap::new();
-        history.insert(subnet_id.clone(), Vec::new());
+        history.insert(subnet_id, Vec::new());
         let me = Arc::new(Mutex::from(Self {
             commands_channel: command_sender,
             events_subscribers: Vec::new(),
@@ -110,7 +129,7 @@ impl Certification {
             let mut interval = time::interval(Duration::from_secs(6)); // arbitrary time for 1 block
             loop {
                 interval.tick().await;
-                if let Some(cert) = Self::generate_certificate(me_c2.clone()) {
+                if let Ok(cert) = Self::generate_certificate(me_c2.clone()) {
                     Self::send_new_certificate(
                         me_c2.clone(),
                         CertificationEvent::NewCertificate(cert),
@@ -169,45 +188,48 @@ impl Certification {
     }
 
     /// Generation of Certificate
-    fn generate_certificate(certification: Arc<Mutex<Certification>>) -> Option<Certificate> {
+    fn generate_certificate(
+        certification: Arc<Mutex<Certification>>,
+    ) -> Result<Certificate, Error> {
         let mut certification = certification.lock().unwrap();
-        let subnet_id = certification.subnet_id.clone();
+        let subnet_id = certification.subnet_id;
 
         let mut block_data = Vec::<u8>::new();
         let mut cross_chain_calls: Vec<CrossChainTransaction> = Vec::new();
         for block_info in &certification.finalized_blocks {
             block_data.extend_from_slice(&block_info.data);
             for event in &block_info.events {
-                cross_chain_calls.push(create_cross_chain_transaction(event));
+                cross_chain_calls.push(create_cross_chain_transaction(event)?);
             }
         }
 
         // No contents for the Certificate
         if block_data.is_empty() {
-            return None;
+            return Err(Error::EmptyCertificate);
         }
 
         // Get the id of the previous Certificate
         let previous_cert_id: CertificateId = match certification.history.get(&subnet_id) {
             Some(certs) => match certs.last() {
-                Some(cert_id) => cert_id.clone(),
-                None => 0.to_string(),
+                Some(cert_id) => *cert_id,
+                None => [0u8; 32],
             },
             None => {
                 error!("ill-formed subnet history for {:?}", subnet_id);
-                return None;
+                return Err(Error::IllFormedSubnetHistory);
             }
         };
 
-        let certificate = Certificate::new(previous_cert_id, subnet_id.clone(), cross_chain_calls);
+        let certificate = Certificate::new(previous_cert_id, subnet_id, cross_chain_calls)
+            .map_err(|e| Error::CertificateGenerationError(e))?;
 
         certification.finalized_blocks.clear();
         certification
             .history
             .get_mut(&subnet_id)
             .unwrap()
-            .push(certificate.cert_id.clone());
+            .push(certificate.id);
 
-        Some(certificate)
+        Ok(certificate)
     }
 }

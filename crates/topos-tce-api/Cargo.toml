@@ -16,6 +16,7 @@ tonic.workspace = true
 tracing.workspace = true
 uuid.workspace = true
 async-stream.workspace = true
+hex.workspace = true
 
 tonic-health = "0.7.0"
 tonic-reflection = "0.5.0"
@@ -23,10 +24,10 @@ tonic-reflection = "0.5.0"
 [dev-dependencies]
 bytes.workspace = true
 hyper.workspace = true
+prost.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 env_logger = "0.9.1"
 http = "0.2.8"
 http-body = "0.4.5"
-
-prost = "0.11.0"
 test-log = { version = "0.2", features = ["trace"] }
-tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
+

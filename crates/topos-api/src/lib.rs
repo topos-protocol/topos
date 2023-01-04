@@ -22,6 +22,9 @@ pub mod shared {
 
     #[path = "conversions/shared/v1/subnet.rs"]
     pub mod v1_conversions_subnet;
+
+    #[path = "conversions/shared/v1/certificate.rs"]
+    pub mod v1_conversions_certificate;
 }
 
 #[path = "."]
