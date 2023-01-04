@@ -1,11 +1,13 @@
-use dockertest::{Composition, DockerTest, Image, PullPolicy, Source};
+use dockertest::{
+    Composition, DockerTest, Image, LogAction, LogOptions, LogPolicy, LogSource, PullPolicy, Source,
+};
 use rstest::*;
 use serial_test::serial;
 use std::future::Future;
 use std::str::FromStr;
 use tokio::sync::oneshot;
 use topos_core::uci::{Address, Certificate, CertificateId, SubnetId};
-use web3::transports::http::Http;
+use web3::transports::WebSocket;
 use web3::types::{BlockNumber, Log};
 
 mod common;
@@ -33,11 +35,11 @@ const SENDER_ID: Address = [6u8; 20];
 const RECEIVER_ID: Address = [7u8; 20];
 
 async fn deploy_contracts(
-    web3_client: &web3::Web3<Http>,
+    web3_client: &web3::Web3<WebSocket>,
 ) -> Result<
     (
-        web3::contract::Contract<Http>,
-        web3::contract::Contract<Http>,
+        web3::contract::Contract<WebSocket>,
+        web3::contract::Contract<WebSocket>,
     ),
     Box<dyn std::error::Error>,
 > {
@@ -135,19 +137,48 @@ fn spawn_subnet_node(
             .source(Source::Local)
             .tag(DOCKER_IMAGE_TAG)
             .pull_policy(PullPolicy::IfNotPresent);
-        let mut substrate_subnet_node = Composition::with_image(img);
-        substrate_subnet_node
+        let mut polygon_edge_node = Composition::with_image(img);
+        let current_dir: String = std::env::current_dir()
+            .expect("current_dir")
+            .to_str()
+            .unwrap()
+            .to_string();
+        // Cleanup blockchain data from previous tests
+
+        // Define options
+        polygon_edge_node
+            .bind_mount(
+                current_dir.clone() + "/tests/artifacts/test-chain-1",
+                "/data/test-chain-1",
+            )
+            .bind_mount(current_dir.clone() + "/tests/artifacts/genesis", "/genesis")
             .port_map(SUBNET_RPC_PORT, SUBNET_RPC_PORT);
-        let mut substrate_subnet_node_docker = DockerTest::new().with_default_source(source);
-        substrate_subnet_node_docker.add_composition(substrate_subnet_node);
-        substrate_subnet_node_docker.run(|ops| async move {
+        let mut polygon_edge_node_docker = DockerTest::new().with_default_source(source);
+        // Setup command for polygon edge binary
+        let cmd: Vec<String> = vec![
+            "server".to_string(),
+            "--data-dir".to_string(),
+            "/data/test-chain-1".to_string(),
+            "--chain".to_string(),
+            "/genesis/genesis.json".to_string(),
+        ];
+        polygon_edge_node_docker.add_composition(
+            polygon_edge_node
+                .with_log_options(Some(LogOptions {
+                    action: LogAction::Forward,
+                    policy: LogPolicy::Always,
+                    source: LogSource::Both,
+                }))
+                .with_cmd(cmd),
+        );
+        polygon_edge_node_docker.run(|ops| async move {
             let container = ops.handle(DOCKER_IMAGE);
             println!(
                 "Running container with id: {} name: {} ...",
                 container.id(),
                 container.name()
             );
-            // TODO: use polling of network block number or some other means to learn when sunbstrate node has started
+            // TODO: use polling of network block number or some other means to learn when subnet node has started
             tokio::time::sleep(tokio::time::Duration::from_secs(SUBNET_STARTUP_DELAY)).await;
             subnet_ready_sender
                 .send(())
@@ -162,7 +193,7 @@ fn spawn_subnet_node(
 
 async fn read_logs_for_address(
     contract_address: &str,
-    web3_client: &web3::Web3<Http>,
+    web3_client: &web3::Web3<WebSocket>,
     event_signature: &str,
 ) -> Result<Vec<Log>, Box<dyn std::error::Error>> {
     let event_topic: [u8; 32] = tiny_keccak::keccak256(event_signature.as_bytes());
@@ -189,11 +220,11 @@ async fn read_logs_for_address(
 
 #[allow(dead_code)]
 struct Context {
-    pub subnet_contract: web3::contract::Contract<Http>,
-    pub erc20_contract: web3::contract::Contract<Http>,
+    pub subnet_contract: web3::contract::Contract<WebSocket>,
+    pub erc20_contract: web3::contract::Contract<WebSocket>,
     pub subnet_node_handle: Option<tokio::task::JoinHandle<()>>,
     pub subnet_stop_sender: Option<tokio::sync::oneshot::Sender<()>>,
-    pub web3_client: web3::Web3<Http>,
+    pub web3_client: web3::Web3<WebSocket>,
 }
 
 impl Context {
@@ -233,8 +264,8 @@ async fn context_running_subnet_node() -> Context {
         }
     };
     // Web3 client for setup/mocking of contracts
-    let http = web3::transports::http::Http::new(TOPOS_SUBNET_JSONRPC_ENDPOINT).unwrap();
-    let web3_client = web3::Web3::new(http);
+    let websocket = WebSocket::new(TOPOS_SUBNET_JSONRPC_ENDPOINT).await.unwrap();
+    let web3_client = web3::Web3::new(websocket);
     // Wait for subnet node to start
     subnet_ready_receiver
         .await
