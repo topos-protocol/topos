@@ -162,7 +162,7 @@ impl Runtime {
                 info!("{stream_id} is registered as subscriber for {subnet_ids:?}");
                 for subnet_id in subnet_ids {
                     self.subnet_subscription
-                        .entry(subnet_id.into())
+                        .entry(subnet_id.to_string())
                         .or_default()
                         .insert(stream_id);
                 }
