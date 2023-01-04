@@ -86,9 +86,7 @@ async fn create_tce_layer() {
             .await
             .unwrap();
 
-    let source_subnet_id: SubnetId = SubnetId {
-        value: [1u8; 32].to_vec(),
-    };
+    let source_subnet_id: SubnetId = [1u8; 32].into();
 
     let prev_certificate_id: CertificateId = CertificateId {
         value: [01u8; 32].to_vec(),

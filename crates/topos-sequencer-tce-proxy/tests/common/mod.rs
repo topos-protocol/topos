@@ -47,9 +47,7 @@ impl ApiService for TceMockServer {
             let mut counter: u32 = 0;
             println!("TCE node service output stream functioning");
             loop {
-                let source_subnet_id: SubnetId = SubnetId {
-                    value: [1u8; 32].to_vec(),
-                };
+                let source_subnet_id: SubnetId = [1u8; 32].into();
                 println!("TCE node service loop entered counter {}", counter);
                 tokio::select! {
                     Some(watch_certificate_request) = stream.next() => {

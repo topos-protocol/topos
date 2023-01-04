@@ -87,7 +87,7 @@ impl Runtime {
                     .map(|ctx| &ctx.target_subnet_id)
                     .collect::<HashSet<_>>();
                 debug!(
-                    "Dispatching certificate cert_id: {:?} to terminal subnets: {:?}",
+                    "Dispatching certificate cert_id: {:?} to target subnets: {:?}",
                     &certificate.id, target_subnets
                 );
                 for target_subnet_id in target_subnets {
