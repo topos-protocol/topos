@@ -9,7 +9,7 @@ use tracing::{debug, error, info};
 use web3::ethabi::Token;
 use web3::futures::StreamExt;
 use web3::transports::WebSocket;
-use web3::types::{Address, BlockId, BlockNumber, H160, U64};
+use web3::types::{BlockId, BlockNumber, H160, U64};
 
 #[derive(Debug, Error)]
 pub enum Error {
