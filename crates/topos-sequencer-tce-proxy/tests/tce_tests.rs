@@ -53,7 +53,7 @@ async fn test_tce_submit_certificate(
 
     let source_subnet_id: SubnetId = [1u8; 32].into();
     let prev_certificate_id: CertificateId = [01u8; 32].into();
-    let certificate_id: CertificateId =  [02u8; 32].into();
+    let certificate_id: CertificateId = [02u8; 32].into();
 
     println!("Creating TCE node client");
     let mut client = match topos_core::api::tce::v1::api_service_client::ApiServiceClient::connect(
