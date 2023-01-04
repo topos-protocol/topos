@@ -8,6 +8,8 @@ use tokio::{
 };
 use tonic_health::server::HealthReporter;
 use topos_core::api::tce::v1::api_service_server::ApiServiceServer;
+use topos_core::uci::SubnetId;
+
 use tracing::{debug, error, info};
 use uuid::Uuid;
 
@@ -39,7 +41,7 @@ pub struct Runtime {
     /// Streams that are currently in negotiation
     pub(crate) pending_streams: HashMap<Uuid, Sender<StreamCommand>>,
     /// Mapping between a subnet_id and streams that are subscribed to it
-    pub(crate) subnet_subscription: HashMap<String, HashSet<Uuid>>,
+    pub(crate) subnet_subscription: HashMap<SubnetId, HashSet<Uuid>>,
     /// Receiver for Internal API command
     pub(crate) internal_runtime_command_receiver: Receiver<InternalRuntimeCommand>,
     /// Receiver for Outside API command
@@ -91,9 +93,7 @@ impl Runtime {
                     &certificate.id, target_subnets
                 );
                 for target_subnet_id in target_subnets {
-                    if let Some(stream_list) =
-                        self.subnet_subscription.get(&hex::encode(target_subnet_id))
-                    {
+                    if let Some(stream_list) = self.subnet_subscription.get(target_subnet_id) {
                         let uuids: Vec<&Uuid> = stream_list.iter().collect();
                         for uuid in uuids {
                             if let Some(sender) = self.active_streams.get(uuid) {
@@ -162,7 +162,7 @@ impl Runtime {
                 info!("{stream_id} is registered as subscriber for {subnet_ids:?}");
                 for subnet_id in subnet_ids {
                     self.subnet_subscription
-                        .entry(subnet_id.to_string())
+                        .entry(subnet_id.into())
                         .or_default()
                         .insert(stream_id);
                 }

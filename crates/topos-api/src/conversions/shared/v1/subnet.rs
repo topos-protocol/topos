@@ -13,3 +13,9 @@ impl From<[u8; 32]> for SubnetId {
         }
     }
 }
+
+impl From<SubnetId> for [u8; 32] {
+    fn from(value: SubnetId) -> Self {
+        value.value.try_into().unwrap_or_default()
+    }
+}
