@@ -14,10 +14,10 @@ env:
   # Change to specific Rust release to pin
   rust_clippy: 1.62.1
   REGISTRY: ghcr.io
-  SUBSTRATE_SUBNET_IMAGE_NAME: toposware/substrate-subnet-node
-  SUBSTRATE_SUBNET_IMAGE_TAG: test
+  POLYGON_SUBNET_IMAGE_NAME: toposware/substrate-subnet-node
+  POLYGON_SUBNET_IMAGE_TAG: develop
   TOPOS_SMART_CONTRACTS_IMAGE_NAME: toposware/topos-smart-contracts
-  TOPOS_SMART_CONTRACTS_IMAGE_TAG: test
+  TOPOS_SMART_CONTRACTS_IMAGE_TAG: main
 
 jobs:
   build_and_test:
@@ -67,7 +67,7 @@ jobs:
 
       - name: Pull images
         run: |
-          docker pull ${{ env.REGISTRY }}/${{ env.SUBSTRATE_SUBNET_IMAGE_NAME }}:${{ env.SUBSTRATE_SUBNET_IMAGE_TAG }}
+          docker pull ${{ env.REGISTRY }}/${{ env.POLYGON_SUBNET_IMAGE_NAME }}:${{ env.POLYGON_SUBNET_IMAGE_TAG }}
           docker pull ${{ env.REGISTRY }}/${{ env.TOPOS_SMART_CONTRACTS_IMAGE_NAME }}:${{ env.TOPOS_SMART_CONTRACTS_IMAGE_TAG }}
           docker images
 
@@ -75,6 +75,7 @@ jobs:
         run: |
           mkdir contracts
           docker create -ti --name dummy ${{ env.REGISTRY }}/${{ env.TOPOS_SMART_CONTRACTS_IMAGE_NAME }}:${{ env.TOPOS_SMART_CONTRACTS_IMAGE_TAG }} bash
+          docker cp dummy:/usr/src/app/brownie/build/contracts/TokenDeployer.json ./contracts/
           docker cp dummy:/usr/src/app/brownie/build/contracts/ToposCoreContract.json ./contracts/
           docker rm -f dummy
 
