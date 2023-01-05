@@ -1,10 +1,13 @@
 use clap::{Args, Subcommand};
 
+mod peer_id;
 mod push_peer_list;
 mod run;
 
 pub(crate) use push_peer_list::PushPeerList;
 pub(crate) use run::Run;
+
+use self::peer_id::PeerId;
 
 #[derive(Args, Debug)]
 pub(crate) struct TceCommand {
@@ -23,6 +26,7 @@ pub(crate) struct TceCommand {
 #[derive(Subcommand, Debug)]
 pub(crate) enum TceCommands {
     PushPeerList(PushPeerList),
+    PeerId(PeerId),
     Run(Box<Run>),
 }
 

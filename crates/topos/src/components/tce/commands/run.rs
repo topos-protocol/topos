@@ -31,7 +31,7 @@ pub struct Run {
 
     /// Local peer secret key seed (optional, used for testing)
     #[clap(long, env = "TCE_LOCAL_KS")]
-    pub local_key_seed: Option<u8>,
+    pub local_key_seed: Option<String>,
 
     /// Local peer key-pair (in base64 format)
     #[clap(long, env = "TCE_LOCAL_KEYPAIR")]

@@ -10,6 +10,7 @@ use opentelemetry::sdk::Resource;
 use opentelemetry::{global, KeyValue};
 use tce_transport::ReliableBroadcastParams;
 use tokio::spawn;
+use topos_p2p::utils::local_key_pair_from_slice;
 use topos_p2p::{utils::local_key_pair, Multiaddr, PeerId};
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
 use topos_tce_storage::{Connection, RocksDBStorage};
@@ -18,7 +19,7 @@ use tracing_subscriber::{prelude::*, EnvFilter};
 
 #[derive(Debug)]
 pub struct TceConfiguration {
-    pub local_key_seed: Option<u8>,
+    pub local_key_seed: Option<Vec<u8>>,
     pub jaeger_agent: String,
     pub jaeger_service_name: String,
     pub tce_params: ReliableBroadcastParams,
@@ -36,7 +37,12 @@ pub enum StorageConfiguration {
 
 #[instrument(name = "TCE", fields(peer_id), skip(config))]
 pub async fn run(config: &TceConfiguration) -> Result<(), Box<dyn std::error::Error>> {
-    let key = local_key_pair(config.local_key_seed);
+    let key = if let Some(seed) = &config.local_key_seed {
+        local_key_pair_from_slice(seed)
+    } else {
+        local_key_pair(None)
+    };
+
     let peer_id = key.public().to_peer_id();
 
     tracing::Span::current().record("peer_id", &peer_id.to_string());
@@ -132,6 +138,7 @@ pub async fn run(config: &TceConfiguration) -> Result<(), Box<dyn std::error::Er
         let (synchronizer_client, synchronizer_runtime, synchronizer_stream) =
             topos_tce_synchronizer::Synchronizer::builder()
                 .with_gatekeeper_client(gatekeeper_client.clone())
+                .with_network_client(network_client.clone())
                 .await
                 .expect("Can't create the Synchronizer");
 

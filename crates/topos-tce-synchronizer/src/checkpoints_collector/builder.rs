@@ -23,6 +23,12 @@ impl CheckpointsCollectorBuilder {
 
         self
     }
+
+    pub fn set_network_client(mut self, network_client: Option<NetworkClient>) -> Self {
+        self.network_client = network_client;
+
+        self
+    }
 }
 
 impl IntoFuture for CheckpointsCollectorBuilder {

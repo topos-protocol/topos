@@ -55,6 +55,20 @@ async fn do_not_push_empty_list() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+#[tokio::test]
+async fn can_get_a_peer_id_from_a_seed() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = Command::cargo_bin("topos")?;
+    cmd.arg("tce").arg("peer-id").arg("--from-slice").arg("1");
+
+    let output = cmd.assert().success();
+
+    let result: &str = std::str::from_utf8(&output.get_output().stdout)?;
+
+    insta::assert_snapshot!(result);
+
+    Ok(())
+}
+
 struct DummyServer;
 
 #[tonic::async_trait]

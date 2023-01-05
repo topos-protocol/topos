@@ -85,7 +85,7 @@ pub(crate) async fn handle_command(
         Some(TceCommands::Run(cmd)) => {
             let config = TceConfiguration {
                 boot_peers: cmd.parse_boot_peers(),
-                local_key_seed: cmd.local_key_seed,
+                local_key_seed: cmd.local_key_seed.map(|s| s.as_bytes().to_vec()),
                 jaeger_agent: cmd.jaeger_agent,
                 jaeger_service_name: cmd.jaeger_service_name,
                 tce_local_port: cmd.tce_local_port,
@@ -115,6 +115,20 @@ pub(crate) async fn handle_command(
 
             Ok(())
         }
+
+        Some(TceCommands::PeerId(cmd)) => {
+            if let Some(slice) = cmd.from_slice {
+                println!(
+                    "{}",
+                    topos_p2p::utils::local_key_pair_from_slice(slice.as_bytes())
+                        .public()
+                        .to_peer_id()
+                )
+            };
+
+            Ok(())
+        }
+
         None => Ok(()),
     }
 }
