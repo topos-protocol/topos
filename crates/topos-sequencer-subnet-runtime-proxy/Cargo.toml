@@ -1,3 +1,4 @@
+cargo-features = ["workspace-inheritance"]
 [package]
 name = "topos-sequencer-subnet-runtime-proxy"
 version = "0.1.0"
