@@ -32,7 +32,7 @@ jobs:
             }
         version:
           - stable
-          - nightly-2022-07-20
+          - nightly-2022-12-18
 
     name: ${{ matrix.version }} - Build and Test
     runs-on: ${{ matrix.target.os }}
