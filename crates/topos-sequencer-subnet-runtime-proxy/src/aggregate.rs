@@ -141,6 +141,7 @@ impl RuntimeProxy {
                                 "Unable to instantiate subnet client, error: {}",
                                 err.to_string()
                             );
+                            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                             continue;
                         }
                     };
@@ -182,10 +183,8 @@ impl RuntimeProxy {
             "Pushing certificate with id {:?} to target subnet {:?}, tcc {}",
             cert.id, runtime_proxy_config.subnet_id, runtime_proxy_config.subnet_contract,
         );
-
-        subnet_client.push_certificate(cert).await?;
-
-        Ok(String::new())
+        let tx_hash = subnet_client.push_certificate(cert).await?;
+        Ok("0x".to_string() + &hex::encode(tx_hash))
     }
 
     async fn on_command(

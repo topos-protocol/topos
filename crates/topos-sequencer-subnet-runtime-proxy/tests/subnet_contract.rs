@@ -461,7 +461,6 @@ async fn test_create_runtime() -> Result<(), Box<dyn std::error::Error>> {
 #[rstest]
 #[tokio::test]
 #[serial]
-#[ignore = "needs to be updated to the new smart contract api"]
 async fn test_subnet_certificate_push_call(
     context_running_subnet_node: impl Future<Output = Context>,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -471,7 +470,7 @@ async fn test_subnet_certificate_push_call(
         "0x".to_string() + &hex::encode(context.subnet_contract.address());
     let runtime_proxy_worker = RuntimeProxyWorker::new(RuntimeProxyConfig {
         subnet_id: SOURCE_SUBNET_ID,
-        endpoint: TOPOS_SUBNET_JSONRPC_ENDPOINT.to_string(),
+        endpoint: TOPOS_SUBNET_JSONRPC_ENDPOINT_WS.to_string(),
         subnet_contract: subnet_smart_contract_address.clone(),
         keystore_file: keystore_file_path,
         keystore_password: TEST_KEYSTORE_FILE_PASSWORD.to_string(),
@@ -506,7 +505,7 @@ async fn test_subnet_certificate_push_call(
     let logs = read_logs_for_address(
         &subnet_smart_contract_address,
         &context.web3_client,
-        "CertificateApplied(bool)",
+        "CertStored(bytes)",
     )
     .await?;
     println!("Acquired logs from subnet smart contract: {:#?}", logs);

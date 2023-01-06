@@ -9,7 +9,7 @@ use tracing::{debug, error, info};
 use web3::ethabi::Token;
 use web3::futures::StreamExt;
 use web3::transports::WebSocket;
-use web3::types::{BlockId, BlockNumber, H160, U64};
+use web3::types::{BlockId, BlockNumber, H160, H256, U256, U64};
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -222,21 +222,24 @@ impl SubnetClient {
         Ok(block_info)
     }
 
-    pub async fn push_certificate(&self, cert: &Certificate) -> Result<(), Error> {
+    pub async fn push_certificate(&self, cert: &Certificate) -> Result<H256, Error> {
         let call_options = web3::contract::Options::default();
-        let cert_id_token: Token = web3::ethabi::Token::FixedBytes(cert.id.to_vec());
-        let encoded_cert_id = web3::ethabi::encode(&[cert_id_token]);
         // TODO how to get cert position (height)? It needs to be retrieved from the TCE
         let cert_position: u64 = 0;
+
+        let cert_id_token: Token = web3::ethabi::Token::FixedBytes(cert.id.to_vec());
+        let cert_position: Token = web3::ethabi::Token::Uint(U256::from(cert_position));
+        let encoded_params = web3::ethabi::encode(&[cert_id_token, cert_position]);
+
         self.contract
             .call(
                 "pushCertificate",
                 // TODO ADD APPROPRIATE CERT POSITION AS ARGUMENT
-                (encoded_cert_id, web3::types::U256::from(cert_position)),
+                encoded_params,
                 self.eth_admin_address,
                 call_options,
             )
-            .await?;
-        Ok(())
+            .await
+            .map_err(|e| Error::EthContractError { source: e })
     }
 }
