@@ -226,10 +226,13 @@ impl SubnetClient {
         let call_options = web3::contract::Options::default();
         let cert_id_token: Token = web3::ethabi::Token::FixedBytes(cert.id.to_vec());
         let encoded_cert_id = web3::ethabi::encode(&[cert_id_token]);
+        // TODO how to get cert position (height)? It needs to be retrieved from the TCE
+        let cert_position: u64 = 0;
         self.contract
             .call(
                 "pushCertificate",
-                encoded_cert_id,
+                    // TODO ADD APPROPRIATE CERT POSITION AS ARGUMENT
+                (encoded_cert_id, web3::types::U256::from(cert_position)),
                 self.eth_admin_address,
                 call_options,
             )
