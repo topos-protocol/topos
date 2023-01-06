@@ -231,7 +231,7 @@ impl SubnetClient {
         self.contract
             .call(
                 "pushCertificate",
-                    // TODO ADD APPROPRIATE CERT POSITION AS ARGUMENT
+                // TODO ADD APPROPRIATE CERT POSITION AS ARGUMENT
                 (encoded_cert_id, web3::types::U256::from(cert_position)),
                 self.eth_admin_address,
                 call_options,
