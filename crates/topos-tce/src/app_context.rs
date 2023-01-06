@@ -129,6 +129,10 @@ impl AppContext {
             &self.network_client.local_peer_id, &evt
         );
         match evt {
+            TceEvents::StableSample => {
+                self.api_client.has_active_sample().await;
+            }
+
             TceEvents::CertificateDelivered { certificate } => {
                 _ = self
                     .pending_storage

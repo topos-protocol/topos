@@ -13,6 +13,7 @@ TOPOS_BIN=./topos
 PEER_LIST_PATH=/tmp/shared/peer_ids.json
 NODE_LIST_PATH=/tmp/shared/peer_nodes.json
 NODE="http://$HOSTNAME:1340"
+TCE_EXT_HOST="/dns4/$HOSTNAME"
 
 case "$1" in
 
@@ -26,6 +27,9 @@ case "$1" in
         echo "Peer nodes list have been successfully generated"
 
         echo "Starting boot node..."
+
+        export TCE_EXT_HOST
+
         exec "$TOPOS_BIN" "${@:2}"
         ;;
 
@@ -41,6 +45,7 @@ case "$1" in
            cat <<< $($JQ --arg PEER $PEER '. += [$PEER]' $PEER_LIST_PATH) > $PEER_LIST_PATH
 
            export TCE_LOCAL_KS=$HOSTNAME
+           export TCE_EXT_HOST
 
            until [ -f "$NODE_LIST_PATH" ]
            do

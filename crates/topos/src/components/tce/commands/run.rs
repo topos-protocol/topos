@@ -12,10 +12,10 @@ pub struct Run {
     #[arg(long, default_value = "", env = "TCE_BOOT_PEERS")]
     pub boot_peers: String,
 
-    /// Advertised (externally visible) <host|address:port>,
+    /// Advertised (externally visible) <host>,
     /// if empty this machine ip address(es) are used
-    #[arg(long, env = "TCE_EXT_HOST")]
-    pub tce_ext_host: Option<String>,
+    #[arg(long, env = "TCE_EXT_HOST", default_value = "0.0.0.0")]
+    pub tce_ext_host: String,
 
     /// Port to listen on (host is 0.0.0.0, should be good for most installations)
     #[arg(long, default_value_t = 0, env = "TCE_PORT")]

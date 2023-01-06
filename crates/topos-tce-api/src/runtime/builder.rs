@@ -1,13 +1,18 @@
 use futures::Stream;
 use std::{collections::HashMap, net::SocketAddr};
-use tokio::{spawn, sync::mpsc};
+use tokio::{
+    spawn,
+    sync::{mpsc, RwLock},
+};
 use tokio_stream::wrappers::ReceiverStream;
+use topos_core::api::tce::v1::StatusResponse;
 
 use crate::{grpc::builder::ServerBuilder, Runtime, RuntimeClient, RuntimeEvent};
 
 #[derive(Default)]
 pub struct RuntimeBuilder {
     grpc_socket_addr: Option<SocketAddr>,
+    status: Option<RwLock<StatusResponse>>,
 }
 
 impl RuntimeBuilder {
@@ -17,11 +22,17 @@ impl RuntimeBuilder {
         self
     }
 
+    pub fn tce_status(mut self, status: RwLock<StatusResponse>) -> Self {
+        self.status = Some(status);
+
+        self
+    }
+
     pub async fn build_and_launch(self) -> (RuntimeClient, impl Stream<Item = RuntimeEvent>) {
         let (command_sender, internal_runtime_command_receiver) = mpsc::channel(2048);
         let (api_event_sender, api_event_receiver) = mpsc::channel(2048);
 
-        let (health_reporter, grpc) = ServerBuilder::default()
+        let (health_reporter, tce_status, grpc) = ServerBuilder::default()
             .command_sender(command_sender)
             .serve_addr(self.grpc_socket_addr)
             .build()
@@ -43,7 +54,10 @@ impl RuntimeBuilder {
         spawn(runtime.launch());
 
         (
-            RuntimeClient { command_sender },
+            RuntimeClient {
+                command_sender,
+                tce_status,
+            },
             ReceiverStream::new(api_event_receiver),
         )
     }

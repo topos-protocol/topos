@@ -40,6 +40,7 @@ pub struct NetworkBuilder<'a> {
     transmission_protocol: Option<&'static str>,
     peer_key: Option<Keypair>,
     listen_addr: Option<Multiaddr>,
+    exposed_addresses: Option<Multiaddr>,
     store: Option<MemoryStore>,
     known_peers: &'a [(PeerId, Multiaddr)],
     local_port: Option<u8>,
@@ -48,6 +49,12 @@ pub struct NetworkBuilder<'a> {
 impl<'a> NetworkBuilder<'a> {
     pub fn peer_key(mut self, peer_key: Keypair) -> Self {
         self.peer_key = Some(peer_key);
+
+        self
+    }
+
+    pub fn exposed_addresses(mut self, addr: Multiaddr) -> Self {
+        self.exposed_addresses = Some(addr);
 
         self
     }
@@ -149,8 +156,12 @@ impl<'a> NetworkBuilder<'a> {
                 command_receiver,
                 event_sender,
                 local_peer_id: peer_id,
-                addresses: self
+                listening_on: self
                     .listen_addr
+                    .take()
+                    .expect("P2P runtime expect a MultiAddr"),
+                addresses: self
+                    .exposed_addresses
                     .take()
                     .expect("P2P runtime expect a MultiAddr"),
                 bootstrapped: false,

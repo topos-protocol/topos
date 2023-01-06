@@ -37,7 +37,6 @@ pub mod tce_store;
 /// Configuration of TCE implementation
 pub struct ReliableBroadcastConfig {
     pub tce_params: ReliableBroadcastParams,
-    pub my_peer_id: Peer,
 }
 
 #[derive(Debug)]
@@ -91,8 +90,6 @@ pub enum DoubleEchoCommand {
 /// Thread safe client to the protocol aggregate
 #[derive(Clone, Debug)]
 pub struct ReliableBroadcastClient {
-    #[allow(dead_code)]
-    peer_id: String,
     broadcast_commands: mpsc::Sender<DoubleEchoCommand>,
     sampling_commands: mpsc::Sender<SamplerCommand>,
 }
@@ -102,12 +99,10 @@ impl ReliableBroadcastClient {
     ///
     /// New client instances to the same aggregate can be cloned from the returned one.
     /// Aggregate is spawned as new task.
-    #[instrument(name = "ReliableBroadcastClient", skip_all, fields(peer_id = config.my_peer_id))]
+    #[instrument(name = "ReliableBroadcastClient", skip_all)]
     pub fn new(
         config: ReliableBroadcastConfig,
     ) -> (Self, impl Stream<Item = Result<TceEvents, ()>>) {
-        let peer_id = config.my_peer_id.clone();
-
         let (subscriptions_view_sender, subscriptions_view_receiver) =
             mpsc::channel::<SubscriptionsView>(2048);
         let (subscribers_update_sender, subscribers_update_receiver) =
@@ -126,7 +121,6 @@ impl ReliableBroadcastClient {
         let (broadcast_commands, command_receiver) = mpsc::channel(2048);
 
         let double_echo = DoubleEcho::new(
-            peer_id.clone(),
             config.tce_params,
             command_receiver,
             subscriptions_view_receiver,
@@ -141,7 +135,6 @@ impl ReliableBroadcastClient {
 
         (
             Self {
-                peer_id,
                 broadcast_commands,
                 sampling_commands: sampler_command_sender,
             },

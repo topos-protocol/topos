@@ -12,6 +12,9 @@ services:
     command: boot tce run -vv
     image: ghcr.io/toposware/tce:pr-4
     init: true
+    healthcheck:
+      test: ./topos tce push-peer-list --endpoint http://localhost:1340 --format json /tmp/shared/peer_ids.json
+      interval: 5s
     volumes:
       - shared:/tmp/shared
     build:
@@ -44,6 +47,9 @@ services:
     image: ghcr.io/toposware/tce:pr-4
     command: tce run
     init: true
+    healthcheck:
+      test: ./topos tce push-peer-list --endpoint http://localhost:1340 --format json /tmp/shared/peer_ids.json
+      interval: 5s
     volumes:
       - shared:/tmp/shared
     build:
@@ -52,13 +58,15 @@ services:
         - TOOLCHAIN_VERSION=stable
         - GITHUB_TOKEN
     depends_on:
-      - jaeger
-      - boot
+      jaeger:
+        condition: service_started
+      boot:
+        condition: service_healthy
     ports:
       - "9090"
       - "1340"
     deploy:
-      replicas: 5
+      replicas: 10
     environment:
       - LOCAL_TEST_NET=true
       - RUST_LOG=info,topos_p2p=debug,topos_tce_node_app=debug,topos_tce_protocols_reliable_broadcast=debug
@@ -84,8 +92,10 @@ services:
       - RUST_LOG=info
       - TARGET_NODES_PATH=/tmp/shared/peer_nodes.json
     depends_on:
-      - jaeger
-      - peer
+      jaeger:
+        condition: service_started
+      peer:
+        condition: service_healthy
 
 volumes:
   shared:

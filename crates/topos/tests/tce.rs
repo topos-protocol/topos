@@ -5,7 +5,7 @@ use tokio::spawn;
 use tonic::{Request, Response, Status};
 use topos_core::api::tce::v1::{
     console_service_server::{ConsoleService, ConsoleServiceServer},
-    PushPeerListRequest, PushPeerListResponse,
+    PushPeerListRequest, PushPeerListResponse, StatusRequest, StatusResponse,
 };
 
 #[test]
@@ -77,6 +77,10 @@ impl ConsoleService for DummyServer {
         &self,
         _request: Request<PushPeerListRequest>,
     ) -> Result<Response<PushPeerListResponse>, Status> {
+        unimplemented!()
+    }
+
+    async fn status(&self, _: Request<StatusRequest>) -> Result<Response<StatusResponse>, Status> {
         unimplemented!()
     }
 }

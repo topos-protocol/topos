@@ -21,7 +21,6 @@ struct DeliveryState {
 }
 
 pub struct DoubleEcho {
-    my_peer_id: String,
     params: ReliableBroadcastParams,
     command_receiver: mpsc::Receiver<DoubleEchoCommand>,
     subscriptions_view_receiver: mpsc::Receiver<SubscriptionsView>,
@@ -43,7 +42,6 @@ impl DoubleEcho {
     pub const MAX_BUFFER_SIZE: usize = 2048;
 
     pub fn new(
-        my_peer_id: String,
         params: ReliableBroadcastParams,
         command_receiver: mpsc::Receiver<DoubleEchoCommand>,
         subscriptions_view_receiver: mpsc::Receiver<SubscriptionsView>,
@@ -52,7 +50,6 @@ impl DoubleEcho {
         store: Box<dyn TceStore + Send>,
     ) -> Self {
         Self {
-            my_peer_id,
             params,
             command_receiver,
             subscriptions_view_receiver,
@@ -77,7 +74,8 @@ impl DoubleEcho {
                 Some(command) = self.command_receiver.recv() => {
                     match command {
                         DoubleEchoCommand::DeliveredCerts { subnet_id, limit, sender } => {
-                            debug!("peer_id: {} DoubleEchoCommand::DeliveredCerts, subnet_id: {:?}, limit: {}", self.my_peer_id, &subnet_id, &limit);
+
+                            debug!("DoubleEchoCommand::DeliveredCerts, subnet_id: {}, limit: {}", &subnet_id, &limit);
                             let value = self
                                 .store
                                 .recent_certificates_for_subnet(&subnet_id, limit)
@@ -90,13 +88,14 @@ impl DoubleEcho {
                         }
 
                         DoubleEchoCommand::BroadcastMany { certificates } if self.buffer.is_empty() => {
-                            debug!("peer_id: {} DoubleEchoCommand::BroadcastMany cert ids: {:?}", self.my_peer_id,
-                                certificates.iter().map(|cert| &cert.id).collect::<Vec<&CertificateId>>());
+                            debug!("DoubleEchoCommand::BroadcastMany cert ids: {:?}",
+                                certificates.iter().map(|cert| &cert.cert_id).collect::<Vec<&CertificateId>>());
+
                             self.buffer = certificates.into();
                         }
 
                         DoubleEchoCommand::Broadcast { cert } => {
-                            debug!("peer_id: {} DoubleEchoCommand::Broadcast cert_id: {:?}", self.my_peer_id, &cert.id);
+                            debug!("DoubleEchoCommand::Broadcast cert_id: {}", &cert.cert_id);
                             if self.buffer.len() < Self::MAX_BUFFER_SIZE {
                                 self.buffer.push_back(cert);
                             }
@@ -105,13 +104,13 @@ impl DoubleEcho {
                         command if self.subscriptions.is_some() => {
                             match command {
                                 DoubleEchoCommand::Echo { from_peer, cert } => {
-                                    debug!("peer_id: {} handling DoubleEchoCommand::Echo from_peer: {} cert_id: {:?}", self.my_peer_id, &from_peer, &cert.id);
+                                    debug!("handling DoubleEchoCommand::Echo from_peer: {} cert_id: {}", &from_peer, &cert.cert_id);
                                     self.handle_echo(from_peer, cert)},
                                 DoubleEchoCommand::Ready { from_peer, cert } => {
-                                    debug!("peer_id: {} handling DoubleEchoCommand::Ready from_peer: {} cert_id: {:?}", self.my_peer_id, &from_peer, &cert.id);
+                                    debug!("handling DoubleEchoCommand::Ready from_peer: {} cert_id: {}", &from_peer, &cert.cert_id);
                                     self.handle_ready(from_peer, cert)},
                                 DoubleEchoCommand::Deliver { cert, digest } => {
-                                    debug!("peer_id: {} handling DoubleEchoCommand::Deliver cert_id: {:?} digest: {:?}", self.my_peer_id, &cert.id, &digest);
+                                    debug!("handling DoubleEchoCommand::Deliver cert_id: {} digest: {:?}", &cert.cert_id, &digest);
                                     self.handle_deliver(cert, digest)},
                                 _ => {}
                             }
@@ -123,12 +122,12 @@ impl DoubleEcho {
                 }
 
                 Some(new_subscriptions_view) = self.subscriptions_view_receiver.recv() => {
-                    info!("peer_id {} new sample view received {:?}", &self.my_peer_id, &new_subscriptions_view);
+                    info!("new sample view received {:?}", &new_subscriptions_view);
                     self.subscriptions = new_subscriptions_view;
                 }
 
                 Some(new_subscribers_update) = self.subscribers_update_receiver.recv() => {
-                    info!("peer_id {} new subscribers update {:?}", &self.my_peer_id, &new_subscribers_update);
+                    info!("new subscribers update {:?}", &new_subscribers_update);
                     match new_subscribers_update {
                         SubscribersUpdate::NewEchoSubscriber(peer) if !self.subscriptions.echo.contains(&peer) => {
                             self.subscribers.echo.insert(peer);
@@ -187,10 +186,7 @@ impl DoubleEcho {
     }
 
     fn handle_broadcast(&mut self, cert: Certificate) {
-        info!(
-            "peer_id: {} handling broadcast of cert_id {:?}",
-            &self.my_peer_id, &cert.id
-        );
+        info!("handling broadcast of cert_id {}", &cert.cert_id);
         let digest = self
             .store
             .flush_digest_view(&cert.source_subnet_id)
@@ -223,8 +219,8 @@ impl DoubleEcho {
         // Gossip the certificate to all my peers
         let gossip_peers = self.gossip_peers();
         debug!(
-            "peer_id: {} dispatching gossip event cert_id: {:?} to gossip peers {:?}",
-            &self.my_peer_id, cert.id, &gossip_peers
+            "dispatching gossip event cert_id: {} to gossip peers {:?}",
+            cert.cert_id, &gossip_peers
         );
         let _ = self.event_sender.send(TceEvents::Gossip {
             peers: gossip_peers, // considered as the G-set for erdos-renyi
@@ -249,17 +245,14 @@ impl DoubleEcho {
     }
 
     fn start_delivery(&mut self, cert: Certificate, digest: DigestCompressed) {
-        debug!(
-            "🙌 StartDelivery[{:?}]\t Peer:{:?}",
-            &cert.id, &self.my_peer_id
-        );
+        debug!("🙌 StartDelivery[{:?}]\t", &cert.cert_id);
         // Add new entry for the new Cert candidate
         match self.delivery_state_for_new_cert() {
             Some(delivery_state) => {
                 self.cert_candidate.insert(cert.clone(), delivery_state);
             }
             None => {
-                error!("[{:?}] Ill-formed samples", self.my_peer_id);
+                error!("Ill-formed samples");
                 let _ = self.event_sender.send(TceEvents::Die);
                 return;
             }
@@ -271,7 +264,7 @@ impl DoubleEcho {
         // Send Echo to the echo sample
         let echo_peers = self.subscribers.echo.iter().cloned().collect::<Vec<_>>();
         if echo_peers.is_empty() {
-            warn!("[{:?}] EchoSubscriber peers set is empty", self.my_peer_id);
+            warn!("EchoSubscriber peers set is empty");
             return;
         }
 
@@ -349,10 +342,7 @@ impl DoubleEcho {
                         // )
                     }
                     self.pending_delivery.remove(cert);
-                    debug!(
-                        "📝 Accepted[{:?}]\t Peer:{:?}\t Delivery time: {:?}",
-                        &cert.id, self.my_peer_id, d
-                    );
+                    debug!("📝 Accepted[{:?}]\t Delivery time: {:?}", &cert.cert_id, d);
 
                     _ = self.event_sender.send(TceEvents::CertificateDelivered {
                         certificate: cert.clone(),
@@ -488,7 +478,6 @@ mod tests {
             peers.push(peer);
         }
 
-        let my_peer_id = peers[0].clone();
         let expected_subscriptions_view = get_subscriptions_view(&peers, subscription_sample_size);
         let expected_subscriber_view = get_subscriber_view(&peers, subscriber_sample_size);
 
@@ -496,7 +485,6 @@ mod tests {
         let (_cmd_sender, cmd_receiver) = mpsc::channel(10);
         let (event_sender, mut event_receiver) = broadcast::channel(10);
         let mut double_echo = DoubleEcho::new(
-            my_peer_id.to_string(),
             broadcast_params.clone(),
             cmd_receiver,
             subscriptions_view_receiver,
@@ -601,7 +589,6 @@ mod tests {
             peers.push(peer);
         }
 
-        let my_peer_id = peers[0].clone();
         let expected_subscriptions_view = get_subscriptions_view(&peers, subscription_sample_size);
         let expected_subscriber_view = get_subscriber_view(&peers, subscriber_sample_size);
 
@@ -609,7 +596,6 @@ mod tests {
         let (cmd_sender, cmd_receiver) = mpsc::channel(10);
         let (event_sender, mut event_receiver) = broadcast::channel(10);
         let double_echo = DoubleEcho::new(
-            my_peer_id.to_string(),
             broadcast_params.clone(),
             cmd_receiver,
             subscriptions_view_receiver,

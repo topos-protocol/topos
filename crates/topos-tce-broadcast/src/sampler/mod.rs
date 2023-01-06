@@ -180,6 +180,9 @@ impl Sampler {
                     {
                         Ok(_) => {
                             self.status = SampleProviderStatus::Stabilized;
+                            if let Err(_) = self.event_sender.send(TceEvents::StableSample) {
+                                error!("Unable to notify TCE runtime for new stable sample");
+                            }
                         }
                         Err(e) => {
                             error!("Fail to send new subscription sample view {:?} ", e);

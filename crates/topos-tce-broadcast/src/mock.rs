@@ -439,8 +439,7 @@ fn launch_broadcast_protocol_instances(
     // create instances
     for peer in peer_ids {
         let (client, mut event_stream) = ReliableBroadcastClient::new(ReliableBroadcastConfig {
-            tce_params: global_trb_params.clone(),
-            my_peer_id: peer.to_string(),
+            tce_params: global_tce_params.clone(),
         });
 
         let _ = peers_container.insert(peer, client.clone());

@@ -158,7 +158,7 @@ impl Gatekeeper {
 
     #[allow(dead_code)]
     pub fn builder() -> GatekeeperBuilder {
-        GatekeeperBuilder {}
+        GatekeeperBuilder::default()
     }
 }
 

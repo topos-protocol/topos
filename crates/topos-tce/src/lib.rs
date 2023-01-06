@@ -25,6 +25,7 @@ pub struct TceConfiguration {
     pub tce_params: ReliableBroadcastParams,
     pub boot_peers: Vec<(PeerId, Multiaddr)>,
     pub api_addr: SocketAddr,
+    pub tce_addr: String,
     pub tce_local_port: u16,
     pub storage: StorageConfiguration,
 }
@@ -90,7 +91,6 @@ pub async fn run(config: &TceConfiguration) -> Result<(), Box<dyn std::error::Er
         // launch data store
         let tce_config = ReliableBroadcastConfig {
             tce_params: config.tce_params.clone(),
-            my_peer_id: "main".to_string(),
         };
 
         let (tce_cli, tce_stream) = ReliableBroadcastClient::new(tce_config);
@@ -101,6 +101,10 @@ pub async fn run(config: &TceConfiguration) -> Result<(), Box<dyn std::error::Er
             .instrument(Span::current())
             .await;
 
+        let external_addr: Multiaddr = format!("{}/tcp/{}", config.tce_addr, config.tce_local_port)
+            .parse()
+            .unwrap();
+
         let addr: Multiaddr = format!("/ip4/0.0.0.0/tcp/{}", config.tce_local_port)
             .parse()
             .unwrap();
@@ -108,6 +112,7 @@ pub async fn run(config: &TceConfiguration) -> Result<(), Box<dyn std::error::Er
         let (network_client, event_stream, runtime) = topos_p2p::network::builder()
             .peer_key(key)
             .listen_addr(addr)
+            .exposed_addresses(external_addr)
             .known_peers(&config.boot_peers)
             .build()
             .instrument(Span::current())
@@ -130,6 +135,7 @@ pub async fn run(config: &TceConfiguration) -> Result<(), Box<dyn std::error::Er
         spawn(storage.into_future());
 
         let (gatekeeper_client, gatekeeper_runtime) = topos_tce_gatekeeper::Gatekeeper::builder()
+            .local_peer_id(peer_id)
             .await
             .expect("Can't create the Gatekeeper");
 
