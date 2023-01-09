@@ -21,7 +21,9 @@ COPY --from=planner /usr/src/app/recipe.json recipe.json
 RUN cargo chef cook --all-targets --recipe-path recipe.json
 RUN cargo install cargo-nextest --locked
 COPY . .
-RUN cargo nextest run --workspace && cargo test --doc --workspace
+# topos-sequencer integration tests require specific setup, so excluding them here. They are executed
+# with sequencer_tcc_test.yml CI setup
+RUN cargo nextest run --workspace --exclude topos-sequencer-subnet-runtime-proxy && cargo test --doc --workspace
 
 FROM base AS fmt
 RUN rustup component add rustfmt
