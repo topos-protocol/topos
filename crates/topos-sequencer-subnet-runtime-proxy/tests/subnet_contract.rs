@@ -24,8 +24,8 @@ const TOPOS_SUBNET_JSONRPC_ENDPOINT_HTTP: &'static str = "http://127.0.0.1:8545"
 const TOPOS_SUBNET_JSONRPC_ENDPOINT_WS: &'static str = "ws://127.0.0.1:8545/ws";
 const TEST_SECRET_ETHEREUM_KEY: &'static str =
     "5fb92d6e98884f76de468fa3f6278f8807c48bebc13595d45af5bdc4da702133";
-const DOCKER_IMAGE: &'static str = "ghcr.io/toposware/polygon-edge";
-const DOCKER_IMAGE_TAG: &str = "develop";
+const POLYGON_EDGE_CONTAINER: &'static str = "ghcr.io/toposware/polygon-edge";
+const POLYGON_EDGE_CONTAINER_TAG: &str = "develop";
 const SUBNET_STARTUP_DELAY: u64 = 10; // seconds left for subnet startup
 const TOPOS_SMART_CONTRACTS_BUILD_PATH: &str = "TOPOS_SMART_CONTRACTS_BUILD_PATH";
 
@@ -163,9 +163,9 @@ fn spawn_subnet_node(
     let handle = tokio::task::spawn_blocking(move || {
         let source = Source::DockerHub;
 
-        let img = Image::with_repository(DOCKER_IMAGE)
+        let img = Image::with_repository(POLYGON_EDGE_CONTAINER)
             .source(Source::Local)
-            .tag(DOCKER_IMAGE_TAG)
+            .tag(POLYGON_EDGE_CONTAINER_TAG)
             .pull_policy(PullPolicy::IfNotPresent);
         let mut polygon_edge_node = Composition::with_image(img);
         let current_dir: String = std::env::current_dir()
@@ -234,7 +234,7 @@ fn spawn_subnet_node(
                 .with_cmd(cmd),
         );
         polygon_edge_node_docker.run(|ops| async move {
-            let container = ops.handle(DOCKER_IMAGE);
+            let container = ops.handle(POLYGON_EDGE_CONTAINER);
             println!(
                 "Running container with id: {} name: {} ...",
                 container.id(),
@@ -491,7 +491,6 @@ async fn test_subnet_certificate_push_call(
             },
         }],
     };
-
     println!("Sending mock certificate to subnet smart contract...");
     if let Err(e) = runtime_proxy_worker
         .eval(topos_sequencer_types::RuntimeProxyCommand::OnNewDeliveredTxns(mock_cert))
