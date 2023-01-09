@@ -182,8 +182,8 @@ fn spawn_subnet_node(
             copy_inside: true,
             ..Default::default()
         };
-        let test_data_dir_name = current_dir.clone()
-            + "/tests/temp/data_"
+        let test_data_dir_name = std::env::temp_dir().to_string_lossy().to_string()
+            + "/topos-sequencer/data_"
             + &std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .expect("valid system time duration")
