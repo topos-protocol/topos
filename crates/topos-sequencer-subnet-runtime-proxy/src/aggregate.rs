@@ -31,7 +31,8 @@ impl RuntimeProxy {
             &config.endpoint, &config.subnet_contract
         );
         let (command_sender, mut command_rcv) = mpsc::unbounded_channel::<RuntimeProxyCommand>();
-        let runtime_endpoint = Arc::new(config.endpoint.clone());
+        let ws_runtime_endpoint = "ws://".to_string() + &config.endpoint + "/ws";
+        let http_runtime_endpoint = "http://".to_string() + &config.endpoint;
         let subnet_contract = Arc::new(config.subnet_contract.clone());
         let (_tx_exit, mut rx_exit) = mpsc::unbounded_channel::<()>();
 
@@ -64,13 +65,13 @@ impl RuntimeProxy {
 
         let _runtime_block_task = {
             let runtime_proxy = runtime_proxy.clone();
-            let runtime_endpoint = runtime_endpoint.clone();
+            let runtime_endpoint = ws_runtime_endpoint.clone();
             let eth_admin_private_key = eth_admin_private_key.clone();
             let subnet_contract = subnet_contract.clone();
             tokio::spawn(async move {
                 let mut interval = time::interval(Duration::from_secs(6)); // arbitrary time for 1 block
                 loop {
-                    let mut subnet = match topos_sequencer_subnet_client::SubnetClient::new(
+                    let mut subnet = match topos_sequencer_subnet_client::SubnetClientListener::new(
                         runtime_endpoint.as_ref(),
                         eth_admin_private_key.clone(),
                         subnet_contract.as_str(),
@@ -80,12 +81,15 @@ impl RuntimeProxy {
                         Ok(subnet) => subnet,
                         Err(err) => {
                             error!(
-                                "Unable to instantiate subnet client, error: {}",
+                                "Unable to instantiate subnet client listener, error: {}",
                                 err.to_string()
                             );
+                            //TODO use backoff mechanism here
+                            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                             continue;
                         }
                     };
+
                     loop {
                         interval.tick().await;
 
@@ -129,7 +133,7 @@ impl RuntimeProxy {
             tokio::spawn(async move {
                 loop {
                     let mut subnet_client = match topos_sequencer_subnet_client::SubnetClient::new(
-                        runtime_endpoint.as_ref(),
+                        http_runtime_endpoint.as_ref(),
                         eth_admin_private_key.clone(),
                         subnet_contract.as_str(),
                     )
@@ -138,9 +142,10 @@ impl RuntimeProxy {
                         Ok(subnet) => subnet,
                         Err(err) => {
                             error!(
-                                "Unable to instantiate subnet client, error: {}",
+                                "Unable to instantiate http subnet client, error: {}",
                                 err.to_string()
                             );
+                            //TODO use backoff mechanism here
                             tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                             continue;
                         }

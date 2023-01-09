@@ -401,7 +401,7 @@ async fn test_subnet_node_get_block_info(
     let eth_private_key = hex::decode(TEST_SECRET_ETHEREUM_KEY)?;
     let _eth_address =
         topos_sequencer_subnet_client::subnet_contract::derive_eth_address(&eth_private_key)?;
-    match topos_sequencer_subnet_client::SubnetClient::new(
+    match topos_sequencer_subnet_client::SubnetClientListener::new(
         TOPOS_SUBNET_JSONRPC_ENDPOINT_WS.as_ref(),
         eth_private_key,
         &("0x".to_string() + &hex::encode(context.subnet_contract.address())),

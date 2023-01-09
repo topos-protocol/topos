@@ -8,7 +8,7 @@ use topos_sequencer_types::{BlockInfo, Certificate};
 use tracing::{debug, error, info};
 use web3::ethabi::Token;
 use web3::futures::StreamExt;
-use web3::transports::WebSocket;
+use web3::transports::{Http, WebSocket};
 use web3::types::{BlockId, BlockNumber, H160, H256, U256, U64};
 
 #[derive(Debug, Error)]
@@ -81,8 +81,8 @@ pub enum Error {
     },
 }
 
-// A to hold subnet client related entities
-pub struct SubnetClient {
+// Subnet client for listening events from subnet node
+pub struct SubnetClientListener {
     pub eth_admin_address: H160,
     #[allow(dead_code)]
     eth_admin_key: Vec<u8>,
@@ -96,15 +96,18 @@ pub struct SubnetClient {
     events: Vec<web3::ethabi::Event>,
 }
 
-impl SubnetClient {
+impl SubnetClientListener {
     /// Initialize a new Subnet client
     pub async fn new(
-        subnet_endpoint: &str,
+        ws_subnet_endpoint: &str,
         eth_admin_key: Vec<u8>,
         contract_address: &str,
     ) -> Result<Self, Error> {
-        info!("Connecting to subnet node at endpoint: {}", subnet_endpoint);
-        let transport = web3::transports::WebSocket::new(subnet_endpoint).await?;
+        info!(
+            "Connecting to subnet node at endpoint: {}",
+            ws_subnet_endpoint
+        );
+        let transport = web3::transports::WebSocket::new(ws_subnet_endpoint).await?;
         let web3 = web3::Web3::new(transport);
         let eth_admin_address = match subnet_contract::derive_eth_address(&eth_admin_key) {
             Ok(address) => address,
@@ -119,7 +122,7 @@ impl SubnetClient {
         // List of events that this contract could create
         let events = parse_events_from_json()?;
 
-        Ok(SubnetClient {
+        Ok(SubnetClientListener {
             eth_admin_key,
             eth_admin_address,
             web3_client: web3,
@@ -220,6 +223,47 @@ impl SubnetClient {
         };
         info!("Fetched new finalized block: {:?}", block_info.number);
         Ok(block_info)
+    }
+}
+
+// Subnet client for calling target network smart contract
+pub struct SubnetClient {
+    pub eth_admin_address: H160,
+    #[allow(dead_code)]
+    eth_admin_key: Vec<u8>,
+    #[allow(dead_code)]
+    contract: web3::contract::Contract<Http>,
+}
+
+impl SubnetClient {
+    /// Initialize a new Subnet client
+    pub async fn new(
+        http_subnet_endpoint: &str,
+        eth_admin_key: Vec<u8>,
+        contract_address: &str,
+    ) -> Result<Self, Error> {
+        info!(
+            "Connecting to subnet node at endpoint: {}",
+            http_subnet_endpoint
+        );
+        let transport = web3::transports::Http::new(http_subnet_endpoint)?;
+        let web3 = web3::Web3::new(transport);
+        let eth_admin_address = match subnet_contract::derive_eth_address(&eth_admin_key) {
+            Ok(address) => address,
+            Err(e) => {
+                error!("Unable to derive admin addres from secret key, error instantiating subnet client: {}", e);
+                return Err(e);
+            }
+        };
+
+        // Initialize Topos Core Contract from json abi
+        let contract = create_topos_core_contract_from_json(&web3, contract_address)?;
+
+        Ok(SubnetClient {
+            eth_admin_key,
+            eth_admin_address,
+            contract,
+        })
     }
 
     pub async fn push_certificate(&self, cert: &Certificate) -> Result<H256, Error> {

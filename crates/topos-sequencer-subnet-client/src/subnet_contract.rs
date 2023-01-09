@@ -4,13 +4,12 @@ use topos_sequencer_types::SubnetEvent;
 use tracing::debug;
 use web3::ethabi;
 use web3::ethabi::ParamType;
-use web3::transports::WebSocket;
 use web3::types::H160;
 
-pub(crate) fn create_topos_core_contract_from_json(
-    web3: &web3::Web3<WebSocket>,
+pub(crate) fn create_topos_core_contract_from_json<T: web3::Transport>(
+    web3: &web3::Web3<T>,
     contract_address: &str,
-) -> Result<web3::contract::Contract<WebSocket>, Error> {
+) -> Result<web3::contract::Contract<T>, Error> {
     debug!("Creating topos core contract...");
     let contract_address_h160: H160 = H160::from_slice(&hex::decode(&contract_address[2..42])?);
     let contract = web3::contract::Contract::from_json(
