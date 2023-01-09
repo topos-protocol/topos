@@ -19,7 +19,8 @@ const SUBNET_TCC_JSON_DEFINITION: &'static str = "ToposCoreContract.json";
 const SUBNET_TOKEN_DEPLOYER_JSON_DEFINITION: &'static str = "TokenDeployer.json";
 const SUBNET_CHAIN_ID: u64 = 100;
 const SUBNET_RPC_PORT: u32 = 8545;
-const TOPOS_SUBNET_JSONRPC_ENDPOINT: &'static str = "http://127.0.0.1:8545";
+const TOPOS_SUBNET_JSONRPC_ENDPOINT: &'static str = "127.0.0.1:8545";
+const TOPOS_SUBNET_JSONRPC_ENDPOINT_HTTP: &'static str = "http://127.0.0.1:8545";
 const TOPOS_SUBNET_JSONRPC_ENDPOINT_WS: &'static str = "ws://127.0.0.1:8545/ws";
 const TEST_SECRET_ETHEREUM_KEY: &'static str =
     "5fb92d6e98884f76de468fa3f6278f8807c48bebc13595d45af5bdc4da702133";
@@ -324,13 +325,14 @@ async fn context_running_subnet_node() -> Context {
             panic!("Unable to start substrate subnet node");
         }
     };
+    subnet_ready_receiver
+        .await
+        .expect("subnet ready channel error");
     println!("Subnet node started...");
-    // Web3 client for setup/mocking of contracts
-    tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
     let mut i = 0;
     let http: Http = loop {
         i += 1;
-        break match Http::new(TOPOS_SUBNET_JSONRPC_ENDPOINT) {
+        break match Http::new(TOPOS_SUBNET_JSONRPC_ENDPOINT_HTTP) {
             Ok(http) => {
                 println!("Connected to subnet node...");
                 Some(http)
@@ -349,9 +351,6 @@ async fn context_running_subnet_node() -> Context {
 
     let mut web3_client = web3::Web3::new(http);
     // Wait for subnet node to start
-    subnet_ready_receiver
-        .await
-        .expect("subnet ready channel error");
     // Perform subnet smart contract deployment
     let (subnet_contract, erc20_contract) = match deploy_contracts(&mut web3_client).await.map_err(
         |e| {
@@ -403,7 +402,6 @@ async fn test_subnet_node_get_block_info(
         topos_sequencer_subnet_client::subnet_contract::derive_eth_address(&eth_private_key)?;
     match topos_sequencer_subnet_client::SubnetClientListener::new(
         TOPOS_SUBNET_JSONRPC_ENDPOINT_WS.as_ref(),
-        eth_private_key,
         &("0x".to_string() + &hex::encode(context.subnet_contract.address())),
     )
     .await
@@ -420,9 +418,11 @@ async fn test_subnet_node_get_block_info(
                         "Block info successfully retrieved for block {}",
                         block_info.number
                     );
+                    assert!(block_info.number > 0 && block_info.number < 100);
                 }
                 Err(e) => {
                     eprintln!("Error getting next finalized block {e}");
+                    panic!("Unable to get block info");
                 }
             }
         }
@@ -470,7 +470,7 @@ async fn test_subnet_certificate_push_call(
         "0x".to_string() + &hex::encode(context.subnet_contract.address());
     let runtime_proxy_worker = RuntimeProxyWorker::new(RuntimeProxyConfig {
         subnet_id: SOURCE_SUBNET_ID,
-        endpoint: TOPOS_SUBNET_JSONRPC_ENDPOINT_WS.to_string(),
+        endpoint: TOPOS_SUBNET_JSONRPC_ENDPOINT.to_string(),
         subnet_contract: subnet_smart_contract_address.clone(),
         keystore_file: keystore_file_path,
         keystore_password: TEST_KEYSTORE_FILE_PASSWORD.to_string(),

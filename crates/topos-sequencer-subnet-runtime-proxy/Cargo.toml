@@ -40,8 +40,9 @@ topos-core = { workspace = true, features = ["uci"] }
 rstest.workspace = true
 serde_json.workspace = true
 web3.workspace = true
+secp256k1.workspace = true
 serial_test = "0.9"
 dockertest = "0.3.1"
-secp256k1 = { version = "0.21", features = ["recovery"]}
+
 tiny-keccak = "1.2"
 fs_extra = "1.2"

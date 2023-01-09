@@ -65,15 +65,12 @@ impl RuntimeProxy {
 
         let _runtime_block_task = {
             let runtime_proxy = runtime_proxy.clone();
-            let runtime_endpoint = ws_runtime_endpoint.clone();
-            let eth_admin_private_key = eth_admin_private_key.clone();
             let subnet_contract = subnet_contract.clone();
             tokio::spawn(async move {
                 let mut interval = time::interval(Duration::from_secs(6)); // arbitrary time for 1 block
                 loop {
                     let mut subnet = match topos_sequencer_subnet_client::SubnetClientListener::new(
-                        runtime_endpoint.as_ref(),
-                        eth_admin_private_key.clone(),
+                        ws_runtime_endpoint.as_ref(),
                         subnet_contract.as_str(),
                     )
                     .await
@@ -188,8 +185,9 @@ impl RuntimeProxy {
             "Pushing certificate with id {:?} to target subnet {:?}, tcc {}",
             cert.id, runtime_proxy_config.subnet_id, runtime_proxy_config.subnet_contract,
         );
-        let tx_hash = subnet_client.push_certificate(cert).await?;
-        Ok("0x".to_string() + &hex::encode(tx_hash))
+        let receipt = subnet_client.push_certificate(cert).await?;
+        debug!("Push certificate transaction receipt: {:?}", &receipt);
+        Ok("0x".to_string() + &hex::encode(receipt.transaction_hash))
     }
 
     async fn on_command(
