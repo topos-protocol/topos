@@ -1,12 +1,47 @@
 services:
+  # jaeger:
+  #   image: jaegertracing/all-in-one:latest
+  #   container_name: jaeger
+  #   ports:
+  #     - "6831/udp"
+  #     - "6832/udp"
+  #     - "16685"
+  #     - "16686:16686"
+  #
   jaeger:
     image: jaegertracing/all-in-one:latest
     container_name: jaeger
+    restart: always
     ports:
-      - "6831/udp"
-      - "6832/udp"
-      - "16685"
       - "16686:16686"
+      - "14250:14250"
+      - "16685:16685"
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib-dev:latest
+    restart: always
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "1888:1888"   # pprof extension
+      - "8888:8888"   # Prometheus metrics exposed by the collector
+      - "8889:8889"   # Prometheus exporter metrics
+      - "13133:13133" # health_check extension
+      - "4317:4317"   # OTLP gRPC receiver
+      - "55679:55679" # zpages extension
+    depends_on:
+      - jaeger
+
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus:latest
+    restart: always
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+
   boot:
     container_name: boot
     command: boot tce run -vv
@@ -23,7 +58,7 @@ services:
         - TOOLCHAIN_VERSION=stable
         - GITHUB_TOKEN
     depends_on:
-      - jaeger
+      - otel-collector
     ports:
       - "9090"
       - "1340"
@@ -35,7 +70,7 @@ services:
       - TCE_API_ADDR=0.0.0.0:1340
       - TCE_LOCAL_KS=1 # 12D3KooWRhFCXBhmsMnur3up3vJsDoqWh4c39PKXgSWwzAzDHNLn
       - TCE_JAEGER_SERVICE_NAME=tce-boot-node
-      - TCE_JAEGER_AGENT=jaeger:6831
+      - TCE_JAEGER_AGENT=http://otel-collector:4317
       - TCE_ECHO_SAMPLE_SIZE=3
       - TCE_READY_SAMPLE_SIZE=3
       - TCE_DELIVERY_SAMPLE_SIZE=3
@@ -73,7 +108,7 @@ services:
       - TCE_DB_PATH=/tmp/default-db
       - TCE_API_ADDR=0.0.0.0:1340
       - TCE_JAEGER_SERVICE_NAME=tce-regular-node
-      - TCE_JAEGER_AGENT=jaeger:6831
+      - TCE_JAEGER_AGENT=http://otel-collector:4317
       - TCE_BOOT_PEERS=12D3KooWRhFCXBhmsMnur3up3vJsDoqWh4c39PKXgSWwzAzDHNLn /dns4/boot/tcp/9090
       - TCE_ECHO_SAMPLE_SIZE=3
       - TCE_READY_SAMPLE_SIZE=3
@@ -84,12 +119,13 @@ services:
 
   cert-spammer:
     container_name: spam
-    image: ghcr.io/toposware/cert-spammer:main
+    image: ghcr.io/toposware/cert-spammer:feature-update-subnet-id
     init: true
     volumes:
       - shared:/tmp/shared
     environment:
       - RUST_LOG=info
+      - CERT_PER_SEC=1
       - TARGET_NODES_PATH=/tmp/shared/peer_nodes.json
     depends_on:
       jaeger:

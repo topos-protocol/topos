@@ -19,7 +19,7 @@ use tce_transport::{ReliableBroadcastParams, TceEvents};
 
 use topos_core::uci::{Certificate, CertificateId, DigestCompressed, SubnetId};
 use topos_p2p::PeerId;
-use tracing::{error, instrument, Instrument, Span};
+use tracing::error;
 
 use crate::mem_store::TceMemStore;
 use crate::sampler::{Sampler, SubscribersUpdate, SubscriptionsView};
@@ -99,7 +99,7 @@ impl ReliableBroadcastClient {
     ///
     /// New client instances to the same aggregate can be cloned from the returned one.
     /// Aggregate is spawned as new task.
-    #[instrument(name = "ReliableBroadcastClient", skip_all)]
+    // #[instrument(name = "ReliableBroadcastClient", skip_all)]
     pub fn new(
         config: ReliableBroadcastConfig,
     ) -> (Self, impl Stream<Item = Result<TceEvents, ()>>) {
@@ -130,8 +130,8 @@ impl ReliableBroadcastClient {
             Box::new(TceMemStore::default()),
         );
 
-        spawn(sampler.run().instrument(Span::current()));
-        spawn(double_echo.run().instrument(Span::current()));
+        spawn(sampler.run());
+        spawn(double_echo.run());
 
         (
             Self {

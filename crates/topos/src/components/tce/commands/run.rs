@@ -14,7 +14,7 @@ pub struct Run {
 
     /// Advertised (externally visible) <host>,
     /// if empty this machine ip address(es) are used
-    #[arg(long, env = "TCE_EXT_HOST", default_value = "0.0.0.0")]
+    #[arg(long, env = "TCE_EXT_HOST", default_value = "/ip4/0.0.0.0")]
     pub tce_ext_host: String,
 
     /// Port to listen on (host is 0.0.0.0, should be good for most installations)
@@ -42,15 +42,15 @@ pub struct Run {
     pub db_path: Option<String>,
 
     /// Socket of the Jaeger agent endpoint
-    #[clap(long, default_value = "127.0.0.1:6831", env = "TCE_JAEGER_AGENT")]
+    #[clap(
+        long,
+        default_value = "http://otel-collector:4317",
+        env = "TCE_JAEGER_AGENT"
+    )]
     pub jaeger_agent: String,
 
     /// Jaeger service name
-    #[clap(
-        long,
-        default_value = "tce-jaeger-service",
-        env = "TCE_JAEGER_SERVICE_NAME"
-    )]
+    #[clap(long, default_value = "topos", env = "TCE_JAEGER_SERVICE_NAME")]
     pub jaeger_service_name: String,
 
     /// gRPC API Addr

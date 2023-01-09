@@ -8,7 +8,10 @@ use crate::{Gatekeeper, GatekeeperClient};
 
 #[tokio::test]
 async fn can_start_and_stop() -> Result<(), Box<dyn std::error::Error>> {
-    let (client, server) = Gatekeeper::builder().await?;
+    let peer_id = topos_p2p::utils::local_key_pair(Some(99))
+        .public()
+        .to_peer_id();
+    let (client, server) = Gatekeeper::builder().local_peer_id(peer_id).await?;
 
     let handler = spawn(server.into_future());
 
@@ -55,7 +58,10 @@ async fn can_fetch_full_or_partial_list(
 
 #[fixture]
 async fn gatekeeper() -> GatekeeperClient {
-    let (client, server) = Gatekeeper::builder().await.unwrap();
+    let peer_id = topos_p2p::utils::local_key_pair(Some(99))
+        .public()
+        .to_peer_id();
+    let (client, server) = Gatekeeper::builder().local_peer_id(peer_id).await.unwrap();
 
     spawn(server.into_future());
 

@@ -20,4 +20,7 @@ topos-core = { workspace = true, features = ["uci"] }
 topos-p2p = { path = "../topos-p2p/"}
 tce_transport = { package = "topos-tce-transport", path = "../topos-tce-transport"}
 
-opentelemetry = { version = "0.17", default-features = false, features = ["trace", "rt-tokio"] }
+opentelemetry = { version = "0.18", default-features = false, features = ["trace", "rt-tokio"] }
+tracing-opentelemetry = "*"
+
+[dev-dependencies]

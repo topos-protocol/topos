@@ -141,11 +141,7 @@ pub(crate) async fn handle_command(
             };
 
             debug!("Executing the Status on the TCE service");
-            let exit_code = if tce_service.call(status).await? {
-                0
-            } else {
-                1
-            };
+            let exit_code = i32::from(!(tce_service.call(status).await?));
 
             std::process::exit(exit_code);
         }

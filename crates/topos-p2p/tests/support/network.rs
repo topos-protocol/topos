@@ -30,6 +30,7 @@ pub async fn start_node(
         .peer_key(peer_key)
         .known_peers(&known_peers)
         .listen_addr(peer_addr.clone())
+        .exposed_addresses(peer_addr.clone())
         .build()
         .await
         .unwrap();

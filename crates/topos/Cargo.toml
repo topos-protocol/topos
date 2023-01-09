@@ -19,6 +19,12 @@ serde.workspace = true
 serde_json.workspace = true
 tracing = { workspace = true, features = ["log"] }
 tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
+opentelemetry = { version = "0.18", features = ["rt-tokio", "metrics"] }
+opentelemetry-otlp = { version = " 0.11", features = ["tonic", "metrics"] }
+tracing-opentelemetry = "0.18.0"
+tracing-attributes = "0.1.23"
+
+
 uuid.workspace = true
 clap.workspace = true
 tower = "0.4.13"

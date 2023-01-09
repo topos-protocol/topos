@@ -11,7 +11,7 @@ use tce_transport::{ReliableBroadcastParams, TceEvents};
 use tokio::sync::{broadcast, mpsc};
 use topos_core::uci::{Certificate, CertificateId, DigestCompressed};
 use topos_p2p::PeerId;
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{debug, error, info, warn};
 
 /// Processing data associated to a Certificate candidate for delivery
 /// Sample repartition, one peer may belongs to multiple samples
@@ -66,7 +66,7 @@ impl DoubleEcho {
         }
     }
 
-    #[instrument(name = "DoubleEcho::Runtime", skip_all)]
+    // #[instrument(name = "DoubleEcho::Runtime", skip_all)]
     pub(crate) async fn run(mut self) {
         info!("DoubleEcho started");
         loop {
@@ -75,7 +75,7 @@ impl DoubleEcho {
                     match command {
                         DoubleEchoCommand::DeliveredCerts { subnet_id, limit, sender } => {
 
-                            debug!("DoubleEchoCommand::DeliveredCerts, subnet_id: {}, limit: {}", &subnet_id, &limit);
+                            debug!("DoubleEchoCommand::DeliveredCerts, subnet_id: {:?}, limit: {}", &subnet_id, &limit);
                             let value = self
                                 .store
                                 .recent_certificates_for_subnet(&subnet_id, limit)
@@ -89,13 +89,13 @@ impl DoubleEcho {
 
                         DoubleEchoCommand::BroadcastMany { certificates } if self.buffer.is_empty() => {
                             debug!("DoubleEchoCommand::BroadcastMany cert ids: {:?}",
-                                certificates.iter().map(|cert| &cert.cert_id).collect::<Vec<&CertificateId>>());
+                                certificates.iter().map(|cert| &cert.id).collect::<Vec<&CertificateId>>());
 
                             self.buffer = certificates.into();
                         }
 
                         DoubleEchoCommand::Broadcast { cert } => {
-                            debug!("DoubleEchoCommand::Broadcast cert_id: {}", &cert.cert_id);
+                            debug!("DoubleEchoCommand::Broadcast cert_id: {:?}", &cert.id);
                             if self.buffer.len() < Self::MAX_BUFFER_SIZE {
                                 self.buffer.push_back(cert);
                             }
@@ -104,13 +104,13 @@ impl DoubleEcho {
                         command if self.subscriptions.is_some() => {
                             match command {
                                 DoubleEchoCommand::Echo { from_peer, cert } => {
-                                    debug!("handling DoubleEchoCommand::Echo from_peer: {} cert_id: {}", &from_peer, &cert.cert_id);
+                                    debug!("handling DoubleEchoCommand::Echo from_peer: {} cert_id: {:?}", &from_peer, &cert.id);
                                     self.handle_echo(from_peer, cert)},
                                 DoubleEchoCommand::Ready { from_peer, cert } => {
-                                    debug!("handling DoubleEchoCommand::Ready from_peer: {} cert_id: {}", &from_peer, &cert.cert_id);
+                                    debug!("handling DoubleEchoCommand::Ready from_peer: {} cert_id: {:?}", &from_peer, &cert.id);
                                     self.handle_ready(from_peer, cert)},
                                 DoubleEchoCommand::Deliver { cert, digest } => {
-                                    debug!("handling DoubleEchoCommand::Deliver cert_id: {} digest: {:?}", &cert.cert_id, &digest);
+                                    debug!("handling DoubleEchoCommand::Deliver cert_id: {:?} digest: {:?}", &cert.id, &digest);
                                     self.handle_deliver(cert, digest)},
                                 _ => {}
                             }
@@ -186,7 +186,7 @@ impl DoubleEcho {
     }
 
     fn handle_broadcast(&mut self, cert: Certificate) {
-        info!("handling broadcast of cert_id {}", &cert.cert_id);
+        debug!("handling broadcast of cert_id {:?}", &cert.id);
         let digest = self
             .store
             .flush_digest_view(&cert.source_subnet_id)
@@ -219,8 +219,8 @@ impl DoubleEcho {
         // Gossip the certificate to all my peers
         let gossip_peers = self.gossip_peers();
         debug!(
-            "dispatching gossip event cert_id: {} to gossip peers {:?}",
-            cert.cert_id, &gossip_peers
+            "dispatching gossip event cert_id: {:?} to gossip peers {:?}",
+            cert.id, &gossip_peers
         );
         let _ = self.event_sender.send(TceEvents::Gossip {
             peers: gossip_peers, // considered as the G-set for erdos-renyi
@@ -245,7 +245,32 @@ impl DoubleEcho {
     }
 
     fn start_delivery(&mut self, cert: Certificate, digest: DigestCompressed) {
-        debug!("🙌 StartDelivery[{:?}]\t", &cert.cert_id);
+        use opentelemetry::propagation::TextMapPropagator;
+        use opentelemetry::sdk::propagation::TraceContextPropagator;
+        use tracing_opentelemetry::OpenTelemetrySpanExt;
+
+        let mut carrier = HashMap::new();
+
+        carrier.insert(
+            "traceparent".to_string(),
+            String::from_utf8_lossy(&cert.id).to_string(),
+        );
+        // Propagator can be swapped with b3 propagator, jaeger propagator, etc.
+        let propagator = TraceContextPropagator::new();
+
+        // Extract otel parent context via the chosen propagator
+        let parent_context = propagator.extract(&carrier);
+        println!("{:?}", parent_context);
+        // Generate a tracing span as usual
+        let app_root = tracing::span!(tracing::Level::INFO, "delivery", cert_id = ?cert.id);
+
+        // Assign parent trace from external context
+        app_root.set_parent(parent_context.clone());
+        _ = app_root.enter();
+
+        // To include tracing context in client requests from _this_ app,
+        // use `context` to extract the current OpenTelemetry context.
+        warn!("🙌 StartDelivery[{:?}]\t", &cert.id);
         // Add new entry for the new Cert candidate
         match self.delivery_state_for_new_cert() {
             Some(delivery_state) => {
@@ -342,7 +367,7 @@ impl DoubleEcho {
                         // )
                     }
                     self.pending_delivery.remove(cert);
-                    debug!("📝 Accepted[{:?}]\t Delivery time: {:?}", &cert.cert_id, d);
+                    debug!("📝 Accepted[{:?}]\t Delivery time: {:?}", &cert.id, d);
 
                     _ = self.event_sender.send(TceEvents::CertificateDelivered {
                         certificate: cert.clone(),

@@ -16,7 +16,7 @@ use topos_tce_gatekeeper::GatekeeperClient;
 use topos_tce_storage::events::StorageEvent;
 use topos_tce_storage::StorageClient;
 use topos_tce_synchronizer::{SynchronizerClient, SynchronizerEvent};
-use tracing::{debug, error, info, trace};
+use tracing::{debug, error, trace};
 
 /// Top-level transducer main app context & driver (alike)
 ///
@@ -174,7 +174,7 @@ impl AppContext {
                                 NetworkMessage::Cmd(TceCommands::OnEchoSubscribeOk {
                                     from_peer,
                                 }) => {
-                                    info!("Receive response to EchoSubscribe",);
+                                    debug!("Receive response to EchoSubscribe",);
                                     let (sender, receiver) = oneshot::channel();
                                     let _ = command_sender
                                         .send(SamplerCommand::ConfirmPeer {
@@ -230,7 +230,7 @@ impl AppContext {
                                 NetworkMessage::Cmd(TceCommands::OnReadySubscribeOk {
                                     from_peer,
                                 }) => {
-                                    info!("Receive response to ReadySubscribe");
+                                    debug!("Receive response to ReadySubscribe");
                                     let (sender_ready, receiver_ready) = oneshot::channel();
                                     let _ = command_sender
                                         .send(SamplerCommand::ConfirmPeer {
@@ -364,7 +364,7 @@ impl AppContext {
                 let msg: NetworkMessage = data.into();
                 match msg {
                     NetworkMessage::Cmd(cmd) => {
-                        info!("peer_id: {} received TransmissionOnReq {:?}", &my_peer, cmd);
+                        debug!("peer_id: {} received TransmissionOnReq {:?}", &my_peer, cmd);
                         match cmd {
                             // We received echo subscription request from external peer
                             TceCommands::OnEchoSubscribeReq { from_peer } => {
