@@ -36,6 +36,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match args.commands {
         options::ToposCommand::Tce(cmd) => components::tce::handle_command(cmd).await,
+        options::ToposCommand::Sequencer(cmd) => components::sequencer::handle_command(cmd).await,
     }
 }
 

@@ -28,18 +28,18 @@ impl RuntimeProxy {
     pub fn spawn_new(config: RuntimeProxyConfig) -> Result<Arc<Mutex<RuntimeProxy>>, crate::Error> {
         info!(
             "Spawning new runtime proxy, endpoint: {} ethereum contract address: {}, ",
-            &config.endpoint, &config.subnet_contract
+            &config.endpoint, &config.subnet_contract_address
         );
         let (command_sender, mut command_rcv) = mpsc::unbounded_channel::<RuntimeProxyCommand>();
         let ws_runtime_endpoint = format!("ws://{}/ws", &config.endpoint);
         let http_runtime_endpoint = format!("http://{}", &config.endpoint);
-        let subnet_contract = Arc::new(config.subnet_contract.clone());
+        let subnet_contract_address = Arc::new(config.subnet_contract_address.clone());
         let (_tx_exit, mut rx_exit) = mpsc::unbounded_channel::<()>();
 
         // Get ethereum private key from keystore
         debug!(
-            "Retrieving ethereum private key from keystore {}",
-            config.keystore_file
+            "Retrieving ethereum private key from keystore {:?}",
+            config.keystore_file.to_str()
         );
         // To sign transactions sent to Topos core contract, use admin private key from keystore
         let eth_admin_private_key: Vec<u8> = match crate::keystore::get_private_key(
@@ -65,13 +65,13 @@ impl RuntimeProxy {
 
         let _runtime_block_task = {
             let runtime_proxy = runtime_proxy.clone();
-            let subnet_contract = subnet_contract.clone();
+            let subnet_contract_address = subnet_contract_address.clone();
             tokio::spawn(async move {
                 let mut interval = time::interval(Duration::from_secs(6)); // arbitrary time for 1 block
                 loop {
                     let mut subnet = match topos_sequencer_subnet_client::SubnetClientListener::new(
                         ws_runtime_endpoint.as_ref(),
-                        subnet_contract.as_str(),
+                        subnet_contract_address.as_str(),
                     )
                     .await
                     {
@@ -91,7 +91,7 @@ impl RuntimeProxy {
                         interval.tick().await;
 
                         loop {
-                            match subnet.get_next_finalized_block(&subnet_contract).await {
+                            match subnet.get_next_finalized_block(&subnet_contract_address).await {
                                 Ok(block_info) => {
                                     let block_number = block_info.number;
                                     match Self::send_new_block(
@@ -132,7 +132,7 @@ impl RuntimeProxy {
                     let mut subnet_client = match topos_sequencer_subnet_client::SubnetClient::new(
                         http_runtime_endpoint.as_ref(),
                         eth_admin_private_key.clone(),
-                        subnet_contract.as_str(),
+                        subnet_contract_address.as_str(),
                     )
                     .await
                     {
@@ -183,7 +183,7 @@ impl RuntimeProxy {
     ) -> Result<String, Error> {
         debug!(
             "Pushing certificate with id {:?} to target subnet {:?}, tcc {}",
-            cert.id, runtime_proxy_config.subnet_id, runtime_proxy_config.subnet_contract,
+            cert.id, runtime_proxy_config.subnet_id, runtime_proxy_config.subnet_contract_address,
         );
         let receipt = subnet_client.push_certificate(cert).await?;
         debug!("Push certificate transaction receipt: {:?}", &receipt);
