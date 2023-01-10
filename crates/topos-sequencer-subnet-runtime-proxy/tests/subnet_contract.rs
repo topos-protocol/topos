@@ -3,11 +3,14 @@ use dockertest::{
 };
 use fs_extra::dir::{copy, create_all, CopyOptions};
 use rstest::*;
+use secp256k1::SecretKey;
 use serial_test::serial;
 use std::future::Future;
 use std::str::FromStr;
 use tokio::sync::oneshot;
 use topos_core::uci::{Address, Certificate, CertificateId, SubnetId};
+use web3::contract::tokens::Tokenize;
+use web3::ethabi::Token;
 use web3::transports::Http;
 use web3::types::{BlockNumber, Log};
 
@@ -35,6 +38,70 @@ const CERTIFICATE_ID: CertificateId = [5u8; 32];
 const SENDER_ID: Address = [6u8; 20];
 const RECEIVER_ID: Address = [7u8; 20];
 
+async fn deploy_contract<T, U>(
+    contract_file_path: &str,
+    web3_client: &mut web3::Web3<Http>,
+    eth_private_key: &SecretKey,
+    params: Option<(T, U)>,
+) -> Result<web3::contract::Contract<Http>, Box<dyn std::error::Error>>
+where
+    (T, U): Tokenize,
+{
+    println!("Parsing  contract file {}", contract_file_path);
+    let contract_file = std::fs::File::open(contract_file_path).unwrap();
+    let contract_json: serde_json::Value =
+        serde_json::from_reader(contract_file).expect("error while reading or parsing");
+    let contract_abi = contract_json.get("abi").unwrap().to_string();
+    let contract_bytecode = contract_json
+        .get("bytecode")
+        .unwrap()
+        .to_string()
+        .replace('"', "");
+    // Deploy contract, check result
+    let deployment = web3::contract::Contract::deploy(web3_client.eth(), contract_abi.as_bytes())?
+        .confirmations(1)
+        .options(web3::contract::Options::with(|opt| {
+            opt.gas = Some(3_000_000.into());
+        }));
+
+    let deployment_result = if params.is_none() {
+        // Contract without contstructor
+        deployment
+            .sign_with_key_and_execute(
+                contract_bytecode,
+                (),
+                eth_private_key,
+                Some(SUBNET_CHAIN_ID),
+            )
+            .await
+    } else {
+        // Contract with 2 arguments
+        deployment
+            .sign_with_key_and_execute(
+                contract_bytecode,
+                params.unwrap(),
+                eth_private_key,
+                Some(SUBNET_CHAIN_ID),
+            )
+            .await
+    };
+
+    match deployment_result {
+        Ok(contract) => {
+            println!(
+                "Contract {} deployment ok, new contract address: {}",
+                contract_file_path,
+                contract.address()
+            );
+            Ok(contract)
+        }
+        Err(e) => {
+            println!("Contract {} deployment error {}", contract_file_path, e);
+            Err(Box::<dyn std::error::Error>::from(e))
+        }
+    }
+}
+
 async fn deploy_contracts(
     web3_client: &mut web3::Web3<Http>,
 ) -> Result<
@@ -57,50 +124,14 @@ async fn deploy_contracts(
             String::from(SUBNET_TOKEN_DEPLOYER_JSON_DEFINITION)
         }
     };
-    println!(
-        "Parsing token deployer contract file {}",
-        token_deployer_contract_file_path
-    );
-    let token_deployer_contract_file =
-        std::fs::File::open(token_deployer_contract_file_path).unwrap();
-    let token_deployer_contract_json: serde_json::Value =
-        serde_json::from_reader(token_deployer_contract_file)
-            .expect("error while reading or parsing");
-    let token_deployer_contract_abi = token_deployer_contract_json.get("abi").unwrap().to_string();
-    let token_deployer_bytecode = token_deployer_contract_json
-        .get("bytecode")
-        .unwrap()
-        .to_string()
-        .replace('"', "");
-    // Deploy token deployer contract, check result
-    let token_deployer_contract = match web3::contract::Contract::deploy(
-        web3_client.eth(),
-        token_deployer_contract_abi.as_bytes(),
-    )?
-    .confirmations(1)
-    .options(web3::contract::Options::with(|opt| {
-        opt.gas = Some(2_000_000.into());
-    }))
-    .sign_with_key_and_execute(
-        token_deployer_bytecode,
-        (),
+
+    let token_deployer_contract = deploy_contract(
+        &token_deployer_contract_file_path,
+        web3_client,
         &eth_private_key,
-        Some(SUBNET_CHAIN_ID),
+        Option::<(Token, Token)>::None,
     )
-    .await
-    {
-        Ok(token_deployer_contract) => {
-            println!(
-                "Token deployer contract deployment ok, new contract address: {}",
-                token_deployer_contract.address()
-            );
-            Ok(token_deployer_contract)
-        }
-        Err(e) => {
-            println!("Token deployer contract deployment error {}", e);
-            Err(Box::<dyn std::error::Error>::from(e))
-        }
-    }?;
+    .await?;
 
     println!("Getting Topos Core Contract definition...");
     // Deploy subnet smart contract (currently topos core contract)
@@ -112,48 +143,17 @@ async fn deploy_contracts(
             String::from(SUBNET_TCC_JSON_DEFINITION)
         }
     };
-    println!(
-        "Parsing smart contract contract file {}",
-        tcc_contract_file_path
-    );
-    let tcc_contract_file = std::fs::File::open(tcc_contract_file_path).unwrap();
-    let tcc_contract_json: serde_json::Value =
-        serde_json::from_reader(tcc_contract_file).expect("error while reading or parsing");
-    let tcc_contract_abi = tcc_contract_json.get("abi").unwrap().to_string();
-    let tcc_bytecode = tcc_contract_json
-        .get("bytecode")
-        .unwrap()
-        .to_string()
-        .replace('"', "");
-    // Deploy contract, check result
-    match web3::contract::Contract::deploy(web3_client.eth(), tcc_contract_abi.as_bytes())?
-        .confirmations(1)
-        .options(web3::contract::Options::with(|opt| {
-            opt.gas = Some(3_000_000.into());
-        }))
-        .sign_with_key_and_execute(
-            tcc_bytecode,
-            (
-                token_deployer_contract.address(),
-                SOURCE_SUBNET_ID.to_owned(),
-            ),
-            &eth_private_key,
-            Some(SUBNET_CHAIN_ID),
-        )
-        .await
-    {
-        Ok(subnet_smart_contract) => {
-            println!(
-                "Subnet contract deployment ok, new contract address: {}",
-                subnet_smart_contract.address()
-            );
-            Ok((subnet_smart_contract, token_deployer_contract))
-        }
-        Err(e) => {
-            println!("Subnet contract deployment error {}", e);
-            Err(Box::from(e))
-        }
-    }
+    let topos_core_contract = deploy_contract(
+        &tcc_contract_file_path,
+        web3_client,
+        &eth_private_key,
+        Some((
+            token_deployer_contract.address(),
+            SOURCE_SUBNET_ID.to_owned(),
+        )),
+    )
+    .await?;
+    Ok((topos_core_contract, token_deployer_contract))
 }
 
 fn spawn_subnet_node(
