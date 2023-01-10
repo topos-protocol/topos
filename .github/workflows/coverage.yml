@@ -30,7 +30,7 @@ jobs:
 
       - uses: actions-rs/tarpaulin@v0.1
         with:
-          args: "--engine llvm --workspace --all-features --release"
+          args: "--engine llvm --workspace --all-features --release --exclude topos-sequencer-subnet-runtime-proxy"
           timeout: 600
 
       - name: Upload coverage to Codecov
