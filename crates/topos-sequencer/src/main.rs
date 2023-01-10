@@ -21,7 +21,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let formatting_layer = tracing_subscriber::fmt::layer();
 
     tracing_subscriber::registry()
-        .with(EnvFilter::try_from_default_env().unwrap())
+        .with(EnvFilter::try_from_default_env().unwrap_or_default())
         .with(formatting_layer)
         .set_default();
 
