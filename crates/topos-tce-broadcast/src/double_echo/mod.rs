@@ -247,13 +247,13 @@ impl DoubleEcho {
     fn start_delivery(&mut self, cert: Certificate, digest: DigestCompressed) {
         use opentelemetry::propagation::TextMapPropagator;
         use opentelemetry::sdk::propagation::TraceContextPropagator;
-        use tracing_opentelemetry::OpenTelemetrySpanExt;
+        // use tracing_opentelemetry::OpenTelemetrySpanExt;
 
         let mut carrier = HashMap::new();
 
         carrier.insert(
             "traceparent".to_string(),
-            String::from_utf8_lossy(&cert.id).to_string(),
+            String::from_utf8_lossy(cert.id.as_slice()).to_string(),
         );
         // Propagator can be swapped with b3 propagator, jaeger propagator, etc.
         let propagator = TraceContextPropagator::new();
@@ -265,7 +265,11 @@ impl DoubleEcho {
         let app_root = tracing::span!(tracing::Level::INFO, "delivery", cert_id = ?cert.id);
 
         // Assign parent trace from external context
-        app_root.set_parent(parent_context.clone());
+        // app_root.set_parent(parent_context.clone());
+        // app_root.set_parent(
+        //     opentelemetry::Context::new()
+        //         .with_remote_span_context(opentelemetry::trace::SpanContext::new()),
+        // );
         _ = app_root.enter();
 
         // To include tracing context in client requests from _this_ app,
