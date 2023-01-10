@@ -127,7 +127,7 @@ impl Storage for RocksDBStorage {
             }
         }
 
-        let source_subnet_position = if certificate.prev_id == EMPTY_PREVIOUS_CERT_ID {
+        let source_subnet_position = if certificate.prev_id.as_array() == &EMPTY_PREVIOUS_CERT_ID {
             Position::ZERO
         } else if let Some((SourceStreamPosition(_, position), _)) =
             self.source_streams.prefix_iter(&source_subnet_id)?.last()

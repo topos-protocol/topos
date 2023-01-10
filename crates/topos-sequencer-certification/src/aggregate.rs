@@ -212,7 +212,7 @@ impl Certification {
         let previous_cert_id: CertificateId = match certification.history.get(&subnet_id) {
             Some(certs) => match certs.last() {
                 Some(cert_id) => *cert_id,
-                None => [0u8; 32],
+                None => [0u8; 32].into(),
             },
             None => {
                 error!("ill-formed subnet history for {:?}", subnet_id);

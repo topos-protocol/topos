@@ -2,6 +2,7 @@
 //!
 //! Data structures to support Certificates' exchange
 
+pub use certificate_id::CertificateId;
 use keccak_hash::keccak_256;
 use serde::{Deserialize, Serialize};
 use std::borrow::BorrowMut;
@@ -9,7 +10,8 @@ use std::hash::Hash;
 use std::time;
 use thiserror::Error;
 
-pub type CertificateId = [u8; 32];
+mod certificate_id;
+
 pub type SubnetId = [u8; 32];
 pub type StarkProof = Vec<u8>;
 pub type Frost = Vec<u8>;
@@ -47,16 +49,16 @@ pub struct Certificate {
 pub type DigestCompressed = Vec<CertificateId>; // TODO: optimize cmp to hash of sorted set of hashes
 
 impl Certificate {
-    pub fn new(
-        prev: CertificateId,
+    pub fn new<P: Into<CertificateId>>(
+        prev: P,
         source_subnet_id: SubnetId,
         calls: Vec<CrossChainTransaction>,
     ) -> Result<Certificate, Box<dyn std::error::Error>> {
         let mut cert = Certificate {
             source_subnet_id,
-            prev_id: prev,
+            prev_id: prev.into(),
             calls,
-            id: [0; 32],
+            id: [0; 32].into(),
         };
 
         cert.id = calculate_keccak256(&cert)?;
@@ -75,14 +77,14 @@ impl Certificate {
 }
 
 // Calculates hash of certificate object, excluding cert_id field
-pub fn calculate_keccak256(certificate: &Certificate) -> Result<[u8; 32], Error> {
+pub fn calculate_keccak256(certificate: &Certificate) -> Result<CertificateId, Error> {
     let mut buffer = Vec::new();
     buffer.extend_from_slice(&certificate.source_subnet_id[..]);
-    buffer.extend_from_slice(&certificate.prev_id[..]);
+    buffer.extend_from_slice(certificate.prev_id.as_array());
     buffer.extend_from_slice(bincode::serialize(&certificate.calls)?.as_slice());
     let mut hash = [0u8; 32];
     keccak_256(buffer.borrow_mut(), &mut hash);
-    Ok(hash)
+    Ok(hash.into())
 }
 
 /// Cross chain transaction data definition

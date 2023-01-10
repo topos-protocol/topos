@@ -33,8 +33,8 @@ const SUBNET_STARTUP_DELAY: u64 = 10; // seconds left for subnet startup
 const TOPOS_SMART_CONTRACTS_BUILD_PATH: &str = "TOPOS_SMART_CONTRACTS_BUILD_PATH";
 
 const SOURCE_SUBNET_ID: SubnetId = [1u8; 32];
-const PREV_CERTIFICATE_ID: CertificateId = [4u8; 32];
-const CERTIFICATE_ID: CertificateId = [5u8; 32];
+const PREV_CERTIFICATE_ID: CertificateId = CertificateId::from_array([4u8; 32]);
+const CERTIFICATE_ID: CertificateId = CertificateId::from_array([5u8; 32]);
 const SENDER_ID: Address = [6u8; 20];
 const RECEIVER_ID: Address = [7u8; 20];
 
