@@ -19,9 +19,9 @@ const SUBNET_TCC_JSON_DEFINITION: &'static str = "ToposCoreContract.json";
 const SUBNET_TOKEN_DEPLOYER_JSON_DEFINITION: &'static str = "TokenDeployer.json";
 const SUBNET_CHAIN_ID: u64 = 100;
 const SUBNET_RPC_PORT: u32 = 8545;
-const TOPOS_SUBNET_JSONRPC_ENDPOINT: &'static str = "127.0.0.1:8545";
-const TOPOS_SUBNET_JSONRPC_ENDPOINT_HTTP: &'static str = "http://127.0.0.1:8545";
-const TOPOS_SUBNET_JSONRPC_ENDPOINT_WS: &'static str = "ws://127.0.0.1:8545/ws";
+const SUBNET_JSONRPC_ENDPOINT: &'static str = "127.0.0.1:8545";
+const SUBNET_JSONRPC_ENDPOINT_HTTP: &'static str = "http://127.0.0.1:8545";
+const SUBNET_JSONRPC_ENDPOINT_WS: &'static str = "ws://127.0.0.1:8545/ws";
 const TEST_SECRET_ETHEREUM_KEY: &'static str =
     "5fb92d6e98884f76de468fa3f6278f8807c48bebc13595d45af5bdc4da702133";
 const POLYGON_EDGE_CONTAINER: &'static str = "ghcr.io/toposware/polygon-edge";
@@ -332,7 +332,7 @@ async fn context_running_subnet_node() -> Context {
     let mut i = 0;
     let http: Http = loop {
         i += 1;
-        break match Http::new(TOPOS_SUBNET_JSONRPC_ENDPOINT_HTTP) {
+        break match Http::new(SUBNET_JSONRPC_ENDPOINT_HTTP) {
             Ok(http) => {
                 println!("Connected to subnet node...");
                 Some(http)
@@ -401,7 +401,7 @@ async fn test_subnet_node_get_block_info(
     let _eth_address =
         topos_sequencer_subnet_client::subnet_contract::derive_eth_address(&eth_private_key)?;
     match topos_sequencer_subnet_client::SubnetClientListener::new(
-        TOPOS_SUBNET_JSONRPC_ENDPOINT_WS.as_ref(),
+        SUBNET_JSONRPC_ENDPOINT_WS.as_ref(),
         &("0x".to_string() + &hex::encode(context.subnet_contract.address())),
     )
     .await
@@ -445,7 +445,7 @@ async fn test_create_runtime() -> Result<(), Box<dyn std::error::Error>> {
     println!("Creating runtime proxy...");
     let runtime_proxy_worker = RuntimeProxyWorker::new(RuntimeProxyConfig {
         subnet_id: SOURCE_SUBNET_ID,
-        endpoint: TOPOS_SUBNET_JSONRPC_ENDPOINT.to_string(),
+        endpoint: SUBNET_JSONRPC_ENDPOINT.to_string(),
         subnet_contract: "0x0000000000000000000000000000000000000000".to_string(),
         keystore_file: keystore_file_path,
         keystore_password: TEST_KEYSTORE_FILE_PASSWORD.to_string(),
@@ -470,7 +470,7 @@ async fn test_subnet_certificate_push_call(
         "0x".to_string() + &hex::encode(context.subnet_contract.address());
     let runtime_proxy_worker = RuntimeProxyWorker::new(RuntimeProxyConfig {
         subnet_id: SOURCE_SUBNET_ID,
-        endpoint: TOPOS_SUBNET_JSONRPC_ENDPOINT.to_string(),
+        endpoint: SUBNET_JSONRPC_ENDPOINT.to_string(),
         subnet_contract: subnet_smart_contract_address.clone(),
         keystore_file: keystore_file_path,
         keystore_password: TEST_KEYSTORE_FILE_PASSWORD.to_string(),

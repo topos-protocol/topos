@@ -102,11 +102,13 @@ pub struct AppArgs {
     #[clap(long, default_value_t = 0.to_string(), env = "TOPOS_SUBNET_ID")]
     pub subnet_id: String,
 
-    // Subnet substrate interface rpc endpoint
+    // Subnet endpoint in the form [ip address]:[port]
+    // Topos sequencer expects both websocket and http protocol available
+    // on this subnet endpoint
     #[clap(
         long,
         default_value = "127.0.0.1:8545",
-        env = "TOPOS_SUBNET_JSONRPC_ENDPOINT"
+        env = "SUBNET_JSONRPC_ENDPOINT"
     )]
     pub subnet_jsonrpc_endpoint: String,
 

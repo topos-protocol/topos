@@ -31,8 +31,8 @@ impl RuntimeProxy {
             &config.endpoint, &config.subnet_contract
         );
         let (command_sender, mut command_rcv) = mpsc::unbounded_channel::<RuntimeProxyCommand>();
-        let ws_runtime_endpoint = "ws://".to_string() + &config.endpoint + "/ws";
-        let http_runtime_endpoint = "http://".to_string() + &config.endpoint;
+        let ws_runtime_endpoint = format!("ws://{}/ws", &config.endpoint);
+        let http_runtime_endpoint = format!("http://{}", &config.endpoint);
         let subnet_contract = Arc::new(config.subnet_contract.clone());
         let (_tx_exit, mut rx_exit) = mpsc::unbounded_channel::<()>();
 

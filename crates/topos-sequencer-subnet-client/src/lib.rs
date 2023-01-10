@@ -256,6 +256,7 @@ impl SubnetClient {
     ) -> Result<web3::types::TransactionReceipt, Error> {
         let call_options = web3::contract::Options::default();
         // TODO how to get cert position (height)? It needs to be retrieved from the TCE
+        // For now use block height
         let cert_position: u64 = 0;
 
         let cert_id_token: Token = web3::ethabi::Token::Bytes(cert.id.to_vec());
