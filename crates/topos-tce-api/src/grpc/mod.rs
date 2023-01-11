@@ -9,7 +9,7 @@ use topos_core::api::tce::v1::{
     SubmitCertificateRequest, SubmitCertificateResponse, WatchCertificatesRequest,
     WatchCertificatesResponse,
 };
-use tracing::{error, field, info, instrument, Instrument, Span};
+use tracing::{error, field, info, instrument, Span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 use crate::{metadata_map::MetadataMap, runtime::InternalRuntimeCommand};
@@ -50,9 +50,8 @@ impl ApiService for TceGrpcService {
                     .send(InternalRuntimeCommand::CertificateSubmitted {
                         certificate: certificate.into(),
                         sender,
-                        ctx: Span::current(),
+                        ctx: Span::current().context(),
                     })
-                    .instrument(Span::current())
                     .await
                     .is_err()
                 {
@@ -65,7 +64,6 @@ impl ApiService for TceGrpcService {
                         Ok(Err(_)) => Err(Status::internal("Can't submit certificate")),
                         Err(_) => Err(Status::internal("Can't submit certificate")),
                     })
-                    .instrument(Span::current())
                     .await
             } else {
                 error!("No certificate id provided");

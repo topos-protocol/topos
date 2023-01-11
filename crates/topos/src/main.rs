@@ -2,9 +2,10 @@ use std::time::Duration;
 
 use clap::Parser;
 use components::tce::commands::{TceCommand, TceCommands};
+use opentelemetry::sdk::propagation::TraceContextPropagator;
 use opentelemetry::sdk::trace::{self, RandomIdGenerator, Sampler};
 use opentelemetry::sdk::Resource;
-use opentelemetry::KeyValue;
+use opentelemetry::{global, KeyValue};
 use tracing::Level;
 use tracing_subscriber::{
     prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt, EnvFilter,
@@ -53,6 +54,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ..
     }) = args.commands
     {
+        global::set_text_map_propagator(TraceContextPropagator::new());
         let tracer = opentelemetry_otlp::new_pipeline()
             .tracing()
             .with_exporter(

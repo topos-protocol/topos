@@ -1,9 +1,11 @@
 //! implementation of Topos Network Transport
 //!
 use clap::Args;
+use opentelemetry::Context;
 use serde::{Deserialize, Serialize};
 use topos_core::uci::{Certificate, DigestCompressed};
 use topos_p2p::PeerId;
+use topos_telemetry::PropagationContext;
 
 /// Protocol parameters of the TCE
 #[derive(Args, Default, Clone, Debug)]
@@ -57,6 +59,7 @@ pub enum TceCommands {
     OnGossip {
         cert: Certificate,
         digest: DigestCompressed,
+        ctx: PropagationContext,
     },
     /// When echo reply received
     OnEcho {
@@ -93,6 +96,7 @@ pub enum TceEvents {
         peers: Vec<PeerId>,
         cert: Certificate,
         digest: DigestCompressed,
+        ctx: Context,
     },
     /// Indicates that 'echo' message broadcasting is required
     Echo {

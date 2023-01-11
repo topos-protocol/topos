@@ -49,7 +49,7 @@ pub(crate) enum InternalRuntimeCommand {
     CertificateSubmitted {
         certificate: Certificate,
         sender: oneshot::Sender<Result<(), RuntimeError>>,
-        ctx: tracing::Span,
+        ctx: opentelemetry::Context,
     },
 
     /// Push a new list of PeerId to be used by the Gatekeeper

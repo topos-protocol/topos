@@ -3,6 +3,7 @@
 //! Abstracted from actual transport implementation.
 //! Abstracted from actual storage implementation.
 //!
+use opentelemetry::Context;
 use sampler::SampleType;
 use thiserror::Error;
 use tokio::spawn;
@@ -57,6 +58,7 @@ pub enum DoubleEchoCommand {
     Deliver {
         cert: Certificate,
         digest: DigestCompressed,
+        ctx: Context,
     },
 
     /// Entry point for new certificate to submit as initial sender
@@ -244,6 +246,7 @@ impl ReliableBroadcastClient {
     pub fn broadcast_new_certificate(
         &self,
         certificate: Certificate,
+        ctx: Span,
     ) -> impl Future<Output = Result<(), ()>> + 'static + Send {
         let broadcast_commands = self.broadcast_commands.clone();
 
@@ -254,7 +257,6 @@ impl ReliableBroadcastClient {
                     cert: certificate,
                     ctx: Span::current(),
                 })
-                .instrument(Span::current())
                 .await
                 .is_err()
             {
@@ -263,6 +265,7 @@ impl ReliableBroadcastClient {
 
             Ok(())
         }
+        .instrument(ctx)
     }
 }
 

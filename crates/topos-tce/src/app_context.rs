@@ -16,7 +16,9 @@ use topos_tce_gatekeeper::GatekeeperClient;
 use topos_tce_storage::events::StorageEvent;
 use topos_tce_storage::StorageClient;
 use topos_tce_synchronizer::{SynchronizerClient, SynchronizerEvent};
-use tracing::{debug, error, info, info_span, trace, Instrument, Span};
+use topos_telemetry::PropagationContext;
+use tracing::{debug, error, info, instrument, trace, Instrument, Span};
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 /// Top-level transducer main app context & driver (alike)
 ///
@@ -93,6 +95,7 @@ impl AppContext {
         }
     }
 
+    #[instrument(name = "TCE Runtime", skip_all)]
     async fn on_api_event(&mut self, event: ApiEvent) {
         match event {
             ApiEvent::CertificateSubmitted {
@@ -100,7 +103,8 @@ impl AppContext {
                 sender,
                 ctx,
             } => {
-                let span = info_span!(target: "topos_tce", parent: &ctx, "TCE Runtime");
+                Span::current().set_parent(ctx);
+
                 async {
                     _ = self
                         .pending_storage
@@ -110,12 +114,13 @@ impl AppContext {
                     info!("Certificate added to pending storage");
                     spawn(
                         self.tce_cli
-                            .broadcast_new_certificate(certificate)
+                            .broadcast_new_certificate(certificate, Span::current())
                             .instrument(Span::current()),
                     );
                     _ = sender.send(Ok(()));
                 }
-                .instrument(span)
+                .instrument(Span::current())
+                // .instrument(span)
                 .await;
             }
 
@@ -286,9 +291,12 @@ impl AppContext {
 
             TceEvents::Gossip { peers, cert, .. } => {
                 let cert_id = cert.id;
+                let context = Span::current().context();
+
                 let data: Vec<u8> = NetworkMessage::from(TceCommands::OnGossip {
                     cert,
                     digest: vec![],
+                    ctx: PropagationContext::inject(&context),
                 })
                 .into();
 
@@ -431,11 +439,14 @@ impl AppContext {
                                 ));
                             }
 
-                            TceCommands::OnGossip { cert, digest: _ } => {
+                            TceCommands::OnGossip {
+                                cert, digest: _, ..
+                            } => {
                                 debug!(
                                     "peer_id {} on_net_event TceCommands::OnGossip cert id: {:?}",
                                     &self.network_client.local_peer_id, &cert.id
                                 );
+
                                 _ = self
                                     .pending_storage
                                     .add_pending_certificate(cert.clone())
@@ -447,6 +458,7 @@ impl AppContext {
                                         cert,
                                         ctx: Span::current(),
                                     })
+                                    // .instrument(span)
                                     .await
                                     .expect("Gossip the certificate");
 

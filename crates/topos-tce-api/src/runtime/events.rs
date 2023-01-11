@@ -8,7 +8,7 @@ pub enum RuntimeEvent {
     CertificateSubmitted {
         certificate: Certificate,
         sender: oneshot::Sender<Result<(), RuntimeError>>,
-        ctx: tracing::Span,
+        ctx: opentelemetry::Context,
     },
 
     PeerListPushed {

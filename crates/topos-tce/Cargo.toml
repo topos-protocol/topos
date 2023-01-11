@@ -25,6 +25,7 @@ topos-tce-broadcast = { path = "../topos-tce-broadcast" }
 topos-tce-gatekeeper = { path = "../topos-tce-gatekeeper" }
 topos-tce-storage = { package = "topos-tce-storage", path = "../topos-tce-storage" }
 topos-tce-synchronizer = { path = "../topos-tce-synchronizer" }
+topos-telemetry = { path = "../topos-telemetry" }
 
 # external dependencies
 lazy_static = "1.4"
