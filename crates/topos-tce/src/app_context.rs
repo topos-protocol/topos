@@ -16,7 +16,7 @@ use topos_tce_gatekeeper::GatekeeperClient;
 use topos_tce_storage::events::StorageEvent;
 use topos_tce_storage::StorageClient;
 use topos_tce_synchronizer::{SynchronizerClient, SynchronizerEvent};
-use tracing::{debug, error, trace};
+use tracing::{debug, error, info, info_span, trace, Instrument, Span};
 
 /// Top-level transducer main app context & driver (alike)
 ///
@@ -98,13 +98,25 @@ impl AppContext {
             ApiEvent::CertificateSubmitted {
                 certificate,
                 sender,
+                ctx,
             } => {
-                _ = self
-                    .pending_storage
-                    .add_pending_certificate(certificate.clone())
-                    .await;
-                spawn(self.tce_cli.broadcast_new_certificate(certificate));
-                _ = sender.send(Ok(()));
+                let span = info_span!(target: "topos_tce", parent: &ctx, "TCE Runtime");
+                async {
+                    _ = self
+                        .pending_storage
+                        .add_pending_certificate(certificate.clone())
+                        .instrument(Span::current())
+                        .await;
+                    info!("Certificate added to pending storage");
+                    spawn(
+                        self.tce_cli
+                            .broadcast_new_certificate(certificate)
+                            .instrument(Span::current()),
+                    );
+                    _ = sender.send(Ok(()));
+                }
+                .instrument(span)
+                .await;
             }
 
             ApiEvent::PeerListPushed { peers, sender } => {
@@ -421,7 +433,10 @@ impl AppContext {
 
                                 let command_sender = self.tce_cli.get_double_echo_channel();
                                 command_sender
-                                    .send(DoubleEchoCommand::Broadcast { cert })
+                                    .send(DoubleEchoCommand::Broadcast {
+                                        cert,
+                                        ctx: Span::current(),
+                                    })
                                     .await
                                     .expect("Gossip the certificate");
 

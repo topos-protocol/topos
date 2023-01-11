@@ -4808,6 +4808,7 @@ dependencies = [
  "http",
  "http-body",
  "hyper",
+ "opentelemetry",
  "prost",
  "serde",
  "test-log",
@@ -4820,6 +4821,7 @@ dependencies = [
  "topos-core",
  "topos-p2p",
  "tracing",
+ "tracing-opentelemetry",
  "tracing-subscriber",
  "uuid 1.2.2",
 ]

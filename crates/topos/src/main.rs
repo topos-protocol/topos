@@ -21,10 +21,11 @@ mod options;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = options::Opt::parse();
+
     let level_filter = if args.verbose > 0 {
         EnvFilter::try_new(format!("topos={}", verbose_to_level(args.verbose).as_str())).unwrap()
     } else {
-        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("topos=error"))
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("topos=info"))
     };
 
     let log_format = std::env::var("TOPOS_LOG_FORMAT")

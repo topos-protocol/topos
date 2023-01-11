@@ -19,7 +19,7 @@ use tce_transport::{ReliableBroadcastParams, TceEvents};
 
 use topos_core::uci::{Certificate, CertificateId, DigestCompressed, SubnetId};
 use topos_p2p::PeerId;
-use tracing::error;
+use tracing::{error, info, Instrument, Span};
 
 use crate::mem_store::TceMemStore;
 use crate::sampler::{Sampler, SubscribersUpdate, SubscriptionsView};
@@ -62,6 +62,7 @@ pub enum DoubleEchoCommand {
     /// Entry point for new certificate to submit as initial sender
     Broadcast {
         cert: Certificate,
+        ctx: Span,
     },
 
     // Entry point to broadcast many Certificates
@@ -247,8 +248,13 @@ impl ReliableBroadcastClient {
         let broadcast_commands = self.broadcast_commands.clone();
 
         async move {
+            info!("send certificate to be broadcast");
             if broadcast_commands
-                .send(DoubleEchoCommand::Broadcast { cert: certificate })
+                .send(DoubleEchoCommand::Broadcast {
+                    cert: certificate,
+                    ctx: Span::current(),
+                })
+                .instrument(Span::current())
                 .await
                 .is_err()
             {

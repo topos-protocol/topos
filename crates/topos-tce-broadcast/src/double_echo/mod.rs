@@ -11,7 +11,7 @@ use tce_transport::{ReliableBroadcastParams, TceEvents};
 use tokio::sync::{broadcast, mpsc};
 use topos_core::uci::{Certificate, CertificateId, DigestCompressed};
 use topos_p2p::PeerId;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info, instrument, warn};
 
 /// Processing data associated to a Certificate candidate for delivery
 /// Sample repartition, one peer may belongs to multiple samples
@@ -66,7 +66,7 @@ impl DoubleEcho {
         }
     }
 
-    // #[instrument(name = "DoubleEcho::Runtime", skip_all)]
+    #[instrument(name = "DoubleEcho::Runtime", skip_all)]
     pub(crate) async fn run(mut self) {
         info!("DoubleEcho started");
         loop {
@@ -94,8 +94,9 @@ impl DoubleEcho {
                             self.buffer = certificates.into();
                         }
 
-                        DoubleEchoCommand::Broadcast { cert } => {
-                            debug!("DoubleEchoCommand::Broadcast cert_id: {:?}", &cert.id);
+                        DoubleEchoCommand::Broadcast { cert, .. } => {
+
+                            info!("DoubleEchoCommand::Broadcast cert_id: {:?}", &cert.id);
                             if self.buffer.len() < Self::MAX_BUFFER_SIZE {
                                 self.buffer.push_back(cert);
                             }
@@ -253,7 +254,7 @@ impl DoubleEcho {
 
         carrier.insert(
             "traceparent".to_string(),
-            String::from_utf8_lossy(cert.id.as_slice()).to_string(),
+            String::from_utf8_lossy(cert.id.as_array()).to_string(),
         );
         // Propagator can be swapped with b3 propagator, jaeger propagator, etc.
         let propagator = TraceContextPropagator::new();
@@ -454,6 +455,7 @@ mod tests {
     // use rand::{distributions::Uniform, Rng};
     use rand::seq::IteratorRandom;
     use tokio::{spawn, sync::broadcast::error::TryRecvError};
+    use tracing::Span;
 
     const PREV_CERTIFICATE_ID: topos_core::uci::CertificateId =
         CertificateId::from_array([4u8; 32]);
@@ -655,6 +657,7 @@ mod tests {
         cmd_sender
             .send(DoubleEchoCommand::Broadcast {
                 cert: le_cert.clone(),
+                ctx: Span::current(),
             })
             .await
             .expect("Cannot send broadcast command");

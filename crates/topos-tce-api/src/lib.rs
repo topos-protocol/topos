@@ -1,4 +1,5 @@
 mod grpc;
+mod metadata_map;
 mod runtime;
 mod stream;
 

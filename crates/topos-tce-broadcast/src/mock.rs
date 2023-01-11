@@ -7,7 +7,7 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Display, Formatter};
 use tokio_stream::StreamExt;
 use topos_p2p::PeerId;
-use tracing::{debug, error, info, trace, warn};
+use tracing::{debug, error, info, trace, warn, Span};
 
 use tce_transport::{ReliableBroadcastParams, TceEvents};
 use tokio::runtime::Runtime;
@@ -239,7 +239,10 @@ fn submit_test_cert(
             let sender = w_cli.get_double_echo_channel();
             tokio::spawn(async move {
                 sender
-                    .send(DoubleEchoCommand::Broadcast { cert: cert.clone() })
+                    .send(DoubleEchoCommand::Broadcast {
+                        cert: cert.clone(),
+                        ctx: Span::current(),
+                    })
                     .await
                     .unwrap();
             });
@@ -492,7 +495,10 @@ pub async fn handle_peer_event(
             if let Some(w_cli) = mb_cli {
                 w_cli
                     .get_double_echo_channel()
-                    .send(DoubleEchoCommand::Broadcast { cert })
+                    .send(DoubleEchoCommand::Broadcast {
+                        cert,
+                        ctx: Span::current(),
+                    })
                     .await?;
             }
         }
