@@ -115,8 +115,8 @@ pub(crate) async fn handle_command(
             Ok(())
         }
 
-        Some(TceCommands::PeerId(cmd)) => {
-            if let Some(slice) = cmd.from_slice {
+        Some(TceCommands::Keys(cmd)) => {
+            if let Some(slice) = cmd.from_seed {
                 println!(
                     "{}",
                     topos_p2p::utils::local_key_pair_from_slice(slice.as_bytes())

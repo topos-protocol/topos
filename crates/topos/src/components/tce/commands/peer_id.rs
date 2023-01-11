@@ -1,7 +1,7 @@
 use clap::Args;
 
 #[derive(Args, Debug)]
-pub(crate) struct PeerId {
-    #[arg(long = "from-slice")]
-    pub(crate) from_slice: Option<String>,
+pub(crate) struct Keys {
+    #[arg(long = "from-seed")]
+    pub(crate) from_seed: Option<String>,
 }

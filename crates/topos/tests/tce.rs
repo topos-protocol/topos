@@ -58,7 +58,7 @@ async fn do_not_push_empty_list() -> Result<(), Box<dyn std::error::Error>> {
 #[tokio::test]
 async fn can_get_a_peer_id_from_a_seed() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin("topos")?;
-    cmd.arg("tce").arg("peer-id").arg("--from-slice").arg("1");
+    cmd.arg("tce").arg("keys").arg("--from-seed").arg("1");
 
     let output = cmd.assert().success();
 

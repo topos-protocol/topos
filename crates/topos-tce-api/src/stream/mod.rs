@@ -38,7 +38,6 @@ pub struct Stream {
 }
 
 impl Stream {
-    // #[instrument(name = "gRPC::Stream", skip(self), fields(stream_id = %self.stream_id))]
     pub async fn run(mut self) {
         let subnet_ids = match self.pre_start().await {
             Err(_) => {

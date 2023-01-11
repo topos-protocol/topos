@@ -19,7 +19,7 @@ case "$1" in
 
     "boot")
         echo "Generating peer list file..."
-        $JQ -n --arg PEER $($TOPOS_BIN tce peer-id --from-slice=$TCE_LOCAL_KS) '[$PEER]' > $PEER_LIST_PATH
+        $JQ -n --arg PEER $($TOPOS_BIN tce keys --from-seed=$TCE_LOCAL_KS) '[$PEER]' > $PEER_LIST_PATH
         echo "Peer list file have been successfully generated"
 
         echo "Generating node list file..."
@@ -41,7 +41,7 @@ case "$1" in
                sleep 1
            done
 
-           PEER=$($TOPOS_BIN tce peer-id --from-slice=$HOSTNAME)
+           PEER=$($TOPOS_BIN tce keys --from-seed=$HOSTNAME)
            cat <<< $($JQ --arg PEER $PEER '. += [$PEER]' $PEER_LIST_PATH) > $PEER_LIST_PATH
 
            export TCE_LOCAL_KS=$HOSTNAME

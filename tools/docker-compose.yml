@@ -1,13 +1,5 @@
 services:
-  # jaeger:
-  #   image: jaegertracing/all-in-one:latest
-  #   container_name: jaeger
-  #   ports:
-  #     - "6831/udp"
-  #     - "6832/udp"
-  #     - "16685"
-  #     - "16686:16686"
-  #
+
   jaeger:
     image: jaegertracing/all-in-one:latest
     container_name: jaeger

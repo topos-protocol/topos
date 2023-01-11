@@ -9,7 +9,7 @@ pub(crate) use push_peer_list::PushPeerList;
 pub(crate) use run::Run;
 pub(crate) use status::Status;
 
-use self::peer_id::PeerId;
+use self::peer_id::Keys;
 
 #[derive(Args, Debug)]
 pub(crate) struct TceCommand {
@@ -28,7 +28,7 @@ pub(crate) struct TceCommand {
 #[derive(Subcommand, Debug)]
 pub(crate) enum TceCommands {
     PushPeerList(PushPeerList),
-    PeerId(PeerId),
+    Keys(Keys),
     Run(Box<Run>),
     Status(Status),
 }

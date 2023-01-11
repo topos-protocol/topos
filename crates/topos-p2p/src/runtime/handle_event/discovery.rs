@@ -38,7 +38,6 @@ impl EventHandler<KademliaEvent> for Runtime {
             } => match res {
                 Ok(_) => {
                     info!("Bootstrapping finished");
-                    info!("PUBLISHING ADDR: {:?}", self.addresses);
                     let key = Key::new(&self.local_peer_id.to_string());
                     _ = self
                         .swarm
