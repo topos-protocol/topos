@@ -18,7 +18,7 @@ rand_distr = { version = "0.4", default-features = false }
 rstest = { version = "0.16", default-features = false }
 serde = { version = "1.0", default-features = false }
 thiserror = { version = "1.0", default-features = false }
-tokio = { version = "1.20", default-features = false }
+tokio = { version = "1.24", default-features = false }
 tokio-stream = { version = "0.1", default-features = false }
 tonic = { version = "0.8", default-features = false }
 tracing = { version = "0.1", default-features = false }
