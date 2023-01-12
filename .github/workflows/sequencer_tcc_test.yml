@@ -66,9 +66,8 @@ jobs:
 
       - name: Pull images
         run: |
-#          docker pull ${{ env.REGISTRY }}/${{ env.POLYGON_SUBNET_IMAGE_NAME }}:${{ env.POLYGON_SUBNET_IMAGE_TAG }}
-#          docker pull ${{ env.REGISTRY }}/${{ env.TOPOS_SMART_CONTRACTS_IMAGE_NAME }}:${{ env.TOPOS_SMART_CONTRACTS_IMAGE_TAG }}
-          docker images
+          docker pull ${{ env.REGISTRY }}/${{ env.POLYGON_SUBNET_IMAGE_NAME }}:${{ env.POLYGON_SUBNET_IMAGE_TAG }}
+          docker pull ${{ env.REGISTRY }}/${{ env.TOPOS_SMART_CONTRACTS_IMAGE_NAME }}:${{ env.TOPOS_SMART_CONTRACTS_IMAGE_TAG }}
 
       - name: Acquire built smart contracts
         run: |
