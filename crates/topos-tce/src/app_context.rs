@@ -12,12 +12,12 @@ use topos_tce_api::{RuntimeClient as ApiClient, RuntimeError};
 use topos_tce_broadcast::sampler::SampleType;
 use topos_tce_broadcast::DoubleEchoCommand;
 use topos_tce_broadcast::{ReliableBroadcastClient, SamplerCommand};
-use topos_tce_gatekeeper::GatekeeperClient;
+use topos_tce_gatekeeper::{GatekeeperClient, GatekeeperError};
 use topos_tce_storage::events::StorageEvent;
 use topos_tce_storage::StorageClient;
 use topos_tce_synchronizer::{SynchronizerClient, SynchronizerEvent};
 use topos_telemetry::PropagationContext;
-use tracing::{debug, error, info, instrument, trace, Instrument, Span};
+use tracing::{debug, error, info, info_span, trace, Instrument, Span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 /// Top-level transducer main app context & driver (alike)
@@ -95,7 +95,6 @@ impl AppContext {
         }
     }
 
-    #[instrument(name = "TCE Runtime", skip_all)]
     async fn on_api_event(&mut self, event: ApiEvent) {
         match event {
             ApiEvent::CertificateSubmitted {
@@ -103,7 +102,7 @@ impl AppContext {
                 sender,
                 ctx,
             } => {
-                Span::current().set_parent(ctx);
+                let span = info_span!(parent: &ctx, "TCE Runtime");
 
                 async {
                     _ = self
@@ -119,7 +118,7 @@ impl AppContext {
                     );
                     _ = sender.send(Ok(()));
                 }
-                .instrument(Span::current())
+                .instrument(span)
                 // .instrument(span)
                 .await;
             }
@@ -127,14 +126,20 @@ impl AppContext {
             ApiEvent::PeerListPushed { peers, sender } => {
                 let sampler = self.tce_cli.clone();
 
-                if let Ok(peers) = self.gatekeeper.push_peer_list(peers).await {
-                    if sampler.peer_changed(peers).await.is_ok() {
+                match self.gatekeeper.push_peer_list(peers).await {
+                    Ok(peers) => {
+                        if sampler.peer_changed(peers).await.is_err() {
+                            _ = sender.send(Err(RuntimeError::UnableToPushPeerList));
+                        } else {
+                            _ = sender.send(Ok(()));
+                        }
+                    }
+                    Err(GatekeeperError::NoUpdate) => {
                         _ = sender.send(Ok(()));
-                    } else {
+                    }
+                    Err(_) => {
                         _ = sender.send(Err(RuntimeError::UnableToPushPeerList));
                     }
-                } else {
-                    _ = sender.send(Err(RuntimeError::UnableToPushPeerList));
                 }
             }
 
@@ -157,6 +162,7 @@ impl AppContext {
         );
         match evt {
             TceEvents::StableSample => {
+                info!("Stable Sample detected");
                 self.api_client.set_active_sample(true).await;
             }
 
@@ -289,14 +295,15 @@ impl AppContext {
                 });
             }
 
-            TceEvents::Gossip { peers, cert, .. } => {
+            TceEvents::Gossip {
+                peers, cert, ctx, ..
+            } => {
                 let cert_id = cert.id;
-                let context = Span::current().context();
 
                 let data: Vec<u8> = NetworkMessage::from(TceCommands::OnGossip {
                     cert,
                     digest: vec![],
-                    ctx: PropagationContext::inject(&context),
+                    ctx: PropagationContext::inject(&ctx),
                 })
                 .into();
 
@@ -317,7 +324,7 @@ impl AppContext {
                 });
             }
 
-            TceEvents::Echo { peers, cert } => {
+            TceEvents::Echo { peers, cert, ctx } => {
                 let my_peer_id = self.network_client.local_peer_id;
                 debug!(
                     "peer_id: {} processing on_protocol_event TceEvents::Echo peers {:?} cert id: {:?}",
@@ -327,6 +334,7 @@ impl AppContext {
                 let data: Vec<u8> = NetworkMessage::from(TceCommands::OnEcho {
                     from_peer: self.network_client.local_peer_id,
                     cert,
+                    ctx: PropagationContext::inject(&ctx),
                 })
                 .into();
 
@@ -344,7 +352,7 @@ impl AppContext {
                 });
             }
 
-            TceEvents::Ready { peers, cert } => {
+            TceEvents::Ready { peers, cert, ctx } => {
                 let my_peer_id = self.network_client.local_peer_id;
                 debug!(
                     "peer_id: {} processing TceEvents::Ready peers {:?} cert id: {:?}",
@@ -353,6 +361,7 @@ impl AppContext {
                 let data: Vec<u8> = NetworkMessage::from(TceCommands::OnReady {
                     from_peer: self.network_client.local_peer_id,
                     cert,
+                    ctx: PropagationContext::inject(&ctx),
                 })
                 .into();
 
@@ -469,16 +478,34 @@ impl AppContext {
                                     channel,
                                 ));
                             }
-                            TceCommands::OnEcho { from_peer, cert } => {
+                            TceCommands::OnEcho {
+                                from_peer,
+                                cert,
+                                ctx,
+                                ..
+                            } => {
+                                let context = ctx.extract();
+                                let span = info_span!(
+                                    "Echo",
+                                    peer_id = self.network_client.local_peer_id.to_string()
+                                );
+                                span.set_parent(context);
                                 // We have received Echo echo message, we are responding with OnDoubleEchoOk
-                                debug!(
+                                let command_sender = span.in_scope(||{
+                                info!(
                                     "peer_id: {} on_net_event TceCommands::OnEcho from peer {} cert id: {:?}",
                                     &self.network_client.local_peer_id, &from_peer, &cert.id
                                 );
                                 // We have received echo message from external peer
-                                let command_sender = self.tce_cli.get_double_echo_channel();
+                                self.tce_cli.get_double_echo_channel()
+                                });
                                 command_sender
-                                    .send(DoubleEchoCommand::Echo { from_peer, cert })
+                                    .send(DoubleEchoCommand::Echo {
+                                        from_peer,
+                                        cert,
+                                        ctx: span.clone(),
+                                    })
+                                    .instrument(span)
                                     .await
                                     .expect("Receive the Echo");
                                 //We are responding with OnDoubleEchoOk to remote peer
@@ -489,15 +516,33 @@ impl AppContext {
                                     channel,
                                 ));
                             }
-                            TceCommands::OnReady { from_peer, cert } => {
-                                // We have received Ready echo message, we are responding with OnDoubleEchoOk
-                                debug!(
-                                    "peer_id {} on_net_event TceCommands::OnReady from peer {} cert id: {:?}",
-                                    &self.network_client.local_peer_id, &from_peer, &cert.id
+                            TceCommands::OnReady {
+                                from_peer,
+                                cert,
+                                ctx,
+                            } => {
+                                let context = ctx.extract();
+                                let span = info_span!(
+                                    "Ready",
+                                    peer_id = self.network_client.local_peer_id.to_string()
                                 );
-                                let command_sender = self.tce_cli.get_double_echo_channel();
+                                span.set_parent(context);
+                                let command_sender = span.in_scope(||{
+
+                                    // We have received Ready echo message, we are responding with OnDoubleEchoOk
+                                    info!(
+                                        "peer_id {} on_net_event TceCommands::OnReady from peer {} cert id: {:?}",
+                                        &self.network_client.local_peer_id, &from_peer, &cert.id
+                                    );
+                                    self.tce_cli.get_double_echo_channel()
+                                });
                                 command_sender
-                                    .send(DoubleEchoCommand::Ready { from_peer, cert })
+                                    .send(DoubleEchoCommand::Ready {
+                                        from_peer,
+                                        cert,
+                                        ctx: span.clone(),
+                                    })
+                                    .instrument(span)
                                     .await
                                     .expect("Receive the Ready");
 

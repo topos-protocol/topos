@@ -76,12 +76,14 @@ pub enum DoubleEchoCommand {
     Echo {
         from_peer: PeerId,
         cert: Certificate,
+        ctx: Span,
     },
 
     /// When ready reply received
     Ready {
         from_peer: PeerId,
         cert: Certificate,
+        ctx: Span,
     },
     DeliveredCerts {
         subnet_id: SubnetId,

@@ -3,7 +3,8 @@ use crate::{
     sampler::SampleType, tce_store::TceStore, DoubleEchoCommand, SubscribersUpdate,
     SubscriptionsView,
 };
-use opentelemetry::Context;
+use opentelemetry::trace::{Span as OtelSpan, Tracer};
+use opentelemetry::{global, KeyValue};
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     time,
@@ -20,7 +21,7 @@ use tracing_opentelemetry::OpenTelemetrySpanExt;
 /// Ready is always sent to current subscribers view
 struct DeliveryState {
     pub subscriptions: SubscriptionsView,
-    ctx: Context,
+    ctx: Span,
 }
 
 pub struct DoubleEcho {
@@ -33,12 +34,12 @@ pub struct DoubleEcho {
     store: Box<dyn TceStore + Send>,
 
     cert_candidate: HashMap<Certificate, DeliveryState>,
-    pending_delivery: HashMap<Certificate, Context>,
+    pending_delivery: HashMap<Certificate, Span>,
     all_known_certs: Vec<Certificate>,
     delivery_time: HashMap<CertificateId, (time::SystemTime, time::Duration)>,
     subscriptions: SubscriptionsView, // My subscriptions for echo, ready and delivery feedback
     subscribers: SubscribersView,     // Echo and ready subscribers that are following me
-    buffer: VecDeque<(Certificate, Context)>,
+    buffer: VecDeque<(Certificate, Span)>,
 }
 
 impl DoubleEcho {
@@ -93,7 +94,7 @@ impl DoubleEcho {
                             debug!("DoubleEchoCommand::BroadcastMany cert ids: {:?}",
                                 certificates.iter().map(|cert| &cert.id).collect::<Vec<&CertificateId>>());
 
-                            self.buffer = certificates.into_iter().map(|c| (c, Span::current().context())).collect();
+                            self.buffer = certificates.into_iter().map(|c| (c, Span::current())).collect();
                         }
 
                         DoubleEchoCommand::Broadcast { cert, ctx } => {
@@ -102,7 +103,7 @@ impl DoubleEcho {
                             span.in_scope(||{
                                 info!("DoubleEchoCommand::Broadcast cert_id: {}", cert.id);
                                 if self.buffer.len() < Self::MAX_BUFFER_SIZE {
-                                    self.buffer.push_back((cert, Span::current().context()));
+                                    self.buffer.push_back((cert, Span::current()));
                                 } else {
                                     error!("Double echo buffer is full for certificate {}", cert.id);
                                 }
@@ -111,16 +112,23 @@ impl DoubleEcho {
 
                         command if self.subscriptions.is_some() => {
                             match command {
-                                DoubleEchoCommand::Echo { from_peer, cert } => {
+                                DoubleEchoCommand::Echo { from_peer, cert, .. } => {
                                     debug!("handling DoubleEchoCommand::Echo from_peer: {} cert_id: {:?}", &from_peer, &cert.id);
                                     self.handle_echo(from_peer, cert)},
-                                DoubleEchoCommand::Ready { from_peer, cert } => {
+                                DoubleEchoCommand::Ready { from_peer, cert, .. } => {
                                     debug!("handling DoubleEchoCommand::Ready from_peer: {} cert_id: {:?}", &from_peer, &cert.id);
-                                    self.handle_ready(from_peer, cert)},
+                                    self.handle_ready(from_peer, cert)
+                                },
                                 DoubleEchoCommand::Deliver { cert, digest, ctx } => {
-                                    info!("handling DoubleEchoCommand::Deliver cert_id: {} digest: {:?}", cert.id, &digest);
+                                    let span = info_span!("Deliver");
+                                    span.set_parent(ctx);
+                                    span.in_scope(|| {
+                                        info!("handling DoubleEchoCommand::Deliver cert_id: {} digest: {:?}", cert.id, &digest);
 
-                                    self.handle_deliver((cert, ctx), digest)},
+                                        self.handle_deliver(cert, digest)
+                                    });
+                                    },
+
                                 _ => {}
                             }
 
@@ -163,8 +171,10 @@ impl DoubleEcho {
 
             // Broadcast next certificate
             if self.subscriptions.is_some() {
-                while let Some(cert) = self.buffer.pop_front() {
-                    self.handle_broadcast(cert);
+                while let Some((cert, span)) = self.buffer.pop_front() {
+                    span.in_scope(|| {
+                        self.handle_broadcast(cert);
+                    });
                 }
             }
         }
@@ -194,28 +204,25 @@ impl DoubleEcho {
         }
     }
 
-    fn handle_broadcast(&mut self, (cert, ctx): (Certificate, Context)) {
-        let span = Span::current();
-        let digest = span.in_scope(|| {
-            debug!("handling broadcast of cert_id {:?}", &cert.id);
-            self.store
-                .flush_digest_view(&cert.source_subnet_id)
-                .unwrap_or_default()
-        });
+    fn handle_broadcast(&mut self, cert: Certificate) {
+        debug!("handling broadcast of cert_id {:?}", &cert.id);
+        let digest = self
+            .store
+            .flush_digest_view(&cert.source_subnet_id)
+            .unwrap_or_default();
 
-        self.dispatch((cert, ctx), digest);
+        self.dispatch(cert, digest);
     }
 
-    fn handle_deliver(&mut self, cert_with_ctx: (Certificate, Context), digest: DigestCompressed) {
-        self.dispatch(cert_with_ctx, digest)
+    fn handle_deliver(&mut self, cert: Certificate, digest: DigestCompressed) {
+        self.dispatch(cert, digest)
     }
 
     /// Called to process potentially new certificate:
     /// - either submitted from API ( [tce_transport::TceCommands::Broadcast] command)
     /// - or received through the gossip (first step of protocol exchange)
     #[instrument(name = "Dispatch", skip_all)]
-    fn dispatch(&mut self, (cert, ctx): (Certificate, Context), digest: DigestCompressed) {
-        Span::current().set_parent(ctx);
+    fn dispatch(&mut self, cert: Certificate, digest: DigestCompressed) {
         if self.cert_pre_delivery_check(&cert).is_err() {
             error!("Error on the pre cert delivery check");
             return;
@@ -243,7 +250,7 @@ impl DoubleEcho {
         });
 
         // Trigger event of new certificate candidate for delivery
-        self.start_delivery((cert, Span::current().context()), digest);
+        self.start_delivery(cert, digest);
     }
 
     /// Make gossip peer list from echo and ready
@@ -258,12 +265,12 @@ impl DoubleEcho {
             .collect()
     }
 
-    fn start_delivery(&mut self, (cert, ctx): (Certificate, Context), digest: DigestCompressed) {
+    fn start_delivery(&mut self, cert: Certificate, digest: DigestCompressed) {
         // To include tracing context in client requests from _this_ app,
         // use `context` to extract the current OpenTelemetry context.
         warn!("🙌 StartDelivery[{:?}]\t", &cert.id);
         // Add new entry for the new Cert candidate
-        match self.delivery_state_for_new_cert(ctx.clone()) {
+        match self.delivery_state_for_new_cert() {
             Some(delivery_state) => {
                 self.cert_candidate.insert(cert.clone(), delivery_state);
             }
@@ -287,11 +294,12 @@ impl DoubleEcho {
         let _ = self.event_sender.send(TceEvents::Echo {
             peers: echo_peers,
             cert,
+            ctx: Span::current().context(),
         });
     }
 
     /// Build initial delivery state
-    fn delivery_state_for_new_cert(&mut self, ctx: Context) -> Option<DeliveryState> {
+    fn delivery_state_for_new_cert(&mut self) -> Option<DeliveryState> {
         let subscriptions = self.subscriptions.clone();
         // check inbound sets are not empty
         if subscriptions.echo.is_empty()
@@ -300,7 +308,10 @@ impl DoubleEcho {
         {
             None
         } else {
-            Some(DeliveryState { subscriptions, ctx })
+            Some(DeliveryState {
+                subscriptions,
+                ctx: Span::current(),
+            })
         }
     }
 
@@ -319,6 +330,7 @@ impl DoubleEcho {
                     gen_evts.push(TceEvents::Ready {
                         peers: readies.clone(),
                         cert: cert.clone(),
+                        ctx: state_to_delivery.ctx.context(),
                     });
                 }
                 state_to_delivery.subscriptions.ready.clear();
@@ -343,32 +355,39 @@ impl DoubleEcho {
                 .collect::<HashMap<_, _>>();
 
             for (cert, ctx) in cert_to_pending {
-                let span = info_span!(target: "topos", "Delivered");
-                span.set_parent(ctx);
-                span.in_scope(|| {
-                    if self.store.apply_cert(&cert).is_ok() {
-                        let mut d = time::Duration::from_millis(0);
-                        if let Some((from, duration)) = self.delivery_time.get_mut(&cert.id) {
-                            *duration = from.elapsed().unwrap();
-                            d = *duration;
+                // let span = info_span!(parent: &ctx, "Delivered");
+                let mut span =
+                    global::tracer("topos").start_with_context("Delivered", &ctx.context());
 
-                            info!("certificate delivered {} => {:?}", cert.id, d);
-                            // tce_telemetry::span_cert_delivery(
-                            //     self.my_peer_id.clone(),
-                            //     &cert.cert_id,
-                            //     *from,
-                            //     time::SystemTime::now(),
-                            //     Default::default(),
-                            // )
-                        }
-                        self.pending_delivery.remove(&cert);
-                        debug!("📝 Accepted[{}]\t Delivery time: {:?}", &cert.id, d);
+                if self.store.apply_cert(&cert).is_ok() {
+                    let mut d = time::Duration::from_millis(0);
+                    if let Some((from, duration)) = self.delivery_time.get_mut(&cert.id) {
+                        *duration = from.elapsed().unwrap();
+                        d = *duration;
 
-                        _ = self.event_sender.send(TceEvents::CertificateDelivered {
-                            certificate: cert.clone(),
-                        });
+                        span.add_event(
+                            "certificate Delivered",
+                            vec![
+                                KeyValue::new("certificate_id", cert.id.to_string()),
+                                KeyValue::new("delivery_time", d.as_millis().to_string()),
+                            ],
+                        );
+                        info!("certificate delivered {} => {:?}", cert.id, d);
+                        // tce_telemetry::span_cert_delivery(
+                        //     self.my_peer_id.clone(),
+                        //     &cert.cert_id,
+                        //     *from,
+                        //     time::SystemTime::now(),
+                        //     Default::default(),
+                        // )
                     }
-                });
+                    self.pending_delivery.remove(&cert);
+                    debug!("📝 Accepted[{}]\t Delivery time: {:?}", &cert.id, d);
+
+                    _ = self.event_sender.send(TceEvents::CertificateDelivered {
+                        certificate: cert.clone(),
+                    });
+                }
             }
         }
 
@@ -520,7 +539,7 @@ mod tests {
         double_echo.subscribers = expected_subscriber_view;
 
         let le_cert = Certificate::new(PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID, vec![]).unwrap();
-        double_echo.handle_broadcast((le_cert.clone(), Span::current().context()));
+        double_echo.handle_broadcast(le_cert.clone());
 
         assert_eq!(event_receiver.len(), 2);
 

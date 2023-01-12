@@ -8,6 +8,7 @@ async-trait.workspace = true
 futures.workspace = true
 rand.workspace = true
 thiserror.workspace = true
+tracing.workspace = true
 tokio = { workspace = true, features = ["full"] }
 
 topos-p2p = { path = "../topos-p2p" }

@@ -11,7 +11,6 @@ use topos_core::api::tce::v1::api_service_server::ApiServiceServer;
 use topos_core::uci::SubnetId;
 
 use tracing::{debug, error, info, info_span, Instrument, Span};
-use tracing_opentelemetry::OpenTelemetrySpanExt;
 use uuid::Uuid;
 
 use crate::{
@@ -174,8 +173,7 @@ impl Runtime {
                 sender,
                 ctx,
             } => {
-                let span = info_span!(target: "topos", "TCE API Runtime");
-                span.set_parent(ctx);
+                let span = info_span!(target: "topos", parent: &ctx, "TCE API Runtime");
 
                 async move {
                     info!(
@@ -187,7 +185,7 @@ impl Runtime {
                         .send(RuntimeEvent::CertificateSubmitted {
                             certificate,
                             sender,
-                            ctx: Span::current().context(),
+                            ctx: Span::current(),
                         })
                         .await
                     {

@@ -6,6 +6,7 @@ use std::{
     sync::Arc,
 };
 
+use opentelemetry::global;
 use tokio::{signal, spawn, sync::Mutex};
 use tonic::transport::Channel;
 use topos_core::api::tce::v1::console_service_client::ConsoleServiceClient;
@@ -111,6 +112,8 @@ pub(crate) async fn handle_command(
             signal::ctrl_c()
                 .await
                 .expect("failed to listen for signals");
+
+            global::shutdown_tracer_provider();
 
             Ok(())
         }

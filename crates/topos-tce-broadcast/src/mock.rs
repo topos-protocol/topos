@@ -523,7 +523,7 @@ pub async fn handle_peer_event(
                 }
             }
         }
-        TceEvents::Echo { peers, cert } => {
+        TceEvents::Echo { peers, cert, .. } => {
             for to_peer in peers {
                 let mb_cli = peers_container.get(&to_peer);
                 if let Some(w_cli) = mb_cli {
@@ -532,12 +532,13 @@ pub async fn handle_peer_event(
                         .send(DoubleEchoCommand::Echo {
                             from_peer,
                             cert: cert.clone(),
+                            ctx: Span::current(),
                         })
                         .await?;
                 }
             }
         }
-        TceEvents::Ready { peers, cert } => {
+        TceEvents::Ready { peers, cert, .. } => {
             for to_peer in peers {
                 let mb_cli = peers_container.get(&to_peer);
                 if let Some(w_cli) = mb_cli {
@@ -546,6 +547,7 @@ pub async fn handle_peer_event(
                         .send(DoubleEchoCommand::Ready {
                             from_peer,
                             cert: cert.clone(),
+                            ctx: Span::current(),
                         })
                         .await?;
                 }

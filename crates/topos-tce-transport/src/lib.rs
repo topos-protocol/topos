@@ -65,11 +65,13 @@ pub enum TceCommands {
     OnEcho {
         from_peer: PeerId,
         cert: Certificate,
+        ctx: PropagationContext,
     },
     /// When ready reply received
     OnReady {
         from_peer: PeerId,
         cert: Certificate,
+        ctx: PropagationContext,
     },
     /// Given peer replied ok to the double echo request
     OnDoubleEchoOk { from_peer: PeerId },
@@ -102,11 +104,13 @@ pub enum TceEvents {
     Echo {
         peers: Vec<PeerId>,
         cert: Certificate,
+        ctx: Context,
     },
     /// Indicates that 'ready' message broadcasting is required
     Ready {
         peers: Vec<PeerId>,
         cert: Certificate,
+        ctx: Context,
     },
     /// For simulation purpose, for now only caused by ill-formed sampling
     Die,

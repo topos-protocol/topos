@@ -50,7 +50,7 @@ impl ApiService for TceGrpcService {
                     .send(InternalRuntimeCommand::CertificateSubmitted {
                         certificate: certificate.into(),
                         sender,
-                        ctx: Span::current().context(),
+                        ctx: Span::current(),
                     })
                     .await
                     .is_err()
