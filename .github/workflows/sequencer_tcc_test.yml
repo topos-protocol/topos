@@ -69,6 +69,7 @@ jobs:
         run: |
           docker pull ${{ env.REGISTRY }}/${{ env.POLYGON_SUBNET_IMAGE_NAME }}:${{ env.POLYGON_SUBNET_IMAGE_TAG }}
           docker pull ${{ env.REGISTRY }}/${{ env.TOPOS_SMART_CONTRACTS_IMAGE_NAME }}:${{ env.TOPOS_SMART_CONTRACTS_IMAGE_TAG }}
+          docker images
 
       - name: Acquire built smart contracts
         run: |
@@ -77,6 +78,7 @@ jobs:
           docker cp dummy:/usr/src/app/brownie/build/contracts/TokenDeployer.json ./contracts/
           docker cp dummy:/usr/src/app/brownie/build/contracts/ToposCoreContract.json ./contracts/
           docker rm -f dummy
+          ls -la ./contracts/
 
       - name: Run all workspace tests
         run: |
