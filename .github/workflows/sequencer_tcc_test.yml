@@ -1,10 +1,9 @@
-name: Build and check
+name: Sequencer Topos Core Contract interaction test
 
 on:
   push:
     branches: [main]
   pull_request:
-    branches: "**"
   workflow_dispatch:
 
 env:
@@ -20,7 +19,7 @@ env:
   TOPOS_SMART_CONTRACTS_IMAGE_TAG: main
 
 jobs:
-  build_and_test:
+  deploy_smart_contracts_test_subnet_interaction:
     strategy:
       fail-fast: false
       matrix:
@@ -34,7 +33,7 @@ jobs:
           - stable
           - nightly-2022-12-18
 
-    name: ${{ matrix.version }} - Build and Test
+    name: ${{ matrix.version }} - Deploy smart contracts and test sequencer subnet interaction
     runs-on: ${{ matrix.target.os }}
     env:
       PRIV_GH_TOKEN: ${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}
@@ -44,7 +43,7 @@ jobs:
       - name: Set git credentials
         uses: fusion-engineering/setup-git-credentials@v2
         with:
-          credentials: https://robot-toposware:${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}@github.com
+          credentials: https://robot-toposware:${{ env.PRIV_GH_TOKEN }}@github.com
 
       - name: Install Rust ${{ matrix.version }}
         uses: actions-rs/toolchain@v1
@@ -62,19 +61,19 @@ jobs:
         uses: docker/login-action@v1
         with:
           registry: ghcr.io
-          username: robot-toposware
-          password: ${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
+          username: ${{ env.PRIV_GH_USER }}
+          password: ${{ env.PRIV_GH_TOKEN }}
 
       - name: Pull images
         run: |
-          docker pull ${{ env.REGISTRY }}/${{ env.POLYGON_SUBNET_IMAGE_NAME }}:${{ env.POLYGON_SUBNET_IMAGE_TAG }}
-          docker pull ${{ env.REGISTRY }}/${{ env.TOPOS_SMART_CONTRACTS_IMAGE_NAME }}:${{ env.TOPOS_SMART_CONTRACTS_IMAGE_TAG }}
+#          docker pull ${{ env.REGISTRY }}/${{ env.POLYGON_SUBNET_IMAGE_NAME }}:${{ env.POLYGON_SUBNET_IMAGE_TAG }}
+#          docker pull ${{ env.REGISTRY }}/${{ env.TOPOS_SMART_CONTRACTS_IMAGE_NAME }}:${{ env.TOPOS_SMART_CONTRACTS_IMAGE_TAG }}
           docker images
 
       - name: Acquire built smart contracts
         run: |
           mkdir contracts
-          docker create -ti --name dummy ${{ env.REGISTRY }}/${{ env.TOPOS_SMART_CONTRACTS_IMAGE_NAME }}:${{ env.TOPOS_SMART_CONTRACTS_IMAGE_TAG }} bash
+          docker create --name dummy ${{ env.REGISTRY }}/${{ env.TOPOS_SMART_CONTRACTS_IMAGE_NAME }}:${{ env.TOPOS_SMART_CONTRACTS_IMAGE_TAG }}
           docker cp dummy:/usr/src/app/brownie/build/contracts/TokenDeployer.json ./contracts/
           docker cp dummy:/usr/src/app/brownie/build/contracts/ToposCoreContract.json ./contracts/
           docker rm -f dummy
