@@ -36,14 +36,15 @@ jobs:
     name: ${{ matrix.version }} - Deploy smart contracts and test sequencer subnet interaction
     runs-on: ${{ matrix.target.os }}
     env:
-      PRIV_GH_TOKEN: ${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}
       PRIV_GH_USER: ${{ secrets.ROBOT_TOPOSWARE_USER }}
+      PRIV_GH_REPOS_TOKEN: ${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}
+      PRIV_GH_PACKAGE_TOKEN: ${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
     steps:
       - uses: actions/checkout@v3
       - name: Set git credentials
         uses: fusion-engineering/setup-git-credentials@v2
         with:
-          credentials: https://robot-toposware:${{ env.PRIV_GH_TOKEN }}@github.com
+          credentials: https://robot-toposware:${{ env.PRIV_GH_REPOS_TOKEN }}@github.com
 
       - name: Install Rust ${{ matrix.version }}
         uses: actions-rs/toolchain@v1
@@ -62,7 +63,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ env.PRIV_GH_USER }}
-          password: ${{ env.PRIV_GH_TOKEN }}
+          password: ${{ env.PRIV_GH_PACKAGE_TOKEN }}
 
       - name: Pull images
         run: |
