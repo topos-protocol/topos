@@ -4579,7 +4579,6 @@ dependencies = [
  "topos-tce-transport",
  "tower",
  "tracing",
- "tracing-attributes",
  "tracing-opentelemetry",
  "tracing-subscriber",
  "uuid 1.2.2",
@@ -4641,7 +4640,6 @@ name = "topos-sequencer"
 version = "0.1.0"
 dependencies = [
  "bincode",
- "clap 4.0.32",
  "hex",
  "rpassword",
  "serde",
@@ -4711,7 +4709,6 @@ dependencies = [
  "secp256k1 0.21.3",
  "serde",
  "serde_json",
- "serial_test",
  "thiserror",
  "tiny-keccak 1.5.0",
  "tokio",

@@ -4,9 +4,7 @@ use dockertest::{
 use fs_extra::dir::{copy, create_all, CopyOptions};
 use rstest::*;
 use secp256k1::SecretKey;
-use serial_test::serial;
 use std::env;
-use std::future::Future;
 use std::path::PathBuf;
 use std::str::FromStr;
 use tokio::sync::oneshot;
@@ -24,14 +22,11 @@ const SUBNET_TCC_JSON_DEFINITION: &'static str = "ToposCoreContract.json";
 const SUBNET_TOKEN_DEPLOYER_JSON_DEFINITION: &'static str = "TokenDeployer.json";
 const SUBNET_CHAIN_ID: u64 = 100;
 const SUBNET_RPC_PORT: u32 = 8545;
-const SUBNET_JSONRPC_ENDPOINT: &'static str = "127.0.0.1:8545";
-const SUBNET_JSONRPC_ENDPOINT_HTTP: &'static str = "http://127.0.0.1:8545";
-const SUBNET_JSONRPC_ENDPOINT_WS: &'static str = "ws://127.0.0.1:8545/ws";
 const TEST_SECRET_ETHEREUM_KEY: &'static str =
     "5fb92d6e98884f76de468fa3f6278f8807c48bebc13595d45af5bdc4da702133";
 const POLYGON_EDGE_CONTAINER: &'static str = "ghcr.io/toposware/polygon-edge";
 const POLYGON_EDGE_CONTAINER_TAG: &str = "develop";
-const SUBNET_STARTUP_DELAY: u64 = 10; // seconds left for subnet startup
+const SUBNET_STARTUP_DELAY: u64 = 5; // seconds left for subnet startup
 const TOPOS_SMART_CONTRACTS_BUILD_PATH_VAR: &str = "TOPOS_SMART_CONTRACTS_BUILD_PATH";
 
 const SOURCE_SUBNET_ID: SubnetId = [1u8; 32];
@@ -163,13 +158,15 @@ async fn deploy_contracts(
 fn spawn_subnet_node(
     stop_subnet_receiver: tokio::sync::oneshot::Receiver<()>,
     subnet_ready_sender: tokio::sync::oneshot::Sender<()>,
+    port: u32,
 ) -> Result<tokio::task::JoinHandle<()>, Box<dyn std::error::Error>> {
     let handle = tokio::task::spawn_blocking(move || {
         let source = Source::DockerHub;
         let mut temp_dir = PathBuf::from_str(env!("CARGO_TARGET_TMPDIR"))
             .expect("Unable to read CARGO_TARGET_TMPDIR");
         temp_dir.push(format!(
-            "./topos-sequencer/data_{}",
+            "./topos-sequencer/data_{}_{}",
+            port,
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .expect("valid system time duration")
@@ -227,7 +224,8 @@ fn spawn_subnet_node(
                 "/data/test-chain-1",
             )
             .bind_mount(genesis_dir.into_os_string().to_string_lossy(), "/genesis")
-            .port_map(SUBNET_RPC_PORT, SUBNET_RPC_PORT);
+            .port_map(SUBNET_RPC_PORT, port);
+
         let mut polygon_edge_node_docker = DockerTest::new().with_default_source(source);
         // Setup command for polygon edge binary
         let cmd: Vec<String> = vec![
@@ -237,6 +235,7 @@ fn spawn_subnet_node(
             "--chain".to_string(),
             "/genesis/genesis.json".to_string(),
         ];
+
         polygon_edge_node_docker.add_composition(
             polygon_edge_node
                 .with_log_options(Some(LogOptions {
@@ -251,18 +250,20 @@ fn spawn_subnet_node(
             println!(
                 "Running container with id: {} name: {} ...",
                 container.id(),
-                container.name()
+                container.name(),
             );
             // TODO: use polling of network block number or some other means to learn when subnet node has started
             tokio::time::sleep(tokio::time::Duration::from_secs(SUBNET_STARTUP_DELAY)).await;
             subnet_ready_sender
                 .send(())
                 .expect("subnet ready channel available");
+
             println!("Waiting for signal to close...");
             stop_subnet_receiver.await.unwrap();
             println!("Container id={} execution finished", container.id());
         })
     });
+
     Ok(handle)
 }
 
@@ -300,6 +301,7 @@ struct Context {
     pub subnet_node_handle: Option<tokio::task::JoinHandle<()>>,
     pub subnet_stop_sender: Option<tokio::sync::oneshot::Sender<()>>,
     pub web3_client: web3::Web3<Http>,
+    pub port: u32,
 }
 
 impl Context {
@@ -318,6 +320,14 @@ impl Context {
             .await?;
         Ok(())
     }
+
+    pub fn jsonrpc(&self) -> String {
+        format!("127.0.0.1:{}", self.port)
+    }
+
+    pub fn jsonrpc_ws(&self) -> String {
+        format!("ws://127.0.0.1:{}/ws", self.port)
+    }
 }
 
 impl Drop for Context {
@@ -327,17 +337,25 @@ impl Drop for Context {
 }
 
 #[fixture]
-async fn context_running_subnet_node() -> Context {
+async fn context_running_subnet_node(#[default(8545)] port: u32) -> Context {
     let (subnet_stop_sender, subnet_stop_receiver) = oneshot::channel::<()>();
     let (subnet_ready_sender, subnet_ready_receiver) = oneshot::channel::<()>();
     println!("Starting subnet node...");
-    let subnet_node_handle = match spawn_subnet_node(subnet_stop_receiver, subnet_ready_sender) {
+
+    let subnet_node_handle = match spawn_subnet_node(
+        subnet_stop_receiver,
+        subnet_ready_sender,
+        port,
+    ) {
         Ok(subnet_node_handle) => subnet_node_handle,
         Err(e) => {
             println!("Failed to start substrate subnet node as part of test context, error details {}, panicking!!!", e);
             panic!("Unable to start substrate subnet node");
         }
     };
+
+    let json_rpc_endpoint = format!("http://127.0.0.1:{}", port);
+
     subnet_ready_receiver
         .await
         .expect("subnet ready channel error");
@@ -345,7 +363,7 @@ async fn context_running_subnet_node() -> Context {
     let mut i = 0;
     let http: Http = loop {
         i += 1;
-        break match Http::new(SUBNET_JSONRPC_ENDPOINT_HTTP) {
+        break match Http::new(&json_rpc_endpoint) {
             Ok(http) => {
                 println!("Connected to subnet node...");
                 Some(http)
@@ -384,15 +402,17 @@ async fn context_running_subnet_node() -> Context {
         subnet_node_handle: Some(subnet_node_handle),
         subnet_stop_sender: Some(subnet_stop_sender),
         web3_client,
+        port,
     }
 }
 
 /// Test to start subnet and deploy subnet smart contract
 #[rstest]
 #[tokio::test]
-#[serial]
 async fn test_subnet_node_contract_deployment(
-    context_running_subnet_node: impl Future<Output = Context>,
+    #[with(8544)]
+    #[future]
+    context_running_subnet_node: Context,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let context = context_running_subnet_node.await;
     println!("Subnet running in the background with deployed contract");
@@ -404,9 +424,10 @@ async fn test_subnet_node_contract_deployment(
 /// Test subnet client RPC connection to subnet
 #[rstest]
 #[tokio::test]
-#[serial]
 async fn test_subnet_node_get_block_info(
-    context_running_subnet_node: impl Future<Output = Context>,
+    #[with(8545)]
+    #[future]
+    context_running_subnet_node: Context,
 ) -> Result<(), Box<dyn std::error::Error>> {
     //Context with subnet
     let context = context_running_subnet_node.await;
@@ -414,7 +435,7 @@ async fn test_subnet_node_get_block_info(
     let _eth_address =
         topos_sequencer_subnet_client::subnet_contract::derive_eth_address(&eth_private_key)?;
     match topos_sequencer_subnet_client::SubnetClientListener::new(
-        SUBNET_JSONRPC_ENDPOINT_WS.as_ref(),
+        &context.jsonrpc_ws(),
         &("0x".to_string() + &hex::encode(context.subnet_contract.address())),
     )
     .await
@@ -452,13 +473,12 @@ async fn test_subnet_node_get_block_info(
 /// Test runtime initialization
 #[rstest]
 #[tokio::test]
-#[serial]
 async fn test_create_runtime() -> Result<(), Box<dyn std::error::Error>> {
     let keystore_file_path = generate_test_keystore_file()?;
     println!("Creating runtime proxy...");
     let runtime_proxy_worker = RuntimeProxyWorker::new(RuntimeProxyConfig {
         subnet_id: SOURCE_SUBNET_ID,
-        endpoint: SUBNET_JSONRPC_ENDPOINT.to_string(),
+        endpoint: format!("localhost:{}", SUBNET_RPC_PORT),
         subnet_contract_address: "0x0000000000000000000000000000000000000000".to_string(),
         keystore_file: keystore_file_path,
         keystore_password: TEST_KEYSTORE_FILE_PASSWORD.to_string(),
@@ -473,9 +493,10 @@ async fn test_create_runtime() -> Result<(), Box<dyn std::error::Error>> {
 /// Test mint call
 #[rstest]
 #[tokio::test]
-#[serial]
 async fn test_subnet_certificate_push_call(
-    context_running_subnet_node: impl Future<Output = Context>,
+    #[with(8546)]
+    #[future]
+    context_running_subnet_node: Context,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let context = context_running_subnet_node.await;
     let keystore_file_path = generate_test_keystore_file()?;
@@ -483,7 +504,7 @@ async fn test_subnet_certificate_push_call(
         "0x".to_string() + &hex::encode(context.subnet_contract.address());
     let runtime_proxy_worker = RuntimeProxyWorker::new(RuntimeProxyConfig {
         subnet_id: SOURCE_SUBNET_ID,
-        endpoint: SUBNET_JSONRPC_ENDPOINT.to_string(),
+        endpoint: context.jsonrpc(),
         subnet_contract_address: subnet_smart_contract_address.clone(),
         keystore_file: keystore_file_path,
         keystore_password: TEST_KEYSTORE_FILE_PASSWORD.to_string(),

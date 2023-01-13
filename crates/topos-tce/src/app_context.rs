@@ -142,7 +142,7 @@ impl AppContext {
         );
         match evt {
             TceEvents::StableSample => {
-                self.api_client.has_active_sample().await;
+                self.api_client.set_active_sample(true).await;
             }
 
             TceEvents::CertificateDelivered { certificate } => {

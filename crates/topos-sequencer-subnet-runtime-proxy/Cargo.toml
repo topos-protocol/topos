@@ -9,10 +9,15 @@ name = "create-keystore"
 path = "src/keystore.rs"
 
 [dependencies]
-serde = { workspace = true, features = ["derive"] }
+byteorder.workspace = true
+clap.workspace = true
+eth-keystore = "0.5.0"
+ethereum-tx-sign = "6.0"
+hex.workspace = true
 rand = { workspace = true, features = ["default"] }
 rand_core.workspace = true
 rand_distr.workspace = true
+serde = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 tokio = { workspace = true, features = [
     "io-util",
@@ -24,25 +29,18 @@ tokio = { workspace = true, features = [
     "time",
     "sync",
 ] }
-byteorder.workspace = true
-tracing.workspace = true
 tracing-subscriber.workspace = true
-hex.workspace = true
-clap.workspace = true
-eth-keystore = "0.5.0"
-ethereum-tx-sign = "6.0"
+tracing.workspace = true
 
-topos-sequencer-types = { package = "topos-sequencer-types", path = "../topos-sequencer-types" }
-topos-sequencer-subnet-client = { package = "topos-sequencer-subnet-client", path = "../topos-sequencer-subnet-client" }
 topos-core = { workspace = true, features = ["uci"] }
+topos-sequencer-subnet-client = { package = "topos-sequencer-subnet-client", path = "../topos-sequencer-subnet-client" }
+topos-sequencer-types = { package = "topos-sequencer-types", path = "../topos-sequencer-types" }
 
 [dev-dependencies]
-rstest.workspace = true
-serde_json.workspace = true
-web3.workspace = true
-secp256k1.workspace = true
-serial_test = "0.9"
 dockertest = "0.3.1"
-
-tiny-keccak = "1.2"
 fs_extra = "1.2"
+rstest.workspace = true
+secp256k1 = { version = "0.21", features = ["recovery"]}
+serde_json.workspace = true
+tiny-keccak = "1.2"
+web3.workspace = true

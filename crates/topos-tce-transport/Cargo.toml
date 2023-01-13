@@ -8,10 +8,8 @@ license = "MIT"
 path = 'src/lib.rs'
 
 [dependencies]
-serde.workspace = true
 clap.workspace = true
+serde.workspace = true
 
 topos-core = { workspace = true, features = ["uci"] }
 topos-p2p = { path = "../topos-p2p/"}
-
-
