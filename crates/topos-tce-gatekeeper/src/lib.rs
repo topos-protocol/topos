@@ -16,6 +16,7 @@ mod tests;
 
 pub use client::GatekeeperClient;
 use topos_commands::{Command, CommandHandler, RegisterCommands};
+use topos_core::uci::SubnetId;
 use topos_p2p::PeerId;
 
 pub struct Gatekeeper {
@@ -24,6 +25,7 @@ pub struct Gatekeeper {
     pub(crate) tick_duration: Duration,
 
     peer_list: Vec<PeerId>,
+    subnet_list: Vec<SubnetId>,
 }
 
 impl Default for Gatekeeper {
@@ -37,6 +39,7 @@ impl Default for Gatekeeper {
             commands: commands_recv,
             tick_duration,
             peer_list: Vec::default(),
+            subnet_list: Vec::default(),
         }
     }
 }
@@ -48,12 +51,12 @@ impl CommandHandler<PushPeerList> for Gatekeeper {
     async fn handle(
         &mut self,
         PushPeerList { mut peer_list }: PushPeerList,
-    ) -> Result<(), Self::Error> {
+    ) -> Result<Vec<PeerId>, Self::Error> {
         peer_list.dedup();
 
         self.peer_list = peer_list.into_iter().collect();
 
-        Ok(())
+        Ok(self.peer_list.clone())
     }
 }
 
@@ -63,6 +66,15 @@ impl CommandHandler<GetAllPeers> for Gatekeeper {
 
     async fn handle(&mut self, _command: GetAllPeers) -> Result<Vec<PeerId>, Self::Error> {
         Ok(self.peer_list.clone())
+    }
+}
+
+#[async_trait::async_trait]
+impl CommandHandler<GetAllSubnets> for Gatekeeper {
+    type Error = GatekeeperError;
+
+    async fn handle(&mut self, _command: GetAllSubnets) -> Result<Vec<SubnetId>, Self::Error> {
+        Ok(self.subnet_list.clone())
     }
 }
 
@@ -124,7 +136,9 @@ impl IntoFuture for Gatekeeper {
                         GatekeeperCommand::GetRandomPeers(command, response_channel) => {
                             _ = response_channel.send(self.handle(command).await)
                         },
-
+                        GatekeeperCommand::GetAllSubnets(command, response_channel) => {
+                            _ = response_channel.send(self.handle(command).await)
+                        },
                     }
                 }
             };
@@ -158,12 +172,15 @@ pub enum GatekeeperError {
 
     #[error("Unable to execute command on the Gatekeeper: {0}")]
     InvalidCommand(String),
+
+    #[error("Unable to execute shutdown on the Gatekeeper: {0}")]
+    ShutdownCommunication(mpsc::error::SendError<oneshot::Sender<()>>),
 }
 
 RegisterCommands!(
     name = GatekeeperCommand,
     error = GatekeeperError,
-    commands = [PushPeerList, GetAllPeers, GetRandomPeers]
+    commands = [PushPeerList, GetAllPeers, GetRandomPeers, GetAllSubnets]
 );
 
 #[derive(Debug)]
@@ -172,7 +189,7 @@ pub struct PushPeerList {
 }
 
 impl Command for PushPeerList {
-    type Result = ();
+    type Result = Vec<PeerId>;
 }
 
 #[derive(Debug)]
@@ -189,4 +206,11 @@ pub struct GetRandomPeers {
 
 impl Command for GetRandomPeers {
     type Result = Vec<PeerId>;
+}
+
+#[derive(Debug)]
+pub struct GetAllSubnets;
+
+impl Command for GetAllSubnets {
+    type Result = Vec<SubnetId>;
 }

@@ -108,14 +108,17 @@ impl AppContext {
             }
 
             ApiEvent::PeerListPushed { peers, sender } => {
-                let fut = self.tce_cli.peer_changed(peers);
-                spawn(async move {
-                    if fut.await.is_err() {
-                        _ = sender.send(Err(RuntimeError::UnableToPushPeerList));
-                    } else {
+                let sampler = self.tce_cli.clone();
+
+                if let Ok(peers) = self.gatekeeper.push_peer_list(peers).await {
+                    if sampler.peer_changed(peers).await.is_ok() {
                         _ = sender.send(Ok(()));
+                    } else {
+                        _ = sender.send(Err(RuntimeError::UnableToPushPeerList));
                     }
-                });
+                } else {
+                    _ = sender.send(Err(RuntimeError::UnableToPushPeerList));
+                }
             }
         }
     }

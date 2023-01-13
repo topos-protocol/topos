@@ -11,6 +11,7 @@ rand.workspace = true
 tokio = { workspace = true, features = ["full"] }
 
 topos-p2p = { path = "../topos-p2p" }
+topos-core = { path = "../topos-core/" }
 topos-commands = { path = "../topos-commands/" }
 
 [dev-dependencies]
