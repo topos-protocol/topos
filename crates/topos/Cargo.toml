@@ -4,12 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-topos-core = { workspace = true, features = ["api"] }
-topos-p2p = { path = "../topos-p2p" }
-topos-sequencer = { path = "../topos-sequencer" }
 topos-tce = { path = "../topos-tce/" }
+topos-p2p = { path = "../topos-p2p" }
 topos-tce-transport = { path = "../topos-tce-transport" }
+topos-sequencer = { path = "../topos-sequencer" }
 
+topos-core = { workspace = true, features = ["api"] }
 clap.workspace = true
 futures.workspace = true
 opentelemetry-otlp.workspace = true
@@ -24,8 +24,20 @@ tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
 uuid.workspace = true
 
 [dev-dependencies]
-assert_cmd = "2.0.6"
-insta = { version = "1.21", features = ["json", "redactions"] }
+topos-tce-broadcast = { path = "../topos-tce-broadcast" }
+topos-tce-transport = { path = "../topos-tce-transport" }
+topos-tce-synchronizer = { path = "../topos-tce-synchronizer" }
+topos-tce-gatekeeper = { path = "../topos-tce-gatekeeper" }
+topos-tce-api = {path = "../topos-tce-api"}
+topos-tce-storage = { path = "../topos-tce-storage" }
 serde.workspace = true
 serde_json.workspace = true
+test-log.workspace = true
+rand.workspace = true
+async-stream.workspace = true
+futures.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
+libp2p = { workspace = true, features = ["tcp-tokio", "dns-tokio", "request-response", "identify", "mplex", "mdns-tokio", "mdns", "kad", "serde"] }
+assert_cmd = "2.0.6"
+insta = { version = "1.21", features = ["json", "redactions"] }
 

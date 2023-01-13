@@ -6,17 +6,17 @@ use libp2p::{
     identity::{self, Keypair},
     Multiaddr, PeerId,
 };
-use tce_transport::{ReliableBroadcastParams, TceEvents};
+use std::future::IntoFuture;
 use tokio::task::JoinHandle;
 use tokio::{spawn, sync::mpsc};
 use tonic::transport::{channel, Channel};
 use topos_core::api::tce::v1::api_service_client::ApiServiceClient;
 use topos_p2p::{Client, Event, Runtime};
-use topos_tce::{storage::inmemory::InmemoryStorage, AppContext};
 use topos_tce_broadcast::{
-    mem_store::TceMemStore, DoubleEchoCommand, ReliableBroadcastClient, ReliableBroadcastConfig,
-    SamplerCommand,
+    DoubleEchoCommand, ReliableBroadcastClient, ReliableBroadcastConfig, SamplerCommand,
 };
+use topos_tce_storage::{Connection, RocksDBStorage};
+use topos_tce_transport::{ReliableBroadcastParams, TceEvents};
 
 #[derive(Debug)]
 pub struct TestAppContext {
@@ -27,6 +27,9 @@ pub struct TestAppContext {
     pub(crate) api_grpc_client: Option<ApiServiceClient<Channel>>, // GRPC Client for this peer (tce node)
     pub runtime_join_handle: JoinHandle<()>,
     pub app_join_handle: JoinHandle<()>,
+    pub storage_join_handle: JoinHandle<Result<(), topos_tce_storage::errors::StorageError>>,
+    pub gatekeeper_join_handle: JoinHandle<Result<(), topos_tce_gatekeeper::GatekeeperError>>,
+    pub synchronizer_join_handle: JoinHandle<Result<(), topos_tce_synchronizer::SynchronizerError>>,
     pub connected_subnets: Option<Vec<SubnetId>>, // Particular subnet clients (topos nodes) connected to this tce node
 }
 
@@ -46,15 +49,15 @@ where
     let peers = build_peer_config_pool(peer_number);
 
     for (index, (seed, port, keypair, addr)) in peers.iter().enumerate() {
-        let peer_id = format!("peer_{index}");
-        let (rb_client, tce_events) = create_reliable_broadcast_client(
-            &peer_id,
+        let user_peer_id = format!("peer_{index}");
+        let (tce_cli, tce_stream) = create_reliable_broadcast_client(
+            &user_peer_id,
             create_reliable_broadcast_params(correct_sample, &g),
         );
-        let (client, event_stream, runtime) =
-            create_network_worker(*seed, *port, addr.clone(), &peers).await;
+        let (command_sampler, command_broadcast) = tce_cli.get_command_channels();
 
-        let (command_sampler, command_broadcast) = rb_client.get_command_channels();
+        let (network_client, network_stream, runtime) =
+            create_network_worker(*seed, *port, addr.clone(), &peers).await;
 
         let socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
         let addr = socket.local_addr().ok().unwrap();
@@ -65,10 +68,47 @@ where
             .exposed_addresses(addr)
             .build_and_launch()
             .await;
-        let app = AppContext::new(InmemoryStorage::default(), rb_client, client, api_client);
+
+        // launch data store
+        let temp_dir = std::path::PathBuf::from_str(env!("CARGO_TARGET_TMPDIR"))
+            .expect("Unable to read CARGO_TARGET_TMPDIR");
+        let (storage, storage_client, storage_stream) = {
+            let storage = RocksDBStorage::open(&temp_dir).expect("valid rocksdb storage");
+            Connection::build(Box::pin(async { Ok(storage) }))
+        };
+        let storage_join_handle = spawn(storage.into_future());
+
+        let (gatekeeper_client, gatekeeper_runtime) = topos_tce_gatekeeper::Gatekeeper::builder()
+            .await
+            .expect("Can't create the Gatekeeper");
+        let gatekeeper_join_handle = spawn(gatekeeper_runtime.into_future());
+
+        let (synchronizer_client, synchronizer_runtime, synchronizer_stream) =
+            topos_tce_synchronizer::Synchronizer::builder()
+                .with_gatekeeper_client(gatekeeper_client.clone())
+                .with_network_client(network_client.clone())
+                .await
+                .expect("Can't create the Synchronizer");
+        let synchronizer_join_handle = spawn(synchronizer_runtime.into_future());
+
+        let app = topos_tce::AppContext::new(
+            storage_client,
+            tce_cli,
+            network_client,
+            api_client,
+            gatekeeper_client,
+            synchronizer_client,
+        );
 
         let runtime_join_handle = spawn(runtime.run());
-        let app_join_handle = spawn(app.run(event_stream, tce_events, api_events));
+        let app_join_handle = spawn(app.run(
+            network_stream,
+            tce_stream,
+            api_events,
+            storage_stream,
+            synchronizer_stream,
+        ));
+
         let api_endpoint = format!("http://127.0.0.1:{api_port}");
 
         let channel = channel::Endpoint::from_str(&api_endpoint)
@@ -77,16 +117,19 @@ where
         let api_grpc_client = ApiServiceClient::new(channel);
 
         let client = TestAppContext {
-            id: peer_id.clone(),
+            id: user_peer_id.clone(),
             peer_id: keypair.public().to_peer_id(),
             command_sampler,
             command_broadcast,
             api_grpc_client: Some(api_grpc_client),
             runtime_join_handle,
             app_join_handle,
+            storage_join_handle,
+            gatekeeper_join_handle,
+            synchronizer_join_handle,
             connected_subnets: None,
         };
-        clients.insert(peer_id, client);
+        clients.insert(user_peer_id, client);
     }
 
     clients
@@ -152,7 +195,7 @@ async fn create_network_worker(
 
     topos_p2p::network::builder()
         .peer_key(key.clone())
-        .known_peers(known_peers)
+        .known_peers(&known_peers)
         .listen_addr(addr)
         .build()
         .await
@@ -160,16 +203,15 @@ async fn create_network_worker(
 }
 
 fn create_reliable_broadcast_client(
-    peer_id: &str,
+    user_peer_id: &str,
     tce_params: ReliableBroadcastParams,
 ) -> (
     ReliableBroadcastClient,
     impl Stream<Item = Result<TceEvents, ()>> + Unpin,
 ) {
     let config = ReliableBroadcastConfig {
-        store: Box::new(TceMemStore::new(vec![])),
         tce_params,
-        my_peer_id: peer_id.to_string(),
+        my_peer_id: user_peer_id.to_string(),
     };
 
     ReliableBroadcastClient::new(config)

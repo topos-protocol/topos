@@ -155,12 +155,11 @@ impl Storage for RocksDBStorage {
         // TODO: Add expected version instead of calculating on the go
         let mut targets = Vec::new();
 
-        for transaction in &certificate.calls {
+        for target_subnet_id in &certificate.target_subnets {
             let target = if let Some((TargetStreamPosition(target, source, position), _)) = self
                 .target_streams
                 .prefix_iter(&TargetStreamPrefix(
-                    transaction
-                        .target_subnet_id
+                    (*target_subnet_id)
                         .try_into()
                         .map_err(|_| InternalStorageError::InvalidSubnetId)?,
                     source_subnet_id,
@@ -180,8 +179,7 @@ impl Storage for RocksDBStorage {
             } else {
                 (
                     TargetStreamPosition(
-                        transaction
-                            .target_subnet_id
+                        (*target_subnet_id)
                             .try_into()
                             .map_err(|_| InternalStorageError::InvalidSubnetId)?,
                         source_subnet_id,

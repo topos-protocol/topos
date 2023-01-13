@@ -15,9 +15,9 @@ use topos_core::{
         watch_certificates_request::OpenStream,
         watch_certificates_response::{CertificatePushed, Event},
     },
-    uci::Certificate,
+    uci::{Certificate, SubnetId},
 };
-use topos_tce_broadcast::{uci::SubnetId, DoubleEchoCommand, SamplerCommand};
+use topos_tce_broadcast::{DoubleEchoCommand, SamplerCommand};
 use tracing::{debug, info};
 
 fn get_subset_of_subnets(subnets: &[SubnetId], subset_size: usize) -> Vec<SubnetId> {
@@ -40,7 +40,7 @@ async fn cert_delivery() {
 
     let g = |a, b| (((a as f32) * b) as f32).ceil() as usize;
 
-    let all_subnets: Vec<SubnetId> = (1..=number_of_subnets).map(|v| v.to_string()).collect();
+    let all_subnets: Vec<SubnetId> = (1..=number_of_subnets).map(|v| [v as u8; 32]).collect();
 
     // List of peers (tce nodes) with their context
     let mut peers_context =
@@ -58,16 +58,16 @@ async fn cert_delivery() {
     let mut expected_certificates: HashMap<SubnetId, HashSet<Certificate>> = HashMap::new();
     for (_source_subnet_id, certificates) in &subnet_certificates {
         for cert in certificates {
-            for cross_chain_tx in &cert.calls {
+            for target_subnet in &cert.target_subnets {
                 expected_certificates
-                    .entry(cross_chain_tx.target_subnet_id.clone())
+                    .entry(*target_subnet)
                     .or_insert(HashSet::new())
                     .insert(cert.clone());
             }
         }
     }
     // Connected tce clients are passing received certificates to this mpsc::Receiver, collect all of them
-    let mut clients_delivered_certificates: Vec<mpsc::Receiver<(String, String, Certificate)>> =
+    let mut clients_delivered_certificates: Vec<mpsc::Receiver<(String, SubnetId, Certificate)>> =
         Vec::new(); // (Peer Id, Subnet Id, Certificate)
     let mut client_tasks: Vec<tokio::task::JoinHandle<()>> = Vec::new(); // Clients connected to TCE API Service run in async tasks
 
@@ -119,8 +119,10 @@ async fn cert_delivery() {
                         certificate: Some(certificate),
                     })) = received.event
                     {
-                        debug!("Client peer_id: {} certificate cert_id: {} delivered to subnet id {}, ",
-                            &peer_id, &certificate.cert_id, &client_subnet_id);
+                        debug!(
+                            "Client peer_id: {} certificate id: {:?} delivered to subnet id {:?}, ",
+                            &peer_id, &certificate.id, &client_subnet_id
+                        );
                         tx.send((
                             peer_id.clone(),
                             client_subnet_id.clone().into(),
@@ -160,7 +162,7 @@ async fn cert_delivery() {
                             if key == &current_peer {
                                 None
                             } else {
-                                Some(ctx.peer_id.to_string())
+                                Some(ctx.peer_id)
                             }
                         })
                         .collect::<Vec<_>>()
@@ -184,8 +186,8 @@ async fn cert_delivery() {
                     // Iterate all certificates meant to be sent to the particular network
                     for cert in certificates.iter() {
                         debug!(
-                            "Sending certificate id={} from subnet id: {} to peer id: {}",
-                            &cert.cert_id, &subnet_id, &peer_id
+                            "Sending certificate id={:?} from subnet id: {:?} to peer id: {}",
+                            &cert.id, &subnet_id, &peer_id
                         );
                         let _ = client
                             .command_broadcast
@@ -218,16 +220,16 @@ async fn cert_delivery() {
         let delivery_task = tokio::spawn(async move {
             // Read certificates that every client has received
             debug!("Delivery task for receiver {}", index);
-            while let Some((peer_id, receiving_subnet_id, cert)) =
+            while let Some((peer_id, target_subnet_id, cert)) =
                 client_delivered_certificates.recv().await
             {
                 debug!(
-                    "Delivered certificate on peer_Id: {} cert id: {} from source subnet id: {} to target subnet id {}",
-                    &peer_id, cert.cert_id, cert.source_subnet_id, receiving_subnet_id
+                    "Delivered certificate on peer_Id: {} cert id: {:?} from source subnet id: {:?} to target subnet id {:?}",
+                    &peer_id, cert.id, cert.source_subnet_id, target_subnet_id
                 );
                 // Send certificates from every peer to one delivery_rx receiver
                 delivery_tx
-                    .send((peer_id, receiving_subnet_id, cert))
+                    .send((peer_id, target_subnet_id, cert))
                     .await
                     .unwrap();
             }
@@ -247,7 +249,7 @@ async fn cert_delivery() {
             HashMap::new();
         // Collect all certificates per peer_id and subnet_id
         while let Some((peer_id, receiving_subnet_id, cert)) = delivery_rx.recv().await {
-            debug!("Counting delivered certificate cert id: {}", cert.cert_id);
+            debug!("Counting delivered certificate cert id: {:?}", cert.id);
             delivered_certificates
                 .entry(peer_id)
                 .or_insert(HashMap::new())

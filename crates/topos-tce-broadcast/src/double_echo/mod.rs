@@ -528,7 +528,7 @@ mod tests {
         double_echo.subscriptions = expected_subscriptions_view.clone();
         double_echo.subscribers = expected_subscriber_view;
 
-        let le_cert = Certificate::new(PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID, vec![]).unwrap();
+        let le_cert = Certificate::new(PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID, &[]).unwrap();
         double_echo.handle_broadcast(le_cert.clone());
 
         assert_eq!(event_receiver.len(), 2);

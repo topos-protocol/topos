@@ -1,6 +1,5 @@
 use std::collections::HashMap;
-use topos_core::uci::{Address, Amount, CrossChainTransaction};
-use topos_tce_broadcast::uci::{Certificate, CertificateId, CrossChainTransactionData, SubnetId};
+use topos_core::uci::{Certificate, CertificateId, SubnetId};
 
 /// Generate and assign nb_cert number of certificates to existing subnets
 /// Could be different number of certificates per subnet
@@ -16,10 +15,10 @@ pub fn generate_cert(
 
     // Initialize the genesis of all subnets
     for subnet in subnets {
-        nonce_state.insert(subnet.to_string(), 0.to_string());
+        nonce_state.insert(*subnet, [0 as u8; 32].into());
     }
 
-    let mut gen_cert = |selected_subnet: String| -> Certificate {
+    let mut gen_cert = |selected_subnet: SubnetId| -> Certificate {
         let last_cert_id = nonce_state.get_mut(&selected_subnet).unwrap();
         // Add one cross chain transaction for every other subnet
         let target_subnets = subnets
@@ -27,25 +26,10 @@ pub fn generate_cert(
             .filter(|sub| *sub != &selected_subnet)
             .cloned()
             .collect::<Vec<_>>();
-        let mut cross_chain_transactions = Vec::new();
-        for (index, target_subnet_id) in target_subnets.into_iter().enumerate() {
-            cross_chain_transactions.push(CrossChainTransaction {
-                target_subnet_id: target_subnet_id.clone(),
-                transaction_data: CrossChainTransactionData::AssetTransfer {
-                    asset_id: "TST_SUBNET_".to_string() + &target_subnet_id,
-                    amount: Amount::from((index + 1) * 100),
-                },
-                recipient_addr: Address::from("0x0000000000000000000000000000000000000002"),
-                sender_addr: Address::from("0x0000000000000000000000000000000000000001"),
-            })
-        }
 
-        let gen_cert = Certificate::new(
-            last_cert_id.clone(),
-            selected_subnet,
-            cross_chain_transactions,
-        );
-        *last_cert_id = gen_cert.cert_id.clone();
+        let gen_cert = Certificate::new(last_cert_id.clone(), selected_subnet, &target_subnets)
+            .expect("valid new certificate");
+        *last_cert_id = gen_cert.id;
         gen_cert
     };
 

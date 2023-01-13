@@ -1,6 +1,6 @@
 use crate::SubnetId;
 use rstest::rstest;
-use topos_core::uci::{Amount, Certificate, CertificateId, CrossChainTransaction};
+use topos_core::uci::{Certificate, CertificateId};
 
 use crate::{
     rocks::{map::Map, TargetStreamPosition},
@@ -20,9 +20,6 @@ const TARGET_SUBNET_ID_B: topos_core::uci::SubnetId = [3u8; 32];
 
 const PREV_CERTIFICATE_ID: CertificateId = CertificateId::from_array([0u8; 32]);
 const CERTIFICATE_ID: CertificateId = CertificateId::from_array([5u8; 32]);
-const SENDER_ID: topos_core::uci::Address = [6u8; 20];
-const RECEIVER_ID_A: topos_core::uci::Address = [7u8; 20];
-const RECEIVER_ID_B: topos_core::uci::Address = [8u8; 20];
 
 const SOURCE_STORAGE_SUBNET_ID: SubnetId = SubnetId { inner: [1u8; 32] };
 const TARGET_STORAGE_SUBNET_ID_A: SubnetId = SubnetId { inner: [2u8; 32] };
@@ -31,7 +28,7 @@ const TARGET_STORAGE_SUBNET_ID_B: SubnetId = SubnetId { inner: [3u8; 32] };
 #[rstest]
 #[tokio::test]
 async fn can_persist_a_pending_certificate(storage: RocksDBStorage) {
-    let certificate = Certificate::new(PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID, Vec::new()).unwrap();
+    let certificate = Certificate::new(PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID, &[]).unwrap();
 
     assert!(storage.add_pending_certificate(certificate).await.is_ok());
 }
@@ -46,15 +43,7 @@ async fn can_persist_a_delivered_certificate(storage: RocksDBStorage) {
     let certificate = Certificate::new(
         PREV_CERTIFICATE_ID,
         SOURCE_SUBNET_ID,
-        vec![CrossChainTransaction {
-            target_subnet_id: TARGET_SUBNET_ID_A,
-            transaction_data: topos_core::uci::CrossChainTransactionData::AssetTransfer {
-                sender: SENDER_ID,
-                receiver: RECEIVER_ID_A,
-                symbol: "asset_id".to_string(),
-                amount: Amount::from(1),
-            },
-        }],
+        &vec![TARGET_SUBNET_ID_A],
     )
     .unwrap();
 
@@ -104,26 +93,7 @@ async fn delivered_certificate_are_added_to_target_stream(storage: RocksDBStorag
     let certificate = Certificate::new(
         PREV_CERTIFICATE_ID,
         SOURCE_SUBNET_ID,
-        vec![
-            CrossChainTransaction {
-                target_subnet_id: TARGET_SUBNET_ID_A,
-                transaction_data: topos_core::uci::CrossChainTransactionData::AssetTransfer {
-                    sender: SENDER_ID,
-                    receiver: RECEIVER_ID_A,
-                    symbol: "asset_id".to_string(),
-                    amount: Amount::from(1),
-                },
-            },
-            CrossChainTransaction {
-                target_subnet_id: TARGET_SUBNET_ID_B,
-                transaction_data: topos_core::uci::CrossChainTransactionData::AssetTransfer {
-                    sender: SENDER_ID,
-                    receiver: RECEIVER_ID_B,
-                    symbol: "asset_id".to_string(),
-                    amount: Amount::from(1),
-                },
-            },
-        ],
+        &vec![TARGET_SUBNET_ID_A, TARGET_SUBNET_ID_B],
     )
     .unwrap();
 
@@ -165,15 +135,7 @@ async fn pending_certificate_are_removed_during_persist_action(storage: RocksDBS
     let certificate = Certificate::new(
         PREV_CERTIFICATE_ID,
         SOURCE_SUBNET_ID,
-        vec![CrossChainTransaction {
-            target_subnet_id: TARGET_SUBNET_ID_A,
-            transaction_data: topos_core::uci::CrossChainTransactionData::AssetTransfer {
-                sender: SENDER_ID,
-                receiver: RECEIVER_ID_A,
-                symbol: "asset_id".into(),
-                amount: Amount::from(1),
-            },
-        }],
+        &vec![TARGET_SUBNET_ID_A],
     )
     .unwrap();
 
@@ -197,15 +159,7 @@ async fn fetch_certificates_for_subnets(storage: RocksDBStorage) {
     let other_certificate = Certificate::new(
         PREV_CERTIFICATE_ID,
         TARGET_SUBNET_ID_B,
-        vec![CrossChainTransaction {
-            target_subnet_id: TARGET_SUBNET_ID_A,
-            transaction_data: topos_core::uci::CrossChainTransactionData::AssetTransfer {
-                sender: SENDER_ID,
-                receiver: RECEIVER_ID_A,
-                symbol: "asset_id".into(),
-                amount: Amount::from(1),
-            },
-        }],
+        &[TARGET_SUBNET_ID_A],
     )
     .unwrap();
 
@@ -271,20 +225,8 @@ async fn fetch_certificates_for_subnets(storage: RocksDBStorage) {
 async fn pending_certificate_can_be_removed(storage: RocksDBStorage) {
     let pending_column = storage.pending_certificates_column();
 
-    let certificate = Certificate::new(
-        PREV_CERTIFICATE_ID,
-        SOURCE_SUBNET_ID,
-        vec![CrossChainTransaction {
-            target_subnet_id: TARGET_SUBNET_ID_A,
-            transaction_data: topos_core::uci::CrossChainTransactionData::AssetTransfer {
-                sender: SENDER_ID,
-                receiver: RECEIVER_ID_A,
-                symbol: "asset_id".into(),
-                amount: Amount::from(1),
-            },
-        }],
-    )
-    .unwrap();
+    let certificate =
+        Certificate::new(PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID, &[TARGET_SUBNET_ID_A]).unwrap();
 
     let pending_id = storage
         .add_pending_certificate(certificate.clone())
@@ -342,15 +284,7 @@ fn create_certificate_chain(
         let cert = Certificate::new(
             parent.take().unwrap_or([0u8; 32]),
             source_subnet.clone(),
-            vec![CrossChainTransaction {
-                target_subnet_id: target_subnet.clone(),
-                transaction_data: topos_core::uci::CrossChainTransactionData::AssetTransfer {
-                    sender: SENDER_ID,
-                    receiver: RECEIVER_ID_A,
-                    symbol: "asset_id".into(),
-                    amount: Amount::from(1),
-                },
-            }],
+            &[target_subnet.clone()],
         )
         .unwrap();
         parent = Some(cert.id.as_array().clone());

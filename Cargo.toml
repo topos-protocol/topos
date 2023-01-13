@@ -54,3 +54,4 @@ uuid = { version = "1.1.2", default-features = false, features = ["v4"] }
 
 # Tests
 rstest = { version = "0.16", default-features = false }
+test-log = { version = "0.2", features = ["trace"] }
