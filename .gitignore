@@ -57,3 +57,6 @@ terraform.rc
 #k8s
 **/kubeconfig
 # ~~~ END TERRAFORM
+
+# Subnet integration tests
+crates/topos-sequencer-subnet-runtime-proxy/tests/temp

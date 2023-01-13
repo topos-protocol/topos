@@ -3,8 +3,6 @@
 //!
 
 use crate::Error::InvalidChannelError;
-use hyper::{body::Buf, header, Client, Method, Request};
-use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 use tokio_stream::StreamExt;
 use tonic::transport::channel;
@@ -14,10 +12,10 @@ use topos_core::{
         watch_certificates_response, SubmitCertificateRequest, WatchCertificatesRequest,
         WatchCertificatesResponse,
     },
-    uci::{Certificate, CertificateId, SubnetId},
+    uci::{Certificate, SubnetId},
 };
 use topos_sequencer_types::*;
-use tracing::{debug, error, info, warn};
+use tracing::{error, info, warn};
 
 const CERTIFICATE_OUTBOUND_CHANNEL_SIZE: usize = 100;
 const CERTIFICATE_INBOUND_CHANNEL_SIZE: usize = 100;
@@ -432,99 +430,5 @@ impl TceProxyWorker {
     pub async fn next_event(&mut self) -> Result<TceProxyEvent, String> {
         let event = self.events.recv().await;
         Ok(event.unwrap())
-    }
-
-    /// Calls for the new certificates
-    pub async fn check_new_certificates(
-        base_tce_api_url: &str,
-        subnet_id: &SubnetId,
-        from_cert_id: &CertificateId,
-    ) -> Result<Vec<Certificate>, String> {
-        let post_data = DeliveredCertsReq {
-            subnet_id: *subnet_id,
-            from_cert_id: *from_cert_id,
-        };
-
-        // setup the client
-        let http_cli = Client::new();
-        let delivered_certs_uri = (base_tce_api_url.to_string() + "/delivered_certs")
-            .parse::<hyper::Uri>()
-            .unwrap();
-
-        let json = serde_json::to_string(&post_data).expect("serialize");
-
-        let req = Request::builder()
-            .method(Method::POST)
-            .uri(delivered_certs_uri)
-            .header(header::CONTENT_TYPE, "application/json")
-            .body(json.into())
-            .unwrap();
-
-        match http_cli.request(req).await {
-            Ok(http_res) => match hyper::body::aggregate(http_res).await {
-                Ok(res_body) => {
-                    match serde_json::from_reader::<_, DeliveredCerts>(res_body.reader()) {
-                        Ok(new_certs) => {
-                            debug!("check_new_certificates, post ok: {:?}", new_certs);
-                            Ok(new_certs.certs)
-                        }
-                        Err(e) => {
-                            warn!("check_new_certificates - failed to parse the body:{:?}", e);
-                            Err(format!("{e:?}"))
-                        }
-                    }
-                }
-                Err(e) => {
-                    warn!(
-                        "check_new_certificates - failed to aggregate the body:{:?}",
-                        e
-                    );
-                    Err(format!("{e:?}"))
-                }
-            },
-            Err(e) => {
-                warn!("check_new_certificates failed: {:?}", e);
-                Err(format!("{e:?}"))
-            }
-        }
-    }
-}
-
-#[derive(Serialize, Debug)]
-pub struct SubmitCertReq {
-    pub cert: Certificate,
-}
-
-#[derive(Serialize, Debug)]
-struct DeliveredCertsReq {
-    pub subnet_id: SubnetId,
-    pub from_cert_id: CertificateId,
-}
-
-#[derive(Deserialize, Debug)]
-struct DeliveredCerts {
-    certs: Vec<Certificate>,
-}
-
-#[cfg(test)]
-mod should {
-    use crate::TceProxyWorker;
-
-    const SOURCE_SUBNET_ID: topos_core::uci::SubnetId = [1u8; 32];
-    const PREV_CERTIFICATE_ID: topos_core::uci::CertificateId = [4u8; 32];
-
-    #[tokio::test]
-    async fn call_into_tce() {
-        pretty_env_logger::init_timed();
-
-        let jh = tokio::spawn(async move {
-            let _ = TceProxyWorker::check_new_certificates(
-                &"http://localhost:8080".to_string(),
-                &SOURCE_SUBNET_ID,
-                &PREV_CERTIFICATE_ID,
-            )
-            .await;
-        });
-        let _ = tokio::join!(jh);
     }
 }
