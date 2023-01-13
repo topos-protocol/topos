@@ -18,7 +18,7 @@ tokio = { workspace = true, features = [
     "sync",
 ] }
 tracing.workspace = true
-tracing-subscriber.workspace = true
+tracing-subscriber = {workspace = true, features = ["fmt", "std", "env-filter",]}
 hex.workspace = true
 clap.workspace = true
 bincode.workspace = true

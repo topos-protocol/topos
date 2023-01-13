@@ -33,12 +33,12 @@
   },
   {
     "inputs": [],
-    "name": "CertAlreadyVerified",
+    "name": "CertAlreadyPresent",
     "type": "error"
   },
   {
     "inputs": [],
-    "name": "CertNotVerified",
+    "name": "CertNotPresent",
     "type": "error"
   },
   {
@@ -85,6 +85,11 @@
   },
   {
     "inputs": [],
+    "name": "InvalidCodeHash",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "InvalidSetDailyMintLimitsParams",
     "type": "error"
   },
@@ -112,6 +117,16 @@
   {
     "inputs": [],
     "name": "NotAdmin",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "NotProxy",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "SetupFailed",
     "type": "error"
   },
   {
@@ -173,7 +188,7 @@
         "type": "bytes"
       }
     ],
-    "name": "CertVerified",
+    "name": "CertStored",
     "type": "event"
   },
   {
@@ -217,6 +232,19 @@
       }
     ],
     "name": "ContractCall",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "certPosition",
+        "type": "uint256"
+      }
+    ],
+    "name": "ContractCallDataVerified",
     "type": "event"
   },
   {
@@ -353,6 +381,19 @@
       }
     ],
     "name": "TokenSent",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "implementation",
+        "type": "address"
+      }
+    ],
+    "name": "Upgraded",
     "type": "event"
   },
   {
@@ -577,6 +618,42 @@
   {
     "inputs": [
       {
+        "internalType": "bytes",
+        "name": "certId",
+        "type": "bytes"
+      }
+    ],
+    "name": "getStorageCert",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "bytes",
+            "name": "certId",
+            "type": "bytes"
+          },
+          {
+            "internalType": "uint256",
+            "name": "position",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "isPresent",
+            "type": "bool"
+          }
+        ],
+        "internalType": "struct IToposCoreContract.Certificate",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "bytes32",
         "name": "key",
         "type": "bytes32"
@@ -615,42 +692,6 @@
   {
     "inputs": [
       {
-        "internalType": "bytes",
-        "name": "certId",
-        "type": "bytes"
-      }
-    ],
-    "name": "getVerfiedCert",
-    "outputs": [
-      {
-        "components": [
-          {
-            "internalType": "bytes",
-            "name": "certId",
-            "type": "bytes"
-          },
-          {
-            "internalType": "uint256",
-            "name": "position",
-            "type": "uint256"
-          },
-          {
-            "internalType": "bool",
-            "name": "isVerified",
-            "type": "bool"
-          }
-        ],
-        "internalType": "struct IToposCoreContract.Certificate",
-        "name": "",
-        "type": "tuple"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
         "internalType": "string",
         "name": "symbol",
         "type": "string"
@@ -667,6 +708,32 @@
       }
     ],
     "name": "giveToken",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "implementation",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes",
+        "name": "certBytes",
+        "type": "bytes"
+      }
+    ],
+    "name": "pushCertificate",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -788,14 +855,37 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "tokenDeployer",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
+        "internalType": "address",
+        "name": "newImplementation",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "newImplementationCodeHash",
+        "type": "bytes32"
+      },
+      {
         "internalType": "bytes",
-        "name": "certBytes",
+        "name": "setupParams",
         "type": "bytes"
       }
     ],
-    "name": "verifyCertificate",
+    "name": "upgrade",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -821,7 +911,7 @@
         "type": "uint256"
       }
     ],
-    "stateMutability": "view",
+    "stateMutability": "nonpayable",
     "type": "function"
   }
 ]
