@@ -10,10 +10,9 @@ use tokio_stream::StreamExt;
 use tonic::transport::channel;
 use topos_core::{
     api::tce::v1::{
-        api_service_client::ApiServiceClient,
-        watch_certificates_request::{self},
-        watch_certificates_response::{self},
-        SubmitCertificateRequest, WatchCertificatesRequest, WatchCertificatesResponse,
+        api_service_client::ApiServiceClient, watch_certificates_request,
+        watch_certificates_response, SubmitCertificateRequest, WatchCertificatesRequest,
+        WatchCertificatesResponse,
     },
     uci::{Certificate, CertificateId, SubnetId},
 };
@@ -314,11 +313,7 @@ impl TceClientBuilder {
 
         Ok((
             TceClient {
-                subnet_id: hex::decode(self.subnet_id.ok_or(Error::InvalidSubnetId)?)
-                    .map_err(|e| Error::HexConversionError { source: e })?
-                    .as_slice()
-                    .try_into()
-                    .map_err(|_| Error::InvalidSubnetId)?,
+                subnet_id: self.subnet_id.ok_or(Error::InvalidSubnetId)?,
                 tce_endpoint: self.tce_endpoint.ok_or(Error::InvalidTceEndpoint)?,
                 command_sender: tce_command_sender,
             },
