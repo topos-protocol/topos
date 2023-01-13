@@ -504,7 +504,7 @@ async fn test_subnet_certificate_push_call(
     let logs = read_logs_for_address(
         &subnet_smart_contract_address,
         &context.web3_client,
-        "CertStored(bytes)",
+        "CertStored(bytes32)",
     )
     .await?;
     println!("Acquired logs from subnet smart contract: {:#?}", logs);
