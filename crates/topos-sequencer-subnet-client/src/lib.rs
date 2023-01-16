@@ -259,7 +259,7 @@ impl SubnetClient {
         // For now use block height
         let cert_position: u64 = 0;
 
-        let cert_id_token: Token = web3::ethabi::Token::Bytes(cert.id.to_vec());
+        let cert_id_token: Token = web3::ethabi::Token::Bytes(cert.id.as_array().to_vec());
         let cert_position: Token = web3::ethabi::Token::Uint(U256::from(cert_position));
         let encoded_params = web3::ethabi::encode(&[cert_id_token, cert_position]);
 
