@@ -91,7 +91,10 @@ impl RuntimeProxy {
                         interval.tick().await;
 
                         loop {
-                            match subnet.get_next_finalized_block(&subnet_contract_address).await {
+                            match subnet
+                                .get_next_finalized_block(&subnet_contract_address)
+                                .await
+                            {
                                 Ok(block_info) => {
                                     let block_number = block_info.number;
                                     match Self::send_new_block(
