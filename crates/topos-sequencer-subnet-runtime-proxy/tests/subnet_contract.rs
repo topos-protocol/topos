@@ -6,6 +6,7 @@ use rstest::*;
 use secp256k1::SecretKey;
 use serial_test::serial;
 use std::future::Future;
+use std::path::PathBuf;
 use std::str::FromStr;
 use tokio::sync::oneshot;
 use topos_core::uci::{Address, Certificate, CertificateId, SubnetId};
@@ -30,7 +31,8 @@ const TEST_SECRET_ETHEREUM_KEY: &'static str =
 const POLYGON_EDGE_CONTAINER: &'static str = "ghcr.io/toposware/polygon-edge";
 const POLYGON_EDGE_CONTAINER_TAG: &str = "develop";
 const SUBNET_STARTUP_DELAY: u64 = 10; // seconds left for subnet startup
-const TOPOS_SMART_CONTRACTS_BUILD_PATH: &str = "TOPOS_SMART_CONTRACTS_BUILD_PATH";
+const TOPOS_SMART_CONTRACTS_BUILD_PATH_VAR: &str = "TOPOS_SMART_CONTRACTS_BUILD_PATH";
+const TOPOS_SEQUENCER_SUBNET_TEST_DIR_VAR: &str = "TOPOS_SEQUENCER_SUBNET_TEST_DIR";
 
 const SOURCE_SUBNET_ID: SubnetId = [1u8; 32];
 const PREV_CERTIFICATE_ID: CertificateId = [4u8; 32];
@@ -116,7 +118,9 @@ async fn deploy_contracts(
 
     println!("Getting Token deployer definition...");
     // Deploy subnet smart contract (currently topos core contract)
-    let token_deployer_contract_file_path = match std::env::var(TOPOS_SMART_CONTRACTS_BUILD_PATH) {
+    let token_deployer_contract_file_path = match std::env::var(
+        TOPOS_SMART_CONTRACTS_BUILD_PATH_VAR,
+    ) {
         Ok(path) => path + "/" + SUBNET_TOKEN_DEPLOYER_JSON_DEFINITION,
         Err(_e) => {
             println!("Error reading contract build path from `TOPOS_SMART_CONTRACTS_BUILD_PATH` environment variable, using current folder {}",
@@ -135,7 +139,7 @@ async fn deploy_contracts(
 
     println!("Getting Topos Core Contract definition...");
     // Deploy subnet smart contract (currently topos core contract)
-    let tcc_contract_file_path = match std::env::var(TOPOS_SMART_CONTRACTS_BUILD_PATH) {
+    let tcc_contract_file_path = match std::env::var(TOPOS_SMART_CONTRACTS_BUILD_PATH_VAR) {
         Ok(path) => path + "/" + SUBNET_TCC_JSON_DEFINITION,
         Err(_e) => {
             println!("Error reading contract build path from `TOPOS_SMART_CONTRACTS_BUILD_PATH` environment variable, using current folder {}",
@@ -162,7 +166,25 @@ fn spawn_subnet_node(
 ) -> Result<tokio::task::JoinHandle<()>, Box<dyn std::error::Error>> {
     let handle = tokio::task::spawn_blocking(move || {
         let source = Source::DockerHub;
+        let mut temp_dir = match std::env::var(TOPOS_SEQUENCER_SUBNET_TEST_DIR_VAR) {
+            Ok(var) => PathBuf::from_str(&var)
+                .expect("Failed to parse TOPOS_SEQUENCER_SUBNET_TEST_DIR_VAR value"),
+            Err(_) => std::env::temp_dir(),
+        };
+        temp_dir.push(format!(
+            "./topos-sequencer/data_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("valid system time duration")
+                .as_millis()
+                .to_string()
+        ));
+        let mut test_chain_dir = temp_dir.clone();
+        let mut genesis_dir = temp_dir.clone();
+        test_chain_dir.push("./test-chain-1");
+        genesis_dir.push("./genesis");
 
+        println!("genesis_dir {:?}", genesis_dir);
         let img = Image::with_repository(POLYGON_EDGE_CONTAINER)
             .source(Source::Local)
             .tag(POLYGON_EDGE_CONTAINER_TAG)
@@ -182,26 +204,20 @@ fn spawn_subnet_node(
             copy_inside: true,
             ..Default::default()
         };
-        let test_data_dir_name = std::env::temp_dir().to_string_lossy().to_string()
-            + "/topos-sequencer/data_"
-            + &std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .expect("valid system time duration")
-                .as_millis()
-                .to_string();
-        if let Err(err) = create_all(&test_data_dir_name, false) {
+
+        if let Err(err) = create_all(&temp_dir, false) {
             eprintln!("Unable to create temporary test data directory {err}");
         };
         if let Err(err) = copy(
             current_dir.clone() + "/tests/artifacts/test-chain-1",
-            test_data_dir_name.clone() + "/test-chain-1",
+            &test_chain_dir,
             &copy_options,
         ) {
             eprintln!("Unable to copy test chain directory {err}");
         };
         if let Err(err) = copy(
             current_dir.clone() + "/tests/artifacts/genesis",
-            test_data_dir_name.clone() + "/genesis",
+            &genesis_dir,
             &copy_options,
         ) {
             eprintln!("Unable to copy genesis directory {err}");
@@ -210,10 +226,10 @@ fn spawn_subnet_node(
         // Define options
         polygon_edge_node
             .bind_mount(
-                test_data_dir_name.clone() + "/test-chain-1",
+                test_chain_dir.into_os_string().to_string_lossy(),
                 "/data/test-chain-1",
             )
-            .bind_mount(test_data_dir_name.clone() + "/genesis", "/genesis")
+            .bind_mount(genesis_dir.into_os_string().to_string_lossy(), "/genesis")
             .port_map(SUBNET_RPC_PORT, SUBNET_RPC_PORT);
         let mut polygon_edge_node_docker = DockerTest::new().with_default_source(source);
         // Setup command for polygon edge binary
