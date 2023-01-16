@@ -211,6 +211,24 @@ impl Runtime {
                     );
                 }
             }
+
+            InternalRuntimeCommand::GetSourceHead { subnet_id, sender } => {
+                info!(
+                    "Source head certificate has been requested for subnet id: {:?}",
+                    subnet_id
+                );
+
+                if let Err(error) = self
+                    .api_event_sender
+                    .send(RuntimeEvent::GetSourceHead { subnet_id, sender })
+                    .await
+                {
+                    error!(
+                        %error,
+                        "Can't request source head certificate, receiver is dropped"
+                    );
+                }
+            }
         }
     }
 }

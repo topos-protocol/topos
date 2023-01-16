@@ -8,7 +8,8 @@ use tonic::{transport::Server, Request, Response, Status, Streaming};
 use topos_core::api::shared::v1::{CertificateId, SubnetId};
 use topos_core::api::tce::v1::api_service_server::{ApiService, ApiServiceServer};
 use topos_core::api::tce::v1::{
-    watch_certificates_request, watch_certificates_response, SubmitCertificateRequest,
+    watch_certificates_request, watch_certificates_response, GetSourceHeadRequest,
+    GetSourceHeadResponse, SourceStreamPosition, SubmitCertificateRequest,
     SubmitCertificateResponse, WatchCertificatesRequest, WatchCertificatesResponse,
 };
 use topos_core::api::uci::v1::Certificate;
@@ -32,6 +33,23 @@ impl ApiService for TceMockServer {
             request
         );
         Ok(Response::new(SubmitCertificateResponse {}))
+    }
+
+    async fn get_source_head(
+        &self,
+        request: Request<GetSourceHeadRequest>,
+    ) -> Result<Response<GetSourceHeadResponse>, tonic::Status> {
+        println!("TCE MOCK NODE: Get source head certificate: {:?}", request);
+        Ok(Response::new(GetSourceHeadResponse {
+            position: Some(SourceStreamPosition {
+                subnet_id: Default::default(),
+                certificate_id: Default::default(),
+                position: 0,
+            }),
+            certificate: Some(Certificate {
+                ..Default::default()
+            }),
+        }))
     }
 
     async fn watch_certificates(

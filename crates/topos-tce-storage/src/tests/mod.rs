@@ -272,6 +272,86 @@ async fn pending_certificate_can_be_removed(storage: RocksDBStorage) {
         .is_empty());
 }
 
+#[rstest]
+#[tokio::test]
+async fn get_source_head_for_subnet(storage: RocksDBStorage) {
+    let expected_certificates_for_source_subnet =
+        create_certificate_chain(SOURCE_SUBNET_ID, TARGET_SUBNET_ID_B, 10);
+
+    for cert in &expected_certificates_for_source_subnet {
+        storage.persist(cert, None).await.unwrap();
+    }
+
+    let expected_certificates_for_source_subnet_a =
+        create_certificate_chain(TARGET_SUBNET_ID_A, TARGET_SUBNET_ID_B, 10);
+
+    for cert in &expected_certificates_for_source_subnet_a {
+        storage.persist(cert, None).await.unwrap();
+    }
+
+    let last_certificate_subnet = storage
+        .get_source_heads(vec![SOURCE_SUBNET_ID.into()])
+        .await
+        .unwrap()
+        .last()
+        .unwrap()
+        .clone();
+    let last_certificate_subnet_a = storage
+        .get_source_heads(vec![TARGET_SUBNET_ID_A.into()])
+        .await
+        .unwrap()
+        .last()
+        .unwrap()
+        .clone();
+
+    assert_eq!(
+        expected_certificates_for_source_subnet.last().unwrap().id,
+        last_certificate_subnet.cert_id
+    );
+    assert_eq!(9, last_certificate_subnet.position.0); //check position
+    assert_eq!(
+        expected_certificates_for_source_subnet_a.last().unwrap().id,
+        last_certificate_subnet_a.cert_id
+    );
+    assert_eq!(9, last_certificate_subnet_a.position.0); //check position
+
+    let other_certificate = Certificate::new(
+        expected_certificates_for_source_subnet.last().unwrap().id,
+        SOURCE_SUBNET_ID,
+        &[TARGET_SUBNET_ID_A],
+    )
+    .unwrap();
+    storage.persist(&other_certificate, None).await.unwrap();
+
+    let last_certificate_subnet = storage
+        .get_source_heads(vec![SOURCE_SUBNET_ID.into()])
+        .await
+        .unwrap()
+        .last()
+        .unwrap()
+        .clone();
+    assert_eq!(other_certificate.id, last_certificate_subnet.cert_id);
+    assert_eq!(10, last_certificate_subnet.position.0); //check position
+
+    let other_certificate_2 = Certificate::new(
+        other_certificate.id,
+        SOURCE_SUBNET_ID,
+        &[TARGET_SUBNET_ID_B, TARGET_SUBNET_ID_A],
+    )
+    .unwrap();
+    storage.persist(&other_certificate_2, None).await.unwrap();
+
+    let last_certificate_subnet = storage
+        .get_source_heads(vec![SOURCE_SUBNET_ID.into()])
+        .await
+        .unwrap()
+        .last()
+        .unwrap()
+        .clone();
+    assert_eq!(other_certificate_2.id, last_certificate_subnet.cert_id);
+    assert_eq!(11, last_certificate_subnet.position.0); //check position
+}
+
 fn create_certificate_chain(
     source_subnet: topos_core::uci::SubnetId,
     target_subnet: topos_core::uci::SubnetId,

@@ -5,7 +5,8 @@ use tokio::sync::{mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::{Request, Response, Status, Streaming};
 use topos_core::api::tce::v1::{
-    api_service_server::ApiService, SubmitCertificateRequest, SubmitCertificateResponse,
+    api_service_server::ApiService, GetSourceHeadRequest,
+    GetSourceHeadResponse, SubmitCertificateRequest, SubmitCertificateResponse,
     WatchCertificatesRequest, WatchCertificatesResponse,
 };
 use tracing::{error, field, info, instrument, Instrument, Span};
@@ -70,6 +71,54 @@ impl ApiService for TceGrpcService {
                 error!("No certificate id provided");
                 Err(Status::invalid_argument("Certificate is malformed"))
             }
+        } else {
+            Err(Status::invalid_argument("Certificate is malformed"))
+        }
+    }
+
+    async fn get_source_head(
+        &self,
+        request: Request<GetSourceHeadRequest>,
+    ) -> Result<Response<GetSourceHeadResponse>, Status> {
+        let data = request.into_inner();
+        if let Some(subnet_id) = data.subnet_id {
+            let (sender, receiver) =
+                oneshot::channel::<Result<(u64, topos_core::uci::Certificate), _>>();
+
+            if self
+                .command_sender
+                .send(InternalRuntimeCommand::GetSourceHead {
+                    subnet_id: subnet_id.into(),
+                    sender,
+                })
+                .await
+                .is_err()
+            {
+                return Err(Status::internal(
+                    "Can't get delivered certificate position by source: sender dropped",
+                ));
+            }
+
+            receiver
+                .map(|value| match value {
+                    Ok(Ok((position, certificate))) => {
+                        Ok(Response::new(GetSourceHeadResponse {
+                            certificate: Some(certificate.clone().into()),
+                            position: Some(topos_core::api::tce::v1::SourceStreamPosition {
+                                subnet_id: Some(certificate.source_subnet_id.into()),
+                                certificate_id: Some((*certificate.id.as_array()).into()),
+                                position,
+                            }),
+                        }))
+                    }
+                    Ok(Err(_)) => Err(Status::internal(
+                        "Can't get source head certificate position",
+                    )),
+                    Err(_) => Err(Status::internal(
+                        "Can't get source head certificate position",
+                    )),
+                })
+                .await
         } else {
             Err(Status::invalid_argument("Certificate is malformed"))
         }

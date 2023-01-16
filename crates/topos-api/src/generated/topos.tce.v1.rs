@@ -1,5 +1,84 @@
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CheckpointRequest {
+    /// Provide a request_id to track response
+    #[prost(message, optional, tag = "1")]
+    pub request_id: ::core::option::Option<super::super::shared::v1::Uuid>,
+    /// The type of request
+    #[prost(oneof = "checkpoint_request::RequestType", tags = "2, 3, 4")]
+    pub request_type: ::core::option::Option<checkpoint_request::RequestType>,
+}
+/// Nested message and enum types in `CheckpointRequest`.
+pub mod checkpoint_request {
+    /// Heads defines a request for every head positions for the listed subnets
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Message)]
+    pub struct Heads {
+        #[prost(message, repeated, tag = "1")]
+        pub subnet_ids: ::prost::alloc::vec::Vec<
+            super::super::super::shared::v1::SubnetId,
+        >,
+    }
+    /// SamePosition defines a request for the same position for the listed subnets
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Message)]
+    pub struct SamePosition {
+        #[prost(message, repeated, tag = "1")]
+        pub subnet_ids: ::prost::alloc::vec::Vec<
+            super::super::super::shared::v1::SubnetId,
+        >,
+        #[prost(uint64, tag = "2")]
+        pub position: u64,
+    }
+    /// Zero defines a request for the zero position for the listed subnets
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Message)]
+    pub struct Zero {
+        #[prost(message, repeated, tag = "1")]
+        pub subnet_ids: ::prost::alloc::vec::Vec<
+            super::super::super::shared::v1::SubnetId,
+        >,
+    }
+    /// The type of request
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum RequestType {
+        /// This type of request will ask for heads of subnets
+        #[prost(message, tag = "2")]
+        Heads(Heads),
+        /// This type of request will ask for the same position for every subnets
+        #[prost(message, tag = "3")]
+        SamePosition(SamePosition),
+        /// This type of request will ask for the zero position for every subnets
+        #[prost(message, tag = "4")]
+        Zero(Zero),
+    }
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CheckpointResponse {
+    /// If the response is directly linked to a request this ID allow one to track it
+    #[prost(message, optional, tag = "1")]
+    pub request_id: ::core::option::Option<super::super::shared::v1::Uuid>,
+    /// Contains the positions returned by the peer, this can be empty if the peer
+    /// doesn't have any position regarding the subnets list
+    #[prost(message, repeated, tag = "2")]
+    pub positions: ::prost::alloc::vec::Vec<SourceStreamPosition>,
+}
+/// Type that represents a SourceStreamPosition, or position, it represents a
+/// particular position in the stream of a subnet in a peer context.
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SourceStreamPosition {
+    #[prost(message, optional, tag = "1")]
+    pub subnet_id: ::core::option::Option<super::super::shared::v1::SubnetId>,
+    #[prost(message, optional, tag = "2")]
+    pub certificate_id: ::core::option::Option<super::super::shared::v1::CertificateId>,
+    #[prost(uint64, tag = "3")]
+    pub position: u64,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SubmitCertificateRequest {
     #[prost(message, optional, tag = "1")]
     pub certificate: ::core::option::Option<super::super::uci::v1::Certificate>,
@@ -7,6 +86,20 @@ pub struct SubmitCertificateRequest {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SubmitCertificateResponse {}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetSourceHeadRequest {
+    #[prost(message, optional, tag = "1")]
+    pub subnet_id: ::core::option::Option<super::super::shared::v1::SubnetId>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetSourceHeadResponse {
+    #[prost(message, optional, tag = "1")]
+    pub position: ::core::option::Option<SourceStreamPosition>,
+    #[prost(message, optional, tag = "2")]
+    pub certificate: ::core::option::Option<super::super::uci::v1::Certificate>,
+}
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct WatchCertificatesRequest {
@@ -162,6 +255,25 @@ pub mod api_service_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
+        pub async fn get_source_head(
+            &mut self,
+            request: impl tonic::IntoRequest<super::GetSourceHeadRequest>,
+        ) -> Result<tonic::Response<super::GetSourceHeadResponse>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/topos.tce.v1.APIService/GetSourceHead",
+            );
+            self.inner.unary(request.into_request(), path, codec).await
+        }
         /// This RPC allows a client to open a bidirectional stream with a TCE
         pub async fn watch_certificates(
             &mut self,
@@ -200,6 +312,10 @@ pub mod api_service_server {
             &self,
             request: tonic::Request<super::SubmitCertificateRequest>,
         ) -> Result<tonic::Response<super::SubmitCertificateResponse>, tonic::Status>;
+        async fn get_source_head(
+            &self,
+            request: tonic::Request<super::GetSourceHeadRequest>,
+        ) -> Result<tonic::Response<super::GetSourceHeadResponse>, tonic::Status>;
         /// Server streaming response type for the WatchCertificates method.
         type WatchCertificatesStream: futures_core::Stream<
                 Item = Result<super::WatchCertificatesResponse, tonic::Status>,
@@ -300,6 +416,46 @@ pub mod api_service_server {
                     let fut = async move {
                         let inner = inner.0;
                         let method = SubmitCertificateSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/topos.tce.v1.APIService/GetSourceHead" => {
+                    #[allow(non_camel_case_types)]
+                    struct GetSourceHeadSvc<T: ApiService>(pub Arc<T>);
+                    impl<
+                        T: ApiService,
+                    > tonic::server::UnaryService<super::GetSourceHeadRequest>
+                    for GetSourceHeadSvc<T> {
+                        type Response = super::GetSourceHeadResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::GetSourceHeadRequest>,
+                        ) -> Self::Future {
+                            let inner = self.0.clone();
+                            let fut = async move {
+                                (*inner).get_source_head(request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = GetSourceHeadSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(
@@ -713,83 +869,4 @@ pub mod console_service_server {
     impl<T: ConsoleService> tonic::server::NamedService for ConsoleServiceServer<T> {
         const NAME: &'static str = "topos.tce.v1.ConsoleService";
     }
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct CheckpointRequest {
-    /// Provide a request_id to track response
-    #[prost(message, optional, tag = "1")]
-    pub request_id: ::core::option::Option<super::super::shared::v1::Uuid>,
-    /// The type of request
-    #[prost(oneof = "checkpoint_request::RequestType", tags = "2, 3, 4")]
-    pub request_type: ::core::option::Option<checkpoint_request::RequestType>,
-}
-/// Nested message and enum types in `CheckpointRequest`.
-pub mod checkpoint_request {
-    /// Heads defines a request for every head positions for the listed subnets
-    #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, PartialEq, ::prost::Message)]
-    pub struct Heads {
-        #[prost(message, repeated, tag = "1")]
-        pub subnet_ids: ::prost::alloc::vec::Vec<
-            super::super::super::shared::v1::SubnetId,
-        >,
-    }
-    /// SamePosition defines a request for the same position for the listed subnets
-    #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, PartialEq, ::prost::Message)]
-    pub struct SamePosition {
-        #[prost(message, repeated, tag = "1")]
-        pub subnet_ids: ::prost::alloc::vec::Vec<
-            super::super::super::shared::v1::SubnetId,
-        >,
-        #[prost(uint64, tag = "2")]
-        pub position: u64,
-    }
-    /// Zero defines a request for the zero position for the listed subnets
-    #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, PartialEq, ::prost::Message)]
-    pub struct Zero {
-        #[prost(message, repeated, tag = "1")]
-        pub subnet_ids: ::prost::alloc::vec::Vec<
-            super::super::super::shared::v1::SubnetId,
-        >,
-    }
-    /// The type of request
-    #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, PartialEq, ::prost::Oneof)]
-    pub enum RequestType {
-        /// This type of request will ask for heads of subnets
-        #[prost(message, tag = "2")]
-        Heads(Heads),
-        /// This type of request will ask for the same position for every subnets
-        #[prost(message, tag = "3")]
-        SamePosition(SamePosition),
-        /// This type of request will ask for the zero position for every subnets
-        #[prost(message, tag = "4")]
-        Zero(Zero),
-    }
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct CheckpointResponse {
-    /// If the response is directly linked to a request this ID allow one to track it
-    #[prost(message, optional, tag = "1")]
-    pub request_id: ::core::option::Option<super::super::shared::v1::Uuid>,
-    /// Contains the positions returned by the peer, this can be empty if the peer
-    /// doesn't have any position regarding the subnets list
-    #[prost(message, repeated, tag = "2")]
-    pub positions: ::prost::alloc::vec::Vec<SourceStreamPosition>,
-}
-/// Type that represents a SourceStreamPosition, or position, it represents a
-/// particular position in the stream of a subnet in a peer context.
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct SourceStreamPosition {
-    #[prost(message, optional, tag = "1")]
-    pub subnet_id: ::core::option::Option<super::super::shared::v1::SubnetId>,
-    #[prost(message, optional, tag = "2")]
-    pub certificate_id: ::core::option::Option<super::super::shared::v1::CertificateId>,
-    #[prost(uint64, tag = "3")]
-    pub position: u64,
 }

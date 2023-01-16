@@ -7,7 +7,9 @@ use std::{
 use topos_core::uci::{Certificate, CertificateId};
 use tracing::warn;
 
-use crate::{errors::InternalStorageError, PendingCertificateId, Position, Storage, SubnetId};
+use crate::{
+    errors::InternalStorageError, PendingCertificateId, Position, SourceHead, Storage, SubnetId,
+};
 
 use self::{db::DB, db_column::DBColumn};
 use self::{
@@ -207,11 +209,27 @@ impl Storage for RocksDBStorage {
         unimplemented!();
     }
 
-    async fn get_heads(
+    async fn get_source_heads(
         &self,
-        _subnets: Vec<SubnetId>,
-    ) -> Result<Vec<crate::Head>, InternalStorageError> {
-        unimplemented!();
+        subnets: Vec<SubnetId>,
+    ) -> Result<Vec<crate::SourceHead>, InternalStorageError> {
+        let mut result: Vec<crate::SourceHead> = Vec::new();
+        for source_subnet_id in subnets {
+            let (position, cert_id) = self
+                .source_streams
+                .prefix_iter(&source_subnet_id)?
+                .map(|(source_stream_position, cert_id)| (source_stream_position.1, cert_id))
+                .last()
+                .ok_or(InternalStorageError::UnableToFindHeadForSubnet(
+                    source_subnet_id,
+                ))?;
+            result.push(SourceHead {
+                position,
+                cert_id,
+                subnet_id: source_subnet_id,
+            });
+        }
+        Ok(result)
     }
 
     async fn get_certificates(
