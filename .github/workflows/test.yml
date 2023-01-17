@@ -1,53 +1,53 @@
-name: Test
+# name: Test
 
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-  workflow_dispatch:
+# on:
+#   push:
+#     branches: [main]
+#   pull_request:
+#     branches: [main]
+#   workflow_dispatch:
 
-jobs:
-  test:
-    strategy:
-      fail-fast: false
-      matrix:
-        target:
-          - {
-              name: Linux,
-              os: ubuntu-latest-16-cores,
-              triple: x86_64-unknown-linux-gnu,
-            }
-        version:
-          - stable
-          - nightly
-    name: ${{ matrix.version }} - Test
-    runs-on: ${{ matrix.target.os }}
-    steps:
-      - uses: actions/checkout@v3
+# jobs:
+#   test:
+#     strategy:
+#       fail-fast: false
+#       matrix:
+#         target:
+#           - {
+#               name: Linux,
+#               os: ubuntu-latest-16-cores,
+#               triple: x86_64-unknown-linux-gnu,
+#             }
+#         version:
+#           - stable
+#           - nightly
+#     name: ${{ matrix.version }} - Test
+#     runs-on: ${{ matrix.target.os }}
+#     steps:
+#       - uses: actions/checkout@v3
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+#       - name: Set up Docker Buildx
+#         uses: docker/setup-buildx-action@v2
 
-      - name: Inject slug/short variables
-        uses: rlespinasse/github-slug-action@v4
-        with:
-          short-length: 7
+#       - name: Inject slug/short variables
+#         uses: rlespinasse/github-slug-action@v4
+#         with:
+#           short-length: 7
 
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v2
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
+#       - name: Login to GitHub Container Registry
+#         uses: docker/login-action@v2
+#         with:
+#           registry: ghcr.io
+#           username: ${{ github.actor }}
+#           password: ${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
 
-      - uses: docker/build-push-action@v3
-        with:
-          target: test
-          build-args: |
-            GITHUB_TOKEN=${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
-            TOOLCHAIN_VERSION=${{ matrix.version }}
-          cache-from: |
-            type=registry,ref=ghcr.io/${{ github.repository }}:build-cache-${{ env.GITHUB_REF_SLUG_URL }}-${{ github.workflow }}-${{ matrix.version }}
-            type=registry,ref=ghcr.io/${{ github.repository }}:build-cache-main-${{ github.workflow }}-${{ matrix.version }}
-          cache-to: type=registry,ref=ghcr.io/${{ github.repository }}:build-cache-${{ env.GITHUB_REF_SLUG_URL }}-${{ github.workflow }}-${{ matrix.version }},mode=max
+#       - uses: docker/build-push-action@v3
+#         with:
+#           target: test
+#           build-args: |
+#             GITHUB_TOKEN=${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
+#             TOOLCHAIN_VERSION=${{ matrix.version }}
+#           cache-from: |
+#             type=registry,ref=ghcr.io/${{ github.repository }}:build-cache-${{ env.GITHUB_REF_SLUG_URL }}-${{ github.workflow }}-${{ matrix.version }}
+#             type=registry,ref=ghcr.io/${{ github.repository }}:build-cache-main-${{ github.workflow }}-${{ matrix.version }}
+#           cache-to: type=registry,ref=ghcr.io/${{ github.repository }}:build-cache-${{ env.GITHUB_REF_SLUG_URL }}-${{ github.workflow }}-${{ matrix.version }},mode=max

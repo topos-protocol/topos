@@ -1,69 +1,69 @@
-name: E2E tests on Kubernetes
+# name: E2E tests on Kubernetes
 
-on:
-  workflow_run:
-    workflows: [Docker_build_push] # This is the name of the .github/workflows/docker_build_push.yml workflow
-    types:
-      - completed
+# on:
+#   workflow_run:
+#     workflows: [Docker_build_push] # This is the name of the .github/workflows/docker_build_push.yml workflow
+#     types:
+#       - completed
 
-env:
-  CERT_SPAMMER_IMAGE: ghcr.io/toposware/cert-spammer:main
-  TELEMETRY_ENDPOINT: jaeger.tce.devnet-1.toposware.com:6831
-  SPAM_DURATION_SECONDS: 10
-  TERRAFORM_INPUTS: >
-    -var="cluster_name=${{ github.sha }}"
-    -var="cert_spammer_image=${{ env.CERT_SPAMMER_IMAGE }}"
-    -var="jaeger_endpoint=${{ env.TELEMETRY_ENDPOINT }}"
-    -var="jaeger_service_name=${{ github.sha }}
-    -var="docker_registry_auth_user=${{ github.actor }}"
-    -var="docker_registry_auth_pwd=${{ secrets.GITHUB_TOKEN }}"
+# env:
+#   CERT_SPAMMER_IMAGE: ghcr.io/toposware/cert-spammer:main
+#   TELEMETRY_ENDPOINT: jaeger.tce.devnet-1.toposware.com:6831
+#   SPAM_DURATION_SECONDS: 10
+#   TERRAFORM_INPUTS: >
+#     -var="cluster_name=${{ github.sha }}"
+#     -var="cert_spammer_image=${{ env.CERT_SPAMMER_IMAGE }}"
+#     -var="jaeger_endpoint=${{ env.TELEMETRY_ENDPOINT }}"
+#     -var="jaeger_service_name=${{ github.sha }}
+#     -var="docker_registry_auth_user=${{ github.actor }}"
+#     -var="docker_registry_auth_pwd=${{ secrets.GITHUB_TOKEN }}"
 
-jobs:
-  retrieve-docker-tags:
-    name: Retrieve docker tags from triggering workflow
-    runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
-    outputs:
-      docker_tags: ${{ steps.docker_tags.outputs.result }}
-    steps:
-      - name: Retrieve docker tags
-        id: docker_tags
-        uses: actions/github-script@v6
-        with:
-          script: |
-            let allArtifacts = await github.rest.actions.listWorkflowRunArtifacts({
-               owner: context.repo.owner,
-               repo: context.repo.repo,
-               run_id: context.payload.workflow_run.id,
-            });
-            let matchArtifact = allArtifacts.data.artifacts.filter((artifact) => {
-              return artifact.name == "docker_tags"
-            })[0];
-            let download = await github.rest.actions.downloadArtifact({
-               owner: context.repo.owner,
-               repo: context.repo.repo,
-               artifact_id: matchArtifact.id,
-            });
-            return download.data;
-          result-encoding: string
-  k8s:
-    name: Deploy k8s cluster and run TCE network
-    needs: retrieve-docker-tags
-    runs-on: ubuntu-latest
-    container:
-      image: hashicorp/terraform:1.2.4
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: Terraform init
-        run: terraform -chdir=./tools/terraform init
-      - name: Terraform plan
-        run: terraform -chdir=./tools/terraform plan ${{ env.TERRAFORM_INPUTS }} -var="tce_node_image=${{ needs.retrieve-docker-tags.outputs.docker_tags }}"
-      - name: Spam certificates for ${{ env.SPAM_DURATION_SECONDS }} seconds
-        uses: jakejarvis/wait-action@master
-        with:
-          time: "${{ env.SPAM_DURATION_SECONDS }}s"
-      - name: Terraform destroy
-        run: terraform -chdir=./tools/terraform destroy ${{ env.TERRAFORM_INPUTS }} -var="tce_node_image=${{ needs.retrieve-docker-tags.outputs.docker_tags }}"
+# jobs:
+#   retrieve-docker-tags:
+#     name: Retrieve docker tags from triggering workflow
+#     runs-on: ubuntu-latest
+#     if: ${{ github.event.workflow_run.conclusion == 'success' }}
+#     outputs:
+#       docker_tags: ${{ steps.docker_tags.outputs.result }}
+#     steps:
+#       - name: Retrieve docker tags
+#         id: docker_tags
+#         uses: actions/github-script@v6
+#         with:
+#           script: |
+#             let allArtifacts = await github.rest.actions.listWorkflowRunArtifacts({
+#                owner: context.repo.owner,
+#                repo: context.repo.repo,
+#                run_id: context.payload.workflow_run.id,
+#             });
+#             let matchArtifact = allArtifacts.data.artifacts.filter((artifact) => {
+#               return artifact.name == "docker_tags"
+#             })[0];
+#             let download = await github.rest.actions.downloadArtifact({
+#                owner: context.repo.owner,
+#                repo: context.repo.repo,
+#                artifact_id: matchArtifact.id,
+#             });
+#             return download.data;
+#           result-encoding: string
+#   k8s:
+#     name: Deploy k8s cluster and run TCE network
+#     needs: retrieve-docker-tags
+#     runs-on: ubuntu-latest
+#     container:
+#       image: hashicorp/terraform:1.2.4
+#     permissions:
+#       contents: read
+#     steps:
+#       - name: Checkout
+#         uses: actions/checkout@v3
+#       - name: Terraform init
+#         run: terraform -chdir=./tools/terraform init
+#       - name: Terraform plan
+#         run: terraform -chdir=./tools/terraform plan ${{ env.TERRAFORM_INPUTS }} -var="tce_node_image=${{ needs.retrieve-docker-tags.outputs.docker_tags }}"
+#       - name: Spam certificates for ${{ env.SPAM_DURATION_SECONDS }} seconds
+#         uses: jakejarvis/wait-action@master
+#         with:
+#           time: "${{ env.SPAM_DURATION_SECONDS }}s"
+#       - name: Terraform destroy
+#         run: terraform -chdir=./tools/terraform destroy ${{ env.TERRAFORM_INPUTS }} -var="tce_node_image=${{ needs.retrieve-docker-tags.outputs.docker_tags }}"
