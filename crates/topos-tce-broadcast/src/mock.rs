@@ -162,7 +162,7 @@ fn generate_cert(
 
     // Initialize the genesis of all subnets
     for subnet in subnets {
-        nonce_state.insert(*subnet, [0u8; 32]);
+        nonce_state.insert(*subnet, CertificateId::from_array([0u8; 32]));
         history_state.insert(*subnet, HashMap::new());
     }
 

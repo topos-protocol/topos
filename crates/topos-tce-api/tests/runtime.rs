@@ -5,6 +5,7 @@ use tokio_stream::StreamExt;
 use tonic::transport::channel;
 use tonic::transport::Uri;
 use topos_core::api::shared::v1::SubnetId;
+use topos_core::uci::CertificateId;
 use topos_core::{
     api::tce::v1::{
         api_service_client::ApiServiceClient,
@@ -17,7 +18,7 @@ use topos_tce_api::Runtime;
 
 const SOURCE_SUBNET_ID: topos_core::uci::SubnetId = [1u8; 32];
 const TARGET_SUBNET_ID: topos_core::uci::SubnetId = [2u8; 32];
-const PREV_CERTIFICATE_ID: topos_core::uci::CertificateId = [4u8; 32];
+const PREV_CERTIFICATE_ID: CertificateId = CertificateId::from_array([4u8; 32]);
 const SENDER_ID: Address = [6u8; 20];
 const RECEIVER_ID: Address = [7u8; 20];
 

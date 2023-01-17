@@ -184,10 +184,10 @@ impl From<topos_uci::Certificate> for proto_v1::Certificate {
                 value: certificate.source_subnet_id.to_vec(),
             }),
             id: Some(crate::shared::v1::CertificateId {
-                value: certificate.id.to_vec(),
+                value: certificate.id.into(),
             }),
             prev_id: Some(crate::shared::v1::CertificateId {
-                value: certificate.prev_id.to_vec(),
+                value: certificate.prev_id.into(),
             }),
             calls: certificate
                 .calls

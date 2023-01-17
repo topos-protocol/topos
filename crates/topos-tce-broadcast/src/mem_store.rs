@@ -35,7 +35,9 @@ impl TceMemStore {
             store.history.insert(*subnet, BTreeSet::new());
         }
         // Add the genesis
-        store.all_certs.insert([0u8; 32], Default::default());
+        store
+            .all_certs
+            .insert(CertificateId::from_array([0u8; 32]), Default::default());
         store
     }
 }
@@ -129,7 +131,7 @@ impl TceStore for TceMemStore {
     }
 
     fn check_precedence(&self, cert: &Certificate) -> Result<(), Errors> {
-        if cert.prev_id == [0u8; 32] {
+        if cert.prev_id.as_array() == &[0u8; 32] {
             return Ok(());
         }
         match self.cert_by_id(&cert.prev_id) {
