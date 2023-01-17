@@ -1,16 +1,15 @@
 //!
 //! Application logic glue
 //!
-use crate::AppArgs;
+use crate::SequencerConfiguration;
 use serde::{Deserialize, Serialize};
-use topos_sequencer_api::{ApiRequests, ApiWorker};
 use topos_sequencer_certification::CertificationWorker;
 use topos_sequencer_subnet_runtime_proxy::RuntimeProxyWorker;
 use topos_sequencer_tce_proxy::TceProxyWorker;
 use topos_sequencer_types::*;
 use tracing::debug;
 
-/// Top-level transducer main app context & driver (alike)
+/// Top-level transducer sequencer app context & driver (alike)
 ///
 /// Implements <...Host> traits for network and Api, listens for protocol events in events
 /// (store is not active component).
@@ -19,28 +18,24 @@ use tracing::debug;
 /// config+data as input and runs app returning data as output
 ///
 pub struct AppContext {
-    #[allow(dead_code)]
-    config: AppArgs,
+    pub config: SequencerConfiguration,
     pub certification_worker: CertificationWorker,
     pub runtime_proxy_worker: RuntimeProxyWorker,
-    pub api_worker: ApiWorker,
     pub tce_proxy_worker: TceProxyWorker,
 }
 
 impl AppContext {
     /// Factory
     pub fn new(
-        config: AppArgs,
+        config: SequencerConfiguration,
         certification_worker: CertificationWorker,
         runtime_proxy_worker: RuntimeProxyWorker,
-        api_worker: ApiWorker,
         tce_proxy_worker: TceProxyWorker,
     ) -> Self {
         Self {
             config,
             certification_worker,
             runtime_proxy_worker,
-            api_worker,
             tce_proxy_worker,
         }
     }
@@ -49,11 +44,6 @@ impl AppContext {
     pub(crate) async fn run(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         loop {
             tokio::select! {
-                // Topos Sequencer API
-                Ok(req) = self.api_worker.next_request() => {
-                    debug!("api_worker.next_request(): {:?}", &req);
-                    self.on_api_request(req);
-                }
 
                 // Runtime View Worker
                 Ok(evt) = self.runtime_proxy_worker.next_event() => {
@@ -75,8 +65,6 @@ impl AppContext {
             }
         }
     }
-
-    fn on_api_request(&mut self, _req: ApiRequests) {}
 
     async fn on_runtime_proxy_event(&mut self, evt: RuntimeProxyEvent) {
         debug!("on_runtime_proxy_event : {:?}", &evt);

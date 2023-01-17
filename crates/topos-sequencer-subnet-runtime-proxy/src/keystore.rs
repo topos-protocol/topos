@@ -3,7 +3,7 @@ use clap::Parser;
 use std::path::Path;
 
 pub fn get_private_key(
-    file_name: &str,
+    file_name: &std::path::PathBuf,
     password: &str,
 ) -> Result<Vec<u8>, eth_keystore::KeystoreError> {
     let keypath = Path::new(file_name);
@@ -19,7 +19,7 @@ struct Args {
     #[clap(short, long, action)]
     new: bool,
     // New keystore filename
-    #[clap(short, long, default_value = "topos-node-keystore.json")]
+    #[clap(short, long, default_value = "topos-sequencer-keystore.json")]
     pub filename: String,
     // New keystore password
     #[clap(short, long)]

@@ -9,8 +9,9 @@ edition = "2021"
 topos-tce = { path = "../topos-tce/" }
 topos-p2p = { path = "../topos-p2p" }
 topos-tce-transport = { path = "../topos-tce-transport" }
-topos-core = { workspace = true, features = ["api"] }
+topos-sequencer = { path = "../topos-sequencer" }
 
+topos-core = { workspace = true, features = ["api"] }
 tokio = { workspace = true, features = ["full"] }
 tonic.workspace = true
 futures.workspace = true
