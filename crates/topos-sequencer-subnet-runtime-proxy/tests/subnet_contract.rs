@@ -5,6 +5,7 @@ use fs_extra::dir::{copy, create_all, CopyOptions};
 use rstest::*;
 use secp256k1::SecretKey;
 use serial_test::serial;
+use std::env;
 use std::future::Future;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -32,7 +33,6 @@ const POLYGON_EDGE_CONTAINER: &'static str = "ghcr.io/toposware/polygon-edge";
 const POLYGON_EDGE_CONTAINER_TAG: &str = "develop";
 const SUBNET_STARTUP_DELAY: u64 = 10; // seconds left for subnet startup
 const TOPOS_SMART_CONTRACTS_BUILD_PATH_VAR: &str = "TOPOS_SMART_CONTRACTS_BUILD_PATH";
-const TOPOS_SEQUENCER_SUBNET_TEST_DIR_VAR: &str = "TOPOS_SEQUENCER_SUBNET_TEST_DIR";
 
 const SOURCE_SUBNET_ID: SubnetId = [1u8; 32];
 const PREV_CERTIFICATE_ID: CertificateId = [4u8; 32];
@@ -166,11 +166,8 @@ fn spawn_subnet_node(
 ) -> Result<tokio::task::JoinHandle<()>, Box<dyn std::error::Error>> {
     let handle = tokio::task::spawn_blocking(move || {
         let source = Source::DockerHub;
-        let mut temp_dir = match std::env::var(TOPOS_SEQUENCER_SUBNET_TEST_DIR_VAR) {
-            Ok(var) => PathBuf::from_str(&var)
-                .expect("Failed to parse TOPOS_SEQUENCER_SUBNET_TEST_DIR_VAR value"),
-            Err(_) => std::env::temp_dir(),
-        };
+        let mut temp_dir = PathBuf::from_str(env!("CARGO_TARGET_TMPDIR"))
+            .expect("Unable to read CARGO_TARGET_TMPDIR");
         temp_dir.push(format!(
             "./topos-sequencer/data_{}",
             std::time::SystemTime::now()
