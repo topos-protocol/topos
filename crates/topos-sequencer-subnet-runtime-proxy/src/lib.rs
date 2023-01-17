@@ -47,8 +47,8 @@ pub enum Error {
 pub struct RuntimeProxyConfig {
     pub subnet_id: SubnetId,
     pub endpoint: String,
-    pub subnet_contract: String,
-    pub keystore_file: String,
+    pub subnet_contract_address: String,
+    pub keystore_file: std::path::PathBuf,
     pub keystore_password: String,
 }
 

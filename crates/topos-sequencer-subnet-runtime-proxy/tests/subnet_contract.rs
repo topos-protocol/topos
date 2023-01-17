@@ -459,7 +459,7 @@ async fn test_create_runtime() -> Result<(), Box<dyn std::error::Error>> {
     let runtime_proxy_worker = RuntimeProxyWorker::new(RuntimeProxyConfig {
         subnet_id: SOURCE_SUBNET_ID,
         endpoint: SUBNET_JSONRPC_ENDPOINT.to_string(),
-        subnet_contract: "0x0000000000000000000000000000000000000000".to_string(),
+        subnet_contract_address: "0x0000000000000000000000000000000000000000".to_string(),
         keystore_file: keystore_file_path,
         keystore_password: TEST_KEYSTORE_FILE_PASSWORD.to_string(),
     })?;
@@ -484,7 +484,7 @@ async fn test_subnet_certificate_push_call(
     let runtime_proxy_worker = RuntimeProxyWorker::new(RuntimeProxyConfig {
         subnet_id: SOURCE_SUBNET_ID,
         endpoint: SUBNET_JSONRPC_ENDPOINT.to_string(),
-        subnet_contract: subnet_smart_contract_address.clone(),
+        subnet_contract_address: subnet_smart_contract_address.clone(),
         keystore_file: keystore_file_path,
         keystore_password: TEST_KEYSTORE_FILE_PASSWORD.to_string(),
     })?;
