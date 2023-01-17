@@ -4992,6 +4992,7 @@ version = "0.1.1"
 dependencies = [
  "bincode",
  "ethereum-types",
+ "hex",
  "keccak-hash 0.10.0",
  "serde",
  "thiserror",

@@ -436,7 +436,8 @@ mod tests {
     use rand::seq::IteratorRandom;
     use tokio::{spawn, sync::broadcast::error::TryRecvError};
 
-    const PREV_CERTIFICATE_ID: topos_core::uci::CertificateId = [4u8; 32];
+    const PREV_CERTIFICATE_ID: topos_core::uci::CertificateId =
+        CertificateId::from_array([4u8; 32]);
     const SOURCE_SUBNET_ID: topos_core::uci::SubnetId = [1u8; 32];
 
     fn get_sample(peers: &[PeerId], sample_size: usize) -> HashSet<PeerId> {

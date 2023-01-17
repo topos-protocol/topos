@@ -1,6 +1,6 @@
 use crate::SubnetId;
 use rstest::rstest;
-use topos_core::uci::{Amount, Certificate, CrossChainTransaction};
+use topos_core::uci::{Amount, Certificate, CertificateId, CrossChainTransaction};
 
 use crate::{
     rocks::{map::Map, TargetStreamPosition},
@@ -18,8 +18,8 @@ const SOURCE_SUBNET_ID: topos_core::uci::SubnetId = [1u8; 32];
 const TARGET_SUBNET_ID_A: topos_core::uci::SubnetId = [2u8; 32];
 const TARGET_SUBNET_ID_B: topos_core::uci::SubnetId = [3u8; 32];
 
-const PREV_CERTIFICATE_ID: topos_core::uci::CertificateId = [0u8; 32];
-const CERTIFICATE_ID: topos_core::uci::CertificateId = [5u8; 32];
+const PREV_CERTIFICATE_ID: CertificateId = CertificateId::from_array([0u8; 32]);
+const CERTIFICATE_ID: CertificateId = CertificateId::from_array([5u8; 32]);
 const SENDER_ID: topos_core::uci::Address = [6u8; 20];
 const RECEIVER_ID_A: topos_core::uci::Address = [7u8; 20];
 const RECEIVER_ID_B: topos_core::uci::Address = [8u8; 20];
@@ -353,7 +353,7 @@ fn create_certificate_chain(
             }],
         )
         .unwrap();
-        parent = Some(cert.id.clone());
+        parent = Some(cert.id.as_array().clone());
         certificates.push(cert);
     }
 

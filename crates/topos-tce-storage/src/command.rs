@@ -75,7 +75,8 @@ mod tests {
     use super::*;
 
     const SOURCE_SUBNET_ID: topos_core::uci::SubnetId = [1u8; 32];
-    const PREV_CERTIFICATE_ID: topos_core::uci::CertificateId = [4u8; 32];
+    const PREV_CERTIFICATE_ID: topos_core::uci::CertificateId =
+        CertificateId::from_array([4u8; 32]);
 
     #[tokio::test]
     async fn send_command() {

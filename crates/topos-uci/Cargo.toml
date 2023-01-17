@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
 ethereum-types.workspace = true
+hex.workspace = true
 bincode.workspace = true
 thiserror.workspace = true
 keccak-hash = "0.10.0"
