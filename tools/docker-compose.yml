@@ -36,7 +36,7 @@ services:
 
   boot:
     container_name: boot
-    command: boot tce run -vv
+    command: boot tce run -v
     image: ghcr.io/toposware/tce:pr-4
     init: true
     healthcheck:

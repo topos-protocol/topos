@@ -1,3 +1,4 @@
+#![allow(unused_imports)]
 use std::time::Duration;
 
 use clap::Parser;
@@ -62,37 +63,37 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .tonic()
                     .with_endpoint(cmd.jaeger_agent.clone()),
             )
-            .with_trace_config(
-                trace::config()
-                    .with_sampler(Sampler::AlwaysOn)
-                    .with_id_generator(RandomIdGenerator::default())
-                    .with_max_events_per_span(64)
-                    .with_max_attributes_per_span(16)
-                    .with_max_events_per_span(16)
-                    // resources will translated to tags in jaeger spans
-                    .with_resource(Resource::new(vec![KeyValue::new("service.name", "topos")])),
-            )
+            // .with_trace_config(
+            //     trace::config()
+            //         .with_sampler(Sampler)
+            //         .with_id_generator(RandomIdGenerator::default())
+            //         .with_max_events_per_span(64)
+            //         .with_max_attributes_per_span(16)
+            //         .with_max_events_per_span(16)
+            //         // resources will translated to tags in jaeger spans
+            //         .with_resource(Resource::new(vec![KeyValue::new("service.name", "topos")])),
+            // )
             .install_batch(opentelemetry::runtime::Tokio)
             .unwrap();
 
-        let export_config = ExportConfig {
+        let _export_config = ExportConfig {
             endpoint: cmd.jaeger_agent.clone(),
             timeout: Duration::from_secs(3),
             protocol: Protocol::Grpc,
         };
 
-        let _meter = opentelemetry_otlp::new_pipeline()
-            .metrics(
-                selectors::simple::inexpensive(),
-                cumulative_temporality_selector(),
-                runtime::Tokio,
-            )
-            .with_exporter(
-                opentelemetry_otlp::new_exporter()
-                    .tonic()
-                    .with_export_config(export_config),
-            )
-            .build();
+        // let _meter = opentelemetry_otlp::new_pipeline()
+        //     .metrics(
+        //         selectors::simple::inexpensive(),
+        //         cumulative_temporality_selector(),
+        //         runtime::Tokio,
+        //     )
+        //     .with_exporter(
+        //         opentelemetry_otlp::new_exporter()
+        //             .tonic()
+        //             .with_export_config(export_config),
+        //     )
+        //     .build();
 
         Some(tracing_opentelemetry::layer().with_tracer(tracer))
     } else {

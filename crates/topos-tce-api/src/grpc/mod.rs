@@ -1,5 +1,8 @@
 use futures::{FutureExt, Stream as FutureStream};
-use opentelemetry::global;
+use opentelemetry::{
+    trace::{FutureExt as TraceFutureExt, TraceContextExt},
+    Context,
+};
 use std::pin::Pin;
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
@@ -9,10 +12,10 @@ use topos_core::api::tce::v1::{
     SubmitCertificateRequest, SubmitCertificateResponse, WatchCertificatesRequest,
     WatchCertificatesResponse,
 };
-use tracing::{error, field, info, instrument, Span};
+use tracing::{error, field, info, instrument, Instrument, Span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
-use crate::{metadata_map::MetadataMap, runtime::InternalRuntimeCommand};
+use crate::runtime::InternalRuntimeCommand;
 
 pub(crate) mod console;
 #[cfg(test)]
@@ -34,10 +37,12 @@ impl ApiService for TceGrpcService {
         &self,
         request: Request<SubmitCertificateRequest>,
     ) -> Result<Response<SubmitCertificateResponse>, Status> {
-        let parent_cx =
-            global::get_text_map_propagator(|prop| prop.extract(&MetadataMap(request.metadata())));
-        tracing::Span::current().set_parent(parent_cx);
+        tracing::warn!(span_span_id = ?Span::current().context().span().span_context().span_id(), "pre_run");
+        tracing::warn!(cx_span_id = ?Context::current().span().span_context().span_id(), "pre_run");
 
+        // let parent_cx =
+        //     global::get_text_map_propagator(|prop| prop.extract(&MetadataMap(request.metadata())));
+        // tracing::Span::current().set_parent(parent_cx);
         let data = request.into_inner();
         if let Some(certificate) = data.certificate {
             if let Some(ref id) = certificate.id {
@@ -52,6 +57,8 @@ impl ApiService for TceGrpcService {
                         sender,
                         ctx: Span::current(),
                     })
+                    .with_current_context()
+                    .instrument(Span::current())
                     .await
                     .is_err()
                 {
