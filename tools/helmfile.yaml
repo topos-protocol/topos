@@ -11,13 +11,13 @@ releases:
 - name: tce-all-in-one
   namespace: default
   chart: toposware/tce-all-in-one
-  version: 0.1.2
+  version: 0.1.3
   createNamespace: true
   set:
   - name: image.repository
-    value: ghcr.io/toposware/tce
+    value: ghcr.io/toposware/topos
   - name: image.tag
-    value: pr-4
+    value: {{ requiredEnv "DOCKER_TAG"}}
   - name: credentials.username
     value: {{ requiredEnv "GITHUB_USERNAME"}}
   - name: credentials.password
