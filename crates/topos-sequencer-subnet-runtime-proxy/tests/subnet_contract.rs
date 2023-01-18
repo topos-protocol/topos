@@ -4,6 +4,7 @@ use dockertest::{
 use fs_extra::dir::{copy, create_all, CopyOptions};
 use rstest::*;
 use secp256k1::SecretKey;
+use serial_test::serial;
 use std::env;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -409,6 +410,7 @@ async fn context_running_subnet_node(#[default(8545)] port: u32) -> Context {
 /// Test to start subnet and deploy subnet smart contract
 #[rstest]
 #[tokio::test]
+#[serial]
 async fn test_subnet_node_contract_deployment(
     #[with(8544)]
     #[future]
@@ -424,6 +426,7 @@ async fn test_subnet_node_contract_deployment(
 /// Test subnet client RPC connection to subnet
 #[rstest]
 #[tokio::test]
+#[serial]
 async fn test_subnet_node_get_block_info(
     #[with(8545)]
     #[future]
@@ -473,6 +476,7 @@ async fn test_subnet_node_get_block_info(
 /// Test runtime initialization
 #[rstest]
 #[tokio::test]
+#[serial]
 async fn test_create_runtime() -> Result<(), Box<dyn std::error::Error>> {
     let keystore_file_path = generate_test_keystore_file()?;
     println!("Creating runtime proxy...");
@@ -493,6 +497,7 @@ async fn test_create_runtime() -> Result<(), Box<dyn std::error::Error>> {
 /// Test mint call
 #[rstest]
 #[tokio::test]
+#[serial]
 async fn test_subnet_certificate_push_call(
     #[with(8546)]
     #[future]

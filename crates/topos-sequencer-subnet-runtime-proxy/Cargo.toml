@@ -42,5 +42,6 @@ fs_extra = "1.2"
 rstest.workspace = true
 secp256k1 = { version = "0.21", features = ["recovery"]}
 serde_json.workspace = true
+serial_test = "0.9"
 tiny-keccak = "1.2"
 web3.workspace = true
