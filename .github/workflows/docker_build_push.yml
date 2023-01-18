@@ -2,13 +2,9 @@ name: Docker_build_push # This is used in the .github/workflows/k8s_perf_tests.y
 
 on:
   push:
-    branches: [fake]
-
-# on:
-#   push:
-#     branches: [main]
-#   pull_request:
-#     branches: [main]
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 env:
   REGISTRY: ghcr.io
