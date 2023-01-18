@@ -1,4 +1,5 @@
 use futures::{FutureExt, Stream as FutureStream};
+use opentelemetry::global;
 use std::pin::Pin;
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
@@ -7,9 +8,10 @@ use topos_core::api::tce::v1::{
     api_service_server::ApiService, SubmitCertificateRequest, SubmitCertificateResponse,
     WatchCertificatesRequest, WatchCertificatesResponse,
 };
-use tracing::info;
+use tracing::{error, field, info, instrument, Instrument, Span};
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 
-use crate::runtime::InternalRuntimeCommand;
+use crate::{metadata_map::MetadataMap, runtime::InternalRuntimeCommand};
 
 pub(crate) mod console;
 #[cfg(test)]
@@ -26,33 +28,48 @@ pub(crate) struct TceGrpcService {
 
 #[tonic::async_trait]
 impl ApiService for TceGrpcService {
+    #[instrument(name = "CertificateSubmitted", skip(self, request), fields(certificate_id = field::Empty))]
     async fn submit_certificate(
         &self,
         request: Request<SubmitCertificateRequest>,
     ) -> Result<Response<SubmitCertificateResponse>, Status> {
+        let parent_cx =
+            global::get_text_map_propagator(|prop| prop.extract(&MetadataMap(request.metadata())));
+        tracing::Span::current().set_parent(parent_cx);
+
         let data = request.into_inner();
         if let Some(certificate) = data.certificate {
-            let (sender, receiver) = oneshot::channel();
+            if let Some(ref id) = certificate.id {
+                Span::current().record("certificate_id", id.to_string());
 
-            if self
-                .command_sender
-                .send(InternalRuntimeCommand::CertificateSubmitted {
-                    certificate: certificate.into(),
-                    sender,
-                })
-                .await
-                .is_err()
-            {
-                return Err(Status::internal("Can't submit certificate: sender dropped"));
+                let (sender, receiver) = oneshot::channel();
+
+                if self
+                    .command_sender
+                    .send(InternalRuntimeCommand::CertificateSubmitted {
+                        certificate: certificate.into(),
+                        sender,
+                        ctx: Span::current(),
+                    })
+                    .instrument(Span::current())
+                    .await
+                    .is_err()
+                {
+                    return Err(Status::internal("Can't submit certificate: sender dropped"));
+                }
+
+                receiver
+                    .map(|value| match value {
+                        Ok(Ok(_)) => Ok(Response::new(SubmitCertificateResponse {})),
+                        Ok(Err(_)) => Err(Status::internal("Can't submit certificate")),
+                        Err(_) => Err(Status::internal("Can't submit certificate")),
+                    })
+                    .instrument(Span::current())
+                    .await
+            } else {
+                error!("No certificate id provided");
+                Err(Status::invalid_argument("Certificate is malformed"))
             }
-
-            receiver
-                .map(|value| match value {
-                    Ok(Ok(_)) => Ok(Response::new(SubmitCertificateResponse {})),
-                    Ok(Err(_)) => Err(Status::internal("Can't submit certificate")),
-                    Err(_) => Err(Status::internal("Can't submit certificate")),
-                })
-                .await
         } else {
             Err(Status::invalid_argument("Certificate is malformed"))
         }

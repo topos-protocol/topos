@@ -7,7 +7,7 @@ use libp2p::{
     Multiaddr, PeerId,
 };
 use tokio::sync::oneshot;
-use tracing::{info, instrument, warn};
+use tracing::{info, warn};
 
 pub type PendingDials = HashMap<PeerId, oneshot::Sender<Result<(), P2PError>>>;
 pub type PendingRecordRequest = oneshot::Sender<Result<Vec<Multiaddr>, CommandExecutionError>>;
@@ -15,7 +15,6 @@ pub type PendingRecordRequest = oneshot::Sender<Result<Vec<Multiaddr>, CommandEx
 /// DiscoveryBehaviour is responsible to discover and manage connections with peers
 pub(crate) struct DiscoveryBehaviour {}
 impl DiscoveryBehaviour {
-    #[instrument(name = "DiscoveryBehaviour", skip_all, fields(peer_id = %peer_key.public().to_peer_id()))]
     pub fn create(
         peer_key: Keypair,
         discovery_protocol: Cow<'static, [u8]>,

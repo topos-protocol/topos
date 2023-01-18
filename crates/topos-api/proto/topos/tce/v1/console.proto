@@ -6,6 +6,7 @@ import "topos/shared/v1/uuid.proto";
 
 service ConsoleService {
   rpc PushPeerList(PushPeerListRequest) returns (PushPeerListResponse);
+  rpc Status(StatusRequest) returns (StatusResponse);
 }
 
 message PushPeerListRequest {
@@ -14,3 +15,8 @@ message PushPeerListRequest {
 }
 
 message PushPeerListResponse {}
+
+message StatusRequest {}
+message StatusResponse {
+  bool has_active_sample = 1;
+}

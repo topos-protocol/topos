@@ -4,10 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-serde = { workspace = true, features = ["derive"] }
+byteorder.workspace = true
+hex.workspace = true
 rand = { workspace = true, features = ["default"] }
 rand_core.workspace = true
 rand_distr.workspace = true
+serde = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 tokio = { workspace = true, features = [
     "io-util",
@@ -19,12 +21,8 @@ tokio = { workspace = true, features = [
     "time",
     "sync",
 ] }
-byteorder.workspace = true
-tracing.workspace = true
 tracing-subscriber.workspace = true
-hex.workspace = true
+tracing.workspace = true
 
 topos-sequencer-types = { package = "topos-sequencer-types", path = "../topos-sequencer-types" }
 topos-core = { workspace = true, features = ["uci"] }
-
-

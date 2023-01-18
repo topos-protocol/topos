@@ -8,9 +8,8 @@ use crate::{
 
 #[derive(Clone)]
 pub struct GatekeeperClient {
-    #[allow(dead_code)]
+    pub(crate) local_peer_id: PeerId,
     pub(crate) shutdown_channel: mpsc::Sender<oneshot::Sender<()>>,
-    #[allow(dead_code)]
     pub(crate) commands: mpsc::Sender<GatekeeperCommand>,
 }
 
@@ -29,7 +28,18 @@ impl GatekeeperClient {
         &self,
         peer_list: Vec<PeerId>,
     ) -> Result<Vec<PeerId>, GatekeeperError> {
-        PushPeerList { peer_list }.send_to(&self.commands).await
+        let peer_list: Vec<PeerId> = peer_list
+            .into_iter()
+            .filter(|peer| peer != &self.local_peer_id)
+            .collect();
+
+        PushPeerList {
+            peer_list: peer_list.clone(),
+        }
+        .send_to(&self.commands)
+        .await?;
+
+        Ok(peer_list)
     }
 
     pub async fn get_all_peers(&self) -> Result<Vec<PeerId>, GatekeeperError> {

@@ -9,17 +9,16 @@ name = "tce-params-minimizer"
 path = "src/main.rs"
 
 [dependencies]
+clap.workspace = true
+pretty_env_logger.workspace = true
 rand.workspace = true
 rand_core.workspace = true
 rand_distr.workspace = true
 tokio.workspace = true
 tracing.workspace = true
-pretty_env_logger.workspace = true
-clap.workspace = true
 
 tce_transport = { package = "topos-tce-transport", path = "../topos-tce-transport" }
 topos-core = { workspace = true, features = ["uci"] }
 topos-tce-broadcast = { path = "../topos-tce-broadcast" }
-
 
 fastapprox = "0.3.0"

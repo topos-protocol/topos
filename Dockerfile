@@ -62,7 +62,12 @@ RUN adduser \
 WORKDIR /usr/src/app
 
 COPY --from=build /usr/src/app/target/release/topos .
+COPY tools/init.sh ./init.sh
+
+RUN apt-get update && apt-get install jq -y
 
 USER topos:topos
 
-ENTRYPOINT ["./topos"]
+RUN mkdir /tmp/shared
+
+ENTRYPOINT ["./init.sh"]

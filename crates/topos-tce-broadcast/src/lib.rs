@@ -19,7 +19,7 @@ use tce_transport::{ReliableBroadcastParams, TceEvents};
 
 use topos_core::uci::{Certificate, CertificateId, DigestCompressed, SubnetId};
 use topos_p2p::PeerId;
-use tracing::{error, instrument, Instrument, Span};
+use tracing::{error, info, Instrument, Span};
 
 use crate::mem_store::TceMemStore;
 use crate::sampler::{Sampler, SubscribersUpdate, SubscriptionsView};
@@ -37,7 +37,6 @@ pub mod tce_store;
 /// Configuration of TCE implementation
 pub struct ReliableBroadcastConfig {
     pub tce_params: ReliableBroadcastParams,
-    pub my_peer_id: Peer,
 }
 
 #[derive(Debug)]
@@ -63,6 +62,7 @@ pub enum DoubleEchoCommand {
     /// Entry point for new certificate to submit as initial sender
     Broadcast {
         cert: Certificate,
+        ctx: Span,
     },
 
     // Entry point to broadcast many Certificates
@@ -91,8 +91,6 @@ pub enum DoubleEchoCommand {
 /// Thread safe client to the protocol aggregate
 #[derive(Clone, Debug)]
 pub struct ReliableBroadcastClient {
-    #[allow(dead_code)]
-    peer_id: String,
     broadcast_commands: mpsc::Sender<DoubleEchoCommand>,
     sampling_commands: mpsc::Sender<SamplerCommand>,
 }
@@ -102,12 +100,10 @@ impl ReliableBroadcastClient {
     ///
     /// New client instances to the same aggregate can be cloned from the returned one.
     /// Aggregate is spawned as new task.
-    #[instrument(name = "ReliableBroadcastClient", skip_all, fields(peer_id = config.my_peer_id))]
+    // #[instrument(name = "ReliableBroadcastClient", skip_all)]
     pub fn new(
         config: ReliableBroadcastConfig,
     ) -> (Self, impl Stream<Item = Result<TceEvents, ()>>) {
-        let peer_id = config.my_peer_id.clone();
-
         let (subscriptions_view_sender, subscriptions_view_receiver) =
             mpsc::channel::<SubscriptionsView>(2048);
         let (subscribers_update_sender, subscribers_update_receiver) =
@@ -126,7 +122,6 @@ impl ReliableBroadcastClient {
         let (broadcast_commands, command_receiver) = mpsc::channel(2048);
 
         let double_echo = DoubleEcho::new(
-            peer_id.clone(),
             config.tce_params,
             command_receiver,
             subscriptions_view_receiver,
@@ -136,12 +131,11 @@ impl ReliableBroadcastClient {
             Box::new(TceMemStore::default()),
         );
 
-        spawn(sampler.run().instrument(Span::current()));
-        spawn(double_echo.run().instrument(Span::current()));
+        spawn(sampler.run());
+        spawn(double_echo.run());
 
         (
             Self {
-                peer_id,
                 broadcast_commands,
                 sampling_commands: sampler_command_sender,
             },
@@ -254,8 +248,13 @@ impl ReliableBroadcastClient {
         let broadcast_commands = self.broadcast_commands.clone();
 
         async move {
+            info!("send certificate to be broadcast");
             if broadcast_commands
-                .send(DoubleEchoCommand::Broadcast { cert: certificate })
+                .send(DoubleEchoCommand::Broadcast {
+                    cert: certificate,
+                    ctx: Span::current(),
+                })
+                .instrument(Span::current())
                 .await
                 .is_err()
             {

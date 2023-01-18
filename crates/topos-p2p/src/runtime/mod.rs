@@ -19,6 +19,7 @@ pub struct Runtime {
     pub(crate) command_receiver: mpsc::Receiver<Command>,
     pub(crate) event_sender: mpsc::Sender<Event>,
     pub(crate) local_peer_id: PeerId,
+    pub(crate) listening_on: Multiaddr,
     pub(crate) addresses: Multiaddr,
     #[allow(dead_code)]
     pub(crate) bootstrapped: bool,
@@ -50,11 +51,11 @@ impl Runtime {
     }
 
     pub async fn run(mut self) {
-        let addr = self.addresses.clone();
+        let addr = self.listening_on.clone();
         if let Err(error) = self.swarm.listen_on(addr) {
             error!(
                 "Couldn't start listening on {} because of {error:?}",
-                self.addresses
+                self.listening_on
             );
         }
 

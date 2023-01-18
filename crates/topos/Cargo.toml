@@ -3,31 +3,29 @@ name = "topos"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-topos-tce = { path = "../topos-tce/" }
-topos-p2p = { path = "../topos-p2p" }
-topos-tce-transport = { path = "../topos-tce-transport" }
-topos-sequencer = { path = "../topos-sequencer" }
-
 topos-core = { workspace = true, features = ["api"] }
+topos-p2p = { path = "../topos-p2p" }
+topos-sequencer = { path = "../topos-sequencer" }
+topos-tce = { path = "../topos-tce/" }
+topos-tce-transport = { path = "../topos-tce-transport" }
+
+clap.workspace = true
+futures.workspace = true
+opentelemetry-otlp.workspace = true
+opentelemetry.workspace = true
+serde_json.workspace = true
 tokio = { workspace = true, features = ["full"] }
 tonic.workspace = true
-futures.workspace = true
-serde.workspace = true
-serde_json.workspace = true
+tower.workspace = true
 tracing = { workspace = true, features = ["log"] }
+tracing-opentelemetry.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
 uuid.workspace = true
-clap.workspace = true
-
-insta = { version = "1.21", features = ["json", "redactions"] }
-tower = "0.4.13"
 
 [dev-dependencies]
+assert_cmd = "2.0.6"
+insta = { version = "1.21", features = ["json", "redactions"] }
 serde.workspace = true
 serde_json.workspace = true
-assert_cmd = "2.0.6"
-insta = "1.21"
 

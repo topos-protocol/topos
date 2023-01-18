@@ -62,6 +62,7 @@ where
 
         let (api_client, api_events) = topos_tce_api::Runtime::builder()
             .serve_addr(addr)
+            .exposed_addresses(addr)
             .build_and_launch()
             .await;
         let app = AppContext::new(InmemoryStorage::default(), rb_client, client, api_client);

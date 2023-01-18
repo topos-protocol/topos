@@ -65,11 +65,9 @@ pub(crate) async fn handle_command(
             debug!("Start executing PushPeerList command");
             trace!("Building the gRPC client with {:?}", endpoint);
 
-            let client = Arc::new(Mutex::new(
-                ConsoleServiceClient::connect(endpoint.take().unwrap())
-                    .await
-                    .unwrap(),
-            ));
+            let endpoint = endpoint.take().unwrap();
+            let client = setup_tce_grpc(&endpoint).await;
+
             trace!("gRPC client successfully built");
 
             let mut tce_service = TCEService {
@@ -85,9 +83,10 @@ pub(crate) async fn handle_command(
         Some(TceCommands::Run(cmd)) => {
             let config = TceConfiguration {
                 boot_peers: cmd.parse_boot_peers(),
-                local_key_seed: cmd.local_key_seed,
+                local_key_seed: cmd.local_key_seed.map(|s| s.as_bytes().to_vec()),
                 jaeger_agent: cmd.jaeger_agent,
                 jaeger_service_name: cmd.jaeger_service_name,
+                tce_addr: cmd.tce_ext_host,
                 tce_local_port: cmd.tce_local_port,
                 tce_params: cmd.tce_params,
                 api_addr: cmd.api_addr,
@@ -115,6 +114,38 @@ pub(crate) async fn handle_command(
 
             Ok(())
         }
+
+        Some(TceCommands::Keys(cmd)) => {
+            if let Some(slice) = cmd.from_seed {
+                println!(
+                    "{}",
+                    topos_p2p::utils::local_key_pair_from_slice(slice.as_bytes())
+                        .public()
+                        .to_peer_id()
+                )
+            };
+
+            Ok(())
+        }
+
+        Some(TceCommands::Status(status)) => {
+            debug!("Start executing Status command");
+            trace!("Building the gRPC client with {:?}", endpoint);
+            let endpoint = endpoint.take().unwrap();
+            let client = setup_tce_grpc(&endpoint).await;
+
+            trace!("gRPC client successfully built");
+
+            let mut tce_service = TCEService {
+                client: client.clone(),
+            };
+
+            debug!("Executing the Status on the TCE service");
+            let exit_code = i32::from(!(tce_service.call(status).await?));
+
+            std::process::exit(exit_code);
+        }
+
         None => Ok(()),
     }
 }
@@ -130,4 +161,15 @@ pub fn print_node_info(config: &TceConfiguration) {
     info!("gRPC at {}", config.api_addr);
     info!("Jaeger at {}", config.jaeger_agent);
     info!("Broadcast params {:?}", config.tce_params);
+}
+
+async fn setup_tce_grpc(endpoint: &str) -> Arc<Mutex<ConsoleServiceClient<Channel>>> {
+    match ConsoleServiceClient::connect(endpoint.to_string()).await {
+        Err(_) => {
+            error!("Unable to connect to TCE on {:?}", endpoint);
+            std::process::exit(1);
+        }
+
+        Ok(client) => Arc::new(Mutex::new(client)),
+    }
 }

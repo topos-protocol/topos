@@ -16,7 +16,7 @@ use topos_tce_gatekeeper::GatekeeperClient;
 use topos_tce_storage::events::StorageEvent;
 use topos_tce_storage::StorageClient;
 use topos_tce_synchronizer::{SynchronizerClient, SynchronizerEvent};
-use tracing::{debug, error, info, trace};
+use tracing::{debug, error, info, info_span, trace, Instrument, Span};
 
 /// Top-level transducer main app context & driver (alike)
 ///
@@ -98,13 +98,25 @@ impl AppContext {
             ApiEvent::CertificateSubmitted {
                 certificate,
                 sender,
+                ctx,
             } => {
-                _ = self
-                    .pending_storage
-                    .add_pending_certificate(certificate.clone())
-                    .await;
-                spawn(self.tce_cli.broadcast_new_certificate(certificate));
-                _ = sender.send(Ok(()));
+                let span = info_span!(target: "topos_tce", parent: &ctx, "TCE Runtime");
+                async {
+                    _ = self
+                        .pending_storage
+                        .add_pending_certificate(certificate.clone())
+                        .instrument(Span::current())
+                        .await;
+                    info!("Certificate added to pending storage");
+                    spawn(
+                        self.tce_cli
+                            .broadcast_new_certificate(certificate)
+                            .instrument(Span::current()),
+                    );
+                    _ = sender.send(Ok(()));
+                }
+                .instrument(span)
+                .await;
             }
 
             ApiEvent::PeerListPushed { peers, sender } => {
@@ -129,6 +141,10 @@ impl AppContext {
             &self.network_client.local_peer_id, &evt
         );
         match evt {
+            TceEvents::StableSample => {
+                self.api_client.set_active_sample(true).await;
+            }
+
             TceEvents::CertificateDelivered { certificate } => {
                 _ = self
                     .pending_storage
@@ -170,7 +186,7 @@ impl AppContext {
                                 NetworkMessage::Cmd(TceCommands::OnEchoSubscribeOk {
                                     from_peer,
                                 }) => {
-                                    info!("Receive response to EchoSubscribe",);
+                                    debug!("Receive response to EchoSubscribe",);
                                     let (sender, receiver) = oneshot::channel();
                                     let _ = command_sender
                                         .send(SamplerCommand::ConfirmPeer {
@@ -226,7 +242,7 @@ impl AppContext {
                                 NetworkMessage::Cmd(TceCommands::OnReadySubscribeOk {
                                     from_peer,
                                 }) => {
-                                    info!("Receive response to ReadySubscribe");
+                                    debug!("Receive response to ReadySubscribe");
                                     let (sender_ready, receiver_ready) = oneshot::channel();
                                     let _ = command_sender
                                         .send(SamplerCommand::ConfirmPeer {
@@ -360,7 +376,7 @@ impl AppContext {
                 let msg: NetworkMessage = data.into();
                 match msg {
                     NetworkMessage::Cmd(cmd) => {
-                        info!("peer_id: {} received TransmissionOnReq {:?}", &my_peer, cmd);
+                        debug!("peer_id: {} received TransmissionOnReq {:?}", &my_peer, cmd);
                         match cmd {
                             // We received echo subscription request from external peer
                             TceCommands::OnEchoSubscribeReq { from_peer } => {
@@ -417,7 +433,10 @@ impl AppContext {
 
                                 let command_sender = self.tce_cli.get_double_echo_channel();
                                 command_sender
-                                    .send(DoubleEchoCommand::Broadcast { cert })
+                                    .send(DoubleEchoCommand::Broadcast {
+                                        cert,
+                                        ctx: Span::current(),
+                                    })
                                     .await
                                     .expect("Gossip the certificate");
 

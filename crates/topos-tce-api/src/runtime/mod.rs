@@ -10,7 +10,7 @@ use tonic_health::server::HealthReporter;
 use topos_core::api::tce::v1::api_service_server::ApiServiceServer;
 use topos_core::uci::SubnetId;
 
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, info_span, Instrument, Span};
 use uuid::Uuid;
 
 use crate::{
@@ -175,21 +175,30 @@ impl Runtime {
             InternalRuntimeCommand::CertificateSubmitted {
                 certificate,
                 sender,
+                ctx,
             } => {
-                info!("A certificate has been submitted to the TCE {certificate:?}");
-                if let Err(error) = self
-                    .api_event_sender
-                    .send(RuntimeEvent::CertificateSubmitted {
-                        certificate,
-                        sender,
-                    })
-                    .await
-                {
-                    error!(
-                        %error,
-                        "Can't send certificate submission to runtime, receiver is dropped"
-                    );
+                let span = info_span!(target: "topos_tce_api", parent: &ctx, "TCE API Runtime");
+
+                async move {
+                    info!("A certificate has been submitted to the TCE {certificate:?}");
+                    if let Err(error) = self
+                        .api_event_sender
+                        .send(RuntimeEvent::CertificateSubmitted {
+                            certificate,
+                            sender,
+                            ctx: Span::current(),
+                        })
+                        .instrument(Span::current())
+                        .await
+                    {
+                        error!(
+                            %error,
+                            "Can't send certificate submission to runtime, receiver is dropped"
+                        );
+                    }
                 }
+                .instrument(span)
+                .await
             }
 
             InternalRuntimeCommand::PushPeerList { peers, sender } => {
