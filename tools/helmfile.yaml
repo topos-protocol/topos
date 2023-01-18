@@ -1,0 +1,24 @@
+helmDefaults:
+  wait: true
+
+repositories:
+ - name: toposware
+   url: https://raw.githubusercontent.com/toposware/helm-charts/gh-pages/
+   username: {{ requiredEnv "GITHUB_USERNAME"}}
+   password: {{ requiredEnv "GITHUB_TOKEN"}}
+
+releases:
+- name: tce-all-in-one
+  namespace: default
+  chart: toposware/tce-all-in-one
+  version: 0.1.2
+  createNamespace: true
+  set:
+  - name: image.repository
+    value: ghcr.io/toposware/tce
+  - name: image.tag
+    value: pr-4
+  - name: credentials.username
+    value: {{ requiredEnv "GITHUB_USERNAME"}}
+  - name: credentials.password
+    value: {{ requiredEnv "GITHUB_TOKEN"}}
