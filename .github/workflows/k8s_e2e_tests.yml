@@ -1,16 +1,12 @@
 name: E2E tests on Kubernetes
 
 on:
-  workflow_run:
-    workflows: [Docker_build_push] # This is the name of the .github/workflows/docker_build_push.yml workflow
-    types:
-      - completed
+  workflow_call:
 
 jobs:
   retrieve-docker-tags:
     name: Retrieve docker tags from triggering workflow
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     outputs:
       docker_tags: ${{ steps.docker_tags.outputs.result }}
     steps:
