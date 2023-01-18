@@ -45,4 +45,7 @@ pub enum CommandExecutionError {
 
     #[error("Unable to send a command: {0}")]
     SendError(#[from] mpsc::error::SendError<Command>),
+
+    #[error("Failed to fetch Record from DHT")]
+    DHTGetRecordFailed,
 }

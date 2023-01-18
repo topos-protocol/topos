@@ -1,6 +1,7 @@
 //!
 //! Application logic glue
 //!
+use futures::FutureExt;
 use futures::{future::join_all, Stream, StreamExt};
 use serde::{Deserialize, Serialize};
 use tce_transport::{TceCommands, TceEvents};
@@ -190,8 +191,10 @@ impl AppContext {
                             "peer_id: {} sending echo subscribe to {}",
                             &my_peer_id, &peer_id
                         );
+                        let peer_id = peer_id.clone();
                         self.network_client
-                            .send_request::<_, NetworkMessage>(*peer_id, data.clone())
+                            .send_request::<_, NetworkMessage>(peer_id.clone(), data.clone())
+                            .map(move |result| (peer_id, result))
                     })
                     .collect::<Vec<_>>();
 
@@ -200,7 +203,7 @@ impl AppContext {
                     let results = join_all(future_pool).await;
 
                     // Process responses
-                    for result in results {
+                    for (peer_id, result) in results {
                         match result {
                             Ok(message) => match message {
                                 // Remote peer has replied us that he is accepting us as echo subscriber
@@ -220,11 +223,23 @@ impl AppContext {
                                     let _ = receiver.await.expect("Sender was dropped");
                                 }
                                 msg => {
-                                    error!("Receive an unexpected message as a response {msg:?}")
+                                    error!("Receive an unexpected message as a response {msg:?}");
+                                    let _ = command_sender
+                                        .send(SamplerCommand::PeerConfirmationFailed {
+                                            peer: peer_id,
+                                            sample_type: SampleType::EchoSubscription,
+                                        })
+                                        .await;
                                 }
                             },
                             Err(error) => {
-                                error!("An error occurred when sending EchoSubscribe {error:?}")
+                                error!("An error occurred when sending EchoSubscribe {error:?}");
+                                let _ = command_sender
+                                    .send(SamplerCommand::PeerConfirmationFailed {
+                                        peer: peer_id,
+                                        sample_type: SampleType::EchoSubscription,
+                                    })
+                                    .await;
                             }
                         }
                     }
@@ -240,14 +255,15 @@ impl AppContext {
                 let command_sender = self.tce_cli.get_sampler_channel();
                 // Sending ready subscribe message to send to a number of remote peers
                 let future_pool = peers
-                    .iter()
+                    .into_iter()
                     .map(|peer_id| {
                         debug!(
                             "peer_id: {} sending ready subscribe to {}",
                             &my_peer_id, &peer_id
                         );
                         self.network_client
-                            .send_request::<_, NetworkMessage>(*peer_id, data.clone())
+                            .send_request::<_, NetworkMessage>(peer_id.clone(), data.clone())
+                            .map(move |result| (peer_id, result))
                     })
                     .collect::<Vec<_>>();
 
@@ -256,7 +272,7 @@ impl AppContext {
                     let results = join_all(future_pool).await;
 
                     // Process responses from remote peers
-                    for result in results {
+                    for (peer_id, result) in results {
                         match result {
                             Ok(message) => match message {
                                 // Remote peer has replied us that he is accepting us as ready subscriber
@@ -284,11 +300,35 @@ impl AppContext {
                                     join_all(vec![receiver_ready, receiver_delivery]).await;
                                 }
                                 msg => {
-                                    error!("Receive an unexpected message as a response {msg:?}")
+                                    error!("Receive an unexpected message as a response {msg:?}");
+                                    let _ = command_sender
+                                        .send(SamplerCommand::PeerConfirmationFailed {
+                                            peer: peer_id,
+                                            sample_type: SampleType::ReadySubscription,
+                                        })
+                                        .await;
+                                    let _ = command_sender
+                                        .send(SamplerCommand::PeerConfirmationFailed {
+                                            peer: peer_id,
+                                            sample_type: SampleType::DeliverySubscription,
+                                        })
+                                        .await;
                                 }
                             },
                             Err(error) => {
-                                error!("An error occurred when sending ReadySubscribe {error:?}")
+                                error!("An error occurred when sending ReadySubscribe {error:?}");
+                                let _ = command_sender
+                                    .send(SamplerCommand::PeerConfirmationFailed {
+                                        peer: peer_id,
+                                        sample_type: SampleType::ReadySubscription,
+                                    })
+                                    .await;
+                                let _ = command_sender
+                                    .send(SamplerCommand::PeerConfirmationFailed {
+                                        peer: peer_id,
+                                        sample_type: SampleType::DeliverySubscription,
+                                    })
+                                    .await;
                             }
                         }
                     }
@@ -449,12 +489,19 @@ impl AppContext {
                             }
 
                             TceCommands::OnGossip {
-                                cert, digest: _, ..
+                                cert,
+                                digest: _,
+                                ctx,
                             } => {
-                                debug!(
-                                    "peer_id {} on_net_event TceCommands::OnGossip cert id: {:?}",
-                                    &self.network_client.local_peer_id, &cert.id
-                                );
+                                let span = info_span!("Gossip");
+                                let parent = ctx.extract();
+                                span.set_parent(parent);
+                                span.in_scope(|| {
+                                    debug!(
+                                        "peer_id {} on_net_event TceCommands::OnGossip cert id: {:?}",
+                                        &self.network_client.local_peer_id, &cert.id
+                                    );
+                                });
 
                                 _ = self
                                     .pending_storage
@@ -465,9 +512,8 @@ impl AppContext {
                                 command_sender
                                     .send(DoubleEchoCommand::Broadcast {
                                         cert,
-                                        ctx: Span::current(),
+                                        ctx: span.clone(),
                                     })
-                                    // .instrument(span)
                                     .await
                                     .expect("Gossip the certificate");
 

@@ -21,7 +21,6 @@ pub struct Runtime {
     pub(crate) local_peer_id: PeerId,
     pub(crate) listening_on: Multiaddr,
     pub(crate) addresses: Multiaddr,
-    #[allow(dead_code)]
     pub(crate) bootstrapped: bool,
 
     pub(crate) pending_requests: PendingRequests,

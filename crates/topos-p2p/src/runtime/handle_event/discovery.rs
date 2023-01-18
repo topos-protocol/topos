@@ -4,7 +4,7 @@ use libp2p::{
 };
 use tracing::{error, info, warn};
 
-use crate::{Event, Runtime};
+use crate::{error::CommandExecutionError, Event, Runtime};
 
 use super::EventHandler;
 
@@ -36,7 +36,7 @@ impl EventHandler<KademliaEvent> for Runtime {
                 result: QueryResult::Bootstrap(res),
                 ..
             } => match res {
-                Ok(_) => {
+                Ok(_) if !self.bootstrapped => {
                     info!("Bootstrapping finished");
                     let key = Key::new(&self.local_peer_id.to_string());
                     _ = self
@@ -44,7 +44,9 @@ impl EventHandler<KademliaEvent> for Runtime {
                         .behaviour_mut()
                         .discovery
                         .put_record(Record::new(key, self.addresses.to_vec()), Quorum::All);
+                    self.bootstrapped = true;
                 }
+                Ok(_) => {}
                 Err(e) => error!("Error: bootstrap : {e:?}"),
             },
             KademliaEvent::OutboundQueryCompleted {
@@ -85,7 +87,18 @@ impl EventHandler<KademliaEvent> for Runtime {
                     }
                 }
 
-                Err(error) => error!("{error:?}"),
+                Err(error) => {
+                    if let Some(sender) = self.pending_record_requests.remove(&id) {
+                        if sender
+                            .send(Err(CommandExecutionError::DHTGetRecordFailed))
+                            .is_err()
+                        {
+                            // TODO: Hash the QueryId
+                            warn!("Could not notify Record query ({id:?}) response because initiator is dropped");
+                        }
+                    }
+                    error!("{error:?}")
+                }
             },
             _ => {}
         }

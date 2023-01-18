@@ -50,6 +50,11 @@ pub enum SamplerCommand {
         sample_type: SampleType,
         sender: oneshot::Sender<Result<(), ()>>,
     },
+    PeerConfirmationFailed {
+        peer: PeerId,
+        sample_type: SampleType,
+    },
+    ForceResample,
 }
 
 #[derive(Debug)]
@@ -162,6 +167,13 @@ impl ReliableBroadcastClient {
             }
             Ok(())
         }
+    }
+
+    pub async fn force_resample(&self) {
+        _ = self
+            .get_sampler_channel()
+            .send(SamplerCommand::ForceResample)
+            .await;
     }
 
     pub async fn add_confirmed_peer_to_sample(&self, sample_type: SampleType, peer: PeerId) {

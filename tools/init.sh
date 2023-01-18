@@ -22,6 +22,8 @@ case "$1" in
         $JQ -n --arg PEER $($TOPOS_BIN tce keys --from-seed=$TCE_LOCAL_KS) '[$PEER]' > $PEER_LIST_PATH
         echo "Peer list file have been successfully generated"
 
+        cat $PEER_LIST_PATH
+
         echo "Generating node list file..."
         $JQ -n --arg NODE $NODE '{"nodes": [$NODE]}' > $NODE_LIST_PATH
         echo "Peer nodes list have been successfully generated"
