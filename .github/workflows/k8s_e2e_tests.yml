@@ -4,35 +4,8 @@ on:
   workflow_call:
 
 jobs:
-  retrieve-docker-tags:
-    name: Retrieve docker tags from triggering workflow
-    runs-on: ubuntu-latest
-    outputs:
-      docker_tags: ${{ steps.docker_tags.outputs.result }}
-    steps:
-      - name: Retrieve docker tags
-        id: docker_tags
-        uses: actions/github-script@v6
-        with:
-          script: |
-            let allArtifacts = await github.rest.actions.listWorkflowRunArtifacts({
-               owner: context.repo.owner,
-               repo: context.repo.repo,
-               run_id: context.payload.workflow_run.id,
-            });
-            let matchArtifact = allArtifacts.data.artifacts.filter((artifact) => {
-              return artifact.name == "docker_tags"
-            })[0];
-            let download = await github.rest.actions.downloadArtifact({
-               owner: context.repo.owner,
-               repo: context.repo.repo,
-               artifact_id: matchArtifact.id,
-            });
-            return download.data;
-          result-encoding: string
   k8s:
     name: Deploy k8s cluster and run Observability Stack
-    needs: retrieve-docker-tags
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/toposware/k8s_e2e:latest
@@ -44,6 +17,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+
+      - name: Retrieve docker tags
+        id: docker_tags
+        uses: actions/download-artifact@v3
+        with:
+          name: docker_tags
+          path: docker/
 
       - name: Enable remote modules download
         run: git config --global url."https://${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}@github.com/".insteadOf "https://github.com/"
@@ -75,8 +55,9 @@ jobs:
         env:
           GITHUB_USERNAME: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}
-          DOCKER_TAG: ${{ needs.retrieve-docker-tags.outputs.docker_tags }}
         run: |
+          docker_tag=$(head -n 1 docker/docker_tags)
+          echo "DOCKER_TAG=${docker_tag#*:}" >> $GITHUB_ENV
           helmfile sync
 
       - name: Sleep
