@@ -4,19 +4,20 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+byteorder.workspace = true
 futures.workspace = true
 rand.workspace = true
 rand_core.workspace = true
 rand_distr.workspace = true
 serde.workspace = true
 thiserror.workspace = true
-tokio-stream = { workspace = true, features = ["sync"] }
 tokio = { workspace = true, features = ["full"] }
+tokio-stream = { workspace = true, features = ["sync"] }
 tracing.workspace = true
-byteorder.workspace = true
 
+tce_transport = { package = "topos-tce-transport", path = "../topos-tce-transport"}
 topos-core = { workspace = true, features = ["uci"] }
 topos-p2p = { path = "../topos-p2p/"}
-tce_transport = { package = "topos-tce-transport", path = "../topos-tce-transport"}
 
-opentelemetry = { version = "0.17", default-features = false, features = ["trace", "rt-tokio"] }
+opentelemetry.workspace = true
+tracing-opentelemetry.workspace = true

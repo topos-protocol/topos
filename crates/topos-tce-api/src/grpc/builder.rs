@@ -1,10 +1,11 @@
-use std::net::SocketAddr;
+use std::{net::SocketAddr, sync::Arc};
 
 use futures::{future::BoxFuture, FutureExt};
-use tokio::sync::mpsc::Sender;
+use tokio::sync::{mpsc::Sender, RwLock};
 use tonic_health::server::HealthReporter;
 use topos_core::api::tce::v1::{
     api_service_server::ApiServiceServer, console_service_server::ConsoleServiceServer,
+    StatusResponse,
 };
 
 use crate::runtime::InternalRuntimeCommand;
@@ -34,6 +35,7 @@ impl ServerBuilder {
         mut self,
     ) -> (
         HealthReporter,
+        Arc<RwLock<StatusResponse>>,
         BoxFuture<'static, Result<(), tonic::transport::Error>>,
     ) {
         let command_sender = self
@@ -41,8 +43,13 @@ impl ServerBuilder {
             .take()
             .expect("Cannot build gRPC without an InternalRuntimeCommand sender");
 
+        let status = Arc::new(RwLock::new(StatusResponse {
+            has_active_sample: false,
+        }));
+
         let console = ConsoleServiceServer::new(TceConsoleService {
             command_sender: command_sender.clone(),
+            status: status.clone(),
         });
 
         let service = ApiServiceServer::new(TceGrpcService { command_sender });
@@ -71,6 +78,6 @@ impl ServerBuilder {
             .serve(serve_addr)
             .boxed();
 
-        (health_reporter, grpc)
+        (health_reporter, status, grpc)
     }
 }

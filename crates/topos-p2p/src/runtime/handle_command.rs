@@ -10,10 +10,9 @@ use libp2p::{
     swarm::NetworkBehaviour,
     PeerId,
 };
-use tracing::{info, instrument, warn};
+use tracing::{info, warn};
 
 impl Runtime {
-    #[instrument(name = "Runtime::handle_command", skip_all, fields(peer_id = %self.local_peer_id))]
     pub(crate) async fn handle_command(&mut self, command: Command) {
         match command {
             Command::StartListening { peer_addr, sender } => {

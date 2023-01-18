@@ -1,9 +1,10 @@
-use std::str::FromStr;
+use std::{str::FromStr, sync::Arc};
 
-use tokio::sync::{mpsc::Sender, oneshot};
+use tokio::sync::{mpsc::Sender, oneshot, RwLock};
 use tonic::{Request, Response, Status};
 use topos_core::api::tce::v1::{
     console_service_server::ConsoleService, PushPeerListRequest, PushPeerListResponse,
+    StatusRequest, StatusResponse,
 };
 use topos_p2p::PeerId;
 
@@ -11,6 +12,7 @@ use crate::runtime::InternalRuntimeCommand;
 
 pub(crate) struct TceConsoleService {
     pub(crate) command_sender: Sender<InternalRuntimeCommand>,
+    pub(crate) status: Arc<RwLock<StatusResponse>>,
 }
 
 #[tonic::async_trait]
@@ -51,5 +53,14 @@ impl ConsoleService for TceConsoleService {
         }
 
         Ok(Response::new(PushPeerListResponse {}))
+    }
+
+    async fn status(
+        &self,
+        _request: Request<StatusRequest>,
+    ) -> Result<Response<StatusResponse>, Status> {
+        let status = self.status.read().await;
+
+        Ok(Response::new(status.clone()))
     }
 }

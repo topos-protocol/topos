@@ -4,11 +4,17 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-topos-sequencer-types = { package = "topos-sequencer-types", path = "../topos-sequencer-types" }
 topos-core = { workspace = true, features = ["uci", "api"] }
+topos-sequencer-types = { package = "topos-sequencer-types", path = "../topos-sequencer-types" }
 
-serde = { workspace = true, features = ["derive"] }
+async-stream.workspace = true
+backoff = { version = "0.4", features = ["tokio"] }
+byteorder.workspace = true
 futures.workspace = true
+hex.workspace = true
+hyper.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = [
     "io-util",
@@ -22,21 +28,15 @@ tokio = { workspace = true, features = [
 ] }
 tokio-stream.workspace = true
 tonic = { workspace = true, features = ["transport"] }
-serde_json.workspace = true
-byteorder.workspace = true
-uuid.workspace = true
-async-stream.workspace = true
-hyper.workspace = true
-tracing.workspace = true
 tracing-subscriber.workspace = true
-backoff = { version = "0.4", features = ["tokio"] }
-hex = "0.4.3"
+tracing.workspace = true
+uuid.workspace = true
 
 [dev-dependencies]
-rstest.workspace = true
-tracing.workspace = true
-tracing-subscriber.workspace = true
-pretty_env_logger.workspace = true
-serial_test = "0.9"
-dockertest = "0.3.1"
 byteorder = "1.4.3"
+dockertest = "0.3.1"
+pretty_env_logger.workspace = true
+rstest.workspace = true
+serial_test = "0.9"
+tracing-subscriber.workspace = true
+tracing.workspace = true

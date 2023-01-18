@@ -3,6 +3,7 @@ use std::future::IntoFuture;
 use futures::{future::BoxFuture, FutureExt, TryFutureExt};
 use tokio::{spawn, sync::mpsc};
 use tokio_stream::wrappers::ReceiverStream;
+use topos_p2p::Client as NetworkClient;
 use topos_tce_gatekeeper::GatekeeperClient;
 
 use crate::{
@@ -13,6 +14,7 @@ use crate::{
 #[derive(Default)]
 pub struct SynchronizerBuilder {
     gatekeeper_client: Option<GatekeeperClient>,
+    network_client: Option<NetworkClient>,
 }
 
 impl IntoFuture for SynchronizerBuilder {
@@ -34,6 +36,7 @@ impl IntoFuture for SynchronizerBuilder {
 
         CheckpointsCollector::builder()
             .set_gatekeeper_client(self.gatekeeper_client.take())
+            .set_network_client(self.network_client.take())
             .into_future()
             .map_err(Into::into)
             .and_then(
@@ -63,6 +66,12 @@ impl IntoFuture for SynchronizerBuilder {
 impl SynchronizerBuilder {
     pub fn with_gatekeeper_client(mut self, gatekeeper_client: GatekeeperClient) -> Self {
         self.gatekeeper_client = Some(gatekeeper_client);
+
+        self
+    }
+
+    pub fn with_network_client(mut self, network_client: NetworkClient) -> Self {
+        self.network_client = Some(network_client);
 
         self
     }

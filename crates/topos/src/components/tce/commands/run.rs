@@ -12,10 +12,10 @@ pub struct Run {
     #[arg(long, default_value = "", env = "TCE_BOOT_PEERS")]
     pub boot_peers: String,
 
-    /// Advertised (externally visible) <host|address:port>,
+    /// Advertised (externally visible) <host>,
     /// if empty this machine ip address(es) are used
-    #[arg(long, env = "TCE_EXT_HOST")]
-    pub tce_ext_host: Option<String>,
+    #[arg(long, env = "TCE_EXT_HOST", default_value = "/ip4/0.0.0.0")]
+    pub tce_ext_host: String,
 
     /// Port to listen on (host is 0.0.0.0, should be good for most installations)
     #[arg(long, default_value_t = 0, env = "TCE_PORT")]
@@ -31,7 +31,7 @@ pub struct Run {
 
     /// Local peer secret key seed (optional, used for testing)
     #[clap(long, env = "TCE_LOCAL_KS")]
-    pub local_key_seed: Option<u8>,
+    pub local_key_seed: Option<String>,
 
     /// Local peer key-pair (in base64 format)
     #[clap(long, env = "TCE_LOCAL_KEYPAIR")]
@@ -42,15 +42,15 @@ pub struct Run {
     pub db_path: Option<String>,
 
     /// Socket of the Jaeger agent endpoint
-    #[clap(long, default_value = "127.0.0.1:6831", env = "TCE_JAEGER_AGENT")]
+    #[clap(
+        long,
+        default_value = "http://otel-collector:4317",
+        env = "TCE_JAEGER_AGENT"
+    )]
     pub jaeger_agent: String,
 
     /// Jaeger service name
-    #[clap(
-        long,
-        default_value = "tce-jaeger-service",
-        env = "TCE_JAEGER_SERVICE_NAME"
-    )]
+    #[clap(long, default_value = "topos", env = "TCE_JAEGER_SERVICE_NAME")]
     pub jaeger_service_name: String,
 
     /// gRPC API Addr

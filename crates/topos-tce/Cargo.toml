@@ -7,33 +7,35 @@ rust-version = "1.64"
 
 [dependencies]
 async-trait.workspace = true
+bincode.workspace = true
+clap.workspace = true
 futures.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 topos-core.workspace = true
-tracing.workspace = true
 tracing-subscriber = { workspace = true, default-features = false,  features = ["std", "env-filter", "fmt", "ansi"] }
-clap.workspace = true
-bincode.workspace = true
+tracing.workspace = true
 
-topos-tce-storage = { package = "topos-tce-storage", path = "../topos-tce-storage" }
 tce_transport = { package = "topos-tce-transport", path = "../topos-tce-transport" }
 topos-p2p = { path = "../topos-p2p" }
 topos-tce-api = { path = "../topos-tce-api"}
 topos-tce-broadcast = { path = "../topos-tce-broadcast" }
 topos-tce-gatekeeper = { path = "../topos-tce-gatekeeper" }
+topos-tce-storage = { package = "topos-tce-storage", path = "../topos-tce-storage" }
 topos-tce-synchronizer = { path = "../topos-tce-synchronizer" }
 
 # external dependencies
 lazy_static = "1.4"
-opentelemetry = { version = "0.18", default-features = false, features = ["trace", "rt-tokio"] }
-opentelemetry-jaeger = { version = "0.17", features = ["rt-tokio"] }
-tracing-opentelemetry = "0.18.0"
-tracing-attributes = "0.1.23"
+opentelemetry.workspace = true
+opentelemetry-otlp.workspace = true
+tracing-attributes.workspace = true
+tracing-opentelemetry.workspace = true
 
 [dev-dependencies]
+async-stream.workspace = true
 async-trait.workspace = true
+hyper.workspace = true
 libp2p.workspace = true
 rand.workspace = true
 rand_core.workspace = true
@@ -41,8 +43,6 @@ rand_distr.workspace = true
 tonic.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 tracing.workspace = true
-async-stream.workspace = true
-hyper.workspace = true
 
 cucumber = "0.13.0"
 test-log = { version = "0.2", features = ["trace"] }

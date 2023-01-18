@@ -109,4 +109,7 @@ pub enum TceEvents {
 
     /// Certificate successfully delivered
     CertificateDelivered { certificate: Certificate },
+
+    /// Stable Sample
+    StableSample,
 }

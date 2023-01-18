@@ -12,9 +12,9 @@ tonic = { workspace = true, default-features = false, features = [
     "transport",
 ] }
 ethereum-types.workspace = true
-uuid.workspace = true
 hex.workspace = true
 prost.workspace = true
+uuid.workspace = true
 
 
 [build-dependencies]
@@ -23,8 +23,8 @@ tonic-build = { version = "0.8", default-features = false, features = [
 ] }
 
 [dev-dependencies]
-tokio.workspace = true
+async-stream.workspace = true
 futures.workspace = true
 tokio-stream.workspace = true
-async-stream.workspace = true
-tower = "0.4.13"
+tokio.workspace = true
+tower.workspace = true

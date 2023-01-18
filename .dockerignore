@@ -6,5 +6,6 @@
 !crates
 !tests
 !Cargo.*
+!tools/init.sh
 
 !LICENSE
