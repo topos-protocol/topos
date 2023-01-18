@@ -23,7 +23,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: docker_tags
-          path: docker/
+          path: tools/
 
       - name: Enable remote modules download
         run: git config --global url."https://${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}@github.com/".insteadOf "https://github.com/"
@@ -52,11 +52,12 @@ jobs:
         run: aws eks update-kubeconfig --region us-east-1 --name $(terraform output --raw cluster_name)
 
       - name: Helm Install
+        working-directory: tools/
         env:
           GITHUB_USERNAME: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}
         run: |
-          docker_tag=$(head -n 1 docker/docker_tags)
+          docker_tag=$(head -n 1 docker_tags)
           echo "DOCKER_TAG=${docker_tag#*:}" >> $GITHUB_ENV
           helmfile sync
 
