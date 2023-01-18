@@ -21,7 +21,7 @@ provider "aws" {
 module "eks" {
   source = "git::https://github.com/toposware/infrastructure-as-code.git//terraform/modules/aws/eks"
 
-  name   = "topos-devnet-1-observability"
+  name   = "cicd-devnet-1"
   region = var.region
 
   cidr_block         = var.cidr_block
