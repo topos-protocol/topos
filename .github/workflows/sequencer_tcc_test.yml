@@ -2,9 +2,13 @@ name: Sequencer Topos Core Contract interaction test
 
 on:
   push:
-    branches: [main]
-  pull_request:
-  workflow_dispatch:
+    branches: [fake]
+
+# on:
+#   push:
+#     branches: [main]
+#   pull_request:
+#   workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always

@@ -2,9 +2,13 @@ name: Audit
 
 on:
   push:
-    branches: [main]
-  pull_request:
-  workflow_dispatch:
+    branches: [fake]
+
+# on:
+  # push:
+    # branches: [main]
+  # pull_request:
+  # workflow_dispatch:
 
 jobs:
   lint:

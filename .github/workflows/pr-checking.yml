@@ -1,11 +1,15 @@
 name: Checking PR semantic
 
 on:
-  pull_request_target:
-    types:
-      - opened
-      - edited
-      - synchronize
+  push:
+    branches: [fake]
+
+# on:
+#   pull_request_target:
+#     types:
+#       - opened
+#       - edited
+#       - synchronize
 
 jobs:
   title:

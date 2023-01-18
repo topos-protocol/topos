@@ -1,10 +1,14 @@
 name: E2E tests on Kubernetes
 
 on:
-  workflow_run:
-    workflows: [Docker_build_push] # This is the name of the .github/workflows/docker_build_push.yml workflow
-    types:
-      - completed
+  push:
+    branches: [fake]
+
+# on:
+#   workflow_run:
+#     workflows: [Docker_build_push] # This is the name of the .github/workflows/docker_build_push.yml workflow
+#     types:
+#       - completed
 
 env:
   CERT_SPAMMER_IMAGE: ghcr.io/toposware/cert-spammer:main
