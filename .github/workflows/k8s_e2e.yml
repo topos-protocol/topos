@@ -1,0 +1,62 @@
+name: K8S E2E
+
+on:
+  push:
+    branches: ["feat/terraform-ci"]
+
+# env:
+#   CERT_SPAMMER_IMAGE: ghcr.io/toposware/cert-spammer:main
+#   TELEMETRY_ENDPOINT: jaeger.tce.devnet-1.toposware.com:6831
+#   SPAM_DURATION_SECONDS: 10
+#   TERRAFORM_INPUTS: >
+#     -var="cluster_name=${{ github.sha }}"
+#     -var="cert_spammer_image=${{ env.CERT_SPAMMER_IMAGE }}"
+#     -var="jaeger_endpoint=${{ env.TELEMETRY_ENDPOINT }}"
+#     -var="jaeger_service_name=${{ github.sha }}
+#     -var="docker_registry_auth_user=${{ github.actor }}"
+#     -var="docker_registry_auth_pwd=${{ secrets.GITHUB_TOKEN }}"
+
+jobs:
+  k8s:
+    name: Deploy k8s cluster and run Observability Stack
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/toposware/k8s_e2e:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Enable remote modules download
+        run: git config --global url."https://${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}@github.com/".insteadOf "https://github.com/"
+
+      - name: Configure AWS credentials for cicd-devnet-1 account
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: arn:aws:iam::367397670706:role/TerraformRole
+          role-session-name: Terraform-TerraformRole-session
+          aws-region: us-east-1
+          role-skip-session-tagging: true
+          role-duration-seconds: 3600
+
+      - name: Terraform init
+        working-directory: tools/terraform/cicd-devnet-1
+        run: terraform init -backend-config=backend.conf
+
+      - name: Terraform apply
+        working-directory: tools/terraform/cicd-devnet-1
+        run: terraform apply -auto-approve -var-file=terraform.tfvars
+
+      - name: Configure kubeconfig
+        working-directory: tools/terraform/cicd-devnet-1
+        run: aws eks update-kubeconfig --region us-east-1 --name $(terraform output --raw cluster_name)
+
+      - name: Terraform destroy
+        working-directory: tools/terraform/cicd-devnet-1
+        run: terraform destroy -auto-approve
