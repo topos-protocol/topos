@@ -61,6 +61,6 @@ jobs:
         run: sleep 30s
         shell: bash
 
-      - name: Terraform destroy
-        working-directory: tools/terraform/cicd-devnet-1
-        run: terraform destroy -auto-approve
+      # - name: Terraform destroy
+      #   working-directory: tools/terraform/cicd-devnet-1
+      #   run: terraform destroy -auto-approve

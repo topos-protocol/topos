@@ -64,7 +64,11 @@ WORKDIR /usr/src/app
 COPY --from=build /usr/src/app/target/release/topos .
 COPY tools/init.sh ./init.sh
 
-RUN apt-get update && apt-get install jq -y
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    jq \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
 
 USER topos:topos
 
