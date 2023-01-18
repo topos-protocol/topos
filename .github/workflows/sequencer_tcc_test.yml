@@ -1,85 +1,85 @@
-# name: Sequencer Topos Core Contract interaction test
+name: Sequencer Topos Core Contract interaction test
 
-# on:
-#   push:
-#     branches: [main]
-#   pull_request:
-#   workflow_dispatch:
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
 
-# env:
-#   CARGO_TERM_COLOR: always
-#   RUSTFLAGS: -Dwarnings
-#   RUST_BACKTRACE: 1
-#   # Change to specific Rust release to pin
-#   rust_clippy: 1.62.1
-#   REGISTRY: ghcr.io
-#   POLYGON_SUBNET_IMAGE_NAME: toposware/polygon-edge
-#   POLYGON_SUBNET_IMAGE_TAG: develop
-#   TOPOS_SMART_CONTRACTS_IMAGE_NAME: toposware/topos-smart-contracts
-#   TOPOS_SMART_CONTRACTS_IMAGE_TAG: main
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -Dwarnings
+  RUST_BACKTRACE: 1
+  # Change to specific Rust release to pin
+  rust_clippy: 1.62.1
+  REGISTRY: ghcr.io
+  POLYGON_SUBNET_IMAGE_NAME: toposware/polygon-edge
+  POLYGON_SUBNET_IMAGE_TAG: develop
+  TOPOS_SMART_CONTRACTS_IMAGE_NAME: toposware/topos-smart-contracts
+  TOPOS_SMART_CONTRACTS_IMAGE_TAG: main
 
-# jobs:
-#   deploy_smart_contracts_test_subnet_interaction:
-#     strategy:
-#       fail-fast: false
-#       matrix:
-#         target:
-#           - {
-#               name: Linux,
-#               os: ubuntu-latest-16-cores,
-#               triple: x86_64-unknown-linux-gnu,
-#             }
-#         version:
-#           - stable
-#           - nightly-2022-12-18
+jobs:
+  deploy_smart_contracts_test_subnet_interaction:
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - {
+              name: Linux,
+              os: ubuntu-latest-16-cores,
+              triple: x86_64-unknown-linux-gnu,
+            }
+        version:
+          - stable
+          - nightly-2022-12-18
 
-#     name: ${{ matrix.version }} - Deploy smart contracts and test sequencer subnet interaction
-#     runs-on: ${{ matrix.target.os }}
-#     env:
-#       PRIV_GH_USER: ${{ secrets.ROBOT_TOPOSWARE_USER }}
-#       PRIV_GH_REPOS_TOKEN: ${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}
-#       PRIV_GH_PACKAGE_TOKEN: ${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
-#     steps:
-#       - uses: actions/checkout@v3
-#       - name: Set git credentials
-#         uses: fusion-engineering/setup-git-credentials@v2
-#         with:
-#           credentials: https://robot-toposware:${{ env.PRIV_GH_REPOS_TOKEN }}@github.com
+    name: ${{ matrix.version }} - Deploy smart contracts and test sequencer subnet interaction
+    runs-on: ${{ matrix.target.os }}
+    env:
+      PRIV_GH_USER: ${{ secrets.ROBOT_TOPOSWARE_USER }}
+      PRIV_GH_REPOS_TOKEN: ${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}
+      PRIV_GH_PACKAGE_TOKEN: ${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set git credentials
+        uses: fusion-engineering/setup-git-credentials@v2
+        with:
+          credentials: https://robot-toposware:${{ env.PRIV_GH_REPOS_TOKEN }}@github.com
 
-#       - name: Install Rust ${{ matrix.version }}
-#         uses: actions-rs/toolchain@v1
-#         with:
-#           toolchain: ${{ matrix.version }}
-#           components:
-#           override: true
+      - name: Install Rust ${{ matrix.version }}
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.version }}
+          components:
+          override: true
 
-#       - uses: Swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v1
 
-#       - name: Install Protoc
-#         uses: arduino/setup-protoc@v1
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v1
 
-#       - name: Login to GitHub Container Registry
-#         uses: docker/login-action@v1
-#         with:
-#           registry: ghcr.io
-#           username: ${{ env.PRIV_GH_USER }}
-#           password: ${{ env.PRIV_GH_PACKAGE_TOKEN }}
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ env.PRIV_GH_USER }}
+          password: ${{ env.PRIV_GH_PACKAGE_TOKEN }}
 
-#       - name: Pull images
-#         run: |
-#           docker pull ${{ env.REGISTRY }}/${{ env.POLYGON_SUBNET_IMAGE_NAME }}:${{ env.POLYGON_SUBNET_IMAGE_TAG }}
-#           docker pull ${{ env.REGISTRY }}/${{ env.TOPOS_SMART_CONTRACTS_IMAGE_NAME }}:${{ env.TOPOS_SMART_CONTRACTS_IMAGE_TAG }}
+      - name: Pull images
+        run: |
+          docker pull ${{ env.REGISTRY }}/${{ env.POLYGON_SUBNET_IMAGE_NAME }}:${{ env.POLYGON_SUBNET_IMAGE_TAG }}
+          docker pull ${{ env.REGISTRY }}/${{ env.TOPOS_SMART_CONTRACTS_IMAGE_NAME }}:${{ env.TOPOS_SMART_CONTRACTS_IMAGE_TAG }}
 
-#       - name: Acquire built smart contracts
-#         run: |
-#           mkdir contracts
-#           docker create --name dummy ${{ env.REGISTRY }}/${{ env.TOPOS_SMART_CONTRACTS_IMAGE_NAME }}:${{ env.TOPOS_SMART_CONTRACTS_IMAGE_TAG }}
-#           docker cp dummy:/usr/src/app/brownie/build/contracts/TokenDeployer.json ./contracts/
-#           docker cp dummy:/usr/src/app/brownie/build/contracts/ToposCoreContract.json ./contracts/
-#           docker rm -f dummy
+      - name: Acquire built smart contracts
+        run: |
+          mkdir contracts
+          docker create --name dummy ${{ env.REGISTRY }}/${{ env.TOPOS_SMART_CONTRACTS_IMAGE_NAME }}:${{ env.TOPOS_SMART_CONTRACTS_IMAGE_TAG }}
+          docker cp dummy:/usr/src/app/brownie/build/contracts/TokenDeployer.json ./contracts/
+          docker cp dummy:/usr/src/app/brownie/build/contracts/ToposCoreContract.json ./contracts/
+          docker rm -f dummy
 
-#       - name: Run all workspace tests
-#         run: |
-#           export TOPOS_SMART_CONTRACTS_BUILD_PATH=`pwd`/contracts
-#           cd crates/topos-sequencer-subnet-runtime-proxy
-#           cargo test -- --nocapture
+      - name: Run all workspace tests
+        run: |
+          export TOPOS_SMART_CONTRACTS_BUILD_PATH=`pwd`/contracts
+          cd crates/topos-sequencer-subnet-runtime-proxy
+          cargo test -- --nocapture
