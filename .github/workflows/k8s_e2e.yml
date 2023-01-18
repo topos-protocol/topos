@@ -57,6 +57,6 @@ jobs:
         working-directory: tools/terraform/cicd-devnet-1
         run: aws eks update-kubeconfig --region us-east-1 --name $(terraform output --raw cluster_name)
 
-      - name: Terraform destroy
-        working-directory: tools/terraform/cicd-devnet-1
-        run: terraform destroy -auto-approve
+      # - name: Terraform destroy
+      #   working-directory: tools/terraform/cicd-devnet-1
+      #   run: terraform destroy -auto-approve
