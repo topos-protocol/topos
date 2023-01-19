@@ -19,8 +19,8 @@ releases:
   - name: image.tag
     value: {{ requiredEnv "DOCKER_TAG"}}
   - name: credentials.username
-    value: {{ requiredEnv "GITHUB_USERNAME"}}
+    value: {{ requiredEnv "DOCKER_USERNAME"}}
   - name: credentials.password
-    value: {{ requiredEnv "GITHUB_TOKEN"}}
+    value: {{ requiredEnv "DOCKER_PASSWORD"}}
   - name: otelEndpoint
     value: https://otel-collector.telemetry.devnet-1.toposware.com

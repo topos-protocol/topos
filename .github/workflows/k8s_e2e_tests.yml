@@ -61,6 +61,8 @@ jobs:
           GITHUB_USERNAME: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}
           DOCKER_TAGS: ${{ env.DOCKER_TAG }}
+          DOCKER_USERNAME: ${{ github.actor }}
+          DOCKER_PASSWORD: ${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
         run: |
           helmfile sync
 
