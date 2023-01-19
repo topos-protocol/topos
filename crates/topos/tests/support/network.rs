@@ -50,9 +50,8 @@ where
 
     for (index, (seed, port, keypair, addr)) in peers.iter().enumerate() {
         let user_peer_id = format!("peer_{index}");
-        let (tce_cli, tce_stream) = create_reliable_broadcast_client(
-            create_reliable_broadcast_params(correct_sample, &g),
-        );
+        let (tce_cli, tce_stream) =
+            create_reliable_broadcast_client(create_reliable_broadcast_params(correct_sample, &g));
         let (command_sampler, command_broadcast) = tce_cli.get_command_channels();
 
         let (network_client, network_stream, runtime) =
@@ -208,9 +207,7 @@ fn create_reliable_broadcast_client(
     ReliableBroadcastClient,
     impl Stream<Item = Result<TceEvents, ()>> + Unpin,
 ) {
-    let config = ReliableBroadcastConfig {
-        tce_params,
-    };
+    let config = ReliableBroadcastConfig { tce_params };
 
     ReliableBroadcastClient::new(config)
 }

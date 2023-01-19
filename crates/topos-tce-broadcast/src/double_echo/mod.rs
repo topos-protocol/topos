@@ -261,7 +261,7 @@ impl DoubleEcho {
 
         // Extract otel parent context via the chosen propagator
         let parent_context = propagator.extract(&carrier);
-        println!("{:?}", parent_context);
+        println!("{parent_context:?}",);
         // Generate a tracing span as usual
         let app_root = tracing::span!(tracing::Level::INFO, "delivery", cert_id = ?cert.id);
 
