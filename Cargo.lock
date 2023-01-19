@@ -4565,6 +4565,7 @@ dependencies = [
  "assert_cmd",
  "async-stream",
  "clap 4.1.1",
+ "env_logger 0.9.3",
  "futures",
  "insta",
  "libp2p",

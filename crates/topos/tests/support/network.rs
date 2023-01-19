@@ -51,7 +51,6 @@ where
     for (index, (seed, port, keypair, addr)) in peers.iter().enumerate() {
         let user_peer_id = format!("peer_{index}");
         let (tce_cli, tce_stream) = create_reliable_broadcast_client(
-            &user_peer_id,
             create_reliable_broadcast_params(correct_sample, &g),
         );
         let (command_sampler, command_broadcast) = tce_cli.get_command_channels();
@@ -65,7 +64,6 @@ where
 
         let (api_client, api_events) = topos_tce_api::Runtime::builder()
             .serve_addr(addr)
-            .exposed_addresses(addr)
             .build_and_launch()
             .await;
 
@@ -79,6 +77,7 @@ where
         let storage_join_handle = spawn(storage.into_future());
 
         let (gatekeeper_client, gatekeeper_runtime) = topos_tce_gatekeeper::Gatekeeper::builder()
+            .local_peer_id(keypair.public().to_peer_id())
             .await
             .expect("Can't create the Gatekeeper");
         let gatekeeper_join_handle = spawn(gatekeeper_runtime.into_future());
@@ -196,6 +195,7 @@ async fn create_network_worker(
     topos_p2p::network::builder()
         .peer_key(key.clone())
         .known_peers(&known_peers)
+        .exposed_addresses(addr.clone())
         .listen_addr(addr)
         .build()
         .await
@@ -203,7 +203,6 @@ async fn create_network_worker(
 }
 
 fn create_reliable_broadcast_client(
-    user_peer_id: &str,
     tce_params: ReliableBroadcastParams,
 ) -> (
     ReliableBroadcastClient,
@@ -211,7 +210,6 @@ fn create_reliable_broadcast_client(
 ) {
     let config = ReliableBroadcastConfig {
         tce_params,
-        my_peer_id: user_peer_id.to_string(),
     };
 
     ReliableBroadcastClient::new(config)

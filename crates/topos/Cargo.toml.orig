@@ -4,12 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-topos-tce = { path = "../topos-tce/" }
-topos-p2p = { path = "../topos-p2p" }
-topos-tce-transport = { path = "../topos-tce-transport" }
-topos-sequencer = { path = "../topos-sequencer" }
-
 topos-core = { workspace = true, features = ["api"] }
+topos-p2p = { path = "../topos-p2p" }
+topos-sequencer = { path = "../topos-sequencer" }
+topos-tce = { path = "../topos-tce/" }
+topos-tce-transport = { path = "../topos-tce-transport" }
+
 clap.workspace = true
 futures.workspace = true
 opentelemetry-otlp.workspace = true
@@ -24,6 +24,12 @@ tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
 uuid.workspace = true
 
 [dev-dependencies]
+<<<<<<< HEAD
+assert_cmd = "2.0.6"
+insta = { version = "1.21", features = ["json", "redactions"] }
+serde.workspace = true
+serde_json.workspace = true
+=======
 topos-tce-broadcast = { path = "../topos-tce-broadcast" }
 topos-tce-transport = { path = "../topos-tce-transport" }
 topos-tce-synchronizer = { path = "../topos-tce-synchronizer" }
@@ -40,5 +46,6 @@ tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 libp2p = { workspace = true, features = ["tcp-tokio", "dns-tokio", "request-response", "identify", "mplex", "mdns-tokio", "mdns", "kad", "serde"] }
 env_logger = "0.9.1"
 assert_cmd = "2.0.6"
-insta = { version = "1.21", features = ["json", "redactions"] }
+insta = "1.21"
+>>>>>>> f4ad686... feat: cleanup cross chain transactions
 

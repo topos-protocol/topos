@@ -18,7 +18,7 @@ use topos_core::{
     uci::{Certificate, SubnetId},
 };
 use topos_tce_broadcast::{DoubleEchoCommand, SamplerCommand};
-use tracing::{debug, info};
+use tracing::{debug, info, Span};
 
 fn get_subset_of_subnets(subnets: &[SubnetId], subset_size: usize) -> Vec<SubnetId> {
     let mut rng = rand::thread_rng();
@@ -191,7 +191,10 @@ async fn cert_delivery() {
                         );
                         let _ = client
                             .command_broadcast
-                            .send(DoubleEchoCommand::Broadcast { cert: cert.clone() })
+                            .send(DoubleEchoCommand::Broadcast {
+                                cert: cert.clone(),
+                                ctx: Span::current(),
+                            })
                             .await
                             .expect("Can't send certificate");
                     }
