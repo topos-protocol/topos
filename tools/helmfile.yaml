@@ -11,7 +11,7 @@ releases:
 - name: tce-all-in-one
   namespace: default
   chart: toposware/tce-all-in-one
-  version: 0.1.3
+  version: 0.1.4
   createNamespace: true
   set:
   - name: image.repository
@@ -22,3 +22,5 @@ releases:
     value: {{ requiredEnv "GITHUB_USERNAME"}}
   - name: credentials.password
     value: {{ requiredEnv "GITHUB_TOKEN"}}
+  - name: otelEndpoint
+    value: https://otel-collector.telemetry.devnet-1.toposware.com

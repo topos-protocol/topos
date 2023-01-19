@@ -18,12 +18,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Retrieve docker tags
+      - name: Retrieve Docker tags
         id: docker_tags
         uses: actions/download-artifact@v3
         with:
           name: docker_tags
-          path: tools/
+
+      - name: Set Docker tag as environment variable
+        run: |
+          docker_tag=$(head -n 1 docker_tags)
+          echo "DOCKER_TAG=${docker_tag#*:}" >> $GITHUB_ENV
 
       - name: Enable remote modules download
         run: git config --global url."https://${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}@github.com/".insteadOf "https://github.com/"
@@ -56,11 +60,8 @@ jobs:
         env:
           GITHUB_USERNAME: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}
+          DOCKER_TAGS: ${{ env.DOCKER_TAG }}
         run: |
-          docker_tag=$(head -n 1 docker_tags)
-          echo ${docker_tag}
-          echo "DOCKER_TAG=${docker_tag#*:}" >> $GITHUB_ENV
-          export DOCKER_TAG=${docker_tag#*:}
           helmfile sync
 
       - name: Sleep
