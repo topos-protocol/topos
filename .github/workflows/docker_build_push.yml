@@ -66,7 +66,7 @@ jobs:
           name: docker_tags
           path: docker/
 
-  k8s:
-    needs: docker
-    uses: toposware/topos/.github/workflows/k8s_e2e_tests.yml@feat/terraform-ci
-    secrets: inherit
+  # k8s:
+  #   needs: docker
+  #   uses: toposware/topos/.github/workflows/k8s_e2e_tests.yml@feat/terraform-ci
+  #   secrets: inherit

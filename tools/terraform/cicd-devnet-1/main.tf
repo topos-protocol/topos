@@ -40,3 +40,11 @@ output "cluster_name" {
 output "eks_irsa_arn" {
   value = module.eks.eks_irsa_arn
 }
+
+output "eks_efs_csi_irsa" {
+  value = module.eks.eks_efs_csi_irsa
+}
+
+output "eks_efs_id" {
+  value = module.eks.eks_efs_id
+}

@@ -62,7 +62,7 @@ services:
       - TCE_API_ADDR=0.0.0.0:1340
       - TCE_LOCAL_KS=1 # 12D3KooWRhFCXBhmsMnur3up3vJsDoqWh4c39PKXgSWwzAzDHNLn
       - TCE_JAEGER_SERVICE_NAME=tce-boot-node
-      - TCE_JAEGER_AGENT=http://otel-collector:4317
+      - TCE_JAEGER_AGENT=https://otel-collector.telemetry.devnet-1.toposware.com:443
       - TCE_ECHO_SAMPLE_SIZE=3
       - TCE_READY_SAMPLE_SIZE=3
       - TCE_DELIVERY_SAMPLE_SIZE=3
@@ -87,20 +87,20 @@ services:
     depends_on:
       jaeger:
         condition: service_started
-      boot:
-        condition: service_healthy
+      # boot:
+      #   condition: service_healthy
     ports:
       - "9090"
       - "1340"
     deploy:
-      replicas: 10
+      replicas: 2
     environment:
       - LOCAL_TEST_NET=true
       - RUST_LOG=info,topos_p2p=debug,topos_tce_node_app=debug,topos_tce_protocols_reliable_broadcast=debug
       - TCE_DB_PATH=/tmp/default-db
       - TCE_API_ADDR=0.0.0.0:1340
       - TCE_JAEGER_SERVICE_NAME=tce-regular-node
-      - TCE_JAEGER_AGENT=http://otel-collector:4317
+      - TCE_JAEGER_AGENT=https://otel-collector.telemetry.devnet-1.toposware.com:443
       - TCE_BOOT_PEERS=12D3KooWRhFCXBhmsMnur3up3vJsDoqWh4c39PKXgSWwzAzDHNLn /dns4/boot/tcp/9090
       - TCE_ECHO_SAMPLE_SIZE=3
       - TCE_READY_SAMPLE_SIZE=3

@@ -6,21 +6,15 @@ repositories:
    url: https://raw.githubusercontent.com/toposware/helm-charts/gh-pages/
    username: {{ requiredEnv "GITHUB_USERNAME"}}
    password: {{ requiredEnv "GITHUB_TOKEN"}}
+ - name: aws-efs-csi-driver
+   url: https://kubernetes-sigs.github.io/aws-efs-csi-driver
 
 releases:
-- name: tce-all-in-one
-  namespace: default
-  chart: toposware/tce-all-in-one
-  version: 0.1.5
+- name: aws-efs-csi-driver
+  namespace: kube-system
+  chart: aws-efs-csi-driver/aws-efs-csi-driver
+  version: 2.3.6
   createNamespace: true
   set:
-  - name: image.repository
-    value: ghcr.io/toposware/topos
-  - name: image.tag
-    value: {{ requiredEnv "DOCKER_TAG"}}
-  - name: credentials.username
-    value: {{ requiredEnv "DOCKER_USERNAME"}}
-  - name: credentials.password
-    value: {{ requiredEnv "DOCKER_PASSWORD"}}
-  - name: otelEndpoint
-    value: https://otel-collector.telemetry.devnet-1.toposware.com
+  - name: controller.serviceAccount.annotations.eks\.amazonaws\.com/role-arn
+    value: arn:aws:iam::367397670706:role/cicd-devnet-1-eks-efs-csi-irsa
