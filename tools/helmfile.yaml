@@ -11,7 +11,7 @@ releases:
 - name: tce-all-in-one
   namespace: default
   chart: toposware/tce-all-in-one
-  version: 0.1.4
+  version: 0.1.5
   createNamespace: true
   set:
   - name: image.repository
