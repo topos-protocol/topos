@@ -58,7 +58,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}
         run: |
           docker_tag=$(head -n 1 docker_tags)
+          echo ${docker_tag}
           echo "DOCKER_TAG=${docker_tag#*:}" >> $GITHUB_ENV
+          export DOCKER_TAG=${docker_tag#*:}
           helmfile sync
 
       - name: Sleep
