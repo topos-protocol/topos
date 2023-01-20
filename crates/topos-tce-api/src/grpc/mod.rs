@@ -5,9 +5,9 @@ use tokio::sync::{mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::{Request, Response, Status, Streaming};
 use topos_core::api::tce::v1::{
-    api_service_server::ApiService, GetSourceHeadRequest,
-    GetSourceHeadResponse, SubmitCertificateRequest, SubmitCertificateResponse,
-    WatchCertificatesRequest, WatchCertificatesResponse,
+    api_service_server::ApiService, GetSourceHeadRequest, GetSourceHeadResponse,
+    SubmitCertificateRequest, SubmitCertificateResponse, WatchCertificatesRequest,
+    WatchCertificatesResponse,
 };
 use tracing::{error, field, info, instrument, Instrument, Span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
@@ -101,16 +101,14 @@ impl ApiService for TceGrpcService {
 
             receiver
                 .map(|value| match value {
-                    Ok(Ok((position, certificate))) => {
-                        Ok(Response::new(GetSourceHeadResponse {
-                            certificate: Some(certificate.clone().into()),
-                            position: Some(topos_core::api::tce::v1::SourceStreamPosition {
-                                subnet_id: Some(certificate.source_subnet_id.into()),
-                                certificate_id: Some((*certificate.id.as_array()).into()),
-                                position,
-                            }),
-                        }))
-                    }
+                    Ok(Ok((position, certificate))) => Ok(Response::new(GetSourceHeadResponse {
+                        certificate: Some(certificate.clone().into()),
+                        position: Some(topos_core::api::tce::v1::SourceStreamPosition {
+                            subnet_id: Some(certificate.source_subnet_id.into()),
+                            certificate_id: Some((*certificate.id.as_array()).into()),
+                            position,
+                        }),
+                    })),
                     Ok(Err(_)) => Err(Status::internal(
                         "Can't get source head certificate position",
                     )),

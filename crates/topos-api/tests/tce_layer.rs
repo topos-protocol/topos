@@ -10,9 +10,8 @@ use topos_api::shared::v1::{CertificateId, SubnetId};
 use topos_api::tce::v1::api_service_server::{ApiService, ApiServiceServer};
 use topos_api::tce::v1::watch_certificates_request::{Command, OpenStream};
 use topos_api::tce::v1::{
-    GetSourceHeadRequest, GetSourceHeadResponse, SourceStreamPosition,
-    SubmitCertificateRequest, SubmitCertificateResponse, WatchCertificatesRequest,
-    WatchCertificatesResponse,
+    GetSourceHeadRequest, GetSourceHeadResponse, SourceStreamPosition, SubmitCertificateRequest,
+    SubmitCertificateResponse, WatchCertificatesRequest, WatchCertificatesResponse,
 };
 use topos_api::uci::v1::Certificate;
 use uuid::Uuid;

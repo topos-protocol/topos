@@ -71,9 +71,7 @@ impl StorageClient {
         &self,
         subnet_id: SubnetId,
     ) -> Result<(u64, Certificate), StorageError> {
-        GetSourceHead { subnet_id }
-            .send_to(&self.sender)
-            .await
+        GetSourceHead { subnet_id }.send_to(&self.sender).await
     }
 
     /// Fetch a certificate from the storage
