@@ -132,6 +132,16 @@ impl AppContext {
                     _ = sender.send(Err(RuntimeError::UnableToPushPeerList));
                 }
             }
+
+            ApiEvent::GetSourceHead { subnet_id, sender } => {
+                // Get certificate
+                let result = self
+                    .pending_storage
+                    .get_source_head(subnet_id)
+                    .await
+                    .map_err(|_| RuntimeError::UnableToGetSourceHead(subnet_id));
+                _ = sender.send(result);
+            }
         }
     }
 

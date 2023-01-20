@@ -5,10 +5,11 @@ use topos_core::uci::Certificate;
 use crate::{
     command::{
         AddPendingCertificate, CertificateDelivered, FetchCertificates, GetCertificate,
-        RemovePendingCertificate,
+        GetSourceHead, RemovePendingCertificate,
     },
     errors::StorageError,
-    Connection, FetchCertificatesFilter, PendingCertificateId, Position, Storage,
+    Connection, FetchCertificatesFilter, InternalStorageError, PendingCertificateId, Position,
+    Storage,
 };
 
 /// Handle a AddPendingCertificate query
@@ -141,5 +142,32 @@ where
         };
 
         Ok(self.storage.get_certificates(certificate_ids).await?)
+    }
+}
+
+/// Handle a GetSourceHead query
+///
+/// The GetSourceHead query will ask for latest head certificate
+/// for particular subnet
+#[async_trait]
+impl<S> CommandHandler<GetSourceHead> for Connection<S>
+where
+    S: Storage,
+{
+    type Error = StorageError;
+
+    async fn handle(
+        &mut self,
+        GetSourceHead { subnet_id }: GetSourceHead,
+    ) -> Result<(u64, Certificate), StorageError> {
+        let heads = self
+            .storage
+            .get_source_heads(vec![subnet_id.into()])
+            .await?;
+        let source_head = heads.last().ok_or(StorageError::InternalStorage(
+            InternalStorageError::UnableToFindHeadForSubnet(subnet_id.into()),
+        ))?;
+        let certificate = self.storage.get_certificate(source_head.cert_id).await?;
+        Ok((source_head.position.0, certificate))
     }
 }

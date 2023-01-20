@@ -1,5 +1,3 @@
-use std::time::SystemTime;
-
 use errors::{InternalStorageError, PositionError};
 use serde::{Deserialize, Serialize};
 
@@ -94,18 +92,17 @@ impl Position {
     }
 }
 
-/// Uniquely identify the head of one subnet.
-/// The head represent the internal state of the TCE regarding a source subnet stream
-#[derive(Serialize, Deserialize)]
-pub struct Head {
+/// Uniquely identify the source certificate stream head of one subnet.
+/// The head represent the internal state of the TCE regarding a source subnet stream for
+/// certificates that it receives from local sequencer
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SourceHead {
     /// Certificate id of the head
     cert_id: CertificateId,
     /// Subnet id of the head
     subnet_id: SubnetId,
     /// Position of the Certificate
     position: Position,
-    /// Timestamp of the Certificate
-    timestamp: SystemTime,
 }
 
 /// Define possible status of a certificate
@@ -138,8 +135,11 @@ pub trait Storage: Sync + Send + 'static {
         status: CertificateStatus,
     ) -> Result<(), InternalStorageError>;
 
-    /// Returns the heads of given subnets
-    async fn get_heads(&self, subnets: Vec<SubnetId>) -> Result<Vec<Head>, InternalStorageError>;
+    /// Returns the source heads of given subnets
+    async fn get_source_heads(
+        &self,
+        subnets: Vec<SubnetId>,
+    ) -> Result<Vec<crate::SourceHead>, InternalStorageError>;
 
     /// Returns the certificate data given their id
     async fn get_certificates(

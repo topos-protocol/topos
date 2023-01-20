@@ -10,8 +10,8 @@ use topos_api::shared::v1::{CertificateId, SubnetId};
 use topos_api::tce::v1::api_service_server::{ApiService, ApiServiceServer};
 use topos_api::tce::v1::watch_certificates_request::{Command, OpenStream};
 use topos_api::tce::v1::{
-    SubmitCertificateRequest, SubmitCertificateResponse, WatchCertificatesRequest,
-    WatchCertificatesResponse,
+    GetSourceHeadRequest, GetSourceHeadResponse, SourceStreamPosition, SubmitCertificateRequest,
+    SubmitCertificateResponse, WatchCertificatesRequest, WatchCertificatesResponse,
 };
 use topos_api::uci::v1::Certificate;
 use uuid::Uuid;
@@ -30,6 +30,32 @@ async fn create_tce_layer() {
             _request: Request<SubmitCertificateRequest>,
         ) -> Result<Response<SubmitCertificateResponse>, tonic::Status> {
             Ok(Response::new(SubmitCertificateResponse {}))
+        }
+
+        async fn get_source_head(
+            &self,
+            request: Request<GetSourceHeadRequest>,
+        ) -> Result<Response<GetSourceHeadResponse>, tonic::Status> {
+            let request = request.into_inner();
+            let return_certificate_id = CertificateId {
+                value: [02u8; 32].to_vec(),
+            };
+            let return_prev_certificate_id: CertificateId = CertificateId {
+                value: [01u8; 32].to_vec(),
+            };
+            Ok(Response::new(GetSourceHeadResponse {
+                position: Some(SourceStreamPosition {
+                    subnet_id: request.subnet_id.clone(),
+                    certificate_id: Some(return_certificate_id.clone()),
+                    position: 0,
+                }),
+                certificate: Some(Certificate {
+                    source_subnet_id: request.subnet_id,
+                    id: Some(return_certificate_id.clone()),
+                    prev_id: Some(return_prev_certificate_id.clone()),
+                    target_subnets: Vec::new(),
+                }),
+            }))
         }
 
         async fn watch_certificates(
@@ -95,19 +121,40 @@ async fn create_tce_layer() {
         value: [02u8; 32].to_vec(),
     };
 
+    let original_certificate = Certificate {
+        source_subnet_id: Some(source_subnet_id.clone()),
+        id: Some(certificate_id),
+        prev_id: Some(prev_certificate_id),
+        target_subnets: vec![],
+    };
+
+    // Submit one certificate
     let response = client
         .submit_certificate(SubmitCertificateRequest {
-            certificate: Some(Certificate {
-                source_subnet_id: Some(source_subnet_id.clone()),
-                id: Some(certificate_id),
-                prev_id: Some(prev_certificate_id),
-                target_subnets: vec![],
-            }),
+            certificate: Some(original_certificate.clone()),
         })
         .await
-        .map(|r| r.into_inner());
+        .map(|r| r.into_inner())
+        .unwrap();
+    assert_eq!(response, SubmitCertificateResponse {});
 
-    assert!(matches!(response, Ok(SubmitCertificateResponse {})));
+    // Test get source head certificate
+    let response = client
+        .get_source_head(GetSourceHeadRequest {
+            subnet_id: Some(source_subnet_id.clone()),
+        })
+        .await
+        .map(|r| r.into_inner())
+        .unwrap();
+    let _expected_response = GetSourceHeadResponse {
+        certificate: Some(original_certificate.clone()),
+        position: Some(SourceStreamPosition {
+            subnet_id: Some(source_subnet_id.clone()),
+            certificate_id: original_certificate.id,
+            position: 0,
+        }),
+    };
+    assert_eq!(response, _expected_response);
 
     let command = Some(Command::OpenStream(OpenStream {
         subnet_ids: vec![source_subnet_id.clone()],

@@ -1,6 +1,7 @@
 use tokio::sync::mpsc;
-use topos_core::uci::{Certificate, CertificateId};
+use topos_core::uci::{Certificate, CertificateId, SubnetId};
 
+use crate::command::GetSourceHead;
 use crate::{
     command::{
         AddPendingCertificate, CertificateDelivered, FetchCertificates, GetCertificate,
@@ -61,6 +62,16 @@ impl StorageClient {
         filter: FetchCertificatesFilter,
     ) -> Result<Vec<Certificate>, StorageError> {
         FetchCertificates { filter }.send_to(&self.sender).await
+    }
+
+    /// Fetch source head certificate for subnet
+    ///
+    /// Return position of the certificate and certificate itself
+    pub async fn get_source_head(
+        &self,
+        subnet_id: SubnetId,
+    ) -> Result<(u64, Certificate), StorageError> {
+        GetSourceHead { subnet_id }.send_to(&self.sender).await
     }
 
     /// Fetch a certificate from the storage
