@@ -135,13 +135,12 @@ impl AppContext {
 
             ApiEvent::GetSourceHead { subnet_id, sender } => {
                 // Get certificate
-                if let Ok((position, certificate)) =
-                    self.pending_storage.get_source_head(subnet_id).await
-                {
-                    _ = sender.send(Ok((position, certificate)));
-                } else {
-                    _ = sender.send(Err(RuntimeError::UnableToGetSourceHead(subnet_id)));
-                }
+                let result = self
+                    .pending_storage
+                    .get_source_head(subnet_id)
+                    .await
+                    .map_err(|_| RuntimeError::UnableToGetSourceHead(subnet_id));
+                _ = sender.send(result);
             }
         }
     }

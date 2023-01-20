@@ -218,8 +218,8 @@ impl Storage for RocksDBStorage {
             let (position, cert_id) = self
                 .source_streams
                 .prefix_iter(&source_subnet_id)?
-                .map(|(source_stream_position, cert_id)| (source_stream_position.1, cert_id))
                 .last()
+                .map(|(source_stream_position, cert_id)| (source_stream_position.1, cert_id))
                 .ok_or(InternalStorageError::UnableToFindHeadForSubnet(
                     source_subnet_id,
                 ))?;

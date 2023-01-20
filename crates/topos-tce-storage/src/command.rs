@@ -13,9 +13,9 @@ RegisterCommands!(
         AddPendingCertificate,
         CertificateDelivered,
         GetCertificate,
+        GetSourceHead,
         FetchCertificates,
-        RemovePendingCertificate,
-        GetSourceHead
+        RemovePendingCertificate
     ]
 );
 

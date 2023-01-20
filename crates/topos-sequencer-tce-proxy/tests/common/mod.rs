@@ -13,6 +13,7 @@ use topos_core::api::tce::v1::{
     SubmitCertificateResponse, WatchCertificatesRequest, WatchCertificatesResponse,
 };
 use topos_core::api::uci::v1::Certificate;
+use tracing::debug;
 
 const DEFAULT_CHANNEL_STREAM_CAPACITY: usize = 10;
 
@@ -28,7 +29,7 @@ impl ApiService for TceMockServer {
         request: Request<SubmitCertificateRequest>,
     ) -> Result<Response<SubmitCertificateResponse>, tonic::Status> {
         let request = request.into_inner();
-        println!(
+        debug!(
             "TCE MOCK NODE: Certificate submitted to mock tce node: {:?}",
             request
         );
@@ -39,7 +40,7 @@ impl ApiService for TceMockServer {
         &self,
         request: Request<GetSourceHeadRequest>,
     ) -> Result<Response<GetSourceHeadResponse>, tonic::Status> {
-        println!("TCE MOCK NODE: Get source head certificate: {:?}", request);
+        debug!("TCE MOCK NODE: Get source head certificate: {:?}", request);
         Ok(Response::new(GetSourceHeadResponse {
             position: Some(SourceStreamPosition {
                 subnet_id: Default::default(),
@@ -57,19 +58,19 @@ impl ApiService for TceMockServer {
         request: Request<tonic::Streaming<WatchCertificatesRequest>>,
     ) -> Result<Response<Self::WatchCertificatesStream>, tonic::Status> {
         let mut stream: Streaming<_> = request.into_inner();
-        println!("TCE node service watch certificates called");
+        debug!("TCE node service watch certificates called");
         let (tx, mut rx) =
             mpsc::channel::<WatchCertificatesResponse>(DEFAULT_CHANNEL_STREAM_CAPACITY);
 
         let output = stream! {
             let mut counter: u32 = 0;
-            println!("TCE node service output stream functioning");
+            debug!("TCE node service output stream functioning");
             loop {
                 let source_subnet_id: SubnetId = [1u8; 32].into();
-                println!("TCE node service loop entered counter {}", counter);
+                debug!("TCE node service loop entered counter {}", counter);
                 tokio::select! {
                     Some(watch_certificate_request) = stream.next() => {
-                        println!("TCE node service processing watch_certificate_request: {:?} counter {}", watch_certificate_request, counter);
+                        debug!("TCE node service processing watch_certificate_request: {:?} counter {}", watch_certificate_request, counter);
                         let mut subnet_ids = vec![];
                         if let Some(watch_certificates_request::Command::OpenStream(open_stream)) = &watch_certificate_request.as_ref().unwrap().command {
                             subnet_ids = open_stream.subnet_ids.clone();
@@ -77,11 +78,11 @@ impl ApiService for TceMockServer {
                         let tx = tx.clone();
                         // Task for generating TCE node service responses
                         tokio::spawn(async move {
-                            println!("TCE node service spawned task to send WatchCertificatesResponse");
+                            debug!("TCE node service spawned task to send WatchCertificatesResponse");
                             loop {
-                                println!("TCE node service generating WatchCertificatesResponse, counter {}", counter);
+                                debug!("TCE node service generating WatchCertificatesResponse, counter {}", counter);
                                 if counter == 0 {
-                                    println!("TCE node service preparing WatchCertificatesResponse for StreamOpened call");
+                                    debug!("TCE node service preparing WatchCertificatesResponse for StreamOpened call");
                                     // First time send Stream opened message
                                     let _ = tx.send(WatchCertificatesResponse {
                                         request_id: watch_certificate_request.as_ref().unwrap().request_id.clone(),
@@ -89,7 +90,7 @@ impl ApiService for TceMockServer {
                                     }).await;
                                 } else {
                                     // Other times send certificate
-                                    println!("TCE node preparing WatchCertificatesResponse with CertificatePushed");
+                                    debug!("TCE node preparing WatchCertificatesResponse with CertificatePushed");
                                     let _ = tx.send(WatchCertificatesResponse {
                                         request_id: watch_certificate_request.as_ref().unwrap().request_id.clone(),
                                         event: Some(watch_certificates_response::Event::CertificatePushed(watch_certificates_response::CertificatePushed {certificate: Some(Certificate{
@@ -118,11 +119,11 @@ impl ApiService for TceMockServer {
                         });
                     }
                     Some(event) = rx.recv() => {
-                        println!("TCE node event received {:?}, yielding to tce outbound stream...", event);
+                        debug!("TCE node event received {:?}, yielding to tce outbound stream...", event);
                         yield Ok(event);
                     }
                 }
-                println!("TCE node sleeping for 2 seconds");
+                debug!("TCE node sleeping for 2 seconds");
             }
         };
 
@@ -140,7 +141,7 @@ pub async fn start_mock_tce_service() -> Result<
     ),
     Box<dyn std::error::Error>,
 > {
-    println!("Starting mock TCE node...");
+    debug!("Starting mock TCE node...");
     let (shutdown_tx, shutdown_rx) = oneshot::channel();
     let svc = ApiServiceServer::new(TceMockServer);
     let socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
@@ -153,7 +154,7 @@ pub async fn start_mock_tce_service() -> Result<
             .await
             .expect("mock node server successfully started")
     });
-    println!("Mock TCE node successfully started");
+    debug!("Mock TCE node successfully started");
 
     Ok((service, shutdown_tx, addr.to_string()))
 }
