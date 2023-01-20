@@ -89,6 +89,7 @@ impl<S: Storage> IntoFuture for Connection<S> {
     type IntoFuture = BoxFuture<'static, Self::Output>;
 
     fn into_future(mut self) -> Self::IntoFuture {
+        use crate::connection::StorageCommand::*;
         async move {
             let certificate_dispatcher = self.certificate_dispatcher.take().ok_or(
                 StorageError::InternalStorage(InternalStorageError::UnableToStartStorage)
@@ -102,24 +103,24 @@ impl<S: Storage> IntoFuture for Connection<S> {
                     },
 
                     Some(command) = self.queries.recv() => {
-                        match command {
-                            StorageCommand::AddPendingCertificate(command, response_channel) => {
-                                _ = response_channel.send(self.handle(command).await)
-                            },
-                            StorageCommand::RemovePendingCertificate(command, response_channel) => {
-                                _ = response_channel.send(self.handle(command).await)
-                            },
-
-                            StorageCommand::FetchCertificates(command, response_channel) => {
-                                _ = response_channel.send(self.handle(command).await);
-                            },
-
-                            StorageCommand::CertificateDelivered(command, response_channel) => {
-                                _ = response_channel.send(self.handle(command).await)
-                            },
-                            _ => {}
-
+                        macro_rules! HandleCommands {
+                            ($($command_type:ident),+) => {
+                                match command {
+                                    $(
+                                        $command_type(command, response_channel) => {
+                                          _ = response_channel.send(self.handle(command).await)
+                                        },
+                                    )+
+                                }
+                            }
                         }
+                        HandleCommands!(
+                            AddPendingCertificate,
+                            CertificateDelivered,
+                            FetchCertificates,
+                            GetCertificate,
+                            GetSourceHead,
+                            RemovePendingCertificate)
                     }
                     else => break
                 }

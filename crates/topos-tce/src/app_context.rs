@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use tce_transport::{TceCommands, TceEvents};
 use tokio::spawn;
 use tokio::sync::oneshot;
+use topos_core::uci::CertificateId;
 use topos_p2p::{Client as NetworkClient, Event as NetEvent, RetryPolicy};
 use topos_tce_api::RuntimeEvent as ApiEvent;
 use topos_tce_api::{RuntimeClient as ApiClient, RuntimeError};
@@ -16,6 +17,7 @@ use topos_tce_broadcast::sampler::SampleType;
 use topos_tce_broadcast::DoubleEchoCommand;
 use topos_tce_broadcast::{ReliableBroadcastClient, SamplerCommand};
 use topos_tce_gatekeeper::{GatekeeperClient, GatekeeperError};
+use topos_tce_storage::errors::{InternalStorageError, StorageError};
 use topos_tce_storage::events::StorageEvent;
 use topos_tce_storage::StorageClient;
 use topos_tce_synchronizer::{SynchronizerClient, SynchronizerEvent};
@@ -41,6 +43,10 @@ pub struct AppContext {
 }
 
 impl AppContext {
+    // Default previous certificate id for first certificate in the subnet
+    //TODO Remove, it will be genesis certificate id retrieved from Topos Subnet
+    const DUMMY_INITIAL_CERTIFICATE_ID: CertificateId = CertificateId::from_array([0u8; 32]);
+
     /// Factory
     pub fn new(
         pending_storage: StorageClient,
@@ -147,12 +153,38 @@ impl AppContext {
             }
 
             ApiEvent::GetSourceHead { subnet_id, sender } => {
-                // Get certificate
-                let result = self
+                // Get source head certificate
+                let mut result = self
                     .pending_storage
                     .get_source_head(subnet_id)
                     .await
-                    .map_err(|_| RuntimeError::UnableToGetSourceHead(subnet_id));
+                    .map_err(|e| match e {
+                        StorageError::InternalStorage(internal) => {
+                            if let InternalStorageError::MissingHeadForSubnet(subnet_id) = internal
+                            {
+                                RuntimeError::UnknownSubnet(subnet_id)
+                            } else {
+                                RuntimeError::UnableToGetSourceHead(subnet_id, internal.to_string())
+                            }
+                        }
+                        e => RuntimeError::UnableToGetSourceHead(subnet_id, e.to_string()),
+                    });
+
+                //TODO Initial genesis certificate eventually will be fetched from the topos subnet
+                //Currently, for subnet starting from scratch there are no certificates in the database
+                // So for MissingHeadForSubnet error we will return some default dummy certificate
+                if let Err(RuntimeError::UnknownSubnet(subnet_id)) = result {
+                    result = Ok((
+                        0,
+                        topos_core::uci::Certificate {
+                            id: AppContext::DUMMY_INITIAL_CERTIFICATE_ID,
+                            prev_id: AppContext::DUMMY_INITIAL_CERTIFICATE_ID,
+                            source_subnet_id: subnet_id,
+                            target_subnets: vec![],
+                        },
+                    ));
+                };
+
                 _ = sender.send(result);
             }
         }

@@ -1,9 +1,8 @@
 use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
-use topos_core::uci::CertificateId;
+use topos_core::uci::{CertificateId, SubnetId};
 
 use crate::command::StorageCommand;
-use crate::SubnetId;
 
 #[derive(Error, Debug)]
 pub enum InternalStorageError {
@@ -42,8 +41,8 @@ pub enum InternalStorageError {
     #[error("InvalidSubnetId")]
     InvalidSubnetId,
 
-    #[error("Unable to find head for subnet id {0:?}")]
-    UnableToFindHeadForSubnet(SubnetId),
+    #[error("Missing head certificate for source subnet id {0:?}")]
+    MissingHeadForSubnet(SubnetId),
 }
 
 #[derive(Debug, Error)]

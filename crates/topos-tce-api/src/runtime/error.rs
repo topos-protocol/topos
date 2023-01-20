@@ -10,6 +10,9 @@ pub enum RuntimeError {
     #[error("Unable to push peer list")]
     UnableToPushPeerList,
 
-    #[error("Unable to get source head certificate for subnet id {0:?}")]
-    UnableToGetSourceHead(SubnetId),
+    #[error("Unable to get source head certificate for subnet id {0:?}, details: {1}")]
+    UnableToGetSourceHead(SubnetId, String),
+
+    #[error("Unknown subnet with subnet id {0:?}")]
+    UnknownSubnet(SubnetId),
 }

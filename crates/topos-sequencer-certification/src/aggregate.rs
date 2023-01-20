@@ -28,14 +28,20 @@ impl Debug for Certification {
 }
 
 impl Certification {
-    pub fn spawn_new(subnet_id: SubnetId) -> Result<Arc<Mutex<Certification>>, crate::Error> {
-        //config: CertificationConfig) -> Arc<Mutex<Certification>> {
+    pub fn spawn_new(
+        subnet_id: SubnetId,
+        source_head_certificate_id: Option<CertificateId>,
+    ) -> Result<Arc<Mutex<Certification>>, crate::Error> {
         let (command_sender, mut command_rcv) = mpsc::unbounded_channel::<CertificationCommand>();
         let (_tx_exit, mut rx_exit) = mpsc::unbounded_channel::<()>();
 
-        // Initialize the history
+        // Initialize the certificate id history
         let mut history = HashMap::new();
-        history.insert(subnet_id, Vec::new());
+        // Set last known certificate for my source subnet
+        if let Some(cert_id) = source_head_certificate_id {
+            history.insert(subnet_id, vec![cert_id]);
+        }
+
         let me = Arc::new(Mutex::from(Self {
             commands_channel: command_sender,
             events_subscribers: Vec::new(),
@@ -144,7 +150,7 @@ impl Certification {
         };
 
         let certificate = Certificate::new(previous_cert_id, subnet_id, &target_subnets)
-            .map_err(|e| Error::CertificateGenerationError(e))?;
+            .map_err(|e| Error::CertificateGenerationError(e.to_string()))?;
 
         certification.finalized_blocks.clear();
         certification

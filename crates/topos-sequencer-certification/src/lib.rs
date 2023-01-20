@@ -7,8 +7,9 @@ use aggregate::Certification;
 use std::array::TryFromSliceError;
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
-use topos_core::uci::SubnetId;
+use topos_core::uci::{CertificateId, SubnetId};
 use topos_sequencer_types::*;
+use tracing::error;
 pub type Peer = String;
 
 pub mod aggregate;
@@ -24,7 +25,7 @@ pub enum Error {
     #[error("Ill formed subnet history")]
     IllFormedSubnetHistory,
     #[error("Unable to create certificate {0}")]
-    CertificateGenerationError(Box<dyn std::error::Error>),
+    CertificateGenerationError(String),
 }
 
 /// Thread safe client to the protocol aggregate
@@ -39,8 +40,11 @@ impl CertificationWorker {
     /// Creates new instance of the aggregate and returns proxy to it.
     /// New client instances to the same aggregate can be cloned from the returned one.
     /// Aggregate is spawned as new task.
-    pub fn new(subnet_id: SubnetId) -> Result<Self, Error> {
-        let w_aggr = Certification::spawn_new(subnet_id)?;
+    pub fn new(
+        subnet_id: SubnetId,
+        source_head_certificate_id: Option<CertificateId>,
+    ) -> Result<Self, Error> {
+        let w_aggr = Certification::spawn_new(subnet_id, source_head_certificate_id)?;
         let mut b_aggr = w_aggr.lock().map_err(|_| Error::LockError)?;
         let commands = b_aggr.commands_channel.clone();
 
@@ -55,7 +59,7 @@ impl CertificationWorker {
     }
 
     /// Schedule command for execution
-    pub fn eval(&self, event: Event) -> Result<(), Errors> {
+    pub fn eval(&self, event: Event) -> Result<(), Error> {
         match event {
             Event::RuntimeProxyEvent(runtime_proxy_event) => match runtime_proxy_event {
                 RuntimeProxyEvent::BlockFinalized(block_info) => {
@@ -74,15 +78,9 @@ impl CertificationWorker {
     }
 
     /// Pollable (in select!) events' listener
-    pub async fn next_event(&mut self) -> Result<CertificationEvent, Errors> {
+    pub async fn next_event(&mut self) -> Result<CertificationEvent, Error> {
         let event = self.events.recv().await;
         Ok(event.unwrap())
-    }
-}
-
-impl Default for CertificationWorker {
-    fn default() -> Self {
-        Self::new([0u8; 32]).expect("valid default certificatino worker")
     }
 }
 
@@ -102,16 +100,47 @@ impl Clone for CertificationWorker {
     }
 }
 
-/// Protocol and technical errors
-#[derive(Debug)]
-pub enum Errors {
-    BadPeers {},
-    BadCommand {},
-    TokioError {},
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    const TEST_SUBNET_ID: SubnetId = [1u8; 32];
+    const TEST_CERTIFICATE_ID: CertificateId = CertificateId::from_array([5u8; 32]);
 
-impl From<mpsc::error::SendError<CertificationCommand>> for Errors {
-    fn from(_arg: mpsc::error::SendError<CertificationCommand>) -> Self {
-        Errors::TokioError {}
+    #[tokio::test]
+    async fn instantiate_certification_worker() {
+        // Launch the certification worker for certificate production
+        let _cert_worker = match CertificationWorker::new(TEST_SUBNET_ID, Some(TEST_CERTIFICATE_ID))
+        {
+            Ok(cert_worker) => cert_worker,
+            Err(e) => {
+                error!("Unable to create certification worker: {e:?}");
+                panic!("Error with certification worker creation");
+            }
+        };
+    }
+
+    #[tokio::test]
+    async fn certification_worker_eval() {
+        // Launch the certification worker for certificate production
+        let cert_worker = match CertificationWorker::new(TEST_SUBNET_ID, Some(TEST_CERTIFICATE_ID))
+        {
+            Ok(cert_worker) => cert_worker,
+            Err(e) => {
+                error!("Unable to create certification worker: {e:?}");
+                panic!()
+            }
+        };
+
+        let event = Event::RuntimeProxyEvent(RuntimeProxyEvent::BlockFinalized(BlockInfo {
+            number: BlockNumber::from(10 as u64),
+            ..Default::default()
+        }));
+        match cert_worker.eval(event) {
+            Ok(_) => {}
+            Err(e) => {
+                error!("Unable to evaluate certification event: {e:?}");
+                panic!()
+            }
+        }
     }
 }

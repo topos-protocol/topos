@@ -114,6 +114,13 @@ impl ApiService for TceGrpcService {
                             position,
                         }),
                     })),
+                    Ok(Err(crate::RuntimeError::UnknownSubnet(subnet_id))) => {
+                        // Tce does not have Position::Zero certificate associated
+                        Err(Status::internal(format!(
+                            "Unknown subnet, no genesis certificate associated with subnet id {:?}",
+                            &subnet_id
+                        )))
+                    }
                     Ok(Err(_)) => Err(Status::internal(
                         "Can't get source head certificate position",
                     )),
