@@ -46,5 +46,5 @@ Options:
       --delivery-sample-size <DELIVERY_SAMPLE_SIZE>
           Delivery sample size [env: TCE_DELIVERY_SAMPLE_SIZE=] [default: 1]
   -h, --help
-          Print help information
+          Print help
 

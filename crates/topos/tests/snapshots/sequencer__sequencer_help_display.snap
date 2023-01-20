@@ -22,5 +22,5 @@ Options:
       --keystore-password <KEYSTORE_PASSWORD>
           Keystore file password. If this parameter is not provided password prompt will be opened [env: TOPOS_SEQUENCER_KEYSTORE_PASSWORD=]
   -h, --help
-          Print help information
+          Print help
 

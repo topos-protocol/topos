@@ -74,7 +74,7 @@ async fn test_tce_submit_certificate(
                 source_subnet_id: Some(source_subnet_id),
                 id: Some(certificate_id),
                 prev_id: Some(prev_certificate_id),
-                calls: vec![],
+                target_subnets: vec![],
             }),
         })
         .await

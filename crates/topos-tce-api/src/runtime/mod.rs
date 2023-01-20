@@ -83,11 +83,7 @@ impl Runtime {
                     certificate.id
                 );
                 // Collect target subnets from certificate cross chain transaction list
-                let target_subnets = certificate
-                    .calls
-                    .iter()
-                    .map(|ctx| &ctx.target_subnet_id)
-                    .collect::<HashSet<_>>();
+                let target_subnets = certificate.target_subnets.iter().collect::<HashSet<_>>();
                 debug!(
                     "Dispatching certificate cert_id: {:?} to target subnets: {:?}",
                     &certificate.id, target_subnets

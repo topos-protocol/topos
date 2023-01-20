@@ -12,15 +12,13 @@ use topos_core::{
         watch_certificates_request::OpenStream,
         watch_certificates_response::{CertificatePushed, Event},
     },
-    uci::{Address, Amount, Certificate, CrossChainTransaction, CrossChainTransactionData},
+    uci::Certificate,
 };
 use topos_tce_api::Runtime;
 
 const SOURCE_SUBNET_ID: topos_core::uci::SubnetId = [1u8; 32];
 const TARGET_SUBNET_ID: topos_core::uci::SubnetId = [2u8; 32];
 const PREV_CERTIFICATE_ID: CertificateId = CertificateId::from_array([4u8; 32]);
-const SENDER_ID: Address = [6u8; 20];
-const RECEIVER_ID: Address = [7u8; 20];
 
 #[test(tokio::test)]
 async fn runtime_can_dispatch_a_cert() {
@@ -75,15 +73,7 @@ async fn runtime_can_dispatch_a_cert() {
     let cert = topos_core::uci::Certificate::new(
         PREV_CERTIFICATE_ID,
         SOURCE_SUBNET_ID,
-        vec![CrossChainTransaction {
-            target_subnet_id: TARGET_SUBNET_ID,
-            transaction_data: CrossChainTransactionData::AssetTransfer {
-                sender: SENDER_ID,
-                receiver: RECEIVER_ID,
-                symbol: "TST_SUBNET_".to_string(),
-                amount: Amount::from(1000),
-            },
-        }],
+        &vec![TARGET_SUBNET_ID],
     )
     .unwrap();
 

@@ -15,7 +15,7 @@ use super::support::columns::{certificates_column, pending_column, source_stream
 #[rstest]
 #[tokio::test]
 async fn can_persist_a_pending_certificate(pending_column: PendingCertificatesColumn) {
-    let certificate = Certificate::new(PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID, Vec::new()).unwrap();
+    let certificate = Certificate::new(PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID, &[]).unwrap();
 
     assert!(pending_column.insert(&0, &certificate).is_ok());
     assert_eq!(pending_column.get(&0).unwrap(), certificate);
@@ -24,7 +24,7 @@ async fn can_persist_a_pending_certificate(pending_column: PendingCertificatesCo
 #[rstest]
 #[tokio::test]
 async fn can_persist_a_delivered_certificate(certificates_column: CertificatesColumn) {
-    let certificate = Certificate::new(PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID, Vec::new()).unwrap();
+    let certificate = Certificate::new(PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID, &Vec::new()).unwrap();
 
     assert!(certificates_column
         .insert(&certificate.id, &certificate)
@@ -41,7 +41,7 @@ async fn delivered_certificate_position_are_incremented(
     certificates_column: CertificatesColumn,
     source_streams_column: SourceStreamsColumn,
 ) {
-    let certificate = Certificate::new(PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID, Vec::new()).unwrap();
+    let certificate = Certificate::new(PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID, &[]).unwrap();
 
     assert!(certificates_column
         .insert(&certificate.id, &certificate)
@@ -57,7 +57,7 @@ async fn delivered_certificate_position_are_incremented(
 #[rstest]
 #[tokio::test]
 async fn position_can_be_fetch_for_one_subnet(source_streams_column: SourceStreamsColumn) {
-    let certificate = Certificate::new(PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID, Vec::new()).unwrap();
+    let certificate = Certificate::new(PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID, &[]).unwrap();
 
     assert!(source_streams_column
         .insert(
@@ -74,7 +74,7 @@ async fn position_can_be_fetch_for_one_subnet(source_streams_column: SourceStrea
         Some((SourceStreamPosition(_, Position::ZERO), _))
     ));
 
-    let certificate = Certificate::new(PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID, Vec::new()).unwrap();
+    let certificate = Certificate::new(PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID, &[]).unwrap();
 
     assert!(source_streams_column
         .insert(

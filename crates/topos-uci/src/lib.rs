@@ -38,12 +38,15 @@ pub enum Error {
 /// Certificate - main exchange item
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Certificate {
-    pub source_subnet_id: SubnetId,
     pub prev_id: CertificateId,
+    pub source_subnet_id: SubnetId,
+    //pub position: u64,
+    //pub state_root: [u8; 32],
+    //pub tx_root_hash: [u8; 32],
+    pub target_subnets: Vec<SubnetId>,
     //pub proof: StarkProof,
-    //pub signature: Frost,
-    pub calls: Vec<CrossChainTransaction>,
     pub id: CertificateId,
+    //pub signature: Frost,
 }
 
 pub type DigestCompressed = Vec<CertificateId>; // TODO: optimize cmp to hash of sorted set of hashes
@@ -52,16 +55,16 @@ impl Certificate {
     pub fn new<P: Into<CertificateId>>(
         prev: P,
         source_subnet_id: SubnetId,
-        calls: Vec<CrossChainTransaction>,
+        target_subnets: &[SubnetId],
     ) -> Result<Certificate, Box<dyn std::error::Error>> {
         let mut cert = Certificate {
             source_subnet_id,
             prev_id: prev.into(),
-            calls,
+            target_subnets: target_subnets.into(),
             id: [0; 32].into(),
         };
 
-        cert.id = calculate_keccak256(&cert)?;
+        cert.id = calculate_keccak256(&cert)?.into();
         Ok(cert)
     }
 
@@ -77,42 +80,12 @@ impl Certificate {
 }
 
 // Calculates hash of certificate object, excluding cert_id field
-pub fn calculate_keccak256(certificate: &Certificate) -> Result<CertificateId, Error> {
+pub fn calculate_keccak256(certificate: &Certificate) -> Result<[u8; 32], Error> {
     let mut buffer = Vec::new();
     buffer.extend_from_slice(&certificate.source_subnet_id[..]);
-    buffer.extend_from_slice(certificate.prev_id.as_array());
-    buffer.extend_from_slice(bincode::serialize(&certificate.calls)?.as_slice());
+    buffer.extend_from_slice(&certificate.prev_id.as_array()[..]);
+    buffer.extend_from_slice(bincode::serialize(&certificate.target_subnets)?.as_slice());
     let mut hash = [0u8; 32];
     keccak_256(buffer.borrow_mut(), &mut hash);
-    Ok(hash.into())
-}
-
-/// Cross chain transaction data definition
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub enum CrossChainTransactionData {
-    AssetTransfer {
-        sender: Address,
-        receiver: Address,
-        symbol: String,
-        amount: Amount,
-    },
-    ContractCall {
-        source_contract_addr: Address,
-        target_contract_addr: Address,
-        payload: Vec<u8>,
-    },
-    ContractCallWithToken {
-        source_contract_addr: Address,
-        target_contract_addr: Address,
-        payload: Vec<u8>,
-        symbol: String,
-        amount: Amount,
-    },
-}
-
-/// Cross chain txn
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub struct CrossChainTransaction {
-    pub target_subnet_id: SubnetId,
-    pub transaction_data: CrossChainTransactionData,
+    Ok(hash)
 }
