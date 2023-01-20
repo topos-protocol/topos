@@ -18,3 +18,22 @@ releases:
   set:
   - name: controller.serviceAccount.annotations.eks\.amazonaws\.com/role-arn
     value: arn:aws:iam::367397670706:role/cicd-devnet-1-eks-efs-csi-irsa
+
+- name: tce-all-in-one
+  namespace: default
+  chart: toposware/tce-all-in-one
+  version: 0.1.6
+  createNamespace: true
+  set:
+  - name: image.repository
+    value: ghcr.io/toposware/topos
+  - name: image.tag
+    value: {{ requiredEnv "DOCKER_TAG"}}
+  - name: credentials.username
+    value: {{ requiredEnv "DOCKER_USERNAME"}}
+  - name: credentials.password
+    value: {{ requiredEnv "DOCKER_PASSWORD"}}
+  - name: fileSystemId
+    value: {{ requiredEnv "FILESYSTEM_ID" }}
+  - name: otelEndpoint
+    value: https://otel-collector.telemetry.devnet-1.toposware.com:443
