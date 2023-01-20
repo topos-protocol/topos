@@ -10,7 +10,7 @@ use libp2p::{
     swarm::NetworkBehaviour,
     PeerId,
 };
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 impl Runtime {
     pub(crate) async fn handle_command(&mut self, command: Command) {
@@ -97,14 +97,20 @@ impl Runtime {
 
             Command::Discover { to, sender } => {
                 let behaviour = self.swarm.behaviour_mut();
+                let kad_addr = behaviour.discovery.addresses_of_peer(&to);
                 let addr = behaviour.transmission.addresses_of_peer(&to);
 
+                info!(
+                    "Checking if we know {to} -> KAD {:?}, Transmission {:?}",
+                    kad_addr, addr
+                );
                 if addr.is_empty() {
                     info!("We don't know {to}, fetching its Multiaddr from DHT");
                     let query_id = behaviour
                         .discovery
                         .get_record(Key::new(&to.to_string()), Quorum::One);
 
+                    debug!("Created a get_record query {query_id:?} for discovering {to}");
                     self.pending_record_requests.insert(query_id, sender);
                 } else {
                     _ = sender.send(Ok(addr));

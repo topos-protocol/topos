@@ -1,3 +1,5 @@
+#![allow(unused_variables)]
+#![allow(unused_imports)]
 mod behaviour;
 mod client;
 mod command;

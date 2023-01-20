@@ -16,7 +16,7 @@ use libp2p::{
     identity::Keypair,
     kad::store::MemoryStore,
     mplex, noise,
-    swarm::SwarmBuilder,
+    swarm::{keep_alive, SwarmBuilder},
     tcp::{GenTcpConfig, TokioTcpTransport},
     Multiaddr, PeerId, Transport,
 };
@@ -121,6 +121,7 @@ impl<'a> NetworkBuilder<'a> {
                 false,
             ),
             transmission: TransmissionBehaviour::create(),
+            keep_alive: keep_alive::Behaviour,
         };
 
         let transport = {
@@ -153,6 +154,7 @@ impl<'a> NetworkBuilder<'a> {
             ReceiverStream::new(event_receiver),
             Runtime {
                 swarm,
+                is_boot_node: self.known_peers.is_empty(),
                 command_receiver,
                 event_sender,
                 local_peer_id: peer_id,

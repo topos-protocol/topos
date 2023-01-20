@@ -177,10 +177,6 @@ impl Sampler {
                 let stable_view = self.pending_subscriptions.echo.is_empty()
                     && self.pending_subscriptions.ready.is_empty()
                     && self.pending_subscriptions.delivery.is_empty();
-                info!("Stable view: {:?}", stable_view);
-                info!("\tEcho view   : {:?}", self.pending_subscriptions.echo);
-                info!("\tReady view  : {:?}", self.pending_subscriptions.ready);
-                info!("\tDeliver view: {:?}", self.pending_subscriptions.delivery);
                 if stable_view {
                     // Attempt to send the new subscription view to the Broadcaster
                     match self

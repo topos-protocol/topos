@@ -1,9 +1,9 @@
-use std::{borrow::Cow, collections::HashMap, num::NonZeroUsize};
+use std::{borrow::Cow, collections::HashMap, num::NonZeroUsize, time::Duration};
 
 use crate::error::{CommandExecutionError, P2PError};
 use libp2p::{
     identity::Keypair,
-    kad::{store::MemoryStore, Kademlia, KademliaConfig},
+    kad::{store::MemoryStore, Kademlia, KademliaBucketInserts, KademliaConfig},
     Multiaddr, PeerId,
 };
 use tokio::sync::oneshot;
@@ -25,6 +25,7 @@ impl DiscoveryBehaviour {
         let kademlia_config = KademliaConfig::default()
             .set_protocol_names(vec![discovery_protocol])
             .set_replication_factor(NonZeroUsize::new(1).unwrap())
+            .set_kbucket_inserts(KademliaBucketInserts::Manual)
             // .set_replication_interval(Some(Duration::from_secs(30)))
             // .set_publication_interval(Some(Duration::from_secs(30)))
             // .set_provider_publication_interval(Some(Duration::from_secs(30)))
@@ -47,10 +48,10 @@ impl DiscoveryBehaviour {
         if let Err(store_error) = kademlia.start_providing("topos-tce".as_bytes().to_vec().into()) {
             warn!(reason = %store_error, "Could not start providing Kademlia protocol `topos-tce`")
         }
-
-        if kademlia.bootstrap().is_err() {
-            warn!("Bootstrapping failed because of NoKnownPeers, ignore this warning if boot-node");
-        }
+        //
+        // if kademlia.bootstrap().is_err() {
+        //     warn!("Bootstrapping failed because of NoKnownPeers, ignore this warning if boot-node");
+        // }
 
         kademlia
     }

@@ -10,6 +10,7 @@ fi
 
 JQ=$(which jq)
 TOPOS_BIN=./topos
+BOOT_PEERS_PATH=/tmp/shared/boot_peers.json
 PEER_LIST_PATH=/tmp/shared/peer_ids.json
 NODE_LIST_PATH=/tmp/shared/peer_nodes.json
 NODE="http://$HOSTNAME:1340"
@@ -18,11 +19,16 @@ TCE_EXT_HOST="/dns4/$HOSTNAME"
 case "$1" in
 
     "boot")
-        echo "Generating peer list file..."
-        $JQ -n --arg PEER $($TOPOS_BIN tce keys --from-seed=$TCE_LOCAL_KS) '[$PEER]' > $PEER_LIST_PATH
-        echo "Peer list file have been successfully generated"
+        BOOT_PEER_ID=$($TOPOS_BIN tce keys --from-seed=$TCE_LOCAL_KS)
 
-        cat $PEER_LIST_PATH
+
+        echo "Generating boot_peers file..."
+        $JQ -n --arg PEER $BOOT_PEER_ID --arg ADDR $TCE_EXT_HOST '[$PEER + " " + $ADDR + "/tcp/9090"]' > $BOOT_PEERS_PATH
+        echo "Boot peers list file have been successfully generated"
+
+        echo "Generating peer list file..."
+        $JQ -n --arg PEER $BOOT_PEER_ID '[$PEER]' > $PEER_LIST_PATH
+        echo "Peer list file have been successfully generated"
 
         echo "Generating node list file..."
         $JQ -n --arg NODE $NODE '{"nodes": [$NODE]}' > $NODE_LIST_PATH
@@ -37,6 +43,15 @@ case "$1" in
 
    *)
        if [[ ! -z ${LOCAL_TEST_NET+x} ]]; then
+
+           until [ -f "$BOOT_PEERS_PATH" ]
+           do
+               echo "Waiting 1s for boot_peers file $BOOT_PEERS_PATH to be created by boot container..."
+               sleep 1
+           done
+
+           export TCE_BOOT_PEERS=$(cat $BOOT_PEERS_PATH | $JQ -r '.|join(",")')
+
            until [ -f "$PEER_LIST_PATH" ]
            do
                echo "Waiting 1s for peer_list file $PEER_LIST_PATH to be created by boot container..."

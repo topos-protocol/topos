@@ -12,6 +12,7 @@ thiserror.workspace = true
 tokio-stream.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+void = "1"
 
 libp2p = { workspace = true, features = ["tcp-tokio", "dns-tokio", "request-response", "identify", "mplex", "mdns-tokio", "mdns", "kad", "serde"] }
 

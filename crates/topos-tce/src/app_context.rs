@@ -1,8 +1,10 @@
+#![allow(unused_variables)]
 //!
 //! Application logic glue
 //!
 use futures::FutureExt;
 use futures::{future::join_all, Stream, StreamExt};
+use opentelemetry::trace::FutureExt as TraceFutureExt;
 use serde::{Deserialize, Serialize};
 use tce_transport::{TceCommands, TceEvents};
 use tokio::spawn;
@@ -18,7 +20,7 @@ use topos_tce_storage::events::StorageEvent;
 use topos_tce_storage::StorageClient;
 use topos_tce_synchronizer::{SynchronizerClient, SynchronizerEvent};
 use topos_telemetry::PropagationContext;
-use tracing::{debug, error, info, info_span, trace, Instrument, Span};
+use tracing::{debug, error, info, info_span, trace, warn, Instrument, Span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 /// Top-level transducer main app context & driver (alike)
@@ -157,10 +159,6 @@ impl AppContext {
     }
 
     async fn on_protocol_event(&mut self, evt: TceEvents) {
-        debug!(
-            "on_protocol_event: peer: {} event {:?}",
-            &self.network_client.local_peer_id, &evt
-        );
         match evt {
             TceEvents::StableSample => {
                 info!("Stable Sample detected");
@@ -224,22 +222,22 @@ impl AppContext {
                                 }
                                 msg => {
                                     error!("Receive an unexpected message as a response {msg:?}");
-                                    let _ = command_sender
-                                        .send(SamplerCommand::PeerConfirmationFailed {
-                                            peer: peer_id,
-                                            sample_type: SampleType::EchoSubscription,
-                                        })
-                                        .await;
+                                    // let _ = command_sender
+                                    //     .send(SamplerCommand::PeerConfirmationFailed {
+                                    //         peer: peer_id,
+                                    //         sample_type: SampleType::EchoSubscription,
+                                    //     })
+                                    //     .await;
                                 }
                             },
                             Err(error) => {
-                                error!("An error occurred when sending EchoSubscribe {error:?}");
-                                let _ = command_sender
-                                    .send(SamplerCommand::PeerConfirmationFailed {
-                                        peer: peer_id,
-                                        sample_type: SampleType::EchoSubscription,
-                                    })
-                                    .await;
+                                error!("An error occurred when sending EchoSubscribe {error:?} for peer {peer_id}");
+                                // let _ = command_sender
+                                //     .send(SamplerCommand::PeerConfirmationFailed {
+                                //         peer: peer_id,
+                                //         sample_type: SampleType::EchoSubscription,
+                                //     })
+                                //     .await;
                             }
                         }
                     }
@@ -301,34 +299,34 @@ impl AppContext {
                                 }
                                 msg => {
                                     error!("Receive an unexpected message as a response {msg:?}");
-                                    let _ = command_sender
-                                        .send(SamplerCommand::PeerConfirmationFailed {
-                                            peer: peer_id,
-                                            sample_type: SampleType::ReadySubscription,
-                                        })
-                                        .await;
-                                    let _ = command_sender
-                                        .send(SamplerCommand::PeerConfirmationFailed {
-                                            peer: peer_id,
-                                            sample_type: SampleType::DeliverySubscription,
-                                        })
-                                        .await;
+                                    // let _ = command_sender
+                                    //     .send(SamplerCommand::PeerConfirmationFailed {
+                                    //         peer: peer_id,
+                                    //         sample_type: SampleType::ReadySubscription,
+                                    //     })
+                                    //     .await;
+                                    // let _ = command_sender
+                                    //     .send(SamplerCommand::PeerConfirmationFailed {
+                                    //         peer: peer_id,
+                                    //         sample_type: SampleType::DeliverySubscription,
+                                    //     })
+                                    // .await;
                                 }
                             },
                             Err(error) => {
-                                error!("An error occurred when sending ReadySubscribe {error:?}");
-                                let _ = command_sender
-                                    .send(SamplerCommand::PeerConfirmationFailed {
-                                        peer: peer_id,
-                                        sample_type: SampleType::ReadySubscription,
-                                    })
-                                    .await;
-                                let _ = command_sender
-                                    .send(SamplerCommand::PeerConfirmationFailed {
-                                        peer: peer_id,
-                                        sample_type: SampleType::DeliverySubscription,
-                                    })
-                                    .await;
+                                error!("An error occurred when sending ReadySubscribe {error:?} for peer {peer_id}");
+                                // let _ = command_sender
+                                //     .send(SamplerCommand::PeerConfirmationFailed {
+                                //         peer: peer_id,
+                                //         sample_type: SampleType::ReadySubscription,
+                                //     })
+                                //     .await;
+                                // let _ = command_sender
+                                //     .send(SamplerCommand::PeerConfirmationFailed {
+                                //         peer: peer_id,
+                                //         sample_type: SampleType::DeliverySubscription,
+                                //     })
+                                //     .await;
                             }
                         }
                     }
@@ -351,7 +349,7 @@ impl AppContext {
                     .iter()
                     .map(|peer_id| {
                         debug!(
-                            "peer_id: {} sending gossip cert id: {:?} to peer {}",
+                            "peer_id: {} sending gossip cert id: {} to peer {}",
                             &self.network_client.local_peer_id, &cert_id, &peer_id
                         );
                         self.network_client
@@ -367,7 +365,7 @@ impl AppContext {
             TceEvents::Echo { peers, cert, ctx } => {
                 let my_peer_id = self.network_client.local_peer_id;
                 debug!(
-                    "peer_id: {} processing on_protocol_event TceEvents::Echo peers {:?} cert id: {:?}",
+                    "peer_id: {} processing on_protocol_event TceEvents::Echo peers {:?} cert id: {}",
                     &my_peer_id, &peers, &cert.id
                 );
                 // Send echo message
@@ -395,7 +393,7 @@ impl AppContext {
             TceEvents::Ready { peers, cert, ctx } => {
                 let my_peer_id = self.network_client.local_peer_id;
                 debug!(
-                    "peer_id: {} processing TceEvents::Ready peers {:?} cert id: {:?}",
+                    "peer_id: {} processing TceEvents::Ready peers {:?} cert id: {}",
                     &my_peer_id, &peers, &cert.id
                 );
                 let data: Vec<u8> = NetworkMessage::from(TceCommands::OnReady {
@@ -443,7 +441,6 @@ impl AppContext {
                 let msg: NetworkMessage = data.into();
                 match msg {
                     NetworkMessage::Cmd(cmd) => {
-                        debug!("peer_id: {} received TransmissionOnReq {:?}", &my_peer, cmd);
                         match cmd {
                             // We received echo subscription request from external peer
                             TceCommands::OnEchoSubscribeReq { from_peer } => {
@@ -493,12 +490,17 @@ impl AppContext {
                                 digest: _,
                                 ctx,
                             } => {
-                                let span = info_span!("Gossip");
+                                let span = info_span!(
+                                    "Gossip",
+                                    peer_id = self.network_client.local_peer_id.to_string(),
+                                    "otel.kind" = "consumer"
+                                );
+                                warn!("RECV GOSSIP context: {:?}", ctx);
                                 let parent = ctx.extract();
                                 span.set_parent(parent);
                                 span.in_scope(|| {
                                     debug!(
-                                        "peer_id {} on_net_event TceCommands::OnGossip cert id: {:?}",
+                                        "peer_id {} on_net_event TceCommands::OnGossip cert id: {}",
                                         &self.network_client.local_peer_id, &cert.id
                                     );
                                 });
@@ -530,20 +532,22 @@ impl AppContext {
                                 ctx,
                                 ..
                             } => {
-                                let context = ctx.extract();
                                 let span = info_span!(
                                     "Echo",
-                                    peer_id = self.network_client.local_peer_id.to_string()
+                                    peer_id = self.network_client.local_peer_id.to_string(),
+                                    "otel.kind" = "consumer"
                                 );
-                                span.set_parent(context);
+                                warn!("RECV Echo context: {:?}", ctx);
+                                let context = ctx.extract();
+                                span.set_parent(context.clone());
                                 // We have received Echo echo message, we are responding with OnDoubleEchoOk
                                 let command_sender = span.in_scope(||{
-                                info!(
-                                    "peer_id: {} on_net_event TceCommands::OnEcho from peer {} cert id: {:?}",
-                                    &self.network_client.local_peer_id, &from_peer, &cert.id
-                                );
-                                // We have received echo message from external peer
-                                self.tce_cli.get_double_echo_channel()
+                                    info!(
+                                        "peer_id: {} on_net_event TceCommands::OnEcho from peer {} cert id: {}",
+                                        &self.network_client.local_peer_id, &from_peer, &cert.id
+                                    );
+                                    // We have received echo message from external peer
+                                    self.tce_cli.get_double_echo_channel()
                                 });
                                 command_sender
                                     .send(DoubleEchoCommand::Echo {
@@ -551,6 +555,7 @@ impl AppContext {
                                         cert,
                                         ctx: span.clone(),
                                     })
+                                    .with_context(context)
                                     .instrument(span)
                                     .await
                                     .expect("Receive the Echo");
@@ -567,17 +572,18 @@ impl AppContext {
                                 cert,
                                 ctx,
                             } => {
-                                let context = ctx.extract();
                                 let span = info_span!(
                                     "Ready",
                                     peer_id = self.network_client.local_peer_id.to_string()
                                 );
-                                span.set_parent(context);
+                                warn!("RECV Ready context: {:?}", ctx);
+                                let context = ctx.extract();
+                                span.set_parent(context.clone());
                                 let command_sender = span.in_scope(||{
 
                                     // We have received Ready echo message, we are responding with OnDoubleEchoOk
                                     info!(
-                                        "peer_id {} on_net_event TceCommands::OnReady from peer {} cert id: {:?}",
+                                        "peer_id {} on_net_event TceCommands::OnReady from peer {} cert id: {}",
                                         &self.network_client.local_peer_id, &from_peer, &cert.id
                                     );
                                     self.tce_cli.get_double_echo_channel()
@@ -588,6 +594,7 @@ impl AppContext {
                                         cert,
                                         ctx: span.clone(),
                                     })
+                                    .with_context(context)
                                     .instrument(span)
                                     .await
                                     .expect("Receive the Ready");

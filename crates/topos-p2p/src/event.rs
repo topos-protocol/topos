@@ -14,6 +14,7 @@ pub enum ComposedEvent {
     #[allow(dead_code)]
     OutEvent(Event),
     PeerInfo(Box<identify::Event>),
+    Void,
 }
 
 impl From<KademliaEvent> for ComposedEvent {
@@ -34,6 +35,12 @@ impl From<RequestResponseEvent<TransmissionRequest, TransmissionResponse>> for C
     }
 }
 
+impl From<void::Void> for ComposedEvent {
+    fn from(_: void::Void) -> Self {
+        Self::Void
+    }
+}
+
 #[derive(Debug)]
 pub enum Event {
     PeerDisconnected {
@@ -47,4 +54,6 @@ pub enum Event {
         data: Vec<u8>,
         channel: ResponseChannel<TransmissionResponse>,
     },
+
+    Bootstrapped,
 }

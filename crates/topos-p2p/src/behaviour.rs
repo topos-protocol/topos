@@ -3,6 +3,7 @@ use crate::event::ComposedEvent;
 use libp2p::{
     kad::{store::MemoryStore, Kademlia},
     request_response::RequestResponse,
+    swarm::keep_alive,
     NetworkBehaviour,
 };
 
@@ -26,4 +27,6 @@ pub(crate) struct Behaviour {
 
     /// TransmissionBehaviour handle how we communicate with nodes
     pub(crate) transmission: RequestResponse<TransmissionCodec>,
+
+    pub(crate) keep_alive: keep_alive::Behaviour,
 }

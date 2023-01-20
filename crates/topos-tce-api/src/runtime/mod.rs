@@ -211,7 +211,7 @@ impl Runtime {
             }
 
             InternalRuntimeCommand::PushPeerList { peers, sender } => {
-                info!("A peer list has been pushed {:?}", peers);
+                // debug!("A peer list has been pushed {:?}", peers);
 
                 if let Err(error) = self
                     .api_event_sender
