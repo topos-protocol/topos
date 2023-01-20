@@ -1,5 +1,5 @@
 use tokio::sync::{mpsc, oneshot};
-use topos_core::uci::{Certificate, CertificateId};
+use topos_core::uci::{Certificate, CertificateId, SubnetId};
 
 use crate::{errors::StorageError, FetchCertificatesFilter, PendingCertificateId};
 
@@ -13,6 +13,7 @@ RegisterCommands!(
         AddPendingCertificate,
         CertificateDelivered,
         GetCertificate,
+        GetSourceHead,
         FetchCertificates,
         RemovePendingCertificate
     ]
@@ -64,6 +65,15 @@ pub struct FetchCertificates {
 
 impl Command for FetchCertificates {
     type Result = Vec<Certificate>;
+}
+
+#[derive(Debug)]
+pub struct GetSourceHead {
+    pub(crate) subnet_id: SubnetId,
+}
+
+impl Command for GetSourceHead {
+    type Result = (u64, Certificate);
 }
 
 #[cfg(test)]

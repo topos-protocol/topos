@@ -5,9 +5,12 @@ package topos.tce.v1;
 import "topos/shared/v1/subnet.proto";
 import "topos/shared/v1/uuid.proto";
 import "topos/uci/v1/certification.proto";
+import "topos/tce/v1/synchronization.proto";
 
 service APIService {
   rpc SubmitCertificate(SubmitCertificateRequest) returns (SubmitCertificateResponse);
+
+  rpc GetSourceHead(GetSourceHeadRequest) returns (GetSourceHeadResponse);
 
   // This RPC allows a client to open a bidirectional stream with a TCE
   rpc WatchCertificates(stream WatchCertificatesRequest) returns (stream WatchCertificatesResponse);
@@ -18,6 +21,16 @@ message SubmitCertificateRequest {
 }
 
 message SubmitCertificateResponse {}
+
+
+message GetSourceHeadRequest {
+  topos.shared.v1.SubnetId subnet_id = 1;
+}
+
+message GetSourceHeadResponse {
+  topos.tce.v1.SourceStreamPosition position = 1;
+  topos.uci.v1.Certificate certificate = 2;
+}
 
 message WatchCertificatesRequest {
   // Provide a request_id to track response

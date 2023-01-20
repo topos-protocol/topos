@@ -57,4 +57,10 @@ pub(crate) enum InternalRuntimeCommand {
         peers: Vec<PeerId>,
         sender: oneshot::Sender<Result<(), RuntimeError>>,
     },
+
+    /// Get source head certificate by source subnet id
+    GetSourceHead {
+        subnet_id: topos_core::uci::SubnetId,
+        sender: oneshot::Sender<Result<(u64, topos_core::uci::Certificate), RuntimeError>>,
+    },
 }
