@@ -101,7 +101,7 @@ async fn create_tce_layer() {
                 source_subnet_id: Some(source_subnet_id.clone()),
                 id: Some(certificate_id),
                 prev_id: Some(prev_certificate_id),
-                calls: vec![],
+                target_subnets: vec![],
             }),
         })
         .await

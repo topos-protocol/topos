@@ -3,6 +3,8 @@ name = "topos-tce-api"
 version = "0.1.0"
 edition = "2021"
 
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
 [dependencies]
 topos-p2p = { path = "../topos-p2p" }
 topos-core = { workspace = true, features = ["uci", "api"] }
@@ -26,6 +28,15 @@ tracing-opentelemetry.workspace = true
 
 [dev-dependencies]
 bytes.workspace = true
+<<<<<<< HEAD
+env_logger = "0.9.1"
+http = "0.2.8"
+http-body = "0.4.5"
+hyper.workspace = true
+prost.workspace = true
+test-log = { version = "0.2", features = ["trace"] }
+tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
+=======
 hyper.workspace = true
 prost.workspace = true
 test-log.workspace = true
@@ -33,4 +44,5 @@ tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 env_logger = "0.9.1"
 http = "0.2.8"
 http-body = "0.4.5"
+>>>>>>> f4ad686... feat: cleanup cross chain transactions
 

@@ -9,7 +9,7 @@ use std::env;
 use std::path::PathBuf;
 use std::str::FromStr;
 use tokio::sync::oneshot;
-use topos_core::uci::{Address, Certificate, CertificateId, SubnetId};
+use topos_core::uci::{Certificate, CertificateId, SubnetId};
 use web3::contract::tokens::Tokenize;
 use web3::ethabi::Token;
 use web3::transports::Http;
@@ -33,8 +33,6 @@ const TOPOS_SMART_CONTRACTS_BUILD_PATH_VAR: &str = "TOPOS_SMART_CONTRACTS_BUILD_
 const SOURCE_SUBNET_ID: SubnetId = [1u8; 32];
 const PREV_CERTIFICATE_ID: CertificateId = CertificateId::from_array([4u8; 32]);
 const CERTIFICATE_ID: CertificateId = CertificateId::from_array([5u8; 32]);
-const SENDER_ID: Address = [6u8; 20];
-const RECEIVER_ID: Address = [7u8; 20];
 
 async fn deploy_contract<T, U>(
     contract_file_path: &str,
@@ -520,15 +518,7 @@ async fn test_subnet_certificate_push_call(
         source_subnet_id: SOURCE_SUBNET_ID,
         id: CERTIFICATE_ID,
         prev_id: PREV_CERTIFICATE_ID,
-        calls: vec![topos_core::uci::CrossChainTransaction {
-            target_subnet_id: SOURCE_SUBNET_ID,
-            transaction_data: topos_core::uci::CrossChainTransactionData::AssetTransfer {
-                sender: SENDER_ID,
-                receiver: RECEIVER_ID,
-                symbol: "1".to_string(),
-                amount: topos_core::uci::Amount::from(10000),
-            },
-        }],
+        target_subnets: vec![SOURCE_SUBNET_ID],
     };
     println!("Sending mock certificate to subnet smart contract...");
     if let Err(e) = runtime_proxy_worker

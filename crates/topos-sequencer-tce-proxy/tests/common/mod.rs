@@ -91,7 +91,7 @@ impl ApiService for TceMockServer {
                                                 Some(CertificateId {
                                                 value: bytes,
                                             })},
-                                            calls: vec![]
+                                            target_subnets: vec![]
                                         })}))}).await;
                                 };
                                 tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;

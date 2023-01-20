@@ -80,7 +80,7 @@ mod tests {
 
     #[tokio::test]
     async fn send_command() {
-        let cert = Certificate::new(PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID, vec![]).unwrap();
+        let cert = Certificate::new(PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID, &[]).unwrap();
         let command = AddPendingCertificate { certificate: cert };
 
         let (sender, mut receiver) = mpsc::channel(1);

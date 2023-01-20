@@ -7,9 +7,7 @@ use std::fmt::{Debug, Formatter};
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 use tokio::time::{self, Duration};
-use topos_core::uci::{
-    Certificate, CertificateId, CrossChainTransaction, CrossChainTransactionData, SubnetId,
-};
+use topos_core::uci::{Certificate, CertificateId, SubnetId};
 use topos_sequencer_types::{BlockInfo, CertificationCommand, CertificationEvent, SubnetEvent};
 use tracing::{debug, error, warn};
 
@@ -26,80 +24,6 @@ pub struct Certification {
 impl Debug for Certification {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Certification instance").finish()
-    }
-}
-
-fn create_cross_chain_transaction(event: &SubnetEvent) -> Result<CrossChainTransaction, Error> {
-    match event {
-        SubnetEvent::TokenSent {
-            sender,
-            source_subnet_id: _,
-            target_subnet_id,
-            receiver,
-            symbol,
-            amount,
-        } => Ok(CrossChainTransaction {
-            target_subnet_id: *target_subnet_id,
-            transaction_data: CrossChainTransactionData::AssetTransfer {
-                sender: sender
-                    .as_slice()
-                    .try_into()
-                    .map_err(Error::InvalidAddress)?,
-                receiver: receiver
-                    .as_slice()
-                    .try_into()
-                    .map_err(Error::InvalidAddress)?,
-                symbol: symbol.clone(),
-                amount: *amount,
-            },
-        }),
-        SubnetEvent::ContractCall {
-            source_subnet_id: _,
-            source_contract_addr,
-            target_subnet_id,
-            target_contract_addr,
-            payload,
-        } => Ok(CrossChainTransaction {
-            target_subnet_id: *target_subnet_id,
-            transaction_data: CrossChainTransactionData::ContractCall {
-                source_contract_addr: source_contract_addr
-                    .as_slice()
-                    .try_into()
-                    .map_err(Error::InvalidAddress)?,
-                target_contract_addr: target_contract_addr
-                    .as_slice()
-                    .try_into()
-                    .map_err(Error::InvalidAddress)?,
-                payload: payload.clone(),
-            },
-        }),
-        SubnetEvent::ContractCallWithToken {
-            source_subnet_id: _,
-            source_contract_addr,
-            target_subnet_id,
-            target_contract_addr,
-            payload,
-            symbol,
-            amount,
-        } => {
-            //TODO fix, update Cross chain transaction
-            Ok(CrossChainTransaction {
-                target_subnet_id: *target_subnet_id,
-                transaction_data: CrossChainTransactionData::ContractCallWithToken {
-                    source_contract_addr: source_contract_addr
-                        .as_slice()
-                        .try_into()
-                        .map_err(Error::InvalidAddress)?,
-                    target_contract_addr: target_contract_addr
-                        .as_slice()
-                        .try_into()
-                        .map_err(Error::InvalidAddress)?,
-                    payload: payload.clone(),
-                    symbol: symbol.clone(),
-                    amount: *amount,
-                },
-            })
-        }
     }
 }
 
@@ -159,8 +83,8 @@ impl Certification {
         certification.send_out_events(evt);
     }
 
-    fn on_command(certifiation: Arc<Mutex<Certification>>, mb_cmd: Option<CertificationCommand>) {
-        let mut certification = certifiation.lock().unwrap();
+    fn on_command(certification: Arc<Mutex<Certification>>, mb_cmd: Option<CertificationCommand>) {
+        let mut certification = certification.lock().unwrap();
 
         match mb_cmd {
             Some(cmd) => match cmd {
@@ -195,18 +119,17 @@ impl Certification {
         let subnet_id = certification.subnet_id;
 
         let mut block_data = Vec::<u8>::new();
-        let mut cross_chain_calls: Vec<CrossChainTransaction> = Vec::new();
+        let mut events: Vec<SubnetEvent> = Vec::new();
         for block_info in &certification.finalized_blocks {
             block_data.extend_from_slice(&block_info.data);
             for event in &block_info.events {
-                cross_chain_calls.push(create_cross_chain_transaction(event)?);
+                // TODO decide if we need events, we probably need them to determine target subnets
+                events.push(event.clone());
             }
         }
 
-        // No contents for the Certificate
-        if block_data.is_empty() {
-            return Err(Error::EmptyCertificate);
-        }
+        // TODO collect target subnets from events
+        let target_subnets: Vec<SubnetId> = Vec::new();
 
         // Get the id of the previous Certificate
         let previous_cert_id: CertificateId = match certification.history.get(&subnet_id) {
@@ -220,7 +143,7 @@ impl Certification {
             }
         };
 
-        let certificate = Certificate::new(previous_cert_id, subnet_id, cross_chain_calls)
+        let certificate = Certificate::new(previous_cert_id, subnet_id, &target_subnets)
             .map_err(|e| Error::CertificateGenerationError(e))?;
 
         certification.finalized_blocks.clear();

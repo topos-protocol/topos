@@ -3,6 +3,7 @@ name = "topos-tce"
 description = "TCE Node Service"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
 rust-version = "1.64"
 
 [dependencies]
@@ -43,7 +44,13 @@ rand_distr.workspace = true
 tonic.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 tracing.workspace = true
+<<<<<<< HEAD
+
+=======
+async-stream.workspace = true
+hyper.workspace = true
 test-log.workspace = true
+>>>>>>> f4ad686... feat: cleanup cross chain transactions
 cucumber = "0.13.0"
 
 

@@ -5,52 +5,10 @@ package topos.uci.v1;
 import "topos/shared/v1/subnet.proto";
 import "topos/shared/v1/certificate.proto";
 
-/* Two types of transactions available:
- * Asset transfer
- * Smart contract function call
- */
-message CrossChainTransactionData {
-  oneof data {
-    AssetTransfer asset_transfer = 1;
-    ContractCall contract_call = 2;
-    ContractCallWithToken contract_call_with_token = 3;
-  }
-
-  // Cross chain transaction data for asset transfer
-  message AssetTransfer {
-    bytes sender = 1;
-    bytes receiver = 2;
-    string symbol = 3;
-    bytes amount = 4;
-  }
-
-  // Data describing cross chain function call
-  message ContractCall {
-    bytes source_contract_addr = 1;
-    bytes target_contract_addr = 2;
-    bytes payload = 3;
-  }
-
-  // Data describing cross chain function call with token transfer
-  message ContractCallWithToken {
-    bytes source_contract_addr = 1;
-    bytes target_contract_addr = 2;
-    bytes payload = 3;
-    string symbol = 4;
-    bytes amount = 5;
-  }
-}
-
-// Cross chain transaction exchanged between subnets
-message CrossChainTransaction {
-  topos.shared.v1.SubnetId target_subnet_id = 1;
-  CrossChainTransactionData transaction_data = 2;
-}
-
 // Certificate - main exchange item
 message Certificate {
-  topos.shared.v1.SubnetId source_subnet_id = 1;
-  topos.shared.v1.CertificateId id = 2;
-  topos.shared.v1.CertificateId prev_id = 3;
-  repeated CrossChainTransaction calls = 4;
+  topos.shared.v1.CertificateId prev_id = 1;
+  topos.shared.v1.SubnetId source_subnet_id = 2;
+  repeated topos.shared.v1.SubnetId target_subnets = 3;
+  topos.shared.v1.CertificateId id = 4;
 }

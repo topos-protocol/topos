@@ -1,9 +1,7 @@
 //! Implementation of Topos Network Transport
 //!
 use serde::{Deserialize, Serialize};
-pub use topos_core::uci::{
-    Certificate, CrossChainTransaction, CrossChainTransactionData, DigestCompressed,
-};
+pub use topos_core::uci::{Certificate, DigestCompressed};
 
 // TODO: proper type definitions
 pub type BlockData = Vec<u8>;
