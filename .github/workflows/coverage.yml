@@ -2,14 +2,10 @@ name: Coverage
 
 on:
   push:
-    branches: [fake]
-
-# on:
-  # push:
-    # branches: [main]
-  # pull_request:
-    # branches: [main]
-  # workflow_dispatch:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
 
 jobs:
   codecov:
