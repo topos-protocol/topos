@@ -49,6 +49,7 @@ FROM debian:bullseye-slim
 ENV TCE_PORT=9090
 ENV USER=topos
 ENV UID=10001
+ENV PATH="${PATH}:/usr/src/app"
 
 RUN adduser \
     --disabled-password \
