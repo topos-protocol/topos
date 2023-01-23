@@ -71,13 +71,14 @@ jobs:
           DOCKER_PASSWORD: ${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
           FILESYSTEM_ID: ${{ env.FILESYSTEM_ID }}
         run: |
-          helmfile sync
+          helmfile destroy && helmfile sync
 
       - name: Sleep
         run: sleep 300s
         shell: bash
 
       - name: Helm Clean up
+        if: always()
         working-directory: tools/
         env:
           GITHUB_USERNAME: ${{ github.actor }}
@@ -90,5 +91,6 @@ jobs:
           helmfile destroy
 
       - name: Terraform destroy
+        if: always()
         working-directory: tools/terraform/cicd-devnet-1
         run: terraform destroy -auto-approve
