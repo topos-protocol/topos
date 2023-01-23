@@ -1,6 +1,6 @@
 helmDefaults:
   wait: true
-  timeout: 300
+  timeout: 600
 
 repositories:
  - name: toposware
