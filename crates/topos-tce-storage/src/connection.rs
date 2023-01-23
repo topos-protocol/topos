@@ -121,8 +121,11 @@ impl<S: Storage> IntoFuture for Connection<S> {
 
                         }
                     }
+                    else => break
                 }
             }
+
+            Ok(())
         }
         .boxed()
     }

@@ -56,30 +56,31 @@ impl EventHandler<KademliaEvent> for Runtime {
             } => match res {
                 Ok(result) => {
                     debug!("GetRecordOk query: {id:?}, {result:?}");
-                    // if let Some(sender) = self.pending_record_requests.remove(&id) {
-                    //     if let Some(peer_record) = result.records.first() {
-                    //         if let Ok(addr) = Multiaddr::try_from(peer_record.record.value.clone())
-                    //         {
-                    //             if let Some(peer_id) = peer_record.record.publisher {
-                    //                 if !sender.is_closed() {
-                    //                     self.swarm
-                    //                         .behaviour_mut()
-                    //                         .discovery
-                    //                         .add_address(&peer_id, addr.clone());
-                    //
-                    //                     if sender.send(Ok(vec![addr.clone()])).is_err() {
-                    //                         // TODO: Hash the QueryId
-                    //                         warn!("Could not notify Record query ({id:?}) response because initiator is dropped");
-                    //                     }
-                    //                 }
-                    //                 self.swarm
-                    //                     .behaviour_mut()
-                    //                     .transmission
-                    //                     .add_address(&peer_id, addr);
-                    //             }
-                    //         }
-                    //     }
-                    // }
+                    if let Some(sender) = self.pending_record_requests.remove(&id) {
+                        if let Some(peer_record) = result.records.first() {
+                            if let Ok(addr) = Multiaddr::try_from(peer_record.record.value.clone())
+                            {
+                                if let Some(peer_id) = peer_record.record.publisher {
+                                    if !sender.is_closed() {
+                                        debug!("Adding {peer_id:?} address {addr:?} to DHT");
+                                        self.swarm
+                                            .behaviour_mut()
+                                            .discovery
+                                            .add_address(&peer_id, addr.clone());
+
+                                        if sender.send(Ok(vec![addr.clone()])).is_err() {
+                                            // TODO: Hash the QueryId
+                                            warn!("Could not notify Record query ({id:?}) response because initiator is dropped");
+                                        }
+                                    }
+                                    self.swarm
+                                        .behaviour_mut()
+                                        .transmission
+                                        .add_address(&peer_id, addr);
+                                }
+                            }
+                        }
+                    }
                 }
 
                 Err(error) => {

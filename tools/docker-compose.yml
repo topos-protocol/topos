@@ -93,7 +93,7 @@ services:
       - "9090"
       - "1340"
     deploy:
-      replicas: 3
+      replicas: 15
     environment:
       - LOCAL_TEST_NET=true
       - RUST_LOG=info,topos=debug

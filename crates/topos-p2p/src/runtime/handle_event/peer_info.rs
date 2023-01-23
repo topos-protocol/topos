@@ -30,6 +30,7 @@ impl EventHandler<Box<IdentifyEvent>> for Runtime {
                         .contains(&Cow::Borrowed(p.as_bytes()))
                 })
             {
+                self.peer_set.insert(peer_id);
                 for addr in listen_addrs {
                     info!(
                         "Adding self-reported address {} from {} to Kademlia DHT.",

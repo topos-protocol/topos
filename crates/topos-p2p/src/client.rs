@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use futures::future::BoxFuture;
 use libp2p::{request_response::ResponseChannel, PeerId};
 use tokio::sync::{
@@ -15,6 +17,7 @@ use crate::{
 pub struct Client {
     pub local_peer_id: PeerId,
     pub sender: mpsc::Sender<Command>,
+    pub kill_switch: Arc<oneshot::Sender<()>>,
 }
 
 impl Client {

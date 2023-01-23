@@ -3,7 +3,6 @@
 //! Abstracted from actual transport implementation.
 //! Abstracted from actual storage implementation.
 //!
-use opentelemetry::Context;
 use sampler::SampleType;
 use thiserror::Error;
 use tokio::spawn;
@@ -63,7 +62,7 @@ pub enum DoubleEchoCommand {
     Deliver {
         cert: Certificate,
         digest: DigestCompressed,
-        ctx: Context,
+        ctx: Span,
     },
 
     /// Entry point for new certificate to submit as initial sender

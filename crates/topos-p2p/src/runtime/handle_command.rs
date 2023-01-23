@@ -97,13 +97,9 @@ impl Runtime {
 
             Command::Discover { to, sender } => {
                 let behaviour = self.swarm.behaviour_mut();
-                let kad_addr = behaviour.discovery.addresses_of_peer(&to);
-                let addr = behaviour.transmission.addresses_of_peer(&to);
+                let addr = behaviour.discovery.addresses_of_peer(&to);
 
-                info!(
-                    "Checking if we know {to} -> KAD {:?}, Transmission {:?}",
-                    kad_addr, addr
-                );
+                info!("Checking if we know {to} -> KAD {:?}", addr);
                 if addr.is_empty() {
                     info!("We don't know {to}, fetching its Multiaddr from DHT");
                     let query_id = behaviour

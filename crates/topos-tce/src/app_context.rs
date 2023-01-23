@@ -20,7 +20,7 @@ use topos_tce_storage::events::StorageEvent;
 use topos_tce_storage::StorageClient;
 use topos_tce_synchronizer::{SynchronizerClient, SynchronizerEvent};
 use topos_telemetry::PropagationContext;
-use tracing::{debug, error, info, info_span, trace, warn, Instrument, Span};
+use tracing::{debug, error, info, info_span, trace, Instrument, Span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 /// Top-level transducer main app context & driver (alike)
@@ -189,9 +189,9 @@ impl AppContext {
                             "peer_id: {} sending echo subscribe to {}",
                             &my_peer_id, &peer_id
                         );
-                        let peer_id = peer_id.clone();
+                        let peer_id = *peer_id;
                         self.network_client
-                            .send_request::<_, NetworkMessage>(peer_id.clone(), data.clone())
+                            .send_request::<_, NetworkMessage>(peer_id, data.clone())
                             .map(move |result| (peer_id, result))
                     })
                     .collect::<Vec<_>>();
@@ -222,22 +222,10 @@ impl AppContext {
                                 }
                                 msg => {
                                     error!("Receive an unexpected message as a response {msg:?}");
-                                    // let _ = command_sender
-                                    //     .send(SamplerCommand::PeerConfirmationFailed {
-                                    //         peer: peer_id,
-                                    //         sample_type: SampleType::EchoSubscription,
-                                    //     })
-                                    //     .await;
                                 }
                             },
                             Err(error) => {
                                 error!("An error occurred when sending EchoSubscribe {error:?} for peer {peer_id}");
-                                // let _ = command_sender
-                                //     .send(SamplerCommand::PeerConfirmationFailed {
-                                //         peer: peer_id,
-                                //         sample_type: SampleType::EchoSubscription,
-                                //     })
-                                //     .await;
                             }
                         }
                     }
@@ -260,7 +248,7 @@ impl AppContext {
                             &my_peer_id, &peer_id
                         );
                         self.network_client
-                            .send_request::<_, NetworkMessage>(peer_id.clone(), data.clone())
+                            .send_request::<_, NetworkMessage>(peer_id, data.clone())
                             .map(move |result| (peer_id, result))
                     })
                     .collect::<Vec<_>>();
@@ -299,34 +287,10 @@ impl AppContext {
                                 }
                                 msg => {
                                     error!("Receive an unexpected message as a response {msg:?}");
-                                    // let _ = command_sender
-                                    //     .send(SamplerCommand::PeerConfirmationFailed {
-                                    //         peer: peer_id,
-                                    //         sample_type: SampleType::ReadySubscription,
-                                    //     })
-                                    //     .await;
-                                    // let _ = command_sender
-                                    //     .send(SamplerCommand::PeerConfirmationFailed {
-                                    //         peer: peer_id,
-                                    //         sample_type: SampleType::DeliverySubscription,
-                                    //     })
-                                    // .await;
                                 }
                             },
                             Err(error) => {
                                 error!("An error occurred when sending ReadySubscribe {error:?} for peer {peer_id}");
-                                // let _ = command_sender
-                                //     .send(SamplerCommand::PeerConfirmationFailed {
-                                //         peer: peer_id,
-                                //         sample_type: SampleType::ReadySubscription,
-                                //     })
-                                //     .await;
-                                // let _ = command_sender
-                                //     .send(SamplerCommand::PeerConfirmationFailed {
-                                //         peer: peer_id,
-                                //         sample_type: SampleType::DeliverySubscription,
-                                //     })
-                                //     .await;
                             }
                         }
                     }
@@ -495,7 +459,7 @@ impl AppContext {
                                     peer_id = self.network_client.local_peer_id.to_string(),
                                     "otel.kind" = "consumer"
                                 );
-                                warn!("RECV GOSSIP context: {:?}", ctx);
+                                // warn!("RECV GOSSIP context: {:?}", ctx);
                                 let parent = ctx.extract();
                                 span.set_parent(parent);
                                 span.in_scope(|| {
@@ -537,7 +501,7 @@ impl AppContext {
                                     peer_id = self.network_client.local_peer_id.to_string(),
                                     "otel.kind" = "consumer"
                                 );
-                                warn!("RECV Echo context: {:?}", ctx);
+                                // warn!("RECV Echo context: {:?}", ctx);
                                 let context = ctx.extract();
                                 span.set_parent(context.clone());
                                 // We have received Echo echo message, we are responding with OnDoubleEchoOk
@@ -576,7 +540,7 @@ impl AppContext {
                                     "Ready",
                                     peer_id = self.network_client.local_peer_id.to_string()
                                 );
-                                warn!("RECV Ready context: {:?}", ctx);
+                                // warn!("RECV Ready context: {:?}", ctx);
                                 let context = ctx.extract();
                                 span.set_parent(context.clone());
                                 let command_sender = span.in_scope(||{

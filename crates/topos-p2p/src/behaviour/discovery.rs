@@ -24,7 +24,7 @@ impl DiscoveryBehaviour {
         let local_peer_id = peer_key.public().to_peer_id();
         let kademlia_config = KademliaConfig::default()
             .set_protocol_names(vec![discovery_protocol])
-            .set_replication_factor(NonZeroUsize::new(1).unwrap())
+            .set_replication_factor(NonZeroUsize::new(2).unwrap())
             .set_kbucket_inserts(KademliaBucketInserts::Manual)
             // .set_replication_interval(Some(Duration::from_secs(30)))
             // .set_publication_interval(Some(Duration::from_secs(30)))

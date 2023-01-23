@@ -17,6 +17,7 @@ use tracing_opentelemetry::OpenTelemetrySpanExt;
 /// Processing data associated to a Certificate candidate for delivery
 /// Sample repartition, one peer may belongs to multiple samples
 /// Ready is always sent to current subscribers view
+#[derive(Debug)]
 struct DeliveryState {
     pub subscriptions: SubscriptionsView,
     ctx: Span,
@@ -111,21 +112,26 @@ impl DoubleEcho {
                         command if self.subscriptions.is_some() => {
                             match command {
                                 DoubleEchoCommand::Echo { from_peer, cert, .. } => {
-                                    debug!("handling DoubleEchoCommand::Echo from_peer: {} cert_id: {:?}", &from_peer, &cert.id);
+                                    debug!("handling DoubleEchoCommand::Echo from_peer: {} cert_id: {}", &from_peer, &cert.id);
                                     self.handle_echo(from_peer, cert)},
-                                DoubleEchoCommand::Ready { from_peer, cert, .. } => {
-                                    debug!("handling DoubleEchoCommand::Ready from_peer: {} cert_id: {:?}", &from_peer, &cert.id);
-                                    self.handle_ready(from_peer, cert)
+                                DoubleEchoCommand::Ready { from_peer, cert, ctx } => {
+                                    // let span = info_span!("Ready");
+                                    // span.set_parent(ctx);
+                                    ctx.in_scope(|| {
+
+                                        debug!("handling DoubleEchoCommand::Ready from_peer: {} cert_id: {}", &from_peer, &cert.id);
+                                        self.handle_ready(from_peer, cert)
+                                    });
                                 },
                                 DoubleEchoCommand::Deliver { cert, digest, ctx } => {
-                                    let span = info_span!("Deliver");
-                                    span.set_parent(ctx);
-                                    span.in_scope(|| {
+                                    // let span = info_span!("Deliver");
+                                    // span.set_parent(ctx);
+                                    ctx.in_scope(|| {
                                         info!("handling DoubleEchoCommand::Deliver cert_id: {} digest: {:?}", cert.id, &digest);
 
                                         self.handle_deliver(cert, digest)
                                     });
-                                    },
+                                },
 
                                 _ => {}
                             }
@@ -164,6 +170,11 @@ impl DoubleEcho {
                         }
                         _ => {}
                     }
+                }
+                else => {
+                    debug!("Break tokio loop in double echo");
+
+                    break
                 }
             }
 
@@ -276,6 +287,7 @@ impl DoubleEcho {
         // Add new entry for the new Cert candidate
         match self.delivery_state_for_new_cert() {
             Some(delivery_state) => {
+                info!("DeliveryState is : {:?}", delivery_state.subscriptions);
                 self.cert_candidate.insert(cert.clone(), delivery_state);
             }
             None => {
@@ -327,14 +339,17 @@ impl DoubleEcho {
     }
 
     fn state_change_follow_up(&mut self) {
+        debug!("StateChangeFollowUp called");
         let mut state_modified = false;
         let mut gen_evts = Vec::<TceEvents>::new();
         // For all current Cert on processing
         for (cert, state_to_delivery) in &mut self.cert_candidate {
+            debug!("State to delivery, {:#?}", state_to_delivery);
             if !state_to_delivery.subscriptions.ready.is_empty()
                 && (is_e_ready(&self.params, state_to_delivery)
                     || is_r_ready(&self.params, state_to_delivery))
             {
+                debug!("ready isn't empty and echo/ready are in threshold");
                 // Fanout the Ready messages to my subscribers
                 let readies = self.subscribers.ready.iter().cloned().collect::<Vec<_>>();
                 if !readies.is_empty() {
@@ -347,6 +362,10 @@ impl DoubleEcho {
                 state_to_delivery.subscriptions.ready.clear();
             }
 
+            debug!(
+                "Is it ok to delivery ? {:?}",
+                is_ok_to_deliver(&self.params, state_to_delivery)
+            );
             if is_ok_to_deliver(&self.params, state_to_delivery) {
                 self.pending_delivery
                     .insert(cert.clone(), state_to_delivery.ctx.clone());
@@ -354,6 +373,7 @@ impl DoubleEcho {
             }
         }
 
+        debug!("State modified? {state_modified:?}");
         if state_modified {
             self.cert_candidate
                 .retain(|c, _| !self.pending_delivery.contains_key(c));
@@ -424,20 +444,25 @@ impl DoubleEcho {
     }
 
     /// Here comes test that is necessarily done after delivery
-    fn cert_post_delivery_check(&self, cert: &Certificate) -> Result<(), ()> {
-        if self.store.check_precedence(cert).is_err() {
-            warn!("Precedence not yet satisfied {:?}", cert);
-        }
+    fn cert_post_delivery_check(&self, _cert: &Certificate) -> Result<(), ()> {
+        // if self.store.check_precedence(cert).is_err() {
+        //     warn!("Precedence not yet satisfied {:?}", cert);
+        // }
 
-        if self.store.check_digest_inclusion(cert).is_err() {
-            warn!("Inclusion check not yet satisfied {:?}", cert);
-        }
+        // if self.store.check_digest_inclusion(cert).is_err() {
+        //     warn!("Inclusion check not yet satisfied {:?}", cert);
+        // }
         Ok(())
     }
 }
 
 // state checkers
 fn is_ok_to_deliver(params: &ReliableBroadcastParams, state: &DeliveryState) -> bool {
+    debug!(
+        "is_ok_to_deliver: delivery_sample_size: {:?} - {:?}",
+        params.delivery_sample_size,
+        state.subscriptions.delivery.len()
+    );
     match params
         .delivery_sample_size
         .checked_sub(state.subscriptions.delivery.len())
@@ -448,6 +473,11 @@ fn is_ok_to_deliver(params: &ReliableBroadcastParams, state: &DeliveryState) -> 
 }
 
 fn is_e_ready(params: &ReliableBroadcastParams, state: &DeliveryState) -> bool {
+    debug!(
+        "is_e_ready: echo_sample_size: {:?} - {:?}",
+        params.echo_sample_size,
+        state.subscriptions.echo.len()
+    );
     match params
         .echo_sample_size
         .checked_sub(state.subscriptions.echo.len())
@@ -458,6 +488,11 @@ fn is_e_ready(params: &ReliableBroadcastParams, state: &DeliveryState) -> bool {
 }
 
 fn is_r_ready(params: &ReliableBroadcastParams, state: &DeliveryState) -> bool {
+    debug!(
+        "is_r_ready: ready_sample_size: {:?} - {:?}",
+        params.ready_sample_size,
+        state.subscriptions.ready.len()
+    );
     match params
         .ready_sample_size
         .checked_sub(state.subscriptions.ready.len())

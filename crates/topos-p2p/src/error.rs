@@ -30,6 +30,9 @@ pub enum P2PError {
 
     #[error("An error occurred on the Noise protocol: {0}")]
     NoiseProtocolError(#[from] NoiseError),
+
+    #[error("Error during bootstrap phase: {0}")]
+    BootstrapError(&'static str),
 }
 
 #[derive(Error, Debug)]

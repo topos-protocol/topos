@@ -54,6 +54,4 @@ pub enum Event {
         data: Vec<u8>,
         channel: ResponseChannel<TransmissionResponse>,
     },
-
-    Bootstrapped,
 }

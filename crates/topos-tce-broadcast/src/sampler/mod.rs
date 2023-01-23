@@ -157,6 +157,7 @@ impl Sampler {
                         SamplerCommand::ForceResample => self.reset_samples().await
                     }
                 }
+                else => break
             }
         }
     }

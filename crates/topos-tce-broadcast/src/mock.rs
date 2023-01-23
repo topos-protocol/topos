@@ -507,7 +507,7 @@ pub async fn handle_peer_event(
             peers,
             cert,
             digest,
-            ctx,
+            ..
         } => {
             for to_peer in peers {
                 let mb_cli = peers_container.get(&to_peer);
@@ -517,7 +517,7 @@ pub async fn handle_peer_event(
                         .send(DoubleEchoCommand::Deliver {
                             cert: cert.clone(),
                             digest: digest.clone(),
-                            ctx: ctx.clone(),
+                            ctx: Span::current(),
                         })
                         .await?;
                 }

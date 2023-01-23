@@ -23,9 +23,10 @@ use libp2p::{
 use std::{
     borrow::Cow,
     collections::{HashMap, HashSet},
+    sync::Arc,
     time::Duration,
 };
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
 
 pub fn builder<'a>() -> NetworkBuilder<'a> {
@@ -146,14 +147,18 @@ impl<'a> NetworkBuilder<'a> {
             }))
             .build();
 
+        let (kill_switch, shutdown_listener) = oneshot::channel();
+        let (kill_sender, _) = oneshot::channel();
         Ok((
             Client {
                 local_peer_id: peer_id,
                 sender: command_sender,
+                kill_switch: Arc::new(kill_switch),
             },
             ReceiverStream::new(event_receiver),
             Runtime {
                 swarm,
+                peer_set: HashSet::new(),
                 is_boot_node: self.known_peers.is_empty(),
                 command_receiver,
                 event_sender,
@@ -172,6 +177,8 @@ impl<'a> NetworkBuilder<'a> {
                 active_listeners: HashSet::new(),
                 peers: HashSet::new(),
                 pending_record_requests: HashMap::new(),
+                shutdown_listener,
+                kill_sender,
             },
         ))
     }
