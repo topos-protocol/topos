@@ -20,11 +20,24 @@ releases:
   - name: controller.serviceAccount.annotations.eks\.amazonaws\.com/role-arn
     value: arn:aws:iam::367397670706:role/cicd-devnet-1-eks-efs-csi-irsa
 
+- name: tce-tmp-storage
+  namespace:
+  chart: toposware/tce-tmp-storage
+  version: 0.1.0
+  createNamespace: true
+  needs:
+  - kube-system/aws-efs-csi-driver
+  set:
+  - name: fileSystemId
+    value: {{ requiredEnv "FILESYSTEM_ID" }}
+
 - name: tce-all-in-one
   namespace: default
   chart: toposware/tce-all-in-one
   version: 0.1.17
   createNamespace: true
+  needs:
+  - tce-tmp-storage
   set:
   - name: image.repository
     value: ghcr.io/toposware/topos
