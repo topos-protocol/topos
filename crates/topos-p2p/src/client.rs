@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use futures::future::BoxFuture;
 use libp2p::{request_response::ResponseChannel, PeerId};
@@ -6,6 +6,7 @@ use tokio::sync::{
     mpsc::{self, error::SendError},
     oneshot,
 };
+use tracing::debug;
 
 use crate::{
     behaviour::transmission::codec::TransmissionResponse,
@@ -60,22 +61,40 @@ impl Client {
         &self,
         to: PeerId,
         data: T,
+        retry_policy: RetryPolicy,
     ) -> BoxFuture<'static, Result<R, CommandExecutionError>> {
         let data = data.into();
         let network = self.sender.clone();
         let (sender, receiver) = oneshot::channel();
-        let (addr_sender, addr_receiver) = oneshot::channel();
 
         Box::pin(async move {
-            Self::send_command_with_receiver(
-                &network,
-                Command::Discover {
-                    to,
-                    sender: addr_sender,
-                },
-                addr_receiver,
-            )
-            .await?;
+            let mut retry_count = match retry_policy {
+                RetryPolicy::NoRetry => 0,
+                RetryPolicy::N(n) => n,
+            };
+
+            loop {
+                let (addr_sender, addr_receiver) = oneshot::channel();
+                if let Err(e) = Self::send_command_with_receiver(
+                    &network,
+                    Command::Discover {
+                        to,
+                        sender: addr_sender,
+                    },
+                    addr_receiver,
+                )
+                .await
+                {
+                    if retry_count == 0 {
+                        break;
+                    }
+                    retry_count -= 1;
+                    debug!("Retry query because of failure {e:?}");
+                    tokio::time::sleep(Duration::from_secs(5)).await;
+                } else {
+                    break;
+                }
+            }
 
             Self::send_command_with_receiver(
                 &network,
@@ -118,4 +137,9 @@ impl Client {
 
         receiver.await.unwrap_or_else(|error| Err(error.into()))
     }
+}
+
+pub enum RetryPolicy {
+    NoRetry,
+    N(usize),
 }

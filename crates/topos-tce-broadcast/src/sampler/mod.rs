@@ -141,7 +141,7 @@ impl Sampler {
                 Some(command) = self.command_receiver.recv() => {
                     match command {
                         SamplerCommand::PeerConfirmationFailed { peer, sample_type } => {
-                            self .handle_peer_confirmation_failure(sample_type, peer).await;
+                            self.handle_peer_confirmation_failure(sample_type, peer).await;
 
                             self.pending_subs_state_change_follow_up().await;
                         }

@@ -25,7 +25,7 @@ pub struct TestAppContext {
     pub command_sampler: mpsc::Sender<SamplerCommand>,
     pub command_broadcast: mpsc::Sender<DoubleEchoCommand>,
     pub(crate) api_grpc_client: Option<ApiServiceClient<Channel>>, // GRPC Client for this peer (tce node)
-    pub runtime_join_handle: JoinHandle<()>,
+    pub runtime_join_handle: JoinHandle<Result<(), ()>>,
     pub app_join_handle: JoinHandle<()>,
     pub storage_join_handle: JoinHandle<Result<(), topos_tce_storage::errors::StorageError>>,
     pub gatekeeper_join_handle: JoinHandle<Result<(), topos_tce_gatekeeper::GatekeeperError>>,

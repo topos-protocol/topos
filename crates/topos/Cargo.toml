@@ -44,3 +44,7 @@ env_logger = "0.9.1"
 assert_cmd = "2.0.6"
 insta = { version = "1.21", features = ["json", "redactions"] }
 
+[features]
+default = ["tce", "sequencer"]
+tce = []
+sequencer = []

@@ -138,7 +138,9 @@ impl DoubleEcho {
 
                             self.state_change_follow_up();
                         }
-                        _ => {}
+                        command => {
+                            warn!("Received a command {command:?} when no subscriptions");
+                        }
                     }
                 }
 
@@ -324,7 +326,7 @@ impl DoubleEcho {
             || subscriptions.delivery.is_empty()
         {
             error!(
-                "Subscribtions empty: Echo({}), Ready({}), Delivery({})",
+                "Subscriptions empty: Echo({}), Ready({}), Delivery({})",
                 subscriptions.echo.is_empty(),
                 subscriptions.ready.is_empty(),
                 subscriptions.delivery.is_empty()
@@ -585,7 +587,7 @@ mod tests {
         double_echo.subscriptions = expected_subscriptions_view.clone();
         double_echo.subscribers = expected_subscriber_view;
 
-        let le_cert = Certificate::new(PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID, vec![]).unwrap();
+        let le_cert = Certificate::new(PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID, &vec![]).unwrap();
         double_echo.handle_broadcast(le_cert.clone());
 
         assert_eq!(event_receiver.len(), 2);

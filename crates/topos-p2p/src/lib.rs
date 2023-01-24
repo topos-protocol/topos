@@ -10,7 +10,9 @@ mod runtime;
 
 pub(crate) use behaviour::Behaviour;
 pub use client::Client;
+pub use client::RetryPolicy;
 pub(crate) use command::Command;
+pub use command::NotReadyMessage;
 pub use event::Event;
 pub use libp2p::Multiaddr;
 pub use libp2p::PeerId;

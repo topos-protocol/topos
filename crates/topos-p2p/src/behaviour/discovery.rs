@@ -24,11 +24,11 @@ impl DiscoveryBehaviour {
         let local_peer_id = peer_key.public().to_peer_id();
         let kademlia_config = KademliaConfig::default()
             .set_protocol_names(vec![discovery_protocol])
-            .set_replication_factor(NonZeroUsize::new(2).unwrap())
+            .set_replication_factor(NonZeroUsize::new(4).unwrap())
             .set_kbucket_inserts(KademliaBucketInserts::Manual)
-            // .set_replication_interval(Some(Duration::from_secs(30)))
-            // .set_publication_interval(Some(Duration::from_secs(30)))
-            // .set_provider_publication_interval(Some(Duration::from_secs(30)))
+            .set_replication_interval(Some(Duration::from_secs(10)))
+            .set_publication_interval(Some(Duration::from_secs(10)))
+            .set_provider_publication_interval(Some(Duration::from_secs(10)))
             .to_owned();
 
         let mut kademlia = Kademlia::with_config(

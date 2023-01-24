@@ -13,7 +13,7 @@ impl EventHandler<KademliaEvent> for Runtime {
     async fn handle(&mut self, event: KademliaEvent) {
         match event {
             KademliaEvent::InboundRequest { request } => {
-                warn!("InboundRequest {:?}", request);
+                // warn!("InboundRequest {:?}", request);
             }
 
             KademliaEvent::RoutingUpdated {

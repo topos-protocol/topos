@@ -3,12 +3,15 @@ use std::collections::{HashMap, HashSet};
 use crate::{
     behaviour::{
         discovery::{PendingDials, PendingRecordRequest},
-        transmission::PendingRequests,
+        transmission::{
+            codec::{TransmissionRequest, TransmissionResponse},
+            PendingRequests,
+        },
     },
     error::P2PError,
     event::ComposedEvent,
     runtime::handle_event::EventHandler,
-    Behaviour, Command, Event,
+    Behaviour, Command, Event, NotReadyMessage,
 };
 use libp2p::{
     core::transport::ListenerId,
@@ -16,6 +19,7 @@ use libp2p::{
         kbucket, record::Key, BootstrapOk, KademliaEvent, PutRecordError, QueryId, QueryResult,
         Quorum, Record,
     },
+    request_response::{RequestResponseEvent, RequestResponseMessage},
     swarm::{NetworkBehaviour, SwarmEvent},
     Multiaddr, PeerId, Swarm,
 };
@@ -110,7 +114,7 @@ impl Runtime {
                         info!("Received peer_info, {event:?}");
                         // Validate peer_info here
                         self.handle(event).await;
-                        if self.peer_set.len() > 3 {
+                        if self.peer_set.len() > 10 {
                             let key = Key::new(&self.local_peer_id.to_string());
                             addr_query_id = if let Ok(query_id_record) =
                                 self.swarm.behaviour_mut().discovery.put_record(
@@ -186,6 +190,35 @@ impl Runtime {
                             ..
                         },
                     )) => {}
+
+                    // Handle protocol queries
+                    SwarmEvent::Behaviour(ComposedEvent::Transmission(
+                        RequestResponseEvent::Message {
+                            peer,
+                            message:
+                                RequestResponseMessage::Request {
+                                    request_id,
+                                    request,
+                                    channel,
+                                },
+                        },
+                    )) => {
+                        info!("Received a protocol message from {peer}: id: {request_id}, {request:?}");
+                        if self
+                            .swarm
+                            .behaviour_mut()
+                            .transmission
+                            .send_response(
+                                channel,
+                                TransmissionResponse(
+                                    bincode::serialize(&NotReadyMessage {}).unwrap(),
+                                ),
+                            )
+                            .is_err()
+                        {
+                            error!("Unable to send NotReadyMessage as response to {request_id}");
+                        }
+                    }
 
                     event => warn!("Unhandle event during Bootstrap: {event:?}"),
                 }
