@@ -34,7 +34,7 @@ releases:
 - name: tce-all-in-one
   namespace: default
   chart: toposware/tce-all-in-one
-  version: 0.1.17
+  version: 0.1.18
   createNamespace: true
   needs:
   - tce-tmp-storage
