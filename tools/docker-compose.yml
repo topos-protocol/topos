@@ -87,13 +87,13 @@ services:
     depends_on:
       jaeger:
         condition: service_started
-      # boot:
-      #   condition: service_healthy
+      boot:
+        condition: service_healthy
     ports:
       - "9090"
       - "1340"
     deploy:
-      replicas: 2
+      replicas: 10
     environment:
       - LOCAL_TEST_NET=true
       - RUST_LOG=info,topos_p2p=debug,topos_tce_node_app=debug,topos_tce_protocols_reliable_broadcast=debug
