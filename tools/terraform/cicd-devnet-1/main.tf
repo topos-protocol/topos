@@ -19,7 +19,7 @@ provider "aws" {
 }
 
 module "eks" {
-  source = "git::https://github.com/toposware/infrastructure-as-code.git//terraform/modules/aws/eks?ref=feat/add-efs"
+  source = "git::https://github.com/toposware/infrastructure-as-code.git//terraform/modules/aws/eks"
 
   name   = "cicd-devnet-1"
   region = var.region
