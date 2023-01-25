@@ -1,7 +1,7 @@
 use std::{collections::HashMap, net::UdpSocket, str::FromStr};
 
 use crate::SubnetId;
-use futures::{Stream, StreamExt};
+use futures::{future::join_all, Stream, StreamExt};
 use libp2p::{
     identity::{self, Keypair},
     Multiaddr, PeerId,
@@ -48,85 +48,101 @@ where
     let mut clients = HashMap::new();
     let peers = build_peer_config_pool(peer_number);
 
+    let mut await_peers = Vec::new();
     for (index, (seed, port, keypair, addr)) in peers.iter().enumerate() {
         let user_peer_id = format!("peer_{index}");
-        let (tce_cli, tce_stream) =
-            create_reliable_broadcast_client(create_reliable_broadcast_params(correct_sample, &g));
-        let (command_sampler, command_broadcast) = tce_cli.get_command_channels();
+        let fut = async {
+            let (tce_cli, tce_stream) = create_reliable_broadcast_client(
+                create_reliable_broadcast_params(correct_sample, &g),
+            );
+            let (command_sampler, command_broadcast) = tce_cli.get_command_channels();
 
-        let (network_client, network_stream, runtime) =
-            create_network_worker(*seed, *port, addr.clone(), &peers).await;
+            let (network_client, network_stream, runtime) =
+                create_network_worker(*seed, *port, addr.clone(), &peers).await;
 
-        let socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
-        let addr = socket.local_addr().ok().unwrap();
-        let api_port = addr.port();
-
-        let (api_client, api_events) = topos_tce_api::Runtime::builder()
-            .serve_addr(addr)
-            .build_and_launch()
-            .await;
-
-        // launch data store
-        let temp_dir = std::path::PathBuf::from_str(env!("CARGO_TARGET_TMPDIR"))
-            .expect("Unable to read CARGO_TARGET_TMPDIR");
-        let (storage, storage_client, storage_stream) = {
-            let storage = RocksDBStorage::open(&temp_dir).expect("valid rocksdb storage");
-            Connection::build(Box::pin(async { Ok(storage) }))
-        };
-        let storage_join_handle = spawn(storage.into_future());
-
-        let (gatekeeper_client, gatekeeper_runtime) = topos_tce_gatekeeper::Gatekeeper::builder()
-            .local_peer_id(keypair.public().to_peer_id())
-            .await
-            .expect("Can't create the Gatekeeper");
-        let gatekeeper_join_handle = spawn(gatekeeper_runtime.into_future());
-
-        let (synchronizer_client, synchronizer_runtime, synchronizer_stream) =
-            topos_tce_synchronizer::Synchronizer::builder()
-                .with_gatekeeper_client(gatekeeper_client.clone())
-                .with_network_client(network_client.clone())
+            let runtime = runtime
+                .bootstrap()
                 .await
-                .expect("Can't create the Synchronizer");
-        let synchronizer_join_handle = spawn(synchronizer_runtime.into_future());
+                .expect("Unable to bootstrap tce network");
 
-        let app = topos_tce::AppContext::new(
-            storage_client,
-            tce_cli,
-            network_client,
-            api_client,
-            gatekeeper_client,
-            synchronizer_client,
-        );
+            let socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
+            let addr = socket.local_addr().ok().unwrap();
+            let api_port = addr.port();
 
-        let runtime_join_handle = spawn(runtime.run());
-        let app_join_handle = spawn(app.run(
-            network_stream,
-            tce_stream,
-            api_events,
-            storage_stream,
-            synchronizer_stream,
-        ));
+            let (api_client, api_events) = topos_tce_api::Runtime::builder()
+                .serve_addr(addr)
+                .build_and_launch()
+                .await;
 
-        let api_endpoint = format!("http://127.0.0.1:{api_port}");
+            // launch data store
+            let temp_dir = std::path::PathBuf::from_str(env!("CARGO_TARGET_TMPDIR"))
+                .expect("Unable to read CARGO_TARGET_TMPDIR");
+            let (storage, storage_client, storage_stream) = {
+                let storage = RocksDBStorage::open(&temp_dir).expect("valid rocksdb storage");
+                Connection::build(Box::pin(async { Ok(storage) }))
+            };
+            let storage_join_handle = spawn(storage.into_future());
 
-        let channel = channel::Endpoint::from_str(&api_endpoint)
-            .unwrap()
-            .connect_lazy();
-        let api_grpc_client = ApiServiceClient::new(channel);
+            let (gatekeeper_client, gatekeeper_runtime) =
+                topos_tce_gatekeeper::Gatekeeper::builder()
+                    .local_peer_id(keypair.public().to_peer_id())
+                    .await
+                    .expect("Can't create the Gatekeeper");
+            let gatekeeper_join_handle = spawn(gatekeeper_runtime.into_future());
 
-        let client = TestAppContext {
-            id: user_peer_id.clone(),
-            peer_id: keypair.public().to_peer_id(),
-            command_sampler,
-            command_broadcast,
-            api_grpc_client: Some(api_grpc_client),
-            runtime_join_handle,
-            app_join_handle,
-            storage_join_handle,
-            gatekeeper_join_handle,
-            synchronizer_join_handle,
-            connected_subnets: None,
+            let (synchronizer_client, synchronizer_runtime, synchronizer_stream) =
+                topos_tce_synchronizer::Synchronizer::builder()
+                    .with_gatekeeper_client(gatekeeper_client.clone())
+                    .with_network_client(network_client.clone())
+                    .await
+                    .expect("Can't create the Synchronizer");
+            let synchronizer_join_handle = spawn(synchronizer_runtime.into_future());
+
+            let app = topos_tce::AppContext::new(
+                storage_client,
+                tce_cli,
+                network_client,
+                api_client,
+                gatekeeper_client,
+                synchronizer_client,
+            );
+
+            let runtime_join_handle = spawn(runtime.run());
+            let app_join_handle = spawn(app.run(
+                network_stream,
+                tce_stream,
+                api_events,
+                storage_stream,
+                synchronizer_stream,
+            ));
+
+            let api_endpoint = format!("http://127.0.0.1:{api_port}");
+
+            let channel = channel::Endpoint::from_str(&api_endpoint)
+                .unwrap()
+                .connect_lazy();
+            let api_grpc_client = ApiServiceClient::new(channel);
+
+            let client = TestAppContext {
+                id: user_peer_id.clone(),
+                peer_id: keypair.public().to_peer_id(),
+                command_sampler,
+                command_broadcast,
+                api_grpc_client: Some(api_grpc_client),
+                runtime_join_handle,
+                app_join_handle,
+                storage_join_handle,
+                gatekeeper_join_handle,
+                synchronizer_join_handle,
+                connected_subnets: None,
+            };
+            (user_peer_id, client)
         };
+
+        await_peers.push(fut);
+    }
+
+    for (user_peer_id, client) in join_all(await_peers).await {
         clients.insert(user_peer_id, client);
     }
 
