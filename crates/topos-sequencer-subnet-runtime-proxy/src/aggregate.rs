@@ -11,6 +11,9 @@ use topos_sequencer_subnet_client::{self, SubnetClient};
 use topos_sequencer_types::{RuntimeProxyCommand, RuntimeProxyEvent};
 use tracing::{debug, error, info, trace, warn};
 
+const SUBNET_RETRY_DELAY: u64 = 1; // seconds
+const SUBNET_BLOCK_TIME: u64 = 6; // seconds
+
 pub struct RuntimeProxy {
     pub commands_channel: mpsc::UnboundedSender<RuntimeProxyCommand>,
     pub events_subscribers: Vec<mpsc::UnboundedSender<RuntimeProxyEvent>>,
@@ -42,6 +45,7 @@ impl RuntimeProxy {
             config.keystore_file.to_str()
         );
         // To sign transactions sent to Topos core contract, use admin private key from keystore
+        //TODO handle this key in more secure way (e.g. use SafeSecretKey)
         let eth_admin_private_key: Vec<u8> = match crate::keystore::get_private_key(
             &config.keystore_file,
             &config.keystore_password,
@@ -67,8 +71,9 @@ impl RuntimeProxy {
             let runtime_proxy = runtime_proxy.clone();
             let subnet_contract_address = subnet_contract_address.clone();
             tokio::spawn(async move {
-                let mut interval = time::interval(Duration::from_secs(6)); // arbitrary time for 1 block
+                let mut interval = time::interval(Duration::from_secs(SUBNET_BLOCK_TIME)); // arbitrary time for 1 block
                 loop {
+                    // Create subnet listener
                     let mut subnet = match topos_sequencer_subnet_client::SubnetClientListener::new(
                         ws_runtime_endpoint.as_ref(),
                         subnet_contract_address.as_str(),
@@ -82,7 +87,10 @@ impl RuntimeProxy {
                                 err.to_string()
                             );
                             //TODO use backoff mechanism here
-                            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                            tokio::time::sleep(tokio::time::Duration::from_secs(
+                                SUBNET_RETRY_DELAY,
+                            ))
+                            .await;
                             continue;
                         }
                     };
@@ -131,35 +139,42 @@ impl RuntimeProxy {
 
         let _runtime_command_task = {
             tokio::spawn(async move {
-                loop {
-                    let mut subnet_client = match topos_sequencer_subnet_client::SubnetClient::new(
+                // Create subnet client
+                let mut subnet_client =
+                    topos_sequencer_subnet_client::connect_to_subnet_with_retry(
                         http_runtime_endpoint.as_ref(),
                         eth_admin_private_key.clone(),
                         subnet_contract_address.as_str(),
                     )
-                    .await
-                    {
-                        Ok(subnet) => subnet,
-                        Err(err) => {
-                            error!(
-                                "Unable to instantiate http subnet client, error: {}",
-                                err.to_string()
-                            );
-                            //TODO use backoff mechanism here
-                            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                    .await;
+
+                // Get latest delivered(pushed) certificate from subnet smart contract
+                // TODO inform TCE which certificate do we need
+                let latest_cert_id = loop {
+                    match subnet_client.get_latest_delivered_cert().await {
+                        Ok(cert_id) => {
+                            break cert_id;
+                        }
+                        Err(e) => {
+                            error!("Unable to get latest delivered cert {e}");
+                            tokio::time::sleep(tokio::time::Duration::from_secs(
+                                SUBNET_RETRY_DELAY,
+                            ))
+                            .await;
                             continue;
                         }
                     };
+                };
+                info!("Subnet latest pushed cert id is {:?}", latest_cert_id);
 
-                    loop {
-                        tokio::select! {
-                            // Poll runtime proxy commands channel
-                            cmd = command_rcv.recv() => {
-                                Self::on_command(&config, &mut subnet_client, cmd).await;
-                            },
-                            Some(_) = rx_exit.recv() => {
-                                break;
-                            }
+                loop {
+                    tokio::select! {
+                        // Poll runtime proxy commands channel
+                        cmd = command_rcv.recv() => {
+                            Self::on_command(&config, &mut subnet_client, cmd).await;
+                        },
+                        Some(_) = rx_exit.recv() => {
+                            break;
                         }
                     }
                 }

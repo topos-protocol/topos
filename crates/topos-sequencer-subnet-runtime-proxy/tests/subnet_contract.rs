@@ -31,8 +31,10 @@ const SUBNET_STARTUP_DELAY: u64 = 5; // seconds left for subnet startup
 const TOPOS_SMART_CONTRACTS_BUILD_PATH_VAR: &str = "TOPOS_SMART_CONTRACTS_BUILD_PATH";
 
 const SOURCE_SUBNET_ID: SubnetId = [1u8; 32];
+const SOURCE_SUBNET_ID_2: SubnetId = [2u8; 32];
 const PREV_CERTIFICATE_ID: CertificateId = CertificateId::from_array([4u8; 32]);
 const CERTIFICATE_ID: CertificateId = CertificateId::from_array([5u8; 32]);
+const CERTIFICATE_ID_2: CertificateId = CertificateId::from_array([6u8; 32]);
 
 async fn deploy_contract<T, U>(
     contract_file_path: &str,
@@ -492,7 +494,7 @@ async fn test_create_runtime() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/// Test mint call
+/// Test push certificate to subnet smart contract
 #[rstest]
 #[tokio::test]
 #[serial]
@@ -542,6 +544,86 @@ async fn test_subnet_certificate_push_call(
         hex::encode(logs[0].address),
         subnet_smart_contract_address[2..]
     );
+    println!("Shutting down context...");
+    context.shutdown().await?;
+    Ok(())
+}
+
+/// Test get last certificate id from subnet smart contract
+#[rstest]
+#[tokio::test]
+#[serial]
+async fn test_subnet_certificate_get_last_pushed_call(
+    #[with(8546)]
+    #[future]
+    context_running_subnet_node: Context,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let context = context_running_subnet_node.await;
+    let subnet_smart_contract_address =
+        "0x".to_string() + &hex::encode(context.subnet_contract.address());
+    let subnet_jsonrpc_endpoint = "http://".to_string() + &context.jsonrpc();
+
+    // Get last pushed certificate when contract is empty
+    let subnet_client = topos_sequencer_subnet_client::SubnetClient::new(
+        &subnet_jsonrpc_endpoint,
+        hex::decode(TEST_SECRET_ETHEREUM_KEY).unwrap(),
+        &subnet_smart_contract_address,
+    )
+    .await
+    .expect("Valid subnet client");
+    let (cert_id, cert_position) = match subnet_client.get_latest_delivered_cert().await {
+        Ok(result) => result,
+        Err(e) => {
+            eprintln!("Unable to get latest certificate id and position, error details: {e}");
+            panic!()
+        }
+    };
+
+    assert_eq!((cert_id, cert_position), (Default::default(), 0));
+
+    //TODO: Adjust this mock certificate when ToposCoreContract gets stable enough
+    let test_certificates = vec![
+        Certificate {
+            source_subnet_id: SOURCE_SUBNET_ID_2,
+            id: CERTIFICATE_ID,
+            prev_id: PREV_CERTIFICATE_ID,
+            target_subnets: vec![SOURCE_SUBNET_ID],
+        },
+        Certificate {
+            source_subnet_id: SOURCE_SUBNET_ID_2,
+            id: CERTIFICATE_ID_2,
+            prev_id: CERTIFICATE_ID,
+            target_subnets: vec![SOURCE_SUBNET_ID],
+        },
+    ];
+
+    for test_cert in &test_certificates {
+        println!("Pushing certificate id={:?}", test_cert.id);
+        match subnet_client.push_certificate(&test_cert).await {
+            Ok(_) => {
+                println!("Certificate id={:?} pushed", test_cert.id);
+            }
+            Err(e) => {
+                eprintln!("Unable to push certificate, error details: {e}");
+                panic!()
+            }
+        }
+    }
+
+    println!("Getting latest cert id and position");
+    let (final_cert_id, final_cert_position) = match subnet_client.get_latest_delivered_cert().await
+    {
+        Ok(result) => result,
+        Err(e) => {
+            eprintln!("Unable to get latest certificate id and position, error details: {e}");
+            panic!()
+        }
+    };
+    assert_eq!(
+        (final_cert_id, final_cert_position),
+        (test_certificates.last().unwrap().id, 1)
+    );
+
     println!("Shutting down context...");
     context.shutdown().await?;
     Ok(())
