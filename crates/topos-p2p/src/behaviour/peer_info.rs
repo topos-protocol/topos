@@ -1,6 +1,6 @@
 use libp2p::{
     identify::Behaviour as Identify, identify::Config as IdentifyConfig,
-    identify::Event as IdentifyEvent, identity::Keypair, NetworkBehaviour,
+    identify::Event as IdentifyEvent, identity::Keypair, swarm::NetworkBehaviour,
 };
 
 #[derive(NetworkBehaviour)]

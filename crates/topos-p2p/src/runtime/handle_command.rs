@@ -102,9 +102,7 @@ impl Runtime {
                 info!("Checking if we know {to} -> KAD {:?}", addr);
                 if addr.is_empty() {
                     info!("We don't know {to}, fetching its Multiaddr from DHT");
-                    let query_id = behaviour
-                        .discovery
-                        .get_record(Key::new(&to.to_string()), Quorum::One);
+                    let query_id = behaviour.discovery.get_record(Key::new(&to.to_string()));
 
                     debug!("Created a get_record query {query_id:?} for discovering {to}");
                     self.pending_record_requests.insert(query_id, sender);
