@@ -21,7 +21,8 @@ impl EventHandler<Box<IdentifyEvent>> for Runtime {
                 ..
             } = info;
 
-            if protocol_version.as_bytes() == TransmissionProtocol().protocol_name()
+            if !self.peer_set.contains(&peer_id)
+                && protocol_version.as_bytes() == TransmissionProtocol().protocol_name()
                 && protocols.iter().any(|p| {
                     self.swarm
                         .behaviour()

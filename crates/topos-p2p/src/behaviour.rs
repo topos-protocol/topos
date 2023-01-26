@@ -4,7 +4,7 @@ use libp2p::{
     kad::{store::MemoryStore, Kademlia},
     request_response::RequestResponse,
     swarm::keep_alive,
-    NetworkBehaviour,
+    swarm::NetworkBehaviour,
 };
 
 pub(crate) mod discovery;

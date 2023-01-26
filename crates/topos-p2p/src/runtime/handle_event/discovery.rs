@@ -1,5 +1,5 @@
 use libp2p::{
-    kad::{KademliaEvent, QueryResult},
+    kad::{GetRecordOk, KademliaEvent, PeerRecord, QueryResult, Record},
     Multiaddr,
 };
 use tracing::{debug, error, info, warn};
@@ -33,7 +33,7 @@ impl EventHandler<KademliaEvent> for Runtime {
             KademliaEvent::UnroutablePeer { peer } => {
                 // Ignored
             }
-            KademliaEvent::OutboundQueryCompleted {
+            KademliaEvent::OutboundQueryProgressed {
                 result: QueryResult::Bootstrap(res),
                 id,
                 ..
@@ -41,7 +41,7 @@ impl EventHandler<KademliaEvent> for Runtime {
                 warn!("BootstrapResult query: {id:?},  {res:?}");
             }
 
-            KademliaEvent::OutboundQueryCompleted {
+            KademliaEvent::OutboundQueryProgressed {
                 result: QueryResult::PutRecord(Err(e)),
                 id,
                 ..
@@ -49,39 +49,38 @@ impl EventHandler<KademliaEvent> for Runtime {
                 error!("PutRecord Failed query_id: {id:?}, error: {e:?}");
             }
 
-            KademliaEvent::OutboundQueryCompleted {
+            KademliaEvent::OutboundQueryProgressed {
                 result: QueryResult::GetRecord(res),
                 id,
                 ..
             } => match res {
-                Ok(result) => {
+                Ok(GetRecordOk::FoundRecord(result)) => {
                     debug!("GetRecordOk query: {id:?}, {result:?}");
                     if let Some(sender) = self.pending_record_requests.remove(&id) {
-                        if let Some(peer_record) = result.records.first() {
-                            if let Ok(addr) = Multiaddr::try_from(peer_record.record.value.clone())
-                            {
-                                if let Some(peer_id) = peer_record.record.publisher {
-                                    if !sender.is_closed() {
-                                        debug!("Adding {peer_id:?} address {addr:?} to DHT");
-                                        self.swarm
-                                            .behaviour_mut()
-                                            .discovery
-                                            .add_address(&peer_id, addr.clone());
-
-                                        if sender.send(Ok(vec![addr.clone()])).is_err() {
-                                            // TODO: Hash the QueryId
-                                            warn!("Could not notify Record query ({id:?}) response because initiator is dropped");
-                                        }
-                                    }
+                        if let Ok(addr) = Multiaddr::try_from(result.record.value.clone()) {
+                            if let Some(peer_id) = result.record.publisher {
+                                if !sender.is_closed() {
+                                    debug!("Adding {peer_id:?} address {addr:?} to DHT");
                                     self.swarm
                                         .behaviour_mut()
-                                        .transmission
-                                        .add_address(&peer_id, addr);
+                                        .discovery
+                                        .add_address(&peer_id, addr.clone());
+
+                                    if sender.send(Ok(vec![addr.clone()])).is_err() {
+                                        // TODO: Hash the QueryId
+                                        warn!("Could not notify Record query ({id:?}) response because initiator is dropped");
+                                    }
                                 }
+                                self.swarm
+                                    .behaviour_mut()
+                                    .transmission
+                                    .add_address(&peer_id, addr);
                             }
                         }
                     }
                 }
+
+                Ok(GetRecordOk::FinishedWithNoAdditionalRecord { cache_candidates }) => {}
 
                 Err(error) => {
                     if let Some(sender) = self.pending_record_requests.remove(&id) {
@@ -97,7 +96,9 @@ impl EventHandler<KademliaEvent> for Runtime {
                 }
             },
 
-            KademliaEvent::OutboundQueryCompleted { id, result, stats } => {}
+            KademliaEvent::OutboundQueryProgressed {
+                id, result, stats, ..
+            } => {}
         }
     }
 }

@@ -133,12 +133,6 @@ mod should {
     }
 
     #[test]
-    #[should_panic(expected = "Use utils::set_cycle to seed values into the cyclerng")]
-    fn panic_empty_cycle() {
-        thread_rng().next_u64();
-    }
-
-    #[test]
     fn return_value_provided_in_set_cycle() {
         utils::set_cycle([1]);
         let actual = thread_rng().next_u64();

@@ -18,8 +18,8 @@ use libp2p::{
     kad::store::MemoryStore,
     mplex, noise,
     swarm::{keep_alive, SwarmBuilder},
-    tcp::{GenTcpConfig, TokioTcpTransport},
-    Multiaddr, PeerId, Transport,
+    tcp::{tokio::Transport, Config},
+    Multiaddr, PeerId, Transport as TransportTrait,
 };
 use std::{
     borrow::Cow,
@@ -142,10 +142,9 @@ impl<'a> NetworkBuilder<'a> {
 
         let transport = {
             let dns_tcp =
-                TokioDnsConfig::system(TokioTcpTransport::new(GenTcpConfig::new().nodelay(true)))
-                    .unwrap();
+                TokioDnsConfig::system(Transport::new(Config::new().nodelay(true))).unwrap();
 
-            let tcp = TokioTcpTransport::new(GenTcpConfig::default().nodelay(true));
+            let tcp = Transport::new(Config::default().nodelay(true));
             dns_tcp.or_transport(tcp)
         };
 
@@ -156,11 +155,7 @@ impl<'a> NetworkBuilder<'a> {
             .timeout(TWO_HOURS)
             .boxed();
 
-        let swarm = SwarmBuilder::new(transport, behaviour, peer_id)
-            .executor(Box::new(|future| {
-                tokio::spawn(future);
-            }))
-            .build();
+        let swarm = SwarmBuilder::with_tokio_executor(transport, behaviour, peer_id).build();
 
         let (kill_switch, shutdown_listener) = oneshot::channel();
         let (kill_sender, _) = oneshot::channel();

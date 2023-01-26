@@ -131,7 +131,7 @@ impl Runtime {
                         }
                     }
                     SwarmEvent::Behaviour(ComposedEvent::Kademlia(
-                        KademliaEvent::OutboundQueryCompleted {
+                        KademliaEvent::OutboundQueryProgressed {
                             id,
                             result:
                                 QueryResult::PutRecord(Err(PutRecordError::QuorumFailed {
@@ -140,6 +140,7 @@ impl Runtime {
                                     quorum,
                                 })),
                             stats,
+                            ..
                         },
                     )) if Some(id) == addr_query_id && publish_retry == 0 => {
                         debug!("QuorumFailure on DHT addr publication: key: {key:?}, success: {success:?}, quorum: {quorum:?}, stats: {stats:?}");
@@ -149,7 +150,7 @@ impl Runtime {
                     }
 
                     SwarmEvent::Behaviour(ComposedEvent::Kademlia(
-                        KademliaEvent::OutboundQueryCompleted {
+                        KademliaEvent::OutboundQueryProgressed {
                             id,
                             result: QueryResult::PutRecord(Err(PutRecordError::QuorumFailed { .. })),
                             ..
@@ -172,7 +173,7 @@ impl Runtime {
                         }
                     }
                     SwarmEvent::Behaviour(ComposedEvent::Kademlia(
-                        KademliaEvent::OutboundQueryCompleted {
+                        KademliaEvent::OutboundQueryProgressed {
                             id,
                             result: QueryResult::PutRecord(Ok(_)),
                             ..
@@ -186,7 +187,7 @@ impl Runtime {
                         break;
                     }
                     SwarmEvent::Behaviour(ComposedEvent::Kademlia(
-                        KademliaEvent::OutboundQueryCompleted {
+                        KademliaEvent::OutboundQueryProgressed {
                             result: QueryResult::Bootstrap(Ok(BootstrapOk { .. })),
                             ..
                         },
