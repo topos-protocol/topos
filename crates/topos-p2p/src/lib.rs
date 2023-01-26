@@ -3,6 +3,7 @@
 mod behaviour;
 mod client;
 mod command;
+pub mod config;
 mod constant;
 pub mod error;
 mod event;

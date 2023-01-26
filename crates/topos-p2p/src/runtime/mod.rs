@@ -8,6 +8,7 @@ use crate::{
             PendingRequests,
         },
     },
+    config::NetworkConfig,
     error::P2PError,
     event::ComposedEvent,
     runtime::handle_event::EventHandler,
@@ -31,6 +32,7 @@ use tokio_stream::StreamExt;
 use tracing::{debug, error, info, warn};
 
 pub struct Runtime {
+    pub(crate) config: NetworkConfig,
     pub(crate) peer_set: HashSet<PeerId>,
     pub(crate) swarm: Swarm<Behaviour>,
     pub(crate) command_receiver: mpsc::Receiver<Command>,
@@ -94,8 +96,7 @@ impl Runtime {
         if !self.is_boot_node {
             // First we need to be known and known some peers before publishing our addresses to
             // the network.
-
-            let mut publish_retry = 10;
+            let mut publish_retry = self.config.publish_retry;
 
             // We were able to send the DHT query, starting the bootstrap
             // We may want to remove the bootstrap at some point
@@ -114,7 +115,7 @@ impl Runtime {
                         info!("Received peer_info, {event:?}");
                         // Validate peer_info here
                         self.handle(event).await;
-                        if self.peer_set.len() > 5 {
+                        if self.peer_set.len() > self.config.minimum_cluster_size {
                             let key = Key::new(&self.local_peer_id.to_string());
                             addr_query_id = if let Ok(query_id_record) =
                                 self.swarm.behaviour_mut().discovery.put_record(

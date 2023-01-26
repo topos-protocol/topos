@@ -37,24 +37,21 @@ pub enum StorageConfiguration {
 }
 
 pub async fn run(config: &TceConfiguration) -> Result<(), Box<dyn std::error::Error>> {
-    let key = if let Some(seed) = &config.local_key_seed {
-        local_key_pair_from_slice(seed)
-    } else {
-        local_key_pair(None)
-    };
+    let key = config
+        .local_key_seed
+        .as_ref()
+        .map(|k| local_key_pair_from_slice(k))
+        .unwrap_or_else(|| local_key_pair(None));
 
     let peer_id = key.public().to_peer_id();
 
     info!("I am {}", peer_id);
     tracing::Span::current().record("peer_id", &peer_id.to_string());
 
-    let external_addr: Multiaddr = format!("{}/tcp/{}", config.tce_addr, config.tce_local_port)
-        .parse()
-        .unwrap();
+    let external_addr: Multiaddr =
+        format!("{}/tcp/{}", config.tce_addr, config.tce_local_port).parse()?;
 
-    let addr: Multiaddr = format!("/ip4/0.0.0.0/tcp/{}", config.tce_local_port)
-        .parse()
-        .unwrap();
+    let addr: Multiaddr = format!("/ip4/0.0.0.0/tcp/{}", config.tce_local_port).parse()?;
 
     let (network_client, event_stream, unbootstrapped_runtime) = topos_p2p::network::builder()
         .peer_key(key)
@@ -62,8 +59,7 @@ pub async fn run(config: &TceConfiguration) -> Result<(), Box<dyn std::error::Er
         .exposed_addresses(external_addr)
         .known_peers(&config.boot_peers)
         .build()
-        .await
-        .expect("Can't create network system");
+        .await?;
 
     let runtime = tokio::time::timeout(
         config.network_bootstrap_timeout,
@@ -76,8 +72,7 @@ pub async fn run(config: &TceConfiguration) -> Result<(), Box<dyn std::error::Er
     debug!("Starting the gatekeeper");
     let (gatekeeper_client, gatekeeper_runtime) = topos_tce_gatekeeper::Gatekeeper::builder()
         .local_peer_id(peer_id)
-        .await
-        .expect("Can't create the Gatekeeper");
+        .await?;
 
     spawn(gatekeeper_runtime.into_future());
     debug!("Gatekeeper started");
@@ -106,8 +101,7 @@ pub async fn run(config: &TceConfiguration) -> Result<(), Box<dyn std::error::Er
         topos_tce_synchronizer::Synchronizer::builder()
             .with_gatekeeper_client(gatekeeper_client.clone())
             .with_network_client(network_client.clone())
-            .await
-            .expect("Can't create the Synchronizer");
+            .await?;
 
     spawn(synchronizer_runtime.into_future());
     debug!("Synchronizer started");

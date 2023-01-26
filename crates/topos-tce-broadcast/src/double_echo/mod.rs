@@ -115,8 +115,6 @@ impl DoubleEcho {
                                     debug!("handling DoubleEchoCommand::Echo from_peer: {} cert_id: {}", &from_peer, &cert.id);
                                     self.handle_echo(from_peer, cert)},
                                 DoubleEchoCommand::Ready { from_peer, cert, ctx } => {
-                                    // let span = info_span!("Ready");
-                                    // span.set_parent(ctx);
                                     ctx.in_scope(|| {
 
                                         debug!("handling DoubleEchoCommand::Ready from_peer: {} cert_id: {}", &from_peer, &cert.id);
@@ -124,8 +122,6 @@ impl DoubleEcho {
                                     });
                                 },
                                 DoubleEchoCommand::Deliver { cert, digest, ctx } => {
-                                    // let span = info_span!("Deliver");
-                                    // span.set_parent(ctx);
                                     ctx.in_scope(|| {
                                         info!("handling DoubleEchoCommand::Deliver cert_id: {} digest: {:?}", cert.id, &digest);
 
@@ -232,7 +228,6 @@ impl DoubleEcho {
     /// Called to process potentially new certificate:
     /// - either submitted from API ( [tce_transport::TceCommands::Broadcast] command)
     /// - or received through the gossip (first step of protocol exchange)
-    // #[instrument(name = "Dispatch", skip_all, fields(certificate_id = field::Empty))]
     fn dispatch(&mut self, cert: Certificate, digest: DigestCompressed) {
         let span = info_span!(
             "Dispatch",
@@ -389,8 +384,7 @@ impl DoubleEcho {
 
             for (cert, ctx) in cert_to_pending {
                 let span = info_span!(parent: &ctx, "Delivered");
-                // let mut span =
-                //     global::tracer("topos").start_with_context("Delivered", &ctx.context());
+
                 span.in_scope(|| {
                     if self.store.apply_cert(&cert).is_ok() {
                         let mut d = time::Duration::from_millis(0);
@@ -398,21 +392,7 @@ impl DoubleEcho {
                             *duration = from.elapsed().unwrap();
                             d = *duration;
 
-                            // span.add_event(
-                            //     "certificate Delivered",
-                            //     vec![
-                            //         KeyValue::new("certificate_id", cert.id.to_string()),
-                            //         KeyValue::new("delivery_time", d.as_millis().to_string()),
-                            //     ],
-                            // );
                             info!("certificate delivered {} => {:?}", cert.id, d);
-                            // tce_telemetry::span_cert_delivery(
-                            //     self.my_peer_id.clone(),
-                            //     &cert.cert_id,
-                            //     *from,
-                            //     time::SystemTime::now(),
-                            //     Default::default(),
-                            // )
                         }
                         self.pending_delivery.remove(&cert);
                         debug!("📝 Accepted[{}]\t Delivery time: {:?}", &cert.id, d);
@@ -447,13 +427,6 @@ impl DoubleEcho {
 
     /// Here comes test that is necessarily done after delivery
     fn cert_post_delivery_check(&self, _cert: &Certificate) -> Result<(), ()> {
-        // if self.store.check_precedence(cert).is_err() {
-        //     warn!("Precedence not yet satisfied {:?}", cert);
-        // }
-
-        // if self.store.check_digest_inclusion(cert).is_err() {
-        //     warn!("Inclusion check not yet satisfied {:?}", cert);
-        // }
         Ok(())
     }
 }

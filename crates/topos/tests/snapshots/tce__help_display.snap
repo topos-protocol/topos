@@ -14,7 +14,7 @@ Options:
   -v, --verbose...
           
       --tce-ext-host <TCE_EXT_HOST>
-          Advertised (externally visible) <host>, if empty this machine ip address(es) are used [env: TCE_EXT_HOST=/dns4/boot] [default: /ip4/0.0.0.0]
+          Advertised (externally visible) <host>, if empty this machine ip address(es) are used [env: TCE_EXT_HOST=] [default: /ip4/0.0.0.0]
       --tce-local-port <TCE_LOCAL_PORT>
           Port to listen on (host is 0.0.0.0, should be good for most installations) [env: TCE_PORT=] [default: 0]
       --web-api-ext-url <WEB_API_EXT_URL>

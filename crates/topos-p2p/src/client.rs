@@ -16,6 +16,7 @@ use crate::{
 
 #[derive(Clone)]
 pub struct Client {
+    pub retry_ttl: u64,
     pub local_peer_id: PeerId,
     pub sender: mpsc::Sender<Command>,
     pub kill_switch: Arc<oneshot::Sender<()>>,
@@ -67,6 +68,7 @@ impl Client {
         let network = self.sender.clone();
         let (sender, receiver) = oneshot::channel();
 
+        let ttl = self.retry_ttl;
         Box::pin(async move {
             let mut retry_count = match retry_policy {
                 RetryPolicy::NoRetry => 0,
@@ -90,7 +92,7 @@ impl Client {
                     }
                     retry_count -= 1;
                     debug!("Retry query because of failure {e:?}");
-                    tokio::time::sleep(Duration::from_secs(5)).await;
+                    tokio::time::sleep(Duration::from_secs(ttl)).await;
                 } else {
                     break;
                 }
