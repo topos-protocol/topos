@@ -28,10 +28,11 @@ jobs:
 
       - uses: Swatinem/rust-cache@v1
 
-      - uses: actions-rs/tarpaulin@v0.1
+      - uses: actions-rs/install@v0.1
         with:
-          args: "--engine llvm --workspace --all-features --release --exclude topos-sequencer-subnet-runtime-proxy"
-          timeout: 600
+          crate: cargo-tarpaulin
+          version: 0.24.0
+      - run: cargo tarpaulin --engine llvm --workspace --all-features --release --exclude topos-sequencer-subnet-runtime-proxy
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3.1.1
