@@ -3,9 +3,9 @@ use std::io;
 use libp2p::{
     core::either::EitherError,
     multiaddr::Protocol,
-    swarm::{ConnectionHandlerUpgrErr, SwarmEvent},
+    swarm::{ConnectionHandlerUpgrErr, NetworkBehaviour, SwarmEvent},
 };
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
 use crate::{event::ComposedEvent, Event, Runtime};
 
@@ -35,6 +35,7 @@ impl EventHandler<ComposedEvent> for Runtime {
             ComposedEvent::PeerInfo(event) => self.handle(event).await,
             ComposedEvent::Transmission(event) => self.handle(event).await,
             ComposedEvent::OutEvent(event) => self.handle(event).await,
+            ComposedEvent::Void => (),
         }
     }
 }
@@ -44,7 +45,10 @@ impl
     EventHandler<
         SwarmEvent<
             ComposedEvent,
-            EitherError<EitherError<io::Error, io::Error>, ConnectionHandlerUpgrErr<io::Error>>,
+            EitherError<
+                EitherError<EitherError<io::Error, io::Error>, ConnectionHandlerUpgrErr<io::Error>>,
+                void::Void,
+            >,
         >,
     > for Runtime
 {
@@ -52,7 +56,10 @@ impl
         &mut self,
         event: SwarmEvent<
             ComposedEvent,
-            EitherError<EitherError<io::Error, io::Error>, ConnectionHandlerUpgrErr<io::Error>>,
+            EitherError<
+                EitherError<EitherError<io::Error, io::Error>, ConnectionHandlerUpgrErr<io::Error>>,
+                void::Void,
+            >,
         >,
     ) {
         match event {
@@ -101,8 +108,12 @@ impl
                 }
             }
 
+            incoming_connection_error @ SwarmEvent::IncomingConnectionError { .. } => {
+                debug!("{:?}", incoming_connection_error);
+            }
+
             SwarmEvent::IncomingConnection { local_addr, .. } => {
-                info!("IncomingConnection {local_addr}")
+                debug!("IncomingConnection {local_addr}")
             }
             SwarmEvent::ListenerClosed {
                 listener_id,
@@ -116,7 +127,7 @@ impl
             }
 
             SwarmEvent::ConnectionClosed { peer_id, .. } => {
-                info!("ConnectionClosed {peer_id}");
+                debug!("ConnectionClosed {peer_id}");
                 if self.peers.remove(&peer_id) {
                     _ = self
                         .event_sender
@@ -132,6 +143,14 @@ impl
 
             SwarmEvent::Dialing(peer_id) => {
                 info!("Dial {:?} from {:?}", peer_id, *self.swarm.local_peer_id());
+                let behaviour = self.swarm.behaviour_mut();
+                let kad_addr = behaviour.discovery.addresses_of_peer(&peer_id);
+                let addr = behaviour.transmission.addresses_of_peer(&peer_id);
+
+                info!(
+                    "Checking if we know {peer_id} -> KAD {:?}, Transmission {:?}",
+                    kad_addr, addr
+                );
             }
 
             SwarmEvent::Behaviour(event) => {

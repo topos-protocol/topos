@@ -1,9 +1,11 @@
 //! implementation of Topos Network Transport
 //!
 use clap::Args;
+use opentelemetry::Context;
 use serde::{Deserialize, Serialize};
 use topos_core::uci::{Certificate, DigestCompressed};
 use topos_p2p::PeerId;
+use topos_telemetry::PropagationContext;
 
 /// Protocol parameters of the TCE
 #[derive(Args, Default, Clone, Debug)]
@@ -57,16 +59,19 @@ pub enum TceCommands {
     OnGossip {
         cert: Certificate,
         digest: DigestCompressed,
+        ctx: PropagationContext,
     },
     /// When echo reply received
     OnEcho {
         from_peer: PeerId,
         cert: Certificate,
+        ctx: PropagationContext,
     },
     /// When ready reply received
     OnReady {
         from_peer: PeerId,
         cert: Certificate,
+        ctx: PropagationContext,
     },
     /// Given peer replied ok to the double echo request
     OnDoubleEchoOk { from_peer: PeerId },
@@ -93,16 +98,19 @@ pub enum TceEvents {
         peers: Vec<PeerId>,
         cert: Certificate,
         digest: DigestCompressed,
+        ctx: Context,
     },
     /// Indicates that 'echo' message broadcasting is required
     Echo {
         peers: Vec<PeerId>,
         cert: Certificate,
+        ctx: Context,
     },
     /// Indicates that 'ready' message broadcasting is required
     Ready {
         peers: Vec<PeerId>,
         cert: Certificate,
+        ctx: Context,
     },
     /// For simulation purpose, for now only caused by ill-formed sampling
     Die,

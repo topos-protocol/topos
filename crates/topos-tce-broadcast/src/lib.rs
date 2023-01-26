@@ -49,6 +49,11 @@ pub enum SamplerCommand {
         sample_type: SampleType,
         sender: oneshot::Sender<Result<(), ()>>,
     },
+    PeerConfirmationFailed {
+        peer: PeerId,
+        sample_type: SampleType,
+    },
+    ForceResample,
 }
 
 #[derive(Debug)]
@@ -57,6 +62,7 @@ pub enum DoubleEchoCommand {
     Deliver {
         cert: Certificate,
         digest: DigestCompressed,
+        ctx: Span,
     },
 
     /// Entry point for new certificate to submit as initial sender
@@ -74,12 +80,14 @@ pub enum DoubleEchoCommand {
     Echo {
         from_peer: PeerId,
         cert: Certificate,
+        ctx: Span,
     },
 
     /// When ready reply received
     Ready {
         from_peer: PeerId,
         cert: Certificate,
+        ctx: Span,
     },
     DeliveredCerts {
         subnet_id: SubnetId,
@@ -158,6 +166,13 @@ impl ReliableBroadcastClient {
             }
             Ok(())
         }
+    }
+
+    pub async fn force_resample(&self) {
+        _ = self
+            .get_sampler_channel()
+            .send(SamplerCommand::ForceResample)
+            .await;
     }
 
     pub async fn add_confirmed_peer_to_sample(&self, sample_type: SampleType, peer: PeerId) {
@@ -244,6 +259,7 @@ impl ReliableBroadcastClient {
     pub fn broadcast_new_certificate(
         &self,
         certificate: Certificate,
+        ctx: Span,
     ) -> impl Future<Output = Result<(), ()>> + 'static + Send {
         let broadcast_commands = self.broadcast_commands.clone();
 
@@ -254,7 +270,6 @@ impl ReliableBroadcastClient {
                     cert: certificate,
                     ctx: Span::current(),
                 })
-                .instrument(Span::current())
                 .await
                 .is_err()
             {
@@ -263,6 +278,7 @@ impl ReliableBroadcastClient {
 
             Ok(())
         }
+        .instrument(ctx)
     }
 }
 

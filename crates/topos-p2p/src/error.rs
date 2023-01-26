@@ -30,6 +30,9 @@ pub enum P2PError {
 
     #[error("An error occurred on the Noise protocol: {0}")]
     NoiseProtocolError(#[from] NoiseError),
+
+    #[error("Error during bootstrap phase: {0}")]
+    BootstrapError(&'static str),
 }
 
 #[derive(Error, Debug)]
@@ -45,4 +48,7 @@ pub enum CommandExecutionError {
 
     #[error("Unable to send a command: {0}")]
     SendError(#[from] mpsc::error::SendError<Command>),
+
+    #[error("Failed to fetch Record from DHT")]
+    DHTGetRecordFailed,
 }

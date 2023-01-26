@@ -13,3 +13,7 @@ serde.workspace = true
 
 topos-core = { workspace = true, features = ["uci"] }
 topos-p2p = { path = "../topos-p2p/"}
+topos-telemetry = { path = "../topos-telemetry/"}
+
+tracing.workspace = true
+opentelemetry = { version = "0.18", features = ["rt-tokio", "metrics"] }
