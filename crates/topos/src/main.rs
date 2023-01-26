@@ -1,10 +1,12 @@
+#![allow(unused_imports)]
 use std::time::Duration;
 
 use clap::Parser;
 use components::tce::commands::{TceCommand, TceCommands};
+use opentelemetry::sdk::propagation::TraceContextPropagator;
 use opentelemetry::sdk::trace::{self, RandomIdGenerator, Sampler};
 use opentelemetry::sdk::Resource;
-use opentelemetry::KeyValue;
+use opentelemetry::{global, KeyValue};
 use tracing::Level;
 use tracing_subscriber::{
     prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt, EnvFilter,
@@ -15,11 +17,15 @@ use opentelemetry::sdk::export::metrics::aggregation::cumulative_temporality_sel
 use opentelemetry::sdk::metrics::selectors;
 use opentelemetry_otlp::{ExportConfig, Protocol, WithExportConfig};
 
+use tracing_log::LogTracer;
+
 mod components;
 mod options;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    LogTracer::init()?;
+
     let args = options::Opt::parse();
 
     let level_filter = if args.verbose > 0 {
@@ -53,6 +59,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ..
     }) = args.commands
     {
+        global::set_text_map_propagator(TraceContextPropagator::new());
         let tracer = opentelemetry_otlp::new_pipeline()
             .tracing()
             .with_exporter(

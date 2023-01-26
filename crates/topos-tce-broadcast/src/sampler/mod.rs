@@ -140,6 +140,11 @@ impl Sampler {
             tokio::select! {
                 Some(command) = self.command_receiver.recv() => {
                     match command {
+                        SamplerCommand::PeerConfirmationFailed { peer, sample_type } => {
+                            self.handle_peer_confirmation_failure(sample_type, peer).await;
+
+                            self.pending_subs_state_change_follow_up().await;
+                        }
                         SamplerCommand::ConfirmPeer { peer, sample_type, sender } => {
                             let _ = match self.handle_peer_confirmation(sample_type, peer).await {
                                 Ok(_) => sender.send(Ok(())),
@@ -148,9 +153,11 @@ impl Sampler {
 
                             self.pending_subs_state_change_follow_up().await;
                         }
-                        SamplerCommand::PeersChanged { peers } => self.peers_changed(peers).await
+                        SamplerCommand::PeersChanged { peers } => self.peers_changed(peers).await,
+                        SamplerCommand::ForceResample => self.reset_samples().await
                     }
                 }
+                else => break
             }
         }
     }
@@ -192,6 +199,17 @@ impl Sampler {
                 }
             }
         }
+    }
+
+    async fn handle_peer_confirmation_failure(&mut self, sample_type: SampleType, peer: PeerId) {
+        debug!("Peer confirmation failed {peer} in {sample_type:?}");
+
+        match sample_type {
+            SampleType::EchoSubscription => self.pending_subscriptions.echo.remove(&peer),
+            SampleType::ReadySubscription => self.pending_subscriptions.ready.remove(&peer),
+            SampleType::DeliverySubscription => self.pending_subscriptions.delivery.remove(&peer),
+            _ => true,
+        };
     }
 
     async fn handle_peer_confirmation(

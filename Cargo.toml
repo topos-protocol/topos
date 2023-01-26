@@ -29,6 +29,7 @@ web3 = { version = "0.18", features = ["signing"]}
 # Log, Tracing & telemetry
 opentelemetry = { version = "0.18", features = ["rt-tokio", "metrics"] }
 opentelemetry-otlp = { version = " 0.11", features = ["tonic", "metrics"] }
+opentelemetry-jaeger = { version = " 0.17" }
 pretty_env_logger = { version = "0.4", default-features = false }
 tracing = { version = "0.1", default-features = false }
 tracing-attributes = "0.1"

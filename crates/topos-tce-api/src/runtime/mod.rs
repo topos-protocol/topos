@@ -1,3 +1,7 @@
+use opentelemetry::{
+    trace::{FutureExt, TraceContextExt},
+    Context,
+};
 use std::{
     collections::{HashMap, HashSet},
     time::Duration,
@@ -9,6 +13,7 @@ use tokio::{
 use tonic_health::server::HealthReporter;
 use topos_core::api::tce::v1::api_service_server::ApiServiceServer;
 use topos_core::uci::SubnetId;
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 use tracing::{debug, error, info, info_span, Instrument, Span};
 use uuid::Uuid;
@@ -173,17 +178,24 @@ impl Runtime {
                 sender,
                 ctx,
             } => {
-                let span = info_span!(target: "topos_tce_api", parent: &ctx, "TCE API Runtime");
+                let span = info_span!(parent: &ctx, "TCE API Runtime",);
 
                 async move {
-                    info!("A certificate has been submitted to the TCE {certificate:?}");
+                    tracing::warn!(span_span_id = ?Span::current().context().span().span_context().span_id());
+                    tracing::warn!(cx_span_id = ?Context::current().span().span_context().span_id());
+
+                    info!(
+                        "A certificate has been submitted to the TCE {}",
+                        certificate.id
+                    );
                     if let Err(error) = self
                         .api_event_sender
                         .send(RuntimeEvent::CertificateSubmitted {
                             certificate,
                             sender,
-                            ctx: Span::current(),
+                            ctx: Span::current().clone(),
                         })
+                        .with_current_context()
                         .instrument(Span::current())
                         .await
                     {
@@ -193,12 +205,13 @@ impl Runtime {
                         );
                     }
                 }
+                .with_context(span.context())
                 .instrument(span)
                 .await
             }
 
             InternalRuntimeCommand::PushPeerList { peers, sender } => {
-                info!("A peer list has been pushed {:?}", peers);
+                // debug!("A peer list has been pushed {:?}", peers);
 
                 if let Err(error) = self
                     .api_event_sender

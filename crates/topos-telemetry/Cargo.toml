@@ -1,0 +1,8 @@
+[package]
+name = "topos-telemetry"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+opentelemetry = { version = "0.18" }
+serde = { workspace = true, features = ["derive"] }

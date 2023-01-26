@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use libp2p::{request_response::ResponseChannel, Multiaddr, PeerId};
+use serde::{Deserialize, Serialize};
 use tokio::sync::oneshot;
 
 use crate::{
@@ -69,3 +70,6 @@ impl Display for Command {
         }
     }
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NotReadyMessage {}

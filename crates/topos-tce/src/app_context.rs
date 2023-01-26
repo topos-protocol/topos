@@ -1,22 +1,27 @@
+#![allow(unused_variables)]
 //!
 //! Application logic glue
 //!
+use futures::FutureExt;
 use futures::{future::join_all, Stream, StreamExt};
+use opentelemetry::trace::FutureExt as TraceFutureExt;
 use serde::{Deserialize, Serialize};
 use tce_transport::{TceCommands, TceEvents};
 use tokio::spawn;
 use tokio::sync::oneshot;
-use topos_p2p::{Client as NetworkClient, Event as NetEvent};
+use topos_p2p::{Client as NetworkClient, Event as NetEvent, RetryPolicy};
 use topos_tce_api::RuntimeEvent as ApiEvent;
 use topos_tce_api::{RuntimeClient as ApiClient, RuntimeError};
 use topos_tce_broadcast::sampler::SampleType;
 use topos_tce_broadcast::DoubleEchoCommand;
 use topos_tce_broadcast::{ReliableBroadcastClient, SamplerCommand};
-use topos_tce_gatekeeper::GatekeeperClient;
+use topos_tce_gatekeeper::{GatekeeperClient, GatekeeperError};
 use topos_tce_storage::events::StorageEvent;
 use topos_tce_storage::StorageClient;
 use topos_tce_synchronizer::{SynchronizerClient, SynchronizerEvent};
+use topos_telemetry::PropagationContext;
 use tracing::{debug, error, info, info_span, trace, Instrument, Span};
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 /// Top-level transducer main app context & driver (alike)
 ///
@@ -100,7 +105,8 @@ impl AppContext {
                 sender,
                 ctx,
             } => {
-                let span = info_span!(target: "topos_tce", parent: &ctx, "TCE Runtime");
+                let span = info_span!(parent: &ctx, "TCE Runtime");
+
                 async {
                     _ = self
                         .pending_storage
@@ -110,26 +116,33 @@ impl AppContext {
                     info!("Certificate added to pending storage");
                     spawn(
                         self.tce_cli
-                            .broadcast_new_certificate(certificate)
+                            .broadcast_new_certificate(certificate, Span::current())
                             .instrument(Span::current()),
                     );
                     _ = sender.send(Ok(()));
                 }
                 .instrument(span)
+                // .instrument(span)
                 .await;
             }
 
             ApiEvent::PeerListPushed { peers, sender } => {
                 let sampler = self.tce_cli.clone();
 
-                if let Ok(peers) = self.gatekeeper.push_peer_list(peers).await {
-                    if sampler.peer_changed(peers).await.is_ok() {
+                match self.gatekeeper.push_peer_list(peers).await {
+                    Ok(peers) => {
+                        if sampler.peer_changed(peers).await.is_err() {
+                            _ = sender.send(Err(RuntimeError::UnableToPushPeerList));
+                        } else {
+                            _ = sender.send(Ok(()));
+                        }
+                    }
+                    Err(GatekeeperError::NoUpdate) => {
                         _ = sender.send(Ok(()));
-                    } else {
+                    }
+                    Err(_) => {
                         _ = sender.send(Err(RuntimeError::UnableToPushPeerList));
                     }
-                } else {
-                    _ = sender.send(Err(RuntimeError::UnableToPushPeerList));
                 }
             }
 
@@ -146,12 +159,9 @@ impl AppContext {
     }
 
     async fn on_protocol_event(&mut self, evt: TceEvents) {
-        debug!(
-            "on_protocol_event: peer: {} event {:?}",
-            &self.network_client.local_peer_id, &evt
-        );
         match evt {
             TceEvents::StableSample => {
+                info!("Stable Sample detected");
                 self.api_client.set_active_sample(true).await;
             }
 
@@ -179,8 +189,14 @@ impl AppContext {
                             "peer_id: {} sending echo subscribe to {}",
                             &my_peer_id, &peer_id
                         );
+                        let peer_id = *peer_id;
                         self.network_client
-                            .send_request::<_, NetworkMessage>(*peer_id, data.clone())
+                            .send_request::<_, NetworkMessage>(
+                                peer_id,
+                                data.clone(),
+                                RetryPolicy::N(3),
+                            )
+                            .map(move |result| (peer_id, result))
                     })
                     .collect::<Vec<_>>();
 
@@ -189,7 +205,7 @@ impl AppContext {
                     let results = join_all(future_pool).await;
 
                     // Process responses
-                    for result in results {
+                    for (peer_id, result) in results {
                         match result {
                             Ok(message) => match message {
                                 // Remote peer has replied us that he is accepting us as echo subscriber
@@ -209,11 +225,11 @@ impl AppContext {
                                     let _ = receiver.await.expect("Sender was dropped");
                                 }
                                 msg => {
-                                    error!("Receive an unexpected message as a response {msg:?}")
+                                    error!("Receive an unexpected message as a response {msg:?}");
                                 }
                             },
                             Err(error) => {
-                                error!("An error occurred when sending EchoSubscribe {error:?}")
+                                error!("An error occurred when sending EchoSubscribe {error:?} for peer {peer_id}");
                             }
                         }
                     }
@@ -229,14 +245,19 @@ impl AppContext {
                 let command_sender = self.tce_cli.get_sampler_channel();
                 // Sending ready subscribe message to send to a number of remote peers
                 let future_pool = peers
-                    .iter()
+                    .into_iter()
                     .map(|peer_id| {
                         debug!(
                             "peer_id: {} sending ready subscribe to {}",
                             &my_peer_id, &peer_id
                         );
                         self.network_client
-                            .send_request::<_, NetworkMessage>(*peer_id, data.clone())
+                            .send_request::<_, NetworkMessage>(
+                                peer_id,
+                                data.clone(),
+                                RetryPolicy::N(3),
+                            )
+                            .map(move |result| (peer_id, result))
                     })
                     .collect::<Vec<_>>();
 
@@ -245,7 +266,7 @@ impl AppContext {
                     let results = join_all(future_pool).await;
 
                     // Process responses from remote peers
-                    for result in results {
+                    for (peer_id, result) in results {
                         match result {
                             Ok(message) => match message {
                                 // Remote peer has replied us that he is accepting us as ready subscriber
@@ -273,22 +294,26 @@ impl AppContext {
                                     join_all(vec![receiver_ready, receiver_delivery]).await;
                                 }
                                 msg => {
-                                    error!("Receive an unexpected message as a response {msg:?}")
+                                    error!("Receive an unexpected message as a response {msg:?}");
                                 }
                             },
                             Err(error) => {
-                                error!("An error occurred when sending ReadySubscribe {error:?}")
+                                error!("An error occurred when sending ReadySubscribe {error:?} for peer {peer_id}");
                             }
                         }
                     }
                 });
             }
 
-            TceEvents::Gossip { peers, cert, .. } => {
+            TceEvents::Gossip {
+                peers, cert, ctx, ..
+            } => {
                 let cert_id = cert.id;
+
                 let data: Vec<u8> = NetworkMessage::from(TceCommands::OnGossip {
                     cert,
                     digest: vec![],
+                    ctx: PropagationContext::inject(&ctx),
                 })
                 .into();
 
@@ -296,11 +321,14 @@ impl AppContext {
                     .iter()
                     .map(|peer_id| {
                         debug!(
-                            "peer_id: {} sending gossip cert id: {:?} to peer {}",
+                            "peer_id: {} sending gossip cert id: {} to peer {}",
                             &self.network_client.local_peer_id, &cert_id, &peer_id
                         );
-                        self.network_client
-                            .send_request::<_, NetworkMessage>(*peer_id, data.clone())
+                        self.network_client.send_request::<_, NetworkMessage>(
+                            *peer_id,
+                            data.clone(),
+                            RetryPolicy::N(3),
+                        )
                     })
                     .collect::<Vec<_>>();
 
@@ -309,16 +337,17 @@ impl AppContext {
                 });
             }
 
-            TceEvents::Echo { peers, cert } => {
+            TceEvents::Echo { peers, cert, ctx } => {
                 let my_peer_id = self.network_client.local_peer_id;
                 debug!(
-                    "peer_id: {} processing on_protocol_event TceEvents::Echo peers {:?} cert id: {:?}",
+                    "peer_id: {} processing on_protocol_event TceEvents::Echo peers {:?} cert id: {}",
                     &my_peer_id, &peers, &cert.id
                 );
                 // Send echo message
                 let data: Vec<u8> = NetworkMessage::from(TceCommands::OnEcho {
                     from_peer: self.network_client.local_peer_id,
                     cert,
+                    ctx: PropagationContext::inject(&ctx),
                 })
                 .into();
 
@@ -326,8 +355,11 @@ impl AppContext {
                     .iter()
                     .map(|peer_id| {
                         debug!("peer_id: {} sending Echo to {}", &my_peer_id, &peer_id);
-                        self.network_client
-                            .send_request::<_, NetworkMessage>(*peer_id, data.clone())
+                        self.network_client.send_request::<_, NetworkMessage>(
+                            *peer_id,
+                            data.clone(),
+                            RetryPolicy::N(3),
+                        )
                     })
                     .collect::<Vec<_>>();
 
@@ -336,15 +368,16 @@ impl AppContext {
                 });
             }
 
-            TceEvents::Ready { peers, cert } => {
+            TceEvents::Ready { peers, cert, ctx } => {
                 let my_peer_id = self.network_client.local_peer_id;
                 debug!(
-                    "peer_id: {} processing TceEvents::Ready peers {:?} cert id: {:?}",
+                    "peer_id: {} processing TceEvents::Ready peers {:?} cert id: {}",
                     &my_peer_id, &peers, &cert.id
                 );
                 let data: Vec<u8> = NetworkMessage::from(TceCommands::OnReady {
                     from_peer: self.network_client.local_peer_id,
                     cert,
+                    ctx: PropagationContext::inject(&ctx),
                 })
                 .into();
 
@@ -352,8 +385,11 @@ impl AppContext {
                     .iter()
                     .map(|peer_id| {
                         debug!("peer_id: {} sending Ready to {}", &my_peer_id, &peer_id);
-                        self.network_client
-                            .send_request::<_, NetworkMessage>(*peer_id, data.clone())
+                        self.network_client.send_request::<_, NetworkMessage>(
+                            *peer_id,
+                            data.clone(),
+                            RetryPolicy::N(3),
+                        )
                     })
                     .collect::<Vec<_>>();
 
@@ -377,7 +413,7 @@ impl AppContext {
             NetEvent::PeersChanged { .. } => {}
 
             NetEvent::TransmissionOnReq {
-                from: _,
+                from,
                 data,
                 channel,
                 ..
@@ -385,12 +421,13 @@ impl AppContext {
                 let my_peer = self.network_client.local_peer_id;
                 let msg: NetworkMessage = data.into();
                 match msg {
+                    NetworkMessage::NotReady(_) => {}
                     NetworkMessage::Cmd(cmd) => {
-                        debug!("peer_id: {} received TransmissionOnReq {:?}", &my_peer, cmd);
                         match cmd {
                             // We received echo subscription request from external peer
                             TceCommands::OnEchoSubscribeReq { from_peer } => {
                                 debug!(
+                                    sender = from.to_string(),
                                     "on_net_event peer {} TceCommands::OnEchoSubscribeReq from_peer: {}",
                                     &self.network_client.local_peer_id, &from_peer
                                 );
@@ -413,8 +450,9 @@ impl AppContext {
                             // We received ready subscription request from external peer
                             TceCommands::OnReadySubscribeReq { from_peer } => {
                                 debug!(
+                                    sender = from.to_string(),
                                     "peer_id {} on_net_event TceCommands::OnReadySubscribeReq from_peer: {}",
-                                    &self.network_client.local_peer_id, &from_peer
+                                    &self.network_client.local_peer_id, &from_peer,
                                 );
                                 self.tce_cli
                                     .add_confirmed_peer_to_sample(
@@ -431,11 +469,29 @@ impl AppContext {
                                 ));
                             }
 
-                            TceCommands::OnGossip { cert, digest: _ } => {
-                                debug!(
-                                    "peer_id {} on_net_event TceCommands::OnGossip cert id: {:?}",
-                                    &self.network_client.local_peer_id, &cert.id
+                            TceCommands::OnGossip {
+                                cert,
+                                digest: _,
+                                ctx,
+                            } => {
+                                let span = info_span!(
+                                    "Gossip",
+                                    peer_id = self.network_client.local_peer_id.to_string(),
+                                    "otel.kind" = "consumer",
+                                    sender = from.to_string()
                                 );
+                                // warn!("RECV GOSSIP context: {:?}", ctx);
+                                let parent = ctx.extract();
+                                span.set_parent(parent);
+                                span.in_scope(|| {
+                                    debug!(
+                                        sender = from.to_string(),
+                                        "peer_id {} on_net_event TceCommands::OnGossip cert id: {}",
+                                        &self.network_client.local_peer_id,
+                                        &cert.id,
+                                    );
+                                });
+
                                 _ = self
                                     .pending_storage
                                     .add_pending_certificate(cert.clone())
@@ -445,7 +501,7 @@ impl AppContext {
                                 command_sender
                                     .send(DoubleEchoCommand::Broadcast {
                                         cert,
-                                        ctx: Span::current(),
+                                        ctx: span.clone(),
                                     })
                                     .await
                                     .expect("Gossip the certificate");
@@ -457,16 +513,39 @@ impl AppContext {
                                     channel,
                                 ));
                             }
-                            TceCommands::OnEcho { from_peer, cert } => {
-                                // We have received Echo echo message, we are responding with OnDoubleEchoOk
-                                debug!(
-                                    "peer_id: {} on_net_event TceCommands::OnEcho from peer {} cert id: {:?}",
-                                    &self.network_client.local_peer_id, &from_peer, &cert.id
+                            TceCommands::OnEcho {
+                                from_peer,
+                                cert,
+                                ctx,
+                                ..
+                            } => {
+                                let span = info_span!(
+                                    "Echo",
+                                    peer_id = self.network_client.local_peer_id.to_string(),
+                                    "otel.kind" = "consumer",
+                                    sender = from.to_string()
                                 );
-                                // We have received echo message from external peer
-                                let command_sender = self.tce_cli.get_double_echo_channel();
+                                // warn!("RECV Echo context: {:?}", ctx);
+                                let context = ctx.extract();
+                                span.set_parent(context.clone());
+                                // We have received Echo echo message, we are responding with OnDoubleEchoOk
+                                let command_sender = span.in_scope(||{
+                                    info!(
+                                    sender = from.to_string(),
+                                        "peer_id: {} on_net_event TceCommands::OnEcho from peer {} cert id: {}",
+                                        &self.network_client.local_peer_id, &from_peer, &cert.id
+                                    );
+                                    // We have received echo message from external peer
+                                    self.tce_cli.get_double_echo_channel()
+                                });
                                 command_sender
-                                    .send(DoubleEchoCommand::Echo { from_peer, cert })
+                                    .send(DoubleEchoCommand::Echo {
+                                        from_peer,
+                                        cert,
+                                        ctx: span.clone(),
+                                    })
+                                    .with_context(context)
+                                    .instrument(span)
                                     .await
                                     .expect("Receive the Echo");
                                 //We are responding with OnDoubleEchoOk to remote peer
@@ -477,15 +556,37 @@ impl AppContext {
                                     channel,
                                 ));
                             }
-                            TceCommands::OnReady { from_peer, cert } => {
-                                // We have received Ready echo message, we are responding with OnDoubleEchoOk
-                                debug!(
-                                    "peer_id {} on_net_event TceCommands::OnReady from peer {} cert id: {:?}",
-                                    &self.network_client.local_peer_id, &from_peer, &cert.id
+                            TceCommands::OnReady {
+                                from_peer,
+                                cert,
+                                ctx,
+                            } => {
+                                let span = info_span!(
+                                    "Ready",
+                                    peer_id = self.network_client.local_peer_id.to_string(),
+                                    sender = from.to_string()
                                 );
-                                let command_sender = self.tce_cli.get_double_echo_channel();
+                                // warn!("RECV Ready context: {:?}", ctx);
+                                let context = ctx.extract();
+                                span.set_parent(context.clone());
+                                let command_sender = span.in_scope(||{
+
+                                    // We have received Ready echo message, we are responding with OnDoubleEchoOk
+                                    info!(
+                                    sender = from.to_string(),
+                                        "peer_id {} on_net_event TceCommands::OnReady from peer {} cert id: {}",
+                                        &self.network_client.local_peer_id, &from_peer, &cert.id
+                                    );
+                                    self.tce_cli.get_double_echo_channel()
+                                });
                                 command_sender
-                                    .send(DoubleEchoCommand::Ready { from_peer, cert })
+                                    .send(DoubleEchoCommand::Ready {
+                                        from_peer,
+                                        cert,
+                                        ctx: span.clone(),
+                                    })
+                                    .with_context(context)
+                                    .instrument(span)
                                     .await
                                     .expect("Receive the Ready");
 
@@ -511,8 +612,11 @@ impl AppContext {
 /// We assume that only Commands will go through the network,
 /// [Response] is used to allow reporting of logic errors to the caller.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(clippy::large_enum_variant)]
 enum NetworkMessage {
     Cmd(TceCommands),
+
+    NotReady(topos_p2p::NotReadyMessage),
 }
 
 // deserializer

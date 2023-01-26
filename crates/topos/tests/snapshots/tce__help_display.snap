@@ -8,7 +8,7 @@ Usage: topos tce run [OPTIONS]
 
 Options:
       --boot-peers <BOOT_PEERS>
-          Boot nodes to connect to, pairs of <PeerId> <Multiaddr>, space separated, quoted list like --boot-peers='a a1 b b1' [env: TCE_BOOT_PEERS=] [default: ]
+          Boot nodes to connect to, pairs of <PeerId> <Multiaddr>, space separated, quoted list like --boot-peers='a a1,b b1' [env: TCE_BOOT_PEERS=] [default: ]
   -e, --endpoint <ENDPOINT>
           [default: http://[::1]:1340]
   -v, --verbose...

@@ -8,6 +8,7 @@ use tokio::{
     sync::{mpsc, oneshot},
     time,
 };
+use tracing::error;
 
 mod builder;
 mod client;
@@ -53,6 +54,10 @@ impl CommandHandler<PushPeerList> for Gatekeeper {
         PushPeerList { mut peer_list }: PushPeerList,
     ) -> Result<Vec<PeerId>, Self::Error> {
         peer_list.dedup();
+
+        if !self.peer_list.is_empty() && peer_list == self.peer_list {
+            return Err(GatekeeperError::NoUpdate);
+        }
 
         self.peer_list = peer_list.into_iter().collect();
 
@@ -175,6 +180,9 @@ pub enum GatekeeperError {
 
     #[error("Unable to execute shutdown on the Gatekeeper: {0}")]
     ShutdownCommunication(mpsc::error::SendError<oneshot::Sender<()>>),
+
+    #[error("The command produce no update")]
+    NoUpdate,
 }
 
 RegisterCommands!(

@@ -8,6 +8,7 @@ use topos_core::{
     uci::Certificate,
 };
 use topos_p2p::PeerId;
+use tracing::Span;
 use uuid::Uuid;
 
 use super::error::RuntimeError;
@@ -49,7 +50,7 @@ pub(crate) enum InternalRuntimeCommand {
     CertificateSubmitted {
         certificate: Certificate,
         sender: oneshot::Sender<Result<(), RuntimeError>>,
-        ctx: tracing::Span,
+        ctx: Span,
     },
 
     /// Push a new list of PeerId to be used by the Gatekeeper

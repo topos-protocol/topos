@@ -8,7 +8,7 @@ use std::{
 use futures::FutureExt;
 use topos_core::api::tce::v1::StatusRequest;
 use tower::Service;
-use tracing::{debug, error};
+use tracing::{debug, error, trace};
 
 use crate::components::tce::{commands::Status, TCEService};
 
@@ -31,8 +31,10 @@ impl Service<Status> for TCEService {
             debug!("Sending the request to the TCE server...");
             match client.lock().await.status(StatusRequest {}).await {
                 Ok(status_response) => {
+                    let status = status_response.into_inner();
                     debug!("Successfuly fetch the status from the TCE");
-                    Ok(status_response.into_inner().has_active_sample)
+                    trace!("Status is: {:?}", status);
+                    Ok(status.has_active_sample)
                 }
                 Err(err) => {
                     error!("TCE server returned an error: {:?}", err);

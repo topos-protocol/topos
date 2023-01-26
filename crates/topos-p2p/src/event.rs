@@ -14,6 +14,7 @@ pub enum ComposedEvent {
     #[allow(dead_code)]
     OutEvent(Event),
     PeerInfo(Box<identify::Event>),
+    Void,
 }
 
 impl From<KademliaEvent> for ComposedEvent {
@@ -31,6 +32,12 @@ impl From<identify::Event> for ComposedEvent {
 impl From<RequestResponseEvent<TransmissionRequest, TransmissionResponse>> for ComposedEvent {
     fn from(event: RequestResponseEvent<TransmissionRequest, TransmissionResponse>) -> Self {
         Self::Transmission(event)
+    }
+}
+
+impl From<void::Void> for ComposedEvent {
+    fn from(_: void::Void) -> Self {
+        Self::Void
     }
 }
 

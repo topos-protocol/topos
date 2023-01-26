@@ -4,8 +4,10 @@ use std::{
     path::{Path, PathBuf},
     str::FromStr,
     sync::Arc,
+    time::Duration,
 };
 
+use opentelemetry::global;
 use tokio::{signal, spawn, sync::Mutex};
 use tonic::transport::Channel;
 use topos_core::api::tce::v1::console_service_client::ConsoleServiceClient;
@@ -95,22 +97,29 @@ pub(crate) async fn handle_command(
                         .as_ref()
                         .and_then(|path| PathBuf::from_str(path).ok()),
                 ),
+                network_bootstrap_timeout: Duration::from_secs(10),
             };
 
             print_node_info(&config);
 
-            spawn(async move {
-                if let Err(error) = topos_tce::run(&config).await {
-                    error!("Unable to start the TCE node due to : {error:?}");
+            loop {
+                tokio::select! {
+                    _ = signal::ctrl_c() => {
+                        info!("Received ctrl_c, killing...");
+                        break;
+                    }
+                    result = topos_tce::run(&config) => {
+                        global::shutdown_tracer_provider();
+                        if let Err(ref error) = result {
+                            error!("TCE node terminated {:?}", error);
+                            std::process::exit(1);
+                        }
 
-                    // TODO: Find a better way
-                    panic!();
+                        break;
+                    }
+
                 }
-            });
-
-            signal::ctrl_c()
-                .await
-                .expect("failed to listen for signals");
+            }
 
             Ok(())
         }
