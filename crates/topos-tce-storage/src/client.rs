@@ -1,11 +1,10 @@
 use tokio::sync::mpsc;
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
 
-use crate::command::GetSourceHead;
 use crate::{
     command::{
         AddPendingCertificate, CertificateDelivered, FetchCertificates, GetCertificate,
-        RemovePendingCertificate, StorageCommand,
+        GetSourceHead, RemovePendingCertificate, StorageCommand,
     },
     errors::StorageError,
     FetchCertificatesFilter, PendingCertificateId,
