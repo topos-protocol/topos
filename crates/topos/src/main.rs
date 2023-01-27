@@ -2,12 +2,14 @@
 use std::time::Duration;
 
 use clap::Parser;
+#[cfg(feature = "tce")]
 use components::tce::commands::{TceCommand, TceCommands};
 use opentelemetry::sdk::propagation::TraceContextPropagator;
 use opentelemetry::sdk::trace::{self, RandomIdGenerator, Sampler};
 use opentelemetry::sdk::Resource;
 use opentelemetry::{global, KeyValue};
 use tracing::Level;
+use tracing_subscriber::Layer;
 use tracing_subscriber::{
     prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt, EnvFilter,
 };
@@ -28,33 +30,37 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let args = options::Opt::parse();
 
-    let level_filter = if args.verbose > 0 {
+    let mut layers = Vec::new();
+
+    let filter = if args.verbose > 0 {
         EnvFilter::try_new(format!("topos={}", verbose_to_level(args.verbose).as_str())).unwrap()
     } else {
         EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("topos=info"))
     };
 
-    let log_format = std::env::var("TOPOS_LOG_FORMAT")
-        .map(|f| f.to_lowercase())
-        .ok();
+    layers.push(
+        match std::env::var("TOPOS_LOG_FORMAT")
+            .map(|f| f.to_lowercase())
+            .as_ref()
+            .map(|s| s.as_str())
+        {
+            Ok("json") => tracing_subscriber::fmt::layer()
+                .json()
+                .with_filter(filter)
+                .boxed(),
+            Ok("pretty") => tracing_subscriber::fmt::layer()
+                .pretty()
+                .with_filter(filter)
+                .boxed(),
+            _ => tracing_subscriber::fmt::layer()
+                .compact()
+                .with_filter(filter)
+                .boxed(),
+        },
+    );
 
-    let json_format = log_format
-        .as_ref()
-        .filter(|format| format == &"json")
-        .map(|_| tracing_subscriber::fmt::layer().json());
-
-    let pretty_format = log_format
-        .as_ref()
-        .filter(|format| format == &"pretty")
-        .map(|_| tracing_subscriber::fmt::layer().pretty());
-
-    let default_fmt = if json_format.is_none() && pretty_format.is_none() {
-        Some(tracing_subscriber::fmt::layer().compact())
-    } else {
-        None
-    };
-
-    let opentelemetry = if let options::ToposCommand::Tce(TceCommand {
+    #[cfg(feature = "tce")]
+    if let options::ToposCommand::Tce(TceCommand {
         subcommands: Some(TceCommands::Run(ref cmd)),
         ..
     }) = args.commands
@@ -99,21 +105,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             )
             .build();
 
-        Some(tracing_opentelemetry::layer().with_tracer(tracer))
-    } else {
-        None
+        layers.push(tracing_opentelemetry::layer().with_tracer(tracer).boxed());
     };
 
-    tracing_subscriber::registry()
-        .with(level_filter)
-        .with(pretty_format)
-        .with(json_format)
-        .with(default_fmt)
-        .with(opentelemetry)
-        .try_init()?;
+    tracing_subscriber::registry().with(layers).try_init()?;
 
     match args.commands {
+        #[cfg(feature = "tce")]
         options::ToposCommand::Tce(cmd) => components::tce::handle_command(cmd).await,
+        #[cfg(feature = "sequencer")]
         options::ToposCommand::Sequencer(cmd) => components::sequencer::handle_command(cmd).await,
     }
 }
