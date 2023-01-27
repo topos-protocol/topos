@@ -33,8 +33,7 @@ async fn context_running_tce_mock_node() -> Context {
     {
         Ok(result) => result,
         Err(e) => {
-            error!("Unable to start mock tce node, details: {}", e);
-            panic!();
+            panic!("Unable to start mock tce node, details: {e}");
         }
     };
     tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;

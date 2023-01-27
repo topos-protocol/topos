@@ -23,10 +23,8 @@ pub(crate) async fn handle_command(
 
             spawn(async move {
                 if let Err(error) = topos_sequencer::run(config).await {
-                    error!("Unable to start the Sequencer node 1 due to : {error:?}");
-
                     // TODO: Find a better way
-                    panic!();
+                    panic!("Unable to start the Sequencer node 1 due to : {error:?}");
                 }
             });
 

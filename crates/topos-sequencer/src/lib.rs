@@ -74,9 +74,8 @@ pub async fn run(mut config: SequencerConfiguration) -> Result<(), Box<dyn std::
     }) {
         Ok(subnet_runtime_proxy) => subnet_runtime_proxy,
         Err(e) => {
-            error!("Unable to instantiate runtime proxy, error: {e}");
             //TODO Handle retry connection to subnet node gracefully
-            panic!();
+            panic!("Unable to instantiate runtime proxy, error: {e}");
         }
     };
 

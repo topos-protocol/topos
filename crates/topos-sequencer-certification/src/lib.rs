@@ -126,8 +126,7 @@ mod tests {
         {
             Ok(cert_worker) => cert_worker,
             Err(e) => {
-                error!("Unable to create certification worker: {e:?}");
-                panic!()
+                panic!("Unable to create certification worker: {e:?}")
             }
         };
 
@@ -138,8 +137,7 @@ mod tests {
         match cert_worker.eval(event) {
             Ok(_) => {}
             Err(e) => {
-                error!("Unable to evaluate certification event: {e:?}");
-                panic!()
+                panic!("Unable to evaluate certification event: {e:?}")
             }
         }
     }
