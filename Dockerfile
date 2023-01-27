@@ -1,7 +1,10 @@
 ARG TOOLCHAIN_VERSION
+
 FROM ghcr.io/toposware/rust_builder:1.65-bullseye-${TOOLCHAIN_VERSION} AS base
 
+ARG FEATURES
 ARG GITHUB_TOKEN
+
 RUN git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
 
 WORKDIR /usr/src/app
@@ -14,7 +17,7 @@ FROM base AS build
 COPY --from=planner /usr/src/app/recipe.json recipe.json
 RUN cargo chef cook --release --recipe-path recipe.json
 COPY . .
-RUN cargo build --release
+RUN cargo build --release --no-default-features --features=${FEATURES}
 
 FROM base AS test
 COPY --from=planner /usr/src/app/recipe.json recipe.json
