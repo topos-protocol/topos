@@ -31,18 +31,17 @@ module "eks" {
 
   min_num_nodes = var.min_num_nodes
   max_num_nodes = var.max_num_nodes
+
+  create_external_dns = false
+  create_ebs = false
 }
 
 output "cluster_name" {
   value = module.eks.cluster_name
 }
 
-output "eks_irsa_arn" {
-  value = module.eks.eks_irsa_arn
-}
-
-output "eks_efs_csi_irsa" {
-  value = module.eks.eks_efs_csi_irsa
+output "eks_efs_csi_irsa_arn" {
+  value = module.eks.eks_efs_csi_irsa_arn
 }
 
 output "eks_efs_id" {
