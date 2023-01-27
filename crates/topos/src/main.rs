@@ -33,9 +33,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut layers = Vec::new();
 
     let filter = if args.verbose > 0 {
-        EnvFilter::try_new(format!("topos={}", verbose_to_level(args.verbose).as_str())).unwrap()
+        EnvFilter::try_new(format!(
+            "warn,topos={}",
+            verbose_to_level(args.verbose).as_str()
+        ))
+        .unwrap()
     } else {
-        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("topos=info"))
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("warn,topos=info"))
     };
 
     layers.push(
