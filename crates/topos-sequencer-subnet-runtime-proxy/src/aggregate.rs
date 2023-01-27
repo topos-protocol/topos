@@ -11,8 +11,8 @@ use topos_sequencer_subnet_client::{self, SubnetClient};
 use topos_sequencer_types::{RuntimeProxyCommand, RuntimeProxyEvent};
 use tracing::{debug, error, info, trace, warn};
 
-const SUBNET_RETRY_DELAY: u64 = 1; // seconds
-const SUBNET_BLOCK_TIME: u64 = 6; // seconds
+const SUBNET_RETRY_DELAY: Duration = Duration::new(1, 0); // seconds
+const SUBNET_BLOCK_TIME: Duration = Duration::new(6, 0); //6 seconds
 
 pub struct RuntimeProxy {
     pub commands_channel: mpsc::UnboundedSender<RuntimeProxyCommand>,
@@ -71,7 +71,7 @@ impl RuntimeProxy {
             let runtime_proxy = runtime_proxy.clone();
             let subnet_contract_address = subnet_contract_address.clone();
             tokio::spawn(async move {
-                let mut interval = time::interval(Duration::from_secs(SUBNET_BLOCK_TIME)); // arbitrary time for 1 block
+                let mut interval = time::interval(SUBNET_BLOCK_TIME); // arbitrary time for 1 block
                 loop {
                     // Create subnet listener
                     let mut subnet = match topos_sequencer_subnet_client::SubnetClientListener::new(
@@ -87,10 +87,7 @@ impl RuntimeProxy {
                                 err.to_string()
                             );
                             //TODO use backoff mechanism here
-                            tokio::time::sleep(tokio::time::Duration::from_secs(
-                                SUBNET_RETRY_DELAY,
-                            ))
-                            .await;
+                            tokio::time::sleep(SUBNET_RETRY_DELAY).await;
                             continue;
                         }
                     };
@@ -151,16 +148,13 @@ impl RuntimeProxy {
                 // Get latest delivered(pushed) certificate from subnet smart contract
                 // TODO inform TCE which certificate do we need
                 let latest_cert_id = loop {
-                    match subnet_client.get_latest_delivered_cert().await {
+                    match subnet_client.get_latest_pushed_cert().await {
                         Ok(cert_id) => {
                             break cert_id;
                         }
                         Err(e) => {
-                            error!("Unable to get latest delivered cert {e}");
-                            tokio::time::sleep(tokio::time::Duration::from_secs(
-                                SUBNET_RETRY_DELAY,
-                            ))
-                            .await;
+                            error!("Unable to get latest pushed cert {e}");
+                            tokio::time::sleep(SUBNET_RETRY_DELAY).await;
                             continue;
                         }
                     };

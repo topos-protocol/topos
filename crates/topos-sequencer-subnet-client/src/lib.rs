@@ -281,7 +281,7 @@ impl SubnetClient {
 
     /// Ask subnet for latest pushed cert
     /// Returns latest cert id and its position
-    pub async fn get_latest_delivered_cert(&self) -> Result<(CertificateId, u64), Error> {
+    pub async fn get_latest_pushed_cert(&self) -> Result<(CertificateId, u64), Error> {
         // Get certificate count
         // Last certificate position is certificate count - 1
         let cert_count: U256 = self

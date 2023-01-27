@@ -571,7 +571,7 @@ async fn test_subnet_certificate_get_last_pushed_call(
     )
     .await
     .expect("Valid subnet client");
-    let (cert_id, cert_position) = match subnet_client.get_latest_delivered_cert().await {
+    let (cert_id, cert_position) = match subnet_client.get_latest_pushed_cert().await {
         Ok(result) => result,
         Err(e) => {
             eprintln!("Unable to get latest certificate id and position, error details: {e}");
@@ -611,8 +611,7 @@ async fn test_subnet_certificate_get_last_pushed_call(
     }
 
     println!("Getting latest cert id and position");
-    let (final_cert_id, final_cert_position) = match subnet_client.get_latest_delivered_cert().await
-    {
+    let (final_cert_id, final_cert_position) = match subnet_client.get_latest_pushed_cert().await {
         Ok(result) => result,
         Err(e) => {
             eprintln!("Unable to get latest certificate id and position, error details: {e}");
