@@ -3,7 +3,8 @@ use byteorder::ByteOrder;
 use futures::{channel::oneshot, FutureExt, Stream, StreamExt};
 use std::net::UdpSocket;
 use std::pin::Pin;
-use tokio::sync::mpsc;
+use std::sync::Arc;
+use tokio::sync::{mpsc, Mutex};
 use tonic::{transport::Server, Request, Response, Status, Streaming};
 use topos_core::api::shared::v1::{CertificateId, SubnetId};
 use topos_core::api::tce::v1::api_service_server::{ApiService, ApiServiceServer};
@@ -17,7 +18,9 @@ use tracing::debug;
 
 const DEFAULT_CHANNEL_STREAM_CAPACITY: usize = 10;
 
-struct TceMockServer;
+struct TceMockServer {
+    certificate_history: Arc<Mutex<Vec<Certificate>>>,
+}
 
 #[tonic::async_trait]
 impl ApiService for TceMockServer {
@@ -31,8 +34,10 @@ impl ApiService for TceMockServer {
         let request = request.into_inner();
         debug!(
             "TCE MOCK NODE: Certificate submitted to mock tce node: {:?}",
-            request
+            &request
         );
+        let mut history = self.certificate_history.lock().await;
+        history.push(request.certificate.unwrap());
         Ok(Response::new(SubmitCertificateResponse {}))
     }
 
@@ -41,15 +46,29 @@ impl ApiService for TceMockServer {
         request: Request<GetSourceHeadRequest>,
     ) -> Result<Response<GetSourceHeadResponse>, tonic::Status> {
         debug!("TCE MOCK NODE: Get source head certificate: {:?}", request);
+
+        let request = request.into_inner();
+        let mut history = self.certificate_history.lock().await;
+        if history.is_empty() {
+            // Add genesis certificate as dummy certificate
+            // TODO Fix this with genesis certificate retrieved from topos subnet
+            let dummy_certificate = Certificate {
+                id: Default::default(),
+                prev_id: Default::default(),
+                source_subnet_id: request.subnet_id.clone(),
+                target_subnets: vec![],
+            };
+            history.push(dummy_certificate);
+        }
+
+        let last_certificate = history.last().unwrap();
         Ok(Response::new(GetSourceHeadResponse {
             position: Some(SourceStreamPosition {
-                subnet_id: Default::default(),
-                certificate_id: Default::default(),
-                position: 0,
+                subnet_id: request.subnet_id.clone(),
+                certificate_id: last_certificate.id.clone(),
+                position: (history.len() - 1) as u64,
             }),
-            certificate: Some(Certificate {
-                ..Default::default()
-            }),
+            certificate: Some(last_certificate.clone()),
         }))
     }
 
@@ -143,7 +162,9 @@ pub async fn start_mock_tce_service() -> Result<
 > {
     debug!("Starting mock TCE node...");
     let (shutdown_tx, shutdown_rx) = oneshot::channel();
-    let svc = ApiServiceServer::new(TceMockServer);
+    let svc = ApiServiceServer::new(TceMockServer {
+        certificate_history: Arc::new(Default::default()),
+    });
     let socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
     let addr = socket.local_addr().ok().unwrap();
 

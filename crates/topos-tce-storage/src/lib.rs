@@ -68,6 +68,13 @@ impl From<[u8; 32]> for SubnetId {
     }
 }
 
+impl TryFrom<SubnetId> for [u8; 32] {
+    type Error = ();
+    fn try_from(subnet_id: SubnetId) -> Result<Self, Self::Error> {
+        Ok(subnet_id.inner)
+    }
+}
+
 impl ToString for SubnetId {
     fn to_string(&self) -> String {
         String::from_utf8_lossy(&self.inner).to_string()

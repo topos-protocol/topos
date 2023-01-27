@@ -146,7 +146,7 @@ async fn create_tce_layer() {
         .await
         .map(|r| r.into_inner())
         .unwrap();
-    let _expected_response = GetSourceHeadResponse {
+    let expected_response = GetSourceHeadResponse {
         certificate: Some(original_certificate.clone()),
         position: Some(SourceStreamPosition {
             subnet_id: Some(source_subnet_id.clone()),
@@ -154,7 +154,7 @@ async fn create_tce_layer() {
             position: 0,
         }),
     };
-    assert_eq!(response, _expected_response);
+    assert_eq!(response, expected_response);
 
     let command = Some(Command::OpenStream(OpenStream {
         subnet_ids: vec![source_subnet_id.clone()],
