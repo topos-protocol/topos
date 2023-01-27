@@ -49,7 +49,7 @@ jobs:
 
       - name: Terraform apply
         working-directory: tools/terraform/cicd-devnet-1
-        run: terraform apply -auto-approve -var-file=terraform.tfvars
+        run: terraform apply -auto-approve -var-file=terraform.tfvars.default
 
       - name: Grab results from Terraform
         working-directory: tools/terraform/cicd-devnet-1
