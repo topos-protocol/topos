@@ -4,6 +4,7 @@ use crate::subnet_contract::{
     create_topos_core_contract_from_json, parse_events_from_json, parse_events_from_log,
 };
 use thiserror::Error;
+use topos_core::uci::CertificateId;
 use topos_sequencer_types::{BlockInfo, Certificate};
 use tracing::{debug, error, info};
 use web3::ethabi::Token;
@@ -79,6 +80,8 @@ pub enum Error {
         #[from]
         source: std::io::Error,
     },
+    #[error("invalid certificate id")]
+    InvalidCertificateId,
 }
 
 // Subnet client for listening events from subnet node
@@ -254,12 +257,11 @@ impl SubnetClient {
         &self,
         cert: &Certificate,
     ) -> Result<web3::types::TransactionReceipt, Error> {
-        let call_options = web3::contract::Options::default();
         // TODO how to get cert position (height)? It needs to be retrieved from the TCE
         // For now use block height
         let cert_position: u64 = 0;
 
-        let cert_id_token: Token = web3::ethabi::Token::Bytes(cert.id.as_array().to_vec());
+        let cert_id_token: Token = web3::ethabi::Token::FixedBytes(cert.id.as_array().to_vec());
         let cert_position: Token = web3::ethabi::Token::Uint(U256::from(cert_position));
         let encoded_params = web3::ethabi::encode(&[cert_id_token, cert_position]);
 
@@ -269,11 +271,90 @@ impl SubnetClient {
                 "pushCertificate",
                 // TODO ADD APPROPRIATE CERT POSITION AS ARGUMENT
                 encoded_params,
-                call_options,
+                web3::contract::Options::default(),
                 1_usize,
                 wrapped_key,
             )
             .await
             .map_err(|e| Error::Web3Error { source: e })
     }
+
+    /// Ask subnet for latest pushed cert
+    /// Returns latest cert id and its position
+    pub async fn get_latest_pushed_cert(&self) -> Result<(CertificateId, u64), Error> {
+        // Get certificate count
+        // Last certificate position is certificate count - 1
+        let cert_count: U256 = self
+            .contract
+            .query(
+                "getCertificateCount",
+                (),
+                None,
+                web3::contract::Options::default(),
+                None,
+            )
+            .await
+            .map_err(|e| Error::EthContractError { source: e })?;
+
+        if cert_count.as_u64() == 0 {
+            // No previous certificates
+            info!(
+                "No previous certificate pushed to smart contract {}",
+                self.contract.address().to_string()
+            );
+            return Ok((Default::default(), 0));
+        }
+
+        let latest_cert_position: U256 = cert_count - 1;
+        let latest_cert_id: web3::ethabi::FixedBytes = self
+            .contract
+            .query(
+                "getCertIdAtIndex",
+                latest_cert_position,
+                None,
+                web3::contract::Options::default(),
+                None,
+            )
+            .await
+            .map_err(|e| Error::EthContractError { source: e })?;
+
+        let latest_cert_id: CertificateId = latest_cert_id
+            .try_into()
+            .map_err(|_| Error::InvalidCertificateId)?;
+        Ok((latest_cert_id, latest_cert_position.as_u64()))
+    }
+}
+
+/// Create subnet client and open connection to the subnet
+/// Retry until connection is valid
+// TODO implement backoff mechanism
+pub async fn connect_to_subnet_with_retry(
+    http_subnet_endpoint: &str,
+    eth_admin_private_key: Vec<u8>,
+    contract_address: &str,
+) -> SubnetClient {
+    let subnet_client = loop {
+        match SubnetClient::new(
+            http_subnet_endpoint,
+            eth_admin_private_key.clone(),
+            contract_address,
+        )
+        .await
+        {
+            Ok(subnet_client) => {
+                break subnet_client;
+            }
+            Err(err) => {
+                error!(
+                    "Unable to instantiate http subnet client, error: {}",
+                    err.to_string()
+                );
+                //TODO use backoff mechanism instead of fixed delay
+                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                continue;
+            }
+        };
+    };
+
+    subnet_client
 }
