@@ -7,7 +7,7 @@
         "type": "address"
       },
       {
-        "internalType": "subnetId",
+        "internalType": "SubnetId",
         "name": "networkSubnetId",
         "type": "bytes32"
       }
@@ -29,11 +29,6 @@
       }
     ],
     "name": "BurnFailed",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "CertAlreadyPresent",
     "type": "error"
   },
   {
@@ -183,9 +178,9 @@
     "inputs": [
       {
         "indexed": false,
-        "internalType": "bytes",
+        "internalType": "CertificateId",
         "name": "certId",
-        "type": "bytes"
+        "type": "bytes32"
       }
     ],
     "name": "CertStored",
@@ -196,7 +191,7 @@
     "inputs": [
       {
         "indexed": false,
-        "internalType": "subnetId",
+        "internalType": "SubnetId",
         "name": "sourceSubnetId",
         "type": "bytes32"
       },
@@ -208,7 +203,7 @@
       },
       {
         "indexed": false,
-        "internalType": "subnetId",
+        "internalType": "SubnetId",
         "name": "targetSubnetId",
         "type": "bytes32"
       },
@@ -217,12 +212,6 @@
         "internalType": "address",
         "name": "targetContractAddr",
         "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "bytes32",
-        "name": "payloadHash",
-        "type": "bytes32"
       },
       {
         "indexed": false,
@@ -252,7 +241,7 @@
     "inputs": [
       {
         "indexed": false,
-        "internalType": "subnetId",
+        "internalType": "SubnetId",
         "name": "sourceSubnetId",
         "type": "bytes32"
       },
@@ -264,7 +253,7 @@
       },
       {
         "indexed": false,
-        "internalType": "subnetId",
+        "internalType": "SubnetId",
         "name": "targetSubnetId",
         "type": "bytes32"
       },
@@ -273,12 +262,6 @@
         "internalType": "address",
         "name": "targetContractAddr",
         "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "bytes32",
-        "name": "payloadHash",
-        "type": "bytes32"
       },
       {
         "indexed": false,
@@ -351,13 +334,13 @@
       },
       {
         "indexed": false,
-        "internalType": "subnetId",
+        "internalType": "SubnetId",
         "name": "sourceSubnetId",
         "type": "bytes32"
       },
       {
         "indexed": false,
-        "internalType": "subnetId",
+        "internalType": "SubnetId",
         "name": "targetSubnetId",
         "type": "bytes32"
       },
@@ -450,7 +433,7 @@
   {
     "inputs": [
       {
-        "internalType": "subnetId",
+        "internalType": "SubnetId",
         "name": "targetSubnetId",
         "type": "bytes32"
       },
@@ -473,7 +456,7 @@
   {
     "inputs": [
       {
-        "internalType": "subnetId",
+        "internalType": "SubnetId",
         "name": "targetSubnetId",
         "type": "bytes32"
       },
@@ -506,6 +489,25 @@
   {
     "inputs": [
       {
+        "internalType": "CertificateId",
+        "name": "certId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "certificateExists",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "bytes",
         "name": "params",
         "type": "bytes"
@@ -519,9 +521,9 @@
   {
     "inputs": [
       {
-        "internalType": "bytes",
+        "internalType": "CertificateId",
         "name": "certId",
-        "type": "bytes"
+        "type": "bytes32"
       },
       {
         "internalType": "bytes",
@@ -599,6 +601,38 @@
   {
     "inputs": [
       {
+        "internalType": "uint256",
+        "name": "index",
+        "type": "uint256"
+      }
+    ],
+    "name": "getCertIdAtIndex",
+    "outputs": [
+      {
+        "internalType": "CertificateId",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getCertificateCount",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "bytes32",
         "name": "key",
         "type": "bytes32"
@@ -618,9 +652,9 @@
   {
     "inputs": [
       {
-        "internalType": "bytes",
+        "internalType": "CertificateId",
         "name": "certId",
-        "type": "bytes"
+        "type": "bytes32"
       }
     ],
     "name": "getStorageCert",
@@ -628,19 +662,14 @@
       {
         "components": [
           {
-            "internalType": "bytes",
-            "name": "certId",
-            "type": "bytes"
+            "internalType": "CertificateId",
+            "name": "id",
+            "type": "bytes32"
           },
           {
             "internalType": "uint256",
             "name": "position",
             "type": "uint256"
-          },
-          {
-            "internalType": "bool",
-            "name": "isPresent",
-            "type": "bool"
           }
         ],
         "internalType": "struct IToposCoreContract.Certificate",
@@ -741,7 +770,7 @@
   {
     "inputs": [
       {
-        "internalType": "subnetId",
+        "internalType": "SubnetId",
         "name": "targetSubnetId",
         "type": "bytes32"
       },
@@ -893,12 +922,12 @@
   {
     "inputs": [
       {
-        "internalType": "bytes",
+        "internalType": "CertificateId",
         "name": "certId",
-        "type": "bytes"
+        "type": "bytes32"
       },
       {
-        "internalType": "subnetId",
+        "internalType": "SubnetId",
         "name": "targetSubnetId",
         "type": "bytes32"
       }
