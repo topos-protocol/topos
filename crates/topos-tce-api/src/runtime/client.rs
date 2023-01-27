@@ -29,6 +29,10 @@ impl RuntimeClient {
         }
     }
 
+    pub async fn has_active_sample(&self) -> bool {
+        self.tce_status.read().await.has_active_sample
+    }
+
     pub async fn set_active_sample(&self, value: bool) {
         let mut status = self.tce_status.write().await;
 

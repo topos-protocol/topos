@@ -21,7 +21,7 @@ use topos_api::{
         CheckpointRequest, CheckpointResponse,
     },
 };
-use topos_p2p::{error::CommandExecutionError, Client as NetworkClient};
+use topos_p2p::{error::CommandExecutionError, Client as NetworkClient, RetryPolicy};
 use topos_tce_gatekeeper::GatekeeperClient;
 use uuid::Uuid;
 
@@ -141,7 +141,7 @@ impl CheckpointsCollector {
                     // TODO: Put rate limit on the futures pool
                     self.pending_checkpoint_requests.push(
                         self.network
-                            .send_request::<_, CheckpointResponse>(peer, req)
+                            .send_request::<_, CheckpointResponse>(peer, req, RetryPolicy::NoRetry)
                             .boxed(),
                     );
                 }

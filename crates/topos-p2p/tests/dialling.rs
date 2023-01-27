@@ -8,6 +8,7 @@ use std::time::Duration;
 use support::network::{local_peers, start_node};
 use test_log::test;
 use tokio::time::sleep;
+use topos_p2p::RetryPolicy;
 
 macro_rules! wait_for_event {
     ($node:ident, matches: $(|)? $( $pattern:pat_param )|+ $( if $guard: expr )? $(,)?) => {
@@ -167,6 +168,7 @@ async fn request_response() {
                 TceCommands::OnEchoSubscribeReq {
                     from_peer: sender.peer_id.to_base58(),
                 },
+                RetryPolicy::NoRetry,
             )
             .await;
 

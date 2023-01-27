@@ -13,6 +13,8 @@ tracing-subscriber.workspace = true
 tracing.workspace = true
 web3.workspace = true
 secp256k1.workspace = true
+tokio.workspace = true
+topos-core = { workspace = true, features = ["uci"] }
 
 ethereum-tx-sign = "6.0.0"
 jsonrpsee-types = "0.14.0"

@@ -3,9 +3,10 @@
 //!
 
 use crate::Error::InvalidChannelError;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 use tokio_stream::StreamExt;
 use tonic::transport::channel;
+use topos_core::api::tce::v1::GetSourceHeadRequest;
 use topos_core::{
     api::tce::v1::{
         api_service_client::ApiServiceClient, watch_certificates_request,
@@ -44,6 +45,16 @@ pub enum Error {
         #[from]
         source: hex::FromHexError,
     },
+    #[error(
+        "Unable to get source head certificate for subnet id {subnet_id:?}, details: {details}"
+    )]
+    UnableToGetSourceHeadCertificate {
+        subnet_id: SubnetId,
+        details: String,
+    },
+
+    #[error("Certificate source head empty for subnet id {subnet_id:?}")]
+    SourceHeadEmpty { subnet_id: SubnetId },
 }
 
 pub struct TceProxyConfig {
@@ -61,6 +72,10 @@ pub struct TceProxyWorker {
 }
 
 enum TceClientCommand {
+    GetSourceHead {
+        subnet_id: topos_core::uci::SubnetId,
+        sender: oneshot::Sender<Result<Certificate, Error>>,
+    },
     OpenStream {
         subnet_id: topos_core::uci::SubnetId,
     },
@@ -99,6 +114,23 @@ impl TceClient {
             .await
             .map_err(|_| InvalidChannelError)?;
         Ok(())
+    }
+
+    pub async fn get_source_head(&mut self) -> Result<Certificate, Error> {
+        #[allow(clippy::type_complexity)]
+        let (sender, receiver): (
+            oneshot::Sender<Result<Certificate, Error>>,
+            oneshot::Receiver<Result<Certificate, Error>>,
+        ) = oneshot::channel();
+        self.command_sender
+            .send(TceClientCommand::GetSourceHead {
+                subnet_id: self.subnet_id,
+                sender,
+            })
+            .await
+            .map_err(|_| InvalidChannelError)?;
+
+        receiver.await.map_err(|_| InvalidChannelError)?
     }
 }
 
@@ -295,6 +327,26 @@ impl TceClientBuilder {
                                 inbound_shutdown_sender.send(()).expect("valid channel for shutting down task");
                                 break;
                             }
+                            Some(TceClientCommand::GetSourceHead {subnet_id, sender}) =>  {
+                                    let result: Result<Certificate, Error> = match tce_grpc_client
+                                    .get_source_head(GetSourceHeadRequest {
+                                        subnet_id: Some(subnet_id.into())
+                                    })
+                                    .await
+                                    .map(|r| r.into_inner().certificate) {
+                                        Ok(Some(certificate)) => Ok(certificate.into()),
+                                        Ok(None) => {
+                                            Err(Error::SourceHeadEmpty{subnet_id})
+                                        },
+                                        Err(e) => {
+                                            Err(Error::UnableToGetSourceHeadCertificate{subnet_id, details: e.to_string()})
+                                    },
+                                };
+
+                                if sender.send(result).is_err() {
+                                    error!("Unable to pass result of the source head, channel failed");
+                                };
+                            }
                             None => {
                                 panic!("None should not be possible");
                             }
@@ -359,16 +411,32 @@ async fn connect_to_tce_service_with_retry(
 }
 
 impl TceProxyWorker {
-    pub async fn new(config: TceProxyConfig) -> Result<Self, Error> {
+    pub async fn new(config: TceProxyConfig) -> Result<(Self, Option<Certificate>), Error> {
         let (command_sender, mut command_rcv) = mpsc::unbounded_channel::<TceProxyCommand>();
         let (evt_sender, evt_rcv) = mpsc::unbounded_channel::<TceProxyEvent>();
 
+        // TODO perform some retry/backoff algorithm for connection with the TCE client
         let (mut tce_client, mut receiving_certificate_stream) = TceClientBuilder::default()
             .set_subnet_id(config.subnet_id)
             .set_tce_endpoint(&config.base_tce_api_url)
             .build_and_launch()
             .await?;
+
         tce_client.open_stream().await?;
+
+        // Retrieve source head from TCE node, so that
+        // we know from where to start creating certificates
+        let source_head_certificate = match tce_client.get_source_head().await {
+            Ok(certificate) => Some(certificate),
+            Err(Error::SourceHeadEmpty { subnet_id: _ }) => {
+                //This is also OK, TCE node does not have any data about certificates
+                //We should start certificate production from scratch
+                None
+            }
+            Err(e) => {
+                return Err(e);
+            }
+        };
 
         tokio::spawn(async move {
             info!(
@@ -411,11 +479,14 @@ impl TceProxyWorker {
             );
         });
 
-        // Save channels and handles
-        Ok(Self {
-            commands: command_sender,
-            events: evt_rcv,
-        })
+        // Save channels and handles, return latest tce known certificate
+        Ok((
+            Self {
+                commands: command_sender,
+                events: evt_rcv,
+            },
+            source_head_certificate,
+        ))
     }
 
     /// Send commands to TCE

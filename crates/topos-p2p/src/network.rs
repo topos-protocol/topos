@@ -4,6 +4,7 @@ use crate::{
         discovery::DiscoveryBehaviour, peer_info::PeerInfoBehaviour,
         transmission::TransmissionBehaviour,
     },
+    config::NetworkConfig,
     constant::{
         COMMAND_STREAM_BUFFER, DISCOVERY_PROTOCOL, EVENT_STREAM_BUFFER, TRANSMISSION_PROTOCOL,
     },
@@ -16,16 +17,17 @@ use libp2p::{
     identity::Keypair,
     kad::store::MemoryStore,
     mplex, noise,
-    swarm::SwarmBuilder,
-    tcp::{GenTcpConfig, TokioTcpTransport},
-    Multiaddr, PeerId, Transport,
+    swarm::{keep_alive, SwarmBuilder},
+    tcp::{tokio::Transport, Config},
+    Multiaddr, PeerId, Transport as TransportTrait,
 };
 use std::{
     borrow::Cow,
     collections::{HashMap, HashSet},
+    sync::Arc,
     time::Duration,
 };
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
 
 pub fn builder<'a>() -> NetworkBuilder<'a> {
@@ -44,9 +46,22 @@ pub struct NetworkBuilder<'a> {
     store: Option<MemoryStore>,
     known_peers: &'a [(PeerId, Multiaddr)],
     local_port: Option<u8>,
+    config: NetworkConfig,
 }
 
 impl<'a> NetworkBuilder<'a> {
+    pub fn publish_retry(mut self, retry: usize) -> Self {
+        self.config.publish_retry = retry;
+
+        self
+    }
+
+    pub fn minimum_cluster_size(mut self, size: usize) -> Self {
+        self.config.minimum_cluster_size = size;
+
+        self
+    }
+
     pub fn peer_key(mut self, peer_key: Keypair) -> Self {
         self.peer_key = Some(peer_key);
 
@@ -111,6 +126,7 @@ impl<'a> NetworkBuilder<'a> {
             ),
 
             discovery: DiscoveryBehaviour::create(
+                &self.config.discovery,
                 peer_key.clone(),
                 Cow::Borrowed(
                     self.discovery_protocol
@@ -121,14 +137,14 @@ impl<'a> NetworkBuilder<'a> {
                 false,
             ),
             transmission: TransmissionBehaviour::create(),
+            keep_alive: keep_alive::Behaviour,
         };
 
         let transport = {
             let dns_tcp =
-                TokioDnsConfig::system(TokioTcpTransport::new(GenTcpConfig::new().nodelay(true)))
-                    .unwrap();
+                TokioDnsConfig::system(Transport::new(Config::new().nodelay(true))).unwrap();
 
-            let tcp = TokioTcpTransport::new(GenTcpConfig::default().nodelay(true));
+            let tcp = Transport::new(Config::default().nodelay(true));
             dns_tcp.or_transport(tcp)
         };
 
@@ -139,20 +155,23 @@ impl<'a> NetworkBuilder<'a> {
             .timeout(TWO_HOURS)
             .boxed();
 
-        let swarm = SwarmBuilder::new(transport, behaviour, peer_id)
-            .executor(Box::new(|future| {
-                tokio::spawn(future);
-            }))
-            .build();
+        let swarm = SwarmBuilder::with_tokio_executor(transport, behaviour, peer_id).build();
 
+        let (kill_switch, shutdown_listener) = oneshot::channel();
+        let (kill_sender, _) = oneshot::channel();
         Ok((
             Client {
+                retry_ttl: self.config.client_retry_ttl,
                 local_peer_id: peer_id,
                 sender: command_sender,
+                kill_switch: Arc::new(kill_switch),
             },
             ReceiverStream::new(event_receiver),
             Runtime {
                 swarm,
+                config: self.config,
+                peer_set: HashSet::new(),
+                is_boot_node: self.known_peers.is_empty(),
                 command_receiver,
                 event_sender,
                 local_peer_id: peer_id,
@@ -170,6 +189,8 @@ impl<'a> NetworkBuilder<'a> {
                 active_listeners: HashSet::new(),
                 peers: HashSet::new(),
                 pending_record_requests: HashMap::new(),
+                shutdown_listener,
+                kill_sender,
             },
         ))
     }

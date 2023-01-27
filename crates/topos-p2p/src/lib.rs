@@ -1,6 +1,9 @@
+#![allow(unused_variables)]
+#![allow(unused_imports)]
 mod behaviour;
 mod client;
 mod command;
+pub mod config;
 mod constant;
 pub mod error;
 mod event;
@@ -8,7 +11,9 @@ mod runtime;
 
 pub(crate) use behaviour::Behaviour;
 pub use client::Client;
+pub use client::RetryPolicy;
 pub(crate) use command::Command;
+pub use command::NotReadyMessage;
 pub use event::Event;
 pub use libp2p::Multiaddr;
 pub use libp2p::PeerId;

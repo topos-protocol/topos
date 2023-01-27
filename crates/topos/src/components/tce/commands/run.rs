@@ -8,7 +8,7 @@ use topos_tce_transport::ReliableBroadcastParams;
 #[command(about = "Run a full TCE instance")]
 pub struct Run {
     /// Boot nodes to connect to, pairs of <PeerId> <Multiaddr>, space separated,
-    /// quoted list like --boot-peers='a a1 b b1'
+    /// quoted list like --boot-peers='a a1,b b1'
     #[arg(long, default_value = "", env = "TCE_BOOT_PEERS")]
     pub boot_peers: String,
 
@@ -65,7 +65,7 @@ pub struct Run {
 impl Run {
     pub fn parse_boot_peers(&self) -> Vec<(PeerId, Multiaddr)> {
         self.boot_peers
-            .split(' ')
+            .split(&[',', ' '])
             .map(|s| s.to_string())
             .collect::<Vec<String>>()
             .chunks(2)

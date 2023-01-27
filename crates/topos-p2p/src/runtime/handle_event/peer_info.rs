@@ -4,6 +4,7 @@ use libp2p::{
     identify::{Event as IdentifyEvent, Info as IdentifyInfo},
     request_response::ProtocolName,
 };
+use tracing::info;
 
 use crate::{behaviour::transmission::protocol::TransmissionProtocol, Runtime};
 
@@ -20,7 +21,8 @@ impl EventHandler<Box<IdentifyEvent>> for Runtime {
                 ..
             } = info;
 
-            if protocol_version.as_bytes() == TransmissionProtocol().protocol_name()
+            if !self.peer_set.contains(&peer_id)
+                && protocol_version.as_bytes() == TransmissionProtocol().protocol_name()
                 && protocols.iter().any(|p| {
                     self.swarm
                         .behaviour()
@@ -29,11 +31,12 @@ impl EventHandler<Box<IdentifyEvent>> for Runtime {
                         .contains(&Cow::Borrowed(p.as_bytes()))
                 })
             {
+                self.peer_set.insert(peer_id);
                 for addr in listen_addrs {
-                    self.swarm
-                        .behaviour_mut()
-                        .transmission
-                        .add_address(&peer_id, addr.clone());
+                    info!(
+                        "Adding self-reported address {} from {} to Kademlia DHT.",
+                        addr, peer_id
+                    );
                     self.swarm
                         .behaviour_mut()
                         .discovery

@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use topos_commands::CommandHandler;
 use topos_core::uci::Certificate;
+use tracing::{debug, warn};
 
 use crate::{
     command::{
@@ -160,14 +161,30 @@ where
         &mut self,
         GetSourceHead { subnet_id }: GetSourceHead,
     ) -> Result<(u64, Certificate), StorageError> {
-        let heads = self
-            .storage
-            .get_source_heads(vec![subnet_id.into()])
-            .await?;
+        let heads = match self.storage.get_source_heads(vec![subnet_id.into()]).await {
+            Ok(heads) => heads,
+            Err(e) => {
+                warn!("Error getting source head: {e}");
+                return Err(e.into());
+            }
+        };
         let source_head = heads.last().ok_or(StorageError::InternalStorage(
-            InternalStorageError::UnableToFindHeadForSubnet(subnet_id.into()),
+            InternalStorageError::MissingHeadForSubnet(subnet_id),
         ))?;
-        let certificate = self.storage.get_certificate(source_head.cert_id).await?;
+        debug!(
+            "Source head certificate for subnet id {subnet_id:?} is {:?}",
+            source_head.cert_id
+        );
+        let certificate = match self.storage.get_certificate(source_head.cert_id).await {
+            Ok(certificate) => certificate,
+            Err(e) => {
+                warn!(
+                    "Unable to get source head certificate with id {:?}",
+                    source_head.cert_id
+                );
+                return Err(e.into());
+            }
+        };
         Ok((source_head.position.0, certificate))
     }
 }

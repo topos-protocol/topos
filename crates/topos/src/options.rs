@@ -1,6 +1,9 @@
 use clap::{Parser, Subcommand};
 
+#[cfg(feature = "sequencer")]
 use crate::components::sequencer::commands::SequencerCommand;
+
+#[cfg(feature = "tce")]
 use crate::components::tce::commands::TceCommand;
 
 pub(crate) mod input_format;
@@ -22,6 +25,8 @@ pub(crate) struct Opt {
 
 #[derive(Subcommand, Debug)]
 pub(crate) enum ToposCommand {
+    #[cfg(feature = "tce")]
     Tce(TceCommand),
+    #[cfg(feature = "sequencer")]
     Sequencer(SequencerCommand),
 }
