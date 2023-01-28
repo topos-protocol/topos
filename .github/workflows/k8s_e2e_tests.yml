@@ -93,4 +93,4 @@ jobs:
       - name: Terraform destroy
         if: always()
         working-directory: tools/terraform/cicd-devnet-1
-        run: terraform destroy -auto-approve
+        run: terraform destroy -auto-approve -var-file=terraform.tfvars.default
