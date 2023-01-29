@@ -120,7 +120,8 @@ services:
       - shared:/tmp/shared
     environment:
       - RUST_LOG=info
-      - CERT_PER_SEC=1
+      - CERT_PER_BATCH=1
+      - BATCH_TIME_INTERVAL=4
       - TARGET_NODES_PATH=/tmp/shared/peer_nodes.json
     depends_on:
       jaeger:
