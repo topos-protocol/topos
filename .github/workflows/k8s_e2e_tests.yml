@@ -52,7 +52,7 @@ jobs:
         working-directory: tools/terraform/cicd-devnet-1
         run: |
           terraform init \
-            -backend-config="key=${{ env.E2E_ID }}.tf" \
+            -backend-config="key=${{ env.E2E_ID }}.tfstate" \
             -backend-config=backend.conf
 
       - name: Terraform apply
@@ -106,5 +106,5 @@ jobs:
         working-directory: tools/terraform/cicd-devnet-1
         run: |
           terraform destroy -auto-approve \
-            -var "name={{ env.E2E_ID }}" \
+            -var "name=${{ env.E2E_ID }}" \
             -var-file=terraform.tfvars.default
