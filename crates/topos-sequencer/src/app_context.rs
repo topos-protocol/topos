@@ -80,7 +80,7 @@ impl AppContext {
         match evt {
             CertificationEvent::NewCertificate(cert) => {
                 self.tce_proxy_worker
-                    .send_command(TceProxyCommand::SubmitCertificate(cert))
+                    .send_command(TceProxyCommand::SubmitCertificate(Box::new(cert)))
                     .expect("Submit Certificate to TCE");
             }
         }

@@ -76,6 +76,7 @@ async fn test_tce_submit_certificate(
                 id: Some(certificate_id),
                 prev_id: Some(prev_certificate_id),
                 target_subnets: vec![],
+                ..Default::default()
             }),
         })
         .await
@@ -210,6 +211,7 @@ async fn test_tce_get_source_head_certificate(
         prev_id: Default::default(),
         source_subnet_id: Some(source_subnet_id.clone()),
         target_subnets: vec![],
+        ..Default::default()
     };
     let expected_response = GetSourceHeadResponse {
         certificate: Some(expected_dummy_certificate.clone()),
@@ -226,6 +228,7 @@ async fn test_tce_get_source_head_certificate(
         id: Some(certificate_id),
         prev_id: Some(prev_certificate_id),
         target_subnets: vec![],
+        ..Default::default()
     };
     match client
         .submit_certificate(SubmitCertificateRequest {

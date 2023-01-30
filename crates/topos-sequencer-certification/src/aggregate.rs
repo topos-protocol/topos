@@ -11,6 +11,8 @@ use topos_core::uci::{Certificate, CertificateId, SubnetId};
 use topos_sequencer_types::{BlockInfo, CertificationCommand, CertificationEvent, SubnetEvent};
 use tracing::{debug, error, warn};
 
+const AVERAGE_BLOCK_TIME: Duration = Duration::from_secs(2);
+
 pub struct Certification {
     pub commands_channel: mpsc::UnboundedSender<CertificationCommand>,
     pub events_subscribers: Vec<mpsc::UnboundedSender<CertificationEvent>>,
@@ -19,6 +21,7 @@ pub struct Certification {
     pub history: HashMap<SubnetId, Vec<CertificateId>>,
     pub finalized_blocks: Vec<BlockInfo>,
     pub subnet_id: SubnetId,
+    pub verifier: u32,
 }
 
 impl Debug for Certification {
@@ -31,12 +34,14 @@ impl Certification {
     pub fn spawn_new(
         subnet_id: SubnetId,
         source_head_certificate_id: Option<CertificateId>,
+        verifier: u32,
     ) -> Result<Arc<Mutex<Certification>>, crate::Error> {
         let (command_sender, mut command_rcv) = mpsc::unbounded_channel::<CertificationCommand>();
         let (_tx_exit, mut rx_exit) = mpsc::unbounded_channel::<()>();
 
         // Initialize the certificate id history
         let mut history = HashMap::new();
+
         // Set last known certificate for my source subnet
         if let Some(cert_id) = source_head_certificate_id {
             history.insert(subnet_id, vec![cert_id]);
@@ -50,20 +55,23 @@ impl Certification {
             history,
             finalized_blocks: Vec::<BlockInfo>::new(),
             subnet_id,
+            verifier,
         }));
-        // spawn running closure
+        // Certification info for passing for async tasks
         let me_cl = me.clone();
         let me_c2 = me.clone();
 
         tokio::spawn(async move {
-            let mut interval = time::interval(Duration::from_secs(6)); // arbitrary time for 1 block
+            let mut interval = time::interval(AVERAGE_BLOCK_TIME); // arbitrary time for 1 block
             loop {
                 interval.tick().await;
-                if let Ok(cert) = Self::generate_certificate(me_c2.clone()) {
-                    Self::send_new_certificate(
-                        me_c2.clone(),
-                        CertificationEvent::NewCertificate(cert),
-                    );
+                if let Ok(certs) = Self::generate_certificates(me_c2.clone()) {
+                    for cert in certs {
+                        Self::send_new_certificate(
+                            me_c2.clone(),
+                            CertificationEvent::NewCertificate(cert),
+                        );
+                    }
                 }
             }
         });
@@ -108,7 +116,6 @@ impl Certification {
         }
     }
 
-    #[allow(unused)]
     fn send_out_events(&mut self, evt: CertificationEvent) {
         for tx in &self.events_subscribers {
             // FIXME: When error is returned it means that receiving side of the channel is closed
@@ -118,47 +125,71 @@ impl Certification {
     }
 
     /// Generation of Certificate
-    fn generate_certificate(
+    fn generate_certificates(
         certification: Arc<Mutex<Certification>>,
-    ) -> Result<Certificate, Error> {
+    ) -> Result<Vec<Certificate>, Error> {
         let mut certification = certification.lock().unwrap();
         let subnet_id = certification.subnet_id;
+        let mut generated_certificates = Vec::new();
 
-        let mut block_data = Vec::<u8>::new();
-        let mut events: Vec<SubnetEvent> = Vec::new();
+        // For every block, create one certificate
+        // This will change after MVP
         for block_info in &certification.finalized_blocks {
-            block_data.extend_from_slice(&block_info.data);
+            let mut events: Vec<SubnetEvent> = Vec::new();
             for event in &block_info.events {
                 // TODO decide if we need events, we probably need them to determine target subnets
                 events.push(event.clone());
             }
+
+            println!(">>>>>>>>>>>>>> EVENTS {:?}", &block_info.events);
+
+            // TODO collect target subnets from events
+            let target_subnets: Vec<SubnetId> = Vec::new();
+
+            // Get the id of the previous Certificate
+            let previous_cert_id: CertificateId = match certification.history.get(&subnet_id) {
+                Some(certs) => match certs.last() {
+                    Some(cert_id) => *cert_id,
+                    None => {
+                        panic!("genesis certificate must be available for subnet {subnet_id:?}");
+                    }
+                },
+                None => {
+                    error!("ill-formed subnet history for {:?}", subnet_id);
+                    return Err(Error::IllFormedSubnetHistory);
+                }
+            };
+
+            let certificate = Certificate::new(
+                previous_cert_id,
+                subnet_id,
+                block_info.state_root,
+                block_info.tx_root_hash,
+                &target_subnets,
+                certification.verifier,
+            )
+            .map_err(|e| Error::CertificateGenerationError(e.to_string()))?;
+            generated_certificates.push(certificate);
         }
 
-        // TODO collect target subnets from events
-        let target_subnets: Vec<SubnetId> = Vec::new();
-
-        // Get the id of the previous Certificate
-        let previous_cert_id: CertificateId = match certification.history.get(&subnet_id) {
-            Some(certs) => match certs.last() {
-                Some(cert_id) => *cert_id,
-                None => [0u8; 32].into(),
-            },
-            None => {
-                error!("ill-formed subnet history for {:?}", subnet_id);
-                return Err(Error::IllFormedSubnetHistory);
-            }
-        };
-
-        let certificate = Certificate::new(previous_cert_id, subnet_id, &target_subnets)
-            .map_err(|e| Error::CertificateGenerationError(e.to_string()))?;
-
-        certification.finalized_blocks.clear();
-        certification
+        // Update history, clear pending finalized blocks
+        let subnet_history = certification
             .history
             .get_mut(&subnet_id)
-            .unwrap()
-            .push(certificate.id);
+            .ok_or(Error::IllFormedSubnetHistory)?;
 
-        Ok(certificate)
+        // Just to be on the safe side remove all generated certificates that may exist in history
+        let generated_certificates: Vec<Certificate> = generated_certificates
+            .into_iter()
+            .filter(|new_cert| !subnet_history.contains(&new_cert.id))
+            .collect();
+
+        subnet_history.extend(generated_certificates.iter().map(|cert| cert.id));
+
+        certification.finalized_blocks.clear();
+
+        println!(">>>>>>>>>>>>>>>>>>>> {:?}", certification.history);
+
+        Ok(generated_certificates)
     }
 }

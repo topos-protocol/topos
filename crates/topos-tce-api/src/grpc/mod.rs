@@ -53,7 +53,7 @@ impl ApiService for TceGrpcService {
                 if self
                     .command_sender
                     .send(InternalRuntimeCommand::CertificateSubmitted {
-                        certificate: certificate.into(),
+                        certificate: Box::new(certificate.into()),
                         sender,
                         ctx: Span::current(),
                     })

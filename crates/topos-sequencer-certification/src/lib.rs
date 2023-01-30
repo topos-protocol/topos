@@ -43,8 +43,9 @@ impl CertificationWorker {
     pub fn new(
         subnet_id: SubnetId,
         source_head_certificate_id: Option<CertificateId>,
+        verifier: u32,
     ) -> Result<Self, Error> {
-        let w_aggr = Certification::spawn_new(subnet_id, source_head_certificate_id)?;
+        let w_aggr = Certification::spawn_new(subnet_id, source_head_certificate_id, verifier)?;
         let mut b_aggr = w_aggr.lock().map_err(|_| Error::LockError)?;
         let commands = b_aggr.commands_channel.clone();
 
@@ -109,26 +110,25 @@ mod tests {
     #[tokio::test]
     async fn instantiate_certification_worker() {
         // Launch the certification worker for certificate production
-        let _cert_worker = match CertificationWorker::new(TEST_SUBNET_ID, Some(TEST_CERTIFICATE_ID))
-        {
-            Ok(cert_worker) => cert_worker,
-            Err(e) => {
-                error!("Unable to create certification worker: {e:?}");
-                panic!("Error with certification worker creation");
-            }
-        };
+        let _cert_worker =
+            match CertificationWorker::new(TEST_SUBNET_ID, Some(TEST_CERTIFICATE_ID), 0) {
+                Ok(cert_worker) => cert_worker,
+                Err(e) => {
+                    panic!("Unable to create certification worker: {e:?}");
+                }
+            };
     }
 
     #[tokio::test]
     async fn certification_worker_eval() {
         // Launch the certification worker for certificate production
-        let cert_worker = match CertificationWorker::new(TEST_SUBNET_ID, Some(TEST_CERTIFICATE_ID))
-        {
-            Ok(cert_worker) => cert_worker,
-            Err(e) => {
-                panic!("Unable to create certification worker: {e:?}")
-            }
-        };
+        let cert_worker =
+            match CertificationWorker::new(TEST_SUBNET_ID, Some(TEST_CERTIFICATE_ID), 0) {
+                Ok(cert_worker) => cert_worker,
+                Err(e) => {
+                    panic!("Unable to create certification worker: {e:?}")
+                }
+            };
 
         let event = Event::RuntimeProxyEvent(RuntimeProxyEvent::BlockFinalized(BlockInfo {
             number: BlockNumber::from(10 as u64),

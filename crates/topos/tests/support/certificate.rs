@@ -27,8 +27,15 @@ pub fn generate_cert(
             .cloned()
             .collect::<Vec<_>>();
 
-        let gen_cert = Certificate::new(last_cert_id.clone(), selected_subnet, &target_subnets)
-            .expect("valid new certificate");
+        let gen_cert = Certificate::new(
+            last_cert_id.clone(),
+            selected_subnet,
+            Default::default(),
+            Default::default(),
+            &target_subnets,
+            0,
+        )
+        .expect("valid new certificate");
         *last_cert_id = gen_cert.id;
         gen_cert
     };
