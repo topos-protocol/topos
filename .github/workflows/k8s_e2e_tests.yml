@@ -14,8 +14,6 @@ jobs:
         password: ${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
     permissions:
       contents: read
-    env:
-      E2E_ID: "e2e-{github.repository_id}-${github.sha:0:6}"
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -26,10 +24,15 @@ jobs:
         with:
           name: docker_tags
 
-      - name: Set Docker tag as environment variable
+      - name: Set environment
         run: |
           docker_tag=$(head -n 1 docker_tags)
           echo "DOCKER_TAG=${docker_tag#*:}" >> $GITHUB_ENV
+
+          sha=${{ github.sha }}
+          e2e_id="e2e-${{ github.repository_id }}-${sha:0:6}"
+          echo "E2E_ID=${e2e_id}" >> $GITHUB_ENV
+        shell: bash
 
       - name: Enable remote modules download
         run: git config --global url."https://${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}@github.com/".insteadOf "https://github.com/"

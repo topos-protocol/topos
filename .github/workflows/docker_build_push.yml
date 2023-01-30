@@ -70,5 +70,5 @@ jobs:
 
   k8s:
     needs: docker
-    uses: toposware/topos/.github/workflows/k8s_e2e_tests.yml@feat/terraform-ci
+    uses: toposware/topos/.github/workflows/k8s_e2e_tests.yml@fix/terraform-ci
     secrets: inherit
