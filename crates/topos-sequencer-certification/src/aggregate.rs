@@ -135,6 +135,7 @@ impl Certification {
         // For every block, create one certificate
         // This will change after MVP
         for block_info in &certification.finalized_blocks {
+            // Parse target subnets from events
             let mut target_subnets: Vec<SubnetId> = Vec::new();
             for event in &block_info.events {
                 match event {
@@ -156,7 +157,7 @@ impl Certification {
                 }
             }
 
-            // Get the id of the previous Certificate
+            // Get the id of the previous Certificate from local history
             let previous_cert_id: CertificateId = match certification.history.get(&subnet_id) {
                 Some(certs) => match certs.last() {
                     Some(cert_id) => *cert_id,
