@@ -18,7 +18,7 @@ releases:
   createNamespace: true
   set:
   - name: controller.serviceAccount.annotations.eks\.amazonaws\.com/role-arn
-    value: arn:aws:iam::367397670706:role/cicd-devnet-1-eks-efs-csi-irsa
+    value: {{ requiredEnv "EKS_EFS_CSI_IRSA_ARN" }}
 
 - name: tce-tmp-storage
   namespace: default

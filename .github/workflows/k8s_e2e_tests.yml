@@ -68,6 +68,9 @@ jobs:
           filesystem_id=$(terraform output --raw eks_efs_id)
           echo "FILESYSTEM_ID=${filesystem_id}" >> $GITHUB_ENV
 
+          eks_efs_csi_irsa_arn=$(terraform output --raw eks_efs_csi_irsa_arn)
+          echo "EKS_EFS_CSI_IRSA_ARN=${eks_efs_csi_irsa_arn}" >> $GITHUB_ENV
+
       - name: Configure kubeconfig
         working-directory: tools/terraform/cicd-devnet-1
         run: aws eks update-kubeconfig --region us-east-1 --name $(terraform output --raw cluster_name)
@@ -98,6 +101,7 @@ jobs:
           DOCKER_USERNAME: ${{ github.actor }}
           DOCKER_PASSWORD: ${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
           FILESYSTEM_ID: ${{ env.FILESYSTEM_ID }}
+          EKS_EFS_CSI_IRSA_ARN: ${{ env.EKS_EFS_CSI_IRSA_ARN }}
         run: |
           helmfile destroy
 
