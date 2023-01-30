@@ -19,7 +19,7 @@ mod common;
 use common::subnet_test_data::{generate_test_keystore_file, TEST_KEYSTORE_FILE_PASSWORD};
 use topos_sequencer_subnet_runtime_proxy::{RuntimeProxyConfig, RuntimeProxyWorker};
 
-const SUBNET_TCC_JSON_DEFINITION: &'static str = "ToposCoreContract.json";
+const SUBNET_TCC_JSON_DEFINITION: &'static str = "ToposCore.json";
 const SUBNET_TOKEN_DEPLOYER_JSON_DEFINITION: &'static str = "TokenDeployer.json";
 const SUBNET_CHAIN_ID: u64 = 100;
 const SUBNET_RPC_PORT: u32 = 8545;
