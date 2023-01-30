@@ -1,10 +1,11 @@
 name: Docker_build_push
 
 on:
+  schedule:
+    # Triggers the workflow every day at 5:30 UTC:
+    - cron:  '30 5 * * *'
   push:
-    branches: [main]
-  pull_request:
-    branches: [main, feat/terraform-ci]
+    branches: [main, fix/terraform-ci]
 
 env:
   REGISTRY: ghcr.io

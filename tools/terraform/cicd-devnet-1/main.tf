@@ -1,3 +1,4 @@
+variable "name" {}
 variable "region" {}
 variable "cidr_block" {}
 variable "min_num_nodes" {}
@@ -21,7 +22,7 @@ provider "aws" {
 module "eks" {
   source = "git::https://github.com/toposware/infrastructure-as-code.git//terraform/modules/aws/eks"
 
-  name   = "cicd-devnet-1"
+  name   = var.name
   region = var.region
 
   cidr_block         = var.cidr_block
@@ -33,7 +34,7 @@ module "eks" {
   max_num_nodes = var.max_num_nodes
 
   create_external_dns = false
-  create_ebs = false
+  create_ebs          = false
 }
 
 output "cluster_name" {

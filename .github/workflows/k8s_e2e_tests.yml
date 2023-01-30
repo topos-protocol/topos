@@ -14,6 +14,8 @@ jobs:
         password: ${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
     permissions:
       contents: read
+    env:
+      E2E_ID: "e2e-{github.repository_id}-${github.sha:0:6}"
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -45,11 +47,17 @@ jobs:
 
       - name: Terraform init
         working-directory: tools/terraform/cicd-devnet-1
-        run: terraform init -backend-config=backend.conf
+        run: |
+          terraform init \
+            -backend-config="key=${{ env.E2E_ID }}.tf" \
+            -backend-config=backend.conf
 
       - name: Terraform apply
         working-directory: tools/terraform/cicd-devnet-1
-        run: terraform apply -auto-approve -var-file=terraform.tfvars.default
+        run: |
+          terraform apply -auto-approve \
+            -var "name=${{ env.E2E_ID }}" \
+            -var-file=terraform.tfvars.default
 
       - name: Grab results from Terraform
         working-directory: tools/terraform/cicd-devnet-1
@@ -93,4 +101,7 @@ jobs:
       - name: Terraform destroy
         if: always()
         working-directory: tools/terraform/cicd-devnet-1
-        run: terraform destroy -auto-approve -var-file=terraform.tfvars.default
+        run: |
+          terraform destroy -auto-approve \
+            -var "name={{ env.E2E_ID }}" \
+            -var-file=terraform.tfvars.default
