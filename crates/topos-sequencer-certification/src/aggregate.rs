@@ -135,16 +135,26 @@ impl Certification {
         // For every block, create one certificate
         // This will change after MVP
         for block_info in &certification.finalized_blocks {
-            let mut events: Vec<SubnetEvent> = Vec::new();
+            let mut target_subnets: Vec<SubnetId> = Vec::new();
             for event in &block_info.events {
-                // TODO decide if we need events, we probably need them to determine target subnets
-                events.push(event.clone());
+                match event {
+                    SubnetEvent::TokenSent {
+                        target_subnet_id, ..
+                    } => {
+                        target_subnets.push(*target_subnet_id);
+                    }
+                    SubnetEvent::ContractCall {
+                        target_subnet_id, ..
+                    } => {
+                        target_subnets.push(*target_subnet_id);
+                    }
+                    SubnetEvent::ContractCallWithToken {
+                        target_subnet_id, ..
+                    } => {
+                        target_subnets.push(*target_subnet_id);
+                    }
+                }
             }
-
-            println!(">>>>>>>>>>>>>> EVENTS {:?}", &block_info.events);
-
-            // TODO collect target subnets from events
-            let target_subnets: Vec<SubnetId> = Vec::new();
 
             // Get the id of the previous Certificate
             let previous_cert_id: CertificateId = match certification.history.get(&subnet_id) {
@@ -187,8 +197,6 @@ impl Certification {
         subnet_history.extend(generated_certificates.iter().map(|cert| cert.id));
 
         certification.finalized_blocks.clear();
-
-        println!(">>>>>>>>>>>>>>>>>>>> {:?}", certification.history);
 
         Ok(generated_certificates)
     }
