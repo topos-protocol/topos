@@ -4,11 +4,18 @@ package topos.uci.v1;
 
 import "topos/shared/v1/subnet.proto";
 import "topos/shared/v1/certificate.proto";
+import "topos/shared/v1/frost.proto";
+import "topos/shared/v1/stark_proof.proto";
 
 // Certificate - main exchange item
 message Certificate {
   topos.shared.v1.CertificateId prev_id = 1;
   topos.shared.v1.SubnetId source_subnet_id = 2;
-  repeated topos.shared.v1.SubnetId target_subnets = 3;
-  topos.shared.v1.CertificateId id = 4;
+  bytes state_root = 3;
+  bytes tx_root_hash = 4;
+  repeated topos.shared.v1.SubnetId target_subnets = 5;
+  uint32 verifier = 6;
+  topos.shared.v1.CertificateId id = 7;
+  topos.shared.v1.StarkProof proof = 8;
+  topos.shared.v1.Frost signature = 9;
 }

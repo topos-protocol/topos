@@ -173,11 +173,25 @@ fn generate_cert(
 
         let gen_cert: Certificate;
         if is_conflicting {
-            gen_cert = Certificate::new([0u8; 32], selected_subnet, Default::default())
-                .unwrap_or_default();
+            gen_cert = Certificate::new(
+                [0u8; 32],
+                selected_subnet,
+                Default::default(),
+                Default::default(),
+                Default::default(),
+                0,
+            )
+            .unwrap_or_default();
         } else {
-            gen_cert = Certificate::new(*last_cert_id, selected_subnet, Default::default())
-                .unwrap_or_default();
+            gen_cert = Certificate::new(
+                *last_cert_id,
+                selected_subnet,
+                Default::default(),
+                Default::default(),
+                Default::default(),
+                0,
+            )
+            .unwrap_or_default();
             *last_cert_id = gen_cert.id;
         }
 

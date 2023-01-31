@@ -54,6 +54,7 @@ async fn create_tce_layer() {
                     id: Some(return_certificate_id.clone()),
                     prev_id: Some(return_prev_certificate_id.clone()),
                     target_subnets: Vec::new(),
+                    ..Default::default()
                 }),
             }))
         }
@@ -126,6 +127,7 @@ async fn create_tce_layer() {
         id: Some(certificate_id),
         prev_id: Some(prev_certificate_id),
         target_subnets: vec![],
+        ..Default::default()
     };
 
     // Submit one certificate

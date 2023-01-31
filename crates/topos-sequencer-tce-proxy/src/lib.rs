@@ -80,7 +80,7 @@ enum TceClientCommand {
         subnet_id: topos_core::uci::SubnetId,
     },
     SendCertificate {
-        cert: Certificate,
+        cert: Box<Certificate>,
     },
     Shutdown,
 }
@@ -103,7 +103,9 @@ impl TceClient {
     }
     pub async fn send_certificate(&mut self, cert: Certificate) -> Result<(), Error> {
         self.command_sender
-            .send(TceClientCommand::SendCertificate { cert })
+            .send(TceClientCommand::SendCertificate {
+                cert: Box::new(cert),
+            })
             .await
             .map_err(|_| InvalidChannelError)?;
         Ok(())
@@ -289,7 +291,7 @@ impl TceClientBuilder {
                                 let previous_cert_id = cert.prev_id;
                                 match tce_grpc_client
                                 .submit_certificate(SubmitCertificateRequest {
-                                    certificate: Some(topos_core::api::uci::v1::Certificate::from(cert)),
+                                    certificate: Some(topos_core::api::uci::v1::Certificate::from(*cert)),
                                 })
                                 .await
                                 .map(|r| r.into_inner()) {
@@ -453,7 +455,7 @@ impl TceProxyWorker {
                                     "Submitting new certificate to the TCE network: {:?}",
                                     &cert
                                 );
-                                if let Err(e) = tce_client.send_certificate(cert).await {
+                                if let Err(e) = tce_client.send_certificate(*cert).await {
                                     error!("failed to pass certificate to tce client, error details: {}", e);
                                 }
                             }

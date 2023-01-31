@@ -75,7 +75,7 @@ jobs:
           mkdir contracts
           docker create --name dummy ${{ env.REGISTRY }}/${{ env.TOPOS_SMART_CONTRACTS_IMAGE_NAME }}:${{ env.TOPOS_SMART_CONTRACTS_IMAGE_TAG }}
           docker cp dummy:/usr/src/app/brownie/build/contracts/TokenDeployer.json ./contracts/
-          docker cp dummy:/usr/src/app/brownie/build/contracts/ToposCoreContract.json ./contracts/
+          docker cp dummy:/usr/src/app/brownie/build/contracts/ToposCore.json ./contracts/
           docker rm -f dummy
 
       - name: Run all workspace tests

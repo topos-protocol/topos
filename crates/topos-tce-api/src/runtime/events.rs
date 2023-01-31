@@ -7,7 +7,7 @@ use super::error::RuntimeError;
 
 pub enum RuntimeEvent {
     CertificateSubmitted {
-        certificate: Certificate,
+        certificate: Box<Certificate>,
         sender: oneshot::Sender<Result<(), RuntimeError>>,
         ctx: Span,
     },

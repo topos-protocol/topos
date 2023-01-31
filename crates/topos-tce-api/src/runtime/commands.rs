@@ -48,7 +48,7 @@ pub(crate) enum InternalRuntimeCommand {
     /// Dispatch when a certificate has been submitted to the TCE.
     /// This command will be used to trigger the DoubleEcho process.
     CertificateSubmitted {
-        certificate: Certificate,
+        certificate: Box<Certificate>,
         sender: oneshot::Sender<Result<(), RuntimeError>>,
         ctx: Span,
     },

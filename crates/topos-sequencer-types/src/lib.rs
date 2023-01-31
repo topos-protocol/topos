@@ -9,6 +9,8 @@ pub type BlockNumber = u64;
 pub type Hash = String;
 pub type SubnetId = [u8; 32];
 pub type Address = Vec<u8>;
+pub type StateRoot = [u8; 32];
+pub type TxRootHash = [u8; 32];
 
 /// Event collected from the sending subnet
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -48,8 +50,10 @@ pub struct BlockInfo {
     pub parent_hash: Hash,
     /// block's number.
     pub number: BlockNumber,
-    /// Block's extrinsics.
-    pub data: BlockData,
+    /// state root
+    pub state_root: StateRoot,
+    /// tx root hash
+    pub tx_root_hash: TxRootHash,
     /// Subnet events collected in this block
     pub events: Vec<SubnetEvent>,
 }
@@ -91,7 +95,7 @@ pub enum RuntimeProxyCommand {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum TceProxyCommand {
     /// Submit a newly created certificate to the TCE network
-    SubmitCertificate(Certificate),
+    SubmitCertificate(Box<Certificate>),
     /// Exit command
     Exit,
 }
@@ -117,7 +121,7 @@ pub enum TceCommands {
     /// Shuts down the instance
     Shutdown,
     /// Entry point for new certificate to submit as initial sender
-    OnBroadcast { cert: Certificate },
+    OnBroadcast { cert: Box<Certificate> },
     /// We got updated list of visible peers to work with, let protocol do the sampling
     OnVisiblePeersChanged { peers: Vec<String> },
     /// We got updated list of connected peers to gossip to
@@ -132,23 +136,23 @@ pub enum TceCommands {
     OnReadySubscribeOk { from_peer: String },
     /// Upon new certificate to start delivery
     OnStartDelivery {
-        cert: Certificate,
+        cert: Box<Certificate>,
         digest: DigestCompressed,
     },
     /// Received G-set message
     OnGossip {
-        cert: Certificate,
+        cert: Box<Certificate>,
         digest: DigestCompressed,
     },
     /// When echo reply received
     OnEcho {
         from_peer: String,
-        cert: Certificate,
+        cert: Box<Certificate>,
     },
     /// When ready reply received
     OnReady {
         from_peer: String,
-        cert: Certificate,
+        cert: Box<Certificate>,
     },
 }
 
