@@ -114,7 +114,7 @@ services:
 
   cert-spammer:
     container_name: spam
-    image: ghcr.io/toposware/cert-spammer:chore-update_api_dependencies
+    image: ghcr.io/toposware/cert-spammer:main
     init: true
     volumes:
       - shared:/tmp/shared
