@@ -189,11 +189,12 @@ impl Certification {
             .get_mut(&subnet_id)
             .ok_or(Error::IllFormedSubnetHistory)?;
 
-        // Just to be on the safe side remove all generated certificates that may exist in history
-        let generated_certificates: Vec<Certificate> = generated_certificates
-            .into_iter()
-            .filter(|new_cert| !subnet_history.contains(&new_cert.id))
-            .collect();
+        for new_cert in &generated_certificates {
+            if subnet_history.contains(&new_cert.id) {
+                // This should not happen
+                panic!("Same certificate generated multiple times: {new_cert:?}");
+            }
+        }
 
         subnet_history.extend(generated_certificates.iter().map(|cert| cert.id));
 
