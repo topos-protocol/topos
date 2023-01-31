@@ -81,7 +81,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .with_max_attributes_per_span(16)
                     .with_max_events_per_span(16)
                     // resources will translated to tags in jaeger spans
-                    .with_resource(Resource::new(vec![KeyValue::new("service.name", "topos")])),
+                    .with_resource(Resource::new(vec![
+                        KeyValue::new(
+                            "service.name",
+                            std::env::var("TCE_JAEGER_SERVICE_NAME").unwrap(),
+                        ),
+                        KeyValue::new("service.version", env!("TOPOS_VERSION")),
+                    ])),
             )
             .install_batch(opentelemetry::runtime::Tokio)
             .unwrap();

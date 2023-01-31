@@ -98,6 +98,7 @@ pub(crate) async fn handle_command(
                         .and_then(|path| PathBuf::from_str(path).ok()),
                 ),
                 network_bootstrap_timeout: Duration::from_secs(10),
+                version: env!("TOPOS_VERSION").to_string(),
             };
 
             print_node_info(&config);
@@ -160,8 +161,7 @@ pub(crate) async fn handle_command(
 }
 
 pub fn print_node_info(config: &TceConfiguration) {
-    // TODO: print commit hash, tag, release, year
-    info!("TCE Node");
+    info!("TCE Node - version: {}", config.version);
 
     if let StorageConfiguration::RocksDB(Some(ref path)) = config.storage {
         info!("RocksDB at {:?}", path);
