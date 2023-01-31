@@ -29,7 +29,7 @@ tokio = { workspace = true, features = [
     "time",
     "sync",
 ] }
-tracing-subscriber.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 tracing.workspace = true
 
 topos-core = { workspace = true, features = ["uci"] }
@@ -37,11 +37,13 @@ topos-sequencer-subnet-client = { package = "topos-sequencer-subnet-client", pat
 topos-sequencer-types = { package = "topos-sequencer-types", path = "../topos-sequencer-types" }
 
 [dev-dependencies]
-dockertest = "0.3.1"
-fs_extra = "1.2"
 rstest.workspace = true
-secp256k1 = { version = "0.21", features = ["recovery"]}
 serde_json.workspace = true
+web3.workspace = true
+test-log.workspace = true
+env_logger.workspace = true
 serial_test = "0.9"
 tiny-keccak = "1.2"
-web3.workspace = true
+secp256k1 = { version = "0.21", features = ["recovery"]}
+dockertest = "0.3.1"
+fs_extra = "1.2"

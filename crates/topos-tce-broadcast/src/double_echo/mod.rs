@@ -479,8 +479,8 @@ fn is_r_ready(params: &ReliableBroadcastParams, state: &DeliveryState) -> bool {
 
 #[cfg(test)]
 mod tests {
-
     use std::{iter::FromIterator, usize};
+    use test_log::test;
 
     use super::*;
     use crate::mem_store::TceMemStore;
@@ -513,7 +513,7 @@ mod tests {
         expected_view
     }
 
-    #[tokio::test]
+    #[test(tokio::test)]
     async fn handle_receiving_sample_view() {
         let (_subscriptions_view_sender, subscriptions_view_receiver) = mpsc::channel(10);
         let (_subscribers_update_sender, subscribers_update_receiver) = mpsc::channel(10);
@@ -632,7 +632,7 @@ mod tests {
         ));
     }
 
-    #[tokio::test]
+    #[test(tokio::test)]
     async fn buffering_certificate() {
         let (subscriptions_view_sender, subscriptions_view_receiver) = mpsc::channel(30);
         let (subscribers_update_sender, subscribers_update_receiver) = mpsc::channel(30);

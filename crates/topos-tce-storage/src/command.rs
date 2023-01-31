@@ -79,6 +79,7 @@ impl Command for GetSourceHead {
 #[cfg(test)]
 mod tests {
     use std::time::Duration;
+    use test_log::test;
 
     use tokio::spawn;
 
@@ -88,7 +89,7 @@ mod tests {
     const PREV_CERTIFICATE_ID: topos_core::uci::CertificateId =
         CertificateId::from_array([4u8; 32]);
 
-    #[tokio::test]
+    #[test(tokio::test)]
     async fn send_command() {
         let cert = Certificate::new(
             PREV_CERTIFICATE_ID,

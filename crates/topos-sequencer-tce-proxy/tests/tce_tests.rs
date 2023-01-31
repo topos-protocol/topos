@@ -1,6 +1,7 @@
 use futures::{Future, StreamExt};
 use rstest::*;
 use serial_test::serial;
+use test_log::test;
 use topos_core::api::shared::v1::{CertificateId, SubnetId};
 use topos_core::api::tce::v1::{
     watch_certificates_request, watch_certificates_response,
@@ -45,7 +46,7 @@ async fn context_running_tce_mock_node() -> Context {
 }
 
 #[rstest]
-#[tokio::test]
+#[test(tokio::test)]
 #[serial]
 async fn test_tce_submit_certificate(
     context_running_tce_mock_node: impl Future<Output = Context>,
@@ -96,7 +97,7 @@ async fn test_tce_submit_certificate(
 }
 
 #[rstest]
-#[tokio::test]
+#[test(tokio::test)]
 #[serial]
 async fn test_tce_watch_certificates(
     context_running_tce_mock_node: impl Future<Output = Context>,
@@ -172,7 +173,7 @@ async fn test_tce_watch_certificates(
 }
 
 #[rstest]
-#[tokio::test]
+#[test(tokio::test)]
 #[serial]
 async fn test_tce_get_source_head_certificate(
     context_running_tce_mock_node: impl Future<Output = Context>,

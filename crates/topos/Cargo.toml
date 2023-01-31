@@ -35,11 +35,11 @@ topos-tce-storage = { path = "../topos-tce-storage" }
 serde.workspace = true
 serde_json.workspace = true
 test-log.workspace = true
+env_logger.workspace = true
 rand.workspace = true
 async-stream.workspace = true
 futures.workspace = true
 libp2p = { workspace = true, features = ["identify"] }
-env_logger = "0.9.1"
 assert_cmd = "2.0.6"
 insta = { version = "1.21", features = ["json", "redactions"] }
 

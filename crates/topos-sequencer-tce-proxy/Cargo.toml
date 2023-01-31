@@ -28,15 +28,14 @@ tokio = { workspace = true, features = [
 ] }
 tokio-stream.workspace = true
 tonic = { workspace = true, features = ["transport"] }
-tracing-subscriber.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter", "json", "ansi", "fmt"] }
 tracing.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]
+rstest.workspace = true
+test-log.workspace = true
+env_logger.workspace = true
 byteorder = "1.4.3"
 dockertest = "0.3.1"
-pretty_env_logger.workspace = true
-rstest.workspace = true
 serial_test = "0.9"
-tracing-subscriber.workspace = true
-tracing.workspace = true

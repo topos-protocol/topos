@@ -427,9 +427,9 @@ pub struct SamplerClient {
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
     use rand::{seq::IteratorRandom, Rng};
+    use test_log::test;
     use tokio::sync::broadcast::error::TryRecvError;
     use tokio::sync::mpsc::Receiver;
 
@@ -445,7 +445,7 @@ mod tests {
         expected_view
     }
 
-    #[tokio::test]
+    #[test(tokio::test)]
     async fn on_peer_change_subscription_sample_view_is_reset() {
         cyclerng::utils::set_cycle([1]);
 
@@ -512,7 +512,7 @@ mod tests {
         assert_eq!(sampler.subscriptions.delivery.len(), 0);
     }
 
-    #[tokio::test]
+    #[test(tokio::test)]
     async fn on_peer_change_subscribers_sample_view_is_updated() {
         cyclerng::utils::set_cycle([1]);
 
@@ -595,7 +595,7 @@ mod tests {
         assert_eq!(sampler.subscribers.ready, expected_ready_subscribers);
     }
 
-    #[tokio::test]
+    #[test(tokio::test)]
     async fn confirming_peers_and_create_expected_subscriptions_view() {
         cyclerng::utils::set_cycle([1]);
 
@@ -704,7 +704,7 @@ mod tests {
         (resulting_echo_subscribers, resulting_ready_subscribers)
     }
 
-    #[tokio::test]
+    #[test(tokio::test)]
     async fn confirming_peers_and_create_expected_subscribers_view() {
         cyclerng::utils::set_cycle([1]);
 
