@@ -74,5 +74,5 @@ jobs:
     # run only when the workflow was scheduled or a PR is being merged into main
     if: ${{ (github.event_name != 'pull_request') }}
     needs: docker
-    uses: toposware/topos/.github/workflows/k8s_e2e_tests.yml@fix/terraform-ci
+    uses: toposware/topos/.github/workflows/k8s_e2e_tests.yml@main
     secrets: inherit
