@@ -4,7 +4,7 @@
 //!
 use futures::FutureExt;
 use futures::{future::join_all, Stream, StreamExt};
-use opentelemetry::trace::FutureExt as TraceFutureExt;
+use opentelemetry::trace::{FutureExt as TraceFutureExt, TraceContextExt};
 use serde::{Deserialize, Serialize};
 use tce_transport::{TceCommands, TceEvents};
 use tokio::spawn;
@@ -564,6 +564,10 @@ impl AppContext {
 
                                 let parent = ctx.extract();
                                 span.set_parent(parent.clone());
+                                if let Ok(root) = self.tce_cli.get_span_cert(cert.id.clone()).await
+                                {
+                                    span.add_link(root.span().span_context().clone());
+                                }
                                 span.in_scope(|| {
                                     debug!(
                                         sender = from.to_string(),
@@ -644,6 +648,11 @@ impl AppContext {
                                 // warn!("RECV Echo context: {:?}", ctx);
                                 let context = ctx.extract();
                                 span.set_parent(context.clone());
+                                if let Ok(root) = self.tce_cli.get_span_cert(cert.id.clone()).await
+                                {
+                                    span.add_link(root.span().span_context().clone());
+                                }
+
                                 // We have received Echo echo message, we are responding with OnDoubleEchoOk
                                 let command_sender = span.in_scope(||{
                                     info!(
@@ -692,6 +701,10 @@ impl AppContext {
                                 // warn!("RECV Ready context: {:?}", ctx);
                                 let context = ctx.extract();
                                 span.set_parent(context.clone());
+                                if let Ok(root) = self.tce_cli.get_span_cert(cert.id.clone()).await
+                                {
+                                    span.add_link(root.span().span_context().clone());
+                                }
                                 let command_sender = span.in_scope(||{
 
                                     // We have received Ready echo message, we are responding with OnDoubleEchoOk

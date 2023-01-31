@@ -1,4 +1,5 @@
 use crate::sampler::SubscribersView;
+use crate::Errors;
 use crate::{
     sampler::SampleType, tce_store::TceStore, DoubleEchoCommand, SubscribersUpdate,
     SubscriptionsView,
@@ -12,6 +13,7 @@ use tokio::sync::{broadcast, mpsc, oneshot};
 use topos_core::uci::{Certificate, CertificateId, DigestCompressed};
 use topos_p2p::PeerId;
 use tracing::{debug, error, info, info_span, warn, Span};
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 /// Processing data associated to a Certificate candidate for delivery
 /// Sample repartition, one peer may belongs to multiple samples
@@ -31,6 +33,7 @@ pub struct DoubleEcho {
     store: Box<dyn TceStore + Send>,
     cert_candidate: HashMap<Certificate, DeliveryState>,
     pending_delivery: HashMap<Certificate, Span>,
+    span_tracker: HashMap<CertificateId, opentelemetry::Context>,
     all_known_certs: Vec<Certificate>,
     delivery_time: HashMap<CertificateId, (time::SystemTime, time::Duration)>,
     subscriptions: SubscriptionsView, // My subscriptions for echo, ready and delivery feedback
@@ -63,6 +66,7 @@ impl DoubleEcho {
             store,
             cert_candidate: Default::default(),
             pending_delivery: Default::default(),
+            span_tracker: Default::default(),
             all_known_certs: Default::default(),
             delivery_time: Default::default(),
             subscriptions: SubscriptionsView::default(),
@@ -110,11 +114,20 @@ impl DoubleEcho {
                             span.in_scope(||{
                                 debug!("DoubleEchoCommand::Broadcast cert_id: {}", cert.id);
                                 if self.buffer.len() < Self::MAX_BUFFER_SIZE {
+                                    self.span_tracker.insert(cert.id.clone(), Span::current().context());
                                     self.buffer.push_back((cert, Span::current()));
                                 } else {
                                     error!("Double echo buffer is full for certificate {}", cert.id);
                                 }
                             });
+                        }
+
+                        DoubleEchoCommand::GetSpanOfCert { certificate_id, sender } => {
+                            if let Some(ctx) = self.span_tracker.get(&certificate_id) {
+                                _ = sender.send(Ok(ctx.clone()));
+                            } else {
+                                _ = sender.send(Err(Errors::CertificateNotFound));
+                            }
                         }
 
                         command if self.subscriptions.is_some() => {
@@ -136,6 +149,7 @@ impl DoubleEcho {
                                         self.handle_deliver(cert, digest)
                                     });
                                 },
+
 
                                 _ => {}
                             }

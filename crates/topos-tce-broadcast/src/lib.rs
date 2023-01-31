@@ -58,6 +58,11 @@ pub enum SamplerCommand {
 
 #[derive(Debug)]
 pub enum DoubleEchoCommand {
+    GetSpanOfCert {
+        certificate_id: CertificateId,
+        sender: oneshot::Sender<Result<opentelemetry::Context, Errors>>,
+    },
+
     /// Received G-set message
     Deliver {
         cert: Certificate,
@@ -241,6 +246,29 @@ impl ReliableBroadcastClient {
 
             receiver.await.map_err(Into::into).and_then(|result| result)
         }
+    }
+
+    /// delivered certificates for given target chain after the given certificate
+    pub async fn get_span_cert(
+        &self,
+        certificate_id: CertificateId,
+    ) -> Result<opentelemetry::Context, Errors> {
+        let (sender, receiver) = oneshot::channel();
+
+        let broadcast_commands = self.broadcast_commands.clone();
+
+        if broadcast_commands
+            .send(DoubleEchoCommand::GetSpanOfCert {
+                certificate_id,
+                sender,
+            })
+            .await
+            .is_err()
+        {
+            error!("Unable to execute get_span_cert");
+        }
+
+        receiver.await.map_err(Into::into).and_then(|result| result)
     }
 
     pub async fn delivered_certs_ids(
