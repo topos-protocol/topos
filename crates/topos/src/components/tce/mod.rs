@@ -98,7 +98,7 @@ pub(crate) async fn handle_command(
                         .and_then(|path| PathBuf::from_str(path).ok()),
                 ),
                 network_bootstrap_timeout: Duration::from_secs(10),
-                version: env!("TOPOS_VERSION")
+                version: env!("TOPOS_VERSION"),
             };
 
             print_node_info(&config);
