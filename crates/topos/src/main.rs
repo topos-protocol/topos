@@ -116,7 +116,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             )
             .build();
 
-        layers.push(tracing_opentelemetry::layer().with_tracer(tracer).boxed());
+        layers.push(
+            tracing_opentelemetry::layer()
+                .with_tracer(tracer)
+                .with_filter(EnvFilter::try_new("topos=debug").unwrap())
+                .boxed(),
+        );
     };
 
     tracing_subscriber::registry().with(layers).try_init()?;

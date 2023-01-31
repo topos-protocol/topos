@@ -12,7 +12,6 @@ use tokio::sync::{broadcast, mpsc, oneshot};
 use topos_core::uci::{Certificate, CertificateId, DigestCompressed};
 use topos_p2p::PeerId;
 use tracing::{debug, error, info, info_span, warn, Span};
-use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 /// Processing data associated to a Certificate candidate for delivery
 /// Sample repartition, one peer may belongs to multiple samples
@@ -38,6 +37,8 @@ pub struct DoubleEcho {
     subscribers: SubscribersView,     // Echo and ready subscribers that are following me
     buffer: VecDeque<(Certificate, Span)>,
     pub(crate) shutdown: mpsc::Receiver<oneshot::Sender<()>>,
+
+    local_peer_id: String,
 }
 
 impl DoubleEcho {
@@ -51,6 +52,7 @@ impl DoubleEcho {
         event_sender: broadcast::Sender<TceEvents>,
         store: Box<dyn TceStore + Send>,
         shutdown: mpsc::Receiver<oneshot::Sender<()>>,
+        local_peer_id: String,
     ) -> Self {
         Self {
             params,
@@ -67,6 +69,7 @@ impl DoubleEcho {
             subscribers: SubscribersView::default(),
             buffer: VecDeque::new(),
             shutdown,
+            local_peer_id,
         }
     }
 
@@ -102,7 +105,7 @@ impl DoubleEcho {
                         }
 
                         DoubleEchoCommand::Broadcast { cert, ctx } => {
-                            let span = info_span!(target: "topos", parent: &ctx, "Broadcast");
+                            let span = info_span!(target: "topos", parent: &ctx, "DoubleEcho buffering", peer_id = self.local_peer_id);
 
                             span.in_scope(||{
                                 debug!("DoubleEchoCommand::Broadcast cert_id: {}", cert.id);
@@ -241,8 +244,9 @@ impl DoubleEcho {
     /// - or received through the gossip (first step of protocol exchange)
     fn dispatch(&mut self, cert: Certificate, digest: DigestCompressed) {
         let span = info_span!(
-            "Dispatch",
+            "DoubleEcho start dispatching",
             certificate_id = cert.id.to_string(),
+            peer_id = self.local_peer_id,
             "otel.kind" = "producer"
         );
         let _enter = span.enter();
@@ -269,7 +273,7 @@ impl DoubleEcho {
             peers: gossip_peers, // considered as the G-set for erdos-renyi
             cert: cert.clone(),
             digest: digest.clone(),
-            ctx: Span::current().context(),
+            ctx: Span::current(),
         });
 
         // Trigger event of new certificate candidate for delivery
@@ -318,7 +322,7 @@ impl DoubleEcho {
         let _ = self.event_sender.send(TceEvents::Echo {
             peers: echo_peers,
             cert,
-            ctx: Span::current().context(),
+            ctx: Span::current(),
         });
     }
 
@@ -364,16 +368,12 @@ impl DoubleEcho {
                     gen_evts.push(TceEvents::Ready {
                         peers: readies.clone(),
                         cert: cert.clone(),
-                        ctx: state_to_delivery.ctx.context(),
+                        ctx: state_to_delivery.ctx.clone(),
                     });
                 }
                 state_to_delivery.subscriptions.ready.clear();
             }
 
-            debug!(
-                "Is it ok to delivery ? {:?}",
-                is_ok_to_deliver(&self.params, state_to_delivery)
-            );
             if is_ok_to_deliver(&self.params, state_to_delivery) {
                 self.pending_delivery
                     .insert(cert.clone(), state_to_delivery.ctx.clone());
@@ -394,7 +394,7 @@ impl DoubleEcho {
                 .collect::<HashMap<_, _>>();
 
             for (cert, ctx) in cert_to_pending {
-                let span = info_span!(parent: &ctx, "Delivered");
+                let span = info_span!(parent: &ctx, "Delivered", peer_id = self.local_peer_id);
 
                 span.in_scope(|| {
                     if self.store.apply_cert(&cert).is_ok() {
@@ -568,6 +568,7 @@ mod tests {
             event_sender,
             Box::new(TceMemStore::default()),
             double_echo_shutdown_receiver,
+            String::new(),
         );
 
         assert!(double_echo.subscriptions.is_none());
@@ -690,6 +691,7 @@ mod tests {
             event_sender,
             Box::new(TceMemStore::default()),
             double_echo_shutdown_receiver,
+            String::new(),
         );
 
         spawn(double_echo.run());

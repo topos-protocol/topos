@@ -3,8 +3,8 @@ use topos_core::uci::{Certificate, CertificateId, SubnetId};
 
 use crate::{
     command::{
-        AddPendingCertificate, CertificateDelivered, FetchCertificates, GetCertificate,
-        GetSourceHead, RemovePendingCertificate, StorageCommand,
+        AddPendingCertificate, CertificateDelivered, CheckPendingCertificateExists,
+        FetchCertificates, GetCertificate, GetSourceHead, RemovePendingCertificate, StorageCommand,
     },
     errors::StorageError,
     FetchCertificatesFilter, PendingCertificateId,
@@ -26,6 +26,17 @@ impl StorageClient {
             sender,
             shutdown_channel,
         }
+    }
+
+    pub async fn pending_certificate_exists(
+        &self,
+        certificate_id: CertificateId,
+    ) -> Result<(PendingCertificateId, Certificate), StorageError> {
+        CheckPendingCertificateExists {
+            certificate_id: certificate_id.clone(),
+        }
+        .send_to(&self.sender)
+        .await
     }
 
     /// Ask the storage to add a new pending certificate

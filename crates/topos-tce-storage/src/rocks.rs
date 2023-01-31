@@ -83,6 +83,19 @@ impl RocksDBStorage {
 
 #[async_trait::async_trait]
 impl Storage for RocksDBStorage {
+    async fn get_pending_certificate(
+        &self,
+        certificate_id: CertificateId,
+    ) -> Result<(PendingCertificateId, Certificate), InternalStorageError> {
+        self.pending_certificates
+            .iter()?
+            .filter(|(_pending_id, cert)| cert.id == certificate_id)
+            .collect::<Vec<_>>()
+            .first()
+            .cloned()
+            .ok_or(InternalStorageError::CertificateNotFound(certificate_id))
+    }
+
     async fn add_pending_certificate(
         &self,
         certificate: Certificate,

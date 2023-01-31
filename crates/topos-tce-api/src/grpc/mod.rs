@@ -27,12 +27,13 @@ pub(crate) mod builder;
 
 #[derive(Debug)]
 pub(crate) struct TceGrpcService {
+    local_peer_id: String,
     command_sender: mpsc::Sender<InternalRuntimeCommand>,
 }
 
 #[tonic::async_trait]
 impl ApiService for TceGrpcService {
-    #[instrument(name = "CertificateSubmitted", skip(self, request), fields(certificate_id = field::Empty))]
+    #[instrument(name = "CertificateSubmitted", skip(self, request), fields(peer_id = self.local_peer_id, certificate_id = field::Empty))]
     async fn submit_certificate(
         &self,
         request: Request<SubmitCertificateRequest>,

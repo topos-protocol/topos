@@ -122,6 +122,11 @@ pub enum CertificateStatus {
 /// The `Storage` trait defines methods to interact and manage with the persistency layer
 #[async_trait::async_trait]
 pub trait Storage: Sync + Send + 'static {
+    async fn get_pending_certificate(
+        &self,
+        certificate_id: CertificateId,
+    ) -> Result<(PendingCertificateId, Certificate), InternalStorageError>;
+
     /// Add a pending certificate to the pool
     async fn add_pending_certificate(
         &self,

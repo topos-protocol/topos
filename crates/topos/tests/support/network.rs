@@ -57,6 +57,7 @@ where
         let fut = async {
             let (tce_cli, tce_stream) = create_reliable_broadcast_client(
                 create_reliable_broadcast_params(correct_sample, &g),
+                keypair.public().to_peer_id().to_string(),
             );
             let (command_sampler, command_broadcast) = tce_cli.get_command_channels();
 
@@ -224,13 +225,14 @@ async fn create_network_worker(
 
 fn create_reliable_broadcast_client(
     tce_params: ReliableBroadcastParams,
+    peer_id: String,
 ) -> (
     ReliableBroadcastClient,
     impl Stream<Item = Result<TceEvents, ()>> + Unpin,
 ) {
     let config = ReliableBroadcastConfig { tce_params };
 
-    ReliableBroadcastClient::new(config)
+    ReliableBroadcastClient::new(config, peer_id)
 }
 
 fn create_reliable_broadcast_params<F>(correct_sample: usize, g: F) -> ReliableBroadcastParams

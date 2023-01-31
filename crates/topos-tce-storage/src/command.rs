@@ -12,6 +12,7 @@ RegisterCommands!(
     commands = [
         AddPendingCertificate,
         CertificateDelivered,
+        CheckPendingCertificateExists,
         GetCertificate,
         GetSourceHead,
         FetchCertificates,
@@ -74,6 +75,15 @@ pub struct GetSourceHead {
 
 impl Command for GetSourceHead {
     type Result = (u64, Certificate);
+}
+
+#[derive(Debug)]
+pub struct CheckPendingCertificateExists {
+    pub(crate) certificate_id: CertificateId,
+}
+
+impl Command for CheckPendingCertificateExists {
+    type Result = (PendingCertificateId, Certificate);
 }
 
 #[cfg(test)]
