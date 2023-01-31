@@ -84,7 +84,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .with_resource(Resource::new(vec![
                         KeyValue::new(
                             "service.name",
-                            std::env::var("TCE_JAEGER_SERVICE_NAME").unwrap(),
+                            std::env::var("TCE_JAEGER_SERVICE_NAME").except("TCE_JAEGER_SERVICE_NAME must be defined"),
                         ),
                         KeyValue::new("service.version", env!("TOPOS_VERSION")),
                     ])),

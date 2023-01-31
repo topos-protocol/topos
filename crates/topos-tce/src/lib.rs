@@ -27,7 +27,7 @@ pub struct TceConfiguration {
     pub tce_local_port: u16,
     pub storage: StorageConfiguration,
     pub network_bootstrap_timeout: Duration,
-    pub version: String,
+    pub version: &'static str,
 }
 
 #[derive(Debug)]
