@@ -1,6 +1,9 @@
 name: Docker_build_push
 
 on:
+  schedule:
+    # Triggers the workflow every day at 5:30 UTC:
+    - cron:  '30 5 * * *'
   push:
     branches: [main]
   pull_request:
@@ -68,6 +71,8 @@ jobs:
           path: docker/
 
   k8s:
+    # run only when the workflow was scheduled or a PR is being merged into main
+    if: ${{ (github.event_name != 'pull_request') }}
     needs: docker
-    uses: toposware/topos/.github/workflows/k8s_e2e_tests.yml@feat/terraform-ci
+    uses: toposware/topos/.github/workflows/k8s_e2e_tests.yml@main
     secrets: inherit

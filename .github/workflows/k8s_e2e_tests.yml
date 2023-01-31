@@ -24,10 +24,15 @@ jobs:
         with:
           name: docker_tags
 
-      - name: Set Docker tag as environment variable
+      - name: Set environment
         run: |
           docker_tag=$(head -n 1 docker_tags)
           echo "DOCKER_TAG=${docker_tag#*:}" >> $GITHUB_ENV
+
+          sha=${{ github.sha }}
+          e2e_id="e2e-${{ github.repository_id }}-${sha:0:6}"
+          echo "E2E_ID=${e2e_id}" >> $GITHUB_ENV
+        shell: bash
 
       - name: Enable remote modules download
         run: git config --global url."https://${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}@github.com/".insteadOf "https://github.com/"
@@ -45,17 +50,26 @@ jobs:
 
       - name: Terraform init
         working-directory: tools/terraform/cicd-devnet-1
-        run: terraform init -backend-config=backend.conf
+        run: |
+          terraform init \
+            -backend-config="key=${{ env.E2E_ID }}.tfstate" \
+            -backend-config=backend.conf
 
       - name: Terraform apply
         working-directory: tools/terraform/cicd-devnet-1
-        run: terraform apply -auto-approve -var-file=terraform.tfvars.default
+        run: |
+          terraform apply -auto-approve \
+            -var "name=${{ env.E2E_ID }}" \
+            -var-file=terraform.tfvars.default
 
       - name: Grab results from Terraform
         working-directory: tools/terraform/cicd-devnet-1
         run: |
           filesystem_id=$(terraform output --raw eks_efs_id)
           echo "FILESYSTEM_ID=${filesystem_id}" >> $GITHUB_ENV
+
+          eks_efs_csi_irsa_arn=$(terraform output --raw eks_efs_csi_irsa_arn)
+          echo "EKS_EFS_CSI_IRSA_ARN=${eks_efs_csi_irsa_arn}" >> $GITHUB_ENV
 
       - name: Configure kubeconfig
         working-directory: tools/terraform/cicd-devnet-1
@@ -87,10 +101,14 @@ jobs:
           DOCKER_USERNAME: ${{ github.actor }}
           DOCKER_PASSWORD: ${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
           FILESYSTEM_ID: ${{ env.FILESYSTEM_ID }}
+          EKS_EFS_CSI_IRSA_ARN: ${{ env.EKS_EFS_CSI_IRSA_ARN }}
         run: |
           helmfile destroy
 
       - name: Terraform destroy
         if: always()
         working-directory: tools/terraform/cicd-devnet-1
-        run: terraform destroy -auto-approve -var-file=terraform.tfvars.default
+        run: |
+          terraform destroy -auto-approve \
+            -var "name=${{ env.E2E_ID }}" \
+            -var-file=terraform.tfvars.default
