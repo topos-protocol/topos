@@ -116,13 +116,13 @@ impl AppContext {
                 async {
                     _ = self
                         .pending_storage
-                        .add_pending_certificate(certificate.clone())
+                        .add_pending_certificate(certificate.as_ref().clone())
                         .instrument(Span::current())
                         .await;
                     info!("Certificate added to pending storage");
                     spawn(
                         self.tce_cli
-                            .broadcast_new_certificate(certificate, Span::current())
+                            .broadcast_new_certificate(*certificate, Span::current())
                             .instrument(Span::current()),
                     );
                     _ = sender.send(Ok(()));
@@ -177,10 +177,15 @@ impl AppContext {
                     result = Ok((
                         0,
                         topos_core::uci::Certificate {
-                            id: AppContext::DUMMY_INITIAL_CERTIFICATE_ID,
                             prev_id: AppContext::DUMMY_INITIAL_CERTIFICATE_ID,
                             source_subnet_id: subnet_id,
+                            state_root: Default::default(),
+                            tx_root_hash: Default::default(),
                             target_subnets: vec![],
+                            verifier: 0,
+                            id: AppContext::DUMMY_INITIAL_CERTIFICATE_ID,
+                            proof: Default::default(),
+                            signature: Default::default(),
                         },
                     ));
                 };

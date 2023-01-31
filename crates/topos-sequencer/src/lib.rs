@@ -16,6 +16,7 @@ pub struct SequencerConfiguration {
     pub base_tce_api_url: String,
     pub keystore_file: std::path::PathBuf,
     pub keystore_password: Option<String>,
+    pub verifier: u32,
 }
 
 pub async fn run(mut config: SequencerConfiguration) -> Result<(), Box<dyn std::error::Error>> {
@@ -62,7 +63,8 @@ pub async fn run(mut config: SequencerConfiguration) -> Result<(), Box<dyn std::
     };
 
     // Launch the certification worker for certificate production
-    let certification = CertificationWorker::new(subnet_id, source_head_certificate_id)?;
+    let certification =
+        CertificationWorker::new(subnet_id, source_head_certificate_id, config.verifier)?;
 
     // Instantiate subnet runtime proxy, handling interaction with subnet node
     let subnet_runtime_proxy = match RuntimeProxyWorker::new(RuntimeProxyConfig {

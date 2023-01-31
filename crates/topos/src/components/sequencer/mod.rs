@@ -17,6 +17,7 @@ pub(crate) async fn handle_command(
                 base_tce_api_url: cmd.base_tce_api_url,
                 keystore_file: cmd.keystore_file,
                 keystore_password: cmd.keystore_password,
+                verifier: cmd.verifier,
             };
 
             print_sequencer_info(&config);

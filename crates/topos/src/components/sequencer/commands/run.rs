@@ -46,6 +46,10 @@ pub struct Run {
     /// password prompt will be opened
     #[clap(long, env = "TOPOS_SEQUENCER_KEYSTORE_PASSWORD")]
     pub keystore_password: Option<String>,
+
+    /// Verifier version
+    #[clap(long, default_value = "0", env = "TOPOS_SEQUENCER_VERIFIER_VERSION")]
+    pub verifier: u32,
 }
 
 impl Run {}

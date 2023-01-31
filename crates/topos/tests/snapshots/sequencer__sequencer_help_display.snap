@@ -21,6 +21,8 @@ Options:
           Keystore file [env: TOPOS_SEQUENCER_KEYSTORE_FILE=] [default: topos-sequencer-keystore.json]
       --keystore-password <KEYSTORE_PASSWORD>
           Keystore file password. If this parameter is not provided password prompt will be opened [env: TOPOS_SEQUENCER_KEYSTORE_PASSWORD=]
+      --verifier <VERIFIER>
+          Verifier version [env: TOPOS_SEQUENCER_VERIFIER_VERSION=] [default: 0]
   -h, --help
           Print help
 

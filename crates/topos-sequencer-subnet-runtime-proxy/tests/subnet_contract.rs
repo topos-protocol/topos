@@ -19,7 +19,7 @@ mod common;
 use common::subnet_test_data::{generate_test_keystore_file, TEST_KEYSTORE_FILE_PASSWORD};
 use topos_sequencer_subnet_runtime_proxy::{RuntimeProxyConfig, RuntimeProxyWorker};
 
-const SUBNET_TCC_JSON_DEFINITION: &'static str = "ToposCoreContract.json";
+const SUBNET_TCC_JSON_DEFINITION: &'static str = "ToposCore.json";
 const SUBNET_TOKEN_DEPLOYER_JSON_DEFINITION: &'static str = "TokenDeployer.json";
 const SUBNET_CHAIN_ID: u64 = 100;
 const SUBNET_RPC_PORT: u32 = 8545;
@@ -521,6 +521,7 @@ async fn test_subnet_certificate_push_call(
         id: CERTIFICATE_ID,
         prev_id: PREV_CERTIFICATE_ID,
         target_subnets: vec![SOURCE_SUBNET_ID],
+        ..Default::default()
     };
     println!("Sending mock certificate to subnet smart contract...");
     if let Err(e) = runtime_proxy_worker
@@ -588,12 +589,14 @@ async fn test_subnet_certificate_get_last_pushed_call(
             id: CERTIFICATE_ID,
             prev_id: PREV_CERTIFICATE_ID,
             target_subnets: vec![SOURCE_SUBNET_ID],
+            ..Default::default()
         },
         Certificate {
             source_subnet_id: SOURCE_SUBNET_ID_2,
             id: CERTIFICATE_ID_2,
             prev_id: CERTIFICATE_ID,
             target_subnets: vec![SOURCE_SUBNET_ID],
+            ..Default::default()
         },
     ];
 

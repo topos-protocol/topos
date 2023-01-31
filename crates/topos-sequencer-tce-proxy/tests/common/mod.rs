@@ -57,6 +57,7 @@ impl ApiService for TceMockServer {
                 prev_id: Default::default(),
                 source_subnet_id: request.subnet_id.clone(),
                 target_subnets: vec![],
+                ..Default::default()
             };
             history.push(dummy_certificate);
         }
@@ -129,7 +130,8 @@ impl ApiService for TceMockServer {
                                                 Some(CertificateId {
                                                 value: bytes,
                                             })},
-                                            target_subnets: vec![]
+                                            target_subnets: vec![],
+                                            ..Default::default()
                                         })}))}).await;
                                 };
                                 tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;

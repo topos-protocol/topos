@@ -173,13 +173,6 @@ impl SubnetClientListener {
             None => return Err(Error::BlockNotAvailable),
         };
 
-        // Take out relevant block data
-        // TODO decide which data to keep
-        let mut data: Vec<u8> = Vec::new();
-        data.extend_from_slice(block.state_root.as_bytes());
-        data.extend_from_slice(block.transactions_root.as_bytes());
-        data.extend_from_slice(block.receipts_root.as_bytes());
-
         // Parse events
         let signatures = self
             .events
@@ -205,7 +198,8 @@ impl SubnetClientListener {
             hash: block.hash.unwrap_or_default().to_string(),
             parent_hash: block.parent_hash.to_string(),
             number: new_block_number,
-            data,
+            state_root: block.state_root.0,
+            tx_root_hash: block.transactions_root.0,
             events,
         };
         info!("Fetched new finalized block: {:?}", block_info.number);

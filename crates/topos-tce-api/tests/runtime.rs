@@ -73,7 +73,10 @@ async fn runtime_can_dispatch_a_cert() {
     let cert = topos_core::uci::Certificate::new(
         PREV_CERTIFICATE_ID,
         SOURCE_SUBNET_ID,
+        Default::default(),
+        Default::default(),
         &vec![TARGET_SUBNET_ID],
+        0,
     )
     .unwrap();
 
