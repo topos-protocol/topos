@@ -14,7 +14,7 @@ pub fn get_private_key(
         eth_keystore::decrypt_key(keypath, password)?
     } else {
         let key = std::fs::read_to_string(keypath)?.trim().to_string();
-        hex::decode(&key).map_err(|e| Error::InvalidKeyError {
+        hex::decode(key).map_err(|e| Error::InvalidKeyError {
             message: e.to_string(),
         })?
     };
