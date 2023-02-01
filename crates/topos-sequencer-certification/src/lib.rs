@@ -104,10 +104,11 @@ impl Clone for CertificationWorker {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use test_log::test;
     const TEST_SUBNET_ID: SubnetId = [1u8; 32];
     const TEST_CERTIFICATE_ID: CertificateId = CertificateId::from_array([5u8; 32]);
 
-    #[tokio::test]
+    #[test(tokio::test)]
     async fn instantiate_certification_worker() {
         // Launch the certification worker for certificate production
         let _cert_worker =
@@ -119,7 +120,7 @@ mod tests {
             };
     }
 
-    #[tokio::test]
+    #[test(tokio::test)]
     async fn certification_worker_eval() {
         // Launch the certification worker for certificate production
         let cert_worker =

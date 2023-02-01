@@ -3,6 +3,7 @@ use futures::{channel::oneshot, FutureExt};
 use futures::{Stream, StreamExt};
 use std::pin::Pin;
 use std::time::Duration;
+use test_log::test;
 use tokio::sync::mpsc;
 use tonic::{transport::Server, Request, Response, Status, Streaming};
 use topos_api::shared;
@@ -16,7 +17,7 @@ use topos_api::tce::v1::{
 use topos_api::uci::v1::Certificate;
 use uuid::Uuid;
 
-#[tokio::test]
+#[test(tokio::test)]
 async fn create_tce_layer() {
     struct TceServer;
 

@@ -30,7 +30,6 @@ web3 = { version = "0.18", features = ["signing"]}
 opentelemetry = { version = "0.18", features = ["rt-tokio", "metrics"] }
 opentelemetry-otlp = { version = " 0.11", features = ["tonic", "metrics", "tls", "tls-roots"] }
 opentelemetry-jaeger = { version = " 0.17" }
-pretty_env_logger = { version = "0.4", default-features = false }
 tracing = { version = "0.1", default-features = false }
 tracing-attributes = "0.1"
 tracing-opentelemetry = "0.18"
@@ -56,3 +55,4 @@ uuid = { version = "1.1.2", default-features = false, features = ["v4"] }
 # Tests
 rstest = { version = "0.16", default-features = false }
 test-log = { version = "0.2", features = ["trace"] }
+env_logger = { version = "0.10.0"} # Needed by test-log to print traces in tests

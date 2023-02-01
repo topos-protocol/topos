@@ -8,8 +8,10 @@ use serial_test::serial;
 use std::env;
 use std::path::PathBuf;
 use std::str::FromStr;
+use test_log::test;
 use tokio::sync::oneshot;
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
+use tracing::{error, info};
 use web3::contract::tokens::Tokenize;
 use web3::ethabi::Token;
 use web3::transports::Http;
@@ -45,7 +47,7 @@ async fn deploy_contract<T, U>(
 where
     (T, U): Tokenize,
 {
-    println!("Parsing  contract file {}", contract_file_path);
+    info!("Parsing  contract file {}", contract_file_path);
     let contract_file = std::fs::File::open(contract_file_path).unwrap();
     let contract_json: serde_json::Value =
         serde_json::from_reader(contract_file).expect("error while reading or parsing");
@@ -86,7 +88,7 @@ where
 
     match deployment_result {
         Ok(contract) => {
-            println!(
+            info!(
                 "Contract {} deployment ok, new contract address: {}",
                 contract_file_path,
                 contract.address()
@@ -94,7 +96,7 @@ where
             Ok(contract)
         }
         Err(e) => {
-            println!("Contract {} deployment error {}", contract_file_path, e);
+            error!("Contract {} deployment error {}", contract_file_path, e);
             Err(Box::<dyn std::error::Error>::from(e))
         }
     }
@@ -109,17 +111,17 @@ async fn deploy_contracts(
     ),
     Box<dyn std::error::Error>,
 > {
-    println!("Deploying subnet smart contract...");
+    info!("Deploying subnet smart contract...");
     let eth_private_key = secp256k1::SecretKey::from_str(TEST_SECRET_ETHEREUM_KEY)?;
 
-    println!("Getting Token deployer definition...");
+    info!("Getting Token deployer definition...");
     // Deploy subnet smart contract (currently topos core contract)
     let token_deployer_contract_file_path = match std::env::var(
         TOPOS_SMART_CONTRACTS_BUILD_PATH_VAR,
     ) {
         Ok(path) => path + "/" + SUBNET_TOKEN_DEPLOYER_JSON_DEFINITION,
         Err(_e) => {
-            println!("Error reading contract build path from `TOPOS_SMART_CONTRACTS_BUILD_PATH` environment variable, using current folder {}",
+            error!("Error reading contract build path from `TOPOS_SMART_CONTRACTS_BUILD_PATH` environment variable, using current folder {}",
                      std::env::current_dir().unwrap().display());
             String::from(SUBNET_TOKEN_DEPLOYER_JSON_DEFINITION)
         }
@@ -133,12 +135,12 @@ async fn deploy_contracts(
     )
     .await?;
 
-    println!("Getting Topos Core Contract definition...");
+    info!("Getting Topos Core Contract definition...");
     // Deploy subnet smart contract (currently topos core contract)
     let tcc_contract_file_path = match std::env::var(TOPOS_SMART_CONTRACTS_BUILD_PATH_VAR) {
         Ok(path) => path + "/" + SUBNET_TCC_JSON_DEFINITION,
         Err(_e) => {
-            println!("Error reading contract build path from `TOPOS_SMART_CONTRACTS_BUILD_PATH` environment variable, using current folder {}",
+            error!("Error reading contract build path from `TOPOS_SMART_CONTRACTS_BUILD_PATH` environment variable, using current folder {}",
                      std::env::current_dir().unwrap().display());
             String::from(SUBNET_TCC_JSON_DEFINITION)
         }
@@ -179,7 +181,7 @@ fn spawn_subnet_node(
         test_chain_dir.push("./test-chain-1");
         genesis_dir.push("./genesis");
 
-        println!("genesis_dir {:?}", genesis_dir);
+        info!("genesis_dir {:?}", genesis_dir);
         let img = Image::with_repository(POLYGON_EDGE_CONTAINER)
             .source(Source::Local)
             .tag(POLYGON_EDGE_CONTAINER_TAG)
@@ -201,21 +203,21 @@ fn spawn_subnet_node(
         };
 
         if let Err(err) = create_all(&temp_dir, false) {
-            eprintln!("Unable to create temporary test data directory {err}");
+            error!("Unable to create temporary test data directory {err}");
         };
         if let Err(err) = copy(
             current_dir.clone() + "/tests/artifacts/test-chain-1",
             &test_chain_dir,
             &copy_options,
         ) {
-            eprintln!("Unable to copy test chain directory {err}");
+            error!("Unable to copy test chain directory {err}");
         };
         if let Err(err) = copy(
             current_dir.clone() + "/tests/artifacts/genesis",
             &genesis_dir,
             &copy_options,
         ) {
-            eprintln!("Unable to copy genesis directory {err}");
+            error!("Unable to copy genesis directory {err}");
         };
 
         // Define options
@@ -248,7 +250,7 @@ fn spawn_subnet_node(
         );
         polygon_edge_node_docker.run(|ops| async move {
             let container = ops.handle(POLYGON_EDGE_CONTAINER);
-            println!(
+            info!(
                 "Running container with id: {} name: {} ...",
                 container.id(),
                 container.name(),
@@ -259,9 +261,9 @@ fn spawn_subnet_node(
                 .send(())
                 .expect("subnet ready channel available");
 
-            println!("Waiting for signal to close...");
+            info!("Waiting for signal to close...");
             stop_subnet_receiver.await.unwrap();
-            println!("Container id={} execution finished", container.id());
+            info!("Container id={} execution finished", container.id());
         })
     });
 
@@ -274,7 +276,7 @@ async fn read_logs_for_address(
     event_signature: &str,
 ) -> Result<Vec<Log>, Box<dyn std::error::Error>> {
     let event_topic: [u8; 32] = tiny_keccak::keccak256(event_signature.as_bytes());
-    println!(
+    info!(
         "Looking for event signature {} and from address {}",
         hex::encode(&event_topic),
         contract_address
@@ -341,37 +343,35 @@ impl Drop for Context {
 async fn context_running_subnet_node(#[default(8545)] port: u32) -> Context {
     let (subnet_stop_sender, subnet_stop_receiver) = oneshot::channel::<()>();
     let (subnet_ready_sender, subnet_ready_receiver) = oneshot::channel::<()>();
-    println!("Starting subnet node...");
+    info!("Starting subnet node...");
 
-    let subnet_node_handle = match spawn_subnet_node(
-        subnet_stop_receiver,
-        subnet_ready_sender,
-        port,
-    ) {
-        Ok(subnet_node_handle) => subnet_node_handle,
-        Err(e) => {
-            println!("Failed to start substrate subnet node as part of test context, error details {}, panicking!!!", e);
-            panic!("Unable to start substrate subnet node");
-        }
-    };
+    let subnet_node_handle =
+        match spawn_subnet_node(subnet_stop_receiver, subnet_ready_sender, port) {
+            Ok(subnet_node_handle) => subnet_node_handle,
+            Err(e) => {
+                panic!(
+                "Failed to start substrate subnet node as part of test context, error details {e}"
+            );
+            }
+        };
 
     let json_rpc_endpoint = format!("http://127.0.0.1:{}", port);
 
     subnet_ready_receiver
         .await
         .expect("subnet ready channel error");
-    println!("Subnet node started...");
+    info!("Subnet node started...");
     let mut i = 0;
     let http: Http = loop {
         i += 1;
         break match Http::new(&json_rpc_endpoint) {
             Ok(http) => {
-                println!("Connected to subnet node...");
+                info!("Connected to subnet node...");
                 Some(http)
             }
             Err(e) => {
                 if i < 10 {
-                    eprintln!("Unable to connect to subnet node: {e}");
+                    error!("Unable to connect to subnet node: {e}");
                     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                     continue;
                 }
@@ -384,18 +384,18 @@ async fn context_running_subnet_node(#[default(8545)] port: u32) -> Context {
     let mut web3_client = web3::Web3::new(http);
     // Wait for subnet node to start
     // Perform subnet smart contract deployment
-    let (subnet_contract, erc20_contract) = match deploy_contracts(&mut web3_client).await.map_err(
-        |e| {
-            println!("Failed to deploy subnet contract: {}", e);
+    let (subnet_contract, erc20_contract) =
+        match deploy_contracts(&mut web3_client).await.map_err(|e| {
+            info!("Failed to deploy subnet contract: {}", e);
             e
-        },
-    ) {
-        Ok(contract) => contract,
-        Err(e) => {
-            println!("Failed to deploy subnet contract as part of the test context, error details {}, panicking!!!", e);
-            panic!("Unable to deploy subnet contract");
-        }
-    };
+        }) {
+            Ok(contract) => contract,
+            Err(e) => {
+                panic!(
+                "Failed to deploy subnet contract as part of the test context, error details {e}"
+            );
+            }
+        };
     // Context with subnet container working in the background and deployed contract ready
     Context {
         subnet_contract,
@@ -409,7 +409,7 @@ async fn context_running_subnet_node(#[default(8545)] port: u32) -> Context {
 
 /// Test to start subnet and deploy subnet smart contract
 #[rstest]
-#[tokio::test]
+#[test(tokio::test)]
 #[serial]
 async fn test_subnet_node_contract_deployment(
     #[with(8544)]
@@ -417,15 +417,15 @@ async fn test_subnet_node_contract_deployment(
     context_running_subnet_node: Context,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let context = context_running_subnet_node.await;
-    println!("Subnet running in the background with deployed contract");
+    info!("Subnet running in the background with deployed contract");
     context.shutdown().await?;
-    println!("Subnet node test finished");
+    info!("Subnet node test finished");
     Ok(())
 }
 
 /// Test subnet client RPC connection to subnet
 #[rstest]
-#[tokio::test]
+#[test(tokio::test)]
 #[serial]
 async fn test_subnet_node_get_block_info(
     #[with(8545)]
@@ -451,35 +451,33 @@ async fn test_subnet_node_get_block_info(
                 .await
             {
                 Ok(block_info) => {
-                    println!(
+                    info!(
                         "Block info successfully retrieved for block {}",
                         block_info.number
                     );
                     assert!(block_info.number > 0 && block_info.number < 100);
                 }
                 Err(e) => {
-                    eprintln!("Error getting next finalized block {e}");
-                    panic!("Unable to get block info");
+                    panic!("Error getting next finalized block {e}");
                 }
             }
         }
         Err(e) => {
-            eprintln!("Unable to get block info, error {}", e);
-            panic!("Unable to get block info");
+            panic!("Unable to get block info, error {e}");
         }
     }
     context.shutdown().await?;
-    println!("Subnet node test finished");
+    info!("Subnet node test finished");
     Ok(())
 }
 
 /// Test runtime initialization
 #[rstest]
-#[tokio::test]
+#[test(tokio::test)]
 #[serial]
 async fn test_create_runtime() -> Result<(), Box<dyn std::error::Error>> {
     let keystore_file_path = generate_test_keystore_file()?;
-    println!("Creating runtime proxy...");
+    info!("Creating runtime proxy...");
     let runtime_proxy_worker = RuntimeProxyWorker::new(RuntimeProxyConfig {
         subnet_id: SOURCE_SUBNET_ID,
         endpoint: format!("localhost:{}", SUBNET_RPC_PORT),
@@ -490,13 +488,13 @@ async fn test_create_runtime() -> Result<(), Box<dyn std::error::Error>> {
     let runtime_proxy =
         topos_sequencer_subnet_runtime_proxy::testing::get_runtime(&runtime_proxy_worker);
     let runtime_proxy = runtime_proxy.lock();
-    println!("New runtime proxy created:{:?}", &runtime_proxy);
+    info!("New runtime proxy created:{:?}", &runtime_proxy);
     Ok(())
 }
 
 /// Test push certificate to subnet smart contract
 #[rstest]
-#[tokio::test]
+#[test(tokio::test)]
 #[serial]
 async fn test_subnet_certificate_push_call(
     #[with(8546)]
@@ -523,36 +521,36 @@ async fn test_subnet_certificate_push_call(
         target_subnets: vec![SOURCE_SUBNET_ID],
         ..Default::default()
     };
-    println!("Sending mock certificate to subnet smart contract...");
+    info!("Sending mock certificate to subnet smart contract...");
     if let Err(e) = runtime_proxy_worker
         .eval(topos_sequencer_types::RuntimeProxyCommand::OnNewDeliveredTxns(mock_cert))
     {
-        eprintln!("Failed to send OnNewDeliveredTxns command: {}", e);
+        error!("Failed to send OnNewDeliveredTxns command: {}", e);
         return Err(Box::from(e));
     }
-    println!("Waiting for 10 seconds...");
+    info!("Waiting for 10 seconds...");
     tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
-    println!("Checking logs for event...");
+    info!("Checking logs for event...");
     let logs = read_logs_for_address(
         &subnet_smart_contract_address,
         &context.web3_client,
         "CertStored(bytes32)",
     )
     .await?;
-    println!("Acquired logs from subnet smart contract: {:#?}", logs);
+    info!("Acquired logs from subnet smart contract: {:#?}", logs);
     assert_eq!(logs.len(), 1);
     assert_eq!(
         hex::encode(logs[0].address),
         subnet_smart_contract_address[2..]
     );
-    println!("Shutting down context...");
+    info!("Shutting down context...");
     context.shutdown().await?;
     Ok(())
 }
 
 /// Test get last certificate id from subnet smart contract
 #[rstest]
-#[tokio::test]
+#[test(tokio::test)]
 #[serial]
 async fn test_subnet_certificate_get_last_pushed_call(
     #[with(8546)]
@@ -575,8 +573,7 @@ async fn test_subnet_certificate_get_last_pushed_call(
     let (cert_id, cert_position) = match subnet_client.get_latest_pushed_cert().await {
         Ok(result) => result,
         Err(e) => {
-            eprintln!("Unable to get latest certificate id and position, error details: {e}");
-            panic!()
+            panic!("Unable to get latest certificate id and position, error details: {e}");
         }
     };
 
@@ -601,24 +598,22 @@ async fn test_subnet_certificate_get_last_pushed_call(
     ];
 
     for test_cert in &test_certificates {
-        println!("Pushing certificate id={:?}", test_cert.id);
+        info!("Pushing certificate id={:?}", test_cert.id);
         match subnet_client.push_certificate(&test_cert).await {
             Ok(_) => {
-                println!("Certificate id={:?} pushed", test_cert.id);
+                info!("Certificate id={:?} pushed", test_cert.id);
             }
             Err(e) => {
-                eprintln!("Unable to push certificate, error details: {e}");
-                panic!()
+                panic!("Unable to push certificate, error details: {e}");
             }
         }
     }
 
-    println!("Getting latest cert id and position");
+    info!("Getting latest cert id and position");
     let (final_cert_id, final_cert_position) = match subnet_client.get_latest_pushed_cert().await {
         Ok(result) => result,
         Err(e) => {
-            eprintln!("Unable to get latest certificate id and position, error details: {e}");
-            panic!()
+            panic!("Unable to get latest certificate id and position, error details: {e}");
         }
     };
     assert_eq!(
@@ -626,7 +621,7 @@ async fn test_subnet_certificate_get_last_pushed_call(
         (test_certificates.last().unwrap().id, 1)
     );
 
-    println!("Shutting down context...");
+    info!("Shutting down context...");
     context.shutdown().await?;
     Ok(())
 }

@@ -6,8 +6,11 @@ use crate::rocks::db_column::DBColumn;
 use crate::tests::support::database_name;
 use crate::tests::support::rocks_db;
 
+#[cfg(test)]
+use test_log::test;
+
 #[rstest]
-#[tokio::test]
+#[test(tokio::test)]
 async fn create_batch_multithread(database_name: &'static str) {
     let db = rocks_db(database_name);
     let column: DBColumn<String, String> = DBColumn::reopen(&db, "default");
