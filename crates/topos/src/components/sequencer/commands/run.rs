@@ -34,18 +34,9 @@ pub struct Run {
     )]
     pub base_tce_api_url: String,
 
-    /// Keystore file
-    #[clap(
-        long,
-        default_value = "topos-sequencer-keystore.json",
-        env = "TOPOS_SEQUENCER_KEYSTORE_FILE"
-    )]
-    pub keystore_file: PathBuf,
-
-    /// Keystore file password. If this parameter is not provided
-    /// password prompt will be opened
-    #[clap(long, env = "TOPOS_SEQUENCER_KEYSTORE_PASSWORD")]
-    pub keystore_password: Option<String>,
+    /// Polygon subnet node data dir, containing `consensus/validator.key`, e.g. `../test-chain-1`
+    #[clap(long, env = "TOPOS_SUBNET_DATA_DIR")]
+    pub subnet_data_dir: PathBuf,
 
     /// Verifier version
     #[clap(long, default_value = "0", env = "TOPOS_SEQUENCER_VERIFIER_VERSION")]

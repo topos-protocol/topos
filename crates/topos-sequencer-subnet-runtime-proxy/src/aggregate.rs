@@ -41,24 +41,32 @@ impl RuntimeProxy {
 
         // Get ethereum private key from keystore
         debug!(
-            "Retrieving ethereum private key from keystore {:?}",
-            config.keystore_file.to_str()
+            "Retrieving ethereum private key from subnet node {:?}",
+            config.subnet_data_dir.to_str()
         );
+
+        let key_file_path = std::path::PathBuf::from(
+            &(config
+                .subnet_data_dir
+                .to_str()
+                .unwrap_or_default()
+                .to_string()
+                + crate::keystore::SUBNET_NODE_VALIDATOR_KEY_FILE_PATH),
+        );
+
         // To sign transactions sent to Topos core contract, use admin private key from keystore
         //TODO handle this key in more secure way (e.g. use SafeSecretKey)
-        let eth_admin_private_key: Vec<u8> = match crate::keystore::get_private_key(
-            &config.keystore_file,
-            &config.keystore_password,
-        ) {
-            Ok(key) => key,
-            Err(e) => {
-                error!(
-                    "unable to get ethereum private key from keystore, details: {}",
-                    e
-                );
-                return Err(Error::from(e));
-            }
-        };
+        let eth_admin_private_key: Vec<u8> =
+            match crate::keystore::get_private_key(&key_file_path, None) {
+                Ok(key) => key,
+                Err(e) => {
+                    error!(
+                        "unable to get ethereum private key from keystore, details: {}",
+                        e
+                    );
+                    return Err(e);
+                }
+            };
 
         let runtime_proxy = Arc::new(Mutex::from(Self {
             commands_channel: command_sender,
