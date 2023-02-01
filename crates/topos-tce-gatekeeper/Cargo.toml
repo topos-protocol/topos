@@ -11,9 +11,12 @@ thiserror.workspace = true
 tracing.workspace = true
 tokio = { workspace = true, features = ["full"] }
 
+topos-core = { workspace = true, features = ["uci"] }
 topos-p2p = { path = "../topos-p2p" }
-topos-core = { path = "../topos-core/" }
-topos-commands = { path = "../topos-commands/" }
+topos-commands = { path = "../topos-commands" }
 
 [dev-dependencies]
 rstest.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
+test-log.workspace = true
+env_logger.workspace = true

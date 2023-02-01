@@ -4,7 +4,6 @@ use topos_sequencer_subnet_runtime_proxy::{RuntimeProxyConfig, RuntimeProxyWorke
 use topos_sequencer_tce_proxy::{TceProxyConfig, TceProxyWorker};
 use topos_sequencer_types::SubnetId;
 use tracing::{error, info};
-use tracing_subscriber::{prelude::*, EnvFilter};
 
 mod app_context;
 
@@ -20,17 +19,6 @@ pub struct SequencerConfiguration {
 }
 
 pub async fn run(mut config: SequencerConfiguration) -> Result<(), Box<dyn std::error::Error>> {
-    #[cfg(feature = "log-json")]
-    let formatting_layer = tracing_subscriber::fmt::layer().json();
-
-    #[cfg(not(feature = "log-json"))]
-    let formatting_layer = tracing_subscriber::fmt::layer();
-
-    tracing_subscriber::registry()
-        .with(EnvFilter::try_from_default_env().unwrap_or_default())
-        .with(formatting_layer)
-        .set_default();
-
     info!("Starting topos-sequencer application");
 
     let pass = config.keystore_password.take().unwrap_or_else(|| {

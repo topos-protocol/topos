@@ -19,5 +19,5 @@ void = "1"
 
 [dev-dependencies]
 test-log.workspace = true
-env_logger = "0.9.1"
+env_logger.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }

@@ -10,12 +10,13 @@ path = "src/main.rs"
 
 [dependencies]
 clap.workspace = true
-pretty_env_logger.workspace = true
 rand.workspace = true
 rand_core.workspace = true
 rand_distr.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+
+pretty_env_logger = { version = "0.4", default-features = false }
 
 tce_transport = { package = "topos-tce-transport", path = "../topos-tce-transport" }
 topos-core = { workspace = true, features = ["uci"] }

@@ -25,6 +25,7 @@ pub(crate) enum HandshakeError {
 
 #[cfg(test)]
 mod tests {
+    use test_log::test;
     use tokio::sync::oneshot;
     use uuid::Uuid;
 
@@ -39,7 +40,7 @@ mod tests {
         );
     }
 
-    #[tokio::test]
+    #[test(tokio::test)]
     async fn handshake_error_expected() {
         let uuid = Uuid::new_v4();
         let runtime_error = RuntimeError::PendingStreamNotFound(uuid);

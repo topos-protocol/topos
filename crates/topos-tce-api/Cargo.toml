@@ -30,7 +30,7 @@ hyper.workspace = true
 prost.workspace = true
 test-log.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
-env_logger = "0.9.1"
+env_logger.workspace = true
 http = "0.2.8"
 http-body = "0.4.5"
 

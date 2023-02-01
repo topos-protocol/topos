@@ -1,5 +1,6 @@
 use crate::SubnetId;
 use rstest::rstest;
+use test_log::test;
 use topos_core::uci::{Certificate, CertificateId};
 
 use crate::{
@@ -26,7 +27,7 @@ const TARGET_STORAGE_SUBNET_ID_A: SubnetId = SubnetId { inner: [2u8; 32] };
 const TARGET_STORAGE_SUBNET_ID_B: SubnetId = SubnetId { inner: [3u8; 32] };
 
 #[rstest]
-#[tokio::test]
+#[test(tokio::test)]
 async fn can_persist_a_pending_certificate(storage: RocksDBStorage) {
     let certificate = Certificate::new(
         PREV_CERTIFICATE_ID,
@@ -42,7 +43,7 @@ async fn can_persist_a_pending_certificate(storage: RocksDBStorage) {
 }
 
 #[rstest]
-#[tokio::test]
+#[test(tokio::test)]
 async fn can_persist_a_delivered_certificate(storage: RocksDBStorage) {
     let certificates_column = storage.certificates_column();
     let source_streams_column = storage.source_streams_column();
@@ -84,7 +85,7 @@ async fn can_persist_a_delivered_certificate(storage: RocksDBStorage) {
 }
 
 #[rstest]
-#[tokio::test]
+#[test(tokio::test)]
 async fn delivered_certificate_are_added_to_target_stream(storage: RocksDBStorage) {
     let certificates_column = storage.certificates_column();
     let source_streams_column = storage.source_streams_column();
@@ -142,7 +143,7 @@ async fn delivered_certificate_are_added_to_target_stream(storage: RocksDBStorag
 }
 
 #[rstest]
-#[tokio::test]
+#[test(tokio::test)]
 async fn pending_certificate_are_removed_during_persist_action(storage: RocksDBStorage) {
     let pending_column = storage.pending_certificates_column();
 
@@ -171,7 +172,7 @@ async fn pending_certificate_are_removed_during_persist_action(storage: RocksDBS
 }
 
 #[rstest]
-#[tokio::test]
+#[test(tokio::test)]
 async fn fetch_certificates_for_subnets(storage: RocksDBStorage) {
     let other_certificate = Certificate::new(
         PREV_CERTIFICATE_ID,
@@ -241,7 +242,7 @@ async fn fetch_certificates_for_subnets(storage: RocksDBStorage) {
 }
 
 #[rstest]
-#[tokio::test]
+#[test(tokio::test)]
 async fn pending_certificate_can_be_removed(storage: RocksDBStorage) {
     let pending_column = storage.pending_certificates_column();
 
@@ -300,7 +301,7 @@ async fn pending_certificate_can_be_removed(storage: RocksDBStorage) {
 }
 
 #[rstest]
-#[tokio::test]
+#[test(tokio::test)]
 async fn get_source_head_for_subnet(storage: RocksDBStorage) {
     let expected_certificates_for_source_subnet =
         create_certificate_chain(SOURCE_SUBNET_ID, TARGET_SUBNET_ID_B, 10);

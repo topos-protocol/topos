@@ -21,8 +21,13 @@ tokio = { workspace = true, features = [
     "time",
     "sync",
 ] }
-tracing-subscriber.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 tracing.workspace = true
 
 topos-sequencer-types = { package = "topos-sequencer-types", path = "../topos-sequencer-types" }
 topos-core = { workspace = true, features = ["uci"] }
+
+
+[dev-dependencies]
+test-log.workspace = true
+env_logger.workspace = true

@@ -29,3 +29,7 @@ rocksdb = ["dep:rocksdb"]
 rand = { workspace = true, features = ["default"] }
 rstest.workspace = true
 uuid = { workspace = true, features = ["v4", "serde"] }
+tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
+tracing.workspace = true
+test-log.workspace = true
+env_logger.workspace = true

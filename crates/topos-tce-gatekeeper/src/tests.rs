@@ -1,12 +1,13 @@
 use std::future::IntoFuture;
 
 use rstest::{fixture, rstest};
+use test_log::test;
 use tokio::spawn;
 use topos_p2p::PeerId;
 
 use crate::{Gatekeeper, GatekeeperClient};
 
-#[tokio::test]
+#[test(tokio::test)]
 async fn can_start_and_stop() -> Result<(), Box<dyn std::error::Error>> {
     let peer_id = topos_p2p::utils::local_key_pair(Some(99))
         .public()
@@ -23,7 +24,7 @@ async fn can_start_and_stop() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[rstest]
-#[tokio::test]
+#[test(tokio::test)]
 async fn can_push_a_peer_list(
     #[future] gatekeeper: GatekeeperClient,
     #[with(10)] peer_list: Vec<PeerId>,
@@ -36,7 +37,7 @@ async fn can_push_a_peer_list(
 }
 
 #[rstest]
-#[tokio::test]
+#[test(tokio::test)]
 async fn can_fetch_full_or_partial_list(
     #[future] gatekeeper: GatekeeperClient,
     #[with(10)] peer_list: Vec<PeerId>,

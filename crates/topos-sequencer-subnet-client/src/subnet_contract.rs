@@ -47,7 +47,7 @@ pub(crate) fn parse_events_from_log(
     logs: Vec<web3::types::Log>,
 ) -> Result<Vec<SubnetEvent>, Error> {
     let mut result = Vec::new();
-    println!("Logs: {logs:?}");
+
     for log in &logs {
         if let Some(event) = get_event_type_from_log(events, log) {
             match event.name.as_str() {

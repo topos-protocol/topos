@@ -1,4 +1,5 @@
 use rstest::rstest;
+use test_log::test;
 use topos_core::uci::Certificate;
 
 use crate::tests::{PREV_CERTIFICATE_ID, SOURCE_STORAGE_SUBNET_ID, SOURCE_SUBNET_ID};
@@ -13,7 +14,7 @@ use crate::{
 use super::support::columns::{certificates_column, pending_column, source_streams_column};
 
 #[rstest]
-#[tokio::test]
+#[test(tokio::test)]
 async fn can_persist_a_pending_certificate(pending_column: PendingCertificatesColumn) {
     let certificate = Certificate::new(
         PREV_CERTIFICATE_ID,
@@ -30,7 +31,7 @@ async fn can_persist_a_pending_certificate(pending_column: PendingCertificatesCo
 }
 
 #[rstest]
-#[tokio::test]
+#[test(tokio::test)]
 async fn can_persist_a_delivered_certificate(certificates_column: CertificatesColumn) {
     let certificate = Certificate::new(
         PREV_CERTIFICATE_ID,
@@ -52,7 +53,7 @@ async fn can_persist_a_delivered_certificate(certificates_column: CertificatesCo
 }
 
 #[rstest]
-#[tokio::test]
+#[test(tokio::test)]
 async fn delivered_certificate_position_are_incremented(
     certificates_column: CertificatesColumn,
     source_streams_column: SourceStreamsColumn,
@@ -79,7 +80,7 @@ async fn delivered_certificate_position_are_incremented(
 }
 
 #[rstest]
-#[tokio::test]
+#[test(tokio::test)]
 async fn position_can_be_fetch_for_one_subnet(source_streams_column: SourceStreamsColumn) {
     let certificate = Certificate::new(
         PREV_CERTIFICATE_ID,
@@ -132,10 +133,10 @@ async fn position_can_be_fetch_for_one_subnet(source_streams_column: SourceStrea
     ));
 }
 
-#[tokio::test]
+#[test(tokio::test)]
 #[ignore = "not yet implemented"]
 async fn position_can_be_fetch_for_multiple_subnets() {}
 
-#[tokio::test]
+#[test(tokio::test)]
 #[ignore = "not yet implemented"]
 async fn position_can_be_fetch_for_all_subnets() {}

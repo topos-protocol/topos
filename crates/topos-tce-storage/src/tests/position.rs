@@ -1,4 +1,5 @@
 use crate::Position;
+use test_log::test;
 
 #[test]
 fn test_position() {
@@ -19,10 +20,10 @@ fn test_position() {
     assert_eq!(one, deserialized);
 }
 
-#[tokio::test]
+#[test(tokio::test)]
 #[ignore = "not yet implemented"]
 async fn position_can_be_fetch_for_multiple_subnets() {}
 
-#[tokio::test]
+#[test(tokio::test)]
 #[ignore = "not yet implemented"]
 async fn position_can_be_fetch_for_all_subnets() {}

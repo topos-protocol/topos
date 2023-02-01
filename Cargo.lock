@@ -1445,12 +1445,12 @@ dependencies = [
 
 [[package]]
 name = "env_logger"
-version = "0.9.3"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a12e6657c4c97ebab115a42dcee77225f7f482cdd841cf7088c657a42e9e00e7"
+checksum = "85cdab6a89accf66733ad5a1693a4dcced6aeff64602b634530dd73c1f3ee9f0"
 dependencies = [
- "atty",
  "humantime 2.1.0",
+ "is-terminal",
  "log",
  "regex",
  "termcolor",
@@ -5381,19 +5381,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tokio-test"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "53474327ae5e166530d17f2d956afcb4f8a004de581b3cae10f12006bc8163e3"
-dependencies = [
- "async-stream",
- "bytes",
- "futures-core",
- "tokio",
- "tokio-stream",
-]
-
-[[package]]
 name = "tokio-util"
 version = "0.6.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5513,7 +5500,7 @@ dependencies = [
  "assert_cmd",
  "async-stream",
  "clap 4.1.4",
- "env_logger 0.9.3",
+ "env_logger 0.10.0",
  "futures",
  "insta",
  "libp2p",
@@ -5549,16 +5536,20 @@ name = "topos-api"
 version = "0.1.0"
 dependencies = [
  "async-stream",
+ "env_logger 0.10.0",
  "ethereum-types",
  "futures",
  "hex",
  "prost",
+ "test-log",
  "tokio",
  "tokio-stream",
  "tonic",
  "tonic-build",
  "topos-uci",
  "tower",
+ "tracing",
+ "tracing-subscriber",
  "uuid 1.2.2",
 ]
 
@@ -5583,7 +5574,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "bincode",
- "env_logger 0.9.3",
+ "env_logger 0.10.0",
  "futures",
  "libp2p",
  "serde",
@@ -5622,11 +5613,13 @@ name = "topos-sequencer-certification"
 version = "0.1.0"
 dependencies = [
  "byteorder",
+ "env_logger 0.10.0",
  "hex",
  "rand 0.8.5",
  "rand_core 0.6.4",
  "rand_distr",
  "serde",
+ "test-log",
  "thiserror",
  "tokio",
  "topos-core",
@@ -5662,6 +5655,7 @@ dependencies = [
  "byteorder",
  "clap 4.1.4",
  "dockertest",
+ "env_logger 0.10.0",
  "eth-keystore",
  "ethereum-tx-sign",
  "fs_extra",
@@ -5674,6 +5668,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serial_test",
+ "test-log",
  "thiserror",
  "tiny-keccak 1.5.0",
  "tokio",
@@ -5693,14 +5688,15 @@ dependencies = [
  "backoff",
  "byteorder",
  "dockertest",
+ "env_logger 0.10.0",
  "futures",
  "hex",
  "hyper",
- "pretty_env_logger",
  "rstest",
  "serde",
  "serde_json",
  "serial_test",
+ "test-log",
  "thiserror",
  "tokio",
  "tokio-stream",
@@ -5766,7 +5762,7 @@ version = "0.1.0"
 dependencies = [
  "async-stream",
  "bytes",
- "env_logger 0.9.3",
+ "env_logger 0.10.0",
  "futures",
  "hex",
  "http",
@@ -5795,12 +5791,14 @@ name = "topos-tce-broadcast"
 version = "0.1.0"
 dependencies = [
  "byteorder",
+ "env_logger 0.10.0",
  "futures",
  "opentelemetry",
  "rand 0.8.5",
  "rand_core 0.6.4",
  "rand_distr",
  "serde",
+ "test-log",
  "thiserror",
  "tokio",
  "tokio-stream",
@@ -5809,6 +5807,7 @@ dependencies = [
  "topos-tce-transport",
  "tracing",
  "tracing-opentelemetry",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -5816,15 +5815,18 @@ name = "topos-tce-gatekeeper"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "env_logger 0.10.0",
  "futures",
  "rand 0.8.5",
  "rstest",
+ "test-log",
  "thiserror",
  "tokio",
  "topos-commands",
  "topos-core",
  "topos-p2p",
  "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -5850,6 +5852,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "bincode",
+ "env_logger 0.10.0",
  "futures",
  "once_cell",
  "rand 0.8.5",
@@ -5857,12 +5860,14 @@ dependencies = [
  "rstest",
  "serde",
  "serde_derive",
+ "test-log",
  "thiserror",
  "tokio",
  "tokio-stream",
  "topos-commands",
  "topos-core",
  "tracing",
+ "tracing-subscriber",
  "uuid 1.2.2",
 ]
 
@@ -5871,11 +5876,9 @@ name = "topos-tce-synchronizer"
 version = "0.1.0"
 dependencies = [
  "futures",
- "rstest",
  "thiserror",
  "tokio",
  "tokio-stream",
- "tokio-test",
  "topos-api",
  "topos-p2p",
  "topos-tce-gatekeeper",
