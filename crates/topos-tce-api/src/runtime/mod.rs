@@ -9,6 +9,7 @@ use std::{
 use tokio::{
     spawn,
     sync::mpsc::{self, Receiver, Sender},
+    sync::oneshot,
 };
 use tonic_health::server::HealthReporter;
 use topos_core::api::tce::v1::api_service_server::ApiServiceServer;
@@ -55,6 +56,8 @@ pub struct Runtime {
     pub(crate) health_reporter: HealthReporter,
     /// Sender that forward Event to the rest of the system
     pub(crate) api_event_sender: Sender<RuntimeEvent>,
+    /// Shutdown signal receiver
+    pub(crate) shutdown: mpsc::Receiver<oneshot::Sender<()>>,
 }
 
 impl Runtime {
@@ -64,8 +67,11 @@ impl Runtime {
 
     pub async fn launch(mut self) {
         let mut health_update = tokio::time::interval(Duration::from_secs(1));
-        loop {
+        let shutdowned: Option<oneshot::Sender<()>> = loop {
             tokio::select! {
+                shutdown = self.shutdown.recv() => {
+                    break shutdown;
+                },
                 _ = health_update.tick() => {
                     self.health_reporter.set_serving::<ApiServiceServer<TceGrpcService>>().await;
                 }
@@ -77,6 +83,11 @@ impl Runtime {
                     self.handle_runtime_command(command).await;
                 }
             }
+        };
+
+        if let Some(sender) = shutdowned {
+            info!("Shutting down TCE api service...");
+            _ = sender.send(());
         }
     }
 

@@ -4,24 +4,24 @@
 use crate::Error;
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
-use std::sync::{Arc, Mutex};
-use tokio::sync::mpsc;
+use std::sync::Arc;
+use tokio::sync::{mpsc, oneshot, Mutex};
 use tokio::time::{self, Duration};
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
 use topos_sequencer_types::{BlockInfo, CertificationCommand, CertificationEvent, SubnetEvent};
-use tracing::{debug, error, warn};
+use tracing::{debug, error, info, warn};
 
 const AVERAGE_BLOCK_TIME: Duration = Duration::from_secs(2);
 
 pub struct Certification {
     pub commands_channel: mpsc::UnboundedSender<CertificationCommand>,
     pub events_subscribers: Vec<mpsc::UnboundedSender<CertificationEvent>>,
-    _tx_exit: mpsc::UnboundedSender<()>,
-
     pub history: HashMap<SubnetId, Vec<CertificateId>>,
     pub finalized_blocks: Vec<BlockInfo>,
     pub subnet_id: SubnetId,
     pub verifier: u32,
+    command_shutdown: mpsc::Sender<oneshot::Sender<()>>,
+    cert_gen_shutdown: mpsc::Sender<oneshot::Sender<()>>,
 }
 
 impl Debug for Certification {
@@ -37,7 +37,10 @@ impl Certification {
         verifier: u32,
     ) -> Result<Arc<Mutex<Certification>>, crate::Error> {
         let (command_sender, mut command_rcv) = mpsc::unbounded_channel::<CertificationCommand>();
-        let (_tx_exit, mut rx_exit) = mpsc::unbounded_channel::<()>();
+        let (command_shutdown_channel, mut command_shutdown) =
+            mpsc::channel::<oneshot::Sender<()>>(1);
+        let (cert_gen_shutdown_channel, mut cert_gen_shutdown) =
+            mpsc::channel::<oneshot::Sender<()>>(1);
 
         // Initialize the certificate id history
         let mut history = HashMap::new();
@@ -50,12 +53,12 @@ impl Certification {
         let me = Arc::new(Mutex::from(Self {
             commands_channel: command_sender,
             events_subscribers: Vec::new(),
-            // todo: implement sync mechanism for the last seen cert
-            _tx_exit,
             history,
             finalized_blocks: Vec::<BlockInfo>::new(),
             subnet_id,
             verifier,
+            command_shutdown: command_shutdown_channel,
+            cert_gen_shutdown: cert_gen_shutdown_channel,
         }));
         // Certification info for passing for async tasks
         let me_cl = me.clone();
@@ -63,42 +66,64 @@ impl Certification {
 
         tokio::spawn(async move {
             let mut interval = time::interval(AVERAGE_BLOCK_TIME); // arbitrary time for 1 block
-            loop {
-                interval.tick().await;
-                if let Ok(certs) = Self::generate_certificates(me_c2.clone()) {
-                    for cert in certs {
-                        Self::send_new_certificate(
-                            me_c2.clone(),
-                            CertificationEvent::NewCertificate(cert),
-                        );
+            let shutdowned: Option<oneshot::Sender<()>> = loop {
+                tokio::select! {
+                    _ = interval.tick() => {
+                        if let Ok(certs) = Self::generate_certificates(me_c2.clone()).await {
+                            for cert in certs {
+                                Self::send_new_certificate(
+                                    me_c2.clone(),
+                                    CertificationEvent::NewCertificate(cert),
+                                ).await;
+                            }
+                        }
+                    },
+                    shutdown = cert_gen_shutdown.recv() => {
+                        break shutdown;
                     }
                 }
+            };
+
+            if let Some(sender) = shutdowned {
+                info!("Shutting down generation of certificates");
+                _ = sender.send(());
             }
         });
 
         tokio::spawn(async move {
-            loop {
+            let shutdowned: Option<oneshot::Sender<()>> = loop {
                 tokio::select! {
                     // Poll commands channel
                     cmd = command_rcv.recv() => {
-                        Self::on_command(me_cl.clone(), cmd);
+                        Self::on_command(me_cl.clone(), cmd).await;
                     },
-                    Some(_) = rx_exit.recv() => {
-                        break;
+                    shutdown = command_shutdown.recv() => {
+                        break shutdown;
                     }
                 }
+            };
+
+            if let Some(sender) = shutdowned {
+                info!("Shutting down certificate command processing");
+                _ = sender.send(());
             }
         });
         Ok(me)
     }
 
-    fn send_new_certificate(certification: Arc<Mutex<Certification>>, evt: CertificationEvent) {
-        let mut certification = certification.lock().unwrap();
+    async fn send_new_certificate(
+        certification: Arc<Mutex<Certification>>,
+        evt: CertificationEvent,
+    ) {
+        let mut certification = certification.lock().await;
         certification.send_out_events(evt);
     }
 
-    fn on_command(certification: Arc<Mutex<Certification>>, mb_cmd: Option<CertificationCommand>) {
-        let mut certification = certification.lock().unwrap();
+    async fn on_command(
+        certification: Arc<Mutex<Certification>>,
+        mb_cmd: Option<CertificationCommand>,
+    ) {
+        let mut certification = certification.lock().await;
 
         match mb_cmd {
             Some(cmd) => match cmd {
@@ -125,10 +150,10 @@ impl Certification {
     }
 
     /// Generation of Certificate
-    fn generate_certificates(
+    async fn generate_certificates(
         certification: Arc<Mutex<Certification>>,
     ) -> Result<Vec<Certificate>, Error> {
-        let mut certification = certification.lock().unwrap();
+        let mut certification = certification.lock().await;
         let subnet_id = certification.subnet_id;
         let mut generated_certificates = Vec::new();
 
@@ -201,5 +226,28 @@ impl Certification {
         certification.finalized_blocks.clear();
 
         Ok(generated_certificates)
+    }
+
+    // Shutdown certification entity
+    pub async fn shutdown(&mut self) -> Result<(), Error> {
+        let (command_sender, command_receiver) = oneshot::channel();
+        self.command_shutdown
+            .send(command_sender)
+            .await
+            .map_err(Error::ShutdownCommunication)?;
+        command_receiver
+            .await
+            .map_err(Error::ShutdownSignalReceiveError)?;
+
+        let (cert_gen_sender, cert_gen_receiver) = oneshot::channel();
+        self.cert_gen_shutdown
+            .send(cert_gen_sender)
+            .await
+            .map_err(Error::ShutdownCommunication)?;
+        cert_gen_receiver
+            .await
+            .map_err(Error::ShutdownSignalReceiveError)?;
+
+        Ok(())
     }
 }

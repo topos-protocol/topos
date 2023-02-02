@@ -8,7 +8,10 @@ use libp2p::{
 };
 use std::future::IntoFuture;
 use tokio::task::JoinHandle;
-use tokio::{spawn, sync::mpsc};
+use tokio::{
+    spawn,
+    sync::{mpsc, oneshot},
+};
 use tonic::transport::{channel, Channel};
 use topos_core::api::tce::v1::api_service_client::ApiServiceClient;
 use topos_p2p::{Client, Event, Runtime};
@@ -107,6 +110,7 @@ where
                 synchronizer_client,
             );
 
+            let (_shutdown_sender, shutdown_receiver) = mpsc::channel::<oneshot::Sender<()>>(1);
             let runtime_join_handle = spawn(runtime.run());
             let app_join_handle = spawn(app.run(
                 network_stream,
@@ -114,6 +118,7 @@ where
                 api_events,
                 storage_stream,
                 synchronizer_stream,
+                shutdown_receiver,
             ));
 
             let api_endpoint = format!("http://127.0.0.1:{api_port}");

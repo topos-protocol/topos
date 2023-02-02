@@ -19,7 +19,7 @@ use web3::types::{BlockNumber, Log};
 
 mod common;
 use common::subnet_test_data::generate_test_validator_dir;
-use topos_sequencer_subnet_runtime_proxy::{RuntimeProxyConfig, RuntimeProxyWorker};
+use topos_sequencer_subnet_runtime_proxy::{SubnetRuntimeProxyConfig, SubnetRuntimeProxyWorker};
 
 const SUBNET_TCC_JSON_DEFINITION: &'static str = "ToposCore.json";
 const SUBNET_TOKEN_DEPLOYER_JSON_DEFINITION: &'static str = "TokenDeployer.json";
@@ -478,15 +478,16 @@ async fn test_subnet_node_get_block_info(
 async fn test_create_runtime() -> Result<(), Box<dyn std::error::Error>> {
     let subnet_data_dir = generate_test_validator_dir()?;
     info!("Creating runtime proxy...");
-    let runtime_proxy_worker = RuntimeProxyWorker::new(RuntimeProxyConfig {
+    let runtime_proxy_worker = SubnetRuntimeProxyWorker::new(SubnetRuntimeProxyConfig {
         subnet_id: SOURCE_SUBNET_ID,
         endpoint: format!("localhost:{}", SUBNET_RPC_PORT),
         subnet_contract_address: "0x0000000000000000000000000000000000000000".to_string(),
         subnet_data_dir,
-    })?;
+    })
+    .await?;
     let runtime_proxy =
         topos_sequencer_subnet_runtime_proxy::testing::get_runtime(&runtime_proxy_worker);
-    let runtime_proxy = runtime_proxy.lock();
+    let runtime_proxy = runtime_proxy.lock().await;
     info!("New runtime proxy created:{:?}", &runtime_proxy);
     Ok(())
 }
@@ -504,12 +505,13 @@ async fn test_subnet_certificate_push_call(
     let subnet_data_dir = generate_test_validator_dir()?;
     let subnet_smart_contract_address =
         "0x".to_string() + &hex::encode(context.subnet_contract.address());
-    let runtime_proxy_worker = RuntimeProxyWorker::new(RuntimeProxyConfig {
+    let runtime_proxy_worker = SubnetRuntimeProxyWorker::new(SubnetRuntimeProxyConfig {
         subnet_id: SOURCE_SUBNET_ID,
         endpoint: context.jsonrpc(),
         subnet_contract_address: subnet_smart_contract_address.clone(),
         subnet_data_dir,
-    })?;
+    })
+    .await?;
 
     // TODO: Adjust this mock certificate when ToposCoreContract gets stable enough
     let mock_cert = Certificate {
@@ -521,7 +523,7 @@ async fn test_subnet_certificate_push_call(
     };
     info!("Sending mock certificate to subnet smart contract...");
     if let Err(e) = runtime_proxy_worker
-        .eval(topos_sequencer_types::RuntimeProxyCommand::OnNewDeliveredTxns(mock_cert))
+        .eval(topos_sequencer_types::SubnetRuntimeProxyCommand::OnNewDeliveredTxns(mock_cert))
     {
         error!("Failed to send OnNewDeliveredTxns command: {}", e);
         return Err(Box::from(e));

@@ -25,7 +25,7 @@ use libp2p::{
     Multiaddr, PeerId, Swarm,
 };
 use tokio::sync::{
-    mpsc,
+    mpsc, oneshot,
     oneshot::{Receiver, Sender},
 };
 use tokio_stream::StreamExt;
@@ -58,8 +58,8 @@ pub struct Runtime {
     /// Pending DHT queries
     pub pending_record_requests: HashMap<QueryId, PendingRecordRequest>,
 
-    pub shutdown_listener: Receiver<()>,
-    pub kill_sender: Sender<()>,
+    /// Shutdown signal receiver from the client
+    pub(crate) shutdown: mpsc::Receiver<oneshot::Sender<()>>,
 }
 
 mod handle_command;
@@ -232,12 +232,23 @@ impl Runtime {
         Ok(self)
     }
 
+    /// Run p2p runtime
     pub async fn run(mut self) -> Result<(), ()> {
-        loop {
+        let shutdowned: Option<oneshot::Sender<()>> = loop {
             tokio::select! {
                 Some(event) = self.swarm.next() => self.handle(event).await,
-                Some(command) = self.command_receiver.recv() => self.handle_command(command).await
+                Some(command) = self.command_receiver.recv() => self.handle_command(command).await,
+                 shutdown = self.shutdown.recv() => {
+                    break shutdown;
+                }
             }
+        };
+
+        if let Some(sender) = shutdowned {
+            info!("Shutting down p2p runtime...");
+            _ = sender.send(());
         }
+
+        Ok(())
     }
 }

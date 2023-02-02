@@ -19,7 +19,7 @@ use tce_transport::{ReliableBroadcastParams, TceEvents};
 
 use topos_core::uci::{Certificate, CertificateId, DigestCompressed, SubnetId};
 use topos_p2p::PeerId;
-use tracing::{error, info, Instrument, Span};
+use tracing::{debug, error, info, Instrument, Span};
 
 use crate::mem_store::TceMemStore;
 use crate::sampler::{Sampler, SubscribersUpdate, SubscriptionsView};
@@ -101,6 +101,8 @@ pub enum DoubleEchoCommand {
 pub struct ReliableBroadcastClient {
     broadcast_commands: mpsc::Sender<DoubleEchoCommand>,
     sampling_commands: mpsc::Sender<SamplerCommand>,
+    pub(crate) double_echo_shutdown_channel: mpsc::Sender<oneshot::Sender<()>>,
+    pub(crate) sampler_shutdown_channel: mpsc::Sender<oneshot::Sender<()>>,
 }
 
 impl ReliableBroadcastClient {
@@ -119,15 +121,21 @@ impl ReliableBroadcastClient {
         let (sampler_command_sender, command_receiver) = mpsc::channel(2048);
         let (event_sender, event_receiver) = broadcast::channel(2048);
 
+        let (sampler_shutdown_channel, sampler_shutdown_receiver) =
+            mpsc::channel::<oneshot::Sender<()>>(1);
+
         let sampler = Sampler::new(
             config.tce_params.clone(),
             command_receiver,
             event_sender.clone(),
             subscriptions_view_sender,
             subscribers_update_sender,
+            sampler_shutdown_receiver,
         );
 
         let (broadcast_commands, command_receiver) = mpsc::channel(2048);
+        let (double_echo_shutdown_channel, double_echo_shutdown_receiver) =
+            mpsc::channel::<oneshot::Sender<()>>(1);
 
         let double_echo = DoubleEcho::new(
             config.tce_params,
@@ -137,6 +145,7 @@ impl ReliableBroadcastClient {
             event_sender,
             #[allow(clippy::box_default)]
             Box::new(TceMemStore::default()),
+            double_echo_shutdown_receiver,
         );
 
         spawn(sampler.run());
@@ -146,6 +155,8 @@ impl ReliableBroadcastClient {
             Self {
                 broadcast_commands,
                 sampling_commands: sampler_command_sender,
+                double_echo_shutdown_channel,
+                sampler_shutdown_channel,
             },
             BroadcastStream::new(event_receiver).map_err(|_| ()),
         )
@@ -280,6 +291,23 @@ impl ReliableBroadcastClient {
         }
         .instrument(ctx)
     }
+
+    pub async fn shutdown(&self) -> Result<(), Errors> {
+        debug!("Shutting down reliable broadcast client");
+        let (double_echo_sender, double_echo_receiver) = oneshot::channel();
+        self.double_echo_shutdown_channel
+            .send(double_echo_sender)
+            .await
+            .map_err(Errors::ShutdownCommunication)?;
+        double_echo_receiver.await?;
+
+        let (sampler_sender, sampler_receiver) = oneshot::channel();
+        self.sampler_shutdown_channel
+            .send(sampler_sender)
+            .await
+            .map_err(Errors::ShutdownCommunication)?;
+        Ok(sampler_receiver.await?)
+    }
 }
 
 /// Protocol and technical errors
@@ -299,4 +327,7 @@ pub enum Errors {
 
     #[error("Requested digest not found for certificate {0:?}")]
     DigestNotFound(CertificateId),
+
+    #[error("Unable to execute shutdown for the reliable broadcast: {0}")]
+    ShutdownCommunication(mpsc::error::SendError<oneshot::Sender<()>>),
 }

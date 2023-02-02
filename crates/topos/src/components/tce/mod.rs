@@ -8,7 +8,10 @@ use std::{
 };
 
 use opentelemetry::global;
-use tokio::{signal, spawn, sync::Mutex};
+use tokio::{
+    signal, spawn,
+    sync::{mpsc, oneshot, Mutex},
+};
 use tonic::transport::Channel;
 use topos_core::api::tce::v1::console_service_client::ConsoleServiceClient;
 use topos_p2p::PeerId;
@@ -103,23 +106,28 @@ pub(crate) async fn handle_command(
 
             print_node_info(&config);
 
-            loop {
-                tokio::select! {
-                    _ = signal::ctrl_c() => {
-                        info!("Received ctrl_c, killing...");
-                        break;
-                    }
-                    result = topos_tce::run(&config) => {
-                        global::shutdown_tracer_provider();
-                        if let Err(ref error) = result {
-                            error!("TCE node terminated {:?}", error);
-                            std::process::exit(1);
-                        }
+            let (shutdown_sender, shutdown_receiver) = mpsc::channel::<oneshot::Sender<()>>(1);
 
-                        break;
+            tokio::select! {
+                _ = signal::ctrl_c() => {
+                    info!("Received ctrl_c, shutting down application...");
+                    let (shutdown_finished_sender, shutdown_finished_receiver) = oneshot::channel::<()>();
+                    if let Err(e) = shutdown_sender.send(shutdown_finished_sender).await {
+                        error!("Error sending shutdown signal to TCE application: {e}");
                     }
-
+                    if let Err(e) = shutdown_finished_receiver.await {
+                        error!("Error with shutdown receiver: {e}");
+                    }
+                    info!("Shutdown procedure finished, exiting...");
                 }
+                result = topos_tce::run(&config, shutdown_receiver) => {
+                    global::shutdown_tracer_provider();
+                    if let Err(ref error) = result {
+                        error!("TCE node terminated {:?}", error);
+                        std::process::exit(1);
+                    }
+                }
+
             }
 
             Ok(())

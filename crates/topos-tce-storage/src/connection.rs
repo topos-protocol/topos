@@ -1,9 +1,10 @@
 use std::{collections::VecDeque, future::IntoFuture, sync::Arc};
 
 use futures::{future::BoxFuture, FutureExt, Stream, TryFutureExt};
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
 use topos_commands::CommandHandler;
+use tracing::{info, warn};
 
 use crate::{
     client::StorageClient,
@@ -33,10 +34,12 @@ pub struct Connection<S: Storage> {
     #[allow(dead_code)]
     events: mpsc::Sender<StorageEvent>,
 
-    #[allow(dead_code)]
     certificate_dispatcher: Option<mpsc::Sender<PendingCertificateId>>,
 
     pending_certificates: VecDeque<PendingCertificateId>,
+
+    /// Storage shutdown signal receiver
+    pub(crate) shutdown: mpsc::Receiver<oneshot::Sender<()>>,
 }
 
 impl<S: Storage> Connection<S> {
@@ -50,6 +53,7 @@ impl<S: Storage> Connection<S> {
         let (sender, queries) = mpsc::channel(1024);
         let (events, events_stream) = mpsc::channel(1024);
         let (certificate_dispatcher, _dispatchable_certificates) = mpsc::channel(10);
+        let (shutdown_channel, shutdown_receiver) = mpsc::channel::<oneshot::Sender<()>>(1);
 
         (
             ConnectionBuilder {
@@ -57,8 +61,9 @@ impl<S: Storage> Connection<S> {
                 queries,
                 events,
                 certificate_dispatcher,
+                shutdown_receiver,
             },
-            StorageClient::new(sender),
+            StorageClient::new(sender, shutdown_channel),
             ReceiverStream::new(events_stream),
         )
     }
@@ -95,8 +100,11 @@ impl<S: Storage> IntoFuture for Connection<S> {
                 StorageError::InternalStorage(InternalStorageError::UnableToStartStorage)
             )?;
 
-            loop {
+            let shutdowned: Option<oneshot::Sender<()>> = loop {
                 tokio::select! {
+                    shutdown = self.shutdown.recv() => {
+                        break shutdown;
+                    },
                     Ok(permit) = certificate_dispatcher.reserve(), if !self.pending_certificates.is_empty() => {
 
                         permit.send(self.pending_certificates.pop_front().unwrap());
@@ -122,8 +130,15 @@ impl<S: Storage> IntoFuture for Connection<S> {
                             GetSourceHead,
                             RemovePendingCertificate)
                     }
-                    else => break
+                    else => break None
                 }
+            };
+
+            if let Some(sender) = shutdowned {
+                info!("Shutting down storage connection...");
+                _ = sender.send(());
+            } else {
+                warn!("Shutting down storage connection due to error...");
             }
 
             Ok(())

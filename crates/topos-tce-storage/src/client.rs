@@ -1,4 +1,4 @@
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
 
 use crate::{
@@ -13,13 +13,19 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct StorageClient {
     sender: mpsc::Sender<StorageCommand>,
+    pub(crate) shutdown_channel: mpsc::Sender<oneshot::Sender<()>>,
 }
 
 impl StorageClient {
     /// Create a new StorageClient
-    #[allow(dead_code)]
-    pub(crate) fn new(sender: mpsc::Sender<StorageCommand>) -> Self {
-        Self { sender }
+    pub(crate) fn new(
+        sender: mpsc::Sender<StorageCommand>,
+        shutdown_channel: mpsc::Sender<oneshot::Sender<()>>,
+    ) -> Self {
+        Self {
+            sender,
+            shutdown_channel,
+        }
     }
 
     /// Ask the storage to add a new pending certificate
@@ -94,5 +100,15 @@ impl StorageClient {
         }
 
         self.get_certificate(cert.prev_id).await.map(|_| Ok(()))?
+    }
+
+    pub async fn shutdown(&self) -> Result<(), StorageError> {
+        let (sender, receiver) = oneshot::channel();
+        self.shutdown_channel
+            .send(sender)
+            .await
+            .map_err(StorageError::ShutdownCommunication)?;
+
+        Ok(receiver.await?)
     }
 }

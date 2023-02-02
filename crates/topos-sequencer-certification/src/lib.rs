@@ -3,16 +3,18 @@
 //! Abstracted from actual transport implementation.
 //! Abstracted from actual storage implementation.
 //!
-use aggregate::Certification;
+use certification::Certification;
 use std::array::TryFromSliceError;
-use std::sync::{Arc, Mutex};
-use tokio::sync::mpsc;
+use std::sync::Arc;
+use tokio::sync::oneshot::error::RecvError;
+use tokio::sync::Mutex;
+use tokio::sync::{mpsc, oneshot};
 use topos_core::uci::{CertificateId, SubnetId};
 use topos_sequencer_types::*;
-use tracing::error;
+use tracing::{error, info};
 pub type Peer = String;
 
-pub mod aggregate;
+pub mod certification;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -26,12 +28,18 @@ pub enum Error {
     IllFormedSubnetHistory,
     #[error("Unable to create certificate {0}")]
     CertificateGenerationError(String),
+    #[error("Command channel error {0}")]
+    CommandSendError(String),
+    #[error("Unable to execute shutdown: {0}")]
+    ShutdownCommunication(mpsc::error::SendError<oneshot::Sender<()>>),
+    #[error("Shutdown channel receive error {0}")]
+    ShutdownSignalReceiveError(RecvError),
 }
 
 /// Thread safe client to the protocol aggregate
 #[derive(Debug)]
 pub struct CertificationWorker {
-    aggr: Arc<Mutex<Certification>>,
+    certification: Arc<Mutex<Certification>>,
     commands: mpsc::UnboundedSender<CertificationCommand>,
     events: mpsc::UnboundedReceiver<CertificationEvent>,
 }
@@ -40,20 +48,20 @@ impl CertificationWorker {
     /// Creates new instance of the aggregate and returns proxy to it.
     /// New client instances to the same aggregate can be cloned from the returned one.
     /// Aggregate is spawned as new task.
-    pub fn new(
+    pub async fn new(
         subnet_id: SubnetId,
         source_head_certificate_id: Option<CertificateId>,
         verifier: u32,
     ) -> Result<Self, Error> {
         let w_aggr = Certification::spawn_new(subnet_id, source_head_certificate_id, verifier)?;
-        let mut b_aggr = w_aggr.lock().map_err(|_| Error::LockError)?;
+        let mut b_aggr = w_aggr.lock().await;
         let commands = b_aggr.commands_channel.clone();
 
         let (events_sender, events_rcv) = mpsc::unbounded_channel::<CertificationEvent>();
         b_aggr.events_subscribers.push(events_sender);
 
         Ok(Self {
-            aggr: w_aggr.clone(),
+            certification: w_aggr.clone(),
             commands,
             events: events_rcv,
         })
@@ -63,11 +71,11 @@ impl CertificationWorker {
     pub fn eval(&self, event: Event) -> Result<(), Error> {
         match event {
             Event::RuntimeProxyEvent(runtime_proxy_event) => match runtime_proxy_event {
-                RuntimeProxyEvent::BlockFinalized(block_info) => {
+                SubnetRuntimeProxyEvent::BlockFinalized(block_info) => {
                     let cmd = CertificationCommand::AddFinalizedBlock(block_info);
                     let _ = self.commands.send(cmd);
                 }
-                RuntimeProxyEvent::NewEra(_) => (),
+                SubnetRuntimeProxyEvent::NewEra(_) => (),
             },
             Event::CertificationEvent(certification_event) => match certification_event {
                 CertificationEvent::NewCertificate(_cert) => {
@@ -83,21 +91,12 @@ impl CertificationWorker {
         let event = self.events.recv().await;
         Ok(event.unwrap())
     }
-}
 
-impl Clone for CertificationWorker {
-    fn clone(&self) -> Self {
-        let mut aggr = self.aggr.lock().unwrap();
-        let ch_commands = aggr.commands_channel.clone();
-
-        let (events_sender, events_rcv) = mpsc::unbounded_channel::<CertificationEvent>();
-        aggr.events_subscribers.push(events_sender);
-
-        Self {
-            aggr: self.aggr.clone(),
-            commands: ch_commands,
-            events: events_rcv,
-        }
+    /// Shut down certificate worker
+    pub async fn shutdown(&mut self) -> Result<(), Error> {
+        info!("Shutting down certification worker...");
+        let mut certification = self.certification.lock().await;
+        certification.shutdown().await
     }
 }
 
@@ -112,7 +111,7 @@ mod tests {
     async fn instantiate_certification_worker() {
         // Launch the certification worker for certificate production
         let _cert_worker =
-            match CertificationWorker::new(TEST_SUBNET_ID, Some(TEST_CERTIFICATE_ID), 0) {
+            match CertificationWorker::new(TEST_SUBNET_ID, Some(TEST_CERTIFICATE_ID), 0).await {
                 Ok(cert_worker) => cert_worker,
                 Err(e) => {
                     panic!("Unable to create certification worker: {e:?}");
@@ -124,14 +123,14 @@ mod tests {
     async fn certification_worker_eval() {
         // Launch the certification worker for certificate production
         let cert_worker =
-            match CertificationWorker::new(TEST_SUBNET_ID, Some(TEST_CERTIFICATE_ID), 0) {
+            match CertificationWorker::new(TEST_SUBNET_ID, Some(TEST_CERTIFICATE_ID), 0).await {
                 Ok(cert_worker) => cert_worker,
                 Err(e) => {
                     panic!("Unable to create certification worker: {e:?}")
                 }
             };
 
-        let event = Event::RuntimeProxyEvent(RuntimeProxyEvent::BlockFinalized(BlockInfo {
+        let event = Event::RuntimeProxyEvent(SubnetRuntimeProxyEvent::BlockFinalized(BlockInfo {
             number: BlockNumber::from(10 as u64),
             ..Default::default()
         }));

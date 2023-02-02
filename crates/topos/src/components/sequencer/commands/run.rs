@@ -4,10 +4,10 @@ use std::path::PathBuf;
 #[derive(Args, Debug)]
 #[command(about = "Run a full Topos Sequencer instance")]
 pub struct Run {
-    /// SubnetId of the local subnet node
+    /// SubnetId of the local subnet node, hex encoded 32 bytes starting with 0x
     #[clap(
         long,
-        default_value = "0000000000000000000000000000000000000000000000000000000000000000",
+        default_value = "0x0000000000000000000000000000000000000000000000000000000000000000",
         env = "TOPOS_LOCAL_SUBNET_ID"
     )]
     pub subnet_id: String,
