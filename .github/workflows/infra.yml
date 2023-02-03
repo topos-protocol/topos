@@ -1,4 +1,4 @@
-name: E2E tests on Kubernetes
+name: Create TCE Stack
 
 on:
   push:
