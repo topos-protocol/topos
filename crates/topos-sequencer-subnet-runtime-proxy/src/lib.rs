@@ -41,6 +41,13 @@ pub enum Error {
         #[from]
         source: eth_keystore::KeystoreError,
     },
+    #[error("Keystore file io error: {source}")]
+    KeystoreFileError {
+        #[from]
+        source: std::io::Error,
+    },
+    #[error("Invalid key error: {message}")]
+    InvalidKeyError { message: String },
 }
 
 #[derive(Debug, Clone)]
@@ -48,8 +55,7 @@ pub struct RuntimeProxyConfig {
     pub subnet_id: SubnetId,
     pub endpoint: String,
     pub subnet_contract_address: String,
-    pub keystore_file: std::path::PathBuf,
-    pub keystore_password: String,
+    pub subnet_data_dir: std::path::PathBuf,
 }
 
 /// Thread safe client to the protocol aggregate

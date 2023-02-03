@@ -4,7 +4,7 @@ expression: result
 ---
 Run a full Topos Sequencer instance
 
-Usage: topos sequencer run [OPTIONS] --subnet-contract-address <SUBNET_CONTRACT_ADDRESS>
+Usage: topos sequencer run [OPTIONS] --subnet-contract-address <SUBNET_CONTRACT_ADDRESS> --subnet-data-dir <SUBNET_DATA_DIR>
 
 Options:
       --subnet-id <SUBNET_ID>
@@ -17,10 +17,8 @@ Options:
           [env: SUBNET_CONTRACT_ADDRESS=]
       --base-tce-api-url <BASE_TCE_API_URL>
           Base Uri of TCE node to call grpc service api [env: TOPOS_BASE_TCE_API_URL=] [default: http://[::1]:1340]
-      --keystore-file <KEYSTORE_FILE>
-          Keystore file [env: TOPOS_SEQUENCER_KEYSTORE_FILE=] [default: topos-sequencer-keystore.json]
-      --keystore-password <KEYSTORE_PASSWORD>
-          Keystore file password. If this parameter is not provided password prompt will be opened [env: TOPOS_SEQUENCER_KEYSTORE_PASSWORD=]
+      --subnet-data-dir <SUBNET_DATA_DIR>
+          Polygon subnet node data dir, containing `consensus/validator.key`, e.g. `../test-chain-1` [env: TOPOS_LOCAL_SUBNET_DATA_DIR=]
       --verifier <VERIFIER>
           Verifier version [env: TOPOS_SEQUENCER_VERIFIER_VERSION=] [default: 0]
   -h, --help
