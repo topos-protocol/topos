@@ -9,6 +9,12 @@ repositories:
    password: {{ requiredEnv "GITHUB_TOKEN"}}
  - name: aws-efs-csi-driver
    url: https://kubernetes-sigs.github.io/aws-efs-csi-driver
+ - name: bitnami
+   url: https://charts.bitnami.com/bitnami
+ - name: ingress-nginx
+   url: https://kubernetes.github.io/ingress-nginx
+ - name: jetstack
+   url: https://charts.jetstack.io
 
 releases:
 - name: aws-efs-csi-driver
@@ -95,5 +101,11 @@ releases:
     value: boot\.tce\.devnet-1\.toposware\.com
   - name: peersHost
     value: peers\.tce\.devnet-1\.toposware\.com
+  - name: acme.environment
+    value: production
+  - name: acme.email
+    value: thiago.nobayashi@toposware.com
   - name: ingress
     value: true
+  - name: peerReplicas
+    value: 15
