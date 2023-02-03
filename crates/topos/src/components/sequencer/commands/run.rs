@@ -35,7 +35,7 @@ pub struct Run {
     pub base_tce_api_url: String,
 
     /// Polygon subnet node data dir, containing `consensus/validator.key`, e.g. `../test-chain-1`
-    #[clap(long, env = "TOPOS_SUBNET_DATA_DIR")]
+    #[clap(long, env = "TOPOS_LOCAL_SUBNET_DATA_DIR")]
     pub subnet_data_dir: PathBuf,
 
     /// Verifier version

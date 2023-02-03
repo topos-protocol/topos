@@ -18,7 +18,7 @@ Options:
       --base-tce-api-url <BASE_TCE_API_URL>
           Base Uri of TCE node to call grpc service api [env: TOPOS_BASE_TCE_API_URL=] [default: http://[::1]:1340]
       --subnet-data-dir <SUBNET_DATA_DIR>
-          Polygon subnet node data dir, containing `consensus/validator.key`, e.g. `../test-chain-1` [env: TOPOS_SUBNET_DATA_DIR=]
+          Polygon subnet node data dir, containing `consensus/validator.key`, e.g. `../test-chain-1` [env: TOPOS_LOCAL_SUBNET_DATA_DIR=]
       --verifier <VERIFIER>
           Verifier version [env: TOPOS_SEQUENCER_VERIFIER_VERSION=] [default: 0]
   -h, --help
