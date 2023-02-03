@@ -1,0 +1,76 @@
+name: E2E tests on Kubernetes
+
+on:
+  push:
+    branches: [feat/long-running-cluster]
+
+jobs:
+  k8s:
+    name: Deploy k8s cluster and run TCE Stack
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/toposware/k8s_e2e:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Enable remote modules download
+        run: git config --global url."https://${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}@github.com/".insteadOf "https://github.com/"
+
+      - name: Configure AWS credentials for topos-devnet-1 account
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: arn:aws:iam::129575284029:role/TerraformRole
+          role-session-name: Terraform-TerraformRole-session
+          aws-region: us-east-1
+          role-skip-session-tagging: true
+          role-duration-seconds: 3600
+
+      - name: Terraform init
+        working-directory: tools/terraform/topos-devnet-1
+        run: |
+          terraform init \
+            -backend-config=backend.conf
+
+      - name: Terraform apply
+        working-directory: tools/terraform/topos-devnet-1
+        run: |
+          terraform apply -auto-approve \
+            -var-file=terraform.tfvars.default
+
+      - name: Grab results from Terraform
+        working-directory: tools/terraform/topos-devnet-1
+        run: |
+          filesystem_id=$(terraform output --raw eks_efs_id)
+          echo "FILESYSTEM_ID=${filesystem_id}" >> $GITHUB_ENV
+
+          eks_efs_csi_irsa_arn=$(terraform output --raw eks_efs_csi_irsa_arn)
+          echo "EKS_EFS_CSI_IRSA_ARN=${eks_efs_csi_irsa_arn}" >> $GITHUB_ENV
+
+          eks_external_dns_irsa_arn=$(terraform output --raw eks_external_dns_irsa_arn)
+          echo "EKS_EXTERNAL_DNS_IRSA_ARN=${eks_external_dns_irsa_arn}" >> $GITHUB_ENV
+
+      - name: Configure kubeconfig
+        working-directory: tools/terraform/topos-devnet-1
+        run: aws eks update-kubeconfig --region us-east-1 --name $(terraform output --raw cluster_name)
+
+      - name: Helm Install
+        working-directory: tools/
+        env:
+          GITHUB_USERNAME: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}
+          DOCKER_TAGS: main
+          DOCKER_USERNAME: ${{ github.actor }}
+          DOCKER_PASSWORD: ${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
+          FILESYSTEM_ID: ${{ env.FILESYSTEM_ID }}
+          EKS_EFS_CSI_IRSA_ARN: ${{ env.EKS_EFS_CSI_IRSA_ARN }}
+          EKS_EXTERNAL_DNS_IRSA_ARN: ${{ env.EKS_EXTERNAL_DNS_IRSA_ARN }}
+        run: |
+          helmfile sync
