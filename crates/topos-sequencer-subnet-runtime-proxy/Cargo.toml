@@ -3,10 +3,6 @@ name = "topos-sequencer-subnet-runtime-proxy"
 version = "0.1.0"
 edition = "2021"
 
-[[bin]]
-name = "create-keystore"
-path = "src/keystore.rs"
-
 [dependencies]
 byteorder.workspace = true
 clap.workspace = true

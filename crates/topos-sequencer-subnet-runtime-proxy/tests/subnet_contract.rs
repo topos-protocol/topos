@@ -18,7 +18,7 @@ use web3::transports::Http;
 use web3::types::{BlockNumber, Log};
 
 mod common;
-use common::subnet_test_data::{generate_test_keystore_file, TEST_KEYSTORE_FILE_PASSWORD};
+use common::subnet_test_data::generate_test_validator_dir;
 use topos_sequencer_subnet_runtime_proxy::{RuntimeProxyConfig, RuntimeProxyWorker};
 
 const SUBNET_TCC_JSON_DEFINITION: &'static str = "ToposCore.json";
@@ -476,14 +476,13 @@ async fn test_subnet_node_get_block_info(
 #[test(tokio::test)]
 #[serial]
 async fn test_create_runtime() -> Result<(), Box<dyn std::error::Error>> {
-    let keystore_file_path = generate_test_keystore_file()?;
+    let subnet_data_dir = generate_test_validator_dir()?;
     info!("Creating runtime proxy...");
     let runtime_proxy_worker = RuntimeProxyWorker::new(RuntimeProxyConfig {
         subnet_id: SOURCE_SUBNET_ID,
         endpoint: format!("localhost:{}", SUBNET_RPC_PORT),
         subnet_contract_address: "0x0000000000000000000000000000000000000000".to_string(),
-        keystore_file: keystore_file_path,
-        keystore_password: TEST_KEYSTORE_FILE_PASSWORD.to_string(),
+        subnet_data_dir,
     })?;
     let runtime_proxy =
         topos_sequencer_subnet_runtime_proxy::testing::get_runtime(&runtime_proxy_worker);
@@ -502,15 +501,14 @@ async fn test_subnet_certificate_push_call(
     context_running_subnet_node: Context,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let context = context_running_subnet_node.await;
-    let keystore_file_path = generate_test_keystore_file()?;
+    let subnet_data_dir = generate_test_validator_dir()?;
     let subnet_smart_contract_address =
         "0x".to_string() + &hex::encode(context.subnet_contract.address());
     let runtime_proxy_worker = RuntimeProxyWorker::new(RuntimeProxyConfig {
         subnet_id: SOURCE_SUBNET_ID,
         endpoint: context.jsonrpc(),
         subnet_contract_address: subnet_smart_contract_address.clone(),
-        keystore_file: keystore_file_path,
-        keystore_password: TEST_KEYSTORE_FILE_PASSWORD.to_string(),
+        subnet_data_dir,
     })?;
 
     // TODO: Adjust this mock certificate when ToposCoreContract gets stable enough

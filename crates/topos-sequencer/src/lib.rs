@@ -13,17 +13,12 @@ pub struct SequencerConfiguration {
     pub subnet_jsonrpc_endpoint: String,
     pub subnet_contract_address: String,
     pub base_tce_api_url: String,
-    pub keystore_file: std::path::PathBuf,
-    pub keystore_password: Option<String>,
+    pub subnet_data_dir: std::path::PathBuf,
     pub verifier: u32,
 }
 
-pub async fn run(mut config: SequencerConfiguration) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn run(config: SequencerConfiguration) -> Result<(), Box<dyn std::error::Error>> {
     info!("Starting topos-sequencer application");
-
-    let pass = config.keystore_password.take().unwrap_or_else(|| {
-        rpassword::prompt_password("Keystore password:").expect("Valid keystore password")
-    });
 
     let subnet_id: SubnetId = hex::decode(&config.subnet_id)?.as_slice().try_into()?;
 
@@ -59,8 +54,7 @@ pub async fn run(mut config: SequencerConfiguration) -> Result<(), Box<dyn std::
         subnet_id,
         endpoint: config.subnet_jsonrpc_endpoint.clone(),
         subnet_contract_address: config.subnet_contract_address.clone(),
-        keystore_file: config.keystore_file.clone(),
-        keystore_password: pass,
+        subnet_data_dir: config.subnet_data_dir.clone(),
     }) {
         Ok(subnet_runtime_proxy) => subnet_runtime_proxy,
         Err(e) => {
