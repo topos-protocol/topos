@@ -56,7 +56,7 @@ impl ApiService for TceGrpcService {
                     .send(InternalRuntimeCommand::CertificateSubmitted {
                         certificate: Box::new(certificate.into()),
                         sender,
-                        ctx: Span::current(),
+                        ctx: Span::current().context(),
                     })
                     .with_current_context()
                     .instrument(Span::current())

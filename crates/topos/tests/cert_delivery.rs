@@ -19,6 +19,7 @@ use topos_core::{
 };
 use topos_tce_broadcast::{DoubleEchoCommand, SamplerCommand};
 use tracing::{debug, info, Span};
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 fn get_subset_of_subnets(subnets: &[SubnetId], subset_size: usize) -> Vec<SubnetId> {
     let mut rng = rand::thread_rng();
@@ -193,7 +194,7 @@ async fn cert_delivery() {
                             .command_broadcast
                             .send(DoubleEchoCommand::Broadcast {
                                 cert: cert.clone(),
-                                ctx: Span::current(),
+                                ctx: Span::current().context(),
                             })
                             .await
                             .expect("Can't send certificate");

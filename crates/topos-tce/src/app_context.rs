@@ -124,7 +124,8 @@ impl AppContext {
                 sender,
                 ctx,
             } => {
-                let span = info_span!(parent: &ctx, "TCE Runtime");
+                let span = info_span!("TCE Runtime");
+                span.set_parent(ctx);
 
                 _ = self
                     .pending_storage
@@ -145,6 +146,7 @@ impl AppContext {
 
                 match self.gatekeeper.push_peer_list(peers).await {
                     Ok(peers) => {
+                        info!("Gatekeeper has detected changes on the peer list, new sample in creation");
                         if sampler.peer_changed(peers).await.is_err() {
                             _ = sender.send(Err(RuntimeError::UnableToPushPeerList));
                         } else {
@@ -354,11 +356,11 @@ impl AppContext {
                 peers, cert, ctx, ..
             } => {
                 let span = info_span!(
-                    parent: &ctx,
                     "SEND Gossip",
                     peer_id = self.network_client.local_peer_id.to_string(),
                     "otel.kind" = "producer",
                 );
+                span.set_parent(ctx);
                 let cert_id = cert.id;
 
                 let data: Vec<u8> = NetworkMessage::from(TceCommands::OnGossip {
@@ -382,7 +384,7 @@ impl AppContext {
                                 RetryPolicy::N(3),
                             )
                             .instrument(span.clone())
-                            .with_context(span.context().clone())
+                            .with_context(span.context())
                     })
                     .collect::<Vec<_>>();
 
@@ -391,18 +393,16 @@ impl AppContext {
                         .instrument(span.clone())
                         .with_context(span.context().clone())
                         .await;
-
-                    println!("{:?}", results);
                 });
             }
 
             TceEvents::Echo { peers, cert, ctx } => {
                 let span = info_span!(
-                    parent: &ctx,
                     "SEND Echo",
                     peer_id = self.network_client.local_peer_id.to_string(),
                     "otel.kind" = "producer",
                 );
+                span.set_parent(ctx);
                 let my_peer_id = self.network_client.local_peer_id;
                 // Send echo message
                 let data: Vec<u8> = NetworkMessage::from(TceCommands::OnEcho {
@@ -423,7 +423,7 @@ impl AppContext {
                                 RetryPolicy::N(3),
                             )
                             .instrument(span.clone())
-                            .with_context(span.context().clone())
+                            .with_context(span.context())
                     })
                     .collect::<Vec<_>>();
 
@@ -437,11 +437,11 @@ impl AppContext {
 
             TceEvents::Ready { peers, cert, ctx } => {
                 let span = info_span!(
-                    parent: &ctx,
                     "SEND Ready",
                     peer_id = self.network_client.local_peer_id.to_string(),
                     "otel.kind" = "producer",
                 );
+                span.set_parent(ctx);
                 let my_peer_id = self.network_client.local_peer_id;
                 let data: Vec<u8> = NetworkMessage::from(TceCommands::OnReady {
                     from_peer: self.network_client.local_peer_id,
@@ -461,7 +461,7 @@ impl AppContext {
                                 RetryPolicy::N(3),
                             )
                             .instrument(span.clone())
-                            .with_context(span.context().clone())
+                            .with_context(span.context())
                     })
                     .collect::<Vec<_>>();
 
@@ -472,6 +472,7 @@ impl AppContext {
                         .await;
                 });
             }
+
             evt => {
                 debug!("Unhandled event: {:?}", evt);
             }
@@ -549,66 +550,65 @@ impl AppContext {
                                 digest: _,
                                 ctx,
                             } => {
-                                // if self
-                                //     .pending_storage
-                                //     .pending_certificate_exists(cert.id.clone())
-                                //     .await
-                                //     .is_err()
-                                // {
-                                let span = info_span!(
-                                    "RECV Gossip",
-                                    peer_id = self.network_client.local_peer_id.to_string(),
-                                    "otel.kind" = "consumer",
-                                    sender = from.to_string()
-                                );
-
-                                let parent = ctx.extract();
-                                span.set_parent(parent.clone());
-                                if let Ok(root) = self.tce_cli.get_span_cert(cert.id.clone()).await
+                                if self
+                                    .pending_storage
+                                    .pending_certificate_exists(cert.id)
+                                    .await
+                                    .is_err()
                                 {
-                                    span.add_link(root.span().span_context().clone());
-                                }
-                                span.in_scope(|| {
-                                    debug!(
+                                    let span = info_span!(
+                                        "RECV Gossip",
+                                        peer_id = self.network_client.local_peer_id.to_string(),
+                                        "otel.kind" = "consumer",
+                                        sender = from.to_string()
+                                    );
+
+                                    let parent = ctx.extract();
+                                    span.set_parent(parent.clone());
+                                    if let Ok(root) = self.tce_cli.get_span_cert(cert.id).await {
+                                        span.add_link(root.span().span_context().clone());
+                                    }
+                                    span.in_scope(|| {
+                                        debug!(
                                         sender = from.to_string(),
                                         "peer_id {} on_net_event TceCommands::OnGossip cert id: {}",
                                         &self.network_client.local_peer_id,
                                         &cert.id,
                                     );
-                                });
+                                    });
 
-                                spawn(self.network_client.respond_to_request(
-                                    NetworkMessage::from(TceCommands::OnDoubleEchoOk {
-                                        from_peer: my_peer,
-                                    }),
-                                    channel,
-                                ));
-                                // if let Err(error) = self
-                                //     .network_client
-                                //     .respond_to_request(
-                                //         NetworkMessage::from(TceCommands::OnDoubleEchoOk {
-                                //             from_peer: my_peer,
-                                //         }),
-                                //         channel,
-                                //     )
-                                //     .await
-                                // {
-                                //     error!("Unable to send response to gossip: {error:?}");
-                                // }
+                                    spawn(self.network_client.respond_to_request(
+                                        NetworkMessage::from(TceCommands::OnDoubleEchoOk {
+                                            from_peer: my_peer,
+                                        }),
+                                        channel,
+                                    ));
+                                    // if let Err(error) = self
+                                    //     .network_client
+                                    //     .respond_to_request(
+                                    //         NetworkMessage::from(TceCommands::OnDoubleEchoOk {
+                                    //             from_peer: my_peer,
+                                    //         }),
+                                    //         channel,
+                                    //     )
+                                    //     .await
+                                    // {
+                                    //     error!("Unable to send response to gossip: {error:?}");
+                                    // }
 
-                                _ = self
-                                    .pending_storage
-                                    .add_pending_certificate(cert.clone())
-                                    .instrument(span.clone())
-                                    .with_context(parent.clone())
-                                    .await;
+                                    _ = self
+                                        .pending_storage
+                                        .add_pending_certificate(cert.clone())
+                                        .instrument(span.clone())
+                                        .with_context(parent.clone())
+                                        .await;
 
-                                _ = self
-                                    .tce_cli
-                                    .broadcast_new_certificate(cert)
-                                    .instrument(span)
-                                    .with_context(parent)
-                                    .await;
+                                    _ = self
+                                        .tce_cli
+                                        .broadcast_new_certificate(cert)
+                                        .instrument(span)
+                                        .with_context(parent)
+                                        .await;
                                 // let command_sender = self.tce_cli.get_double_echo_channel();
                                 // command_sender
                                 //     .send(DoubleEchoCommand::Broadcast {
@@ -617,9 +617,9 @@ impl AppContext {
                                 //     })
                                 //     .await
                                 //     .expect("Gossip the certificate");
-                                // } else {
-                                //     // error!("RECV OnGossip but certificate is already in pending");
-                                // }
+                                } else {
+                                    error!("RECV OnGossip but certificate is already in pending");
+                                }
                             }
                             TceCommands::OnEcho {
                                 from_peer,
@@ -627,29 +627,34 @@ impl AppContext {
                                 ctx,
                                 ..
                             } => {
-                                // if self
-                                //     .pending_storage
-                                //     .pending_certificate_exists(cert.id.clone())
-                                //     .await
-                                //     .is_err()
-                                // {
-                                //     _ = self
-                                //         .pending_storage
-                                //         .add_pending_certificate(cert.clone())
-                                //         .await;
-                                // }
-
                                 let span = info_span!(
                                     "RECV Echo",
                                     peer_id = self.network_client.local_peer_id.to_string(),
                                     "otel.kind" = "consumer",
                                     sender = from.to_string()
                                 );
-                                // warn!("RECV Echo context: {:?}", ctx);
-                                let context = ctx.extract();
-                                span.set_parent(context.clone());
-                                if let Ok(root) = self.tce_cli.get_span_cert(cert.id.clone()).await
+                                let parent = ctx.extract();
+                                span.set_parent(parent.clone());
+
+                                if self
+                                    .pending_storage
+                                    .pending_certificate_exists(cert.id)
+                                    .await
+                                    .is_err()
                                 {
+                                    _ = self
+                                        .pending_storage
+                                        .add_pending_certificate(cert.clone())
+                                        .await;
+
+                                    _ = self
+                                        .tce_cli
+                                        .broadcast_new_certificate(cert.clone())
+                                        .instrument(span.clone())
+                                        .with_context(parent.clone())
+                                        .await;
+                                }
+                                if let Ok(root) = self.tce_cli.get_span_cert(cert.id).await {
                                     span.add_link(root.span().span_context().clone());
                                 }
 
@@ -663,16 +668,6 @@ impl AppContext {
                                     // We have received echo message from external peer
                                     self.tce_cli.get_double_echo_channel()
                                 });
-                                command_sender
-                                    .send(DoubleEchoCommand::Echo {
-                                        from_peer,
-                                        cert,
-                                        ctx: span.clone(),
-                                    })
-                                    .with_context(context)
-                                    .instrument(span)
-                                    .await
-                                    .expect("Receive the Echo");
                                 //We are responding with OnDoubleEchoOk to remote peer
                                 spawn(self.network_client.respond_to_request(
                                     NetworkMessage::from(TceCommands::OnDoubleEchoOk {
@@ -680,32 +675,40 @@ impl AppContext {
                                     }),
                                     channel,
                                 ));
+                                command_sender
+                                    .send(DoubleEchoCommand::Echo {
+                                        from_peer,
+                                        cert,
+                                        ctx: span.context(),
+                                    })
+                                    .with_context(parent)
+                                    .instrument(span)
+                                    .await
+                                    .expect("Receive the Echo");
                             }
                             TceCommands::OnReady {
                                 from_peer,
                                 cert,
                                 ctx,
                             } => {
-                                // if self
-                                //     .pending_storage
-                                //     .pending_certificate_exists(cert.id.clone())
-                                //     .await
-                                //     .is_ok()
-                                // {
-                                let span = info_span!(
-                                    "RECV Ready",
-                                    peer_id = self.network_client.local_peer_id.to_string(),
-                                    "otel.kind" = "consumer",
-                                    sender = from.to_string()
-                                );
-                                // warn!("RECV Ready context: {:?}", ctx);
-                                let context = ctx.extract();
-                                span.set_parent(context.clone());
-                                if let Ok(root) = self.tce_cli.get_span_cert(cert.id.clone()).await
+                                if self
+                                    .pending_storage
+                                    .pending_certificate_exists(cert.id)
+                                    .await
+                                    .is_ok()
                                 {
-                                    span.add_link(root.span().span_context().clone());
-                                }
-                                let command_sender = span.in_scope(||{
+                                    let span = info_span!(
+                                        "RECV Ready",
+                                        peer_id = self.network_client.local_peer_id.to_string(),
+                                        "otel.kind" = "consumer",
+                                        sender = from.to_string()
+                                    );
+                                    let context = ctx.extract();
+                                    span.set_parent(context.clone());
+                                    if let Ok(root) = self.tce_cli.get_span_cert(cert.id).await {
+                                        span.add_link(root.span().span_context().clone());
+                                    }
+                                    let command_sender = span.in_scope(||{
 
                                     // We have received Ready echo message, we are responding with OnDoubleEchoOk
                                     info!(
@@ -715,26 +718,29 @@ impl AppContext {
                                     );
                                     self.tce_cli.get_double_echo_channel()
                                 });
-                                command_sender
-                                    .send(DoubleEchoCommand::Ready {
-                                        from_peer,
-                                        cert,
-                                        ctx: span.clone(),
-                                    })
-                                    .with_context(context)
-                                    .instrument(span)
-                                    .await
-                                    .expect("Receive the Ready");
 
-                                spawn(self.network_client.respond_to_request(
-                                    NetworkMessage::from(TceCommands::OnDoubleEchoOk {
-                                        from_peer: my_peer,
-                                    }),
-                                    channel,
-                                ));
-                                // } else {
-                                //     error!("RECV OnReady but certificate isn't in pending");
-                                // }
+                                    spawn(self.network_client.respond_to_request(
+                                        NetworkMessage::from(TceCommands::OnDoubleEchoOk {
+                                            from_peer: my_peer,
+                                        }),
+                                        channel,
+                                    ));
+                                    command_sender
+                                        .send(DoubleEchoCommand::Ready {
+                                            from_peer,
+                                            cert,
+                                            ctx: span.context(),
+                                        })
+                                        .with_context(context)
+                                        .instrument(span)
+                                        .await
+                                        .expect("Receive the Ready");
+                                } else {
+                                    error!(
+                                        "RECV OnReady but certificate isn't in pending from {}",
+                                        from.to_string()
+                                    );
+                                }
                             }
                             _ => todo!(),
                         }

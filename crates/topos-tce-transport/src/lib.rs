@@ -1,11 +1,11 @@
 //! implementation of Topos Network Transport
 //!
 use clap::Args;
+use opentelemetry::Context;
 use serde::{Deserialize, Serialize};
 use topos_core::uci::{Certificate, DigestCompressed};
 use topos_p2p::PeerId;
 use topos_telemetry::PropagationContext;
-use tracing::Span;
 
 /// Protocol parameters of the TCE
 #[derive(Args, Default, Clone, Debug)]
@@ -98,19 +98,19 @@ pub enum TceEvents {
         peers: Vec<PeerId>,
         cert: Certificate,
         digest: DigestCompressed,
-        ctx: Span,
+        ctx: Context,
     },
     /// Indicates that 'echo' message broadcasting is required
     Echo {
         peers: Vec<PeerId>,
         cert: Certificate,
-        ctx: Span,
+        ctx: Context,
     },
     /// Indicates that 'ready' message broadcasting is required
     Ready {
         peers: Vec<PeerId>,
         cert: Certificate,
-        ctx: Span,
+        ctx: Context,
     },
     /// For simulation purpose, for now only caused by ill-formed sampling
     Die,

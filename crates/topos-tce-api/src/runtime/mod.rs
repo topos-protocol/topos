@@ -189,7 +189,8 @@ impl Runtime {
                 sender,
                 ctx,
             } => {
-                let span = info_span!(parent: &ctx, "TCE API Runtime",);
+                let span = info_span!("TCE API Runtime",);
+                span.set_parent(ctx);
 
                 async move {
                     tracing::warn!(span_span_id = ?Span::current().context().span().span_context().span_id());
@@ -204,7 +205,7 @@ impl Runtime {
                         .send(RuntimeEvent::CertificateSubmitted {
                             certificate,
                             sender,
-                            ctx: Span::current().clone(),
+                            ctx: Span::current().context(),
                         })
                         .with_current_context()
                         .instrument(Span::current())

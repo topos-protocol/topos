@@ -2562,6 +2562,7 @@ dependencies = [
  "libp2p-swarm",
  "libp2p-tcp",
  "libp2p-webrtc",
+ "libp2p-yamux",
  "multiaddr",
  "parking_lot 0.12.1",
  "pin-project",
@@ -2907,6 +2908,20 @@ dependencies = [
  "tokio",
  "tokio-util 0.7.4",
  "webrtc",
+]
+
+[[package]]
+name = "libp2p-yamux"
+version = "0.42.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4f63594a0aa818642d9d4915c791945053877253f08a3626f13416b5cd928a29"
+dependencies = [
+ "futures",
+ "libp2p-core",
+ "log",
+ "parking_lot 0.12.1",
+ "thiserror",
+ "yamux",
 ]
 
 [[package]]
@@ -7048,6 +7063,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "56c1936c4cc7a1c9ab21a1ebb602eb942ba868cbd44a99cb7cdc5892335e1c85"
 dependencies = [
  "linked-hash-map",
+]
+
+[[package]]
+name = "yamux"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e5d9ba232399af1783a58d8eb26f6b5006fbefe2dc9ef36bd283324792d03ea5"
+dependencies = [
+ "futures",
+ "log",
+ "nohash-hasher",
+ "parking_lot 0.12.1",
+ "rand 0.8.5",
+ "static_assertions",
 ]
 
 [[package]]

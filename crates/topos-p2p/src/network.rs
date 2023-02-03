@@ -19,7 +19,7 @@ use libp2p::{
     mplex, noise,
     swarm::{keep_alive, SwarmBuilder},
     tcp::{tokio::Transport, Config},
-    Multiaddr, PeerId, Transport as TransportTrait,
+    yamux, Multiaddr, PeerId, Transport as TransportTrait,
 };
 use std::{
     borrow::Cow,
@@ -151,7 +151,8 @@ impl<'a> NetworkBuilder<'a> {
         let transport = transport
             .upgrade(upgrade::Version::V1)
             .authenticate(noise::NoiseConfig::xx(noise_keys).into_authenticated())
-            .multiplex(mplex::MplexConfig::new())
+            .multiplex(yamux::YamuxConfig::default())
+            // .multiplex(mplex::MplexConfig::new())
             .timeout(TWO_HOURS)
             .boxed();
 

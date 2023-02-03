@@ -54,4 +54,7 @@ pub enum CommandExecutionError {
 
     #[error("Failed to fetch Record from DHT")]
     DHTGetRecordFailed,
+
+    #[error("Connection with a peer has failed")]
+    ConnectionClosed,
 }

@@ -32,11 +32,9 @@ impl StorageClient {
         &self,
         certificate_id: CertificateId,
     ) -> Result<(PendingCertificateId, Certificate), StorageError> {
-        CheckPendingCertificateExists {
-            certificate_id: certificate_id.clone(),
-        }
-        .send_to(&self.sender)
-        .await
+        CheckPendingCertificateExists { certificate_id }
+            .send_to(&self.sender)
+            .await
     }
 
     /// Ask the storage to add a new pending certificate

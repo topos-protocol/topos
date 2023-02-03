@@ -8,6 +8,7 @@ use std::fmt::{Debug, Display, Formatter};
 use tokio_stream::StreamExt;
 use topos_p2p::PeerId;
 use tracing::{debug, error, info, trace, warn, Span};
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 use tce_transport::{ReliableBroadcastParams, TceEvents};
 use tokio::runtime::Runtime;
@@ -255,7 +256,7 @@ fn submit_test_cert(
                 sender
                     .send(DoubleEchoCommand::Broadcast {
                         cert: cert.clone(),
-                        ctx: Span::current(),
+                        ctx: Span::current().context(),
                     })
                     .await
                     .unwrap();
@@ -514,7 +515,7 @@ pub async fn handle_peer_event(
                     .get_double_echo_channel()
                     .send(DoubleEchoCommand::Broadcast {
                         cert,
-                        ctx: Span::current(),
+                        ctx: Span::current().context(),
                     })
                     .await?;
             }
@@ -534,7 +535,7 @@ pub async fn handle_peer_event(
                         .send(DoubleEchoCommand::Deliver {
                             cert: cert.clone(),
                             digest: digest.clone(),
-                            ctx: Span::current(),
+                            ctx: Span::current().context(),
                         })
                         .await?;
                 }
@@ -549,7 +550,7 @@ pub async fn handle_peer_event(
                         .send(DoubleEchoCommand::Echo {
                             from_peer,
                             cert: cert.clone(),
-                            ctx: Span::current(),
+                            ctx: Span::current().context(),
                         })
                         .await?;
                 }
@@ -564,7 +565,7 @@ pub async fn handle_peer_event(
                         .send(DoubleEchoCommand::Ready {
                             from_peer,
                             cert: cert.clone(),
-                            ctx: Span::current(),
+                            ctx: Span::current().context(),
                         })
                         .await?;
                 }

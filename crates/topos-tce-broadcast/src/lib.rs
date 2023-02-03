@@ -3,6 +3,7 @@
 //! Abstracted from actual transport implementation.
 //! Abstracted from actual storage implementation.
 //!
+use opentelemetry::Context;
 use sampler::SampleType;
 use thiserror::Error;
 use tokio::spawn;
@@ -20,6 +21,7 @@ use tce_transport::{ReliableBroadcastParams, TceEvents};
 use topos_core::uci::{Certificate, CertificateId, DigestCompressed, SubnetId};
 use topos_p2p::PeerId;
 use tracing::{error, info, Span};
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 use crate::mem_store::TceMemStore;
 use crate::sampler::{Sampler, SubscribersUpdate, SubscriptionsView};
@@ -67,13 +69,13 @@ pub enum DoubleEchoCommand {
     Deliver {
         cert: Certificate,
         digest: DigestCompressed,
-        ctx: Span,
+        ctx: Context,
     },
 
     /// Entry point for new certificate to submit as initial sender
     Broadcast {
         cert: Certificate,
-        ctx: Span,
+        ctx: Context,
     },
 
     // Entry point to broadcast many Certificates
@@ -85,14 +87,14 @@ pub enum DoubleEchoCommand {
     Echo {
         from_peer: PeerId,
         cert: Certificate,
-        ctx: Span,
+        ctx: Context,
     },
 
     /// When ready reply received
     Ready {
         from_peer: PeerId,
         cert: Certificate,
-        ctx: Span,
+        ctx: Context,
     },
     DeliveredCerts {
         subnet_id: SubnetId,
@@ -304,7 +306,7 @@ impl ReliableBroadcastClient {
         if broadcast_commands
             .send(DoubleEchoCommand::Broadcast {
                 cert: certificate,
-                ctx: Span::current(),
+                ctx: Span::current().context(),
             })
             .await
             .is_err()
