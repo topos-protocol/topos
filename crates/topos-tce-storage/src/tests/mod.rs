@@ -39,7 +39,7 @@ async fn can_persist_a_pending_certificate(storage: RocksDBStorage) {
     )
     .unwrap();
 
-    assert!(storage.add_pending_certificate(certificate).await.is_ok());
+    assert!(storage.add_pending_certificate(&certificate).await.is_ok());
 }
 
 #[rstest]
@@ -157,10 +157,7 @@ async fn pending_certificate_are_removed_during_persist_action(storage: RocksDBS
     )
     .unwrap();
 
-    let pending_id = storage
-        .add_pending_certificate(certificate.clone())
-        .await
-        .unwrap();
+    let pending_id = storage.add_pending_certificate(&certificate).await.unwrap();
 
     assert!(pending_column.get(&pending_id).is_ok());
     _ = storage
@@ -256,10 +253,7 @@ async fn pending_certificate_can_be_removed(storage: RocksDBStorage) {
     )
     .unwrap();
 
-    let pending_id = storage
-        .add_pending_certificate(certificate.clone())
-        .await
-        .unwrap();
+    let pending_id = storage.add_pending_certificate(&certificate).await.unwrap();
 
     assert!(pending_column.get(&pending_id).is_ok());
     _ = storage
@@ -277,15 +271,9 @@ async fn pending_certificate_can_be_removed(storage: RocksDBStorage) {
         .collect::<Vec<_>>()
         .is_empty());
 
-    let _ = storage
-        .add_pending_certificate(certificate.clone())
-        .await
-        .unwrap();
+    let _ = storage.add_pending_certificate(&certificate).await.unwrap();
 
-    let pending_id = storage
-        .add_pending_certificate(certificate.clone())
-        .await
-        .unwrap();
+    let pending_id = storage.add_pending_certificate(&certificate).await.unwrap();
 
     assert!(pending_column.get(&pending_id).is_ok());
     _ = storage

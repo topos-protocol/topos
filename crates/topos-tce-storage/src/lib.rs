@@ -130,7 +130,7 @@ pub trait Storage: Sync + Send + 'static {
     /// Add a pending certificate to the pool
     async fn add_pending_certificate(
         &self,
-        certificate: Certificate,
+        certificate: &Certificate,
     ) -> Result<PendingCertificateId, InternalStorageError>;
 
     /// Persist the certificate with given status

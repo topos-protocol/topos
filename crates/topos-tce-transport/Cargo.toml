@@ -9,7 +9,7 @@ path = 'src/lib.rs'
 
 [dependencies]
 clap.workspace = true
-serde.workspace = true
+serde = { workspace = true, features = ["rc"] }
 
 topos-core = { workspace = true, features = ["uci"] }
 topos-p2p = { path = "../topos-p2p/"}

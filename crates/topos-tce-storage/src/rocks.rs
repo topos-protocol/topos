@@ -98,11 +98,11 @@ impl Storage for RocksDBStorage {
 
     async fn add_pending_certificate(
         &self,
-        certificate: Certificate,
+        certificate: &Certificate,
     ) -> Result<PendingCertificateId, InternalStorageError> {
         let key = self.next_pending_id.fetch_add(1, Ordering::Relaxed);
 
-        self.pending_certificates.insert(&key, &certificate)?;
+        self.pending_certificates.insert(&key, certificate)?;
 
         Ok(key)
     }

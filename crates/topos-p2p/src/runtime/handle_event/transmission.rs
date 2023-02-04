@@ -73,7 +73,7 @@ impl EventHandler<RequestResponseEvent<TransmissionRequest, TransmissionResponse
                     warn!("Received an InboundRequest failure for an unknown request {request_id}")
                 }
             }
-            RequestResponseEvent::InboundFailure { .. } => {} // event => error!("Unhandled RequestResponse event: {event:?}"),
+            RequestResponseEvent::InboundFailure { .. } => {}
         }
     }
 }

@@ -16,7 +16,7 @@ use libp2p::{
     dns::TokioDnsConfig,
     identity::Keypair,
     kad::store::MemoryStore,
-    mplex, noise,
+    noise,
     swarm::{keep_alive, SwarmBuilder},
     tcp::{tokio::Transport, Config},
     yamux, Multiaddr, PeerId, Transport as TransportTrait,
@@ -152,7 +152,6 @@ impl<'a> NetworkBuilder<'a> {
             .upgrade(upgrade::Version::V1)
             .authenticate(noise::NoiseConfig::xx(noise_keys).into_authenticated())
             .multiplex(yamux::YamuxConfig::default())
-            // .multiplex(mplex::MplexConfig::new())
             .timeout(TWO_HOURS)
             .boxed();
 

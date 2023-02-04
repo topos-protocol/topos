@@ -28,7 +28,7 @@ where
         &mut self,
         AddPendingCertificate { certificate }: AddPendingCertificate,
     ) -> Result<PendingCertificateId, StorageError> {
-        let pending_id = self.storage.add_pending_certificate(certificate).await?;
+        let pending_id = self.storage.add_pending_certificate(&certificate).await?;
 
         self.pending_certificates.push_back(pending_id);
 

@@ -129,13 +129,13 @@ impl AppContext {
 
                 _ = self
                     .pending_storage
-                    .add_pending_certificate(certificate.clone())
+                    .add_pending_certificate((*certificate).clone())
                     .instrument(span.clone())
                     .await;
                 info!("Certificate added to pending storage");
                 _ = self
                     .tce_cli
-                    .broadcast_new_certificate(certificate)
+                    .broadcast_new_certificate(*certificate)
                     .instrument(span.clone())
                     .await;
                 _ = sender.send(Ok(()));

@@ -58,17 +58,17 @@ impl From<topos_uci::Certificate> for proto_v1::Certificate {
             verifier: certificate.verifier,
             target_subnets: certificate
                 .target_subnets
-                .into_iter()
-                .map(|target_subnet| target_subnet.into())
+                .iter()
+                .map(|target_subnet| (*target_subnet).into())
                 .collect(),
             id: Some(crate::shared::v1::CertificateId {
                 value: certificate.id.into(),
             }),
             proof: Some(crate::shared::v1::StarkProof {
-                value: certificate.proof,
+                value: certificate.proof.clone(),
             }),
             signature: Some(crate::shared::v1::Frost {
-                value: certificate.signature,
+                value: certificate.signature.clone(),
             }),
         }
     }

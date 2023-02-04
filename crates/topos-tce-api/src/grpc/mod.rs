@@ -107,14 +107,16 @@ impl ApiService for TceGrpcService {
 
             receiver
                 .map(|value| match value {
-                    Ok(Ok((position, certificate))) => Ok(Response::new(GetSourceHeadResponse {
-                        certificate: Some(certificate.clone().into()),
-                        position: Some(topos_core::api::tce::v1::SourceStreamPosition {
-                            subnet_id: Some(certificate.source_subnet_id.into()),
-                            certificate_id: Some((*certificate.id.as_array()).into()),
-                            position,
-                        }),
-                    })),
+                    Ok(Ok((position, ref certificate))) => {
+                        Ok(Response::new(GetSourceHeadResponse {
+                            certificate: Some(certificate.clone().into()),
+                            position: Some(topos_core::api::tce::v1::SourceStreamPosition {
+                                subnet_id: Some(certificate.source_subnet_id.into()),
+                                certificate_id: Some((*certificate.id.as_array()).into()),
+                                position,
+                            }),
+                        }))
+                    }
                     Ok(Err(crate::RuntimeError::UnknownSubnet(subnet_id))) => {
                         // Tce does not have Position::Zero certificate associated
                         Err(Status::internal(format!(
