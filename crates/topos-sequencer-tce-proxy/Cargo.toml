@@ -33,6 +33,8 @@ tracing.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]
+topos-tce-transport = { path = "../topos-tce-transport" }
+topos-tce = { path = "../topos-tce" }
 rstest.workspace = true
 test-log.workspace = true
 env_logger.workspace = true
