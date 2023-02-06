@@ -18,17 +18,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Retrieve Docker tags
-        id: docker_tags
-        uses: actions/download-artifact@v3
-        with:
-          name: docker_tags
-
       - name: Set environment
         run: |
-          docker_tag=$(head -n 1 docker_tags)
-          echo "DOCKER_TAG=${docker_tag#*:}" >> $GITHUB_ENV
-
           sha=${{ github.sha }}
           e2e_id="e2e-${{ github.repository_id }}-${sha:0:6}"
           echo "E2E_ID=${e2e_id}" >> $GITHUB_ENV
@@ -80,7 +71,7 @@ jobs:
         env:
           GITHUB_USERNAME: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}
-          DOCKER_TAGS: ${{ env.DOCKER_TAG }}
+          DOCKER_TAG: main
           DOCKER_USERNAME: ${{ github.actor }}
           DOCKER_PASSWORD: ${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
           FILESYSTEM_ID: ${{ env.FILESYSTEM_ID }}
@@ -97,7 +88,7 @@ jobs:
         env:
           GITHUB_USERNAME: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}
-          DOCKER_TAGS: ${{ env.DOCKER_TAG }}
+          DOCKER_TAG: main
           DOCKER_USERNAME: ${{ github.actor }}
           DOCKER_PASSWORD: ${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
           FILESYSTEM_ID: ${{ env.FILESYSTEM_ID }}
