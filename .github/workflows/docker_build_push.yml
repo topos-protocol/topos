@@ -59,20 +59,9 @@ jobs:
             type=registry,ref=ghcr.io/${{ github.repository }}:build-cache-main-${{ github.workflow }}-stable
           cache-to: type=registry,ref=ghcr.io/${{ github.repository }}:build-cache-${{ env.GITHUB_REF_SLUG_URL }}-${{ github.workflow }}-${{ matrix.version }},mode=max
 
-      - name: Save docker tags for upcoming e2e test on Kubernetes
-        run: |
-          mkdir -p ./docker
-          echo ${{ steps.meta.outputs.tags }} > ./docker/docker_tags
-
-      - name: Publish docker tags artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: docker_tags
-          path: docker/
-
   k8s:
     # run only when the workflow was scheduled or a PR is being merged into main
-    if: ${{ (github.event_name != 'pull_request') }}
+    if: ${{ (github.event_name == 'push') || (github.event_name == 'schedule') }}
     needs: docker
     uses: toposware/topos/.github/workflows/k8s_e2e_tests.yml@main
     secrets: inherit

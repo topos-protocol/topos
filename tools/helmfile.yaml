@@ -41,6 +41,8 @@ releases:
   set:
   - name: image.repository
     value: ghcr.io/toposware/topos
+  - name: peerReplicas
+    value: 15
   - name: image.tag
     value: {{ requiredEnv "DOCKER_TAG"}}
   - name: credentials.username
