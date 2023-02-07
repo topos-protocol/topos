@@ -17,6 +17,7 @@ pub type PendingRecordRequest = oneshot::Sender<Result<Vec<Multiaddr>, CommandEx
 
 /// DiscoveryBehaviour is responsible to discover and manage connections with peers
 pub(crate) struct DiscoveryBehaviour {}
+
 impl DiscoveryBehaviour {
     pub fn create(
         config: &DiscoveryConfig,
