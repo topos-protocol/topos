@@ -3,6 +3,7 @@
 //! Abstracted from actual transport implementation.
 //! Abstracted from actual storage implementation.
 //!
+
 use opentelemetry::Context;
 use sampler::SampleType;
 use thiserror::Error;
@@ -20,7 +21,7 @@ use tce_transport::{ReliableBroadcastParams, TceEvents};
 
 use topos_core::uci::{Certificate, CertificateId, DigestCompressed, SubnetId};
 use topos_p2p::PeerId;
-use tracing::{error, info, Span};
+use tracing::{debug, error, info, Span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 use crate::mem_store::TceMemStore;
@@ -67,6 +68,7 @@ pub enum DoubleEchoCommand {
 
     /// Received G-set message
     Deliver {
+        from_peer: PeerId,
         cert: Certificate,
         digest: DigestCompressed,
         ctx: Context,

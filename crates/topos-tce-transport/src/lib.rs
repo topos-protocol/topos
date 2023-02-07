@@ -1,6 +1,5 @@
 //! implementation of Topos Network Transport
 //!
-
 use clap::Args;
 use opentelemetry::Context;
 use serde::{Deserialize, Serialize};

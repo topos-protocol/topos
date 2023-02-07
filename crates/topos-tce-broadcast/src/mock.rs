@@ -533,6 +533,7 @@ pub async fn handle_peer_event(
                     w_cli
                         .get_double_echo_channel()
                         .send(DoubleEchoCommand::Deliver {
+                            from_peer,
                             cert: cert.clone(),
                             digest: digest.clone(),
                             ctx: Span::current().context(),

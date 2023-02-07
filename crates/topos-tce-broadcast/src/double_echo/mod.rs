@@ -19,8 +19,8 @@ use tracing_opentelemetry::OpenTelemetrySpanExt;
 /// Processing data associated to a Certificate candidate for delivery
 /// Sample repartition, one peer may belongs to multiple samples
 /// Ready is always sent to current subscribers view
-#[derive(Debug)]
-struct DeliveryState {
+#[derive(Clone)]
+pub struct DeliveryState {
     pub subscriptions: SubscriptionsView,
     ctx: Context,
 }
@@ -48,6 +48,7 @@ pub struct DoubleEcho {
 impl DoubleEcho {
     pub const MAX_BUFFER_SIZE: usize = 2048;
 
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         params: ReliableBroadcastParams,
         command_receiver: mpsc::Receiver<DoubleEchoCommand>,
@@ -88,6 +89,7 @@ impl DoubleEcho {
                 },
                 Some(command) = self.command_receiver.recv() => {
                     match command {
+
                         DoubleEchoCommand::DeliveredCerts { subnet_id, limit, sender } => {
 
                             debug!("DoubleEchoCommand::DeliveredCerts, subnet_id: {:?}, limit: {}", &subnet_id, &limit);
@@ -110,7 +112,7 @@ impl DoubleEcho {
                         }
 
                         DoubleEchoCommand::Broadcast { cert, ctx } => {
-                            let span = info_span!(target: "topos", "DoubleEcho buffering", peer_id = self.local_peer_id);
+                            let span = info_span!(target: "topos", "DoubleEcho buffering", peer_id = self.local_peer_id, certificate_id = cert.id.to_string());
                             span.set_parent(ctx);
 
                             span.in_scope(||{
@@ -136,21 +138,21 @@ impl DoubleEcho {
                             let mut _span = None;
                             match command {
                                 DoubleEchoCommand::Echo {from_peer, cert, ctx } => {
-                                    let span = info_span!("Handling Echo");
+                                    let span = info_span!("Handling Echo", peer = self.local_peer_id, certificate_id = cert.id.to_string());
                                     span.set_parent(ctx);
                                     _span = Some(span.entered());
                                     debug!("handling DoubleEchoCommand::Echo from_peer: {} cert_id: {}", &from_peer, cert.id);
                                     self.handle_echo(from_peer, &cert.id);
                                 },
                                 DoubleEchoCommand::Ready { from_peer, cert, ctx } => {
-                                    let span = info_span!("Handling Ready");
+                                    let span = info_span!("Handling Ready", peer = self.local_peer_id, certificate_id = cert.id.to_string());
                                     span.set_parent(ctx);
                                     _span = Some(span.entered());
                                     debug!("handling DoubleEchoCommand::Ready from_peer: {} cert_id: {}", &from_peer, &cert.id);
                                     self.handle_ready(from_peer, &cert.id);
                                 },
-                                DoubleEchoCommand::Deliver { cert, digest, ctx } => {
-                                    let span = info_span!("Handling Deliver");
+                                DoubleEchoCommand::Deliver {  cert, digest, ctx, .. } => {
+                                    let span = info_span!("Handling Deliver", peer = self.local_peer_id, certificate_id = cert.id.to_string());
                                     span.set_parent(ctx);
                                     _span = Some(span.entered());
                                     info!("handling DoubleEchoCommand::Deliver cert_id: {} digest: {:?}", cert.id, &digest);
@@ -175,12 +177,12 @@ impl DoubleEcho {
                 }
 
                 Some(new_subscribers_update) = self.subscribers_update_receiver.recv() => {
-                    info!("new subscribers update {:?}", &new_subscribers_update);
+                    info!( peer_id = self.local_peer_id,"new subscribers update {:?}", &new_subscribers_update);
                     match new_subscribers_update {
-                        SubscribersUpdate::NewEchoSubscriber(peer) if !self.subscriptions.echo.contains(&peer) => {
+                        SubscribersUpdate::NewEchoSubscriber(peer) => {
                             self.subscribers.echo.insert(peer);
                         }
-                        SubscribersUpdate::NewReadySubscriber(peer) if !self.subscriptions.ready.contains(&peer) => {
+                        SubscribersUpdate::NewReadySubscriber(peer) => {
                             self.subscribers.ready.insert(peer);
                         }
                         SubscribersUpdate::RemoveEchoSubscriber(peer) => {
@@ -191,11 +193,11 @@ impl DoubleEcho {
                         }
                         SubscribersUpdate::RemoveReadySubscriber(peer) => {
                             self.subscribers.ready.remove(&peer);
+
                         }
                         SubscribersUpdate::RemoveReadySubscribers(peers) => {
                             self.subscribers.ready = self.subscribers.ready.drain().filter(|v| !peers.contains(v)).collect();
                         }
-                        _ => {}
                     }
                     debug!("Subscribers are now: {:?}", self.subscribers);
                 }
@@ -294,6 +296,7 @@ impl DoubleEcho {
             "dispatching gossip event cert_id: {} to gossip peers {:?}",
             cert.id, &gossip_peers
         );
+
         let _ = self.event_sender.send(TceEvents::Gossip {
             peers: gossip_peers, // considered as the G-set for erdos-renyi
             cert: cert.clone(),
@@ -325,6 +328,7 @@ impl DoubleEcho {
         match self.delivery_state_for_new_cert(&cert.id) {
             Some(delivery_state) => {
                 info!("DeliveryState is : {:?}", delivery_state.subscriptions);
+
                 self.cert_candidate
                     .insert(cert.id, (cert.clone(), delivery_state));
             }
@@ -404,9 +408,7 @@ impl DoubleEcho {
                 state_to_delivery.subscriptions.ready.clear();
             }
 
-            if state_to_delivery.subscriptions.ready.is_empty()
-                && is_ok_to_deliver(&self.params, state_to_delivery)
-            {
+            if is_ok_to_deliver(&self.params, state_to_delivery) {
                 self.pending_delivery.insert(
                     *certificate_id,
                     (certificate.clone(), state_to_delivery.ctx.clone()),

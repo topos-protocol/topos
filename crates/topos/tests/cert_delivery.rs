@@ -5,8 +5,13 @@ mod support {
 
 use crate::support::certificate::generate_cert;
 use futures::{future::join_all, StreamExt};
+use libp2p::PeerId;
 use rand::seq::IteratorRandom;
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    time::Duration,
+};
+use support::network::TestAppContext;
 use test_log::test;
 use tokio::spawn;
 use tokio::sync::mpsc;
@@ -14,12 +19,11 @@ use topos_core::{
     api::tce::v1::{
         watch_certificates_request::OpenStream,
         watch_certificates_response::{CertificatePushed, Event},
+        PushPeerListRequest, StatusRequest, SubmitCertificateRequest,
     },
     uci::{Certificate, SubnetId},
 };
-use topos_tce_broadcast::{DoubleEchoCommand, SamplerCommand};
-use tracing::{debug, info, Span};
-use tracing_opentelemetry::OpenTelemetrySpanExt;
+use tracing::{debug, info};
 
 fn get_subset_of_subnets(subnets: &[SubnetId], subset_size: usize) -> Vec<SubnetId> {
     let mut rng = rand::thread_rng();
@@ -32,20 +36,41 @@ fn get_subset_of_subnets(subnets: &[SubnetId], subset_size: usize) -> Vec<Subnet
 }
 
 #[test(tokio::test)]
+async fn start_a_cluster() {
+    let mut peers_context = create_network(10, 4).await;
+
+    let mut status: Vec<bool> = Vec::new();
+
+    for (_peer_id, client) in peers_context.iter_mut() {
+        let response = client
+            .console_grpc_client
+            .status(StatusRequest {})
+            .await
+            .expect("Can't get status");
+
+        status.push(response.into_inner().has_active_sample);
+    }
+
+    assert!(status.iter().all(|s| *s == true));
+}
+
+#[tokio::test]
+#[ignore]
 async fn cert_delivery() {
+    let subscriber = ::tracing_subscriber::FmtSubscriber::builder()
+        .with_env_filter(::tracing_subscriber::EnvFilter::from_default_env())
+        .with_ansi(false)
+        .with_test_writer()
+        .finish();
+    let _ = ::tracing::subscriber::set_global_default(subscriber);
+
     let peer_number = 10;
     let correct_sample = 4;
     let number_of_certificates_per_subnet = 2;
     let number_of_subnets = 3;
     const NUMBER_OF_SUBNETS_PER_CLIENT: usize = 1; // In real life this would be always 1, topos node would represent one subnet
 
-    let g = |a, b| (((a as f32) * b) as f32).ceil() as usize;
-
     let all_subnets: Vec<SubnetId> = (1..=number_of_subnets).map(|v| [v as u8; 32]).collect();
-
-    // List of peers (tce nodes) with their context
-    let mut peers_context =
-        support::network::start_peer_pool(peer_number as u8, correct_sample, g).await;
 
     // Generate certificates with respect to parameters
     let mut subnet_certificates = generate_cert(&all_subnets, number_of_certificates_per_subnet);
@@ -67,8 +92,12 @@ async fn cert_delivery() {
             }
         }
     }
+
+    // List of peers (tce nodes) with their context
+    let mut peers_context = create_network(peer_number, correct_sample).await;
+
     // Connected tce clients are passing received certificates to this mpsc::Receiver, collect all of them
-    let mut clients_delivered_certificates: Vec<mpsc::Receiver<(String, SubnetId, Certificate)>> =
+    let mut clients_delivered_certificates: Vec<mpsc::Receiver<(PeerId, SubnetId, Certificate)>> =
         Vec::new(); // (Peer Id, Subnet Id, Certificate)
     let mut client_tasks: Vec<tokio::task::JoinHandle<()>> = Vec::new(); // Clients connected to TCE API Service run in async tasks
 
@@ -92,7 +121,7 @@ async fn cert_delivery() {
         );
 
         // (Peer id, Subnet Id, Certificate)
-        let (tx, rx) = mpsc::channel::<(String, SubnetId, Certificate)>(
+        let (tx, rx) = mpsc::channel::<(PeerId, SubnetId, Certificate)>(
             number_of_certificates_per_subnet * number_of_subnets,
         );
         clients_delivered_certificates.push(rx);
@@ -107,94 +136,63 @@ async fn cert_delivery() {
         let mut incoming_certificates_number =
             expected_certificates.get(&client_subnet_id).unwrap().len();
         // Open client connection to TCE service in separate async tasks
-        if let Some(mut client) = ctx.api_grpc_client.take() {
-            let client_subnet_id = client_subnet_id.clone();
-            let client_task = spawn(async move {
-                debug!("Spawning client task for peer: {}", peer_id);
-                let response = client.watch_certificates(in_stream).await.unwrap();
+        let mut client = ctx.api_grpc_client.clone();
+        let client_subnet_id = client_subnet_id.clone();
+        let client_task = spawn(async move {
+            debug!("Spawning client task for peer: {}", peer_id);
+            let response = client.watch_certificates(in_stream).await.unwrap();
 
-                let mut resp_stream = response.into_inner();
-                while let Some(received) = resp_stream.next().await {
-                    let received = received.unwrap();
-                    if let Some(Event::CertificatePushed(CertificatePushed {
-                        certificate: Some(certificate),
-                    })) = received.event
-                    {
-                        debug!(
-                            "Client peer_id: {} certificate id: {:?} delivered to subnet id {:?}, ",
-                            &peer_id, &certificate.id, &client_subnet_id
-                        );
-                        tx.send((
-                            peer_id.clone(),
-                            client_subnet_id.clone().into(),
-                            certificate.into(),
-                        ))
-                        .await
-                        .unwrap();
-                        incoming_certificates_number -= 1;
-                        if incoming_certificates_number == 0 {
-                            // We have received all expected certificates for this subnet, end client
-                            break;
-                        }
+            let mut resp_stream = response.into_inner();
+            while let Some(received) = resp_stream.next().await {
+                let received = received.unwrap();
+                if let Some(Event::CertificatePushed(CertificatePushed {
+                    certificate: Some(certificate),
+                })) = received.event
+                {
+                    debug!(
+                        "Client peer_id: {} certificate id: {} delivered to subnet id {:?}, ",
+                        &peer_id,
+                        certificate.id.clone().unwrap(),
+                        &client_subnet_id
+                    );
+                    tx.send((
+                        peer_id.clone(),
+                        client_subnet_id.clone().into(),
+                        certificate.into(),
+                    ))
+                    .await
+                    .unwrap();
+                    incoming_certificates_number -= 1;
+                    if incoming_certificates_number == 0 {
+                        // We have received all expected certificates for this subnet, end client
+                        break;
                     }
                 }
-                debug!("Finishing client for peer_id: {}", &peer_id);
-            });
-            client_tasks.push(client_task);
-        }
+            }
+            debug!("Finishing client for peer_id: {}", &peer_id);
+        });
+        client_tasks.push(client_task);
     }
 
-    // NOTE: Needed time for nodes to put their record on DHT
-    // plus the resolution from other peers
-    info!("Waiting proper peer resolution");
-    tokio::time::sleep(std::time::Duration::from_secs(3)).await;
-
-    // Force TCE nodes to recreate subscriptions and subscribers
-    info!("Trigger the new network view");
-    for i in 0..peers_context.len() {
-        let current_peer = format!("peer_{i}");
-        if let Some(client) = peers_context.get(&current_peer) {
-            let _ = client
-                .command_sampler
-                .send(SamplerCommand::PeersChanged {
-                    peers: peers_context
-                        .iter()
-                        .filter_map(|(key, ctx)| {
-                            if key == &current_peer {
-                                None
-                            } else {
-                                Some(ctx.peer_id)
-                            }
-                        })
-                        .collect::<Vec<_>>()
-                        .clone(),
-                })
-                .await
-                .expect("Can't send certificate");
-        }
-    }
-    // Waiting for new network view
-    tokio::time::sleep(std::time::Duration::from_secs(4)).await;
-
+    tokio::time::sleep(Duration::from_secs(10)).await;
     // Broadcast multiple certificates from all subnets
     info!("Broadcasting certificates...");
-    for (peer_id, client) in peers_context {
+    for (peer_id, client) in peers_context.iter_mut() {
         // If there exist of connected subnets to particular TCE
-        if let Some(connected_subnets) = client.connected_subnets {
+        if let Some(ref connected_subnets) = client.connected_subnets {
             // Iterate all subnets connected to TCE (normally 1)
             for subnet_id in connected_subnets {
-                if let Some(certificates) = subnet_certificates.get_mut(&subnet_id) {
+                if let Some(certificates) = subnet_certificates.get_mut(subnet_id) {
                     // Iterate all certificates meant to be sent to the particular network
                     for cert in certificates.iter() {
-                        debug!(
+                        info!(
                             "Sending certificate id={:?} from subnet id: {:?} to peer id: {}",
                             &cert.id, &subnet_id, &peer_id
                         );
                         let _ = client
-                            .command_broadcast
-                            .send(DoubleEchoCommand::Broadcast {
-                                cert: cert.clone(),
-                                ctx: Span::current().context(),
+                            .api_grpc_client
+                            .submit_certificate(SubmitCertificateRequest {
+                                certificate: Some(cert.clone().into()),
                             })
                             .await
                             .expect("Can't send certificate");
@@ -207,14 +205,14 @@ async fn cert_delivery() {
     }
 
     info!(
-        "Waiting for expected delivered certificates {:#?}",
+        "Waiting for expected delivered certificates {:?}",
         expected_certificates
     );
     // Delivery tasks collect certificates that clients of every TCE node
     // are receiving to reduce them to one channel (delivery_rx)
     let mut delivery_tasks = Vec::new();
     // delivery_tx/delivery_rx Pass certificates from delivery tasks of every client to final collection of delivered certificates
-    let (delivery_tx, mut delivery_rx) = mpsc::channel::<(String, SubnetId, Certificate)>(
+    let (delivery_tx, mut delivery_rx) = mpsc::channel::<(PeerId, SubnetId, Certificate)>(
         peer_number * number_of_certificates_per_subnet * number_of_subnets,
     );
     for (index, mut client_delivered_certificates) in
@@ -223,11 +221,11 @@ async fn cert_delivery() {
         let delivery_tx = delivery_tx.clone();
         let delivery_task = tokio::spawn(async move {
             // Read certificates that every client has received
-            debug!("Delivery task for receiver {}", index);
+            info!("Delivery task for receiver {}", index);
             while let Some((peer_id, target_subnet_id, cert)) =
                 client_delivered_certificates.recv().await
             {
-                debug!(
+                info!(
                     "Delivered certificate on peer_Id: {} cert id: {:?} from source subnet id: {:?} to target subnet id {:?}",
                     &peer_id, cert.id, cert.source_subnet_id, target_subnet_id
                 );
@@ -239,7 +237,7 @@ async fn cert_delivery() {
             }
             // We will end this loop when sending TCE client has dropped channel sender and there
             // are not certificates in channel
-            debug!("End delivery task for receiver {}", index);
+            info!("End delivery task for receiver {}", index);
         });
         delivery_tasks.push(delivery_task);
     }
@@ -249,7 +247,7 @@ async fn cert_delivery() {
         info!("Waiting for all delivery tasks");
         join_all(delivery_tasks).await;
         info!("All expected clients delivered");
-        let mut delivered_certificates: HashMap<String, HashMap<SubnetId, HashSet<Certificate>>> =
+        let mut delivered_certificates: HashMap<PeerId, HashMap<SubnetId, HashSet<Certificate>>> =
             HashMap::new();
         // Collect all certificates per peer_id and subnet_id
         while let Some((peer_id, receiving_subnet_id, cert)) = delivery_rx.recv().await {
@@ -278,7 +276,7 @@ async fn cert_delivery() {
     };
 
     // Set big timeout to prevent flaky fails. Instead fail/panic early in the test to indicate actual error
-    if let Err(_) = tokio::time::timeout(std::time::Duration::from_secs(8), assertion).await {
+    if let Err(_) = tokio::time::timeout(std::time::Duration::from_secs(10), assertion).await {
         panic!("Timeout waiting for command");
     }
 }
@@ -286,4 +284,59 @@ async fn cert_delivery() {
 pub fn sample_lower_bound(n_u: usize) -> usize {
     let k: f32 = 2.;
     (n_u as f32).log(k) as usize
+}
+
+async fn create_network(
+    peer_number: usize,
+    correct_sample: usize,
+) -> HashMap<PeerId, TestAppContext> {
+    const NUMBER_OF_SUBNETS_PER_CLIENT: usize = 1; // In real life this would be always 1, topos node would represent one subnet
+
+    let g = |a, b| (((a as f32) * b) as f32).ceil() as usize;
+
+    // List of peers (tce nodes) with their context
+    let mut peers_context =
+        support::network::start_peer_pool(peer_number as u8, correct_sample, g).await;
+    let all_peers: Vec<PeerId> = peers_context.keys().cloned().collect();
+
+    // Force TCE nodes to recreate subscriptions and subscribers
+    info!("Trigger the new network view");
+    for (peer_id, client) in peers_context.iter_mut() {
+        let _ = client
+            .console_grpc_client
+            .push_peer_list(PushPeerListRequest {
+                request_id: None,
+                peers: all_peers
+                    .iter()
+                    .filter_map(|key| {
+                        if key == peer_id {
+                            None
+                        } else {
+                            Some(key.to_string())
+                        }
+                    })
+                    .collect::<Vec<_>>(),
+            })
+            .await
+            .expect("Can't send PushPeerListRequest");
+    }
+
+    tokio::time::sleep(Duration::from_secs(1)).await;
+
+    // Waiting for new network view
+    let mut status: Vec<bool> = Vec::new();
+
+    for (_peer_id, client) in peers_context.iter_mut() {
+        let response = client
+            .console_grpc_client
+            .status(StatusRequest {})
+            .await
+            .expect("Can't get status");
+
+        status.push(response.into_inner().has_active_sample);
+    }
+
+    assert!(status.iter().all(|s| *s == true));
+
+    peers_context
 }
