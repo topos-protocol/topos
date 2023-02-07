@@ -1,6 +1,6 @@
 # AddrAnnouncer
 
-This `AddrAnnouncer` is responsible for publishing on a time based the node addresses into the DHT.
+This `AddrAnnouncer` is responsible for making available the node addresses in the network by publishing on a time sensitive manner into the DHT.
 Its job is simple and pretty straightforward, publishing the addresses on the DHT to allow any node to request with the `PeerId` the addresses.
 
 ## General design
@@ -19,10 +19,10 @@ The `AddrAnnouncer` will also need to deal with `PutRecord` response to notify t
 The `AddrAnnouncer` will listen for command coming from the `Runtime`, those commands will drive the behavior of the `AddrAnnouncer`.
 
 - `Start` command will start the `AddrAnnouncer` and the announcement process, receiving a new `Start` command should do nothing if already started.
-- `Stop` command will ask the `AddrAnnouncer` to shutdown, if an announcement is being processed the `AddrAnnouncer` will let it finish before stopping
+- `Stop` command will ask the `AddrAnnouncer` to shut-down, if an announcement is being processed the `AddrAnnouncer` will let it finish before stopping
 - `Pause` command will stop the announcement but keep the `AddrAnnouncer` alive
-- `TTLChanged` command will update the TTL for the next announcement
-- `AddressesUpdated` command will update the addresses to be published for the next announcement
+- `ChangeTTL` command will update the TTL for the next announcement
+- `UpdateAddresses` command will update the addresses to be published for the next announcement
 
 ### Publications
 
@@ -40,5 +40,5 @@ The re-replication, as re-publication, is handled by the Kademlia DHT.
 
 ### Expiration
 
-If we don't specify any expiration on the `AddrsRecord` the record stored locally will never expire but it is still replicated with the (global) configured record TTL.
+If we don't specify any expiration on the `AddrsRecord` the record stored locally will never expire, although it will keep being replicated with the (global) configured record TTL.
 If the node publishing becomes offline, the record will expire after the defined TTL

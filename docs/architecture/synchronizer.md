@@ -10,4 +10,4 @@ The `Synchronizer` will have some commands used by the `Runtime`, and expose eve
 
 The `Synchronizer` manages two main subcomponents which are `CheckpointsCollector` and `CertificatesCollector`.
 
-## Internal design
+<!-- ## Internal design -->

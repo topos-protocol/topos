@@ -4,6 +4,6 @@ The `CertificatesCollector` is responsible for fetching and validating certifica
 
 ## General design
 
-Upon receiving a `SourceStreamPosition` from the `CheckpointsCollector`, the `CertificatesCollector` will check the difference between the current position that the local node have, and the expected position reported by the `CheckpointsCollector`. The `CertificatesCollector` will then ask the peers of the network to retrieve the list of certificate ids to sync, in order. Upon receiving those responses,
+Upon receiving a `SourceStreamPosition` from the `CheckpointsCollector`, the `CertificatesCollector` will check the difference between the current position that the local node have, and the expected position reported by the `CheckpointsCollector`. The `CertificatesCollector` will then ask the peers of the network to retrieve the list of `CertificateId` to sync, in order. Upon receiving those responses,
 
-## Internal design
+<!-- ## Internal design -->
