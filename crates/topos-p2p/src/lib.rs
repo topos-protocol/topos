@@ -8,6 +8,8 @@ mod constant;
 pub mod error;
 mod event;
 mod runtime;
+#[cfg(test)]
+mod tests;
 
 pub(crate) use behaviour::Behaviour;
 pub use client::Client;
