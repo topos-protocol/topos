@@ -22,7 +22,7 @@ jobs:
         run: |
           sha=${{ github.sha }}
           e2e_id="e2e-${{ github.repository_id }}-${sha:0:6}"
-          echo "E2E_ID=${e2e_id}" >> $GITHUB_ENV
+          echo "E2E_ID=troubleshoot" >> $GITHUB_ENV
         shell: bash
 
       - name: Enable remote modules download
