@@ -82,6 +82,19 @@ jobs:
         run: sleep 300s
         shell: bash
 
+      - name: Export logs from boot and peers
+        run: |
+          mkdir -p ./logs
+          kubectl logs -l node=peer > ./logs/peer.log
+          kubectl logs -l node=boot > ./logs/boot.log
+          kubectl logs -l app=cert-spammer > ./logs/cert-spammer.log
+
+      - name: Publish logs as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: logs
+          path: ./logs/
+
       # - name: Helm Clean up
       #   if: always()
       #   working-directory: tools/
