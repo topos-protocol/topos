@@ -76,7 +76,7 @@ jobs:
           DOCKER_PASSWORD: ${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
           FILESYSTEM_ID: ${{ env.FILESYSTEM_ID }}
         run: |
-          helmfile destroy && helmfile sync
+          helmfile sync
 
       - name: Sleep
         run: sleep 300s
