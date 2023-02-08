@@ -1,4 +1,5 @@
 use crate::app_context::AppContext;
+use std::io::ErrorKind::InvalidInput;
 use topos_sequencer_certification::CertificationWorker;
 use topos_sequencer_subnet_runtime_proxy::{SubnetRuntimeProxyConfig, SubnetRuntimeProxyWorker};
 use topos_sequencer_tce_proxy::{TceProxyConfig, TceProxyWorker};
@@ -20,6 +21,12 @@ pub struct SequencerConfiguration {
 pub async fn run(config: SequencerConfiguration) -> Result<(), Box<dyn std::error::Error>> {
     info!("Starting topos-sequencer application");
 
+    if &config.subnet_id[0..2] != "0x" {
+        return Err(Box::new(std::io::Error::new(
+            InvalidInput,
+            "Subnet id must start with `0x`",
+        )));
+    }
     let subnet_id: SubnetId = hex::decode(&config.subnet_id[2..])?.as_slice().try_into()?;
 
     // Launch Tce proxy worker for handling interaction with TCE node

@@ -13,8 +13,7 @@ use topos_sequencer_types::{SubnetRuntimeProxyCommand, SubnetRuntimeProxyEvent};
 use tracing::{debug, error, info, trace, warn};
 
 const SUBNET_RETRY_DELAY: Duration = Duration::new(1, 0);
-// seconds
-const SUBNET_BLOCK_TIME: Duration = Duration::new(2, 0); //6 seconds
+const SUBNET_BLOCK_TIME: Duration = Duration::new(2, 0);
 
 pub struct SubnetRuntimeProxy {
     pub commands_channel: mpsc::UnboundedSender<SubnetRuntimeProxyCommand>,

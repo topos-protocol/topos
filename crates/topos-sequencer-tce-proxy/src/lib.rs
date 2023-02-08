@@ -460,7 +460,7 @@ impl TceProxyWorker {
                                 }
                             }
                             TceProxyCommand::Shutdown(sender) => {
-                                info!("Received TceProxyCommand::Exit command, closing tce client...");
+                                info!("Received TceProxyCommand::Shutdown command, closing tce client...");
                                 if let Err(e) = tce_client.close().await {
                                     error!("Unable to shutdown tce client, error details: {}", e);
                                 }

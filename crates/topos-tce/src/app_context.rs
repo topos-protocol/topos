@@ -657,7 +657,7 @@ impl AppContext {
     }
 
     pub async fn shutdown(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        info!("Executing TCE app context shutdown...");
+        info!("Shutting down the TCE client...");
         self.api_client.shutdown().await?;
         self.synchronizer.shutdown().await?;
         self.pending_storage.shutdown().await?;

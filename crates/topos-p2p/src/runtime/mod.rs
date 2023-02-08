@@ -238,7 +238,7 @@ impl Runtime {
             tokio::select! {
                 Some(event) = self.swarm.next() => self.handle(event).await,
                 Some(command) = self.command_receiver.recv() => self.handle_command(command).await,
-                 shutdown = self.shutdown.recv() => {
+                shutdown = self.shutdown.recv() => {
                     break shutdown;
                 }
             }
