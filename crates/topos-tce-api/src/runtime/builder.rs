@@ -2,7 +2,7 @@ use futures::Stream;
 use std::{collections::HashMap, net::SocketAddr};
 use tokio::{
     spawn,
-    sync::{mpsc, RwLock},
+    sync::{mpsc, oneshot, RwLock},
 };
 use tokio_stream::wrappers::ReceiverStream;
 use topos_core::api::tce::v1::StatusResponse;
@@ -39,6 +39,7 @@ impl RuntimeBuilder {
             .await;
 
         let (command_sender, runtime_command_receiver) = mpsc::channel(2048);
+        let (shutdown_channel, shutdown_receiver) = mpsc::channel::<oneshot::Sender<()>>(1);
 
         let runtime = Runtime {
             active_streams: HashMap::new(),
@@ -48,6 +49,7 @@ impl RuntimeBuilder {
             runtime_command_receiver,
             health_reporter,
             api_event_sender,
+            shutdown: shutdown_receiver,
         };
 
         spawn(grpc);
@@ -57,6 +59,7 @@ impl RuntimeBuilder {
             RuntimeClient {
                 command_sender,
                 tce_status,
+                shutdown_channel,
             },
             ReceiverStream::new(api_event_receiver),
         )

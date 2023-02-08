@@ -19,7 +19,7 @@ pub struct Client {
     pub retry_ttl: u64,
     pub local_peer_id: PeerId,
     pub sender: mpsc::Sender<Command>,
-    pub kill_switch: Arc<oneshot::Sender<()>>,
+    pub(crate) shutdown_channel: mpsc::Sender<oneshot::Sender<()>>,
 }
 
 impl Client {
@@ -138,6 +138,16 @@ impl Client {
         }
 
         receiver.await.unwrap_or_else(|error| Err(error.into()))
+    }
+
+    pub async fn shutdown(&self) -> Result<(), P2PError> {
+        let (sender, receiver) = oneshot::channel();
+        self.shutdown_channel
+            .send(sender)
+            .await
+            .map_err(P2PError::ShutdownCommunication)?;
+
+        Ok(receiver.await?)
     }
 }
 

@@ -1,43 +1,51 @@
 //! Protocol implementation guts.
 //!
 
-use crate::{Error, RuntimeProxyConfig};
+use crate::{Error, SubnetRuntimeProxyConfig};
 use std::fmt::{Debug, Formatter};
-use std::sync::{Arc, Mutex};
-use tokio::sync::mpsc;
+use std::sync::Arc;
+use tokio::sync::Mutex;
+use tokio::sync::{mpsc, oneshot};
 use tokio::time::{self, Duration};
 use topos_core::uci::Certificate;
 use topos_sequencer_subnet_client::{self, SubnetClient};
-use topos_sequencer_types::{RuntimeProxyCommand, RuntimeProxyEvent};
+use topos_sequencer_types::{SubnetRuntimeProxyCommand, SubnetRuntimeProxyEvent};
 use tracing::{debug, error, info, trace, warn};
 
-const SUBNET_RETRY_DELAY: Duration = Duration::new(1, 0); // seconds
-const SUBNET_BLOCK_TIME: Duration = Duration::new(6, 0); //6 seconds
+const SUBNET_RETRY_DELAY: Duration = Duration::new(1, 0);
+const SUBNET_BLOCK_TIME: Duration = Duration::new(2, 0);
 
-pub struct RuntimeProxy {
-    pub commands_channel: mpsc::UnboundedSender<RuntimeProxyCommand>,
-    pub events_subscribers: Vec<mpsc::UnboundedSender<RuntimeProxyEvent>>,
-    pub config: RuntimeProxyConfig,
-    _tx_exit: mpsc::UnboundedSender<()>,
+pub struct SubnetRuntimeProxy {
+    pub commands_channel: mpsc::UnboundedSender<SubnetRuntimeProxyCommand>,
+    pub events_subscribers: Vec<mpsc::UnboundedSender<SubnetRuntimeProxyEvent>>,
+    pub config: SubnetRuntimeProxyConfig,
+    command_task_shutdown: mpsc::Sender<oneshot::Sender<()>>,
+    block_task_shutdown: mpsc::Sender<oneshot::Sender<()>>,
 }
 
-impl Debug for RuntimeProxy {
+impl Debug for SubnetRuntimeProxy {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("RuntimeProxy instance").finish()
     }
 }
 
-impl RuntimeProxy {
-    pub fn spawn_new(config: RuntimeProxyConfig) -> Result<Arc<Mutex<RuntimeProxy>>, crate::Error> {
+impl SubnetRuntimeProxy {
+    pub fn spawn_new(
+        config: SubnetRuntimeProxyConfig,
+    ) -> Result<Arc<Mutex<SubnetRuntimeProxy>>, crate::Error> {
         info!(
             "Spawning new runtime proxy, endpoint: {} ethereum contract address: {}, ",
             &config.endpoint, &config.subnet_contract_address
         );
-        let (command_sender, mut command_rcv) = mpsc::unbounded_channel::<RuntimeProxyCommand>();
+        let (command_sender, mut command_rcv) =
+            mpsc::unbounded_channel::<SubnetRuntimeProxyCommand>();
         let ws_runtime_endpoint = format!("ws://{}/ws", &config.endpoint);
         let http_runtime_endpoint = format!("http://{}", &config.endpoint);
         let subnet_contract_address = Arc::new(config.subnet_contract_address.clone());
-        let (_tx_exit, mut rx_exit) = mpsc::unbounded_channel::<()>();
+        let (command_task_shutdown_channel, mut command_task_shutdown) =
+            mpsc::channel::<oneshot::Sender<()>>(1);
+        let (block_task_shutdown_channel, mut block_task_shutdown) =
+            mpsc::channel::<oneshot::Sender<()>>(1);
 
         // Get ethereum private key from keystore
         debug!(
@@ -71,8 +79,9 @@ impl RuntimeProxy {
         let runtime_proxy = Arc::new(Mutex::from(Self {
             commands_channel: command_sender,
             events_subscribers: Vec::new(),
-            _tx_exit,
             config: config.clone(),
+            command_task_shutdown: command_task_shutdown_channel,
+            block_task_shutdown: block_task_shutdown_channel,
         }));
 
         let _runtime_block_task = {
@@ -100,43 +109,53 @@ impl RuntimeProxy {
                         }
                     };
 
-                    loop {
-                        interval.tick().await;
-
-                        loop {
-                            match subnet
-                                .get_next_finalized_block(&subnet_contract_address)
-                                .await
-                            {
-                                Ok(block_info) => {
-                                    let block_number = block_info.number;
-                                    match Self::send_new_block(
-                                        runtime_proxy.clone(),
-                                        RuntimeProxyEvent::BlockFinalized(block_info),
-                                    ) {
-                                        Ok(()) => {
-                                            trace!(
-                                                "Finalized block {:?} successfully sent",
-                                                block_number
-                                            )
-                                        }
-                                        Err(e) => {
-                                            // todo determine if task should end on some type of error
-                                            error!(
-                                                "failed to send new finalize block, details: {}",
-                                                e
-                                            );
-                                            break;
+                    let shutdowned: Option<oneshot::Sender<()>> = loop {
+                        tokio::select! {
+                            _ = interval.tick() => {
+                                match subnet
+                                    .get_next_finalized_block(&subnet_contract_address)
+                                    .await
+                                {
+                                    Ok(block_info) => {
+                                        let block_number = block_info.number;
+                                        match Self::send_new_block(
+                                            runtime_proxy.clone(),
+                                            SubnetRuntimeProxyEvent::BlockFinalized(block_info),
+                                        ).await {
+                                            Ok(()) => {
+                                                trace!(
+                                                    "Finalized block {:?} successfully sent",
+                                                    block_number
+                                                )
+                                            }
+                                            Err(e) => {
+                                                // todo determine if task should end on some type of error
+                                                error!(
+                                                    "failed to send new finalize block, details: {}",
+                                                    e
+                                                );
+                                                break None;
+                                            }
                                         }
                                     }
+                                    Err(e) => {
+                                        // todo determine if task should end on some type of error
+                                        error!("failed to get new finalized block, details: {}", e);
+                                        break None;
+                                    }
                                 }
-                                Err(e) => {
-                                    // todo determine if task should end on some type of error
-                                    error!("failed to get new finalized block, details: {}", e);
-                                    break;
-                                }
+                            },
+                            shutdown = block_task_shutdown.recv() => {
+                                break shutdown;
                             }
                         }
+                    };
+
+                    if let Some(sender) = shutdowned {
+                        info!("Shutting down subnet runtime block processing task");
+                        _ = sender.send(());
+                    } else {
+                        warn!("Shutting down subnet runtime block processing task due to error");
                     }
                 }
             })
@@ -169,16 +188,23 @@ impl RuntimeProxy {
                 };
                 info!("Subnet latest pushed cert id is {:?}", latest_cert_id);
 
-                loop {
+                let shutdowned: Option<oneshot::Sender<()>> = loop {
                     tokio::select! {
                         // Poll runtime proxy commands channel
                         cmd = command_rcv.recv() => {
                             Self::on_command(&config, &mut subnet_client, cmd).await;
                         },
-                        Some(_) = rx_exit.recv() => {
-                            break;
+                        shutdown = command_task_shutdown.recv() => {
+                            break shutdown;
                         }
                     }
+                };
+
+                if let Some(sender) = shutdowned {
+                    info!("Shutting down subnet runtime command processing task");
+                    _ = sender.send(());
+                } else {
+                    warn!("Shutting down subnet runtime command processing task due to error");
                 }
             })
         };
@@ -186,18 +212,18 @@ impl RuntimeProxy {
         Ok(runtime_proxy)
     }
 
-    fn send_new_block(
-        runtime_proxy: Arc<Mutex<RuntimeProxy>>,
-        evt: RuntimeProxyEvent,
+    async fn send_new_block(
+        runtime_proxy: Arc<Mutex<SubnetRuntimeProxy>>,
+        evt: SubnetRuntimeProxyEvent,
     ) -> Result<(), Error> {
-        let mut runtime_proxy = runtime_proxy.lock().map_err(|_| Error::UnlockError)?;
+        let mut runtime_proxy = runtime_proxy.lock().await;
         runtime_proxy.send_out_events(evt);
         Ok(())
     }
 
     /// Send certificate to target subnet Topos Core contract for verification
     async fn push_certificate(
-        runtime_proxy_config: &RuntimeProxyConfig,
+        runtime_proxy_config: &SubnetRuntimeProxyConfig,
         subnet_client: &mut SubnetClient,
         cert: &Certificate,
     ) -> Result<String, Error> {
@@ -211,22 +237,26 @@ impl RuntimeProxy {
     }
 
     async fn on_command(
-        runtime_proxy_config: &RuntimeProxyConfig,
+        runtime_proxy_config: &SubnetRuntimeProxyConfig,
         subnet_client: &mut SubnetClient,
-        mb_cmd: Option<RuntimeProxyCommand>,
+        mb_cmd: Option<SubnetRuntimeProxyCommand>,
     ) {
         match mb_cmd {
             Some(cmd) => match cmd {
-                RuntimeProxyCommand::PushCertificate(c) => {
+                SubnetRuntimeProxyCommand::PushCertificate(c) => {
                     info!("New received Certificate {:?}", c);
                 }
                 // Process certificate retrieved from TCE node
-                RuntimeProxyCommand::OnNewDeliveredTxns(cert) => {
+                SubnetRuntimeProxyCommand::OnNewDeliveredTxns(cert) => {
                     info!("on_command - OnNewDeliveredTxns cert_id={:?}", &cert.id);
 
                     // Pass certificate to target subnet Topos core contract
-                    match RuntimeProxy::push_certificate(runtime_proxy_config, subnet_client, &cert)
-                        .await
+                    match SubnetRuntimeProxy::push_certificate(
+                        runtime_proxy_config,
+                        subnet_client,
+                        &cert,
+                    )
+                    .await
                     {
                         Ok(tx_hash) => {
                             debug!(
@@ -249,11 +279,33 @@ impl RuntimeProxy {
         }
     }
 
-    fn send_out_events(&mut self, evt: RuntimeProxyEvent) {
+    fn send_out_events(&mut self, evt: SubnetRuntimeProxyEvent) {
         for tx in &self.events_subscribers {
             // FIXME: When error is returned it means that receiving side of the channel is closed
             // Thus we better remove the sender from our subscribers
             let _ = tx.send(evt.clone());
         }
+    }
+
+    /// Shutdown subnet runtime proxy tasks
+    pub async fn shutdown(&self) -> Result<(), Error> {
+        let (command_task_sender, command_task_receiver) = oneshot::channel();
+        self.command_task_shutdown
+            .send(command_task_sender)
+            .await
+            .map_err(Error::ShutdownCommunication)?;
+        command_task_receiver
+            .await
+            .map_err(Error::ShutdownSignalReceiveError)?;
+
+        let (block_task_sender, block_task_receiver) = oneshot::channel();
+        self.block_task_shutdown
+            .send(block_task_sender)
+            .await
+            .map_err(Error::ShutdownCommunication)?;
+        block_task_receiver
+            .await
+            .map_err(Error::ShutdownSignalReceiveError)?;
+        Ok(())
     }
 }

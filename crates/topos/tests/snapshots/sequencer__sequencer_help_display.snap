@@ -8,7 +8,7 @@ Usage: topos sequencer run [OPTIONS] --subnet-contract-address <SUBNET_CONTRACT_
 
 Options:
       --subnet-id <SUBNET_ID>
-          SubnetId of the local subnet node [env: TOPOS_LOCAL_SUBNET_ID=] [default: 0000000000000000000000000000000000000000000000000000000000000000]
+          SubnetId of the local subnet node, hex encoded 32 bytes starting with 0x [env: TOPOS_LOCAL_SUBNET_ID=] [default: 0x0000000000000000000000000000000000000000000000000000000000000000]
   -v, --verbose...
           
       --subnet-jsonrpc-endpoint <SUBNET_JSONRPC_ENDPOINT>

@@ -5,6 +5,6 @@ edition = "2021"
 
 [dependencies]
 topos-core = { workspace = true, features = ["uci"] }
-
+tokio.workspace = true
 ethereum-types.workspace = true
 serde = { workspace = true, features = ["derive"] }

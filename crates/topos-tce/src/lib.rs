@@ -8,7 +8,7 @@ use std::time::Duration;
 pub use app_context::AppContext;
 use opentelemetry::global;
 use tce_transport::ReliableBroadcastParams;
-use tokio::spawn;
+use tokio::{spawn, sync::mpsc, sync::oneshot};
 use topos_p2p::utils::local_key_pair_from_slice;
 use topos_p2p::{utils::local_key_pair, Multiaddr, PeerId};
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
@@ -36,7 +36,10 @@ pub enum StorageConfiguration {
     RocksDB(Option<PathBuf>),
 }
 
-pub async fn run(config: &TceConfiguration) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn run(
+    config: &TceConfiguration,
+    shutdown: mpsc::Receiver<oneshot::Sender<()>>,
+) -> Result<(), Box<dyn std::error::Error>> {
     let key = config
         .local_key_seed
         .as_ref()
@@ -61,25 +64,27 @@ pub async fn run(config: &TceConfiguration) -> Result<(), Box<dyn std::error::Er
         .build()
         .await?;
 
-    let runtime = tokio::time::timeout(
+    debug!("Starting the p2p network");
+    let network_runtime = tokio::time::timeout(
         config.network_bootstrap_timeout,
         unbootstrapped_runtime.bootstrap(),
     )
     .await??;
-
-    let _network_handler = spawn(runtime.run());
+    let _network_handler = spawn(network_runtime.run());
+    debug!("p2p network started");
 
     debug!("Starting the gatekeeper");
     let (gatekeeper_client, gatekeeper_runtime) = topos_tce_gatekeeper::Gatekeeper::builder()
         .local_peer_id(peer_id)
         .await?;
-
     spawn(gatekeeper_runtime.into_future());
     debug!("Gatekeeper started");
 
+    debug!("Starting reliable broadcast");
     let (tce_cli, tce_stream) = ReliableBroadcastClient::new(ReliableBroadcastConfig {
         tce_params: config.tce_params.clone(),
     });
+    debug!("Reliable broadcast started");
 
     debug!("Starting the Storage");
     let (storage, storage_client, storage_stream) =
@@ -92,7 +97,6 @@ pub async fn run(config: &TceConfiguration) -> Result<(), Box<dyn std::error::Er
                 format!("Unsupported storage type {:?}", config.storage),
             )));
         };
-
     spawn(storage.into_future());
     debug!("Storage started");
 
@@ -130,6 +134,7 @@ pub async fn run(config: &TceConfiguration) -> Result<(), Box<dyn std::error::Er
             api_stream,
             storage_stream,
             synchronizer_stream,
+            shutdown,
         )
         .await;
 

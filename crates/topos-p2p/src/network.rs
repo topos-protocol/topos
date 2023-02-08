@@ -156,15 +156,13 @@ impl<'a> NetworkBuilder<'a> {
             .boxed();
 
         let swarm = SwarmBuilder::with_tokio_executor(transport, behaviour, peer_id).build();
-
-        let (kill_switch, shutdown_listener) = oneshot::channel();
-        let (kill_sender, _) = oneshot::channel();
+        let (shutdown_channel, shutdown) = mpsc::channel::<oneshot::Sender<()>>(1);
         Ok((
             Client {
                 retry_ttl: self.config.client_retry_ttl,
                 local_peer_id: peer_id,
                 sender: command_sender,
-                kill_switch: Arc::new(kill_switch),
+                shutdown_channel,
             },
             ReceiverStream::new(event_receiver),
             Runtime {
@@ -189,8 +187,7 @@ impl<'a> NetworkBuilder<'a> {
                 active_listeners: HashSet::new(),
                 peers: HashSet::new(),
                 pending_record_requests: HashMap::new(),
-                shutdown_listener,
-                kill_sender,
+                shutdown,
             },
         ))
     }

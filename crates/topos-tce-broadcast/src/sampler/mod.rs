@@ -6,7 +6,7 @@ pub type Peer = String;
 use std::{cmp::min, collections::HashSet};
 
 use tce_transport::{ReliableBroadcastParams, TceEvents};
-use tokio::sync::{broadcast, mpsc};
+use tokio::sync::{broadcast, mpsc, oneshot};
 use topos_p2p::PeerId;
 use tracing::{debug, error, info, warn};
 
@@ -111,6 +111,7 @@ pub struct Sampler {
     subscriptions_sender: mpsc::Sender<SubscriptionsView>,
     subscribers_update_sender: mpsc::Sender<SubscribersUpdate>,
     status: SampleProviderStatus,
+    pub(crate) shutdown: mpsc::Receiver<oneshot::Sender<()>>,
 }
 
 impl Sampler {
@@ -120,6 +121,7 @@ impl Sampler {
         event_sender: broadcast::Sender<TceEvents>,
         subscriptions_sender: mpsc::Sender<SubscriptionsView>,
         subscribers_update_sender: mpsc::Sender<SubscribersUpdate>,
+        shutdown: mpsc::Receiver<oneshot::Sender<()>>,
     ) -> Self {
         Self {
             params,
@@ -132,12 +134,17 @@ impl Sampler {
             subscriptions_sender,
             subscribers_update_sender,
             status: SampleProviderStatus::Stabilized,
+            shutdown,
         }
     }
 
     pub async fn run(mut self) {
-        loop {
+        let shutdowned: Option<oneshot::Sender<()>> = loop {
             tokio::select! {
+                shutdown = self.shutdown.recv() => {
+                    debug!("Shutting down sampler, {:?}", shutdown);
+                    break shutdown;
+                },
                 Some(command) = self.command_receiver.recv() => {
                     match command {
                         SamplerCommand::PeerConfirmationFailed { peer, sample_type } => {
@@ -157,8 +164,16 @@ impl Sampler {
                         SamplerCommand::ForceResample => self.reset_samples().await
                     }
                 }
-                else => break
+                else => break None
+
             }
+        };
+
+        if let Some(sender) = shutdowned {
+            info!("Shutting down broadcast sampler...");
+            _ = sender.send(());
+        } else {
+            info!("Shutting down broadcast sampler due to error...");
         }
     }
 }
@@ -457,6 +472,9 @@ mod tests {
         let nb_peers = 100;
         let sample_size = 10;
         let g = |a, b| ((a as f32) * b) as usize;
+
+        let (_sampler_shutdown_sender, sampler_shutdown_receiver) =
+            mpsc::channel::<oneshot::Sender<()>>(1);
         let mut sampler = Sampler::new(
             ReliableBroadcastParams {
                 echo_threshold: g(sample_size, 0.5),
@@ -470,6 +488,7 @@ mod tests {
             event_sender,
             subscriptions_view_sender,
             subscribers_update_sender,
+            sampler_shutdown_receiver,
         );
 
         let mut peers = Vec::new();
@@ -525,6 +544,8 @@ mod tests {
         let subscription_sample_size = 10;
         let subscriber_sample_size = 8;
         let g = |a, b| ((a as f32) * b) as usize;
+        let (_sampler_shutdown_sender, sampler_shutdown_receiver) =
+            mpsc::channel::<oneshot::Sender<()>>(1);
         let mut sampler = Sampler::new(
             ReliableBroadcastParams {
                 echo_threshold: g(subscription_sample_size, 0.5),
@@ -538,6 +559,7 @@ mod tests {
             event_sender,
             subscriptions_view_sender,
             subscribers_update_sender,
+            sampler_shutdown_receiver,
         );
 
         let mut peers = Vec::new();
@@ -607,6 +629,8 @@ mod tests {
         let g = |a, b| ((a as f32) * b) as usize;
         let nb_peers = 100;
         let subscription_sample_size = 10;
+        let (_sampler_shutdown_sender, sampler_shutdown_receiver) =
+            mpsc::channel::<oneshot::Sender<()>>(1);
         let mut sampler = Sampler::new(
             ReliableBroadcastParams {
                 echo_threshold: g(subscription_sample_size, 0.5),
@@ -620,6 +644,7 @@ mod tests {
             event_sender,
             subscriptions_view_sender,
             subscribers_update_sender,
+            sampler_shutdown_receiver,
         );
 
         let mut peers = Vec::new();
@@ -717,6 +742,8 @@ mod tests {
         let nb_peers = 100;
         let subscription_sample_size = 10;
         let subscribers_sample_size = 10;
+        let (_sampler_shutdown_sender, sampler_shutdown_receiver) =
+            mpsc::channel::<oneshot::Sender<()>>(1);
         let mut sampler = Sampler::new(
             ReliableBroadcastParams {
                 echo_threshold: g(subscription_sample_size, 0.5),
@@ -730,6 +757,7 @@ mod tests {
             event_sender,
             subscriptions_view_sender,
             subscribers_update_sender,
+            sampler_shutdown_receiver,
         );
 
         let mut peers = Vec::new();

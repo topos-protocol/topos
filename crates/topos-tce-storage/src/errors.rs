@@ -58,6 +58,9 @@ pub enum StorageError {
 
     #[error("Unable to receive expected response from storage: {0}")]
     ResponseChannel(#[from] oneshot::error::RecvError),
+
+    #[error("Unable to execute shutdown on the storage service: {0}")]
+    ShutdownCommunication(mpsc::error::SendError<oneshot::Sender<()>>),
 }
 
 #[derive(Debug, Error)]

@@ -3,8 +3,7 @@ use tokio::sync::{mpsc, oneshot};
 use crate::{SynchronizerCommand, SynchronizerError};
 
 pub struct SynchronizerClient {
-    #[allow(dead_code)]
-    pub(crate) shutdown_channel: mpsc::Sender<()>,
+    pub(crate) shutdown_channel: mpsc::Sender<oneshot::Sender<()>>,
     #[allow(dead_code)]
     pub(crate) commands: mpsc::Sender<SynchronizerCommand>,
 }
@@ -19,5 +18,15 @@ impl SynchronizerClient {
             .await?;
 
         recv.await?
+    }
+
+    pub async fn shutdown(&self) -> Result<(), SynchronizerError> {
+        let (sender, receiver) = oneshot::channel();
+        self.shutdown_channel
+            .send(sender)
+            .await
+            .map_err(SynchronizerError::ShutdownCommunication)?;
+
+        Ok(receiver.await?)
     }
 }

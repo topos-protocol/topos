@@ -4,7 +4,7 @@
 use crate::SequencerConfiguration;
 use serde::{Deserialize, Serialize};
 use topos_sequencer_certification::CertificationWorker;
-use topos_sequencer_subnet_runtime_proxy::RuntimeProxyWorker;
+use topos_sequencer_subnet_runtime_proxy::SubnetRuntimeProxyWorker;
 use topos_sequencer_tce_proxy::TceProxyWorker;
 use topos_sequencer_types::*;
 use tracing::debug;
@@ -20,7 +20,7 @@ use tracing::debug;
 pub struct AppContext {
     pub config: SequencerConfiguration,
     pub certification_worker: CertificationWorker,
-    pub runtime_proxy_worker: RuntimeProxyWorker,
+    pub runtime_proxy_worker: SubnetRuntimeProxyWorker,
     pub tce_proxy_worker: TceProxyWorker,
 }
 
@@ -29,7 +29,7 @@ impl AppContext {
     pub fn new(
         config: SequencerConfiguration,
         certification_worker: CertificationWorker,
-        runtime_proxy_worker: RuntimeProxyWorker,
+        runtime_proxy_worker: SubnetRuntimeProxyWorker,
         tce_proxy_worker: TceProxyWorker,
     ) -> Self {
         Self {
@@ -66,7 +66,7 @@ impl AppContext {
         }
     }
 
-    async fn on_runtime_proxy_event(&mut self, evt: RuntimeProxyEvent) {
+    async fn on_runtime_proxy_event(&mut self, evt: SubnetRuntimeProxyEvent) {
         debug!("on_runtime_proxy_event : {:?}", &evt);
         // This will always be a runtime proxy event
         let event = Event::RuntimeProxyEvent(evt);
@@ -93,11 +93,21 @@ impl AppContext {
                 // for processing
                 for cert in certs {
                     self.runtime_proxy_worker
-                        .eval(RuntimeProxyCommand::OnNewDeliveredTxns(cert))
+                        .eval(SubnetRuntimeProxyCommand::OnNewDeliveredTxns(cert))
                         .expect("Send cross transactions to the runtime");
                 }
             }
         }
+    }
+
+    // Shutdown app
+    #[allow(dead_code)]
+    async fn shutdown(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        self.tce_proxy_worker.shutdown().await?;
+        self.certification_worker.shutdown().await?;
+        self.runtime_proxy_worker.shutdown().await?;
+
+        Ok(())
     }
 }
 

@@ -33,6 +33,9 @@ pub enum P2PError {
 
     #[error("Error during bootstrap phase: {0}")]
     BootstrapError(&'static str),
+
+    #[error("Unable to execute shutdown on the p2p runtime: {0}")]
+    ShutdownCommunication(mpsc::error::SendError<oneshot::Sender<()>>),
 }
 
 #[derive(Error, Debug)]
