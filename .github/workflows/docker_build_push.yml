@@ -61,7 +61,7 @@ jobs:
 
   k8s:
     # run only when the workflow was scheduled or a PR is being merged into main
-    if: ${{ (github.event_name == 'push') || (github.event_name == 'schedule') }}
+    # if: ${{ (github.event_name == 'push') || (github.event_name == 'schedule') }}
     needs: docker
-    uses: toposware/topos/.github/workflows/k8s_e2e_tests.yml@main
+    uses: toposware/topos/.github/workflows/k8s_e2e_tests.yml@fix/ci
     secrets: inherit
