@@ -8,7 +8,7 @@ use opentelemetry::trace::FutureExt as TraceFutureExt;
 use serde::{Deserialize, Serialize};
 use tce_transport::{TceCommands, TceEvents};
 use tokio::spawn;
-use tokio::sync::oneshot;
+use tokio::sync::{mpsc, oneshot};
 use topos_core::uci::CertificateId;
 use topos_p2p::{Client as NetworkClient, Event as NetEvent, RetryPolicy};
 use topos_tce_api::RuntimeEvent as ApiEvent;
@@ -22,7 +22,7 @@ use topos_tce_storage::events::StorageEvent;
 use topos_tce_storage::StorageClient;
 use topos_tce_synchronizer::{SynchronizerClient, SynchronizerEvent};
 use topos_telemetry::PropagationContext;
-use tracing::{debug, error, info, info_span, trace, Instrument, Span};
+use tracing::{debug, error, info, info_span, trace, warn, Instrument, Span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 /// Top-level transducer main app context & driver (alike)
@@ -74,6 +74,7 @@ impl AppContext {
         mut api_stream: impl Stream<Item = ApiEvent> + Unpin,
         mut storage_stream: impl Stream<Item = StorageEvent> + Unpin,
         mut synchronizer_stream: impl Stream<Item = SynchronizerEvent> + Unpin,
+        mut shutdown: mpsc::Receiver<oneshot::Sender<()>>,
     ) {
         loop {
             tokio::select! {
@@ -100,8 +101,20 @@ impl AppContext {
                 // Synchronizer events
                 Some(_event) = synchronizer_stream.next() => {
                 }
+
+                // Shutdown signal
+                Some(sender) = shutdown.recv() => {
+                    info!("Shutting down TCE app context...");
+                    if let Err(e) = self.shutdown().await {
+                        error!("Error shutting down TCE app context: {e}");
+                    }
+                    // Send feedback that shutdown has been finished
+                    _ = sender.send(());
+                    break;
+                }
             }
         }
+        warn!("Exiting main TCE app processing loop")
     }
 
     async fn on_api_event(&mut self, event: ApiEvent) {
@@ -641,6 +654,18 @@ impl AppContext {
             }
             _ => {}
         }
+    }
+
+    pub async fn shutdown(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        info!("Shutting down the TCE client...");
+        self.api_client.shutdown().await?;
+        self.synchronizer.shutdown().await?;
+        self.pending_storage.shutdown().await?;
+        self.tce_cli.shutdown().await?;
+        self.gatekeeper.shutdown().await?;
+        self.network_client.shutdown().await?;
+
+        Ok(())
     }
 }
 

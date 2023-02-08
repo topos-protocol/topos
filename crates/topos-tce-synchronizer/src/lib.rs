@@ -18,9 +18,10 @@ mod client;
 
 pub use client::SynchronizerClient;
 use tokio_stream::wrappers::ReceiverStream;
+use tracing::{info, warn};
 
 pub struct Synchronizer {
-    pub(crate) shutdown: mpsc::Receiver<()>,
+    pub(crate) shutdown: mpsc::Receiver<oneshot::Sender<()>>,
     pub(crate) commands: mpsc::Receiver<SynchronizerCommand>,
     #[allow(dead_code)]
     pub(crate) events: mpsc::Sender<SynchronizerEvent>,
@@ -37,12 +38,21 @@ impl IntoFuture for Synchronizer {
 
     fn into_future(mut self) -> Self::IntoFuture {
         async move {
-            loop {
+            let shutdowned: Option<oneshot::Sender<()>> = loop {
                 tokio::select! {
-                    _ = self.shutdown.recv() => { break; }
+                    shutdown = self.shutdown.recv() => {
+                        break shutdown;
+                    }
                     Some(command) = self.commands.recv() => self.handle_command(command).await?,
                     _checkpoint_event = self.checkpoints_collector_stream.next() => {}
                 }
+            };
+
+            if let Some(sender) = shutdowned {
+                info!("Shutting down Synchronizer...");
+                _ = sender.send(());
+            } else {
+                warn!("Shutting down Synchronizer due to error...");
             }
 
             Ok(())
@@ -95,6 +105,9 @@ pub enum SynchronizerError {
 
     #[error(transparent)]
     InternalCommunicationChannel(#[from] SendError<SynchronizerCommand>),
+
+    #[error("Unable to execute shutdown on the Synchronizer: {0}")]
+    ShutdownCommunication(mpsc::error::SendError<oneshot::Sender<()>>),
 }
 
 #[derive(Debug)]

@@ -8,7 +8,7 @@ use std::{
     time,
 };
 use tce_transport::{ReliableBroadcastParams, TceEvents};
-use tokio::sync::{broadcast, mpsc};
+use tokio::sync::{broadcast, mpsc, oneshot};
 use topos_core::uci::{Certificate, CertificateId, DigestCompressed};
 use topos_p2p::PeerId;
 use tracing::{debug, error, info, info_span, warn, Span};
@@ -29,9 +29,7 @@ pub struct DoubleEcho {
     subscriptions_view_receiver: mpsc::Receiver<SubscriptionsView>,
     subscribers_update_receiver: mpsc::Receiver<SubscribersUpdate>,
     event_sender: broadcast::Sender<TceEvents>,
-
     store: Box<dyn TceStore + Send>,
-
     cert_candidate: HashMap<Certificate, DeliveryState>,
     pending_delivery: HashMap<Certificate, Span>,
     all_known_certs: Vec<Certificate>,
@@ -39,6 +37,7 @@ pub struct DoubleEcho {
     subscriptions: SubscriptionsView, // My subscriptions for echo, ready and delivery feedback
     subscribers: SubscribersView,     // Echo and ready subscribers that are following me
     buffer: VecDeque<(Certificate, Span)>,
+    pub(crate) shutdown: mpsc::Receiver<oneshot::Sender<()>>,
 }
 
 impl DoubleEcho {
@@ -51,6 +50,7 @@ impl DoubleEcho {
         subscribers_update_receiver: mpsc::Receiver<SubscribersUpdate>,
         event_sender: broadcast::Sender<TceEvents>,
         store: Box<dyn TceStore + Send>,
+        shutdown: mpsc::Receiver<oneshot::Sender<()>>,
     ) -> Self {
         Self {
             params,
@@ -66,13 +66,18 @@ impl DoubleEcho {
             subscriptions: SubscriptionsView::default(),
             subscribers: SubscribersView::default(),
             buffer: VecDeque::new(),
+            shutdown,
         }
     }
 
     pub(crate) async fn run(mut self) {
         info!("DoubleEcho started");
-        loop {
+        let shutdowned: Option<oneshot::Sender<()>> = loop {
             tokio::select! {
+                shutdown = self.shutdown.recv() => {
+                        debug!("Double echo shutdown signal received {:?}", shutdown);
+                        break shutdown;
+                },
                 Some(command) = self.command_receiver.recv() => {
                     match command {
                         DoubleEchoCommand::DeliveredCerts { subnet_id, limit, sender } => {
@@ -170,11 +175,10 @@ impl DoubleEcho {
                     }
                 }
                 else => {
-                    debug!("Break tokio loop in double echo");
-
-                    break
+                    info!("Break tokio loop in double echo");
+                    break None;
                 }
-            }
+            };
 
             // Broadcast next certificate
             if self.subscriptions.is_some() {
@@ -184,6 +188,13 @@ impl DoubleEcho {
                     });
                 }
             }
+        };
+
+        if let Some(sender) = shutdowned {
+            info!("Shutting down p2p double echo...");
+            _ = sender.send(());
+        } else {
+            warn!("Shutting down p2p double echo due to error...");
         }
     }
 }
@@ -547,6 +558,8 @@ mod tests {
         // Double Echo
         let (_cmd_sender, cmd_receiver) = mpsc::channel(10);
         let (event_sender, mut event_receiver) = broadcast::channel(10);
+        let (_double_echo_shutdown_sender, double_echo_shutdown_receiver) =
+            mpsc::channel::<oneshot::Sender<()>>(1);
         let mut double_echo = DoubleEcho::new(
             broadcast_params.clone(),
             cmd_receiver,
@@ -554,6 +567,7 @@ mod tests {
             subscribers_update_receiver,
             event_sender,
             Box::new(TceMemStore::default()),
+            double_echo_shutdown_receiver,
         );
 
         assert!(double_echo.subscriptions.is_none());
@@ -666,6 +680,8 @@ mod tests {
         // Double Echo
         let (cmd_sender, cmd_receiver) = mpsc::channel(10);
         let (event_sender, mut event_receiver) = broadcast::channel(10);
+        let (double_echo_shutdown_sender, double_echo_shutdown_receiver) =
+            mpsc::channel::<oneshot::Sender<()>>(1);
         let double_echo = DoubleEcho::new(
             broadcast_params.clone(),
             cmd_receiver,
@@ -673,6 +689,7 @@ mod tests {
             subscribers_update_receiver,
             event_sender,
             Box::new(TceMemStore::default()),
+            double_echo_shutdown_receiver,
         );
 
         spawn(double_echo.run());
@@ -739,5 +756,14 @@ mod tests {
         assert_eq!(received_gossip_commands.len(), 1);
         assert_eq!(received_gossip_commands[0].0, all_gossip_peers);
         assert_eq!(received_gossip_commands[0].1.id, le_cert.id);
+
+        // Test shutdown
+        info!("Waiting for double echo to shutdown...");
+        let (sender, receiver) = oneshot::channel();
+        double_echo_shutdown_sender
+            .send(sender)
+            .await
+            .expect("Valid shutdown signal sending");
+        assert_eq!(receiver.await, Ok(()));
     }
 }

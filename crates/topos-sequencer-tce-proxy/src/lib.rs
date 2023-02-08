@@ -459,11 +459,12 @@ impl TceProxyWorker {
                                     error!("failed to pass certificate to tce client, error details: {}", e);
                                 }
                             }
-                            TceProxyCommand::Exit => {
-                                info!("Received TceProxyCommand::Exit command, closing tce client...");
+                            TceProxyCommand::Shutdown(sender) => {
+                                info!("Received TceProxyCommand::Shutdown command, closing tce client...");
                                 if let Err(e) = tce_client.close().await {
                                     error!("Unable to shutdown tce client, error details: {}", e);
                                 }
+                                 _ = sender.send(());
                                 break;
                             }
                         }
@@ -503,5 +504,19 @@ impl TceProxyWorker {
     pub async fn next_event(&mut self) -> Result<TceProxyEvent, String> {
         let event = self.events.recv().await;
         Ok(event.unwrap())
+    }
+
+    /// Shut down TCE proxy
+    pub async fn shutdown(&self) -> Result<(), String> {
+        info!("Shutting down TCE proxy worker...");
+        let (sender, receiver) = oneshot::channel();
+        match self.commands.send(TceProxyCommand::Shutdown(sender)) {
+            Ok(_) => {}
+            Err(e) => {
+                error!("Error sending shutdown signal to TCE worker {e}");
+                return Err(e.to_string());
+            }
+        };
+        receiver.await.map_err(|e| e.to_string())
     }
 }

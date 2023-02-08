@@ -69,22 +69,22 @@ pub enum CertificationEvent {
     NewCertificate(Certificate),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
 pub enum CertificationCommand {
     /// Instruction update list of finalized blocks
     AddFinalizedBlock(BlockInfo),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum RuntimeProxyEvent {
+#[derive(Debug, Clone)]
+pub enum SubnetRuntimeProxyEvent {
     /// New Finalized block
     BlockFinalized(BlockInfo),
     /// New set of authorities in charge of threshold signature
     NewEra(Vec<Authorities>),
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub enum RuntimeProxyCommand {
+#[derive(Debug)]
+pub enum SubnetRuntimeProxyCommand {
     /// Push the Certificate to the subnet runtime
     PushCertificate(Certificate),
 
@@ -92,12 +92,13 @@ pub enum RuntimeProxyCommand {
     OnNewDeliveredTxns(Certificate),
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug)]
 pub enum TceProxyCommand {
     /// Submit a newly created certificate to the TCE network
     SubmitCertificate(Box<Certificate>),
-    /// Exit command
-    Exit,
+
+    /// Shutdown command
+    Shutdown(tokio::sync::oneshot::Sender<()>),
 }
 
 #[derive(Debug, Clone)]
@@ -107,10 +108,10 @@ pub enum TceProxyEvent {
 }
 
 // A wrapper to handle all events
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub enum Event {
     CertificationEvent(CertificationEvent),
-    RuntimeProxyEvent(RuntimeProxyEvent),
+    RuntimeProxyEvent(SubnetRuntimeProxyEvent),
 }
 
 /// Protocol commands

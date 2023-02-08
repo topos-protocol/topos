@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use super::RuntimeCommand;
 use futures::Future;
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::{mpsc, oneshot, RwLock};
 use topos_core::{api::tce::v1::StatusResponse, uci::Certificate};
 use tracing::error;
 
@@ -10,6 +10,7 @@ use tracing::error;
 pub struct RuntimeClient {
     pub(crate) command_sender: mpsc::Sender<RuntimeCommand>,
     pub(crate) tce_status: Arc<RwLock<StatusResponse>>,
+    pub(crate) shutdown_channel: mpsc::Sender<oneshot::Sender<()>>,
 }
 
 impl RuntimeClient {
@@ -37,5 +38,12 @@ impl RuntimeClient {
         let mut status = self.tce_status.write().await;
 
         status.has_active_sample = value;
+    }
+
+    pub async fn shutdown(&self) -> Result<(), Box<dyn std::error::Error>> {
+        let (sender, receiver) = oneshot::channel();
+        self.shutdown_channel.send(sender).await?;
+
+        Ok(receiver.await?)
     }
 }

@@ -32,10 +32,8 @@ const EMPTY_PREVIOUS_CERT_ID: [u8; 32] = [0u8; 32];
 pub struct RocksDBStorage {
     pending_certificates: PendingCertificatesColumn,
     certificates: CertificatesColumn,
-
     source_streams: SourceStreamsColumn,
     target_streams: TargetStreamsColumn,
-
     next_pending_id: AtomicU64,
 }
 

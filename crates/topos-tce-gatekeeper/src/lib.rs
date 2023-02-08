@@ -19,6 +19,7 @@ pub use client::GatekeeperClient;
 use topos_commands::{Command, CommandHandler, RegisterCommands};
 use topos_core::uci::SubnetId;
 use topos_p2p::PeerId;
+use tracing::{info, warn};
 
 pub struct Gatekeeper {
     pub(crate) shutdown: mpsc::Receiver<oneshot::Sender<()>>,
@@ -149,7 +150,10 @@ impl IntoFuture for Gatekeeper {
             };
 
             if let Some(sender) = shutdowned {
+                info!("Shutting down gatekeeper...");
                 _ = sender.send(());
+            } else {
+                warn!("Shutting down gatekeeper due to error...");
             }
 
             Ok(())
