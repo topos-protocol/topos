@@ -5707,6 +5707,7 @@ dependencies = [
 name = "topos-sequencer-subnet-client"
 version = "0.1.0"
 dependencies = [
+ "backoff",
  "ethereum-tx-sign",
  "hex",
  "jsonrpsee-types",

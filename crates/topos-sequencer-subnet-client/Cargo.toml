@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 topos-sequencer-types = { package = "topos-sequencer-types", path = "../topos-sequencer-types" }
+topos-core = { workspace = true, features = ["uci"] }
 
 hex.workspace = true
 serde_json.workspace = true
@@ -14,9 +15,9 @@ tracing.workspace = true
 web3.workspace = true
 secp256k1.workspace = true
 tokio.workspace = true
-topos-core = { workspace = true, features = ["uci"] }
 
 ethereum-tx-sign = "6.0.0"
 jsonrpsee-types = "0.14.0"
 keccak-hash = "0.9"
 tiny-keccak = "1.2"
+backoff = { version = "0.4", features = ["tokio"] }

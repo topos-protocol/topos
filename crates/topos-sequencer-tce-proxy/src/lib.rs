@@ -374,15 +374,6 @@ impl TceClientBuilder {
     }
 }
 
-/// Create new backoff library error based on error that happened
-pub fn new_tce_proxy_backoff_err<E: std::fmt::Display>(err: E) -> backoff::Error<E> {
-    // Retry according to backoff policy
-    backoff::Error::Transient {
-        err,
-        retry_after: None,
-    }
-}
-
 async fn connect_to_tce_service_with_retry(
     endpoint: String,
 ) -> Result<ApiServiceClient<tonic::transport::channel::Channel>, Error> {
