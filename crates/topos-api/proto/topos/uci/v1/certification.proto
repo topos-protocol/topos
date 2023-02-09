@@ -2,10 +2,10 @@ syntax = "proto3";
 
 package topos.uci.v1;
 
-import "topos/shared/v1/subnet.proto";
 import "topos/shared/v1/certificate.proto";
 import "topos/shared/v1/frost.proto";
 import "topos/shared/v1/stark_proof.proto";
+import "topos/shared/v1/subnet.proto";
 
 // Certificate - main exchange item
 message Certificate {

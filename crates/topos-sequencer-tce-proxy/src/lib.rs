@@ -6,6 +6,7 @@ use crate::Error::InvalidChannelError;
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::StreamExt;
 use tonic::transport::channel;
+use topos_core::api::shared::v1::checkpoints::TargetCheckpoint;
 use topos_core::api::tce::v1::GetSourceHeadRequest;
 use topos_core::{
     api::tce::v1::{
@@ -312,9 +313,13 @@ impl TceClientBuilder {
                                 if let Err(e) = outbound_stream_command_sender
                                     .send(
                                             watch_certificates_request::OpenStream {
-                                                subnet_ids: vec![topos_core::api::shared::v1::SubnetId {
-                                                    value: subnet_id.to_vec(),
-                                                }],
+                                                target_checkpoint: Some(
+                                                    TargetCheckpoint {
+                                                        target_subnet_ids: vec![subnet_id.into()],
+                                                        positions: Vec::new()
+                                                    }
+                                                ),
+                                                source_checkpoint: None
                                             }.into(),
                                     )
                                     .await

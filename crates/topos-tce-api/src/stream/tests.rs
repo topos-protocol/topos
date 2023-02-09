@@ -3,6 +3,7 @@ use crate::tests::encode;
 use crate::wait_for_command;
 use test_log::test;
 use tokio::spawn;
+use topos_core::api::shared::v1::checkpoints::TargetCheckpoint;
 use topos_core::api::shared::v1::SubnetId;
 use topos_core::api::tce::v1::watch_certificates_request::OpenStream;
 use topos_core::api::tce::v1::WatchCertificatesRequest;
@@ -39,9 +40,14 @@ pub async fn sending_open_stream_message() -> Result<(), Box<dyn std::error::Err
     spawn(async move { stream.run().await });
 
     let msg: WatchCertificatesRequest = OpenStream {
-        subnet_ids: vec![SubnetId {
-            value: "stream_a".into(),
-        }],
+        target_checkpoint: Some(TargetCheckpoint {
+            // FIX: subnet_id isn't following the right subnet format
+            target_subnet_ids: vec![SubnetId {
+                value: "stream_a".into(),
+            }],
+            positions: Vec::new(),
+        }),
+        source_checkpoint: None,
     }
     .into();
     {

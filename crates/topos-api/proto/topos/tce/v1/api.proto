@@ -2,10 +2,11 @@ syntax = "proto3";
 
 package topos.tce.v1;
 
+import "topos/shared/v1/checkpoints.proto";
 import "topos/shared/v1/subnet.proto";
 import "topos/shared/v1/uuid.proto";
-import "topos/uci/v1/certification.proto";
 import "topos/tce/v1/synchronization.proto";
+import "topos/uci/v1/certification.proto";
 
 service APIService {
   rpc SubmitCertificate(SubmitCertificateRequest) returns (SubmitCertificateResponse);
@@ -21,7 +22,6 @@ message SubmitCertificateRequest {
 }
 
 message SubmitCertificateResponse {}
-
 
 message GetSourceHeadRequest {
   topos.shared.v1.SubnetId subnet_id = 1;
@@ -41,9 +41,10 @@ message WatchCertificatesRequest {
     OpenStream open_stream = 2;
   }
 
-  // Sent once to start receiving events and being able to send further command
+  // Sent to start receiving events and being able to send further command
   message OpenStream {
-    repeated topos.shared.v1.SubnetId subnet_ids = 1;
+    topos.shared.v1.Checkpoints.TargetCheckpoint target_checkpoint = 1;
+    topos.shared.v1.Checkpoints.SourceCheckpoint source_checkpoint = 2;
   }
 }
 

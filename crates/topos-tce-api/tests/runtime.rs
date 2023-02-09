@@ -4,7 +4,7 @@ use tokio::{spawn, sync::oneshot};
 use tokio_stream::StreamExt;
 use tonic::transport::channel;
 use tonic::transport::Uri;
-use topos_core::api::shared::v1::SubnetId;
+use topos_core::api::shared::v1::checkpoints::TargetCheckpoint;
 use topos_core::uci::CertificateId;
 use topos_core::{
     api::tce::v1::{
@@ -44,7 +44,13 @@ async fn runtime_can_dispatch_a_cert() {
         let channel = channel::Channel::builder(uri).connect_lazy();
         let mut client = ApiServiceClient::new(channel);
         let in_stream = async_stream::stream! {
-            yield OpenStream { subnet_ids: vec![SubnetId {value: TARGET_SUBNET_ID.into()}] }.into();
+            yield OpenStream {
+                target_checkpoint: Some(TargetCheckpoint {
+                    target_subnet_ids: vec![TARGET_SUBNET_ID.into()],
+                    positions: Vec::new()
+                }),
+                source_checkpoint: None
+            }.into()
         };
 
         let response = client.watch_certificates(in_stream).await.unwrap();
