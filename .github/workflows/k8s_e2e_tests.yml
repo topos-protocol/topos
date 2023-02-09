@@ -83,6 +83,7 @@ jobs:
         shell: bash
 
       - name: Export logs from boot and peers
+        if: always()
         run: |
           mkdir -p ./logs
           kubectl logs -l node=peer > ./logs/peer.log
@@ -90,6 +91,7 @@ jobs:
           kubectl logs -l app=cert-spammer > ./logs/cert-spammer.log
 
       - name: Publish logs as artifact
+        if: always()
         uses: actions/upload-artifact@v3
         with:
           name: logs
