@@ -193,6 +193,10 @@ impl Runtime {
                         },
                     )) => {}
 
+                    SwarmEvent::Behaviour(ComposedEvent::Kademlia(
+                        KademliaEvent::OutboundQueryProgressed { .. },
+                    )) => {}
+
                     // Handle protocol queries
                     SwarmEvent::Behaviour(ComposedEvent::Transmission(
                         RequestResponseEvent::Message {
@@ -222,12 +226,29 @@ impl Runtime {
                         }
                     }
 
+                    SwarmEvent::ConnectionEstablished { .. } => {}
+
+                    SwarmEvent::Dialing(_) => {}
+                    SwarmEvent::IncomingConnection { .. } => {}
+
+                    SwarmEvent::Behaviour(ComposedEvent::Kademlia(
+                        KademliaEvent::InboundRequest { .. },
+                    )) => {}
+                    SwarmEvent::Behaviour(ComposedEvent::Kademlia(
+                        KademliaEvent::RoutingUpdated { .. },
+                    )) => {}
+                    SwarmEvent::Behaviour(ComposedEvent::Kademlia(
+                        KademliaEvent::RoutablePeer { .. },
+                    )) => {}
+                    SwarmEvent::Behaviour(ComposedEvent::Kademlia(
+                        KademliaEvent::UnroutablePeer { .. },
+                    )) => {}
                     event => warn!("Unhandle event during Bootstrap: {event:?}"),
                 }
             }
         }
 
-        debug!("Network bootstrap finished");
+        warn!("Network bootstrap finished");
 
         Ok(self)
     }

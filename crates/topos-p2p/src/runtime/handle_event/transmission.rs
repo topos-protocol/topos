@@ -1,8 +1,9 @@
-use libp2p::request_response::{RequestResponseEvent, RequestResponseMessage};
+use libp2p::request_response::{InboundFailure, RequestResponseEvent, RequestResponseMessage};
 use tracing::{error, warn};
 
 use crate::{
     behaviour::transmission::codec::{TransmissionRequest, TransmissionResponse},
+    error::CommandExecutionError,
     Event, Runtime,
 };
 
@@ -56,8 +57,23 @@ impl EventHandler<RequestResponseEvent<TransmissionRequest, TransmissionResponse
             }
 
             RequestResponseEvent::ResponseSent { .. } => {}
-
-            event => error!("Unhandled RequestResponse event: {event:?}"),
+            RequestResponseEvent::InboundFailure {
+                peer,
+                request_id,
+                error: InboundFailure::ConnectionClosed,
+            } => {
+                if let Some(sender) = self.pending_requests.remove(&request_id) {
+                    if sender
+                        .send(Err(CommandExecutionError::ConnectionClosed))
+                        .is_err()
+                    {
+                        warn!("Could not send RequestFailure for request {request_id} because initiator is dropped");
+                    }
+                } else {
+                    warn!("Received an InboundRequest failure for an unknown request {request_id}")
+                }
+            }
+            RequestResponseEvent::InboundFailure { .. } => {}
         }
     }
 }

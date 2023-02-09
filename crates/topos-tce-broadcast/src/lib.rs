@@ -3,6 +3,8 @@
 //! Abstracted from actual transport implementation.
 //! Abstracted from actual storage implementation.
 //!
+
+use opentelemetry::Context;
 use sampler::SampleType;
 use thiserror::Error;
 use tokio::spawn;
@@ -19,7 +21,8 @@ use tce_transport::{ReliableBroadcastParams, TceEvents};
 
 use topos_core::uci::{Certificate, CertificateId, DigestCompressed, SubnetId};
 use topos_p2p::PeerId;
-use tracing::{debug, error, info, Instrument, Span};
+use tracing::{debug, error, info, Span};
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 use crate::mem_store::TceMemStore;
 use crate::sampler::{Sampler, SubscribersUpdate, SubscriptionsView};
@@ -58,17 +61,23 @@ pub enum SamplerCommand {
 
 #[derive(Debug)]
 pub enum DoubleEchoCommand {
+    GetSpanOfCert {
+        certificate_id: CertificateId,
+        sender: oneshot::Sender<Result<opentelemetry::Context, Errors>>,
+    },
+
     /// Received G-set message
     Deliver {
+        from_peer: PeerId,
         cert: Certificate,
         digest: DigestCompressed,
-        ctx: Span,
+        ctx: Context,
     },
 
     /// Entry point for new certificate to submit as initial sender
     Broadcast {
         cert: Certificate,
-        ctx: Span,
+        ctx: Context,
     },
 
     // Entry point to broadcast many Certificates
@@ -80,14 +89,14 @@ pub enum DoubleEchoCommand {
     Echo {
         from_peer: PeerId,
         cert: Certificate,
-        ctx: Span,
+        ctx: Context,
     },
 
     /// When ready reply received
     Ready {
         from_peer: PeerId,
         cert: Certificate,
-        ctx: Span,
+        ctx: Context,
     },
     DeliveredCerts {
         subnet_id: SubnetId,
@@ -113,6 +122,7 @@ impl ReliableBroadcastClient {
     // #[instrument(name = "ReliableBroadcastClient", skip_all)]
     pub fn new(
         config: ReliableBroadcastConfig,
+        local_peer_id: String,
     ) -> (Self, impl Stream<Item = Result<TceEvents, ()>>) {
         let (subscriptions_view_sender, subscriptions_view_receiver) =
             mpsc::channel::<SubscriptionsView>(2048);
@@ -146,6 +156,7 @@ impl ReliableBroadcastClient {
             #[allow(clippy::box_default)]
             Box::new(TceMemStore::default()),
             double_echo_shutdown_receiver,
+            local_peer_id,
         );
 
         spawn(sampler.run());
@@ -241,6 +252,29 @@ impl ReliableBroadcastClient {
         }
     }
 
+    /// delivered certificates for given target chain after the given certificate
+    pub async fn get_span_cert(
+        &self,
+        certificate_id: CertificateId,
+    ) -> Result<opentelemetry::Context, Errors> {
+        let (sender, receiver) = oneshot::channel();
+
+        let broadcast_commands = self.broadcast_commands.clone();
+
+        if broadcast_commands
+            .send(DoubleEchoCommand::GetSpanOfCert {
+                certificate_id,
+                sender,
+            })
+            .await
+            .is_err()
+        {
+            error!("Unable to execute get_span_cert");
+        }
+
+        receiver.await.map_err(Into::into).and_then(|result| result)
+    }
+
     pub async fn delivered_certs_ids(
         &self,
         subnet_id: SubnetId,
@@ -267,29 +301,22 @@ impl ReliableBroadcastClient {
     }
 
     /// Use to broadcast new certificate to the TCE network
-    pub fn broadcast_new_certificate(
-        &self,
-        certificate: Certificate,
-        ctx: Span,
-    ) -> impl Future<Output = Result<(), ()>> + 'static + Send {
+    pub async fn broadcast_new_certificate(&self, certificate: Certificate) -> Result<(), ()> {
         let broadcast_commands = self.broadcast_commands.clone();
 
-        async move {
-            info!("send certificate to be broadcast");
-            if broadcast_commands
-                .send(DoubleEchoCommand::Broadcast {
-                    cert: certificate,
-                    ctx: Span::current(),
-                })
-                .await
-                .is_err()
-            {
-                error!("Unable to send broadcast_new_certificate command, Receiver was dropped");
-            }
-
-            Ok(())
+        info!("send certificate to be broadcast");
+        if broadcast_commands
+            .send(DoubleEchoCommand::Broadcast {
+                cert: certificate,
+                ctx: Span::current().context(),
+            })
+            .await
+            .is_err()
+        {
+            error!("Unable to send broadcast_new_certificate command, Receiver was dropped");
         }
-        .instrument(ctx)
+
+        Ok(())
     }
 
     pub async fn shutdown(&self) -> Result<(), Errors> {

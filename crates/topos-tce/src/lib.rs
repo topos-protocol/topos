@@ -81,9 +81,12 @@ pub async fn run(
     debug!("Gatekeeper started");
 
     debug!("Starting reliable broadcast");
-    let (tce_cli, tce_stream) = ReliableBroadcastClient::new(ReliableBroadcastConfig {
-        tce_params: config.tce_params.clone(),
-    });
+    let (tce_cli, tce_stream) = ReliableBroadcastClient::new(
+        ReliableBroadcastConfig {
+            tce_params: config.tce_params.clone(),
+        },
+        peer_id.to_string(),
+    );
     debug!("Reliable broadcast started");
 
     debug!("Starting the Storage");
@@ -112,6 +115,7 @@ pub async fn run(
 
     debug!("Starting gRPC api");
     let (api_client, api_stream) = topos_tce_api::Runtime::builder()
+        .with_peer_id(peer_id.to_string())
         .serve_addr(config.api_addr)
         .build_and_launch()
         .await;

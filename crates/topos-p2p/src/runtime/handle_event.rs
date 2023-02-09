@@ -126,8 +126,8 @@ impl
                 );
             }
 
-            SwarmEvent::ConnectionClosed { peer_id, .. } => {
-                debug!("ConnectionClosed {peer_id}");
+            SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
+                debug!("ConnectionClosed {peer_id} because of {cause:?}");
                 if self.peers.remove(&peer_id) {
                     _ = self
                         .event_sender

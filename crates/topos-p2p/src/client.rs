@@ -92,7 +92,7 @@ impl Client {
                     }
                     retry_count -= 1;
                     debug!("Retry query because of failure {e:?}");
-                    tokio::time::sleep(Duration::from_secs(ttl)).await;
+                    tokio::time::sleep(Duration::from_millis(ttl)).await;
                 } else {
                     break;
                 }
