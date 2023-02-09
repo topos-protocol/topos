@@ -1,3 +1,4 @@
+use opentelemetry::Context;
 use tokio::sync::{mpsc::Sender, oneshot};
 use tonic::{Status, Streaming};
 use topos_core::{
@@ -8,7 +9,6 @@ use topos_core::{
     uci::Certificate,
 };
 use topos_p2p::PeerId;
-use tracing::Span;
 use uuid::Uuid;
 
 use super::error::RuntimeError;
@@ -50,7 +50,7 @@ pub(crate) enum InternalRuntimeCommand {
     CertificateSubmitted {
         certificate: Box<Certificate>,
         sender: oneshot::Sender<Result<(), RuntimeError>>,
-        ctx: Span,
+        ctx: Context,
     },
 
     /// Push a new list of PeerId to be used by the Gatekeeper

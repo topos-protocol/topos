@@ -5,8 +5,8 @@ use tracing::{debug, warn};
 
 use crate::{
     command::{
-        AddPendingCertificate, CertificateDelivered, FetchCertificates, GetCertificate,
-        GetSourceHead, RemovePendingCertificate,
+        AddPendingCertificate, CertificateDelivered, CheckPendingCertificateExists,
+        FetchCertificates, GetCertificate, GetSourceHead, RemovePendingCertificate,
     },
     errors::StorageError,
     Connection, FetchCertificatesFilter, InternalStorageError, PendingCertificateId, Position,
@@ -28,7 +28,7 @@ where
         &mut self,
         AddPendingCertificate { certificate }: AddPendingCertificate,
     ) -> Result<PendingCertificateId, StorageError> {
-        let pending_id = self.storage.add_pending_certificate(certificate).await?;
+        let pending_id = self.storage.add_pending_certificate(&certificate).await?;
 
         self.pending_certificates.push_back(pending_id);
 
@@ -186,5 +186,20 @@ where
             }
         };
         Ok((source_head.position.0, certificate))
+    }
+}
+
+#[async_trait]
+impl<S> CommandHandler<CheckPendingCertificateExists> for Connection<S>
+where
+    S: Storage,
+{
+    type Error = StorageError;
+
+    async fn handle(
+        &mut self,
+        CheckPendingCertificateExists { certificate_id }: CheckPendingCertificateExists,
+    ) -> Result<(PendingCertificateId, Certificate), StorageError> {
+        Ok(self.storage.get_pending_certificate(certificate_id).await?)
     }
 }

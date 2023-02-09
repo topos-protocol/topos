@@ -11,11 +11,18 @@ use crate::{grpc::builder::ServerBuilder, Runtime, RuntimeClient, RuntimeEvent};
 
 #[derive(Default)]
 pub struct RuntimeBuilder {
+    local_peer_id: String,
     grpc_socket_addr: Option<SocketAddr>,
     status: Option<RwLock<StatusResponse>>,
 }
 
 impl RuntimeBuilder {
+    pub fn with_peer_id(mut self, local_peer_id: String) -> Self {
+        self.local_peer_id = local_peer_id;
+
+        self
+    }
+
     pub fn serve_addr(mut self, addr: SocketAddr) -> Self {
         self.grpc_socket_addr = Some(addr);
 
@@ -33,6 +40,7 @@ impl RuntimeBuilder {
         let (api_event_sender, api_event_receiver) = mpsc::channel(2048);
 
         let (health_reporter, tce_status, grpc) = ServerBuilder::default()
+            .with_peer_id(self.local_peer_id)
             .command_sender(command_sender)
             .serve_addr(self.grpc_socket_addr)
             .build()

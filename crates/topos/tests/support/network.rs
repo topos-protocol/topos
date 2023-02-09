@@ -1,4 +1,9 @@
-use std::{collections::HashMap, net::UdpSocket, str::FromStr};
+use std::{
+    collections::HashMap,
+    net::UdpSocket,
+    str::FromStr,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 use crate::SubnetId;
 use futures::{future::join_all, Stream, StreamExt};
@@ -13,21 +18,24 @@ use tokio::{
     sync::{mpsc, oneshot},
 };
 use tonic::transport::{channel, Channel};
-use topos_core::api::tce::v1::api_service_client::ApiServiceClient;
+use topos_core::api::tce::v1::{
+    api_service_client::ApiServiceClient, console_service_client::ConsoleServiceClient,
+};
 use topos_p2p::{Client, Event, Runtime};
 use topos_tce_broadcast::{
     DoubleEchoCommand, ReliableBroadcastClient, ReliableBroadcastConfig, SamplerCommand,
 };
 use topos_tce_storage::{Connection, RocksDBStorage};
 use topos_tce_transport::{ReliableBroadcastParams, TceEvents};
+use tracing::{info_span, Instrument, Span};
 
 #[derive(Debug)]
 pub struct TestAppContext {
-    pub id: String,      // Peer id like "peer_1", one TCE node instance
     pub peer_id: PeerId, // P2P ID
     pub command_sampler: mpsc::Sender<SamplerCommand>,
     pub command_broadcast: mpsc::Sender<DoubleEchoCommand>,
-    pub(crate) api_grpc_client: Option<ApiServiceClient<Channel>>, // GRPC Client for this peer (tce node)
+    pub(crate) api_grpc_client: ApiServiceClient<Channel>, // GRPC Client for this peer (tce node)
+    pub(crate) console_grpc_client: ConsoleServiceClient<Channel>, // Console TCE GRPC Client for this peer (tce node)
     pub runtime_join_handle: JoinHandle<Result<(), ()>>,
     pub app_join_handle: JoinHandle<()>,
     pub storage_join_handle: JoinHandle<Result<(), topos_tce_storage::errors::StorageError>>,
@@ -44,7 +52,7 @@ pub async fn start_peer_pool<F>(
     peer_number: u8,
     correct_sample: usize,
     g: F,
-) -> HashMap<String, TestAppContext>
+) -> HashMap<PeerId, TestAppContext>
 where
     F: Fn(usize, f32) -> usize,
 {
@@ -52,19 +60,25 @@ where
     let peers = build_peer_config_pool(peer_number);
 
     let mut await_peers = Vec::new();
-    for (index, (seed, port, keypair, addr)) in peers.iter().enumerate() {
-        let user_peer_id = format!("peer_{index}");
+    for (seed, port, keypair, addr) in &peers {
+        let span = info_span!("Peer", peer = keypair.public().to_peer_id().to_string());
+
         let fut = async {
             let (tce_cli, tce_stream) = create_reliable_broadcast_client(
                 create_reliable_broadcast_params(correct_sample, &g),
+                keypair.public().to_peer_id().to_string(),
             );
+            let peer_id = keypair.public().to_peer_id();
             let (command_sampler, command_broadcast) = tce_cli.get_command_channels();
 
             let (network_client, network_stream, runtime) =
-                create_network_worker(*seed, *port, addr.clone(), &peers).await;
+                create_network_worker(*seed, *port, addr.clone(), &peers, 2)
+                    .instrument(Span::current())
+                    .await;
 
             let runtime = runtime
                 .bootstrap()
+                .instrument(Span::current())
                 .await
                 .expect("Unable to bootstrap tce network");
 
@@ -75,11 +89,15 @@ where
             let (api_client, api_events) = topos_tce_api::Runtime::builder()
                 .serve_addr(addr)
                 .build_and_launch()
+                .instrument(Span::current())
                 .await;
 
             // launch data store
-            let temp_dir = std::path::PathBuf::from_str(env!("CARGO_TARGET_TMPDIR"))
+            let mut temp_dir = std::path::PathBuf::from_str(env!("CARGO_TARGET_TMPDIR"))
                 .expect("Unable to read CARGO_TARGET_TMPDIR");
+            let t = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+            temp_dir.push(format!("./{}_{}", peer_id, t.as_nanos()));
+
             let (storage, storage_client, storage_stream) = {
                 let storage = RocksDBStorage::open(&temp_dir).expect("valid rocksdb storage");
                 Connection::build(Box::pin(async { Ok(storage) }))
@@ -111,29 +129,34 @@ where
             );
 
             let (_shutdown_sender, shutdown_receiver) = mpsc::channel::<oneshot::Sender<()>>(1);
-            let runtime_join_handle = spawn(runtime.run());
-            let app_join_handle = spawn(app.run(
-                network_stream,
-                tce_stream,
-                api_events,
-                storage_stream,
-                synchronizer_stream,
-                shutdown_receiver,
-            ));
+            let runtime_join_handle = spawn(runtime.run().instrument(Span::current()));
+            let app_join_handle = spawn(
+                app.run(
+                    network_stream,
+                    tce_stream,
+                    api_events,
+                    storage_stream,
+                    synchronizer_stream,
+                    shutdown_receiver,
+                )
+                .instrument(Span::current()),
+            );
 
             let api_endpoint = format!("http://127.0.0.1:{api_port}");
 
             let channel = channel::Endpoint::from_str(&api_endpoint)
                 .unwrap()
                 .connect_lazy();
-            let api_grpc_client = ApiServiceClient::new(channel);
+            let api_grpc_client = ApiServiceClient::new(channel.clone());
+            let console_grpc_client = ConsoleServiceClient::new(channel);
+            let peer_id = keypair.public().to_peer_id();
 
             let client = TestAppContext {
-                id: user_peer_id.clone(),
-                peer_id: keypair.public().to_peer_id(),
+                peer_id,
                 command_sampler,
                 command_broadcast,
-                api_grpc_client: Some(api_grpc_client),
+                api_grpc_client,
+                console_grpc_client,
                 runtime_join_handle,
                 app_join_handle,
                 storage_join_handle,
@@ -141,8 +164,9 @@ where
                 synchronizer_join_handle,
                 connected_subnets: None,
             };
-            (user_peer_id, client)
-        };
+            (peer_id, client)
+        }
+        .instrument(span);
 
         await_peers.push(fut);
     }
@@ -193,6 +217,7 @@ async fn create_network_worker(
     _port: u16,
     addr: Multiaddr,
     peers: &[PeerConfig],
+    minimum_cluster_size: usize,
 ) -> (Client, impl Stream<Item = Event> + Unpin + Send, Runtime) {
     let key = keypair_from_seed(seed);
     let _peer_id = key.public().to_peer_id();
@@ -217,6 +242,7 @@ async fn create_network_worker(
         .known_peers(&known_peers)
         .exposed_addresses(addr.clone())
         .listen_addr(addr)
+        .minimum_cluster_size(minimum_cluster_size)
         .build()
         .await
         .expect("Cannot create network")
@@ -224,13 +250,14 @@ async fn create_network_worker(
 
 fn create_reliable_broadcast_client(
     tce_params: ReliableBroadcastParams,
+    peer_id: String,
 ) -> (
     ReliableBroadcastClient,
     impl Stream<Item = Result<TceEvents, ()>> + Unpin,
 ) {
     let config = ReliableBroadcastConfig { tce_params };
 
-    ReliableBroadcastClient::new(config)
+    ReliableBroadcastClient::new(config, peer_id)
 }
 
 fn create_reliable_broadcast_params<F>(correct_sample: usize, g: F) -> ReliableBroadcastParams

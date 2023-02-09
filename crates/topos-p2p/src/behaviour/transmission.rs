@@ -20,7 +20,7 @@ pub(crate) struct TransmissionBehaviour {}
 impl TransmissionBehaviour {
     pub fn create() -> RequestResponse<TransmissionCodec> {
         let mut cfg = RequestResponseConfig::default();
-        cfg.set_connection_keep_alive(Duration::from_secs(10));
+        cfg.set_connection_keep_alive(Duration::from_secs(60));
         cfg.set_request_timeout(Duration::from_secs(30));
 
         RequestResponse::new(
