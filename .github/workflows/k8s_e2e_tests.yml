@@ -22,7 +22,7 @@ jobs:
         run: |
           sha=${{ github.sha }}
           e2e_id="e2e-${{ github.repository_id }}-${sha:0:6}"
-          echo "E2E_ID=troubleshoot" >> $GITHUB_ENV
+          echo "E2E_ID=${e2e_id}" >> $GITHUB_ENV
         shell: bash
 
       - name: Enable remote modules download
@@ -95,24 +95,24 @@ jobs:
           name: logs
           path: ./logs/
 
-      # - name: Helm Clean up
-      #   if: always()
-      #   working-directory: tools/
-      #   env:
-      #     GITHUB_USERNAME: ${{ github.actor }}
-      #     GITHUB_TOKEN: ${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}
-      #     DOCKER_TAG: main
-      #     DOCKER_USERNAME: ${{ github.actor }}
-      #     DOCKER_PASSWORD: ${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
-      #     FILESYSTEM_ID: ${{ env.FILESYSTEM_ID }}
-      #     EKS_EFS_CSI_IRSA_ARN: ${{ env.EKS_EFS_CSI_IRSA_ARN }}
-      #   run: |
-      #     helmfile destroy
+      - name: Helm Clean up
+        if: always()
+        working-directory: tools/
+        env:
+          GITHUB_USERNAME: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}
+          DOCKER_TAG: main
+          DOCKER_USERNAME: ${{ github.actor }}
+          DOCKER_PASSWORD: ${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
+          FILESYSTEM_ID: ${{ env.FILESYSTEM_ID }}
+          EKS_EFS_CSI_IRSA_ARN: ${{ env.EKS_EFS_CSI_IRSA_ARN }}
+        run: |
+          helmfile destroy
 
-      # - name: Terraform destroy
-      #   if: always()
-      #   working-directory: tools/terraform/cicd-devnet-1
-      #   run: |
-      #     terraform destroy -auto-approve \
-      #       -var "name=${{ env.E2E_ID }}" \
-      #       -var-file=terraform.tfvars.default
+      - name: Terraform destroy
+        if: always()
+        working-directory: tools/terraform/cicd-devnet-1
+        run: |
+          terraform destroy -auto-approve \
+            -var "name=${{ env.E2E_ID }}" \
+            -var-file=terraform.tfvars.default
