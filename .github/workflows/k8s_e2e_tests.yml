@@ -76,11 +76,24 @@ jobs:
           DOCKER_PASSWORD: ${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
           FILESYSTEM_ID: ${{ env.FILESYSTEM_ID }}
         run: |
-          helmfile destroy && helmfile sync
+          helmfile sync
 
       - name: Sleep
         run: sleep 300s
         shell: bash
+
+      - name: Export logs from boot and peers
+        run: |
+          mkdir -p ./logs
+          kubectl logs -l node=peer > ./logs/peer.log
+          kubectl logs -l node=boot > ./logs/boot.log
+          kubectl logs -l app=cert-spammer > ./logs/cert-spammer.log
+
+      - name: Publish logs as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: logs
+          path: ./logs/
 
       - name: Helm Clean up
         if: always()
