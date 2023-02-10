@@ -76,7 +76,7 @@ jobs:
           DOCKER_PASSWORD: ${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
           FILESYSTEM_ID: ${{ env.FILESYSTEM_ID }}
         run: |
-          helmfile sync
+          helmfile -f helmfile-ci.yaml sync
 
       - name: Sleep
         run: sleep 300s
@@ -109,7 +109,7 @@ jobs:
           FILESYSTEM_ID: ${{ env.FILESYSTEM_ID }}
           EKS_EFS_CSI_IRSA_ARN: ${{ env.EKS_EFS_CSI_IRSA_ARN }}
         run: |
-          helmfile destroy
+          helmfile -f helmfile-ci.yaml destroy
 
       - name: Terraform destroy
         if: always()
