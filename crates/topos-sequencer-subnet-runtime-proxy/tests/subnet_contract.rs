@@ -61,7 +61,7 @@ where
     let deployment = web3::contract::Contract::deploy(web3_client.eth(), contract_abi.as_bytes())?
         .confirmations(1)
         .options(web3::contract::Options::with(|opt| {
-            opt.gas = Some(3_000_000.into());
+            opt.gas = Some(4_000_000.into());
         }));
 
     let deployment_result = if params.is_none() {
