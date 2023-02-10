@@ -80,7 +80,7 @@ releases:
 - name: tce-all-in-one
   namespace: default
   chart: toposware/tce-all-in-one
-  version: 0.1.23
+  version: 0.1.24
   createNamespace: true
   needs:
   - tce-tmp-storage
@@ -107,5 +107,5 @@ releases:
     value: thiago.nobayashi@toposware.com
   - name: ingress
     value: true
-  - name: peerReplicas
-    value: 15
+  - name: certSpammer
+    value: false
