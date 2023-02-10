@@ -282,8 +282,10 @@ impl SubnetClient {
         ]);
 
         let wrapped_key = web3::signing::SecretKeyRef::new(&self.eth_admin_key);
-        let mut options = web3::contract::Options::default();
-        options.gas = Some(PUSH_CERTIFICATE_GAS_LIMIT.into());
+        let options = web3::contract::Options {
+            gas: Some(PUSH_CERTIFICATE_GAS_LIMIT.into()),
+            ..Default::default()
+        };
         self.contract
             .signed_call_with_confirmations(
                 "pushCertificate",
