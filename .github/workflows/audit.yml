@@ -2,7 +2,7 @@ name: Audit
 
 on:
   push:
-    branches: [fake]
+    branches: [main]
   pull_request:
   workflow_dispatch:
 

@@ -5,9 +5,9 @@ on:
     # Triggers the workflow every day at 5:30 UTC:
     - cron:  '30 5 * * *'
   push:
-    branches: [fake]
+    branches: [main]
   pull_request:
-    branches: [fake]
+    branches: [main]
 
 env:
   REGISTRY: ghcr.io
