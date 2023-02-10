@@ -226,12 +226,13 @@ impl SubnetRuntimeProxy {
         runtime_proxy_config: &SubnetRuntimeProxyConfig,
         subnet_client: &mut SubnetClient,
         cert: &Certificate,
+        cert_position: u64,
     ) -> Result<String, Error> {
         debug!(
             "Pushing certificate with id {:?} to target subnet {:?}, tcc {}",
             cert.id, runtime_proxy_config.subnet_id, runtime_proxy_config.subnet_contract_address,
         );
-        let receipt = subnet_client.push_certificate(cert).await?;
+        let receipt = subnet_client.push_certificate(cert, cert_position).await?;
         debug!("Push certificate transaction receipt: {:?}", &receipt);
         Ok("0x".to_string() + &hex::encode(receipt.transaction_hash))
     }
@@ -250,11 +251,14 @@ impl SubnetRuntimeProxy {
                 SubnetRuntimeProxyCommand::OnNewDeliveredTxns(cert) => {
                     info!("on_command - OnNewDeliveredTxns cert_id={:?}", &cert.id);
 
+                    let cert_position = 0; //TODO Retrieve cert position from TCE node
+
                     // Pass certificate to target subnet Topos core contract
                     match SubnetRuntimeProxy::push_certificate(
                         runtime_proxy_config,
                         subnet_client,
                         &cert,
+                        cert_position,
                     )
                     .await
                     {
