@@ -366,7 +366,6 @@ impl AppContext {
 
                 let data: Vec<u8> = NetworkMessage::from(TceCommands::OnGossip {
                     cert,
-                    digest: vec![],
                     ctx: PropagationContext::inject(&span.context()),
                 })
                 .into();
@@ -397,7 +396,11 @@ impl AppContext {
                 });
             }
 
-            TceEvents::Echo { peers, cert, ctx } => {
+            TceEvents::Echo {
+                peers,
+                certificate_id,
+                ctx,
+            } => {
                 let span = info_span!(
                     "SEND Echo",
                     peer_id = self.network_client.local_peer_id.to_string(),
@@ -408,7 +411,7 @@ impl AppContext {
                 // Send echo message
                 let data: Vec<u8> = NetworkMessage::from(TceCommands::OnEcho {
                     from_peer: self.network_client.local_peer_id,
-                    cert,
+                    certificate_id,
                     ctx: PropagationContext::inject(&span.context()),
                 })
                 .into();
@@ -436,7 +439,11 @@ impl AppContext {
                 });
             }
 
-            TceEvents::Ready { peers, cert, ctx } => {
+            TceEvents::Ready {
+                peers,
+                certificate_id,
+                ctx,
+            } => {
                 let span = info_span!(
                     "SEND Ready",
                     peer_id = self.network_client.local_peer_id.to_string(),
@@ -446,7 +453,7 @@ impl AppContext {
                 let my_peer_id = self.network_client.local_peer_id;
                 let data: Vec<u8> = NetworkMessage::from(TceCommands::OnReady {
                     from_peer: self.network_client.local_peer_id,
-                    cert,
+                    certificate_id,
                     ctx: PropagationContext::inject(&span.context()),
                 })
                 .into();
@@ -546,11 +553,7 @@ impl AppContext {
                                 ));
                             }
 
-                            TceCommands::OnGossip {
-                                cert,
-                                digest: _,
-                                ctx,
-                            } => {
+                            TceCommands::OnGossip { cert, ctx } => {
                                 if self
                                     .pending_storage
                                     .pending_certificate_exists(cert.id)
@@ -602,7 +605,7 @@ impl AppContext {
                             }
                             TceCommands::OnEcho {
                                 from_peer,
-                                cert,
+                                certificate_id,
                                 ctx,
                                 ..
                             } => {
@@ -617,58 +620,48 @@ impl AppContext {
 
                                 if self
                                     .pending_storage
-                                    .pending_certificate_exists(cert.id)
+                                    .pending_certificate_exists(certificate_id)
                                     .await
-                                    .is_err()
+                                    .is_ok()
                                 {
-                                    warn!("RECV Echo for non existing certificate, creating it and broadcasting it");
-                                    _ = self
-                                        .pending_storage
-                                        .add_pending_certificate(cert.clone())
-                                        .await;
+                                    if let Ok(root) =
+                                        self.tce_cli.get_span_cert(certificate_id).await
+                                    {
+                                        span.add_link(root.span().span_context().clone());
+                                    }
 
-                                    _ = self
-                                        .tce_cli
-                                        .broadcast_new_certificate(cert.clone())
-                                        .instrument(span.clone())
-                                        .with_context(parent.clone())
-                                        .await;
-                                }
-                                if let Ok(root) = self.tce_cli.get_span_cert(cert.id).await {
-                                    span.add_link(root.span().span_context().clone());
-                                }
-
-                                // We have received Echo echo message, we are responding with OnDoubleEchoOk
-                                let command_sender = span.in_scope(||{
+                                    // We have received Echo echo message, we are responding with OnDoubleEchoOk
+                                    let command_sender = span.in_scope(||{
                                     info!(
                                     sender = from.to_string(),
                                         "peer_id: {} on_net_event TceCommands::OnEcho from peer {} cert id: {}",
-                                        &self.network_client.local_peer_id, &from_peer, &cert.id
+                                        &self.network_client.local_peer_id, &from_peer, &certificate_id
                                     );
                                     // We have received echo message from external peer
                                     self.tce_cli.get_double_echo_channel()
                                 });
-                                //We are responding with OnDoubleEchoOk to remote peer
-                                spawn(self.network_client.respond_to_request(
-                                    NetworkMessage::from(TceCommands::OnDoubleEchoOk {
-                                        from_peer: my_peer,
-                                    }),
-                                    channel,
-                                ));
-                                command_sender
-                                    .send(DoubleEchoCommand::Echo {
-                                        from_peer,
-                                        cert,
-                                        ctx: span.context(),
-                                    })
-                                    .with_context(parent)
-                                    .instrument(span)
-                                    .await
-                                    .expect("Receive the Echo");
+                                    //We are responding with OnDoubleEchoOk to remote peer
+                                    spawn(self.network_client.respond_to_request(
+                                        NetworkMessage::from(TceCommands::OnDoubleEchoOk {
+                                            from_peer: my_peer,
+                                        }),
+                                        channel,
+                                    ));
+                                    command_sender
+                                        .send(DoubleEchoCommand::Echo {
+                                            from_peer,
+                                            certificate_id,
+                                            ctx: span.context(),
+                                        })
+                                        .with_context(parent)
+                                        .instrument(span)
+                                        .await
+                                        .expect("Receive the Echo");
+                                }
                             }
                             TceCommands::OnReady {
                                 from_peer,
-                                cert,
+                                certificate_id,
                                 ctx,
                             } => {
                                 let span = info_span!(
@@ -679,7 +672,7 @@ impl AppContext {
                                 );
                                 let context = ctx.extract();
                                 span.set_parent(context.clone());
-                                if let Ok(root) = self.tce_cli.get_span_cert(cert.id).await {
+                                if let Ok(root) = self.tce_cli.get_span_cert(certificate_id).await {
                                     span.add_link(root.span().span_context().clone());
                                 }
                                 let command_sender = span.in_scope(||{
@@ -688,7 +681,7 @@ impl AppContext {
                                     info!(
                                     sender = from.to_string(),
                                         "peer_id {} on_net_event TceCommands::OnReady from peer {} cert id: {}",
-                                        &self.network_client.local_peer_id, &from_peer, &cert.id
+                                        &self.network_client.local_peer_id, &from_peer, &certificate_id
                                     );
                                     self.tce_cli.get_double_echo_channel()
                                 });
@@ -702,7 +695,7 @@ impl AppContext {
                                 command_sender
                                     .send(DoubleEchoCommand::Ready {
                                         from_peer,
-                                        cert,
+                                        certificate_id,
                                         ctx: span.context(),
                                     })
                                     .with_context(context)
