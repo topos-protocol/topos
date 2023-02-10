@@ -12,6 +12,8 @@ use web3::futures::StreamExt;
 use web3::transports::{Http, WebSocket};
 use web3::types::{BlockId, BlockNumber, H160, U256, U64};
 
+const PUSH_CERTIFICATE_GAS_LIMIT: u64 = 1000000;
+
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("new finalized block not available")]
@@ -250,22 +252,45 @@ impl SubnetClient {
     pub async fn push_certificate(
         &self,
         cert: &Certificate,
+        cert_position: u64,
     ) -> Result<web3::types::TransactionReceipt, Error> {
-        // TODO how to get cert position (height)? It needs to be retrieved from the TCE
-        // For now use block height
-        let cert_position: u64 = 0;
-
-        let cert_id_token: Token = web3::ethabi::Token::FixedBytes(cert.id.as_array().to_vec());
-        let cert_position: Token = web3::ethabi::Token::Uint(U256::from(cert_position));
-        let encoded_params = web3::ethabi::encode(&[cert_id_token, cert_position]);
+        let prev_cert_id: Token = Token::FixedBytes(cert.prev_id.as_array().to_vec());
+        let source_subnet_id: Token = Token::FixedBytes(cert.source_subnet_id.to_vec());
+        let state_root: Token = Token::FixedBytes(cert.state_root.to_vec());
+        let tx_root: Token = Token::FixedBytes(cert.tx_root_hash.to_vec());
+        let target_subnets: Token = Token::Array(
+            cert.target_subnets
+                .iter()
+                .map(|target_subnet| Token::FixedBytes(target_subnet.to_vec()))
+                .collect::<Vec<Token>>(),
+        );
+        let verifier = Token::Uint(U256::from(cert.verifier));
+        let cert_id: Token = Token::FixedBytes(cert.id.as_array().to_vec());
+        let stark_proof: Token = Token::Bytes(cert.proof.clone());
+        let signature: Token = Token::Bytes(cert.signature.clone());
+        let cert_position: Token = Token::Uint(U256::from(cert_position));
+        let encoded_params = web3::ethabi::encode(&[
+            prev_cert_id,
+            source_subnet_id,
+            state_root,
+            tx_root,
+            target_subnets,
+            verifier,
+            cert_id,
+            stark_proof,
+            signature,
+        ]);
 
         let wrapped_key = web3::signing::SecretKeyRef::new(&self.eth_admin_key);
+        let options = web3::contract::Options {
+            gas: Some(PUSH_CERTIFICATE_GAS_LIMIT.into()),
+            ..Default::default()
+        };
         self.contract
             .signed_call_with_confirmations(
                 "pushCertificate",
-                // TODO ADD APPROPRIATE CERT POSITION AS ARGUMENT
-                encoded_params,
-                web3::contract::Options::default(),
+                (encoded_params, cert_position),
+                options,
                 1_usize,
                 wrapped_key,
             )

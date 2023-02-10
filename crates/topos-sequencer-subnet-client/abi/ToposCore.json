@@ -60,6 +60,11 @@
   },
   {
     "inputs": [],
+    "name": "IllegalMemoryAccess",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "InvalidAdminThreshold",
     "type": "error"
   },
@@ -179,7 +184,13 @@
       {
         "indexed": false,
         "internalType": "CertificateId",
-        "name": "certId",
+        "name": "id",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "txRoot",
         "type": "bytes32"
       }
     ],
@@ -316,7 +327,7 @@
       {
         "indexed": false,
         "internalType": "address",
-        "name": "tokenAddresses",
+        "name": "tokenAddress",
         "type": "address"
       }
     ],
@@ -490,7 +501,7 @@
     "inputs": [
       {
         "internalType": "CertificateId",
-        "name": "certId",
+        "name": "id",
         "type": "bytes32"
       }
     ],
@@ -500,6 +511,65 @@
         "internalType": "bool",
         "name": "",
         "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "CertificateId",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "name": "certificates",
+    "outputs": [
+      {
+        "internalType": "CertificateId",
+        "name": "prevId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "SubnetId",
+        "name": "sourceSubnetId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "stateRoot",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "txRoot",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint32",
+        "name": "verifier",
+        "type": "uint32"
+      },
+      {
+        "internalType": "CertificateId",
+        "name": "id",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes",
+        "name": "starkProof",
+        "type": "bytes"
+      },
+      {
+        "internalType": "bytes",
+        "name": "signature",
+        "type": "bytes"
+      },
+      {
+        "internalType": "uint256",
+        "name": "position",
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -521,13 +591,18 @@
   {
     "inputs": [
       {
-        "internalType": "CertificateId",
-        "name": "certId",
+        "internalType": "bytes32",
+        "name": "txRootHash",
         "type": "bytes32"
       },
       {
+        "internalType": "uint256",
+        "name": "indexOfDataInTxRaw",
+        "type": "uint256"
+      },
+      {
         "internalType": "bytes",
-        "name": "crossSubnetTx",
+        "name": "txRaw",
         "type": "bytes"
       },
       {
@@ -618,6 +693,70 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "CertificateId",
+        "name": "id",
+        "type": "bytes32"
+      }
+    ],
+    "name": "getCertificate",
+    "outputs": [
+      {
+        "internalType": "CertificateId",
+        "name": "",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "SubnetId",
+        "name": "",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "SubnetId[]",
+        "name": "",
+        "type": "bytes32[]"
+      },
+      {
+        "internalType": "uint32",
+        "name": "",
+        "type": "uint32"
+      },
+      {
+        "internalType": "CertificateId",
+        "name": "",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes",
+        "name": "",
+        "type": "bytes"
+      },
+      {
+        "internalType": "bytes",
+        "name": "",
+        "type": "bytes"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "getCertificateCount",
     "outputs": [
@@ -652,37 +791,6 @@
   {
     "inputs": [
       {
-        "internalType": "CertificateId",
-        "name": "certId",
-        "type": "bytes32"
-      }
-    ],
-    "name": "getStorageCert",
-    "outputs": [
-      {
-        "components": [
-          {
-            "internalType": "CertificateId",
-            "name": "id",
-            "type": "bytes32"
-          },
-          {
-            "internalType": "uint256",
-            "name": "position",
-            "type": "uint256"
-          }
-        ],
-        "internalType": "struct IToposCoreContract.Certificate",
-        "name": "",
-        "type": "tuple"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
         "internalType": "bytes32",
         "name": "key",
         "type": "bytes32"
@@ -694,6 +802,69 @@
         "internalType": "string",
         "name": "",
         "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "symbol",
+        "type": "string"
+      }
+    ],
+    "name": "getTokenBySymbol",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "string",
+            "name": "symbol",
+            "type": "string"
+          },
+          {
+            "internalType": "address",
+            "name": "tokenAddress",
+            "type": "address"
+          }
+        ],
+        "internalType": "struct IToposCore.Token",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getTokenCount",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "index",
+        "type": "uint256"
+      }
+    ],
+    "name": "getTokenKeyAtIndex",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
       }
     ],
     "stateMutability": "view",
@@ -760,6 +931,11 @@
         "internalType": "bytes",
         "name": "certBytes",
         "type": "bytes"
+      },
+      {
+        "internalType": "uint256",
+        "name": "position",
+        "type": "uint256"
       }
     ],
     "name": "pushCertificate",
@@ -834,25 +1010,6 @@
         "type": "string"
       }
     ],
-    "name": "tokenAddresses",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "string",
-        "name": "symbol",
-        "type": "string"
-      }
-    ],
     "name": "tokenDailyMintAmount",
     "outputs": [
       {
@@ -899,6 +1056,49 @@
   {
     "inputs": [
       {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "name": "tokens",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "symbol",
+        "type": "string"
+      },
+      {
+        "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "name": "txRootToCertId",
+    "outputs": [
+      {
+        "internalType": "CertificateId",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "address",
         "name": "newImplementation",
         "type": "address"
@@ -923,7 +1123,7 @@
     "inputs": [
       {
         "internalType": "CertificateId",
-        "name": "certId",
+        "name": "id",
         "type": "bytes32"
       },
       {
