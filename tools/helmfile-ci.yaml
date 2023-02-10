@@ -9,12 +9,6 @@ repositories:
    password: {{ requiredEnv "GITHUB_TOKEN"}}
  - name: aws-efs-csi-driver
    url: https://kubernetes-sigs.github.io/aws-efs-csi-driver
- - name: bitnami
-   url: https://charts.bitnami.com/bitnami
- - name: ingress-nginx
-   url: https://kubernetes.github.io/ingress-nginx
- - name: jetstack
-   url: https://charts.jetstack.io
 
 releases:
 - name: aws-efs-csi-driver
@@ -25,46 +19,6 @@ releases:
   set:
   - name: controller.serviceAccount.annotations.eks\.amazonaws\.com/role-arn
     value: {{ requiredEnv "EKS_EFS_CSI_IRSA_ARN" }}
-
-- name: nginx
-  namespace: ingress
-  chart: ingress-nginx/ingress-nginx
-  version: 4.4.2
-  createNamespace: true
-  set:
-  - name: controller.replicaCount
-    value: 2
-
-- name: cert-manager
-  namespace: cert-manager
-  chart: jetstack/cert-manager
-  version: v1.10.1
-  createNamespace: true
-  needs:
-  - ingress/nginx
-  set:
-  - name: installCRDs
-    value: true
-
-- name: external-dns
-  namespace: kube-system
-  chart: bitnami/external-dns
-  version: 6.12.3
-  needs:
-  - ingress/nginx
-  set:
-  - name: provider
-    value: aws
-  - name: aws.zoneType
-    value: public
-  - name: txtOwnerId
-    value: Z068685927XPZYR30SPU2
-  - name: domainFilters[0]
-    value: tce.devnet-1.toposware.com
-  - name: serviceAccount.create
-    value: true
-  - name: serviceAccount.annotations.eks\.amazonaws\.com/role-arn
-    value: {{ requiredEnv "EKS_EXTERNAL_DNS_IRSA_ARN" }}
 
 - name: tce-tmp-storage
   namespace: default
@@ -97,15 +51,3 @@ releases:
     value: {{ requiredEnv "DOCKER_PASSWORD"}}
   - name: otelEndpoint
     value: https://otel-collector.telemetry.devnet-1.toposware.com:443
-  - name: bootHost
-    value: boot\.tce\.devnet-1\.toposware\.com
-  - name: peersHost
-    value: peers\.tce\.devnet-1\.toposware\.com
-  - name: acme.environment
-    value: production
-  - name: acme.email
-    value: thiago.nobayashi@toposware.com
-  - name: ingress
-    value: true
-  - name: certSpammer
-    value: false
