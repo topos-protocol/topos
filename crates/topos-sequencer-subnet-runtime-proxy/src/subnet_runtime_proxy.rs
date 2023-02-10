@@ -12,7 +12,6 @@ use topos_sequencer_subnet_client::{self, SubnetClient};
 use topos_sequencer_types::{SubnetRuntimeProxyCommand, SubnetRuntimeProxyEvent};
 use tracing::{debug, error, info, trace, warn};
 
-const SUBNET_RETRY_DELAY: Duration = Duration::new(1, 0);
 const SUBNET_BLOCK_TIME: Duration = Duration::new(2, 0);
 
 pub struct SubnetRuntimeProxy {
@@ -171,7 +170,10 @@ impl SubnetRuntimeProxy {
                     )
                     .await
                     {
-                        Ok(subnet_client) => subnet_client,
+                        Ok(subnet_client) => {
+                            info!("Connected to subnet node {}", &http_runtime_endpoint);
+                            subnet_client
+                        }
                         Err(e) => {
                             error!("Unable to connect to the subnet node, details: {e}");
                             continue;
@@ -181,13 +183,12 @@ impl SubnetRuntimeProxy {
                 // Get latest delivered(pushed) certificate from subnet smart contract
                 // TODO inform TCE which certificate do we need
                 let latest_cert_id = loop {
-                    match subnet_client.get_latest_pushed_cert().await {
+                    match subnet_client.get_latest_pushed_cert_with_retry().await {
                         Ok(cert_id) => {
                             break cert_id;
                         }
                         Err(e) => {
                             error!("Unable to get latest pushed cert {e}");
-                            tokio::time::sleep(SUBNET_RETRY_DELAY).await;
                             continue;
                         }
                     };

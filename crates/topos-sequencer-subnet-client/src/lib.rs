@@ -327,47 +327,51 @@ impl SubnetClient {
 
     /// Ask subnet for latest pushed cert
     /// Returns latest cert id and its position
-    pub async fn get_latest_pushed_cert(&self) -> Result<(CertificateId, u64), Error> {
-        // Get certificate count
-        // Last certificate position is certificate count - 1
-        let cert_count: U256 = self
-            .contract
-            .query(
-                "getCertificateCount",
-                (),
-                None,
-                web3::contract::Options::default(),
-                None,
-            )
-            .await
-            .map_err(|e| Error::EthContractError { source: e })?;
+    pub async fn get_latest_pushed_cert_with_retry(&self) -> Result<(CertificateId, u64), Error> {
+        let op = || async {
+            // Get certificate count
+            // Last certificate position is certificate count - 1
+            let cert_count: U256 = self
+                .contract
+                .query(
+                    "getCertificateCount",
+                    (),
+                    None,
+                    web3::contract::Options::default(),
+                    None,
+                )
+                .await
+                .map_err(|e| Error::EthContractError { source: e })?;
 
-        if cert_count.as_u64() == 0 {
-            // No previous certificates
-            info!(
-                "No previous certificate pushed to smart contract {}",
-                self.contract.address().to_string()
-            );
-            return Ok((Default::default(), 0));
-        }
+            if cert_count.as_u64() == 0 {
+                // No previous certificates
+                info!(
+                    "No previous certificate pushed to smart contract {}",
+                    self.contract.address().to_string()
+                );
+                return Ok((Default::default(), 0));
+            }
 
-        let latest_cert_position: U256 = cert_count - 1;
-        let latest_cert_id: web3::ethabi::FixedBytes = self
-            .contract
-            .query(
-                "getCertIdAtIndex",
-                latest_cert_position,
-                None,
-                web3::contract::Options::default(),
-                None,
-            )
-            .await
-            .map_err(|e| Error::EthContractError { source: e })?;
+            let latest_cert_position: U256 = cert_count - 1;
+            let latest_cert_id: web3::ethabi::FixedBytes = self
+                .contract
+                .query(
+                    "getCertIdAtIndex",
+                    latest_cert_position,
+                    None,
+                    web3::contract::Options::default(),
+                    None,
+                )
+                .await
+                .map_err(|e| Error::EthContractError { source: e })?;
 
-        let latest_cert_id: CertificateId = latest_cert_id
-            .try_into()
-            .map_err(|_| Error::InvalidCertificateId)?;
-        Ok((latest_cert_id, latest_cert_position.as_u64()))
+            let latest_cert_id: CertificateId = latest_cert_id
+                .try_into()
+                .map_err(|_| Error::InvalidCertificateId)?;
+            Ok((latest_cert_id, latest_cert_position.as_u64()))
+        };
+
+        backoff::future::retry(backoff::ExponentialBackoff::default(), op).await
     }
 }
 
