@@ -73,4 +73,4 @@ jobs:
           EKS_EFS_CSI_IRSA_ARN: ${{ env.EKS_EFS_CSI_IRSA_ARN }}
           EKS_EXTERNAL_DNS_IRSA_ARN: ${{ env.EKS_EXTERNAL_DNS_IRSA_ARN }}
         run: |
-          helmfile sync
+          helmfile -f helmfile.yaml sync
