@@ -2,7 +2,7 @@ name: Create TCE Stack
 
 on:
   push:
-    branches: [main]
+    branches: [main, fix/long-running-cluster]
 
 jobs:
   k8s:
