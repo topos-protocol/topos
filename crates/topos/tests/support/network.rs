@@ -99,7 +99,8 @@ where
             temp_dir.push(format!("./{}_{}", peer_id, t.as_nanos()));
 
             let (storage, storage_client, storage_stream) = {
-                let storage = RocksDBStorage::open(&temp_dir).expect("valid rocksdb storage");
+                let storage =
+                    RocksDBStorage::with_isolation(&temp_dir).expect("valid rocksdb storage");
                 Connection::build(Box::pin(async { Ok(storage) }))
             };
             let storage_join_handle = spawn(storage.into_future());
@@ -269,9 +270,9 @@ where
     params.echo_sample_size = correct_sample;
     params.delivery_sample_size = correct_sample;
 
-    let e_ratio: f32 = 0.66;
-    let r_ratio: f32 = 0.33;
-    let d_ratio: f32 = 0.66;
+    let e_ratio: f32 = 0.5;
+    let r_ratio: f32 = 0.5;
+    let d_ratio: f32 = 0.5;
 
     params.echo_threshold = g(params.echo_sample_size, e_ratio);
     params.ready_threshold = g(params.ready_sample_size, r_ratio);

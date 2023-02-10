@@ -55,17 +55,15 @@ async fn start_a_cluster() {
 }
 
 #[tokio::test]
-#[ignore]
 async fn cert_delivery() {
     let subscriber = ::tracing_subscriber::FmtSubscriber::builder()
         .with_env_filter(::tracing_subscriber::EnvFilter::from_default_env())
-        .with_ansi(false)
         .with_test_writer()
         .finish();
     let _ = ::tracing::subscriber::set_global_default(subscriber);
 
-    let peer_number = 10;
-    let correct_sample = 4;
+    let peer_number = 15;
+    let correct_sample = 5;
     let number_of_certificates_per_subnet = 2;
     let number_of_subnets = 3;
     const NUMBER_OF_SUBNETS_PER_CLIENT: usize = 1; // In real life this would be always 1, topos node would represent one subnet
