@@ -61,7 +61,7 @@ where
     let deployment = web3::contract::Contract::deploy(web3_client.eth(), contract_abi.as_bytes())?
         .confirmations(1)
         .options(web3::contract::Options::with(|opt| {
-            opt.gas = Some(3_000_000.into());
+            opt.gas = Some(4_000_000.into());
         }));
 
     let deployment_result = if params.is_none() {
@@ -522,9 +522,9 @@ async fn test_subnet_certificate_push_call(
         ..Default::default()
     };
     info!("Sending mock certificate to subnet smart contract...");
-    if let Err(e) = runtime_proxy_worker
-        .eval(topos_sequencer_types::SubnetRuntimeProxyCommand::OnNewDeliveredTxns(mock_cert))
-    {
+    if let Err(e) = runtime_proxy_worker.eval(
+        topos_sequencer_types::SubnetRuntimeProxyCommand::OnNewDeliveredTxns(mock_cert.clone()),
+    ) {
         error!("Failed to send OnNewDeliveredTxns command: {}", e);
         return Err(Box::from(e));
     }
@@ -534,7 +534,7 @@ async fn test_subnet_certificate_push_call(
     let logs = read_logs_for_address(
         &subnet_smart_contract_address,
         &context.web3_client,
-        "CertStored(bytes32)",
+        "CertStored(bytes32,bytes32)",
     )
     .await?;
     info!("Acquired logs from subnet smart contract: {:#?}", logs);
@@ -543,6 +543,10 @@ async fn test_subnet_certificate_push_call(
         hex::encode(logs[0].address),
         subnet_smart_contract_address[2..]
     );
+    // event CertStored(CertificateId id, bytes32 txRoot);
+    let mut expected_data = mock_cert.id.as_array().to_vec();
+    expected_data.extend_from_slice(&mock_cert.tx_root_hash);
+    assert_eq!(logs[0].data.0, expected_data);
     info!("Shutting down context...");
     context.shutdown().await?;
     Ok(())
@@ -597,9 +601,12 @@ async fn test_subnet_certificate_get_last_pushed_call(
         },
     ];
 
-    for test_cert in &test_certificates {
+    for (index, test_cert) in test_certificates.iter().enumerate() {
         info!("Pushing certificate id={:?}", test_cert.id);
-        match subnet_client.push_certificate(&test_cert).await {
+        match subnet_client
+            .push_certificate(&test_cert, index as u64)
+            .await
+        {
             Ok(_) => {
                 info!("Certificate id={:?} pushed", test_cert.id);
             }
