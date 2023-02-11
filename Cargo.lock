@@ -1564,12 +1564,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
 
 [[package]]
-name = "fastapprox"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d0031c93f37b5d18272de2d932ebff6a7eb32d4bc3bab6751a9af42da7d1a424"
-
-[[package]]
 name = "fastrand"
 version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3904,16 +3898,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pretty_env_logger"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "926d36b9553851b8b0005f1275891b392ee4d2d833852c417ed025477350fb9d"
-dependencies = [
- "env_logger 0.7.1",
- "log",
-]
-
-[[package]]
 name = "prettyplease"
 version = "0.1.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5905,23 +5889,6 @@ dependencies = [
  "topos-p2p",
  "tracing",
  "tracing-subscriber",
-]
-
-[[package]]
-name = "topos-tce-simulation"
-version = "0.1.0"
-dependencies = [
- "clap 4.1.4",
- "fastapprox",
- "pretty_env_logger",
- "rand 0.8.5",
- "rand_core 0.6.4",
- "rand_distr",
- "tokio",
- "topos-core",
- "topos-tce-broadcast",
- "topos-tce-transport",
- "tracing",
 ]
 
 [[package]]

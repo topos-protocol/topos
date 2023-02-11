@@ -33,7 +33,6 @@ pub type Peer = String;
 
 pub mod double_echo;
 pub mod mem_store;
-pub mod mock;
 pub mod sampler;
 pub mod tce_store;
 
