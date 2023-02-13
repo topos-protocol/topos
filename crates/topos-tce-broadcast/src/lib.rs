@@ -19,7 +19,7 @@ use tokio::sync::{broadcast, mpsc, oneshot};
 use double_echo::DoubleEcho;
 use tce_transport::{ReliableBroadcastParams, TceEvents};
 
-use topos_core::uci::{Certificate, CertificateId, DigestCompressed, SubnetId};
+use topos_core::uci::{Certificate, CertificateId, SubnetId};
 use topos_p2p::PeerId;
 use tracing::{debug, error, info, Span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
@@ -68,8 +68,7 @@ pub enum DoubleEchoCommand {
     /// Received G-set message
     Deliver {
         from_peer: PeerId,
-        cert: Certificate,
-        digest: DigestCompressed,
+        certificate_id: CertificateId,
         ctx: Context,
     },
 
@@ -87,14 +86,14 @@ pub enum DoubleEchoCommand {
     /// When echo reply received
     Echo {
         from_peer: PeerId,
-        cert: Certificate,
+        certificate_id: CertificateId,
         ctx: Context,
     },
 
     /// When ready reply received
     Ready {
         from_peer: PeerId,
-        cert: Certificate,
+        certificate_id: CertificateId,
         ctx: Context,
     },
     DeliveredCerts {

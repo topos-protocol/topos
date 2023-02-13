@@ -3,7 +3,7 @@
 use clap::Args;
 use opentelemetry::Context;
 use serde::{Deserialize, Serialize};
-use topos_core::uci::{Certificate, DigestCompressed};
+use topos_core::uci::{Certificate, CertificateId};
 use topos_p2p::PeerId;
 use topos_telemetry::PropagationContext;
 
@@ -51,26 +51,22 @@ pub enum TceCommands {
     /// Given peer replied ok to the ReadySubscribe request
     OnReadySubscribeOk { from_peer: PeerId },
     /// Upon new certificate to start delivery
-    OnStartDelivery {
-        cert: Certificate,
-        digest: DigestCompressed,
-    },
+    OnStartDelivery { cert: Certificate },
     /// Received G-set message
     OnGossip {
         cert: Certificate,
-        digest: DigestCompressed,
         ctx: PropagationContext,
     },
     /// When echo reply received
     OnEcho {
         from_peer: PeerId,
-        cert: Certificate,
+        certificate_id: CertificateId,
         ctx: PropagationContext,
     },
     /// When ready reply received
     OnReady {
         from_peer: PeerId,
-        cert: Certificate,
+        certificate_id: CertificateId,
         ctx: PropagationContext,
     },
     /// Given peer replied ok to the double echo request
@@ -97,19 +93,18 @@ pub enum TceEvents {
     Gossip {
         peers: Vec<PeerId>,
         cert: Certificate,
-        digest: DigestCompressed,
         ctx: Context,
     },
     /// Indicates that 'echo' message broadcasting is required
     Echo {
         peers: Vec<PeerId>,
-        cert: Certificate,
+        certificate_id: CertificateId,
         ctx: Context,
     },
     /// Indicates that 'ready' message broadcasting is required
     Ready {
         peers: Vec<PeerId>,
-        cert: Certificate,
+        certificate_id: CertificateId,
         ctx: Context,
     },
     /// For simulation purpose, for now only caused by ill-formed sampling
