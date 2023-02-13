@@ -7,6 +7,7 @@ use test_log::test;
 use tokio::sync::mpsc;
 use tonic::{transport::Server, Request, Response, Status, Streaming};
 use topos_api::shared;
+use topos_api::shared::v1::checkpoints::TargetCheckpoint;
 use topos_api::shared::v1::{CertificateId, SubnetId};
 use topos_api::tce::v1::api_service_server::{ApiService, ApiServiceServer};
 use topos_api::tce::v1::watch_certificates_request::{Command, OpenStream};
@@ -160,7 +161,11 @@ async fn create_tce_layer() {
     assert_eq!(response, expected_response);
 
     let command = Some(Command::OpenStream(OpenStream {
-        subnet_ids: vec![source_subnet_id.clone()],
+        target_checkpoint: Some(TargetCheckpoint {
+            target_subnet_ids: vec![source_subnet_id.clone()],
+            positions: Vec::new(),
+        }),
+        source_checkpoint: None,
     }));
     let request_id: shared::v1::Uuid = Uuid::new_v4().into();
     let first_request = WatchCertificatesRequest {
@@ -169,7 +174,11 @@ async fn create_tce_layer() {
     };
 
     let mut first_request_short: WatchCertificatesRequest = OpenStream {
-        subnet_ids: vec![source_subnet_id.clone()],
+        target_checkpoint: Some(TargetCheckpoint {
+            target_subnet_ids: vec![source_subnet_id],
+            positions: Vec::new(),
+        }),
+        source_checkpoint: None,
     }
     .into();
     first_request_short.request_id = Some(request_id);

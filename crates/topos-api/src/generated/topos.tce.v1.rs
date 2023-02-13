@@ -112,13 +112,17 @@ pub struct WatchCertificatesRequest {
 }
 /// Nested message and enum types in `WatchCertificatesRequest`.
 pub mod watch_certificates_request {
-    /// Sent once to start receiving events and being able to send further command
+    /// Sent to start receiving events and being able to send further command
     #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct OpenStream {
-        #[prost(message, repeated, tag = "1")]
-        pub subnet_ids: ::prost::alloc::vec::Vec<
-            super::super::super::shared::v1::SubnetId,
+        #[prost(message, optional, tag = "1")]
+        pub target_checkpoint: ::core::option::Option<
+            super::super::super::shared::v1::checkpoints::TargetCheckpoint,
+        >,
+        #[prost(message, optional, tag = "2")]
+        pub source_checkpoint: ::core::option::Option<
+            super::super::super::shared::v1::checkpoints::SourceCheckpoint,
         >,
     }
     /// Define which command needs to be performed

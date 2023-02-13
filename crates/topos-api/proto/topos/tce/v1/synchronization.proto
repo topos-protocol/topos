@@ -2,12 +2,12 @@ syntax = "proto3";
 
 package topos.tce.v1;
 
-import "topos/shared/v1/subnet.proto";
 import "topos/shared/v1/certificate.proto";
+import "topos/shared/v1/subnet.proto";
 import "topos/shared/v1/uuid.proto";
 
 message CheckpointRequest {
-   // Provide a request_id to track response
+  // Provide a request_id to track response
   topos.shared.v1.UUID request_id = 1;
 
   // The type of request

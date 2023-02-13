@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package topos.shared.v1;
+
+import "topos/shared/v1/certificate.proto";
+import "topos/shared/v1/subnet.proto";
+
+// Checkpoints are used to walk through streams
+message Checkpoints {
+  // SourceCheckpoint represents a snapshot of multiple stream's positions regarding
+  // one or multiple source subnets.
+  message SourceCheckpoint {
+    repeated SubnetId source_subnet_ids = 1;
+    repeated Positions.SourceStreamPosition positions = 2;
+  }
+
+  // TargetCheckpoint represents a snapshot of multiple stream's positions regarding
+  // one or multiple target subnets.
+  message TargetCheckpoint {
+    repeated SubnetId target_subnet_ids = 1;
+    repeated Positions.TargetStreamPosition positions = 2;
+  }
+}
+
+message Positions {
+  // SourceStreamPosition represents a single point in a source stream.
+  // It is defined by a source_subnet_id and a position, resolving to a certificate_id
+  message SourceStreamPosition {
+    // The source_subnet_id is a mandatory field for the SourceStreamPosition
+    SubnetId source_subnet_id = 1;
+    uint64 position = 2;
+    CertificateId certificate_id = 3;
+  }
+
+  // TargetStreamPosition represents a single point in a target stream regarding a source subnet.
+  // It is defined by a target_subnet_id, source_subnet_id and a position, resolving to a certificate_id
+  message TargetStreamPosition {
+    // The source_subnet_id is a mandatory field for the TargetStreamPosition
+    SubnetId source_subnet_id = 1;
+    // The target_subnet_id is a mandatory field for the TargetStreamPosition
+    SubnetId target_subnet_id = 2;
+    uint64 position = 3;
+    CertificateId certificate_id = 4;
+  }
+}

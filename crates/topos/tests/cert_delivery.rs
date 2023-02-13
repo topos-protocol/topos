@@ -16,10 +16,13 @@ use test_log::test;
 use tokio::spawn;
 use tokio::sync::mpsc;
 use topos_core::{
-    api::tce::v1::{
-        watch_certificates_request::OpenStream,
-        watch_certificates_response::{CertificatePushed, Event},
-        PushPeerListRequest, StatusRequest, SubmitCertificateRequest,
+    api::{
+        shared::v1::checkpoints::TargetCheckpoint,
+        tce::v1::{
+            watch_certificates_request::OpenStream,
+            watch_certificates_response::{CertificatePushed, Event},
+            PushPeerListRequest, StatusRequest, SubmitCertificateRequest,
+        },
     },
     uci::{Certificate, SubnetId},
 };
@@ -126,7 +129,13 @@ async fn cert_delivery() {
 
         let in_stream_subnet_id = client_subnet_id.clone();
         let in_stream = async_stream::stream! {
-            yield OpenStream { subnet_ids: vec![in_stream_subnet_id.into()] }.into();
+            yield OpenStream {
+                target_checkpoint: Some(TargetCheckpoint{
+                    target_subnet_ids: vec![in_stream_subnet_id.into()],
+                    positions: Vec::new()
+                }),
+                source_checkpoint: None
+            }.into();
         };
 
         // Number of certificates expected to receive for every subnet,
@@ -319,7 +328,7 @@ async fn create_network(
             .expect("Can't send PushPeerListRequest");
     }
 
-    tokio::time::sleep(Duration::from_secs(1)).await;
+    tokio::time::sleep(Duration::from_secs(2)).await;
 
     // Waiting for new network view
     let mut status: Vec<bool> = Vec::new();
