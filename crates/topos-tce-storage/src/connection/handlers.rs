@@ -77,8 +77,16 @@ where
 {
     type Error = StorageError;
 
-    async fn handle(&mut self, _command: CertificateDelivered) -> Result<(), StorageError> {
-        Ok(())
+    async fn handle(&mut self, command: CertificateDelivered) -> Result<(), StorageError> {
+        let certificate_id = command.certificate_id;
+
+        let (pending_certificate_id, certificate) =
+            self.storage.get_pending_certificate(certificate_id).await?;
+
+        Ok(self
+            .storage
+            .persist(&certificate, Some(pending_certificate_id))
+            .await?)
     }
 }
 
