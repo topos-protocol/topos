@@ -215,7 +215,7 @@ pub async fn connect_to_subnet_listener_with_retry(
     subnet_contract_address: &str,
 ) -> Result<SubnetClientListener, crate::Error> {
     info!(
-        "Connecting to subnet endpoint to listen events {} using backoff strategy...",
+        "Connecting to subnet endpoint to listen events from {} using backoff strategy...",
         ws_runtime_endpoint
     );
 
@@ -224,10 +224,7 @@ pub async fn connect_to_subnet_listener_with_retry(
         match SubnetClientListener::new(ws_runtime_endpoint, subnet_contract_address).await {
             Ok(subnet_listener) => Ok(subnet_listener),
             Err(e) => {
-                error!(
-                    "Unable to instantiate subnet client listener, error: {}",
-                    e.to_string()
-                );
+                error!("Unable to instantiate the subnet client listener: {e}");
                 Err(new_subnet_client_proxy_backoff_err(e))
             }
         }
@@ -409,9 +406,8 @@ pub async fn connect_to_subnet_with_retry(
             Ok(subnet_client) => Ok(subnet_client),
             Err(e) => {
                 error!(
-                    "Unable to instantiate http subnet client to endpoint {}, error: {}",
+                    "Unable to instantiate http subnet client to endpoint {}: {e}",
                     http_subnet_endpoint,
-                    e.to_string()
                 );
                 Err(new_subnet_client_proxy_backoff_err(e))
             }

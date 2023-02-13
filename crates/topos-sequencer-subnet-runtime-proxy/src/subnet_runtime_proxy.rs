@@ -175,7 +175,7 @@ impl SubnetRuntimeProxy {
                             subnet_client
                         }
                         Err(e) => {
-                            error!("Unable to connect to the subnet node, details: {e}");
+                            error!("Unable to connect to the subnet node: {e}");
                             continue;
                         }
                     };
@@ -277,8 +277,8 @@ impl SubnetRuntimeProxy {
                         }
                         Err(e) => {
                             error!(
-                                "Failed to push certificate id={:?} to target subnet, error details: {}",
-                                &cert.id, e
+                                "Failed to push certificate id={:?} to target subnet: {e}",
+                                &cert.id
                             );
                         }
                     }

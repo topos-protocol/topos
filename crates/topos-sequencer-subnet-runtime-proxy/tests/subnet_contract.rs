@@ -121,7 +121,7 @@ async fn deploy_contracts(
     ) {
         Ok(path) => path + "/" + SUBNET_TOKEN_DEPLOYER_JSON_DEFINITION,
         Err(_e) => {
-            error!("Error reading contract build path from `TOPOS_SMART_CONTRACTS_BUILD_PATH` environment variable, using current folder {}",
+            error!("Error reading contract build path from `{TOPOS_SMART_CONTRACTS_BUILD_PATH_VAR}` environment variable, using current folder {}",
                      std::env::current_dir().unwrap().display());
             String::from(SUBNET_TOKEN_DEPLOYER_JSON_DEFINITION)
         }
@@ -140,7 +140,7 @@ async fn deploy_contracts(
     let tcc_contract_file_path = match std::env::var(TOPOS_SMART_CONTRACTS_BUILD_PATH_VAR) {
         Ok(path) => path + "/" + SUBNET_TCC_JSON_DEFINITION,
         Err(_e) => {
-            error!("Error reading contract build path from `TOPOS_SMART_CONTRACTS_BUILD_PATH` environment variable, using current folder {}",
+            error!("Error reading contract build path from `{TOPOS_SMART_CONTRACTS_BUILD_PATH_VAR}` environment variable, using current folder {}",
                      std::env::current_dir().unwrap().display());
             String::from(SUBNET_TCC_JSON_DEFINITION)
         }
@@ -349,9 +349,7 @@ async fn context_running_subnet_node(#[default(8545)] port: u32) -> Context {
         match spawn_subnet_node(subnet_stop_receiver, subnet_ready_sender, port) {
             Ok(subnet_node_handle) => subnet_node_handle,
             Err(e) => {
-                panic!(
-                "Failed to start substrate subnet node as part of test context, error details {e}"
-            );
+                panic!("Failed to start the polygon edge subnet node as part of test context: {e}");
             }
         };
 
@@ -391,9 +389,7 @@ async fn context_running_subnet_node(#[default(8545)] port: u32) -> Context {
         }) {
             Ok(contract) => contract,
             Err(e) => {
-                panic!(
-                "Failed to deploy subnet contract as part of the test context, error details {e}"
-            );
+                panic!("Failed to deploy subnet contract as part of the test context: {e}");
             }
         };
     // Context with subnet container working in the background and deployed contract ready
@@ -577,7 +573,7 @@ async fn test_subnet_certificate_get_last_pushed_call(
     let (cert_id, cert_position) = match subnet_client.get_latest_pushed_cert_with_retry().await {
         Ok(result) => result,
         Err(e) => {
-            panic!("Unable to get latest certificate id and position, error details: {e}");
+            panic!("Unable to get latest certificate id and position: {e}");
         }
     };
 
@@ -611,7 +607,7 @@ async fn test_subnet_certificate_get_last_pushed_call(
                 info!("Certificate id={:?} pushed", test_cert.id);
             }
             Err(e) => {
-                panic!("Unable to push certificate, error details: {e}");
+                panic!("Unable to push certificate: {e}");
             }
         }
     }
@@ -621,7 +617,7 @@ async fn test_subnet_certificate_get_last_pushed_call(
         match subnet_client.get_latest_pushed_cert_with_retry().await {
             Ok(result) => result,
             Err(e) => {
-                panic!("Unable to get latest certificate id and position, error details: {e}");
+                panic!("Unable to get the latest certificate id and position: {e}");
             }
         };
     assert_eq!(
