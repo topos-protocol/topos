@@ -6,6 +6,7 @@ use tokio::{
     sync::{mpsc, oneshot},
     time::Duration,
 };
+use topos_core::api::shared::v1::checkpoints::TargetCheckpoint;
 use topos_core::api::shared::v1::{CertificateId, StarkProof, SubnetId};
 use topos_core::api::tce::v1::{
     watch_certificates_request, watch_certificates_response,
@@ -165,7 +166,13 @@ async fn test_tce_watch_certificates(
     //Outbound stream
     let subnet_id_instream = source_subnet_id.clone();
     let in_stream = async_stream::stream! {
-        yield watch_certificates_request::OpenStream { subnet_ids: vec![ subnet_id_instream] }.into();
+        yield watch_certificates_request::OpenStream {
+            target_checkpoint: Some(TargetCheckpoint {
+                target_subnet_ids: vec![ subnet_id_instream.into() ],
+                positions: Vec::new()
+            }),
+            source_checkpoint: None
+        }.into()
     };
     let response = client.watch_certificates(in_stream).await.unwrap();
     let mut resp_stream = response.into_inner();

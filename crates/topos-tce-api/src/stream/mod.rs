@@ -112,10 +112,18 @@ impl Stream {
     async fn pre_start(&mut self) -> Result<Vec<SubnetId>, PreStartError> {
         let waiting_for_open_stream = async {
             if let Ok(Some(WatchCertificatesRequest {
-                command: Some(Command::OpenStream(OpenStream { subnet_ids })),
+                command:
+                    Some(Command::OpenStream(OpenStream {
+                        target_checkpoint, ..
+                    })),
                 ..
             })) = self.stream.message().await
             {
+                let subnet_ids = if let Some(target_checkpoint) = target_checkpoint {
+                    target_checkpoint.target_subnet_ids
+                } else {
+                    vec![]
+                };
                 Ok(subnet_ids)
             } else {
                 Err(())
