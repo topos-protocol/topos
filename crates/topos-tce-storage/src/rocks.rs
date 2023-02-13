@@ -56,14 +56,15 @@ impl RocksDBStorage {
         }
     }
 
-    pub fn open(path: &PathBuf) -> Result<Self, InternalStorageError> {
-        let db = DB.get_or_try_init(|| {
-            let mut options = rocksdb::Options::default();
-            options.create_if_missing(true);
-            options.create_missing_column_families(true);
-            init_db(path, &mut options)
-        })?;
+    pub fn with_isolation(path: &PathBuf) -> Result<Self, InternalStorageError> {
+        Self::setup(&create_and_init(path)?)
+    }
 
+    pub fn open(path: &PathBuf) -> Result<Self, InternalStorageError> {
+        Self::setup(DB.get_or_try_init(|| create_and_init(path))?)
+    }
+
+    fn setup(db: &RocksDB) -> Result<Self, InternalStorageError> {
         let pending_certificates = DBColumn::reopen(db, constants::PENDING_CERTIFICATES);
 
         let next_pending_id = match pending_certificates.iter()?.last() {
@@ -79,6 +80,13 @@ impl RocksDBStorage {
             next_pending_id,
         })
     }
+}
+
+fn create_and_init(path: &PathBuf) -> Result<RocksDB, InternalStorageError> {
+    let mut options = rocksdb::Options::default();
+    options.create_if_missing(true);
+    options.create_missing_column_families(true);
+    init_db(path, &mut options)
 }
 
 #[async_trait::async_trait]
