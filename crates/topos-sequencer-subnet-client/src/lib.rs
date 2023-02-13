@@ -3,7 +3,6 @@ pub mod subnet_contract;
 use crate::subnet_contract::{
     create_topos_core_contract_from_json, parse_events_from_json, parse_events_from_log,
 };
-use thiserror::Error;
 use topos_core::uci::CertificateId;
 use topos_sequencer_types::{BlockInfo, Certificate};
 use tracing::{debug, error, info};
@@ -14,7 +13,7 @@ use web3::types::{BlockId, BlockNumber, H160, U256, U64};
 
 const PUSH_CERTIFICATE_GAS_LIMIT: u64 = 1000000;
 
-#[derive(Debug, Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("new finalized block not available")]
     BlockNotAvailable,
@@ -209,6 +208,31 @@ impl SubnetClientListener {
     }
 }
 
+/// Create subnet client listener and open connection to the subnet
+/// Retry until connection is valid
+pub async fn connect_to_subnet_listener_with_retry(
+    ws_runtime_endpoint: &str,
+    subnet_contract_address: &str,
+) -> Result<SubnetClientListener, crate::Error> {
+    info!(
+        "Connecting to subnet endpoint to listen events from {} using backoff strategy...",
+        ws_runtime_endpoint
+    );
+
+    let op = || async {
+        // Create subnet listener
+        match SubnetClientListener::new(ws_runtime_endpoint, subnet_contract_address).await {
+            Ok(subnet_listener) => Ok(subnet_listener),
+            Err(e) => {
+                error!("Unable to instantiate the subnet client listener: {e}");
+                Err(new_subnet_client_proxy_backoff_err(e))
+            }
+        }
+    };
+
+    backoff::future::retry(backoff::ExponentialBackoff::default(), op).await
+}
+
 // Subnet client for calling target network smart contract
 pub struct SubnetClient {
     pub eth_admin_address: H160,
@@ -300,59 +324,78 @@ impl SubnetClient {
 
     /// Ask subnet for latest pushed cert
     /// Returns latest cert id and its position
-    pub async fn get_latest_pushed_cert(&self) -> Result<(CertificateId, u64), Error> {
-        // Get certificate count
-        // Last certificate position is certificate count - 1
-        let cert_count: U256 = self
-            .contract
-            .query(
-                "getCertificateCount",
-                (),
-                None,
-                web3::contract::Options::default(),
-                None,
-            )
-            .await
-            .map_err(|e| Error::EthContractError { source: e })?;
+    pub async fn get_latest_pushed_cert_with_retry(&self) -> Result<(CertificateId, u64), Error> {
+        let op = || async {
+            // Get certificate count
+            // Last certificate position is certificate count - 1
+            let cert_count: U256 = self
+                .contract
+                .query(
+                    "getCertificateCount",
+                    (),
+                    None,
+                    web3::contract::Options::default(),
+                    None,
+                )
+                .await
+                .map_err(|e| Error::EthContractError { source: e })?;
 
-        if cert_count.as_u64() == 0 {
-            // No previous certificates
-            info!(
-                "No previous certificate pushed to smart contract {}",
-                self.contract.address().to_string()
-            );
-            return Ok((Default::default(), 0));
-        }
+            if cert_count.as_u64() == 0 {
+                // No previous certificates
+                info!(
+                    "No previous certificate pushed to smart contract {}",
+                    self.contract.address().to_string()
+                );
+                return Ok((Default::default(), 0));
+            }
 
-        let latest_cert_position: U256 = cert_count - 1;
-        let latest_cert_id: web3::ethabi::FixedBytes = self
-            .contract
-            .query(
-                "getCertIdAtIndex",
-                latest_cert_position,
-                None,
-                web3::contract::Options::default(),
-                None,
-            )
-            .await
-            .map_err(|e| Error::EthContractError { source: e })?;
+            let latest_cert_position: U256 = cert_count - 1;
+            let latest_cert_id: web3::ethabi::FixedBytes = self
+                .contract
+                .query(
+                    "getCertIdAtIndex",
+                    latest_cert_position,
+                    None,
+                    web3::contract::Options::default(),
+                    None,
+                )
+                .await
+                .map_err(|e| Error::EthContractError { source: e })?;
 
-        let latest_cert_id: CertificateId = latest_cert_id
-            .try_into()
-            .map_err(|_| Error::InvalidCertificateId)?;
-        Ok((latest_cert_id, latest_cert_position.as_u64()))
+            let latest_cert_id: CertificateId = latest_cert_id
+                .try_into()
+                .map_err(|_| Error::InvalidCertificateId)?;
+            Ok((latest_cert_id, latest_cert_position.as_u64()))
+        };
+
+        backoff::future::retry(backoff::ExponentialBackoff::default(), op).await
+    }
+}
+
+// /// Create new backoff library error based on error that happened
+pub(crate) fn new_subnet_client_proxy_backoff_err<E: std::fmt::Display>(
+    err: E,
+) -> backoff::Error<E> {
+    // Retry according to backoff policy
+    backoff::Error::Transient {
+        err,
+        retry_after: None,
     }
 }
 
 /// Create subnet client and open connection to the subnet
 /// Retry until connection is valid
-// TODO implement backoff mechanism
 pub async fn connect_to_subnet_with_retry(
     http_subnet_endpoint: &str,
     eth_admin_private_key: Vec<u8>,
     contract_address: &str,
-) -> SubnetClient {
-    let subnet_client = loop {
+) -> Result<SubnetClient, crate::Error> {
+    info!(
+        "Connecting to subnet endpoint {} using backoff strategy...",
+        http_subnet_endpoint
+    );
+
+    let op = || async {
         match SubnetClient::new(
             http_subnet_endpoint,
             eth_admin_private_key.clone(),
@@ -360,20 +403,16 @@ pub async fn connect_to_subnet_with_retry(
         )
         .await
         {
-            Ok(subnet_client) => {
-                break subnet_client;
-            }
-            Err(err) => {
+            Ok(subnet_client) => Ok(subnet_client),
+            Err(e) => {
                 error!(
-                    "Unable to instantiate http subnet client, error: {}",
-                    err.to_string()
+                    "Unable to instantiate http subnet client to endpoint {}: {e}",
+                    http_subnet_endpoint,
                 );
-                //TODO use backoff mechanism instead of fixed delay
-                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-                continue;
+                Err(new_subnet_client_proxy_backoff_err(e))
             }
-        };
+        }
     };
 
-    subnet_client
+    backoff::future::retry(backoff::ExponentialBackoff::default(), op).await
 }

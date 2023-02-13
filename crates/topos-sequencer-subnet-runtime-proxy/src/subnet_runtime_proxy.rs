@@ -12,7 +12,6 @@ use topos_sequencer_subnet_client::{self, SubnetClient};
 use topos_sequencer_types::{SubnetRuntimeProxyCommand, SubnetRuntimeProxyEvent};
 use tracing::{debug, error, info, trace, warn};
 
-const SUBNET_RETRY_DELAY: Duration = Duration::new(1, 0);
 const SUBNET_BLOCK_TIME: Duration = Duration::new(2, 0);
 
 pub struct SubnetRuntimeProxy {
@@ -84,35 +83,33 @@ impl SubnetRuntimeProxy {
             block_task_shutdown: block_task_shutdown_channel,
         }));
 
-        let _runtime_block_task = {
+        // Runtime block task
+        {
             let runtime_proxy = runtime_proxy.clone();
             let subnet_contract_address = subnet_contract_address.clone();
             tokio::spawn(async move {
-                let mut interval = time::interval(SUBNET_BLOCK_TIME); // arbitrary time for 1 block
                 loop {
                     // Create subnet listener
-                    let mut subnet = match topos_sequencer_subnet_client::SubnetClientListener::new(
-                        ws_runtime_endpoint.as_ref(),
-                        subnet_contract_address.as_str(),
-                    )
-                    .await
-                    {
-                        Ok(subnet) => subnet,
-                        Err(err) => {
-                            error!(
-                                "Unable to instantiate subnet client listener, error: {}",
-                                err.to_string()
-                            );
-                            //TODO use backoff mechanism here
-                            tokio::time::sleep(SUBNET_RETRY_DELAY).await;
-                            continue;
-                        }
-                    };
+                    let mut subnet_listener =
+                        match topos_sequencer_subnet_client::connect_to_subnet_listener_with_retry(
+                            ws_runtime_endpoint.as_str(),
+                            subnet_contract_address.as_str(),
+                        )
+                        .await
+                        {
+                            Ok(subnet_listener) => subnet_listener,
+                            Err(e) => {
+                                error!("Unable create subnet listener, details: {e}");
+                                continue;
+                            }
+                        };
+
+                    let mut interval = time::interval(SUBNET_BLOCK_TIME); // arbitrary time for 1 block
 
                     let shutdowned: Option<oneshot::Sender<()>> = loop {
                         tokio::select! {
                             _ = interval.tick() => {
-                                match subnet
+                                match subnet_listener
                                     .get_next_finalized_block(&subnet_contract_address)
                                     .await
                                 {
@@ -161,27 +158,37 @@ impl SubnetRuntimeProxy {
             })
         };
 
-        let _runtime_command_task = {
-            tokio::spawn(async move {
+        // Runtime command task
+        tokio::spawn(async move {
+            loop {
                 // Create subnet client
                 let mut subnet_client =
-                    topos_sequencer_subnet_client::connect_to_subnet_with_retry(
+                    match topos_sequencer_subnet_client::connect_to_subnet_with_retry(
                         http_runtime_endpoint.as_ref(),
                         eth_admin_private_key.clone(),
                         subnet_contract_address.as_str(),
                     )
-                    .await;
+                    .await
+                    {
+                        Ok(subnet_client) => {
+                            info!("Connected to subnet node {}", &http_runtime_endpoint);
+                            subnet_client
+                        }
+                        Err(e) => {
+                            error!("Unable to connect to the subnet node: {e}");
+                            continue;
+                        }
+                    };
 
                 // Get latest delivered(pushed) certificate from subnet smart contract
                 // TODO inform TCE which certificate do we need
                 let latest_cert_id = loop {
-                    match subnet_client.get_latest_pushed_cert().await {
+                    match subnet_client.get_latest_pushed_cert_with_retry().await {
                         Ok(cert_id) => {
                             break cert_id;
                         }
                         Err(e) => {
                             error!("Unable to get latest pushed cert {e}");
-                            tokio::time::sleep(SUBNET_RETRY_DELAY).await;
                             continue;
                         }
                     };
@@ -206,8 +213,8 @@ impl SubnetRuntimeProxy {
                 } else {
                     warn!("Shutting down subnet runtime command processing task due to error");
                 }
-            })
-        };
+            }
+        });
 
         Ok(runtime_proxy)
     }
@@ -270,8 +277,8 @@ impl SubnetRuntimeProxy {
                         }
                         Err(e) => {
                             error!(
-                                "Failed to push certificate id={:?} to target subnet, error details: {}",
-                                &cert.id, e
+                                "Failed to push certificate id={:?} to target subnet: {e}",
+                                &cert.id
                             );
                         }
                     }
