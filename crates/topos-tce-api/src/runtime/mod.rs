@@ -6,6 +6,7 @@ use opentelemetry::{
 use std::{
     collections::{HashMap, HashSet},
     future,
+    pin::Pin,
     time::Duration,
 };
 use tokio::{
@@ -18,12 +19,12 @@ use topos_core::api::tce::v1::api_service_server::ApiServiceServer;
 use topos_core::uci::SubnetId;
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
-use tracing::{debug, error, info, info_span, Instrument, Span};
+use tracing::{debug, error, info, info_span, warn, Instrument, Span};
 use uuid::Uuid;
 
 use crate::{
     grpc::TceGrpcService,
-    stream::{Stream, StreamCommand},
+    stream::{Stream, StreamCommand, StreamError, StreamErrorKind},
 };
 
 pub(crate) mod builder;
@@ -52,7 +53,6 @@ pub struct Runtime {
     /// Streams that are currently in negotiation
     pub(crate) pending_streams: HashMap<Uuid, Sender<StreamCommand>>,
     /// Mapping between a subnet_id and streams that are subscribed to it
-    pub(crate) subnet_subscription: HashMap<SubnetId, HashSet<Uuid>>,
     pub(crate) subnet_subscriptions: HashMap<SubnetId, HashSet<Uuid>>,
     /// Receiver for Internal API command
     pub(crate) internal_runtime_command_receiver: Receiver<InternalRuntimeCommand>,
@@ -187,17 +187,13 @@ impl Runtime {
                     internal_runtime_command_sender,
                 };
 
-                spawn(active_stream.run());
-            }
-
-            InternalRuntimeCommand::StreamTimeout { stream_id } => {
-                self.pending_streams.remove(&stream_id);
+                self.streams.push(Box::pin(active_stream.run()));
             }
 
             InternalRuntimeCommand::Handshaked { stream_id } => {
                 if let Some(sender) = self.pending_streams.remove(&stream_id) {
                     self.active_streams.insert(stream_id, sender);
-                    info!("{stream_id} has successfully handshake");
+                    info!("Stream {stream_id} has successfully handshake");
                 }
             }
 
@@ -206,7 +202,7 @@ impl Runtime {
                 subnet_ids,
                 sender,
             } => {
-                info!("{stream_id} is registered as subscriber for {subnet_ids:?}");
+                info!("Stream {stream_id} is registered as subscriber for {subnet_ids:?}");
                 for subnet_id in subnet_ids {
                     self.subnet_subscriptions
                         .entry(subnet_id.into())

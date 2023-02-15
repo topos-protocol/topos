@@ -3,15 +3,6 @@ use thiserror::Error;
 use tokio::sync::{mpsc::error::SendError, oneshot::error::RecvError};
 
 #[derive(Error, Debug)]
-pub enum PreStartError {
-    #[error("Prestart timed out")]
-    TimedOut,
-
-    #[error("Wrong stream opening")]
-    WrongOpening,
-}
-
-#[derive(Error, Debug)]
 pub(crate) enum HandshakeError {
     #[error(transparent)]
     Runtime(#[from] RuntimeError),
@@ -30,15 +21,6 @@ mod tests {
     use uuid::Uuid;
 
     use super::*;
-
-    #[test]
-    fn presart_error_expected() {
-        assert_eq!("Prestart timed out", PreStartError::TimedOut.to_string());
-        assert_eq!(
-            "Wrong stream opening",
-            PreStartError::WrongOpening.to_string()
-        );
-    }
 
     #[test(tokio::test)]
     async fn handshake_error_expected() {

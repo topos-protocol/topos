@@ -39,9 +39,6 @@ pub(crate) enum InternalRuntimeCommand {
         sender: oneshot::Sender<Result<(), RuntimeError>>,
     },
 
-    /// Notify that a Stream took too long to handshake
-    StreamTimeout { stream_id: Uuid },
-
     /// Notify that a Stream has successfully handshake with the server
     Handshaked { stream_id: Uuid },
 
