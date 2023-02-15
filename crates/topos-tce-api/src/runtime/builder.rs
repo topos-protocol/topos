@@ -52,12 +52,13 @@ impl RuntimeBuilder {
         let runtime = Runtime {
             active_streams: HashMap::new(),
             pending_streams: HashMap::new(),
-            subnet_subscription: HashMap::new(),
+            subnet_subscriptions: HashMap::new(),
             internal_runtime_command_receiver,
             runtime_command_receiver,
             health_reporter,
             api_event_sender,
             shutdown: shutdown_receiver,
+            streams: Default::default(),
         };
 
         spawn(grpc);

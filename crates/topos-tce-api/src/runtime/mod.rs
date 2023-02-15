@@ -1,9 +1,11 @@
+use futures::{stream::FuturesUnordered, StreamExt};
 use opentelemetry::{
     trace::{FutureExt, TraceContextExt},
     Context,
 };
 use std::{
     collections::{HashMap, HashSet},
+    future,
     time::Duration,
 };
 use tokio::{
@@ -41,6 +43,9 @@ pub(crate) use self::commands::InternalRuntimeCommand;
 pub use self::commands::RuntimeCommand;
 pub use self::events::RuntimeEvent;
 
+pub(crate) type Streams =
+    FuturesUnordered<Pin<Box<dyn future::Future<Output = Result<Uuid, StreamError>> + Send>>>;
+
 pub struct Runtime {
     /// Streams that are currently active (with a valid handshake)
     pub(crate) active_streams: HashMap<Uuid, Sender<StreamCommand>>,
@@ -48,6 +53,7 @@ pub struct Runtime {
     pub(crate) pending_streams: HashMap<Uuid, Sender<StreamCommand>>,
     /// Mapping between a subnet_id and streams that are subscribed to it
     pub(crate) subnet_subscription: HashMap<SubnetId, HashSet<Uuid>>,
+    pub(crate) subnet_subscriptions: HashMap<SubnetId, HashSet<Uuid>>,
     /// Receiver for Internal API command
     pub(crate) internal_runtime_command_receiver: Receiver<InternalRuntimeCommand>,
     /// Receiver for Outside API command
@@ -58,6 +64,8 @@ pub struct Runtime {
     pub(crate) api_event_sender: Sender<RuntimeEvent>,
     /// Shutdown signal receiver
     pub(crate) shutdown: mpsc::Receiver<oneshot::Sender<()>>,
+    /// Spawned stream that manage a gRPC stream
+    pub(crate) streams: Streams,
 }
 
 impl Runtime {
@@ -105,7 +113,7 @@ impl Runtime {
                     &certificate.id, target_subnets
                 );
                 for target_subnet_id in target_subnets {
-                    if let Some(stream_list) = self.subnet_subscription.get(target_subnet_id) {
+                    if let Some(stream_list) = self.subnet_subscriptions.get(target_subnet_id) {
                         let uuids: Vec<&Uuid> = stream_list.iter().collect();
                         for uuid in uuids {
                             if let Some(sender) = self.active_streams.get(uuid) {
@@ -173,20 +181,10 @@ impl Runtime {
             } => {
                 info!("{stream_id} is registered as subscriber for {subnet_ids:?}");
                 for subnet_id in subnet_ids {
-                    match subnet_id.try_into() {
-                        Ok(subnet_id) => {
-                            self.subnet_subscription
-                                .entry(subnet_id)
-                                .or_default()
-                                .insert(stream_id);
-                        }
-                        Err(e) => {
-                            error!("Invalid subnet id: {e:?}");
-                            error!(
-                                "Invalid subnet id, unable to insert it in the subnet subscription"
-                            );
-                        }
-                    }
+                    self.subnet_subscriptions
+                        .entry(subnet_id.into())
+                        .or_default()
+                        .insert(stream_id);
                 }
 
                 if let Err(error) = sender.send(Ok(())) {
