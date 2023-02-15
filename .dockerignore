@@ -8,6 +8,7 @@
 !Cargo.*
 !tools/init.sh
 !tools/liveness.sh
+!tools/config/nextest.toml
 !.git
 
 !LICENSE

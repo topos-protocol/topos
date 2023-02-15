@@ -18,7 +18,8 @@ WORKDIR /usr/src/app
 FROM base AS build
 COPY . .
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
-  cargo build --release --no-default-features --features=${FEATURES}
+  cargo build --release --no-default-features --features=${FEATURES} \
+  && sccache -s
 
 FROM base AS test
 RUN cargo install cargo-nextest --locked
@@ -31,20 +32,19 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
 FROM base AS fmt
 RUN rustup component add rustfmt
 COPY . .
-RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
-  cargo fmt --all -- --check
+RUN cargo fmt --all -- --check
 
 FROM base AS lint
 RUN rustup component add clippy
 COPY . .
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
-  cargo clippy --all
+  cargo clippy --all \
+  && sccache -s
 
 FROM base AS audit
 RUN cargo install cargo-audit --locked
 COPY . .
-RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
-  cargo audit
+RUN cargo audit
 
 FROM debian:bullseye-slim AS topos
 
