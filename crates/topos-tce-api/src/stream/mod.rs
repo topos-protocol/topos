@@ -26,8 +26,28 @@ mod tests;
 
 use crate::runtime::{error::RuntimeError, InternalRuntimeCommand};
 
+pub use self::commands::StreamCommand;
 use self::errors::HandshakeError;
-pub use self::{commands::StreamCommand, errors::PreStartError};
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum StreamErrorKind {
+    HandshakeFailed,
+    PreStartError,
+    StreamClosed,
+    Timeout,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct StreamError {
+    pub(crate) stream_id: Uuid,
+    pub(crate) kind: StreamErrorKind,
+}
+
+impl StreamError {
+    fn new(stream_id: Uuid, kind: StreamErrorKind) -> Self {
+        Self { stream_id, kind }
+    }
+}
 
 pub struct Stream {
     pub(crate) stream_id: Uuid,
@@ -38,42 +58,16 @@ pub struct Stream {
 }
 
 impl Stream {
-    pub async fn run(mut self) {
-        let subnet_ids = match self.pre_start().await {
-            Err(_) => {
-                if let Err(error) = self
-                    .sender
-                    .send(Err(Status::invalid_argument("No openstream provided")))
-                    .await
-                {
-                    warn!(%error, "Can't notify stream of invalid argument during pre_start");
-                }
-
-                if let Err(error) = self
-                    .internal_runtime_command_sender
-                    .send(InternalRuntimeCommand::StreamTimeout {
-                        stream_id: self.stream_id,
-                    })
-                    .await
-                {
-                    warn!(%error, "Can't notify stream of timeout during pre_start");
-                }
-
-                return;
-            }
-
-            Ok(subnet_id) => {
-                info!(
-                    "Received an OpenStream command for the stream {} linked to the subnet {:?}",
-                    self.stream_id, subnet_id
-                );
-
-                subnet_id
-            }
-        };
+    pub async fn run(mut self) -> Result<Uuid, StreamError> {
+        let subnet_ids = self.pre_start().await?;
 
         if let Err(handshake_error) = self.handshake(subnet_ids.clone()).await {
-            error!(%handshake_error, "Handshake failed with stream")
+            error!(%handshake_error, "Handshake failed with stream");
+
+            return Err(StreamError::new(
+                self.stream_id,
+                StreamErrorKind::HandshakeFailed,
+            ));
         }
 
         if let Err(error) = self
@@ -81,7 +75,12 @@ impl Stream {
             .send(Ok(StreamOpened { subnet_ids }.into()))
             .await
         {
-            error!(%error, "Handshake failed with stream")
+            error!(%error, "Handshake failed with stream");
+
+            return Err(StreamError::new(
+                self.stream_id,
+                StreamErrorKind::StreamClosed,
+            ));
         }
 
         loop {
@@ -95,6 +94,11 @@ impl Stream {
 
                             })).await {
                                 error!(%error, "Can't forward WatchCertificatesResponse to stream, channel seems dropped");
+
+                                return Err(StreamError::new(
+                                        self.stream_id,
+                                        StreamErrorKind::StreamClosed,
+                                ));
                             }
                         }
                     }
@@ -112,7 +116,7 @@ impl Stream {
 }
 
 impl Stream {
-    async fn pre_start(&mut self) -> Result<Vec<SubnetId>, PreStartError> {
+    async fn pre_start(&mut self) -> Result<Vec<SubnetId>, StreamError> {
         let waiting_for_open_stream = async {
             if let Ok(Some(WatchCertificatesRequest {
                 command:
@@ -134,9 +138,33 @@ impl Stream {
         };
 
         match timeout(Duration::from_millis(100), waiting_for_open_stream).await {
-            Ok(Ok(subnet_id)) => Ok(subnet_id),
-            Ok(Err(_)) => Err(PreStartError::WrongOpening),
-            _ => Err(PreStartError::TimedOut),
+            Ok(Ok(subnet_id)) => {
+                info!(
+                    "Received an OpenStream command for the stream {} linked to the subnet {:?}",
+                    self.stream_id, subnet_id
+                );
+
+                Ok(subnet_id)
+            }
+            Ok(Err(_)) => {
+                if let Err(error) = self
+                    .sender
+                    .send(Err(Status::invalid_argument("No OpenStream provided")))
+                    .await
+                {
+                    warn!(%error, "Can't notify stream of invalid argument during pre_start");
+                    Err(StreamError::new(
+                        self.stream_id,
+                        StreamErrorKind::StreamClosed,
+                    ))
+                } else {
+                    Err(StreamError::new(
+                        self.stream_id,
+                        StreamErrorKind::PreStartError,
+                    ))
+                }
+            }
+            _ => Err(StreamError::new(self.stream_id, StreamErrorKind::Timeout)),
         }
     }
 

@@ -83,6 +83,11 @@ impl Runtime {
                 _ = health_update.tick() => {
                     self.health_reporter.set_serving::<ApiServiceServer<TceGrpcService>>().await;
                 }
+
+                Some(result) = self.streams.next() => {
+                    self.handle_stream_termination(result).await;
+                }
+
                 Some(internal_command) = self.internal_runtime_command_receiver.recv() => {
                     self.handle_internal_command(internal_command).await;
                 }
@@ -96,6 +101,28 @@ impl Runtime {
         if let Some(sender) = shutdowned {
             info!("Shutting down TCE api service...");
             _ = sender.send(());
+        }
+    }
+
+    async fn handle_stream_termination(&mut self, stream_result: Result<Uuid, StreamError>) {
+        match stream_result {
+            Ok(stream_id) => {
+                info!("Stream {stream_id} terminated gracefully");
+
+                self.active_streams.remove(&stream_id);
+                self.pending_streams.remove(&stream_id);
+            }
+            Err(StreamError { stream_id, kind }) => match kind {
+                StreamErrorKind::HandshakeFailed
+                | StreamErrorKind::PreStartError
+                | StreamErrorKind::StreamClosed
+                | StreamErrorKind::Timeout => {
+                    warn!("Stream {stream_id} error: {kind:?}");
+
+                    self.active_streams.remove(&stream_id);
+                    self.pending_streams.remove(&stream_id);
+                }
+            },
         }
     }
 
