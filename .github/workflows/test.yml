@@ -14,7 +14,7 @@ jobs:
       matrix:
         version: [stable, nightly]
     name: ${{ matrix.version }} - Test
-    uses: toposware/topos/.github/workflows/docker_utils.yml@chore/clean-up-ci
+    uses: toposware/topos/.github/workflows/docker_utils.yml@main
     secrets: inherit
     with:
       target: test
