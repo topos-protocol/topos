@@ -18,8 +18,7 @@ WORKDIR /usr/src/app
 FROM base AS build
 COPY . .
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
-  cargo build --release --no-default-features --features=${FEATURES} \
-  && sccache -s
+  cargo build --release --no-default-features --features=${FEATURES}
 
 FROM base AS test
 RUN cargo install cargo-nextest --locked
@@ -38,8 +37,7 @@ FROM base AS lint
 RUN rustup component add clippy
 COPY . .
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
-  cargo clippy --all \
-  && sccache -s
+  cargo clippy --all
 
 FROM base AS audit
 RUN cargo install cargo-audit --locked
