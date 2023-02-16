@@ -81,8 +81,3 @@ jobs:
             TOOLCHAIN_VERSION=${{ inputs.toolchain_version }}
             FEATURES=tce,sequencer
             SCCACHE_S3_KEY_PREFIX=${{ inputs.target }}
-          cache-from: |
-            type=registry,ref=ghcr.io/${{ github.repository }}:build-cache-${{ env.GITHUB_REF_SLUG_URL }}-${{ inputs.target }}-${{ inputs.toolchain_version }}
-            type=registry,ref=ghcr.io/${{ github.repository }}:build-cache-main-${{ inputs.target }}-stable
-          cache-to: |
-            type=registry,ref=ghcr.io/${{ github.repository }}:build-cache-${{ env.GITHUB_REF_SLUG_URL }}-${{ inputs.target }}-${{ inputs.toolchain_version }},mode=max
