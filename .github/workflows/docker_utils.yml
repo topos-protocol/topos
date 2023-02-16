@@ -3,7 +3,7 @@ name: Docker build and push
 on:
   workflow_call:
     inputs:
-      # Docker target (test | fmt | lint | etc)
+      # Docker target (test | fmt | lint | topos | etc)
       target:
         required: false
         type: string
