@@ -1,15 +1,10 @@
 use opentelemetry::Context;
 use tokio::sync::{mpsc::Sender, oneshot};
-use tonic::{Status, Streaming};
-use topos_core::{
-    api::{
-        shared::v1::SubnetId,
-        tce::v1::{WatchCertificatesRequest, WatchCertificatesResponse},
-    },
-    uci::Certificate,
-};
+use topos_core::uci::{Certificate, SubnetId};
 use topos_p2p::PeerId;
 use uuid::Uuid;
+
+use crate::stream::{Stream, StreamCommand};
 
 use super::error::RuntimeError;
 
@@ -23,12 +18,8 @@ pub enum RuntimeCommand {
 pub(crate) enum InternalRuntimeCommand {
     /// When a new stream is open, this command is dispatch to manage the stream
     NewStream {
-        /// Contains the gRPC inbound stream that we need to Poll
-        stream: Streaming<WatchCertificatesRequest>,
-        /// Sender to the outbound stream to notify and communicate with the client
-        sender: Sender<Result<WatchCertificatesResponse, Status>>,
-        /// Sender to exchange internal runtime command between streams and runtime
-        internal_runtime_command_sender: Sender<Self>,
+        stream: Stream,
+        command_sender: Sender<StreamCommand>,
     },
 
     /// Register a stream as subscriber for the given subnet_ids.

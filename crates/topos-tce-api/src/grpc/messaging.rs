@@ -1,0 +1,76 @@
+use tonic::Status;
+use topos_core::api::tce::v1::watch_certificates_request::Command;
+use topos_core::api::tce::v1::watch_certificates_request::OpenStream as GrpcOpenStream;
+use topos_core::api::tce::v1::watch_certificates_response::CertificatePushed as GrpcCertificatePushed;
+use topos_core::api::tce::v1::watch_certificates_response::Event;
+use topos_core::api::tce::v1::watch_certificates_response::StreamOpened as GrpcStreamOpened;
+use topos_core::uci::Certificate;
+use topos_core::uci::SubnetId;
+use topos_tce_types::checkpoints::TargetCheckpoint;
+
+pub enum InboundMessage {
+    OpenStream(OpenStream),
+}
+
+pub struct OpenStream {
+    pub(crate) target_checkpoint: TargetCheckpoint,
+}
+
+pub struct CertificatePushed {
+    pub(crate) certificate: Certificate,
+}
+
+pub enum OutboundMessage {
+    StreamOpened(StreamOpened),
+    CertificatePushed(CertificatePushed),
+}
+
+pub struct StreamOpened {
+    pub(crate) subnet_ids: Vec<SubnetId>,
+}
+
+impl TryFrom<Command> for InboundMessage {
+    type Error = Status;
+
+    fn try_from(command: Command) -> Result<Self, Self::Error> {
+        match command {
+            Command::OpenStream(value) => Ok(OpenStream::try_from(value)?.into()),
+        }
+    }
+}
+
+impl TryFrom<GrpcOpenStream> for OpenStream {
+    type Error = Status;
+
+    fn try_from(value: GrpcOpenStream) -> Result<Self, Self::Error> {
+        Ok(Self {
+            target_checkpoint: value
+                .target_checkpoint
+                .try_into()
+                .map_err(|_| Status::invalid_argument("invalid checkpoint"))?,
+        })
+    }
+}
+
+impl From<OpenStream> for InboundMessage {
+    fn from(value: OpenStream) -> Self {
+        Self::OpenStream(value)
+    }
+}
+
+impl From<OutboundMessage> for Event {
+    fn from(value: OutboundMessage) -> Self {
+        match value {
+            OutboundMessage::StreamOpened(StreamOpened { subnet_ids }) => {
+                Self::StreamOpened(GrpcStreamOpened {
+                    subnet_ids: subnet_ids.into_iter().map(Into::into).collect(),
+                })
+            }
+            OutboundMessage::CertificatePushed(CertificatePushed { certificate }) => {
+                Self::CertificatePushed(GrpcCertificatePushed {
+                    certificate: Some(certificate.into()),
+                })
+            }
+        }
+    }
+}

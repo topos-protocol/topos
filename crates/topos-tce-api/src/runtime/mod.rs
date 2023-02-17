@@ -24,7 +24,7 @@ use uuid::Uuid;
 
 use crate::{
     grpc::TceGrpcService,
-    stream::{Stream, StreamCommand, StreamError, StreamErrorKind},
+    stream::{StreamCommand, StreamError, StreamErrorKind},
 };
 
 pub(crate) mod builder;
@@ -113,7 +113,10 @@ impl Runtime {
                 self.pending_streams.remove(&stream_id);
             }
             Err(StreamError { stream_id, kind }) => match kind {
-                StreamErrorKind::HandshakeFailed
+                StreamErrorKind::HandshakeFailed(_)
+                | StreamErrorKind::InvalidCommand
+                | StreamErrorKind::MalformedTargetCheckpoint
+                | StreamErrorKind::Transport(_)
                 | StreamErrorKind::PreStartError
                 | StreamErrorKind::StreamClosed
                 | StreamErrorKind::Timeout => {
@@ -169,25 +172,14 @@ impl Runtime {
         match command {
             InternalRuntimeCommand::NewStream {
                 stream,
-                sender,
-                internal_runtime_command_sender,
+                command_sender,
             } => {
-                let stream_id = Uuid::new_v4();
+                let stream_id = stream.stream_id;
                 info!("Opening a new stream with UUID {stream_id}");
-
-                let (command_sender, command_receiver) = mpsc::channel(2048);
 
                 self.pending_streams.insert(stream_id, command_sender);
 
-                let active_stream = Stream {
-                    stream_id,
-                    stream,
-                    sender,
-                    command_receiver,
-                    internal_runtime_command_sender,
-                };
-
-                self.streams.push(Box::pin(active_stream.run()));
+                self.streams.push(Box::pin(stream.run()));
             }
 
             InternalRuntimeCommand::Handshaked { stream_id } => {

@@ -8,11 +8,11 @@ pub trait Command {
 pub trait CommandHandler<C: Command> {
     type Error;
 
-    /// This method is used by the Connection to handle a command and mutate its state if needed
+    /// This method is used by a handler in order to execute a command and mutate its state if needed
     ///
     /// # Errors
     ///
-    /// This function will return an error if a network or state inconsistency is detected
+    /// This function will return an error if the command can't be executed'
     async fn handle(&mut self, command: C) -> Result<C::Result, Self::Error>;
 }
 
@@ -47,7 +47,7 @@ macro_rules! RegisterCommands {
         )*
     };
 
-    (name = $enum_name:ident, error = $handler:ty, commands = [$($command:ident),+]) => {
+    (name = $enum_name:ident, commands = [$($command:ident),+]) => {
         RegisterCommands!(name = $enum_name, error = (), commands = [$($command)*]);
     };
 }

@@ -4385,6 +4385,8 @@ version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b07f2d176c472198ec1e6551dc7da28f1c089652f66a7b722676c2238ebc0edf"
 dependencies = [
+ "futures",
+ "futures-timer",
  "rstest_macros 0.16.0",
  "rustc_version",
 ]
@@ -5835,6 +5837,7 @@ dependencies = [
  "opentelemetry",
  "pin-project",
  "prost",
+ "rstest 0.16.0",
  "serde",
  "test-log",
  "thiserror",
@@ -5845,6 +5848,7 @@ dependencies = [
  "tonic-reflection",
  "topos-core",
  "topos-p2p",
+ "topos-tce-types",
  "tower",
  "tracing",
  "tracing-opentelemetry",
@@ -5946,6 +5950,13 @@ dependencies = [
  "topos-p2p",
  "topos-telemetry",
  "tracing",
+]
+
+[[package]]
+name = "topos-tce-types"
+version = "0.1.0"
+dependencies = [
+ "topos-core",
 ]
 
 [[package]]

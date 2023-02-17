@@ -1,3 +1,6 @@
+use rstest::*;
+use std::time::Duration;
+
 use crate::runtime::InternalRuntimeCommand;
 use crate::stream::{StreamError, StreamErrorKind};
 use crate::tests::encode;
@@ -14,6 +17,8 @@ use self::utils::StreamBuilder;
 
 mod utils;
 
+#[rstest]
+#[timeout(Duration::from_millis(100))]
 #[test(tokio::test)]
 pub async fn sending_no_message() -> Result<(), Box<dyn std::error::Error>> {
     let (_, stream, mut context) = StreamBuilder::default().build();
@@ -25,26 +30,27 @@ pub async fn sending_no_message() -> Result<(), Box<dyn std::error::Error>> {
         matches: Err(status) if status.message() == "No OpenStream provided"
     );
 
-    assert_eq!(
-        Err(StreamError {
-            stream_id: context.stream_id,
-            kind: StreamErrorKind::PreStartError
-        }),
-        join.await?
+    let result = join.await?;
+
+    assert!(
+        matches!(result, Err(StreamError { stream_id, kind: StreamErrorKind::PreStartError}) if stream_id == context.stream_id),
+        "Doesn't match {:?}",
+        result
     );
 
     Ok(())
 }
 
+#[rstest]
+#[timeout(Duration::from_millis(100))]
 #[test(tokio::test)]
 pub async fn sending_open_stream_message() -> Result<(), Box<dyn std::error::Error>> {
     let (mut tx, stream, mut context) = StreamBuilder::default().build();
 
-    spawn(async move { stream.run().await });
+    let join = spawn(stream.run());
 
     let msg: WatchCertificatesRequest = OpenStream {
         target_checkpoint: Some(TargetCheckpoint {
-            // FIX: subnet_id isn't following the right subnet format
             target_subnet_ids: vec![SubnetId {
                 value: [1u8; 32].into(),
             }],
@@ -60,21 +66,23 @@ pub async fn sending_open_stream_message() -> Result<(), Box<dyn std::error::Err
 
     wait_for_command!(
         context.runtime_receiver,
-        matches: InternalRuntimeCommand::Register { stream_id, ref subnet_ids, .. } if stream_id == expected_stream_id && subnet_ids == &vec![SubnetId {value: [1u8; 32].into()}]
+        matches: InternalRuntimeCommand::Register { stream_id, ref subnet_ids, .. } if stream_id == expected_stream_id && subnet_ids == &vec![[1u8; 32]]
     );
 
+    join.abort();
     Ok(())
 }
 
+#[rstest]
+#[timeout(Duration::from_millis(100))]
 #[test(tokio::test)]
 async fn subscribing_to_one_target_with_position() -> Result<(), Box<dyn std::error::Error>> {
     let (mut tx, stream, mut context) = StreamBuilder::default().build();
 
-    spawn(async move { stream.run().await });
+    let join = spawn(stream.run());
 
     let msg: WatchCertificatesRequest = OpenStream {
         target_checkpoint: Some(TargetCheckpoint {
-            // FIX: subnet_id isn't following the right subnet format
             target_subnet_ids: vec![SubnetId {
                 value: [1u8; 32].into(),
             }],
@@ -95,8 +103,10 @@ async fn subscribing_to_one_target_with_position() -> Result<(), Box<dyn std::er
 
     wait_for_command!(
         context.runtime_receiver,
-        matches: InternalRuntimeCommand::Register { stream_id, ref subnet_ids, .. } if stream_id == expected_stream_id && subnet_ids == &vec![SubnetId {value: [1u8; 32].into()}]
+        matches: InternalRuntimeCommand::Register { stream_id, ref subnet_ids, .. } if stream_id == expected_stream_id && subnet_ids == &vec![[1u8; 32]]
     );
+
+    join.abort();
 
     Ok(())
 }

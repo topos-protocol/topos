@@ -1,78 +1,101 @@
-use std::time::Duration;
+use futures::{stream::BoxStream, StreamExt, TryStreamExt};
+use std::{collections::HashMap, fmt::Debug, time::Duration};
 use tokio::{
     sync::{
-        mpsc::{Receiver, Sender},
+        mpsc::{self, Receiver, Sender},
         oneshot,
     },
     time::timeout,
 };
-use tokio_stream::StreamExt;
-use tonic::{Status, Streaming};
-use topos_core::api::{
-    shared::v1::SubnetId,
-    tce::v1::{
-        watch_certificates_request::{Command, OpenStream},
-        watch_certificates_response::{CertificatePushed, Event, StreamOpened},
-        WatchCertificatesRequest, WatchCertificatesResponse,
-    },
-};
-use tracing::{error, info, warn};
+use tonic::Status;
+use topos_core::uci::{CertificateId, SubnetId};
+use topos_tce_types::checkpoints::TargetCheckpoint;
+use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
 pub mod commands;
 pub mod errors;
+
 #[cfg(test)]
 mod tests;
 
-use crate::runtime::{error::RuntimeError, InternalRuntimeCommand};
+use crate::{
+    grpc::messaging::{
+        CertificatePushed, InboundMessage, OpenStream, OutboundMessage, StreamOpened,
+    },
+    runtime::InternalRuntimeCommand,
+    RuntimeError,
+};
 
 pub use self::commands::StreamCommand;
-use self::errors::HandshakeError;
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum StreamErrorKind {
-    HandshakeFailed,
-    PreStartError,
-    StreamClosed,
-    Timeout,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct StreamError {
-    pub(crate) stream_id: Uuid,
-    pub(crate) kind: StreamErrorKind,
-}
-
-impl StreamError {
-    fn new(stream_id: Uuid, kind: StreamErrorKind) -> Self {
-        Self { stream_id, kind }
-    }
-}
+pub use self::errors::StreamError;
+pub(crate) use self::errors::{HandshakeError, StreamErrorKind};
 
 pub struct Stream {
     pub(crate) stream_id: Uuid,
-    pub(crate) sender: Sender<Result<WatchCertificatesResponse, Status>>,
-    pub(crate) internal_runtime_command_sender: Sender<InternalRuntimeCommand>,
-    pub(crate) stream: Streaming<WatchCertificatesRequest>,
+
+    pub(crate) target_subnet_listeners:
+        HashMap<SubnetId, HashMap<SubnetId, (u64, Option<CertificateId>)>>,
+
     pub(crate) command_receiver: Receiver<StreamCommand>,
+    #[allow(dead_code)]
+    pub(crate) internal_runtime_command_sender: Sender<InternalRuntimeCommand>,
+
+    /// gRPC outbound stream
+    pub(crate) outbound_stream: Sender<Result<(Option<Uuid>, OutboundMessage), Status>>,
+    /// gRPC inbound stream
+    pub(crate) inbound_stream:
+        BoxStream<'static, Result<(Option<Uuid>, InboundMessage), StreamError>>,
+}
+
+impl Debug for Stream {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Stream")
+            .field("stream_id", &self.stream_id)
+            .field("target_subnet_listeners", &self.target_subnet_listeners)
+            .finish()
+    }
 }
 
 impl Stream {
-    pub async fn run(mut self) -> Result<Uuid, StreamError> {
-        let subnet_ids = self.pre_start().await?;
-
-        if let Err(handshake_error) = self.handshake(subnet_ids.clone()).await {
-            error!(%handshake_error, "Handshake failed with stream");
-
-            return Err(StreamError::new(
-                self.stream_id,
-                StreamErrorKind::HandshakeFailed,
-            ));
+    pub(crate) fn new(
+        stream_id: Uuid,
+        inbound_stream: BoxStream<'static, Result<(Option<Uuid>, InboundMessage), StreamError>>,
+        outbound_stream: Sender<Result<(Option<Uuid>, OutboundMessage), Status>>,
+        command_receiver: mpsc::Receiver<StreamCommand>,
+        internal_runtime_command_sender: Sender<InternalRuntimeCommand>,
+    ) -> Self {
+        Self {
+            stream_id,
+            target_subnet_listeners: HashMap::new(),
+            command_receiver,
+            outbound_stream,
+            inbound_stream,
+            internal_runtime_command_sender,
         }
+    }
+
+    pub async fn run(mut self) -> Result<Uuid, StreamError> {
+        // Prestart is the phase that waits for a particular message to being able to process the
+        // handshake. For now we do not have authentication nor authorization.
+        let (request_id, checkpoint) = self.pre_start().await?;
+
+        // The handshake is preparing the stream to broadcast certificates to the client.
+        // Notifying the manager about the subscriptions and defining everything related to
+        // the stream management.
+        _ = self
+            .handshake(checkpoint)
+            .await
+            .map_err(|error| StreamError::new(self.stream_id, StreamErrorKind::from(error)))?;
 
         if let Err(error) = self
-            .sender
-            .send(Ok(StreamOpened { subnet_ids }.into()))
+            .outbound_stream
+            .send(Ok((
+                request_id,
+                OutboundMessage::StreamOpened(StreamOpened {
+                    subnet_ids: self.target_subnet_listeners.keys().map(|k| *k).collect(),
+                }),
+            )))
             .await
         {
             error!(%error, "Handshake failed with stream");
@@ -86,25 +109,12 @@ impl Stream {
         loop {
             tokio::select! {
                 Some(command) = self.command_receiver.recv() => {
-                    match command {
-                        StreamCommand::PushCertificate { certificate, .. } => {
-                            if let Err(error) = self.sender.send(Ok(WatchCertificatesResponse {
-                                request_id: None,
-                                event: Some(Event::CertificatePushed(CertificatePushed{ certificate: Some(certificate.into()) }))
-
-                            })).await {
-                                error!(%error, "Can't forward WatchCertificatesResponse to stream, channel seems dropped");
-
-                                return Err(StreamError::new(
-                                        self.stream_id,
-                                        StreamErrorKind::StreamClosed,
-                                ));
-                            }
-                        }
+                    if self.handle_command(command).await? {
+                        break
                     }
                 }
 
-                Some(_stream_packet) = self.stream.next() => {
+                Some(_stream_packet) = self.inbound_stream.next() => {
 
                 }
 
@@ -112,43 +122,62 @@ impl Stream {
                 else => break,
             }
         }
+        Ok(self.stream_id)
     }
 }
 
 impl Stream {
-    async fn pre_start(&mut self) -> Result<Vec<SubnetId>, StreamError> {
+    async fn handle_command(&mut self, command: StreamCommand) -> Result<bool, StreamError> {
+        match command {
+            StreamCommand::PushCertificate { certificate, .. } => {
+                if let Err(error) = self
+                    .outbound_stream
+                    .send(Ok((
+                        None,
+                        OutboundMessage::CertificatePushed(CertificatePushed { certificate }),
+                    )))
+                    .await
+                {
+                    error!(%error, "Can't forward WatchCertificatesResponse to stream, channel seems dropped");
+
+                    return Err(StreamError::new(
+                        self.stream_id,
+                        StreamErrorKind::StreamClosed,
+                    ));
+                }
+            }
+        }
+
+        Ok(false)
+    }
+
+    async fn pre_start(&mut self) -> Result<(Option<Uuid>, TargetCheckpoint), StreamError> {
         let waiting_for_open_stream = async {
-            if let Ok(Some(WatchCertificatesRequest {
-                command:
-                    Some(Command::OpenStream(OpenStream {
-                        target_checkpoint, ..
-                    })),
-                ..
-            })) = self.stream.message().await
+            if let Ok(Some((
+                request_id,
+                InboundMessage::OpenStream(OpenStream {
+                    target_checkpoint, ..
+                }),
+            ))) = self.inbound_stream.try_next().await
             {
-                let subnet_ids = if let Some(target_checkpoint) = target_checkpoint {
-                    target_checkpoint.target_subnet_ids
-                } else {
-                    vec![]
-                };
-                Ok(subnet_ids)
+                Ok((request_id, target_checkpoint))
             } else {
                 Err(())
             }
         };
 
         match timeout(Duration::from_millis(100), waiting_for_open_stream).await {
-            Ok(Ok(subnet_id)) => {
+            Ok(Ok(checkpoint)) => {
                 info!(
-                    "Received an OpenStream command for the stream {} linked to the subnet {:?}",
-                    self.stream_id, subnet_id
+                    "Received an OpenStream command for the stream {}",
+                    self.stream_id
                 );
 
-                Ok(subnet_id)
+                Ok(checkpoint)
             }
             Ok(Err(_)) => {
                 if let Err(error) = self
-                    .sender
+                    .outbound_stream
                     .send(Err(Status::invalid_argument("No OpenStream provided")))
                     .await
                 {
@@ -168,13 +197,14 @@ impl Stream {
         }
     }
 
-    async fn handshake(&mut self, subnet_ids: Vec<SubnetId>) -> Result<(), HandshakeError> {
+    async fn handshake(&mut self, checkpoint: TargetCheckpoint) -> Result<(), HandshakeError> {
+        _ = self.handle_checkpoint(checkpoint).await;
         let (sender, receiver) = oneshot::channel::<Result<(), RuntimeError>>();
 
         self.internal_runtime_command_sender
             .send(InternalRuntimeCommand::Register {
                 stream_id: self.stream_id,
-                subnet_ids,
+                subnet_ids: self.target_subnet_listeners.keys().map(|k| *k).collect(),
                 sender,
             })
             .await
@@ -189,6 +219,41 @@ impl Stream {
             .await
             .map_err(Box::new)?;
 
+        Ok(())
+    }
+
+    async fn handle_checkpoint(&mut self, checkpoint: TargetCheckpoint) -> Result<(), StreamError> {
+        self.target_subnet_listeners.clear();
+
+        for target in checkpoint.target_subnet_ids {
+            self.target_subnet_listeners
+                .insert(target, Default::default());
+        }
+
+        for position in checkpoint.positions {
+            if let Some(entry) = self
+                .target_subnet_listeners
+                .get_mut(&position.target_subnet_id)
+            {
+                let optional_cert: Option<CertificateId> = position.certificate_id.try_into().ok();
+                if let Some(_) = entry.insert(
+                    position.source_subnet_id.into(),
+                    (position.position, optional_cert),
+                ) {
+                    debug!(
+                        "Stream {} replaced its position for target {:?}",
+                        self.stream_id, position.target_subnet_id
+                    );
+                }
+            } else {
+                return Err(StreamError::new(
+                    self.stream_id,
+                    StreamErrorKind::MalformedTargetCheckpoint,
+                ));
+            }
+        }
+
+        info!("{:?}", self.target_subnet_listeners);
         Ok(())
     }
 }

@@ -1,6 +1,38 @@
 use crate::runtime::{error::RuntimeError, InternalRuntimeCommand};
 use thiserror::Error;
 use tokio::sync::{mpsc::error::SendError, oneshot::error::RecvError};
+use tonic::Code;
+use uuid::Uuid;
+
+#[derive(Error, Debug)]
+pub(crate) enum StreamErrorKind {
+    #[error(transparent)]
+    HandshakeFailed(#[from] HandshakeError),
+    #[error("Prestart error")]
+    PreStartError,
+    #[error("Stream is closed")]
+    StreamClosed,
+    #[error("A timeout occured")]
+    Timeout,
+    #[error("The submitted command is invalid")]
+    InvalidCommand,
+    #[error("Transport error: {0}")]
+    Transport(Code),
+    #[error("The submitted TargetCheckpoint is malformed")]
+    MalformedTargetCheckpoint,
+}
+
+#[derive(Debug)]
+pub struct StreamError {
+    pub(crate) stream_id: Uuid,
+    pub(crate) kind: StreamErrorKind,
+}
+
+impl StreamError {
+    pub(crate) fn new(stream_id: Uuid, kind: StreamErrorKind) -> Self {
+        Self { stream_id, kind }
+    }
+}
 
 #[derive(Error, Debug)]
 pub(crate) enum HandshakeError {

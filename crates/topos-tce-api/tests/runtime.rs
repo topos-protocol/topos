@@ -1,3 +1,4 @@
+use rstest::rstest;
 use std::{net::UdpSocket, time::Duration};
 use test_log::test;
 use tokio::{spawn, sync::oneshot};
@@ -20,6 +21,8 @@ const SOURCE_SUBNET_ID: topos_core::uci::SubnetId = [1u8; 32];
 const TARGET_SUBNET_ID: topos_core::uci::SubnetId = [2u8; 32];
 const PREV_CERTIFICATE_ID: CertificateId = CertificateId::from_array([4u8; 32]);
 
+#[rstest]
+#[timeout(Duration::from_secs(1))]
 #[test(tokio::test)]
 async fn runtime_can_dispatch_a_cert() {
     let (tx, rx) = oneshot::channel::<Certificate>();

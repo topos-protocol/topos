@@ -1,24 +1,37 @@
+use std::collections::HashMap;
+
+use futures::{stream::BoxStream, StreamExt};
 use hyper::body::Sender;
-use prost::Message;
 use tokio::sync::mpsc;
 use tonic::{
     codec::{Codec, ProstCodec},
     transport::Body,
     Status, Streaming,
 };
-use topos_core::api::tce::v1::WatchCertificatesResponse;
+use topos_core::api::tce::v1::{WatchCertificatesRequest, WatchCertificatesResponse};
 use uuid::Uuid;
 
 use crate::{
+    grpc::{
+        messaging::{InboundMessage, OutboundMessage},
+        TceGrpcService,
+    },
     runtime::InternalRuntimeCommand,
-    stream::{Stream, StreamCommand},
+    stream::{Stream, StreamCommand, StreamError},
 };
 
-pub fn create_stream<M: Message + Default + 'static>() -> (Sender, Streaming<M>) {
+pub fn create_stream(
+    stream_id: Uuid,
+) -> (
+    Sender,
+    BoxStream<'static, Result<(Option<Uuid>, InboundMessage), StreamError>>,
+) {
     let (tx, body) = Body::channel();
-    let mut codec = ProstCodec::<M, M>::default();
+    let mut codec = ProstCodec::<WatchCertificatesResponse, WatchCertificatesRequest>::default();
     // Note: This is an undocumented function.
-    let stream = Streaming::new_request(codec.decoder(), body, None);
+    let stream = Streaming::new_request(codec.decoder(), body, None)
+        .map(move |message| TceGrpcService::parse_stream(message, stream_id))
+        .boxed();
 
     (tx, stream)
 }
@@ -27,7 +40,6 @@ pub struct StreamBuilder {
     outbound_stream_channel_size: usize,
     runtime_channel_size: usize,
     stream_channel_size: usize,
-    #[allow(dead_code)]
     stream_id: Uuid,
 }
 
@@ -72,18 +84,19 @@ impl StreamBuilder {
     }
 
     pub fn build(self) -> (Sender, Stream, StreamContext) {
-        let (tx, stream) = create_stream();
+        let stream_id = Uuid::new_v4();
+        let (tx, stream) = create_stream(stream_id);
         let (sender, stream_receiver) = mpsc::channel(self.outbound_stream_channel_size);
         let (command_sender, command_receiver) = mpsc::channel(self.stream_channel_size);
         let (internal_runtime_command_sender, runtime_receiver) =
             mpsc::channel(self.runtime_channel_size);
-        let stream_id = Uuid::new_v4();
 
         let testable_stream = Stream {
             stream_id,
-            sender,
+            target_subnet_listeners: HashMap::new(),
+            outbound_stream: sender,
+            inbound_stream: stream,
             internal_runtime_command_sender,
-            stream,
             command_receiver,
         };
 
@@ -101,7 +114,7 @@ impl StreamBuilder {
 }
 
 pub struct StreamContext {
-    pub(crate) stream_receiver: mpsc::Receiver<Result<WatchCertificatesResponse, Status>>,
+    pub(crate) stream_receiver: mpsc::Receiver<Result<(Option<Uuid>, OutboundMessage), Status>>,
     #[allow(dead_code)]
     pub(crate) command_sender: mpsc::Sender<StreamCommand>,
     pub(crate) runtime_receiver: mpsc::Receiver<InternalRuntimeCommand>,
