@@ -1,16 +1,13 @@
 //! Implementation of Topos Network Transport
 //!
 use serde::{Deserialize, Serialize};
-pub use topos_core::uci::{Certificate, DigestCompressed};
+pub use topos_core::uci::{
+    Address, Certificate, DigestCompressed, StateRoot, SubnetId, TxRootHash,
+};
 
-// TODO: proper type definitions
 pub type BlockData = Vec<u8>;
 pub type BlockNumber = u64;
 pub type Hash = String;
-pub type SubnetId = [u8; 32];
-pub type Address = Vec<u8>;
-pub type StateRoot = [u8; 32];
-pub type TxRootHash = [u8; 32];
 
 /// Event collected from the sending subnet
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -73,13 +73,16 @@ pub struct TceProxyWorker {
 }
 
 enum TceClientCommand {
+    // Get head certificate that was sent to the TCE node for this subnet
     GetSourceHead {
         subnet_id: topos_core::uci::SubnetId,
         sender: oneshot::Sender<Result<Certificate, Error>>,
     },
+    // Open the stream to the TCE node
     OpenStream {
         subnet_id: topos_core::uci::SubnetId,
     },
+    // Send generated certificate to the TCE node
     SendCertificate {
         cert: Box<Certificate>,
     },
