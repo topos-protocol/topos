@@ -5925,7 +5925,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-stream",
- "topos-api",
+ "topos-core",
  "topos-p2p",
  "topos-tce-gatekeeper",
  "tracing",

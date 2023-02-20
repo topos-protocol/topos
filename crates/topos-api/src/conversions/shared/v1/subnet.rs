@@ -15,6 +15,7 @@ impl From<[u8; 32]> for SubnetId {
 }
 
 impl From<SubnetId> for [u8; 32] {
+    // Not to panic when invalid value was sent from remote entity, we use default value
     fn from(value: SubnetId) -> Self {
         value.value.try_into().unwrap_or_default()
     }

@@ -9,8 +9,8 @@ thiserror.workspace = true
 tokio = { workspace = true, features = ["full"] }
 tokio-stream.workspace = true
 tracing.workspace = true
+topos-core = { workspace = true, features = ["api"] }
 
-topos-api = { path = "../topos-api" }
 topos-p2p = { path = "../topos-p2p" }
 topos-tce-gatekeeper = { path = "../topos-tce-gatekeeper/" }
 uuid = { workspace = true, features = ["v4", "serde"] }

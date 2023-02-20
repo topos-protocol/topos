@@ -2,7 +2,7 @@
 //!
 use serde::{Deserialize, Serialize};
 pub use topos_core::uci::{
-    Address, Certificate, DigestCompressed, StateRoot, SubnetId, TxRootHash,
+    Address, Certificate, CertificateId, DigestCompressed, StateRoot, SubnetId, TxRootHash,
 };
 
 pub type BlockData = Vec<u8>;
@@ -187,4 +187,80 @@ pub enum TceEvents {
     },
     /// For simulation purpose, for now only caused by ill-formed sampling
     Die,
+}
+
+pub struct TargetStreamPosition {
+    pub source_subnet_id: SubnetId,
+    pub target_subnet_id: SubnetId,
+    pub position: u64,
+    pub certificate_id: CertificateId,
+}
+
+impl From<topos_core::api::shared::v1::positions::TargetStreamPosition> for TargetStreamPosition {
+    fn from(value: topos_core::api::shared::v1::positions::TargetStreamPosition) -> Self {
+        // Target stream position is retrieved from TCE node who is trusted entity
+        // If it sends invalid data, panic
+        Self {
+            target_subnet_id: value
+                .target_subnet_id
+                .expect("valid target subnet id")
+                .try_into()
+                .expect("valid target subnet id"),
+            source_subnet_id: value
+                .source_subnet_id
+                .expect("valid source subnet id")
+                .value
+                .try_into()
+                .expect("valid source subnet id"),
+            certificate_id: value
+                .certificate_id
+                .expect("valid certificate id")
+                .value
+                .try_into()
+                .expect("valid certificate id"),
+            position: value.position,
+        }
+    }
+}
+
+impl From<TargetStreamPosition> for topos_core::api::shared::v1::positions::TargetStreamPosition {
+    fn from(value: TargetStreamPosition) -> Self {
+        Self {
+            target_subnet_id: Some(value.target_subnet_id.into()),
+            source_subnet_id: Some(value.source_subnet_id.into()),
+            certificate_id: Some((*value.certificate_id.as_array()).into()),
+            position: value.position,
+        }
+    }
+}
+
+pub struct TargetCheckpoint {
+    pub target_subnet_ids: Vec<SubnetId>,
+    pub positions: Vec<TargetStreamPosition>,
+}
+
+impl From<topos_core::api::shared::v1::checkpoints::TargetCheckpoint> for TargetCheckpoint {
+    fn from(value: topos_core::api::shared::v1::checkpoints::TargetCheckpoint) -> Self {
+        Self {
+            target_subnet_ids: value
+                .target_subnet_ids
+                .into_iter()
+                .map(|c| c.into())
+                .collect(),
+            positions: value.positions.into_iter().map(|p| p.into()).collect(),
+        }
+    }
+}
+
+impl From<TargetCheckpoint> for topos_core::api::shared::v1::checkpoints::TargetCheckpoint {
+    fn from(value: TargetCheckpoint) -> Self {
+        Self {
+            target_subnet_ids: value
+                .target_subnet_ids
+                .into_iter()
+                .map(|c| c.into())
+                .collect(),
+            positions: value.positions.into_iter().map(|p| p.into()).collect(),
+        }
+    }
 }

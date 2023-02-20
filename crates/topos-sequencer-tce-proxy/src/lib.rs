@@ -6,7 +6,6 @@ use crate::Error::InvalidChannelError;
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::StreamExt;
 use tonic::transport::channel;
-use topos_core::api::shared::v1::checkpoints::TargetCheckpoint;
 use topos_core::api::tce::v1::GetSourceHeadRequest;
 use topos_core::{
     api::tce::v1::{
@@ -61,6 +60,7 @@ pub enum Error {
 pub struct TceProxyConfig {
     pub subnet_id: SubnetId,
     pub base_tce_api_url: String,
+    pub positions: Vec<TargetStreamPosition>,
 }
 
 /// Proxy with the TCE
@@ -79,8 +79,9 @@ enum TceClientCommand {
         sender: oneshot::Sender<Result<Certificate, Error>>,
     },
     // Open the stream to the TCE node
+    // Mark the position from which TCE node certificates should be retrieved
     OpenStream {
-        subnet_id: topos_core::uci::SubnetId,
+        target_checkpoint: TargetCheckpoint,
     },
     // Send generated certificate to the TCE node
     SendCertificate {
@@ -96,10 +97,13 @@ pub struct TceClient {
 }
 
 impl TceClient {
-    pub async fn open_stream(&self) -> Result<(), Error> {
+    pub async fn open_stream(&self, positions: Vec<TargetStreamPosition>) -> Result<(), Error> {
         self.command_sender
             .send(TceClientCommand::OpenStream {
-                subnet_id: self.subnet_id,
+                target_checkpoint: TargetCheckpoint {
+                    target_subnet_ids: vec![self.subnet_id],
+                    positions,
+                },
             })
             .await
             .map_err(|_| InvalidChannelError)?;
@@ -307,7 +311,7 @@ impl TceClientBuilder {
                                     }
                                 }
                             }
-                            Some(TceClientCommand::OpenStream {subnet_id}) =>  {
+                            Some(TceClientCommand::OpenStream {target_checkpoint}) =>  {
                                 // Send command to TCE to open stream with my subnet id
                                 info!(
                                     "Sending OpenStream command to tce node {} for subnet id {:?}",
@@ -317,10 +321,7 @@ impl TceClientBuilder {
                                     .send(
                                             watch_certificates_request::OpenStream {
                                                 target_checkpoint: Some(
-                                                    TargetCheckpoint {
-                                                        target_subnet_ids: vec![subnet_id.into()],
-                                                        positions: Vec::new()
-                                                    }
+                                                    target_checkpoint.into()
                                                 ),
                                                 source_checkpoint: None
                                             }.into(),
@@ -416,14 +417,16 @@ impl TceProxyWorker {
         let (command_sender, mut command_rcv) = mpsc::unbounded_channel::<TceProxyCommand>();
         let (evt_sender, evt_rcv) = mpsc::unbounded_channel::<TceProxyEvent>();
 
-        // TODO perform some retry/backoff algorithm for connection with the TCE client
         let (mut tce_client, mut receiving_certificate_stream) = TceClientBuilder::default()
             .set_subnet_id(config.subnet_id)
             .set_tce_endpoint(&config.base_tce_api_url)
             .build_and_launch()
             .await?;
 
-        tce_client.open_stream().await?;
+        // TODO: retrieve target stream position from the subnet node
+        let target_stream_positions = config.positions;
+
+        tce_client.open_stream(target_stream_positions).await?;
 
         // Retrieve source head from TCE node, so that
         // we know from where to start creating certificates

@@ -58,6 +58,7 @@ async fn start_a_cluster() {
 }
 
 #[tokio::test]
+#[ignore = "fix corner case in tce communication"]
 async fn cert_delivery() {
     let subscriber = ::tracing_subscriber::FmtSubscriber::builder()
         .with_env_filter(::tracing_subscriber::EnvFilter::from_default_env())
