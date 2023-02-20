@@ -18,7 +18,7 @@ pub struct TargetStreamPosition {
     pub target_subnet_id: SubnetId,
     pub source_subnet_id: SubnetId,
     pub position: u64,
-    pub certificate_id: CertificateId,
+    pub certificate_id: Option<CertificateId>,
 }
 
 pub enum TargetCheckpointError {
@@ -51,12 +51,24 @@ impl TryFrom<Option<GrpcTargetCheckpoint>> for TargetCheckpoint {
 impl TryFrom<GrpcTargetStreamPosition> for TargetStreamPosition {
     type Error = TargetStreamPositionError;
 
-    fn try_from(_value: GrpcTargetStreamPosition) -> Result<Self, Self::Error> {
+    fn try_from(value: GrpcTargetStreamPosition) -> Result<Self, Self::Error> {
         Ok(Self {
-            target_subnet_id: [0u8; 32],
-            source_subnet_id: [1u8; 32],
-            position: 0,
-            certificate_id: [2u8; 32].into(),
+            target_subnet_id: value
+                .target_subnet_id
+                .ok_or(TargetStreamPositionError::ParseError)?
+                .into(),
+            source_subnet_id: value
+                .source_subnet_id
+                .ok_or(TargetStreamPositionError::ParseError)?
+                .into(),
+            position: value.position,
+            certificate_id: value
+                .certificate_id
+                .map(TryInto::try_into)
+                .map_or(Ok(None), |v| {
+                    v.map(Some)
+                        .map_err(|_| TargetStreamPositionError::ParseError)
+                })?,
         })
     }
 }

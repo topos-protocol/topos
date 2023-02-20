@@ -16,15 +16,18 @@ pub struct OpenStream {
     pub(crate) target_checkpoint: TargetCheckpoint,
 }
 
+#[derive(Debug)]
 pub struct CertificatePushed {
     pub(crate) certificate: Certificate,
 }
 
+#[derive(Debug)]
 pub enum OutboundMessage {
     StreamOpened(StreamOpened),
-    CertificatePushed(CertificatePushed),
+    CertificatePushed(Box<CertificatePushed>),
 }
 
+#[derive(Debug)]
 pub struct StreamOpened {
     pub(crate) subnet_ids: Vec<SubnetId>,
 }
@@ -66,9 +69,9 @@ impl From<OutboundMessage> for Event {
                     subnet_ids: subnet_ids.into_iter().map(Into::into).collect(),
                 })
             }
-            OutboundMessage::CertificatePushed(CertificatePushed { certificate }) => {
+            OutboundMessage::CertificatePushed(certificate_pushed) => {
                 Self::CertificatePushed(GrpcCertificatePushed {
-                    certificate: Some(certificate.into()),
+                    certificate: Some(certificate_pushed.certificate.into()),
                 })
             }
         }

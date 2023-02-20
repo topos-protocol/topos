@@ -48,7 +48,7 @@ impl TceGrpcService {
                 event: Some(response.into()),
                 request_id: request_id.map(Into::into),
             }),
-            Err(error) => Err(error.into()),
+            Err(error) => Err(error),
         }))
     }
 

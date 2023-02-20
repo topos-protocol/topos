@@ -83,8 +83,7 @@ impl Stream {
         // The handshake is preparing the stream to broadcast certificates to the client.
         // Notifying the manager about the subscriptions and defining everything related to
         // the stream management.
-        _ = self
-            .handshake(checkpoint)
+        self.handshake(checkpoint)
             .await
             .map_err(|error| StreamError::new(self.stream_id, StreamErrorKind::from(error)))?;
 
@@ -93,7 +92,7 @@ impl Stream {
             .send(Ok((
                 request_id,
                 OutboundMessage::StreamOpened(StreamOpened {
-                    subnet_ids: self.target_subnet_listeners.keys().map(|k| *k).collect(),
+                    subnet_ids: self.target_subnet_listeners.keys().copied().collect(),
                 }),
             )))
             .await
@@ -134,7 +133,9 @@ impl Stream {
                     .outbound_stream
                     .send(Ok((
                         None,
-                        OutboundMessage::CertificatePushed(CertificatePushed { certificate }),
+                        OutboundMessage::CertificatePushed(Box::new(CertificatePushed {
+                            certificate,
+                        })),
                     )))
                     .await
                 {
@@ -204,7 +205,7 @@ impl Stream {
         self.internal_runtime_command_sender
             .send(InternalRuntimeCommand::Register {
                 stream_id: self.stream_id,
-                subnet_ids: self.target_subnet_listeners.keys().map(|k| *k).collect(),
+                subnet_ids: self.target_subnet_listeners.keys().copied().collect(),
                 sender,
             })
             .await
@@ -235,11 +236,14 @@ impl Stream {
                 .target_subnet_listeners
                 .get_mut(&position.target_subnet_id)
             {
-                let optional_cert: Option<CertificateId> = position.certificate_id.try_into().ok();
-                if let Some(_) = entry.insert(
-                    position.source_subnet_id.into(),
-                    (position.position, optional_cert),
-                ) {
+                let optional_cert: Option<CertificateId> = position.certificate_id;
+                if entry
+                    .insert(
+                        position.source_subnet_id,
+                        (position.position, optional_cert),
+                    )
+                    .is_some()
+                {
                     debug!(
                         "Stream {} replaced its position for target {:?}",
                         self.stream_id, position.target_subnet_id
