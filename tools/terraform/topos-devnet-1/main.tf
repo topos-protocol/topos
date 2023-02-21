@@ -20,7 +20,7 @@ provider "aws" {
 }
 
 module "eks" {
-  source = "git::https://github.com/toposware/infrastructure-as-code.git//terraform/modules/aws/eks"
+  source = "git::https://github.com/toposware/infrastructure-as-code.git//terraform/modules/aws/eks?ref=v0.1.0"
 
   name   = var.name
   region = var.region
