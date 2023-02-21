@@ -26,7 +26,7 @@ pub struct DeliveryState {
 }
 
 pub struct DoubleEcho {
-    params: ReliableBroadcastParams,
+    pub(crate) params: ReliableBroadcastParams,
     command_receiver: mpsc::Receiver<DoubleEchoCommand>,
     subscriptions_view_receiver: mpsc::Receiver<SubscriptionsView>,
     subscribers_update_receiver: mpsc::Receiver<SubscribersUpdate>,
@@ -37,8 +37,8 @@ pub struct DoubleEcho {
     span_tracker: HashMap<CertificateId, opentelemetry::Context>,
     all_known_certs: Vec<Certificate>,
     delivery_time: HashMap<CertificateId, (time::SystemTime, time::Duration)>,
-    subscriptions: SubscriptionsView, // My subscriptions for echo, ready and delivery feedback
-    subscribers: SubscribersView,     // Echo and ready subscribers that are following me
+    pub(crate) subscriptions: SubscriptionsView, // My subscriptions for echo, ready and delivery feedback
+    pub(crate) subscribers: SubscribersView,     // Echo and ready subscribers that are following me
     buffer: VecDeque<(Certificate, Context)>,
     pub(crate) shutdown: mpsc::Receiver<oneshot::Sender<()>>,
 
@@ -248,33 +248,33 @@ impl DoubleEcho {
         };
     }
 
-    fn handle_echo(&mut self, from_peer: PeerId, certificate_id: &CertificateId) {
+    pub(crate) fn handle_echo(&mut self, from_peer: PeerId, certificate_id: &CertificateId) {
         if let Some((_certificate, state)) = self.cert_candidate.get_mut(certificate_id) {
             Self::sample_consume_peer(&from_peer, state, SampleType::EchoSubscription);
         }
     }
 
-    fn handle_ready(&mut self, from_peer: PeerId, certificate_id: &CertificateId) {
+    pub(crate) fn handle_ready(&mut self, from_peer: PeerId, certificate_id: &CertificateId) {
         if let Some((_certificate, state)) = self.cert_candidate.get_mut(certificate_id) {
             Self::sample_consume_peer(&from_peer, state, SampleType::ReadySubscription);
             Self::sample_consume_peer(&from_peer, state, SampleType::DeliverySubscription);
         }
     }
 
-    fn handle_broadcast(&mut self, cert: Certificate) {
+    pub(crate) fn handle_broadcast(&mut self, cert: Certificate) {
         debug!("handling broadcast of cert_id {}", &cert.id);
 
         self.dispatch(cert);
     }
 
-    fn handle_deliver(&mut self, cert: Certificate) {
+    pub(crate) fn handle_deliver(&mut self, cert: Certificate) {
         self.dispatch(cert)
     }
 
     /// Called to process potentially new certificate:
     /// - either submitted from API ( [tce_transport::TceCommands::Broadcast] command)
     /// - or received through the gossip (first step of protocol exchange)
-    fn dispatch(&mut self, cert: Certificate) {
+    pub(crate) fn dispatch(&mut self, cert: Certificate) {
         if self.cert_pre_delivery_check(&cert).is_err() {
             error!("Error on the pre cert delivery check");
             return;
@@ -307,7 +307,7 @@ impl DoubleEcho {
 
     /// Make gossip peer list from echo and ready
     /// subscribers that listen to me
-    fn gossip_peers(&self) -> Vec<PeerId> {
+    pub(crate) fn gossip_peers(&self) -> Vec<PeerId> {
         self.subscriptions
             .get_subscriptions()
             .into_iter()
@@ -383,7 +383,7 @@ impl DoubleEcho {
         }
     }
 
-    fn state_change_follow_up(&mut self) {
+    pub(crate) fn state_change_follow_up(&mut self) {
         debug!("StateChangeFollowUp called");
         let mut state_modified = false;
         let mut gen_evts = Vec::<TceEvents>::new();
@@ -542,288 +542,5 @@ fn is_r_ready(params: &ReliableBroadcastParams, state: &DeliveryState) -> bool {
     {
         Some(consumed) => consumed >= params.ready_threshold,
         None => false,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::{iter::FromIterator, usize};
-    use test_log::test;
-
-    use super::*;
-    use crate::mem_store::TceMemStore;
-    // use rand::{distributions::Uniform, Rng};
-    use rand::seq::IteratorRandom;
-    use tokio::{spawn, sync::broadcast::error::TryRecvError};
-    use tracing::Span;
-
-    const PREV_CERTIFICATE_ID: topos_core::uci::CertificateId =
-        CertificateId::from_array([4u8; 32]);
-    const SOURCE_SUBNET_ID: topos_core::uci::SubnetId = [1u8; 32];
-
-    fn get_sample(peers: &[PeerId], sample_size: usize) -> HashSet<PeerId> {
-        let mut rng = rand::thread_rng();
-        HashSet::from_iter(peers.iter().cloned().choose_multiple(&mut rng, sample_size))
-    }
-
-    fn get_subscriptions_view(peers: &[PeerId], sample_size: usize) -> SubscriptionsView {
-        let mut expected_view = SubscriptionsView::default();
-        expected_view.echo = get_sample(&peers, sample_size);
-        expected_view.ready = get_sample(&peers, sample_size);
-        expected_view.delivery = get_sample(&peers, sample_size);
-        expected_view
-    }
-
-    fn get_subscriber_view(peers: &[PeerId], sample_size: usize) -> SubscribersView {
-        let mut expected_view = SubscribersView::default();
-        expected_view.echo = get_sample(&peers, sample_size);
-        expected_view.ready = get_sample(&peers, sample_size);
-        expected_view
-    }
-
-    #[test(tokio::test)]
-    async fn handle_receiving_sample_view() {
-        let (_subscriptions_view_sender, subscriptions_view_receiver) = mpsc::channel(10);
-        let (_subscribers_update_sender, subscribers_update_receiver) = mpsc::channel(10);
-
-        // Network parameters
-        let nb_peers = 100;
-        let subscription_sample_size = 10;
-        let subscriber_sample_size = 8;
-        let g = |a, b| ((a as f32) * b) as usize;
-        let broadcast_params = ReliableBroadcastParams {
-            echo_threshold: g(subscription_sample_size, 0.5),
-            echo_sample_size: subscription_sample_size,
-            ready_threshold: g(subscription_sample_size, 0.5),
-            ready_sample_size: subscription_sample_size,
-            delivery_threshold: g(subscription_sample_size, 0.5),
-            delivery_sample_size: subscription_sample_size,
-        };
-
-        // List of peers
-        let mut peers = Vec::new();
-        for i in 0..nb_peers {
-            let peer = topos_p2p::utils::local_key_pair(Some(i))
-                .public()
-                .to_peer_id();
-            peers.push(peer);
-        }
-
-        let expected_subscriptions_view = get_subscriptions_view(&peers, subscription_sample_size);
-        let expected_subscriber_view = get_subscriber_view(&peers, subscriber_sample_size);
-
-        // Double Echo
-        let (_cmd_sender, cmd_receiver) = mpsc::channel(10);
-        let (event_sender, mut event_receiver) = broadcast::channel(10);
-        let (_double_echo_shutdown_sender, double_echo_shutdown_receiver) =
-            mpsc::channel::<oneshot::Sender<()>>(1);
-        let mut double_echo = DoubleEcho::new(
-            broadcast_params.clone(),
-            cmd_receiver,
-            subscriptions_view_receiver,
-            subscribers_update_receiver,
-            event_sender,
-            Box::new(TceMemStore::default()),
-            double_echo_shutdown_receiver,
-            String::new(),
-        );
-
-        assert!(double_echo.subscriptions.is_none());
-        double_echo.subscriptions = expected_subscriptions_view.clone();
-        double_echo.subscribers = expected_subscriber_view;
-
-        let le_cert = Certificate::new(
-            PREV_CERTIFICATE_ID,
-            SOURCE_SUBNET_ID,
-            Default::default(),
-            Default::default(),
-            &vec![],
-            0,
-        )
-        .unwrap();
-        double_echo.handle_broadcast(le_cert.clone());
-
-        assert_eq!(event_receiver.len(), 2);
-
-        assert!(matches!(
-            event_receiver.try_recv(),
-            Ok(TceEvents::Gossip { peers, .. }) if peers.len() == double_echo.gossip_peers().len()
-        ));
-
-        assert!(matches!(
-            event_receiver.try_recv(),
-            Ok(TceEvents::Echo { peers, .. }) if peers.len() == subscriber_sample_size));
-
-        assert!(matches!(
-            event_receiver.try_recv(),
-            Err(TryRecvError::Empty)
-        ));
-
-        // Echo phase
-        let echo_subscription = expected_subscriptions_view
-            .echo
-            .into_iter()
-            .take(broadcast_params.echo_threshold)
-            .collect::<Vec<_>>();
-
-        let id = le_cert.id;
-        // Send just enough Echo to reach the threshold
-        for p in echo_subscription {
-            double_echo.handle_echo(p.clone(), &id);
-        }
-
-        assert_eq!(event_receiver.len(), 0);
-
-        double_echo.state_change_follow_up();
-        assert_eq!(event_receiver.len(), 1);
-
-        assert!(matches!(
-            event_receiver.try_recv(),
-            Ok(TceEvents::Ready { peers, .. }) if peers.len() == subscriber_sample_size
-        ));
-
-        // Ready phase
-        let delivery_subscription = expected_subscriptions_view
-            .delivery
-            .into_iter()
-            .take(broadcast_params.delivery_threshold)
-            .collect::<Vec<_>>();
-
-        // Send just enough Ready to reach the delivery threshold
-        for p in delivery_subscription {
-            double_echo.handle_ready(p.clone(), &le_cert.id);
-        }
-
-        assert_eq!(event_receiver.len(), 0);
-
-        double_echo.state_change_follow_up();
-        assert_eq!(event_receiver.len(), 1);
-
-        assert!(matches!(
-            event_receiver.try_recv(),
-            Ok(TceEvents::CertificateDelivered { certificate }) if certificate == le_cert
-        ));
-    }
-
-    #[test(tokio::test)]
-    async fn buffering_certificate() {
-        let (subscriptions_view_sender, subscriptions_view_receiver) = mpsc::channel(30);
-        let (subscribers_update_sender, subscribers_update_receiver) = mpsc::channel(30);
-
-        // Network parameters
-        let nb_peers = 100;
-        let subscription_sample_size = 10;
-        let subscriber_sample_size = 8;
-        let g = |a, b| ((a as f32) * b) as usize;
-        let broadcast_params = ReliableBroadcastParams {
-            echo_threshold: g(subscription_sample_size, 0.5),
-            echo_sample_size: subscription_sample_size,
-            ready_threshold: g(subscription_sample_size, 0.5),
-            ready_sample_size: subscription_sample_size,
-            delivery_threshold: g(subscription_sample_size, 0.5),
-            delivery_sample_size: subscription_sample_size,
-        };
-
-        // List of peers
-        let mut peers = Vec::new();
-        for i in 0..nb_peers {
-            let peer = topos_p2p::utils::local_key_pair(Some(i))
-                .public()
-                .to_peer_id();
-            peers.push(peer);
-        }
-
-        let expected_subscriptions_view = get_subscriptions_view(&peers, subscription_sample_size);
-        let expected_subscriber_view = get_subscriber_view(&peers, subscriber_sample_size);
-
-        // Double Echo
-        let (cmd_sender, cmd_receiver) = mpsc::channel(10);
-        let (event_sender, mut event_receiver) = broadcast::channel(10);
-        let (double_echo_shutdown_sender, double_echo_shutdown_receiver) =
-            mpsc::channel::<oneshot::Sender<()>>(1);
-        let double_echo = DoubleEcho::new(
-            broadcast_params.clone(),
-            cmd_receiver,
-            subscriptions_view_receiver,
-            subscribers_update_receiver,
-            event_sender,
-            Box::new(TceMemStore::default()),
-            double_echo_shutdown_receiver,
-            String::new(),
-        );
-
-        spawn(double_echo.run());
-
-        // Add subscribers
-        for peer in expected_subscriber_view.echo.clone() {
-            subscribers_update_sender
-                .send(SubscribersUpdate::NewEchoSubscriber(peer.clone()))
-                .await
-                .expect("Added new subscriber");
-        }
-        for peer in expected_subscriber_view.ready.clone() {
-            subscribers_update_sender
-                .send(SubscribersUpdate::NewReadySubscriber(peer.clone()))
-                .await
-                .expect("Added new subscriber");
-        }
-        // Wait to receive subscribers
-        tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
-
-        let le_cert = Certificate::default();
-        cmd_sender
-            .send(DoubleEchoCommand::Broadcast {
-                cert: le_cert.clone(),
-                ctx: Span::current().context(),
-            })
-            .await
-            .expect("Cannot send broadcast command");
-
-        assert_eq!(event_receiver.len(), 0);
-        subscriptions_view_sender
-            .send(expected_subscriptions_view.clone())
-            .await
-            .expect("Cannot send expected view");
-
-        let mut received_gossip_commands: Vec<(HashSet<PeerId>, Certificate)> = Vec::new();
-        let assertion = async {
-            loop {
-                while let Ok(event) = event_receiver.try_recv() {
-                    if let TceEvents::Gossip { peers, cert, .. } = event {
-                        received_gossip_commands.push((peers.into_iter().collect(), cert));
-                    }
-                }
-                tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
-            }
-        };
-
-        let _ = tokio::time::timeout(std::time::Duration::from_millis(1000), assertion).await;
-
-        debug!(
-            "ECHO SUBSCRIBERS: {:#?}\n READY SUBCRIBERS {:#?}\n RECEIVED {:#?}",
-            &expected_subscriber_view.echo,
-            &expected_subscriber_view.ready,
-            received_gossip_commands[0].0
-        );
-        // Check if gossip Event is sent to all peers
-        let mut all_gossip_peers: HashSet<PeerId> = expected_subscriptions_view
-            .get_subscriptions()
-            .into_iter()
-            .collect();
-        all_gossip_peers.extend(expected_subscriber_view.echo);
-        all_gossip_peers.extend(expected_subscriber_view.ready);
-
-        assert_eq!(received_gossip_commands.len(), 1);
-        assert_eq!(received_gossip_commands[0].0, all_gossip_peers);
-        assert_eq!(received_gossip_commands[0].1.id, le_cert.id);
-
-        // Test shutdown
-        info!("Waiting for double echo to shutdown...");
-        let (sender, receiver) = oneshot::channel();
-        double_echo_shutdown_sender
-            .send(sender)
-            .await
-            .expect("Valid shutdown signal sending");
-        assert_eq!(receiver.await, Ok(()));
     }
 }

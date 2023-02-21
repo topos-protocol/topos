@@ -5870,6 +5870,7 @@ dependencies = [
  "rand 0.8.5",
  "rand_core 0.6.4",
  "rand_distr",
+ "rstest 0.16.0",
  "serde",
  "test-log",
  "thiserror",
