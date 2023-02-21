@@ -8,8 +8,8 @@ use tokio::{
     time::timeout,
 };
 use tonic::Status;
-use topos_core::uci::{CertificateId, SubnetId};
-use topos_tce_types::checkpoints::TargetCheckpoint;
+use topos_core::uci::SubnetId;
+use topos_tce_types::checkpoints::{TargetCheckpoint, TargetStreamPosition};
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
@@ -34,11 +34,9 @@ pub(crate) use self::errors::{HandshakeError, StreamErrorKind};
 pub struct Stream {
     pub(crate) stream_id: Uuid,
 
-    pub(crate) target_subnet_listeners:
-        HashMap<SubnetId, HashMap<SubnetId, (u64, Option<CertificateId>)>>,
+    pub(crate) target_subnet_listeners: HashMap<SubnetId, HashMap<SubnetId, TargetStreamPosition>>,
 
     pub(crate) command_receiver: Receiver<StreamCommand>,
-    #[allow(dead_code)]
     pub(crate) internal_runtime_command_sender: Sender<InternalRuntimeCommand>,
 
     /// gRPC outbound stream
@@ -129,6 +127,7 @@ impl Stream {
     async fn handle_command(&mut self, command: StreamCommand) -> Result<bool, StreamError> {
         match command {
             StreamCommand::PushCertificate { certificate, .. } => {
+                let certificate_id = certificate.id;
                 if let Err(error) = self
                     .outbound_stream
                     .send(Ok((
@@ -145,6 +144,11 @@ impl Stream {
                         self.stream_id,
                         StreamErrorKind::StreamClosed,
                     ));
+                } else {
+                    info!(
+                        "Certificate {} sent to gRPC stream {}",
+                        certificate_id, self.stream_id
+                    );
                 }
             }
         }
@@ -199,13 +203,13 @@ impl Stream {
     }
 
     async fn handshake(&mut self, checkpoint: TargetCheckpoint) -> Result<(), HandshakeError> {
-        _ = self.handle_checkpoint(checkpoint).await;
+        _ = self.handle_checkpoint(checkpoint);
         let (sender, receiver) = oneshot::channel::<Result<(), RuntimeError>>();
 
         self.internal_runtime_command_sender
             .send(InternalRuntimeCommand::Register {
                 stream_id: self.stream_id,
-                subnet_ids: self.target_subnet_listeners.keys().copied().collect(),
+                target_subnet_stream_positions: self.target_subnet_listeners.clone(),
                 sender,
             })
             .await
@@ -223,7 +227,7 @@ impl Stream {
         Ok(())
     }
 
-    async fn handle_checkpoint(&mut self, checkpoint: TargetCheckpoint) -> Result<(), StreamError> {
+    fn handle_checkpoint(&mut self, checkpoint: TargetCheckpoint) -> Result<(), StreamError> {
         self.target_subnet_listeners.clear();
 
         for target in checkpoint.target_subnet_ids {
@@ -232,21 +236,13 @@ impl Stream {
         }
 
         for position in checkpoint.positions {
-            if let Some(entry) = self
-                .target_subnet_listeners
-                .get_mut(&position.target_subnet_id)
-            {
-                let optional_cert: Option<CertificateId> = position.certificate_id;
-                if entry
-                    .insert(
-                        position.source_subnet_id,
-                        (position.position, optional_cert),
-                    )
-                    .is_some()
-                {
+            let target = position.target_subnet_id;
+            if let Some(entry) = self.target_subnet_listeners.get_mut(&target) {
+                let source = position.source_subnet_id;
+                if entry.insert(source, position).is_some() {
                     debug!(
-                        "Stream {} replaced its position for target {:?}",
-                        self.stream_id, position.target_subnet_id
+                        "Stream {} replaced its position for target {:?} -> {:?}",
+                        self.stream_id, target, source
                     );
                 }
             } else {
@@ -257,7 +253,6 @@ impl Stream {
             }
         }
 
-        info!("{:?}", self.target_subnet_listeners);
         Ok(())
     }
 }

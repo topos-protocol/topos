@@ -1,13 +1,20 @@
 use serde::{Deserialize, Serialize};
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 use std::hash::Hash;
 
 use crate::Error;
 
-#[derive(Serialize, Hash, Deserialize, Default, Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Serialize, Hash, Deserialize, Default, PartialEq, Eq, Clone, Copy)]
 pub struct CertificateId {
     id: [u8; 32],
 }
+
+impl Debug for CertificateId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", hex::encode(self.id))
+    }
+}
+
 impl Ord for CertificateId {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.id.cmp(&other.id)

@@ -1,6 +1,7 @@
-///
-/// Protobuf generated/native Rust structures related conversions for GRPC API
-///
+//!
+//! Protobuf generated/native Rust structures related conversions for GRPC API
+//!
+use crate::shared::v1 as shared_v1;
 use crate::uci::v1 as proto_v1;
 
 impl TryFrom<proto_v1::Certificate> for topos_uci::Certificate {
@@ -87,7 +88,9 @@ impl From<topos_uci::CertificateId> for shared_v1::CertificateId {
 impl TryFrom<shared_v1::CertificateId> for topos_uci::CertificateId {
     type Error = topos_uci::Error;
 
-    fn try_from(value: shared_v1::CertificateId) -> Result<Self, Self::Error> {
+    fn try_from(
+        shared_v1::CertificateId { value }: shared_v1::CertificateId,
+    ) -> Result<Self, Self::Error> {
         value.try_into()
     }
 }

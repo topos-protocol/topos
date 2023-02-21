@@ -85,13 +85,6 @@ where
             let socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
             let addr = socket.local_addr().ok().unwrap();
             let api_port = addr.port();
-
-            let (api_client, api_events) = topos_tce_api::Runtime::builder()
-                .serve_addr(addr)
-                .build_and_launch()
-                .instrument(Span::current())
-                .await;
-
             // launch data store
             let mut temp_dir = std::path::PathBuf::from_str(env!("CARGO_TARGET_TMPDIR"))
                 .expect("Unable to read CARGO_TARGET_TMPDIR");
@@ -104,6 +97,13 @@ where
                 Connection::build(Box::pin(async { Ok(storage) }))
             };
             let storage_join_handle = spawn(storage.into_future());
+
+            let (api_client, api_events) = topos_tce_api::Runtime::builder()
+                .serve_addr(addr)
+                .storage(storage_client.clone())
+                .build_and_launch()
+                .instrument(Span::current())
+                .await;
 
             let (gatekeeper_client, gatekeeper_runtime) =
                 topos_tce_gatekeeper::Gatekeeper::builder()

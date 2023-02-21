@@ -1,13 +1,11 @@
 use std::net::UdpSocket;
 use std::path::PathBuf;
-use std::str::FromStr;
 use tokio::sync::{mpsc, oneshot};
 use topos_tce::{StorageConfiguration, TceConfiguration};
 use topos_tce_storage::{RocksDBStorage, Storage};
 use topos_tce_transport::ReliableBroadcastParams;
 use tracing::info;
 
-const TCE_LOCAL_API_ADDRESS: &str = "127.0.0.1:5001";
 pub const SOURCE_SUBNET_ID: topos_core::uci::SubnetId = [1u8; 32];
 pub const TARGET_SUBNET_ID: topos_core::uci::SubnetId = [2u8; 32];
 
@@ -22,18 +20,6 @@ pub async fn start_tce_test_service(
     let api_addr = socket.local_addr().ok().unwrap();
 
     let tce_address = api_addr.to_string();
-
-    // Generate rocksdb path
-    let mut rocksdb_temp_dir =
-        PathBuf::from_str(env!("CARGO_TARGET_TMPDIR")).expect("Unable to read CARGO_TARGET_TMPDIR");
-    rocksdb_temp_dir.push(format!(
-        "./topos-sequencer-tce-proxy/data_{}/rocksdb",
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .expect("valid system time duration")
-            .as_nanos()
-            .to_string()
-    ));
 
     let config = TceConfiguration {
         boot_peers: vec![],

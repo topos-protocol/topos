@@ -1,12 +1,12 @@
 use async_trait::async_trait;
 use topos_commands::CommandHandler;
-use topos_core::uci::Certificate;
-use tracing::{debug, warn};
+use topos_core::uci::{Certificate, SubnetId};
+use tracing::{debug, info, warn};
 
 use crate::{
     command::{
         AddPendingCertificate, CertificateDelivered, CheckPendingCertificateExists,
-        FetchCertificates, GetCertificate, GetSourceHead, RemovePendingCertificate,
+        FetchCertificates, GetCertificate, GetSourceHead, RemovePendingCertificate, TargetedBy,
     },
     errors::StorageError,
     Connection, FetchCertificatesFilter, InternalStorageError, PendingCertificateId, Position,
@@ -139,6 +139,7 @@ where
                 version,
                 limit,
             } => {
+                info!("Fetching certificates at {:?}", Position(version));
                 self.storage
                     .get_certificates_by_target(
                         target_subnet_id,
@@ -169,7 +170,7 @@ where
         &mut self,
         GetSourceHead { subnet_id }: GetSourceHead,
     ) -> Result<(u64, Certificate), StorageError> {
-        let heads = match self.storage.get_source_heads(vec![subnet_id.into()]).await {
+        let heads = match self.storage.get_source_heads(vec![subnet_id]).await {
             Ok(heads) => heads,
             Err(e) => {
                 warn!("Error getting source head: {e}");
@@ -209,5 +210,23 @@ where
         CheckPendingCertificateExists { certificate_id }: CheckPendingCertificateExists,
     ) -> Result<(PendingCertificateId, Certificate), StorageError> {
         Ok(self.storage.get_pending_certificate(certificate_id).await?)
+    }
+}
+
+#[async_trait]
+impl<S> CommandHandler<TargetedBy> for Connection<S>
+where
+    S: Storage,
+{
+    type Error = StorageError;
+
+    async fn handle(
+        &mut self,
+        TargetedBy { target_subnet_id }: TargetedBy,
+    ) -> Result<Vec<SubnetId>, StorageError> {
+        Ok(self
+            .storage
+            .get_source_list_by_target(target_subnet_id)
+            .await?)
     }
 }

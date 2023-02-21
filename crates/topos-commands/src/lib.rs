@@ -20,7 +20,6 @@ pub trait CommandHandler<C: Command> {
 macro_rules! RegisterCommands {
 
     (name = $enum_name:ident, error = $error:ident, commands = [$($command:ident),+]) => {
-        #[derive(Debug)]
         pub enum $enum_name {
             $(
                 $command(
@@ -30,6 +29,20 @@ macro_rules! RegisterCommands {
             )*
         }
 
+        impl std::fmt::Debug for $enum_name {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                #[allow(non_snake_case)]
+                match self {
+                    $(
+                        Self::$command(
+                            $command,
+                            _,
+                        ) => std::fmt::Debug::fmt(&$command, f),
+                    )*
+                }
+            }
+
+        }
 
         $(
             impl $command {

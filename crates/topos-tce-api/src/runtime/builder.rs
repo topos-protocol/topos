@@ -6,11 +6,13 @@ use tokio::{
 };
 use tokio_stream::wrappers::ReceiverStream;
 use topos_core::api::tce::v1::StatusResponse;
+use topos_tce_storage::StorageClient;
 
 use crate::{grpc::builder::ServerBuilder, Runtime, RuntimeClient, RuntimeEvent};
 
 #[derive(Default)]
 pub struct RuntimeBuilder {
+    storage: Option<StorageClient>,
     local_peer_id: String,
     grpc_socket_addr: Option<SocketAddr>,
     status: Option<RwLock<StatusResponse>>,
@@ -35,7 +37,13 @@ impl RuntimeBuilder {
         self
     }
 
-    pub async fn build_and_launch(self) -> (RuntimeClient, impl Stream<Item = RuntimeEvent>) {
+    pub fn storage(mut self, storage: StorageClient) -> Self {
+        self.storage = Some(storage);
+
+        self
+    }
+
+    pub async fn build_and_launch(mut self) -> (RuntimeClient, impl Stream<Item = RuntimeEvent>) {
         let (command_sender, internal_runtime_command_receiver) = mpsc::channel(2048);
         let (api_event_sender, api_event_receiver) = mpsc::channel(2048);
 
@@ -50,6 +58,9 @@ impl RuntimeBuilder {
         let (shutdown_channel, shutdown_receiver) = mpsc::channel::<oneshot::Sender<()>>(1);
 
         let runtime = Runtime {
+            sync_tasks: HashMap::new(),
+            // TODO remove unwrap
+            storage: self.storage.take().unwrap(),
             active_streams: HashMap::new(),
             pending_streams: HashMap::new(),
             subnet_subscriptions: HashMap::new(),

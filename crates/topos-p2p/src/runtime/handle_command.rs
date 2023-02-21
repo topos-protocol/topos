@@ -81,8 +81,7 @@ impl Runtime {
                     self.swarm.remove_listener(*listener);
                 });
 
-                let peers: Vec<PeerId> =
-                    self.swarm.connected_peers().into_iter().cloned().collect();
+                let peers: Vec<PeerId> = self.swarm.connected_peers().cloned().collect();
 
                 for peer_id in peers {
                     if self.swarm.disconnect_peer_id(peer_id).is_err() {

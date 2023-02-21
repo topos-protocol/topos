@@ -1,7 +1,10 @@
+use std::collections::HashMap;
+
 use opentelemetry::Context;
 use tokio::sync::{mpsc::Sender, oneshot};
 use topos_core::uci::{Certificate, SubnetId};
 use topos_p2p::PeerId;
+use topos_tce_types::checkpoints::TargetStreamPosition;
 use uuid::Uuid;
 
 use crate::stream::{Stream, StreamCommand};
@@ -22,11 +25,12 @@ pub(crate) enum InternalRuntimeCommand {
         command_sender: Sender<StreamCommand>,
     },
 
-    /// Register a stream as subscriber for the given subnet_ids.
+    /// Register a stream as subscriber for the given subnet_streams.
     /// Commands or certificates pointing to one of the subnet will be forward using the given Sender
     Register {
         stream_id: Uuid,
-        subnet_ids: Vec<SubnetId>,
+        #[allow(dead_code)]
+        target_subnet_stream_positions: HashMap<SubnetId, HashMap<SubnetId, TargetStreamPosition>>,
         sender: oneshot::Sender<Result<(), RuntimeError>>,
     },
 

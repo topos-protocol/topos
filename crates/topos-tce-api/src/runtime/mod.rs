@@ -4,7 +4,7 @@ use opentelemetry::{
     Context,
 };
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{hash_map::Entry, HashMap, HashSet},
     future,
     pin::Pin,
     time::Duration,
@@ -13,10 +13,13 @@ use tokio::{
     spawn,
     sync::mpsc::{self, Receiver, Sender},
     sync::oneshot,
+    task::JoinHandle,
 };
 use tonic_health::server::HealthReporter;
 use topos_core::api::tce::v1::api_service_server::ApiServiceServer;
 use topos_core::uci::SubnetId;
+use topos_tce_storage::{FetchCertificatesFilter, StorageClient};
+use topos_tce_types::checkpoints::TargetStreamPosition;
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 use tracing::{debug, error, info, info_span, warn, Instrument, Span};
@@ -48,6 +51,9 @@ pub(crate) type Streams =
     FuturesUnordered<Pin<Box<dyn future::Future<Output = Result<Uuid, StreamError>> + Send>>>;
 
 pub struct Runtime {
+    pub(crate) sync_tasks: HashMap<Uuid, JoinHandle<()>>,
+
+    pub(crate) storage: StorageClient,
     /// Streams that are currently active (with a valid handshake)
     pub(crate) active_streams: HashMap<Uuid, Sender<StreamCommand>>,
     /// Streams that are currently in negotiation
@@ -191,19 +197,91 @@ impl Runtime {
 
             InternalRuntimeCommand::Register {
                 stream_id,
-                subnet_ids,
                 sender,
+                target_subnet_stream_positions,
             } => {
-                info!("Stream {stream_id} is registered as subscriber for {subnet_ids:?}");
-                for subnet_id in subnet_ids {
-                    self.subnet_subscriptions
-                        .entry(subnet_id)
-                        .or_default()
-                        .insert(stream_id);
+                info!("Stream {stream_id} is registered as subscriber");
+
+                if let Some(task) = self.sync_tasks.get(&stream_id) {
+                    task.abort();
                 }
+
+                let storage = self.storage.clone();
+                let notifier = self
+                    .active_streams
+                    .get(&stream_id)
+                    .or_else(|| self.pending_streams.get(&stream_id))
+                    .cloned();
 
                 if let Err(error) = sender.send(Ok(())) {
                     error!(?error, "Can't send response to Stream, receiver is dropped");
+                }
+
+                if let Some(notifier) = notifier {
+                    // TODO: Rework to remove old subscriptions
+                    for target_subnet_id in target_subnet_stream_positions.keys() {
+                        self.subnet_subscriptions
+                            .entry(*target_subnet_id)
+                            .or_default()
+                            .insert(stream_id);
+                    }
+
+                    // TODO Refactor this using a better handle, FuturesUnordered + Killswitch
+                    let task = spawn(async move {
+                        info!("Sync task started for {}", stream_id);
+                        let mut collector = Vec::new();
+
+                        for (target_subnet_id, mut source) in target_subnet_stream_positions {
+                            let source_subnet_list = storage.targeted_by(target_subnet_id).await;
+
+                            info!("Sync task detected {:?} as source list", source_subnet_list);
+                            if let Ok(source_subnet_list) = source_subnet_list {
+                                for source_subnet_id in source_subnet_list {
+                                    if let Entry::Vacant(entry) = source.entry(source_subnet_id) {
+                                        entry.insert(TargetStreamPosition {
+                                            target_subnet_id,
+                                            source_subnet_id,
+                                            position: 0,
+                                            certificate_id: None,
+                                        });
+                                    }
+                                }
+                            }
+
+                            for (
+                                _,
+                                TargetStreamPosition {
+                                    target_subnet_id,
+                                    source_subnet_id,
+                                    position,
+                                    ..
+                                },
+                            ) in source
+                            {
+                                if let Ok(certificates) = storage
+                                    .fetch_certificates(FetchCertificatesFilter::Target {
+                                        target_subnet_id,
+                                        source_subnet_id,
+                                        version: position,
+                                        limit: 100,
+                                    })
+                                    .await
+                                {
+                                    collector.extend(certificates)
+                                }
+                            }
+                        }
+
+                        for certificate in collector {
+                            info!("Sync task for {} is sending {}", stream_id, certificate.id);
+                            // TODO catch error on send
+                            _ = notifier
+                                .send(StreamCommand::PushCertificate { certificate })
+                                .await;
+                        }
+                    });
+
+                    self.sync_tasks.insert(stream_id, task);
                 }
             }
 

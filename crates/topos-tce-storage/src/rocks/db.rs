@@ -38,9 +38,13 @@ pub(crate) fn init_db(
                     constants::PENDING_CERTIFICATES,
                     default_rocksdb_options.clone(),
                 ),
-                ColumnFamilyDescriptor::new(constants::CERTIFICATES, default_rocksdb_options),
+                ColumnFamilyDescriptor::new(
+                    constants::CERTIFICATES,
+                    default_rocksdb_options.clone(),
+                ),
                 ColumnFamilyDescriptor::new(constants::SOURCE_STREAMS, options_source),
                 ColumnFamilyDescriptor::new(constants::TARGET_STREAMS, options_target),
+                ColumnFamilyDescriptor::new(constants::TARGET_SOURCES, default_rocksdb_options),
             ],
         )?,
     ))

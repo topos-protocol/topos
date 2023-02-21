@@ -6,14 +6,26 @@ use topos_core::{
     uci::{CertificateId, SubnetId},
 };
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct TargetCheckpoint {
     pub target_subnet_ids: Vec<SubnetId>,
     pub positions: Vec<TargetStreamPosition>,
 }
-pub struct SourceCheckpoint {}
 
 #[derive(Debug)]
+pub struct SourceCheckpoint {
+    pub source_subnet_ids: Vec<SubnetId>,
+    pub positions: Vec<SourceStreamPosition>,
+}
+
+#[derive(Debug)]
+pub struct SourceStreamPosition {
+    pub source_subnet_id: SubnetId,
+    pub position: u64,
+    pub certificate_id: Option<CertificateId>,
+}
+
+#[derive(Debug, Clone)]
 pub struct TargetStreamPosition {
     pub target_subnet_id: SubnetId,
     pub source_subnet_id: SubnetId,
@@ -41,7 +53,12 @@ impl TryFrom<Option<GrpcTargetCheckpoint>> for TargetCheckpoint {
                     .map(TryInto::try_into)
                     .collect::<Result<Vec<SubnetId>, _>>()
                     .map_err(|_| TargetCheckpointError::ParseError)?,
-                positions: vec![],
+                positions: target
+                    .positions
+                    .into_iter()
+                    .map(TryInto::try_into)
+                    .collect::<Result<Vec<TargetStreamPosition>, _>>()
+                    .map_err(|_| TargetCheckpointError::ParseError)?,
             }),
             None => Err(TargetCheckpointError::ParseError),
         }
@@ -56,11 +73,13 @@ impl TryFrom<GrpcTargetStreamPosition> for TargetStreamPosition {
             target_subnet_id: value
                 .target_subnet_id
                 .ok_or(TargetStreamPositionError::ParseError)?
-                .into(),
+                .try_into()
+                .map_err(|_| TargetStreamPositionError::ParseError)?,
             source_subnet_id: value
                 .source_subnet_id
                 .ok_or(TargetStreamPositionError::ParseError)?
-                .into(),
+                .try_into()
+                .map_err(|_| TargetStreamPositionError::ParseError)?,
             position: value.position,
             certificate_id: value
                 .certificate_id

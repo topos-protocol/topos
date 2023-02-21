@@ -17,4 +17,11 @@ where
         &'a self,
         prefix: &P,
     ) -> Result<Self::Iterator, InternalStorageError>;
+
+    /// Returns a prefixed Iterator over the CF starting from index
+    fn prefix_iter_at<P: Serialize, I: Serialize>(
+        &'a self,
+        prefix: &P,
+        index: &I,
+    ) -> Result<Self::Iterator, InternalStorageError>;
 }

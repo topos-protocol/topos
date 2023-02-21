@@ -5559,6 +5559,7 @@ version = "0.1.0"
 dependencies = [
  "assert_cmd",
  "async-stream",
+ "async-trait",
  "clap 4.1.4",
  "env_logger 0.10.0",
  "futures",
@@ -5827,6 +5828,7 @@ name = "topos-tce-api"
 version = "0.1.0"
 dependencies = [
  "async-stream",
+ "async-trait",
  "bytes",
  "env_logger 0.10.0",
  "futures",
@@ -5848,6 +5850,7 @@ dependencies = [
  "tonic-reflection",
  "topos-core",
  "topos-p2p",
+ "topos-tce-storage",
  "topos-tce-types",
  "tower",
  "tracing",
@@ -5903,6 +5906,7 @@ dependencies = [
 name = "topos-tce-storage"
 version = "0.1.0"
 dependencies = [
+ "async-stream",
  "async-trait",
  "bincode",
  "env_logger 0.10.0",

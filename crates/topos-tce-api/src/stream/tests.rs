@@ -68,7 +68,7 @@ pub async fn sending_open_stream_message() -> Result<(), Box<dyn std::error::Err
 
     wait_for_command!(
         context.runtime_receiver,
-        matches: InternalRuntimeCommand::Register { stream_id, ref subnet_ids, .. } if stream_id == expected_stream_id && subnet_ids == &vec![[1u8; 32]]
+        matches: InternalRuntimeCommand::Register { stream_id, .. } if stream_id == expected_stream_id
     );
 
     join.abort();
@@ -105,7 +105,7 @@ async fn subscribing_to_one_target_with_position() -> Result<(), Box<dyn std::er
 
     wait_for_command!(
         context.runtime_receiver,
-        matches: InternalRuntimeCommand::Register { stream_id, ref subnet_ids, .. } if stream_id == expected_stream_id && subnet_ids == &vec![[1u8; 32]]
+        matches: InternalRuntimeCommand::Register { stream_id, .. } if stream_id == expected_stream_id
     );
 
     join.abort();
@@ -159,7 +159,7 @@ async fn receive_expected_certificate_from_zero() -> Result<(), Box<dyn std::err
 
     wait_for_command!(
         context.runtime_receiver,
-        matches: InternalRuntimeCommand::Register { stream_id, ref subnet_ids, sender } if stream_id == expected_stream_id && subnet_ids == &vec![[1u8; 32]] => {
+        matches: InternalRuntimeCommand::Register { stream_id, sender, .. } if stream_id == expected_stream_id => {
             sender.send(Ok(()))
         }
     );
@@ -168,10 +168,7 @@ async fn receive_expected_certificate_from_zero() -> Result<(), Box<dyn std::err
     assert!(
         matches!(
             msg,
-            Some(Ok((
-                        _,
-                        OutboundMessage::StreamOpened(StreamOpened { ref subnet_ids })
-            ))) if subnet_ids == &[[1u8; 32]],
+            Some(Ok((_, OutboundMessage::StreamOpened(StreamOpened { ref subnet_ids })))) if subnet_ids == &[[1u8; 32]],
         ),
         "Expected StreamOpened, received: {:?}",
         msg
@@ -191,10 +188,7 @@ async fn receive_expected_certificate_from_zero() -> Result<(), Box<dyn std::err
         assert!(
             matches!(
                 context.stream_receiver.recv().await,
-                Some(Ok((
-                            _,
-                            OutboundMessage::CertificatePushed(certificate_pushed)
-                ))) if certificate_pushed.certificate == expected_certificate,
+                Some(Ok((_, OutboundMessage::CertificatePushed(certificate_pushed)))) if certificate_pushed.certificate == expected_certificate,
             ),
             "Expected CertificatePushed with {}, received: {:?}",
             expected_certificate.id,
