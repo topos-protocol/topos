@@ -5764,6 +5764,7 @@ dependencies = [
  "topos-core",
  "topos-sequencer-types",
  "topos-tce",
+ "topos-tce-storage",
  "topos-tce-transport",
  "tracing",
  "tracing-subscriber",

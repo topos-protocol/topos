@@ -3,29 +3,21 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use tokio::sync::{mpsc, oneshot};
 use topos_tce::{StorageConfiguration, TceConfiguration};
+use topos_tce_storage::{RocksDBStorage, Storage};
 use topos_tce_transport::ReliableBroadcastParams;
 use tracing::info;
 
 const TCE_LOCAL_API_ADDRESS: &str = "127.0.0.1:5001";
+pub const SOURCE_SUBNET_ID: topos_core::uci::SubnetId = [1u8; 32];
+pub const TARGET_SUBNET_ID: topos_core::uci::SubnetId = [2u8; 32];
 
 /// Start test TCE node
 /// Return task handle, shutdown channel and address
 pub async fn start_tce_test_service(
+    rocksdb_temp_dir: PathBuf,
 ) -> Result<(mpsc::Sender<oneshot::Sender<()>>, String), Box<dyn std::error::Error>> {
     info!("Starting test TCE node...");
     let tce_address = TCE_LOCAL_API_ADDRESS.to_string();
-
-    // Generate rocksdb path
-    let mut rocksdb_temp_dir =
-        PathBuf::from_str(env!("CARGO_TARGET_TMPDIR")).expect("Unable to read CARGO_TARGET_TMPDIR");
-    rocksdb_temp_dir.push(format!(
-        "./topos-sequencer-tce-proxy/data_{}/rocksdb",
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .expect("valid system time duration")
-            .as_millis()
-            .to_string()
-    ));
 
     let config = TceConfiguration {
         boot_peers: vec![],
@@ -59,4 +51,46 @@ pub async fn start_tce_test_service(
     tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
 
     Ok((shutdown_sender, tce_address.to_string()))
+}
+
+fn create_certificate_chain(
+    source_subnet: topos_core::uci::SubnetId,
+    target_subnet: topos_core::uci::SubnetId,
+    number: usize,
+) -> Vec<topos_core::uci::Certificate> {
+    let mut certificates = Vec::new();
+    let mut parent = None;
+
+    for _ in 0..number {
+        let cert = topos_core::uci::Certificate::new(
+            parent.take().unwrap_or([0u8; 32]),
+            source_subnet.clone(),
+            Default::default(),
+            Default::default(),
+            &[target_subnet.clone()],
+            0,
+        )
+        .unwrap();
+        parent = Some(cert.id.as_array().clone());
+        certificates.push(cert);
+    }
+
+    certificates
+}
+
+/// Populate database that will be used in test
+pub async fn populate_test_database(
+    rocksdb_dir: &PathBuf,
+) -> Result<Vec<topos_core::uci::Certificate>, Box<dyn std::error::Error>> {
+    info!("Populating test database storage in {rocksdb_dir:?}");
+
+    let certificates = create_certificate_chain(SOURCE_SUBNET_ID, TARGET_SUBNET_ID, 15);
+
+    let storage = RocksDBStorage::with_isolation(&rocksdb_dir).expect("valid rocksdb storage");
+    for certificate in &certificates {
+        storage.persist(&certificate, None).await.unwrap();
+    }
+
+    info!("Finished populating test database");
+    Ok(certificates)
 }

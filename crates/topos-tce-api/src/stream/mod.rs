@@ -103,6 +103,9 @@ impl Stream {
                 Some(_stream_packet) = self.stream.next() => {
 
                 }
+
+                // For graceful shutdown in case streams are closed
+                else => break,
             }
         }
     }
