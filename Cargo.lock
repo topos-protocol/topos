@@ -5777,6 +5777,7 @@ version = "0.1.0"
 dependencies = [
  "ethereum-types",
  "serde",
+ "thiserror",
  "tokio",
  "topos-core",
 ]

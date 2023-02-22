@@ -7,5 +7,6 @@ license = "MIT"
 [dependencies]
 topos-core = { workspace = true, features = ["uci", "api"] }
 tokio.workspace = true
+thiserror.workspace = true
 ethereum-types.workspace = true
 serde = { workspace = true, features = ["derive"] }

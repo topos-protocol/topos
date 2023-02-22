@@ -1,3 +1,4 @@
+#![feature(iterator_try_collect)]
 pub const FILE_DESCRIPTOR_SET: &[u8] = include_bytes!("generated/topos.bin");
 
 #[path = ""]

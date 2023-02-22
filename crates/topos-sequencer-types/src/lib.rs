@@ -1,6 +1,8 @@
 //! Implementation of Topos Network Transport
 //!
+#![feature(iterator_try_collect)]
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 pub use topos_core::uci::{
     Address, Certificate, CertificateId, DigestCompressed, StateRoot, SubnetId, TxRootHash,
 };
@@ -8,6 +10,12 @@ pub use topos_core::uci::{
 pub type BlockData = Vec<u8>;
 pub type BlockNumber = u64;
 pub type Hash = String;
+
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("Invalid data conversion: {0}")]
+    InvalidDataConversion(String),
+}
 
 /// Event collected from the sending subnet
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -196,30 +204,44 @@ pub struct TargetStreamPosition {
     pub certificate_id: CertificateId,
 }
 
-impl From<topos_core::api::shared::v1::positions::TargetStreamPosition> for TargetStreamPosition {
-    fn from(value: topos_core::api::shared::v1::positions::TargetStreamPosition) -> Self {
+impl TryFrom<topos_core::api::shared::v1::positions::TargetStreamPosition>
+    for TargetStreamPosition
+{
+    type Error = Error;
+    fn try_from(
+        value: topos_core::api::shared::v1::positions::TargetStreamPosition,
+    ) -> Result<Self, Error> {
         // Target stream position is retrieved from TCE node who is trusted entity
         // If it sends invalid data, panic
-        Self {
+        Ok(Self {
             target_subnet_id: value
                 .target_subnet_id
-                .expect("valid target subnet id")
+                .ok_or(Error::InvalidDataConversion(
+                    "Invalid target subnet id".to_string(),
+                ))?
                 .try_into()
-                .expect("valid target subnet id"),
+                .map_err(|_: <[u8; 32] as TryFrom<Vec<u8>>>::Error| {
+                    Error::InvalidDataConversion("Invalid target subnet id".to_string())
+                })?,
             source_subnet_id: value
                 .source_subnet_id
-                .expect("valid source subnet id")
-                .value
+                .ok_or(Error::InvalidDataConversion(
+                    "Invalid source subnet id".to_string(),
+                ))?
                 .try_into()
-                .expect("valid source subnet id"),
+                .map_err(|_: <[u8; 32] as TryFrom<Vec<u8>>>::Error| {
+                    Error::InvalidDataConversion("Invalid source subnet id".to_string())
+                })?,
             certificate_id: value
                 .certificate_id
-                .expect("valid certificate id")
+                .ok_or(Error::InvalidDataConversion(
+                    "Invalid certificate id".to_string(),
+                ))?
                 .value
                 .try_into()
-                .expect("valid certificate id"),
+                .map_err(|e: topos_core::uci::Error| Error::InvalidDataConversion(e.to_string()))?,
             position: value.position,
-        }
+        })
     }
 }
 
@@ -239,16 +261,26 @@ pub struct TargetCheckpoint {
     pub positions: Vec<TargetStreamPosition>,
 }
 
-impl From<topos_core::api::shared::v1::checkpoints::TargetCheckpoint> for TargetCheckpoint {
-    fn from(value: topos_core::api::shared::v1::checkpoints::TargetCheckpoint) -> Self {
-        Self {
+impl TryFrom<topos_core::api::shared::v1::checkpoints::TargetCheckpoint> for TargetCheckpoint {
+    type Error = Error;
+    fn try_from(
+        value: topos_core::api::shared::v1::checkpoints::TargetCheckpoint,
+    ) -> Result<Self, Error> {
+        Ok(Self {
             target_subnet_ids: value
                 .target_subnet_ids
                 .into_iter()
-                .map(|c| c.into())
-                .collect(),
-            positions: value.positions.into_iter().map(|p| p.into()).collect(),
-        }
+                .map(|c| c.value.try_into())
+                .try_collect()
+                .map_err(|_: <[u8; 32] as TryFrom<Vec<u8>>>::Error| {
+                    Error::InvalidDataConversion("Invalid target subnet id".to_string())
+                })?,
+            positions: value
+                .positions
+                .into_iter()
+                .map(|p| p.try_into())
+                .try_collect()?,
+        })
     }
 }
 

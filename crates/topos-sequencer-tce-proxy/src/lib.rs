@@ -40,6 +40,8 @@ pub enum Error {
     InvalidTceEndpoint,
     #[error("invalid subnet id error")]
     InvalidSubnetId,
+    #[error("invalid certificate error")]
+    InvalidCertificate,
     #[error("hex conversion error {source}")]
     HexConversionError {
         #[from]
@@ -230,8 +232,15 @@ impl TceClientBuilder {
                                 )) => {
                                     info!("Certificate {:?} received from tce", &certificate_pushed);
                                     if let Some(certificate) = certificate_pushed.certificate {
+                                        let cert = match certificate.clone().try_into() {
+                                            Ok(c) => c,
+                                            Err(_) => {
+                                                error!("invalid certificate conversion for {certificate:?}");
+                                                continue;
+                                            }
+                                        };
                                         if let Err(e) = inbound_certificate_sender
-                                            .send(certificate.into())
+                                            .send(cert)
                                             .await
                                         {
                                             error!(
@@ -345,7 +354,7 @@ impl TceClientBuilder {
                                     })
                                     .await
                                     .map(|r| r.into_inner().certificate) {
-                                        Ok(Some(certificate)) => Ok(certificate.into()),
+                                        Ok(Some(certificate)) => Ok(certificate.try_into().map_err(|_| Error::InvalidCertificate)?),
                                         Ok(None) => {
                                             Err(Error::SourceHeadEmpty{subnet_id})
                                         },
