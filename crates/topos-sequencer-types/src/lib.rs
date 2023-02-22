@@ -1,16 +1,21 @@
 //! Implementation of Topos Network Transport
 //!
-use serde::{Deserialize, Serialize};
-pub use topos_core::uci::{Certificate, DigestCompressed};
 
-// TODO: proper type definitions
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
+pub use topos_core::uci::{
+    Address, Certificate, CertificateId, DigestCompressed, StateRoot, SubnetId, TxRootHash,
+};
+
 pub type BlockData = Vec<u8>;
 pub type BlockNumber = u64;
 pub type Hash = String;
-pub type SubnetId = [u8; 32];
-pub type Address = Vec<u8>;
-pub type StateRoot = [u8; 32];
-pub type TxRootHash = [u8; 32];
+
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("Invalid data conversion: {0}")]
+    InvalidDataConversion(String),
+}
 
 /// Event collected from the sending subnet
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -190,4 +195,104 @@ pub enum TceEvents {
     },
     /// For simulation purpose, for now only caused by ill-formed sampling
     Die,
+}
+
+pub struct TargetStreamPosition {
+    pub source_subnet_id: SubnetId,
+    pub target_subnet_id: SubnetId,
+    pub position: u64,
+    pub certificate_id: CertificateId,
+}
+
+impl TryFrom<topos_core::api::shared::v1::positions::TargetStreamPosition>
+    for TargetStreamPosition
+{
+    type Error = Error;
+    fn try_from(
+        value: topos_core::api::shared::v1::positions::TargetStreamPosition,
+    ) -> Result<Self, Error> {
+        // Target stream position is retrieved from TCE node who is trusted entity
+        // If it sends invalid data, panic
+        Ok(Self {
+            target_subnet_id: value
+                .target_subnet_id
+                .ok_or(Error::InvalidDataConversion(
+                    "Invalid target subnet id".to_string(),
+                ))?
+                .try_into()
+                .map_err(|_: <[u8; 32] as TryFrom<Vec<u8>>>::Error| {
+                    Error::InvalidDataConversion("Invalid target subnet id".to_string())
+                })?,
+            source_subnet_id: value
+                .source_subnet_id
+                .ok_or(Error::InvalidDataConversion(
+                    "Invalid source subnet id".to_string(),
+                ))?
+                .try_into()
+                .map_err(|_: <[u8; 32] as TryFrom<Vec<u8>>>::Error| {
+                    Error::InvalidDataConversion("Invalid source subnet id".to_string())
+                })?,
+            certificate_id: value
+                .certificate_id
+                .ok_or(Error::InvalidDataConversion(
+                    "Invalid certificate id".to_string(),
+                ))?
+                .value
+                .try_into()
+                .map_err(|e: topos_core::uci::Error| Error::InvalidDataConversion(e.to_string()))?,
+            position: value.position,
+        })
+    }
+}
+
+impl From<TargetStreamPosition> for topos_core::api::shared::v1::positions::TargetStreamPosition {
+    fn from(value: TargetStreamPosition) -> Self {
+        Self {
+            target_subnet_id: Some(value.target_subnet_id.into()),
+            source_subnet_id: Some(value.source_subnet_id.into()),
+            certificate_id: Some((*value.certificate_id.as_array()).into()),
+            position: value.position,
+        }
+    }
+}
+
+pub struct TargetCheckpoint {
+    pub target_subnet_ids: Vec<SubnetId>,
+    pub positions: Vec<TargetStreamPosition>,
+}
+
+impl TryFrom<topos_core::api::shared::v1::checkpoints::TargetCheckpoint> for TargetCheckpoint {
+    type Error = Error;
+    fn try_from(
+        value: topos_core::api::shared::v1::checkpoints::TargetCheckpoint,
+    ) -> Result<Self, Error> {
+        Ok(Self {
+            target_subnet_ids: value
+                .target_subnet_ids
+                .into_iter()
+                .map(TryInto::try_into)
+                .collect::<Result<Vec<SubnetId>, _>>()
+                .map_err(|_: <[u8; 32] as TryFrom<Vec<u8>>>::Error| {
+                    Error::InvalidDataConversion("Invalid target subnet id".to_string())
+                })?,
+            positions: value
+                .positions
+                .into_iter()
+                .map(TryInto::try_into)
+                .collect::<Result<Vec<TargetStreamPosition>, _>>()?,
+        })
+    }
+}
+
+impl From<TargetCheckpoint> for topos_core::api::shared::v1::checkpoints::TargetCheckpoint {
+    fn from(value: TargetCheckpoint) -> Self {
+        Self {
+            target_subnet_ids: value
+                .target_subnet_ids
+                .into_iter()
+                .map(|c| c.into())
+                .collect(),
+            positions: value.positions.into_iter().map(|p| p.into()).collect(),
+        }
+    }
 }

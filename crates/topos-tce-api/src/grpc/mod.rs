@@ -50,11 +50,20 @@ impl ApiService for TceGrpcService {
                 Span::current().record("certificate_id", id.to_string());
 
                 let (sender, receiver) = oneshot::channel();
+                let certificate = match certificate.try_into() {
+                    Ok(c) => c,
+                    Err(e) => {
+                        error!("Invalid certificate: {e:?}");
+                        return Err(Status::invalid_argument(
+                            "Can't submit certificate: invalid certificate",
+                        ));
+                    }
+                };
 
                 if self
                     .command_sender
                     .send(InternalRuntimeCommand::CertificateSubmitted {
-                        certificate: Box::new(certificate.into()),
+                        certificate: Box::new(certificate),
                         sender,
                         ctx: Span::current().context(),
                     })
@@ -91,12 +100,17 @@ impl ApiService for TceGrpcService {
             let (sender, receiver) =
                 oneshot::channel::<Result<(u64, topos_core::uci::Certificate), _>>();
 
+            let subnet_id = match subnet_id.try_into() {
+                Ok(id) => id,
+                Err(e) => {
+                    error!("Invalid subnet id: {e:?}");
+                    return Err(Status::invalid_argument("Invalid subnet id"));
+                }
+            };
+
             if self
                 .command_sender
-                .send(InternalRuntimeCommand::GetSourceHead {
-                    subnet_id: subnet_id.into(),
-                    sender,
-                })
+                .send(InternalRuntimeCommand::GetSourceHead { subnet_id, sender })
                 .await
                 .is_err()
             {

@@ -3,9 +3,11 @@
 ///
 use crate::uci::v1 as proto_v1;
 
-impl From<proto_v1::Certificate> for topos_uci::Certificate {
-    fn from(certificate: proto_v1::Certificate) -> Self {
-        topos_uci::Certificate {
+impl TryFrom<proto_v1::Certificate> for topos_uci::Certificate {
+    type Error = <[u8; 32] as TryFrom<Vec<u8>>>::Error;
+
+    fn try_from(certificate: proto_v1::Certificate) -> Result<Self, Self::Error> {
+        Ok(topos_uci::Certificate {
             prev_id: certificate
                 .prev_id
                 .expect("valid previous certificate id")
@@ -29,8 +31,8 @@ impl From<proto_v1::Certificate> for topos_uci::Certificate {
             target_subnets: certificate
                 .target_subnets
                 .into_iter()
-                .map(|target_subnet| target_subnet.into())
-                .collect(),
+                .map(TryInto::try_into)
+                .collect::<Result<Vec<topos_uci::SubnetId>, _>>()?,
             verifier: certificate.verifier,
             id: certificate
                 .id
@@ -40,7 +42,7 @@ impl From<proto_v1::Certificate> for topos_uci::Certificate {
                 .expect("valid certificate id with correct length"),
             proof: certificate.proof.expect("valid proof").value,
             signature: certificate.signature.expect("valid frost signature").value,
-        }
+        })
     }
 }
 

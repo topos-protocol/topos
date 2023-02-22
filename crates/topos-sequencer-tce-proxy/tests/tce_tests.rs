@@ -1,12 +1,14 @@
 use futures::{Future, StreamExt};
 use rstest::*;
 use serial_test::serial;
+use std::path::PathBuf;
+use std::str::FromStr;
 use test_log::test;
 use tokio::{
     sync::{mpsc, oneshot},
     time::Duration,
 };
-use topos_core::api::shared::v1::checkpoints::TargetCheckpoint;
+use topos_core::api::shared::v1::{checkpoints::TargetCheckpoint, positions::TargetStreamPosition};
 use topos_core::api::shared::v1::{CertificateId, StarkProof, SubnetId};
 use topos_core::api::tce::v1::{
     watch_certificates_request, watch_certificates_response,
@@ -24,6 +26,8 @@ const TCE_NODE_STARTUP_DELAY: Duration = Duration::from_secs(5);
 struct Context {
     endpoint: String,
     shutdown_tce_node_signal: mpsc::Sender<oneshot::Sender<()>>,
+    rocksdb_dir: PathBuf,
+    prefilled_certificates: Option<Vec<Certificate>>,
 }
 
 impl Context {
@@ -44,16 +48,74 @@ impl Context {
 
 #[fixture]
 async fn context_running_tce_test_node() -> Context {
-    let (shutdown_tce_node_signal, endpoint) = match common::start_tce_test_service().await {
-        Ok(result) => result,
-        Err(e) => {
-            panic!("Unable to start mock tce node, details: {e}");
-        }
-    };
+    // Generate rocksdb path
+    let mut rocksdb_dir =
+        PathBuf::from_str(env!("CARGO_TARGET_TMPDIR")).expect("Unable to read CARGO_TARGET_TMPDIR");
+    rocksdb_dir.push(format!(
+        "./topos-sequencer-tce-proxy/data_{}/rocksdb",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("valid system time duration")
+            .as_millis()
+            .to_string()
+    ));
+
+    let (shutdown_tce_node_signal, endpoint) =
+        match common::start_tce_test_service(rocksdb_dir.clone()).await {
+            Ok(result) => result,
+            Err(e) => {
+                panic!("Unable to start mock tce node, details: {e}");
+            }
+        };
+
     tokio::time::sleep(TCE_NODE_STARTUP_DELAY).await;
+
     Context {
         endpoint,
         shutdown_tce_node_signal,
+        rocksdb_dir,
+        prefilled_certificates: None,
+    }
+}
+
+#[fixture]
+async fn context_running_tce_test_node_with_filled_db() -> Context {
+    // Generate rocksdb path
+    let mut rocksdb_dir =
+        PathBuf::from_str(env!("CARGO_TARGET_TMPDIR")).expect("Unable to read CARGO_TARGET_TMPDIR");
+    rocksdb_dir.push(format!(
+        "./topos-sequencer-tce-proxy/data_{}/rocksdb",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("valid system time duration")
+            .as_millis()
+            .to_string()
+    ));
+
+    info!("Rocks db path is {rocksdb_dir:?}");
+
+    let certificates = match common::populate_test_database(&rocksdb_dir).await {
+        Ok(certificates) => certificates,
+        Err(e) => {
+            panic!("Unable to start mock tce node with database, details: {e}");
+        }
+    };
+
+    let (shutdown_tce_node_signal, endpoint) =
+        match common::start_tce_test_service(rocksdb_dir.clone()).await {
+            Ok(result) => result,
+            Err(e) => {
+                panic!("Unable to start mock tce node with database, details: {e}");
+            }
+        };
+
+    tokio::time::sleep(TCE_NODE_STARTUP_DELAY).await;
+
+    Context {
+        endpoint,
+        shutdown_tce_node_signal,
+        rocksdb_dir,
+        prefilled_certificates: Some(certificates.into_iter().map(|cert| cert.into()).collect()),
     }
 }
 
@@ -315,6 +377,95 @@ async fn test_tce_get_source_head_certificate(
     };
     assert_eq!(response, expected_response);
 
+    info!("Shutting down TCE node client");
+    context.shutdown().await?;
+    Ok(())
+}
+
+#[rstest]
+#[test(tokio::test)]
+#[serial]
+#[ignore = "tce needs to implement streaming from checkpoint"]
+async fn test_tce_open_stream_with_checkpoint(
+    context_running_tce_test_node_with_filled_db: impl Future<Output = Context>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let context = context_running_tce_test_node_with_filled_db.await;
+
+    let source_subnet_id: SubnetId = SubnetId {
+        value: common::SOURCE_SUBNET_ID.to_vec(),
+    };
+
+    let target_subnet_id: SubnetId = SubnetId {
+        value: common::TARGET_SUBNET_ID.to_vec(),
+    };
+
+    info!("Creating TCE node client");
+    let mut client = match topos_core::api::tce::v1::api_service_client::ApiServiceClient::connect(
+        format!("http://{}", context.endpoint),
+    )
+    .await
+    {
+        Ok(client) => client,
+        Err(e) => {
+            error!("Unable to create client, error: {}", e);
+            return Err(Box::from(e));
+        }
+    };
+
+    let target_checkpoint = TargetCheckpoint {
+        target_subnet_ids: vec![target_subnet_id.clone()],
+        positions: vec![TargetStreamPosition {
+            source_subnet_id: source_subnet_id.clone().into(),
+            target_subnet_id: target_subnet_id.clone().into(),
+            position: 4,
+            certificate_id: context.prefilled_certificates.as_ref().unwrap()[3]
+                .id
+                .clone(),
+        }
+        .into()],
+    };
+
+    //Outbound stream
+    let in_stream = async_stream::stream! {
+        yield watch_certificates_request::OpenStream {
+            target_checkpoint: Some(target_checkpoint),
+            source_checkpoint: None
+        }.into()
+    };
+    let response = client.watch_certificates(in_stream).await.unwrap();
+    let mut resp_stream = response.into_inner();
+    info!("TCE client: waiting for watch certificate response");
+    while let Some(received) = resp_stream.next().await {
+        info!("TCE client received: {:?}", received);
+        let received = received.unwrap();
+        match received.event {
+            Some(watch_certificates_response::Event::CertificatePushed(CertificatePushed {
+                certificate: Some(certificate),
+            })) => {
+                info!("Certificate received {:?}", certificate);
+                assert_eq!(
+                    context.prefilled_certificates.as_ref().unwrap()[4].id,
+                    certificate.id
+                );
+            }
+            Some(watch_certificates_response::Event::StreamOpened(
+                watch_certificates_response::StreamOpened { subnet_ids },
+            )) => {
+                debug!("TCE client: stream opened for subnet_ids {:?}", subnet_ids);
+                assert_eq!(subnet_ids[0].value, target_subnet_id.value);
+                // We have opened connection and 2 way stream, finishing test
+                break;
+            }
+            Some(watch_certificates_response::Event::CertificatePushed(CertificatePushed {
+                certificate: None,
+            })) => {
+                panic!("TCE client: empty certificate received");
+            }
+            _ => {
+                panic!("TCE client: something unexpected is received");
+            }
+        }
+    }
     info!("Shutting down TCE node client");
     context.shutdown().await?;
     Ok(())

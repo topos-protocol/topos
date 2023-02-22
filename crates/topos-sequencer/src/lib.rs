@@ -30,10 +30,11 @@ pub async fn run(config: SequencerConfiguration) -> Result<(), Box<dyn std::erro
     let subnet_id: SubnetId = hex::decode(&config.subnet_id[2..])?.as_slice().try_into()?;
 
     // Launch Tce proxy worker for handling interaction with TCE node
-    // TODO implement some retry connection management mechanism
+    // TODO: Retrieve subnet checkpoint from where to start receiving certificates
     let (tce_proxy_worker, source_head_certificate_id) = match TceProxyWorker::new(TceProxyConfig {
         subnet_id,
         base_tce_api_url: config.base_tce_api_url.clone(),
+        positions: Vec::new(), // TODO acquire from subnet
     })
     .await
     {

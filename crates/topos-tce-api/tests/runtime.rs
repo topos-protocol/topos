@@ -65,7 +65,7 @@ async fn runtime_can_dispatch_a_cert() {
             })) = received.event
             {
                 if let Some(tx) = tx.take() {
-                    _ = tx.send(certificate.into());
+                    _ = tx.send(certificate.try_into().unwrap());
                 } else {
                     panic!("Double certificate sent");
                 }
