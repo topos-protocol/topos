@@ -166,7 +166,7 @@ async fn cert_delivery() {
                     tx.send((
                         peer_id.clone(),
                         client_subnet_id.clone().into(),
-                        certificate.into(),
+                        certificate.try_into().unwrap(),
                     ))
                     .await
                     .unwrap();
