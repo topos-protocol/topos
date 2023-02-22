@@ -110,6 +110,9 @@ pub enum TceProxyCommand {
 pub enum TceProxyEvent {
     /// New delivered certificate fetched from the TCE network
     NewDeliveredCerts(Vec<Certificate>),
+    /// Failed watching certificates channel
+    /// Requires restart of sequencer tce proxy
+    WatchCertificatesChannelFailed,
 }
 
 // A wrapper to handle all events
