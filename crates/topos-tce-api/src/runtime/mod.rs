@@ -173,10 +173,20 @@ impl Runtime {
             } => {
                 info!("{stream_id} is registered as subscriber for {subnet_ids:?}");
                 for subnet_id in subnet_ids {
-                    self.subnet_subscription
-                        .entry(subnet_id.into())
-                        .or_default()
-                        .insert(stream_id);
+                    match subnet_id.try_into() {
+                        Ok(subnet_id) => {
+                            self.subnet_subscription
+                                .entry(subnet_id)
+                                .or_default()
+                                .insert(stream_id);
+                        }
+                        Err(e) => {
+                            error!("Invalid subnet id: {e:?}");
+                            error!(
+                                "Invalid subnet id, unable to insert it in the subnet subscription"
+                            );
+                        }
+                    }
                 }
 
                 if let Err(error) = sender.send(Ok(())) {

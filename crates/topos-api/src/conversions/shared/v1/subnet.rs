@@ -14,8 +14,10 @@ impl From<[u8; 32]> for SubnetId {
     }
 }
 
-impl From<SubnetId> for [u8; 32] {
-    fn from(value: SubnetId) -> Self {
-        value.value.try_into().unwrap_or_default()
+impl TryFrom<SubnetId> for [u8; 32] {
+    type Error = <[u8; 32] as TryFrom<Vec<u8>>>::Error;
+
+    fn try_from(value: SubnetId) -> Result<Self, Self::Error> {
+        value.value.try_into()
     }
 }

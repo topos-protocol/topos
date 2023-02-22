@@ -17,6 +17,8 @@ pub type StarkProof = Vec<u8>;
 pub type Frost = Vec<u8>;
 pub type Address = [u8; 20];
 pub type Amount = ethereum_types::U256;
+pub type StateRoot = [u8; 32];
+pub type TxRootHash = [u8; 32];
 
 /// Heavily checked on the gossip, so not abstracted
 const DUMMY_FROST_VERIF_DELAY: time::Duration = time::Duration::from_millis(0);
@@ -40,8 +42,8 @@ pub enum Error {
 pub struct Certificate {
     pub prev_id: CertificateId,
     pub source_subnet_id: SubnetId,
-    pub state_root: [u8; 32],
-    pub tx_root_hash: [u8; 32],
+    pub state_root: StateRoot,
+    pub tx_root_hash: TxRootHash,
     pub target_subnets: Vec<SubnetId>,
     pub verifier: u32,
     pub id: CertificateId,
@@ -55,8 +57,8 @@ impl Certificate {
     pub fn new<P: Into<CertificateId>>(
         prev: P,
         source_subnet_id: SubnetId,
-        state_root: [u8; 32],
-        tx_root_hash: [u8; 32],
+        state_root: StateRoot,
+        tx_root_hash: TxRootHash,
         target_subnets: &[SubnetId],
         verifier: u32,
     ) -> Result<Certificate, Box<dyn std::error::Error>> {

@@ -66,7 +66,7 @@ pub(crate) fn parse_events_from_log(
                     )?;
                     let send_token_event = SubnetEvent::TokenSent {
                         sender: if let ethabi::Token::Address(address) = sender[0] {
-                            address.as_bytes().to_vec()
+                            address.into()
                         } else {
                             return Err(Error::InvalidArgument {
                                 message: "invalid sender address".to_string(),
@@ -105,7 +105,7 @@ pub(crate) fn parse_events_from_log(
                             });
                         },
                         receiver: if let ethabi::Token::Address(address) = event_arguments[2] {
-                            address.as_bytes().to_vec()
+                            address.into()
                         } else {
                             return Err(Error::InvalidArgument {
                                 message: "invalid receiver address".to_string(),
@@ -163,7 +163,7 @@ pub(crate) fn parse_events_from_log(
                         source_contract_addr: if let ethabi::Token::Address(address) =
                             event_arguments[1]
                         {
-                            address.as_bytes().to_vec()
+                            address.into()
                         } else {
                             return Err(Error::InvalidArgument {
                                 message: "invalid source contract address".to_string(),
@@ -188,7 +188,7 @@ pub(crate) fn parse_events_from_log(
                         target_contract_addr: if let ethabi::Token::Address(address) =
                             event_arguments[3]
                         {
-                            address.as_bytes().to_vec()
+                            address.into()
                         } else {
                             return Err(Error::InvalidArgument {
                                 message: "invalid target contract address".to_string(),
@@ -240,7 +240,7 @@ pub(crate) fn parse_events_from_log(
                         source_contract_addr: if let ethabi::Token::Address(address) =
                             event_arguments[1]
                         {
-                            address.as_bytes().to_vec()
+                            address.into()
                         } else {
                             return Err(Error::InvalidArgument {
                                 message: "invalid source contract address".to_string(),
@@ -265,7 +265,7 @@ pub(crate) fn parse_events_from_log(
                         target_contract_addr: if let ethabi::Token::Address(address) =
                             event_arguments[3]
                         {
-                            address.as_bytes().to_vec()
+                            address.into()
                         } else {
                             return Err(Error::InvalidArgument {
                                 message: "invalid target contract address".to_string(),

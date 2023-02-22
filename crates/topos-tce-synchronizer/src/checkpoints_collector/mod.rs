@@ -14,7 +14,7 @@ mod client;
 
 pub use client::CheckpointsCollectorClient;
 use tokio_stream::StreamExt;
-use topos_api::{
+use topos_core::api::{
     shared::v1::Uuid as APIUuid,
     tce::v1::{
         checkpoint_request::{self, RequestType},
