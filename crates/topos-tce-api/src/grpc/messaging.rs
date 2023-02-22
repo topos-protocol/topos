@@ -1,4 +1,5 @@
 use tonic::Status;
+use topos_core::api::checkpoints::TargetCheckpoint;
 use topos_core::api::tce::v1::watch_certificates_request::Command;
 use topos_core::api::tce::v1::watch_certificates_request::OpenStream as GrpcOpenStream;
 use topos_core::api::tce::v1::watch_certificates_response::CertificatePushed as GrpcCertificatePushed;
@@ -6,7 +7,6 @@ use topos_core::api::tce::v1::watch_certificates_response::Event;
 use topos_core::api::tce::v1::watch_certificates_response::StreamOpened as GrpcStreamOpened;
 use topos_core::uci::Certificate;
 use topos_core::uci::SubnetId;
-use topos_tce_types::checkpoints::TargetCheckpoint;
 
 pub enum InboundMessage {
     OpenStream(OpenStream),
@@ -47,10 +47,10 @@ impl TryFrom<GrpcOpenStream> for OpenStream {
 
     fn try_from(value: GrpcOpenStream) -> Result<Self, Self::Error> {
         Ok(Self {
-            target_checkpoint: value
-                .target_checkpoint
-                .try_into()
-                .map_err(|_| Status::invalid_argument("invalid checkpoint"))?,
+            target_checkpoint: value.target_checkpoint.map(TryInto::try_into).map_or(
+                Err(Status::invalid_argument("missing target_checkpoint")),
+                |value| value.map_err(|_| Status::invalid_argument("invalid checkpoint")),
+            )?,
         })
     }
 }

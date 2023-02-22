@@ -2,9 +2,9 @@ use std::collections::HashMap;
 
 use opentelemetry::Context;
 use tokio::sync::{mpsc::Sender, oneshot};
+use topos_core::api::checkpoints::TargetStreamPosition;
 use topos_core::uci::{Certificate, SubnetId};
 use topos_p2p::PeerId;
-use topos_tce_types::checkpoints::TargetStreamPosition;
 use uuid::Uuid;
 
 use crate::stream::{Stream, StreamCommand};

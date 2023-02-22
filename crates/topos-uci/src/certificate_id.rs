@@ -38,6 +38,7 @@ impl From<CertificateId> for Vec<u8> {
         value.id.to_vec()
     }
 }
+
 impl TryFrom<Vec<u8>> for CertificateId {
     type Error = Error;
 

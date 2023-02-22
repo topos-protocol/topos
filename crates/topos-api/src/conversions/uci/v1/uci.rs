@@ -1,11 +1,13 @@
 //!
 //! Protobuf generated/native Rust structures related conversions for GRPC API
 //!
+
 use crate::shared::v1 as shared_v1;
+use crate::shared::v1_conversions_subnet::Error;
 use crate::uci::v1 as proto_v1;
 
 impl TryFrom<proto_v1::Certificate> for topos_uci::Certificate {
-    type Error = <[u8; 32] as TryFrom<Vec<u8>>>::Error;
+    type Error = Error;
 
     fn try_from(certificate: proto_v1::Certificate) -> Result<Self, Self::Error> {
         Ok(topos_uci::Certificate {
