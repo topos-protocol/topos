@@ -31,8 +31,8 @@ impl TryFrom<proto_v1::Certificate> for topos_uci::Certificate {
             target_subnets: certificate
                 .target_subnets
                 .into_iter()
-                .map(|target_subnet| target_subnet.try_into())
-                .try_collect()?,
+                .map(TryInto::try_into)
+                .collect::<Result<Vec<topos_uci::SubnetId>, _>>()?,
             verifier: certificate.verifier,
             id: certificate
                 .id

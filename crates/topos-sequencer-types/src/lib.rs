@@ -1,6 +1,6 @@
 //! Implementation of Topos Network Transport
 //!
-#![feature(iterator_try_collect)]
+
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 pub use topos_core::uci::{
@@ -270,16 +270,16 @@ impl TryFrom<topos_core::api::shared::v1::checkpoints::TargetCheckpoint> for Tar
             target_subnet_ids: value
                 .target_subnet_ids
                 .into_iter()
-                .map(|c| c.value.try_into())
-                .try_collect()
+                .map(TryInto::try_into)
+                .collect::<Result<Vec<SubnetId>, _>>()
                 .map_err(|_: <[u8; 32] as TryFrom<Vec<u8>>>::Error| {
                     Error::InvalidDataConversion("Invalid target subnet id".to_string())
                 })?,
             positions: value
                 .positions
                 .into_iter()
-                .map(|p| p.try_into())
-                .try_collect()?,
+                .map(TryInto::try_into)
+                .collect::<Result<Vec<TargetStreamPosition>, _>>()?,
         })
     }
 }
