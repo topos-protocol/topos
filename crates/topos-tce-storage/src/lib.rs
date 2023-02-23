@@ -1,7 +1,8 @@
 use errors::{InternalStorageError, PositionError};
+use rocks::{iterator::ColumnIterator, TargetStreamPosition};
 use serde::{Deserialize, Serialize};
 
-use topos_core::uci::{Certificate, CertificateId};
+use topos_core::uci::{Certificate, CertificateId, SubnetId};
 
 pub mod client;
 pub(crate) mod command;
@@ -27,58 +28,16 @@ pub type PendingCertificateId = u64;
 pub enum FetchCertificatesFilter {
     Source {
         subnet_id: SubnetId,
-        version: u64,
+        position: u64,
         limit: usize,
     },
 
     Target {
         target_subnet_id: SubnetId,
         source_subnet_id: SubnetId,
-        version: u64,
+        position: u64,
         limit: usize,
     },
-}
-
-#[derive(Debug, Serialize, Clone, Copy, Deserialize)]
-// TODO: Replace in UCI
-pub struct SubnetId {
-    inner: [u8; 32],
-}
-
-impl TryFrom<&str> for SubnetId {
-    type Error = InternalStorageError;
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        if value.len() != 32 {
-            return Err(InternalStorageError::InvalidSubnetId);
-        }
-
-        Ok(Self {
-            inner: value
-                .as_bytes()
-                .try_into()
-                .map_err(|_| InternalStorageError::InvalidSubnetId)?,
-        })
-    }
-}
-
-impl From<[u8; 32]> for SubnetId {
-    fn from(inner: [u8; 32]) -> Self {
-        Self { inner }
-    }
-}
-
-impl TryFrom<SubnetId> for [u8; 32] {
-    type Error = ();
-    fn try_from(subnet_id: SubnetId) -> Result<Self, Self::Error> {
-        Ok(subnet_id.inner)
-    }
-}
-
-impl ToString for SubnetId {
-    fn to_string(&self) -> String {
-        String::from_utf8_lossy(&self.inner).to_string()
-    }
 }
 
 /// Certificate index in the history of the source subnet
@@ -194,4 +153,16 @@ pub trait Storage: Sync + Send + 'static {
         &self,
         index: PendingCertificateId,
     ) -> Result<(), InternalStorageError>;
+
+    async fn get_target_stream_iterator(
+        &self,
+        target: SubnetId,
+        source: SubnetId,
+        position: Position,
+    ) -> Result<ColumnIterator<'_, TargetStreamPosition, CertificateId>, InternalStorageError>;
+
+    async fn get_source_list_by_target(
+        &self,
+        target: SubnetId,
+    ) -> Result<Vec<SubnetId>, InternalStorageError>;
 }

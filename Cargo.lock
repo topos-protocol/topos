@@ -4385,6 +4385,8 @@ version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b07f2d176c472198ec1e6551dc7da28f1c089652f66a7b722676c2238ebc0edf"
 dependencies = [
+ "futures",
+ "futures-timer",
  "rstest_macros 0.16.0",
  "rustc_version",
 ]
@@ -5525,9 +5527,9 @@ dependencies = [
 
 [[package]]
 name = "tonic-health"
-version = "0.7.1"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "632faf60b81a5b5f439d9635102b2b2921ee39171faf14f3e0008d99f98689f1"
+checksum = "a88aee666ef3a4d1ee46218bbc8e5f69bcf9cc27bf2e871d6b724d83f56d179f"
 dependencies = [
  "async-stream",
  "bytes",
@@ -5539,9 +5541,9 @@ dependencies = [
 
 [[package]]
 name = "tonic-reflection"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0455f730d540a1484bffc3c55c94100b18a662597b982c2e9073f2c55c602616"
+checksum = "67494bad4dda4c9bffae901dfe14e2b2c0f760adb4706dc10beeb81799f7f7b2"
 dependencies = [
  "bytes",
  "prost",
@@ -5549,7 +5551,6 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tonic",
- "tonic-build",
 ]
 
 [[package]]
@@ -5558,6 +5559,7 @@ version = "0.1.0"
 dependencies = [
  "assert_cmd",
  "async-stream",
+ "async-trait",
  "clap 4.1.4",
  "env_logger 0.10.0",
  "futures",
@@ -5601,6 +5603,7 @@ dependencies = [
  "hex",
  "prost",
  "test-log",
+ "thiserror",
  "tokio",
  "tokio-stream",
  "tonic",
@@ -5826,6 +5829,7 @@ name = "topos-tce-api"
 version = "0.1.0"
 dependencies = [
  "async-stream",
+ "async-trait",
  "bytes",
  "env_logger 0.10.0",
  "futures",
@@ -5834,7 +5838,9 @@ dependencies = [
  "http-body",
  "hyper",
  "opentelemetry",
+ "pin-project",
  "prost",
+ "rstest 0.16.0",
  "serde",
  "test-log",
  "thiserror",
@@ -5845,6 +5851,8 @@ dependencies = [
  "tonic-reflection",
  "topos-core",
  "topos-p2p",
+ "topos-tce-storage",
+ "tower",
  "tracing",
  "tracing-opentelemetry",
  "tracing-subscriber",
@@ -5898,6 +5906,7 @@ dependencies = [
 name = "topos-tce-storage"
 version = "0.1.0"
 dependencies = [
+ "async-stream",
  "async-trait",
  "bincode",
  "env_logger 0.10.0",

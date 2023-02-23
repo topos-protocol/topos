@@ -129,7 +129,9 @@ impl<S: Storage> IntoFuture for Connection<S> {
                             FetchCertificates,
                             GetCertificate,
                             GetSourceHead,
-                            RemovePendingCertificate)
+                            RemovePendingCertificate,
+                            TargetedBy
+                            )
                     }
                     else => break None
                 }

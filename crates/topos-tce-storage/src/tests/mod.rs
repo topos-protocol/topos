@@ -1,7 +1,6 @@
-use crate::SubnetId;
 use rstest::rstest;
 use test_log::test;
-use topos_core::uci::{Certificate, CertificateId};
+use topos_core::uci::{Certificate, CertificateId, SubnetId};
 
 use crate::{
     rocks::{map::Map, TargetStreamPosition},
@@ -22,9 +21,9 @@ const TARGET_SUBNET_ID_B: topos_core::uci::SubnetId = [3u8; 32];
 const PREV_CERTIFICATE_ID: CertificateId = CertificateId::from_array([0u8; 32]);
 const CERTIFICATE_ID: CertificateId = CertificateId::from_array([5u8; 32]);
 
-const SOURCE_STORAGE_SUBNET_ID: SubnetId = SubnetId { inner: [1u8; 32] };
-const TARGET_STORAGE_SUBNET_ID_A: SubnetId = SubnetId { inner: [2u8; 32] };
-const TARGET_STORAGE_SUBNET_ID_B: SubnetId = SubnetId { inner: [3u8; 32] };
+const SOURCE_STORAGE_SUBNET_ID: SubnetId = [1u8; 32];
+const TARGET_STORAGE_SUBNET_ID_A: SubnetId = [2u8; 32];
+const TARGET_STORAGE_SUBNET_ID_B: SubnetId = [3u8; 32];
 
 #[rstest]
 #[test(tokio::test)]

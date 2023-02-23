@@ -6,6 +6,7 @@ pub use certificate_id::CertificateId;
 use keccak_hash::keccak_256;
 use serde::{Deserialize, Serialize};
 use std::borrow::BorrowMut;
+use std::fmt::Debug;
 use std::hash::Hash;
 use std::time;
 use thiserror::Error;
@@ -38,7 +39,7 @@ pub enum Error {
 }
 
 /// Certificate - main exchange item
-#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Certificate {
     pub prev_id: CertificateId,
     pub source_subnet_id: SubnetId,
@@ -49,6 +50,29 @@ pub struct Certificate {
     pub id: CertificateId,
     pub proof: StarkProof,
     pub signature: Frost,
+}
+
+impl Debug for Certificate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Certificate")
+            .field("prev_id", &self.prev_id)
+            .field("source_subnet_id", &hex::encode(self.source_subnet_id))
+            .field("state_root", &&hex::encode(self.state_root))
+            .field("tx_root_hash", &hex::encode(self.tx_root_hash))
+            .field(
+                "target_subnets",
+                &self
+                    .target_subnets
+                    .iter()
+                    .map(hex::encode)
+                    .collect::<Vec<_>>(),
+            )
+            .field("verifier", &self.verifier)
+            .field("id", &self.id)
+            .field("proof", &self.proof)
+            .field("signature", &self.signature)
+            .finish()
+    }
 }
 
 pub type DigestCompressed = Vec<CertificateId>; // TODO: optimize cmp to hash of sorted set of hashes
