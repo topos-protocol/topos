@@ -5603,6 +5603,7 @@ dependencies = [
  "hex",
  "prost",
  "test-log",
+ "thiserror",
  "tokio",
  "tokio-stream",
  "tonic",
@@ -5851,7 +5852,6 @@ dependencies = [
  "topos-core",
  "topos-p2p",
  "topos-tce-storage",
- "topos-tce-types",
  "tower",
  "tracing",
  "tracing-opentelemetry",
@@ -5954,13 +5954,6 @@ dependencies = [
  "topos-p2p",
  "topos-telemetry",
  "tracing",
-]
-
-[[package]]
-name = "topos-tce-types"
-version = "0.1.0"
-dependencies = [
- "topos-core",
 ]
 
 [[package]]

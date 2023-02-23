@@ -16,10 +16,10 @@ use tokio::{
     task::JoinHandle,
 };
 use tonic_health::server::HealthReporter;
+use topos_core::api::checkpoints::TargetStreamPosition;
 use topos_core::api::tce::v1::api_service_server::ApiServiceServer;
 use topos_core::uci::SubnetId;
 use topos_tce_storage::{FetchCertificatesFilter, StorageClient};
-use topos_tce_types::checkpoints::TargetStreamPosition;
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 use tracing::{debug, error, info, info_span, warn, Instrument, Span};

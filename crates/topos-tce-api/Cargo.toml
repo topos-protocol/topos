@@ -8,7 +8,6 @@ edition = "2021"
 [dependencies]
 topos-p2p = { path = "../topos-p2p" }
 topos-core = { workspace = true, features = ["uci", "api"] }
-topos-tce-types = { path = "../topos-tce-types" }
 topos-tce-storage = { path = "../topos-tce-storage" }
 
 async-trait.workspace = true
