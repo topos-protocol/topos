@@ -34,6 +34,7 @@ pub(crate) use self::errors::{HandshakeError, StreamErrorKind};
 pub struct Stream {
     pub(crate) stream_id: Uuid,
 
+    /// Mapping for each target subnet to the set of position per source subnet
     pub(crate) target_subnet_listeners: HashMap<SubnetId, HashMap<SubnetId, TargetStreamPosition>>,
 
     pub(crate) command_receiver: Receiver<StreamCommand>,

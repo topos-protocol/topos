@@ -216,14 +216,14 @@ impl ApiService for TceGrpcService {
 
         let (command_sender, command_receiver) = mpsc::channel(2048);
 
-        let (outband_stream, rx) = mpsc::channel::<Result<(Option<Uuid>, OutboundMessage), Status>>(
+        let (outbound_stream, rx) = mpsc::channel::<Result<(Option<Uuid>, OutboundMessage), Status>>(
             DEFAULT_CHANNEL_STREAM_CAPACITY,
         );
 
         let stream = Stream::new(
             stream_id,
             inbound_stream,
-            outband_stream,
+            outbound_stream,
             command_receiver,
             self.command_sender.clone(),
         );
