@@ -262,7 +262,7 @@ impl Runtime {
                                     .fetch_certificates(FetchCertificatesFilter::Target {
                                         target_subnet_id,
                                         source_subnet_id,
-                                        version: position,
+                                        position,
                                         limit: 100,
                                     })
                                     .await

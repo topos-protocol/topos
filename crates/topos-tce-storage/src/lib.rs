@@ -28,14 +28,14 @@ pub type PendingCertificateId = u64;
 pub enum FetchCertificatesFilter {
     Source {
         subnet_id: SubnetId,
-        version: u64,
+        position: u64,
         limit: usize,
     },
 
     Target {
         target_subnet_id: SubnetId,
         source_subnet_id: SubnetId,
-        version: u64,
+        position: u64,
         limit: usize,
     },
 }

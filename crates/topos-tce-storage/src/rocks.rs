@@ -174,7 +174,7 @@ impl Storage for RocksDBStorage {
         )?;
 
         // Adding certificate to target_streams
-        // TODO: Add expected version instead of calculating on the go
+        // TODO: Add expected position instead of calculating on the go
         let mut targets = Vec::new();
 
         for target_subnet_id in &certificate.target_subnets {

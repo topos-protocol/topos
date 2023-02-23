@@ -126,25 +126,25 @@ where
         let certificate_ids = match filter {
             FetchCertificatesFilter::Source {
                 subnet_id,
-                version,
+                position,
                 limit,
             } => {
                 self.storage
-                    .get_certificates_by_source(subnet_id, Position(version), limit)
+                    .get_certificates_by_source(subnet_id, Position(position), limit)
                     .await?
             }
             FetchCertificatesFilter::Target {
                 target_subnet_id,
                 source_subnet_id,
-                version,
+                position,
                 limit,
             } => {
-                info!("Fetching certificates at {:?}", Position(version));
+                info!("Fetching certificates at {:?}", Position(position));
                 self.storage
                     .get_certificates_by_target(
                         target_subnet_id,
                         source_subnet_id,
-                        Position(version),
+                        Position(position),
                         limit,
                     )
                     .await?
