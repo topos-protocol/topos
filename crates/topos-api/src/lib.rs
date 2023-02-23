@@ -1,5 +1,7 @@
 pub const FILE_DESCRIPTOR_SET: &[u8] = include_bytes!("generated/topos.bin");
 
+pub mod checkpoints;
+
 #[path = ""]
 pub mod tce {
     #[rustfmt::skip]
@@ -10,6 +12,7 @@ pub mod tce {
     #[path = "conversions/tce/v1/api.rs"]
     pub mod v1_conversions;
 }
+
 #[path = ""]
 pub mod shared {
     #[rustfmt::skip]

@@ -12,13 +12,16 @@ use rstest::fixture;
 use crate::{
     rocks::{
         db::init_db, db::RocksDB, CertificatesColumn, PendingCertificatesColumn,
-        SourceStreamsColumn, TargetStreamsColumn,
+        SourceStreamsColumn, TargetSourceListColumn, TargetStreamsColumn,
     },
     RocksDBStorage,
 };
 
 use self::{
-    columns::{certificates_column, pending_column, source_streams_column, target_streams_column},
+    columns::{
+        certificates_column, pending_column, source_streams_column, target_source_list_column,
+        target_streams_column,
+    },
     folder::created_folder,
 };
 
@@ -42,12 +45,14 @@ pub(crate) fn storage(database_name: &'static str) -> RocksDBStorage {
     let certificates_column: CertificatesColumn = certificates_column(database_name);
     let source_streams_column: SourceStreamsColumn = source_streams_column(database_name);
     let target_streams_column: TargetStreamsColumn = target_streams_column(database_name);
+    let target_source_list: TargetSourceListColumn = target_source_list_column(database_name);
 
     RocksDBStorage::new(
         pending_column,
         certificates_column,
         source_streams_column,
         target_streams_column,
+        target_source_list,
         AtomicU64::new(0),
     )
 }

@@ -1,14 +1,37 @@
 use crate::runtime::{error::RuntimeError, InternalRuntimeCommand};
 use thiserror::Error;
 use tokio::sync::{mpsc::error::SendError, oneshot::error::RecvError};
+use tonic::Code;
+use uuid::Uuid;
 
 #[derive(Error, Debug)]
-pub enum PreStartError {
-    #[error("Prestart timed out")]
-    TimedOut,
+pub(crate) enum StreamErrorKind {
+    #[error(transparent)]
+    HandshakeFailed(#[from] HandshakeError),
+    #[error("Prestart error")]
+    PreStartError,
+    #[error("Stream is closed")]
+    StreamClosed,
+    #[error("A timeout occured")]
+    Timeout,
+    #[error("The submitted command is invalid")]
+    InvalidCommand,
+    #[error("Transport error: {0}")]
+    Transport(Code),
+    #[error("The submitted TargetCheckpoint is malformed")]
+    MalformedTargetCheckpoint,
+}
 
-    #[error("Wrong stream opening")]
-    WrongOpening,
+#[derive(Debug)]
+pub struct StreamError {
+    pub(crate) stream_id: Uuid,
+    pub(crate) kind: StreamErrorKind,
+}
+
+impl StreamError {
+    pub(crate) fn new(stream_id: Uuid, kind: StreamErrorKind) -> Self {
+        Self { stream_id, kind }
+    }
 }
 
 #[derive(Error, Debug)]
@@ -30,15 +53,6 @@ mod tests {
     use uuid::Uuid;
 
     use super::*;
-
-    #[test]
-    fn presart_error_expected() {
-        assert_eq!("Prestart timed out", PreStartError::TimedOut.to_string());
-        assert_eq!(
-            "Wrong stream opening",
-            PreStartError::WrongOpening.to_string()
-        );
-    }
 
     #[test(tokio::test)]
     async fn handshake_error_expected() {

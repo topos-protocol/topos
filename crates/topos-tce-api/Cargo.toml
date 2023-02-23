@@ -6,7 +6,9 @@ edition = "2021"
 [dependencies]
 topos-p2p = { path = "../topos-p2p" }
 topos-core = { workspace = true, features = ["uci", "api"] }
+topos-tce-storage = { path = "../topos-tce-storage" }
 
+async-trait.workspace = true
 async-stream.workspace = true
 futures.workspace = true
 hex.workspace = true
@@ -15,14 +17,16 @@ thiserror.workspace = true
 tokio-stream.workspace = true
 tokio.workspace = true
 tonic.workspace = true
+tower.workspace = true
 tracing.workspace = true
 uuid.workspace = true
 
-tonic-health = "0.7.0"
-tonic-reflection = "0.5.0"
+tonic-health = "0.8.0"
+tonic-reflection = "0.6.0"
 
 opentelemetry.workspace = true
 tracing-opentelemetry.workspace = true
+pin-project = "1.0.12"
 
 [dev-dependencies]
 bytes.workspace = true
@@ -33,4 +37,5 @@ tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 env_logger.workspace = true
 http = "0.2.8"
 http-body = "0.4.5"
+rstest = { workspace = true, features = ["async-timeout"] }
 

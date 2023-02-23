@@ -6,6 +6,12 @@ impl std::fmt::Display for SubnetId {
     }
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("Unable to parse subnetId ({0})")]
+    ValidationError(SubnetId),
+}
+
 impl From<[u8; 32]> for SubnetId {
     fn from(value: [u8; 32]) -> Self {
         SubnetId {
@@ -15,9 +21,16 @@ impl From<[u8; 32]> for SubnetId {
 }
 
 impl TryFrom<SubnetId> for [u8; 32] {
-    type Error = <[u8; 32] as TryFrom<Vec<u8>>>::Error;
+    type Error = Error;
 
     fn try_from(value: SubnetId) -> Result<Self, Self::Error> {
-        value.value.try_into()
+        if value.value.len() != 32 {
+            return Err(Error::ValidationError(value));
+        }
+        let mut id = [0; 32];
+
+        id.copy_from_slice(value.value.as_slice());
+
+        Ok(id)
     }
 }

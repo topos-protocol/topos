@@ -1,4 +1,4 @@
-use futures::{FutureExt, Stream as FutureStream};
+use futures::{FutureExt, Stream as FutureStream, StreamExt};
 use opentelemetry::{
     trace::{FutureExt as TraceFutureExt, TraceContextExt},
     Context,
@@ -14,8 +14,14 @@ use topos_core::api::tce::v1::{
 };
 use tracing::{error, field, info, instrument, Instrument, Span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
+use uuid::Uuid;
 
-use crate::runtime::InternalRuntimeCommand;
+use crate::{
+    runtime::InternalRuntimeCommand,
+    stream::{Stream, StreamError, StreamErrorKind},
+};
+
+use self::messaging::{InboundMessage, OutboundMessage};
 
 pub(crate) mod console;
 #[cfg(test)]
@@ -24,11 +30,49 @@ mod tests;
 const DEFAULT_CHANNEL_STREAM_CAPACITY: usize = 100;
 
 pub(crate) mod builder;
+pub(crate) mod messaging;
 
 #[derive(Debug)]
 pub(crate) struct TceGrpcService {
     local_peer_id: String,
     command_sender: mpsc::Sender<InternalRuntimeCommand>,
+}
+
+impl TceGrpcService {
+    pub fn create_stream(
+        rx: mpsc::Receiver<Result<(Option<Uuid>, OutboundMessage), Status>>,
+    ) -> Pin<Box<dyn FutureStream<Item = Result<WatchCertificatesResponse, Status>> + Send + 'static>>
+    {
+        Box::pin(ReceiverStream::new(rx).map(|response| match response {
+            Ok((request_id, response)) => Ok(WatchCertificatesResponse {
+                event: Some(response.into()),
+                request_id: request_id.map(Into::into),
+            }),
+            Err(error) => Err(error),
+        }))
+    }
+
+    pub fn parse_stream(
+        message: Result<WatchCertificatesRequest, Status>,
+        stream_id: Uuid,
+    ) -> Result<(Option<Uuid>, InboundMessage), StreamError> {
+        match message {
+            Ok(WatchCertificatesRequest {
+                request_id,
+                command,
+            }) => match command {
+                Some(command) => match command.try_into() {
+                    Ok(inner_command) => Ok((request_id.map(Into::into), inner_command)),
+                    Err(_) => Err(StreamError::new(stream_id, StreamErrorKind::InvalidCommand)),
+                },
+                None => Err(StreamError::new(stream_id, StreamErrorKind::InvalidCommand)),
+            },
+            Err(error) => Err(StreamError::new(
+                stream_id,
+                StreamErrorKind::Transport(error.code()),
+            )),
+        }
+    }
 }
 
 #[tonic::async_trait]
@@ -41,9 +85,6 @@ impl ApiService for TceGrpcService {
         tracing::warn!(span_span_id = ?Span::current().context().span().span_context().span_id(), "pre_run");
         tracing::warn!(cx_span_id = ?Context::current().span().span_context().span_id(), "pre_run");
 
-        // let parent_cx =
-        //     global::get_text_map_propagator(|prop| prop.extract(&MetadataMap(request.metadata())));
-        // tracing::Span::current().set_parent(parent_cx);
         let data = request.into_inner();
         if let Some(certificate) = data.certificate {
             if let Some(ref id) = certificate.id {
@@ -165,19 +206,33 @@ impl ApiService for TceGrpcService {
             Some(addr) => info!(client.addr = %addr, "starting a new stream"),
             None => info!(client.addr = %"<unknown>", "starting a new stream"),
         }
+        // TODO: Use Cow
+        let stream_id = Uuid::new_v4();
 
-        let stream: Streaming<_> = request.into_inner();
+        let inbound_stream = request
+            .into_inner()
+            .map(move |message| Self::parse_stream(message, stream_id))
+            .boxed();
 
-        let (sender, rx) = mpsc::channel::<Result<WatchCertificatesResponse, Status>>(
+        let (command_sender, command_receiver) = mpsc::channel(2048);
+
+        let (outbound_stream, rx) = mpsc::channel::<Result<(Option<Uuid>, OutboundMessage), Status>>(
             DEFAULT_CHANNEL_STREAM_CAPACITY,
+        );
+
+        let stream = Stream::new(
+            stream_id,
+            inbound_stream,
+            outbound_stream,
+            command_receiver,
+            self.command_sender.clone(),
         );
 
         if self
             .command_sender
             .send(InternalRuntimeCommand::NewStream {
                 stream,
-                sender,
-                internal_runtime_command_sender: self.command_sender.clone(),
+                command_sender,
             })
             .await
             .is_err()
@@ -186,7 +241,7 @@ impl ApiService for TceGrpcService {
         }
 
         Ok(Response::new(
-            Box::pin(ReceiverStream::new(rx)) as Self::WatchCertificatesStream
+            Self::create_stream(rx) as Self::WatchCertificatesStream
         ))
     }
 }

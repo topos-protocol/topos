@@ -1,13 +1,11 @@
-use std::net::SocketAddr;
+use std::net::UdpSocket;
 use std::path::PathBuf;
-use std::str::FromStr;
 use tokio::sync::{mpsc, oneshot};
 use topos_tce::{StorageConfiguration, TceConfiguration};
 use topos_tce_storage::{RocksDBStorage, Storage};
 use topos_tce_transport::ReliableBroadcastParams;
 use tracing::info;
 
-const TCE_LOCAL_API_ADDRESS: &str = "127.0.0.1:5001";
 pub const SOURCE_SUBNET_ID: topos_core::uci::SubnetId = [1u8; 32];
 pub const TARGET_SUBNET_ID: topos_core::uci::SubnetId = [2u8; 32];
 
@@ -17,7 +15,11 @@ pub async fn start_tce_test_service(
     rocksdb_temp_dir: PathBuf,
 ) -> Result<(mpsc::Sender<oneshot::Sender<()>>, String), Box<dyn std::error::Error>> {
     info!("Starting test TCE node...");
-    let tce_address = TCE_LOCAL_API_ADDRESS.to_string();
+
+    let socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
+    let api_addr = socket.local_addr().ok().unwrap();
+
+    let tce_address = api_addr.to_string();
 
     let config = TceConfiguration {
         boot_peers: vec![],
@@ -34,7 +36,7 @@ pub async fn start_tce_test_service(
             delivery_threshold: 1,
             delivery_sample_size: 1,
         },
-        api_addr: SocketAddr::from_str(TCE_LOCAL_API_ADDRESS).unwrap(),
+        api_addr,
         storage: StorageConfiguration::RocksDB(Some(rocksdb_temp_dir)),
         network_bootstrap_timeout: std::time::Duration::from_secs(2),
         version: "test",
@@ -50,7 +52,7 @@ pub async fn start_tce_test_service(
 
     tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
 
-    Ok((shutdown_sender, tce_address.to_string()))
+    Ok((shutdown_sender, tce_address))
 }
 
 fn create_certificate_chain(

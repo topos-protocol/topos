@@ -1,27 +1,33 @@
+use futures::{stream::FuturesUnordered, StreamExt};
 use opentelemetry::{
     trace::{FutureExt, TraceContextExt},
     Context,
 };
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{hash_map::Entry, HashMap, HashSet},
+    future,
+    pin::Pin,
     time::Duration,
 };
 use tokio::{
     spawn,
     sync::mpsc::{self, Receiver, Sender},
     sync::oneshot,
+    task::JoinHandle,
 };
 use tonic_health::server::HealthReporter;
+use topos_core::api::checkpoints::TargetStreamPosition;
 use topos_core::api::tce::v1::api_service_server::ApiServiceServer;
 use topos_core::uci::SubnetId;
+use topos_tce_storage::{FetchCertificatesFilter, StorageClient};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
-use tracing::{debug, error, info, info_span, Instrument, Span};
+use tracing::{debug, error, info, info_span, warn, Instrument, Span};
 use uuid::Uuid;
 
 use crate::{
     grpc::TceGrpcService,
-    stream::{Stream, StreamCommand},
+    stream::{StreamCommand, StreamError, StreamErrorKind},
 };
 
 pub(crate) mod builder;
@@ -41,13 +47,19 @@ pub(crate) use self::commands::InternalRuntimeCommand;
 pub use self::commands::RuntimeCommand;
 pub use self::events::RuntimeEvent;
 
+pub(crate) type Streams =
+    FuturesUnordered<Pin<Box<dyn future::Future<Output = Result<Uuid, StreamError>> + Send>>>;
+
 pub struct Runtime {
+    pub(crate) sync_tasks: HashMap<Uuid, JoinHandle<()>>,
+
+    pub(crate) storage: StorageClient,
     /// Streams that are currently active (with a valid handshake)
     pub(crate) active_streams: HashMap<Uuid, Sender<StreamCommand>>,
     /// Streams that are currently in negotiation
     pub(crate) pending_streams: HashMap<Uuid, Sender<StreamCommand>>,
     /// Mapping between a subnet_id and streams that are subscribed to it
-    pub(crate) subnet_subscription: HashMap<SubnetId, HashSet<Uuid>>,
+    pub(crate) subnet_subscriptions: HashMap<SubnetId, HashSet<Uuid>>,
     /// Receiver for Internal API command
     pub(crate) internal_runtime_command_receiver: Receiver<InternalRuntimeCommand>,
     /// Receiver for Outside API command
@@ -58,6 +70,8 @@ pub struct Runtime {
     pub(crate) api_event_sender: Sender<RuntimeEvent>,
     /// Shutdown signal receiver
     pub(crate) shutdown: mpsc::Receiver<oneshot::Sender<()>>,
+    /// Spawned stream that manage a gRPC stream
+    pub(crate) streams: Streams,
 }
 
 impl Runtime {
@@ -75,6 +89,11 @@ impl Runtime {
                 _ = health_update.tick() => {
                     self.health_reporter.set_serving::<ApiServiceServer<TceGrpcService>>().await;
                 }
+
+                Some(result) = self.streams.next() => {
+                    self.handle_stream_termination(result).await;
+                }
+
                 Some(internal_command) = self.internal_runtime_command_receiver.recv() => {
                     self.handle_internal_command(internal_command).await;
                 }
@@ -88,6 +107,31 @@ impl Runtime {
         if let Some(sender) = shutdowned {
             info!("Shutting down TCE api service...");
             _ = sender.send(());
+        }
+    }
+
+    async fn handle_stream_termination(&mut self, stream_result: Result<Uuid, StreamError>) {
+        match stream_result {
+            Ok(stream_id) => {
+                info!("Stream {stream_id} terminated gracefully");
+
+                self.active_streams.remove(&stream_id);
+                self.pending_streams.remove(&stream_id);
+            }
+            Err(StreamError { stream_id, kind }) => match kind {
+                StreamErrorKind::HandshakeFailed(_)
+                | StreamErrorKind::InvalidCommand
+                | StreamErrorKind::MalformedTargetCheckpoint
+                | StreamErrorKind::Transport(_)
+                | StreamErrorKind::PreStartError
+                | StreamErrorKind::StreamClosed
+                | StreamErrorKind::Timeout => {
+                    warn!("Stream {stream_id} error: {kind:?}");
+
+                    self.active_streams.remove(&stream_id);
+                    self.pending_streams.remove(&stream_id);
+                }
+            },
         }
     }
 
@@ -105,7 +149,7 @@ impl Runtime {
                     &certificate.id, target_subnets
                 );
                 for target_subnet_id in target_subnets {
-                    if let Some(stream_list) = self.subnet_subscription.get(target_subnet_id) {
+                    if let Some(stream_list) = self.subnet_subscriptions.get(target_subnet_id) {
                         let uuids: Vec<&Uuid> = stream_list.iter().collect();
                         for uuid in uuids {
                             if let Some(sender) = self.active_streams.get(uuid) {
@@ -134,63 +178,110 @@ impl Runtime {
         match command {
             InternalRuntimeCommand::NewStream {
                 stream,
-                sender,
-                internal_runtime_command_sender,
+                command_sender,
             } => {
-                let stream_id = Uuid::new_v4();
+                let stream_id = stream.stream_id;
                 info!("Opening a new stream with UUID {stream_id}");
-
-                let (command_sender, command_receiver) = mpsc::channel(2048);
 
                 self.pending_streams.insert(stream_id, command_sender);
 
-                let active_stream = Stream {
-                    stream_id,
-                    stream,
-                    sender,
-                    command_receiver,
-                    internal_runtime_command_sender,
-                };
-
-                spawn(active_stream.run());
-            }
-
-            InternalRuntimeCommand::StreamTimeout { stream_id } => {
-                self.pending_streams.remove(&stream_id);
+                self.streams.push(Box::pin(stream.run()));
             }
 
             InternalRuntimeCommand::Handshaked { stream_id } => {
                 if let Some(sender) = self.pending_streams.remove(&stream_id) {
                     self.active_streams.insert(stream_id, sender);
-                    info!("{stream_id} has successfully handshake");
+                    info!("Stream {stream_id} has successfully handshake");
                 }
             }
 
             InternalRuntimeCommand::Register {
                 stream_id,
-                subnet_ids,
                 sender,
+                target_subnet_stream_positions,
             } => {
-                info!("{stream_id} is registered as subscriber for {subnet_ids:?}");
-                for subnet_id in subnet_ids {
-                    match subnet_id.try_into() {
-                        Ok(subnet_id) => {
-                            self.subnet_subscription
-                                .entry(subnet_id)
-                                .or_default()
-                                .insert(stream_id);
-                        }
-                        Err(e) => {
-                            error!("Invalid subnet id: {e:?}");
-                            error!(
-                                "Invalid subnet id, unable to insert it in the subnet subscription"
-                            );
-                        }
-                    }
+                info!("Stream {stream_id} is registered as subscriber");
+
+                if let Some(task) = self.sync_tasks.get(&stream_id) {
+                    task.abort();
                 }
+
+                let storage = self.storage.clone();
+                let notifier = self
+                    .active_streams
+                    .get(&stream_id)
+                    .or_else(|| self.pending_streams.get(&stream_id))
+                    .cloned();
 
                 if let Err(error) = sender.send(Ok(())) {
                     error!(?error, "Can't send response to Stream, receiver is dropped");
+                }
+
+                if let Some(notifier) = notifier {
+                    // TODO: Rework to remove old subscriptions
+                    for target_subnet_id in target_subnet_stream_positions.keys() {
+                        self.subnet_subscriptions
+                            .entry(*target_subnet_id)
+                            .or_default()
+                            .insert(stream_id);
+                    }
+
+                    // TODO Refactor this using a better handle, FuturesUnordered + Killswitch
+                    let task = spawn(async move {
+                        info!("Sync task started for {}", stream_id);
+                        let mut collector = Vec::new();
+
+                        for (target_subnet_id, mut source) in target_subnet_stream_positions {
+                            let source_subnet_list = storage.targeted_by(target_subnet_id).await;
+
+                            info!("Sync task detected {:?} as source list", source_subnet_list);
+                            if let Ok(source_subnet_list) = source_subnet_list {
+                                for source_subnet_id in source_subnet_list {
+                                    if let Entry::Vacant(entry) = source.entry(source_subnet_id) {
+                                        entry.insert(TargetStreamPosition {
+                                            target_subnet_id,
+                                            source_subnet_id,
+                                            position: 0,
+                                            certificate_id: None,
+                                        });
+                                    }
+                                }
+                            }
+
+                            for (
+                                _,
+                                TargetStreamPosition {
+                                    target_subnet_id,
+                                    source_subnet_id,
+                                    position,
+                                    ..
+                                },
+                            ) in source
+                            {
+                                if let Ok(certificates) = storage
+                                    .fetch_certificates(FetchCertificatesFilter::Target {
+                                        target_subnet_id,
+                                        source_subnet_id,
+                                        position,
+                                        limit: 100,
+                                    })
+                                    .await
+                                {
+                                    collector.extend(certificates)
+                                }
+                            }
+                        }
+
+                        for certificate in collector {
+                            info!("Sync task for {} is sending {}", stream_id, certificate.id);
+                            // TODO catch error on send
+                            _ = notifier
+                                .send(StreamCommand::PushCertificate { certificate })
+                                .await;
+                        }
+                    });
+
+                    self.sync_tasks.insert(stream_id, task);
                 }
             }
 

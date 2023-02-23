@@ -117,6 +117,7 @@ pub async fn run(
     let (api_client, api_stream) = topos_tce_api::Runtime::builder()
         .with_peer_id(peer_id.to_string())
         .serve_addr(config.api_addr)
+        .storage(storage_client.clone())
         .build_and_launch()
         .await;
     debug!("gRPC api started");

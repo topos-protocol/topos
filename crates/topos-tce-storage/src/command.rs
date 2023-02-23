@@ -16,7 +16,8 @@ RegisterCommands!(
         GetCertificate,
         GetSourceHead,
         FetchCertificates,
-        RemovePendingCertificate
+        RemovePendingCertificate,
+        TargetedBy
     ]
 );
 
@@ -84,6 +85,15 @@ pub struct CheckPendingCertificateExists {
 
 impl Command for CheckPendingCertificateExists {
     type Result = (PendingCertificateId, Certificate);
+}
+
+#[derive(Debug)]
+pub struct TargetedBy {
+    pub(crate) target_subnet_id: SubnetId,
+}
+
+impl Command for TargetedBy {
+    type Result = Vec<SubnetId>;
 }
 
 #[cfg(test)]

@@ -5,7 +5,9 @@ use std::path::Path;
 
 #[cfg(test)]
 use rocksdb::ColumnFamilyDescriptor;
-use rocksdb::{BoundColumnFamily, DBWithThreadMode, MultiThreaded, WriteBatch};
+use rocksdb::{
+    BoundColumnFamily, DBRawIteratorWithThreadMode, DBWithThreadMode, MultiThreaded, WriteBatch,
+};
 
 use bincode::Options;
 use serde::{de::DeserializeOwned, Serialize};
@@ -206,6 +208,20 @@ where
             .prefix_iterator_cf(&self.cf()?, be_fix_int_ser(prefix)?)
             .into();
 
+        Ok(ColumnIterator::new(iterator))
+    }
+
+    fn prefix_iter_at<P: Serialize, I: Serialize>(
+        &'a self,
+        prefix: &P,
+        index: &I,
+    ) -> Result<Self::Iterator, InternalStorageError> {
+        let mut iterator: DBRawIteratorWithThreadMode<_> = self
+            .rocksdb
+            .prefix_iterator_cf(&self.cf()?, be_fix_int_ser(prefix)?)
+            .into();
+
+        iterator.seek(be_fix_int_ser(index)?);
         Ok(ColumnIterator::new(iterator))
     }
 }

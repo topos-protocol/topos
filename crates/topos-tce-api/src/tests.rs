@@ -3,11 +3,16 @@ use prost::Message;
 
 #[macro_export]
 macro_rules! wait_for_command {
-    ($node:expr, matches: $(|)? $( $pattern:pat_param )|+ $( if $guard: expr )? $(,)?) => {
+    ($node:expr, matches: $(|)? $( $pattern:pat_param )|+ $( if $guard: expr )? $(=> $input_block:block)? $(,)?) => {
         let assertion = async {
             while let Some(command) = $node.recv().await {
-                if matches!(command, $( $pattern )|+ $( if $guard )?) {
-                    break;
+                match command {
+                    $( $pattern )|+ $( if $guard )? => {
+                        _ = {$($input_block)?};
+
+                        break;
+                    }
+                    _ => {}
                 }
             }
         };

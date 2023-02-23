@@ -5,6 +5,7 @@ use crate::{
     command::{
         AddPendingCertificate, CertificateDelivered, CheckPendingCertificateExists,
         FetchCertificates, GetCertificate, GetSourceHead, RemovePendingCertificate, StorageCommand,
+        TargetedBy,
     },
     errors::StorageError,
     FetchCertificatesFilter, PendingCertificateId,
@@ -26,6 +27,13 @@ impl StorageClient {
             sender,
             shutdown_channel,
         }
+    }
+
+    pub async fn targeted_by(
+        &self,
+        target_subnet_id: SubnetId,
+    ) -> Result<Vec<SubnetId>, StorageError> {
+        TargetedBy { target_subnet_id }.send_to(&self.sender).await
     }
 
     pub async fn pending_certificate_exists(
