@@ -1,8 +1,12 @@
 use crate::shared::v1_conversions_subnet::Error;
 
+#[derive(Debug, thiserror::Error)]
 pub enum TargetCheckpointError {
+    #[error("Subnet format is invalid")]
     InvalidSubnetFormat,
+    #[error("Invalid target stream position")]
     InvalidTargetStreamPosition,
+    #[error("Checkpoint parse error")]
     ParseError,
 }
 
