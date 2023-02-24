@@ -13,7 +13,7 @@ provider "aws" {
 }
 
 module "network" {
-  source = "git::https://github.com/toposware/infrastructure-as-code.git//terraform/modules/aws/network?ref=v0.1.1-rc.5"
+  source = "git::https://github.com/toposware/infrastructure-as-code.git//terraform/modules/aws/network?ref=v0.1.1"
 
   name       = var.name
   cidr_block = var.cidr_block
@@ -22,7 +22,7 @@ module "network" {
 }
 
 module "eks" {
-  source = "git::https://github.com/toposware/infrastructure-as-code.git//terraform/modules/aws/eks?ref=v0.1.1-rc.5"
+  source = "git::https://github.com/toposware/infrastructure-as-code.git//terraform/modules/aws/eks?ref=v0.1.1"
 
   name = var.name
 
