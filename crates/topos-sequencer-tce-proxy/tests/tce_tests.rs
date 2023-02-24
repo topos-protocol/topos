@@ -385,7 +385,6 @@ async fn test_tce_get_source_head_certificate(
 #[rstest]
 #[test(tokio::test)]
 #[serial]
-#[ignore = "tce needs to implement streaming from checkpoint"]
 async fn test_tce_open_stream_with_checkpoint(
     context_running_tce_test_node_with_filled_db: impl Future<Output = Context>,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -425,6 +424,21 @@ async fn test_tce_open_stream_with_checkpoint(
         .into()],
     };
 
+    info!("Prefilled certificates:");
+    let mut index = -1;
+    context
+        .prefilled_certificates
+        .as_ref()
+        .unwrap()
+        .iter()
+        .map(|c| (c.id.as_ref().unwrap().clone()))
+        .collect::<Vec<_>>()
+        .iter()
+        .for_each(|id| {
+            index = index + 1;
+            info!("{index}: {id}")
+        });
+
     //Outbound stream
     let in_stream = async_stream::stream! {
         yield watch_certificates_request::OpenStream {
@@ -442,19 +456,20 @@ async fn test_tce_open_stream_with_checkpoint(
             Some(watch_certificates_response::Event::CertificatePushed(CertificatePushed {
                 certificate: Some(certificate),
             })) => {
-                info!("Certificate received {:?}", certificate);
-                assert_eq!(
-                    context.prefilled_certificates.as_ref().unwrap()[4].id,
-                    certificate.id
+                let expected_cert = &context.prefilled_certificates.as_ref().unwrap()[4];
+                info!(
+                    "\n\nCertificate received: {} source sid {}, target sid {},\n expected certificate {} source sid {}, target sid {}",
+                    certificate.id.as_ref().unwrap(), certificate.source_subnet_id.as_ref().unwrap(), certificate.target_subnets[0],
+                    expected_cert.id.as_ref().unwrap(), expected_cert.source_subnet_id.as_ref().unwrap(), expected_cert.target_subnets[0]
                 );
+                assert_eq!(expected_cert.id, certificate.id);
+                break;
             }
             Some(watch_certificates_response::Event::StreamOpened(
                 watch_certificates_response::StreamOpened { subnet_ids },
             )) => {
                 debug!("TCE client: stream opened for subnet_ids {:?}", subnet_ids);
-                assert_eq!(subnet_ids[0].value, target_subnet_id.value);
-                // We have opened connection and 2 way stream, finishing test
-                break;
+                continue;
             }
             Some(watch_certificates_response::Event::CertificatePushed(CertificatePushed {
                 certificate: None,

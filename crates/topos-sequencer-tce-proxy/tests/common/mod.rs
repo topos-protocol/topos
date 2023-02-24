@@ -7,7 +7,8 @@ use topos_tce_transport::ReliableBroadcastParams;
 use tracing::info;
 
 pub const SOURCE_SUBNET_ID: topos_core::uci::SubnetId = [1u8; 32];
-pub const TARGET_SUBNET_ID: topos_core::uci::SubnetId = [2u8; 32];
+pub const SOURCE_SUBNET_ID_2: topos_core::uci::SubnetId = [2u8; 32];
+pub const TARGET_SUBNET_ID: topos_core::uci::SubnetId = [3u8; 32];
 
 /// Start test TCE node
 /// Return task handle, shutdown channel and address
@@ -86,7 +87,12 @@ pub async fn populate_test_database(
 ) -> Result<Vec<topos_core::uci::Certificate>, Box<dyn std::error::Error>> {
     info!("Populating test database storage in {rocksdb_dir:?}");
 
-    let certificates = create_certificate_chain(SOURCE_SUBNET_ID, TARGET_SUBNET_ID, 15);
+    let mut certificates = create_certificate_chain(SOURCE_SUBNET_ID, TARGET_SUBNET_ID, 15);
+    certificates.append(&mut create_certificate_chain(
+        SOURCE_SUBNET_ID_2,
+        TARGET_SUBNET_ID,
+        10,
+    ));
 
     let storage = RocksDBStorage::with_isolation(&rocksdb_dir).expect("valid rocksdb storage");
     for certificate in &certificates {
