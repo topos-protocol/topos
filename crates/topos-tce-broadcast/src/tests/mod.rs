@@ -14,6 +14,8 @@ use topos_p2p::PeerId;
 
 const PREV_CERTIFICATE_ID: topos_core::uci::CertificateId = CertificateId::from_array([4u8; 32]);
 const SOURCE_SUBNET_ID: topos_core::uci::SubnetId = [1u8; 32];
+const CHANNEL_SIZE: usize = 10;
+const WAIT_EVENT_TIMEOUT: Duration = Duration::from_secs(1);
 
 #[fixture]
 fn small_config() -> TceParams {
@@ -71,11 +73,11 @@ struct Context {
 }
 
 fn create_context(params: TceParams) -> (DoubleEcho, Context) {
-    let (subscribers_update_sender, subscribers_update_receiver) = mpsc::channel(10);
-    let (subscriptions_view_sender, subscriptions_view_receiver) = mpsc::channel(10);
+    let (subscribers_update_sender, subscribers_update_receiver) = mpsc::channel(CHANNEL_SIZE);
+    let (subscriptions_view_sender, subscriptions_view_receiver) = mpsc::channel(CHANNEL_SIZE);
 
-    let (cmd_sender, cmd_receiver) = mpsc::channel(10);
-    let (event_sender, event_receiver) = broadcast::channel(10);
+    let (cmd_sender, cmd_receiver) = mpsc::channel(CHANNEL_SIZE);
+    let (event_sender, event_receiver) = broadcast::channel(CHANNEL_SIZE);
     let (double_echo_shutdown_sender, double_echo_shutdown_receiver) =
         mpsc::channel::<oneshot::Sender<()>>(1);
 
@@ -289,7 +291,7 @@ async fn buffering_certificate(#[case] params: TceParams) {
     }
 
     // Wait to receive subscribers
-    tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
+    tokio::time::sleep(WAIT_EVENT_TIMEOUT).await;
 
     let le_cert = Certificate::default();
     ctx.cmd_sender
