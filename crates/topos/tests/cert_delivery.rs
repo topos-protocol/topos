@@ -28,6 +28,8 @@ use topos_core::{
 };
 use tracing::{debug, info};
 
+const NUMBER_OF_SUBNETS_PER_CLIENT: usize = 1; // In real life this would be always 1, topos node would represent one subnet
+
 fn get_subset_of_subnets(subnets: &[SubnetId], subset_size: usize) -> Vec<SubnetId> {
     let mut rng = rand::thread_rng();
     Vec::from_iter(
@@ -70,7 +72,6 @@ async fn cert_delivery() {
     let correct_sample = 5;
     let number_of_certificates_per_subnet = 2;
     let number_of_subnets = 3;
-    const NUMBER_OF_SUBNETS_PER_CLIENT: usize = 1; // In real life this would be always 1, topos node would represent one subnet
 
     let all_subnets: Vec<SubnetId> = (1..=number_of_subnets).map(|v| [v as u8; 32]).collect();
 
@@ -298,7 +299,7 @@ async fn create_network(
     peer_number: usize,
     correct_sample: usize,
 ) -> HashMap<PeerId, TestAppContext> {
-    const NUMBER_OF_SUBNETS_PER_CLIENT: usize = 1; // In real life this would be always 1, topos node would represent one subnet
+    //const NUMBER_OF_SUBNETS_PER_CLIENT: usize = 1; // In real life this would be always 1, topos node would represent one subnet
 
     let g = |a, b| (((a as f32) * b) as f32).ceil() as usize;
 
