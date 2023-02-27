@@ -27,4 +27,4 @@ tracing-opentelemetry.workspace = true
 [dev-dependencies]
 test-log.workspace = true
 env_logger.workspace = true
-
+rstest.workspace = true
