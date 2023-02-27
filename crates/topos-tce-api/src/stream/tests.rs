@@ -121,19 +121,19 @@ async fn receive_expected_certificate_from_zero() -> Result<(), Box<dyn std::err
 
     let first = Certificate::new(
         [0u8; 32],
-        [2u8; 32],
+        [2u8; 32].into(),
         Default::default(),
         Default::default(),
-        &vec![[1u8; 32]],
+        &vec![[1u8; 32].into()],
         0,
     )
     .unwrap();
     let second = Certificate::new(
         first.id,
-        [2u8; 32],
+        [2u8; 32].into(),
         Default::default(),
         Default::default(),
-        &vec![[1u8; 32]],
+        &vec![[1u8; 32].into()],
         0,
     )
     .unwrap();
@@ -168,7 +168,7 @@ async fn receive_expected_certificate_from_zero() -> Result<(), Box<dyn std::err
     assert!(
         matches!(
             msg,
-            Some(Ok((_, OutboundMessage::StreamOpened(StreamOpened { ref subnet_ids })))) if subnet_ids == &[[1u8; 32]],
+            Some(Ok((_, OutboundMessage::StreamOpened(StreamOpened { ref subnet_ids })))) if subnet_ids == &[[1u8; 32].into()],
         ),
         "Expected StreamOpened, received: {:?}",
         msg

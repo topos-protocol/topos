@@ -34,3 +34,26 @@ impl TryFrom<SubnetId> for [u8; 32] {
         Ok(id)
     }
 }
+
+impl From<topos_uci::SubnetId> for SubnetId {
+    fn from(value: topos_uci::SubnetId) -> Self {
+        SubnetId {
+            value: value.as_array().to_vec(),
+        }
+    }
+}
+
+impl TryFrom<SubnetId> for topos_uci::SubnetId {
+    type Error = Error;
+
+    fn try_from(value: SubnetId) -> Result<Self, Self::Error> {
+        if value.value.len() != 32 {
+            return Err(Error::ValidationError(value));
+        }
+        let mut id = [0; 32];
+
+        id.copy_from_slice(value.value.as_slice());
+
+        Ok(id.into())
+    }
+}

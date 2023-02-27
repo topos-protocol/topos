@@ -14,16 +14,16 @@ mod position;
 mod rocks;
 pub(crate) mod support;
 
-const SOURCE_SUBNET_ID: topos_core::uci::SubnetId = [1u8; 32];
-const TARGET_SUBNET_ID_A: topos_core::uci::SubnetId = [2u8; 32];
-const TARGET_SUBNET_ID_B: topos_core::uci::SubnetId = [3u8; 32];
+const SOURCE_SUBNET_ID: SubnetId = SubnetId::from_array([1u8; 32]);
+const TARGET_SUBNET_ID_A: SubnetId = SubnetId::from_array([2u8; 32]);
+const TARGET_SUBNET_ID_B: SubnetId = SubnetId::from_array([3u8; 32]);
 
 const PREV_CERTIFICATE_ID: CertificateId = CertificateId::from_array([0u8; 32]);
 const CERTIFICATE_ID: CertificateId = CertificateId::from_array([5u8; 32]);
 
-const SOURCE_STORAGE_SUBNET_ID: SubnetId = [1u8; 32];
-const TARGET_STORAGE_SUBNET_ID_A: SubnetId = [2u8; 32];
-const TARGET_STORAGE_SUBNET_ID_B: SubnetId = [3u8; 32];
+const SOURCE_STORAGE_SUBNET_ID: SubnetId = SubnetId::from_array([1u8; 32]);
+const TARGET_STORAGE_SUBNET_ID_A: SubnetId = SubnetId::from_array([2u8; 32]);
+const TARGET_STORAGE_SUBNET_ID_B: SubnetId = SubnetId::from_array([3u8; 32]);
 
 #[rstest]
 #[test(tokio::test)]
