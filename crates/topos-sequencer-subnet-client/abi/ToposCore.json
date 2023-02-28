@@ -184,7 +184,7 @@
       {
         "indexed": false,
         "internalType": "CertificateId",
-        "name": "id",
+        "name": "certId",
         "type": "bytes32"
       },
       {
@@ -232,19 +232,6 @@
       }
     ],
     "name": "ContractCall",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "certPosition",
-        "type": "uint256"
-      }
-    ],
-    "name": "ContractCallDataVerified",
     "type": "event"
   },
   {
@@ -501,7 +488,7 @@
     "inputs": [
       {
         "internalType": "CertificateId",
-        "name": "id",
+        "name": "certId",
         "type": "bytes32"
       }
     ],
@@ -553,7 +540,7 @@
       },
       {
         "internalType": "CertificateId",
-        "name": "id",
+        "name": "certId",
         "type": "bytes32"
       },
       {
@@ -565,11 +552,6 @@
         "internalType": "bytes",
         "name": "signature",
         "type": "bytes"
-      },
-      {
-        "internalType": "uint256",
-        "name": "position",
-        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -696,7 +678,7 @@
     "inputs": [
       {
         "internalType": "CertificateId",
-        "name": "id",
+        "name": "certId",
         "type": "bytes32"
       }
     ],
@@ -770,6 +752,36 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "getCheckpoints",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "CertificateId",
+            "name": "certId",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "uint256",
+            "name": "position",
+            "type": "uint256"
+          },
+          {
+            "internalType": "SubnetId",
+            "name": "sourceSubnetId",
+            "type": "bytes32"
+          }
+        ],
+        "internalType": "struct IToposCore.StreamPosition[]",
+        "name": "checkpoints",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "bytes32",
@@ -783,6 +795,38 @@
         "internalType": "int256",
         "name": "",
         "type": "int256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "index",
+        "type": "uint256"
+      }
+    ],
+    "name": "getSourceSubnetIdAtIndex",
+    "outputs": [
+      {
+        "internalType": "SubnetId",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getSourceSubnetIdCount",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -1005,6 +1049,25 @@
   {
     "inputs": [
       {
+        "internalType": "SubnetId",
+        "name": "subnetId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "sourceSubnetIdExists",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "string",
         "name": "symbol",
         "type": "string"
@@ -1123,7 +1186,7 @@
     "inputs": [
       {
         "internalType": "CertificateId",
-        "name": "id",
+        "name": "certId",
         "type": "bytes32"
       },
       {
@@ -1135,12 +1198,12 @@
     "name": "verifyContractCallData",
     "outputs": [
       {
-        "internalType": "uint256",
+        "internalType": "bool",
         "name": "",
-        "type": "uint256"
+        "type": "bool"
       }
     ],
-    "stateMutability": "nonpayable",
+    "stateMutability": "view",
     "type": "function"
   }
 ]

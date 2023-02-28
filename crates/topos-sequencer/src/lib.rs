@@ -29,12 +29,35 @@ pub async fn run(config: SequencerConfiguration) -> Result<(), Box<dyn std::erro
     }
     let subnet_id: SubnetId = hex::decode(&config.subnet_id[2..])?.as_slice().try_into()?;
 
+    // Instantiate subnet runtime proxy, handling interaction with subnet node
+    let subnet_runtime_proxy = match SubnetRuntimeProxyWorker::new(SubnetRuntimeProxyConfig {
+        subnet_id,
+        endpoint: config.subnet_jsonrpc_endpoint.clone(),
+        subnet_contract_address: config.subnet_contract_address.clone(),
+        subnet_data_dir: config.subnet_data_dir.clone(),
+    })
+    .await
+    {
+        Ok(subnet_runtime_proxy) => subnet_runtime_proxy,
+        Err(e) => {
+            //TODO Handle retry connection to subnet node gracefully
+            panic!("Unable to instantiate runtime proxy, error: {e}");
+        }
+    };
+
+    // Get subnet checkpoints from subnet to pass them to the TCE node
+    let target_subnet_stream_positions = match subnet_runtime_proxy.get_checkpoints().await {
+        Ok(checkpoints) => checkpoints,
+        Err(e) => {
+            panic!("Unable to get checkpoints from the subnet {e}");
+        }
+    };
+
     // Launch Tce proxy worker for handling interaction with TCE node
-    // TODO: Retrieve subnet checkpoint from where to start receiving certificates
     let (tce_proxy_worker, source_head_certificate_id) = match TceProxyWorker::new(TceProxyConfig {
         subnet_id,
         base_tce_api_url: config.base_tce_api_url.clone(),
-        positions: Vec::new(), // TODO acquire from subnet
+        positions: target_subnet_stream_positions,
     })
     .await
     {
@@ -55,22 +78,6 @@ pub async fn run(config: SequencerConfiguration) -> Result<(), Box<dyn std::erro
     // Launch the certification worker for certificate production
     let certification =
         CertificationWorker::new(subnet_id, source_head_certificate_id, config.verifier).await?;
-
-    // Instantiate subnet runtime proxy, handling interaction with subnet node
-    let subnet_runtime_proxy = match SubnetRuntimeProxyWorker::new(SubnetRuntimeProxyConfig {
-        subnet_id,
-        endpoint: config.subnet_jsonrpc_endpoint.clone(),
-        subnet_contract_address: config.subnet_contract_address.clone(),
-        subnet_data_dir: config.subnet_data_dir.clone(),
-    })
-    .await
-    {
-        Ok(subnet_runtime_proxy) => subnet_runtime_proxy,
-        Err(e) => {
-            //TODO Handle retry connection to subnet node gracefully
-            panic!("Unable to instantiate runtime proxy, error: {e}");
-        }
-    };
 
     let mut app_context = AppContext::new(
         config,

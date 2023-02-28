@@ -3,7 +3,7 @@ pub mod subnet_contract;
 use crate::subnet_contract::{
     create_topos_core_contract_from_json, parse_events_from_json, parse_events_from_log,
 };
-use topos_core::uci::CertificateId;
+use topos_core::api::checkpoints::TargetStreamPosition;
 use topos_sequencer_types::{BlockInfo, Certificate};
 use tracing::{debug, error, info};
 use web3::ethabi::Token;
@@ -67,6 +67,8 @@ pub enum Error {
         #[from]
         source: secp256k1::Error,
     },
+    #[error("invalid secret key")]
+    InvalidKey,
     #[error("error with signing ethereum transaction")]
     EthereumTxSignError,
     #[error("web3 error: {source}")]
@@ -83,6 +85,8 @@ pub enum Error {
     },
     #[error("invalid certificate id")]
     InvalidCertificateId,
+    #[error("invalid checkpoints data")]
+    InvalidCheckpointsData,
 }
 
 // Subnet client for listening events from subnet node
@@ -238,7 +242,7 @@ pub struct SubnetClient {
     pub eth_admin_address: H160,
     //TODO use SafeSecretKey for secret key https://github.com/graphprotocol/solidity-bindgen/blob/master/solidity-bindgen/src/secrets.rs
     // or https://crates.io/crates/zeroize to prevent leaking secp256k1::SecretKey struct in stack or memory
-    eth_admin_key: secp256k1::SecretKey,
+    eth_admin_key: Option<secp256k1::SecretKey>,
     contract: web3::contract::Contract<Http>,
 }
 
@@ -246,7 +250,7 @@ impl SubnetClient {
     /// Initialize a new Subnet client
     pub async fn new(
         http_subnet_endpoint: &str,
-        eth_admin_secret_key: Vec<u8>,
+        eth_admin_secret_key: Option<Vec<u8>>,
         contract_address: &str,
     ) -> Result<Self, Error> {
         info!(
@@ -255,12 +259,24 @@ impl SubnetClient {
         );
         let transport = web3::transports::Http::new(http_subnet_endpoint)?;
         let web3 = web3::Web3::new(transport);
-        let eth_admin_address = match subnet_contract::derive_eth_address(&eth_admin_secret_key) {
-            Ok(address) => address,
-            Err(e) => {
-                error!("Unable to derive admin addres from secret key, error instantiating subnet client: {}", e);
-                return Err(e);
+
+        let eth_admin_key = match eth_admin_secret_key.as_ref() {
+            Some(eth_admin_secret_key) => {
+                Some(secp256k1::SecretKey::from_slice(eth_admin_secret_key)?)
             }
+            None => None,
+        };
+
+        let eth_admin_address = if let Some(eth_admin_secret_key) = eth_admin_secret_key {
+            match subnet_contract::derive_eth_address(&eth_admin_secret_key) {
+                Ok(address) => address,
+                Err(e) => {
+                    error!("Unable to derive admin addres from secret key, error instantiating subnet client: {}", e);
+                    return Err(e);
+                }
+            }
+        } else {
+            Default::default()
         };
 
         // Initialize Topos Core Contract from json abi
@@ -268,7 +284,7 @@ impl SubnetClient {
 
         Ok(SubnetClient {
             eth_admin_address,
-            eth_admin_key: secp256k1::SecretKey::from_slice(&eth_admin_secret_key)?,
+            eth_admin_key,
             contract,
         })
     }
@@ -305,7 +321,8 @@ impl SubnetClient {
             signature,
         ]);
 
-        let wrapped_key = web3::signing::SecretKeyRef::new(&self.eth_admin_key);
+        let eth_admin_key = &self.eth_admin_key.ok_or(Error::InvalidKey)?;
+        let wrapped_key = web3::signing::SecretKeyRef::new(eth_admin_key);
         let options = web3::contract::Options {
             gas: Some(PUSH_CERTIFICATE_GAS_LIMIT.into()),
             ..Default::default()
@@ -322,50 +339,65 @@ impl SubnetClient {
             .map_err(|e| Error::Web3Error { source: e })
     }
 
-    /// Ask subnet for latest pushed cert
-    /// Returns latest cert id and its position
-    pub async fn get_latest_pushed_cert_with_retry(&self) -> Result<(CertificateId, u64), Error> {
+    /// Ask subnet for latest pushed certificates, for every source subnet
+    /// Returns list of latest stream positions for every source subnet
+    pub async fn get_checkpoints(
+        &self,
+        target_subnet_id: &topos_core::uci::SubnetId,
+    ) -> Result<Vec<TargetStreamPosition>, Error> {
         let op = || async {
-            // Get certificate count
-            // Last certificate position is certificate count - 1
-            let cert_count: U256 = self
+            let mut target_stream_positions = Vec::new();
+
+            let data: Vec<Token> = self
                 .contract
                 .query(
-                    "getCertificateCount",
+                    "getCheckpoints",
                     (),
                     None,
                     web3::contract::Options::default(),
                     None,
                 )
                 .await
-                .map_err(|e| Error::EthContractError { source: e })?;
+                .map_err(|e| {
+                    error!("Error retrieving checkpoints from smart contract: {e}");
+                    Error::EthContractError { source: e }
+                })?;
 
-            if cert_count.as_u64() == 0 {
-                // No previous certificates
-                info!(
-                    "No previous certificate pushed to smart contract {}",
-                    self.contract.address().to_string()
-                );
-                return Ok((Default::default(), 0));
+            for token in data {
+                if let Token::Tuple(stream_position) = token {
+                    let certificate_id = stream_position[0]
+                        .clone()
+                        .into_fixed_bytes()
+                        .ok_or(Error::InvalidCheckpointsData)?;
+                    let position = stream_position[1]
+                        .clone()
+                        .into_uint()
+                        .ok_or(Error::InvalidCheckpointsData)?
+                        .as_u64();
+                    let source_subnet_id = stream_position[2]
+                        .clone()
+                        .into_fixed_bytes()
+                        .ok_or(Error::InvalidCheckpointsData)?;
+
+                    target_stream_positions.push(TargetStreamPosition {
+                        target_subnet_id: *target_subnet_id,
+                        certificate_id: Some(
+                            TryInto::<[u8; 32]>::try_into(certificate_id)
+                                .map_err(|_| Error::InvalidCheckpointsData)?
+                                .into(),
+                        ),
+                        source_subnet_id: TryInto::<[u8; 32]>::try_into(source_subnet_id)
+                            .map_err(|_| Error::InvalidCheckpointsData)?,
+                        position,
+                    });
+                } else {
+                    return Err(new_subnet_client_proxy_backoff_err(
+                        Error::InvalidCheckpointsData,
+                    ));
+                }
             }
 
-            let latest_cert_position: U256 = cert_count - 1;
-            let latest_cert_id: web3::ethabi::FixedBytes = self
-                .contract
-                .query(
-                    "getCertIdAtIndex",
-                    latest_cert_position,
-                    None,
-                    web3::contract::Options::default(),
-                    None,
-                )
-                .await
-                .map_err(|e| Error::EthContractError { source: e })?;
-
-            let latest_cert_id: CertificateId = latest_cert_id
-                .try_into()
-                .map_err(|_| Error::InvalidCertificateId)?;
-            Ok((latest_cert_id, latest_cert_position.as_u64()))
+            Ok(target_stream_positions)
         };
 
         backoff::future::retry(backoff::ExponentialBackoff::default(), op).await
@@ -387,7 +419,7 @@ pub(crate) fn new_subnet_client_proxy_backoff_err<E: std::fmt::Display>(
 /// Retry until connection is valid
 pub async fn connect_to_subnet_with_retry(
     http_subnet_endpoint: &str,
-    eth_admin_private_key: Vec<u8>,
+    eth_admin_private_key: Option<Vec<u8>>,
     contract_address: &str,
 ) -> Result<SubnetClient, crate::Error> {
     info!(

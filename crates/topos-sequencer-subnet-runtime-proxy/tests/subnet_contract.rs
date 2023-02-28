@@ -548,11 +548,11 @@ async fn test_subnet_certificate_push_call(
     Ok(())
 }
 
-/// Test get last certificate id from subnet smart contract
+/// Test get last checkpoints from subnet smart contract
 #[rstest]
 #[test(tokio::test)]
 #[serial]
-async fn test_subnet_certificate_get_last_pushed_call(
+async fn test_subnet_certificate_get_checkpoints_call(
     #[with(8546)]
     #[future]
     context_running_subnet_node: Context,
@@ -570,7 +570,7 @@ async fn test_subnet_certificate_get_last_pushed_call(
     )
     .await
     .expect("Valid subnet client");
-    let (cert_id, cert_position) = match subnet_client.get_latest_pushed_cert_with_retry().await {
+    let (cert_id, cert_position) = match subnet_client.get_checkpoints().await {
         Ok(result) => result,
         Err(e) => {
             panic!("Unable to get latest certificate id and position: {e}");
@@ -613,13 +613,12 @@ async fn test_subnet_certificate_get_last_pushed_call(
     }
 
     info!("Getting latest cert id and position");
-    let (final_cert_id, final_cert_position) =
-        match subnet_client.get_latest_pushed_cert_with_retry().await {
-            Ok(result) => result,
-            Err(e) => {
-                panic!("Unable to get the latest certificate id and position: {e}");
-            }
-        };
+    let (final_cert_id, final_cert_position) = match subnet_client.get_checkpoints().await {
+        Ok(result) => result,
+        Err(e) => {
+            panic!("Unable to get the latest certificate id and position: {e}");
+        }
+    };
     assert_eq!(
         (final_cert_id, final_cert_position),
         (test_certificates.last().unwrap().id, 1)

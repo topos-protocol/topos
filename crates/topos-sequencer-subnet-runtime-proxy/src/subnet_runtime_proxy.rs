@@ -7,6 +7,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::sync::{mpsc, oneshot};
 use tokio::time::{self, Duration};
+use topos_core::api::checkpoints::TargetStreamPosition;
 use topos_core::uci::Certificate;
 use topos_sequencer_subnet_client::{self, SubnetClient};
 use topos_sequencer_types::{SubnetRuntimeProxyCommand, SubnetRuntimeProxyEvent};
@@ -165,7 +166,7 @@ impl SubnetRuntimeProxy {
                 let mut subnet_client =
                     match topos_sequencer_subnet_client::connect_to_subnet_with_retry(
                         http_runtime_endpoint.as_ref(),
-                        eth_admin_private_key.clone(),
+                        Some(eth_admin_private_key.clone()),
                         subnet_contract_address.as_str(),
                     )
                     .await
@@ -179,21 +180,6 @@ impl SubnetRuntimeProxy {
                             continue;
                         }
                     };
-
-                // Get latest delivered(pushed) certificate from subnet smart contract
-                // TODO inform TCE which certificate do we need
-                let latest_cert_id = loop {
-                    match subnet_client.get_latest_pushed_cert_with_retry().await {
-                        Ok(cert_id) => {
-                            break cert_id;
-                        }
-                        Err(e) => {
-                            error!("Unable to get latest pushed cert {e}");
-                            continue;
-                        }
-                    };
-                };
-                info!("Subnet latest pushed cert id is {:?}", latest_cert_id);
 
                 let shutdowned: Option<oneshot::Sender<()>> = loop {
                     tokio::select! {
@@ -318,5 +304,41 @@ impl SubnetRuntimeProxy {
             .await
             .map_err(Error::ShutdownSignalReceiveError)?;
         Ok(())
+    }
+
+    pub async fn get_checkpoints(&self) -> Result<Vec<TargetStreamPosition>, Error> {
+        info!("Connecting to subnet to query for checkpoints...");
+        let http_runtime_endpoint = format!("http://{}", &self.config.endpoint);
+        // Create subnet client
+        let subnet_client = match topos_sequencer_subnet_client::connect_to_subnet_with_retry(
+            http_runtime_endpoint.as_ref(),
+            None, // We do not need actual key here as we are just reading state
+            self.config.subnet_contract_address.as_str(),
+        )
+        .await
+        {
+            Ok(subnet_client) => {
+                info!("Connected to subnet node {}", &http_runtime_endpoint);
+                subnet_client
+            }
+            Err(e) => {
+                error!("Unable to connect to the subnet node: {e}");
+                return Err(Error::SubnetError { source: e });
+            }
+        };
+
+        match subnet_client.get_checkpoints(&self.config.subnet_id).await {
+            Ok(checkpoints) => {
+                info!("Checkpoints successfully retrieved");
+                Ok(checkpoints)
+            }
+            Err(e) => {
+                error!(
+                    "Unable to get checkpoints for subnet {:?}",
+                    self.config.subnet_id
+                );
+                Err(Error::SubnetError { source: e })
+            }
+        }
     }
 }
