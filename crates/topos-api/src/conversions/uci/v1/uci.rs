@@ -1,8 +1,6 @@
 //!
 //! Protobuf generated/native Rust structures related conversions for GRPC API
 //!
-
-use crate::shared::v1 as shared_v1;
 use crate::shared::v1_conversions_subnet::Error;
 use crate::uci::v1 as proto_v1;
 
@@ -21,6 +19,7 @@ impl TryFrom<proto_v1::Certificate> for topos_uci::Certificate {
                 .source_subnet_id
                 .expect("valid source subnet id")
                 .value
+                .as_slice()
                 .try_into()
                 .expect("valid source subnet id with correct length"),
             state_root: certificate
@@ -56,7 +55,7 @@ impl From<topos_uci::Certificate> for proto_v1::Certificate {
                 value: certificate.prev_id.into(),
             }),
             source_subnet_id: Some(crate::shared::v1::SubnetId {
-                value: certificate.source_subnet_id.to_vec(),
+                value: certificate.source_subnet_id.into(),
             }),
             state_root: certificate.state_root.to_vec(),
             tx_root_hash: certificate.tx_root_hash.to_vec(),
@@ -76,23 +75,5 @@ impl From<topos_uci::Certificate> for proto_v1::Certificate {
                 value: certificate.signature,
             }),
         }
-    }
-}
-
-impl From<topos_uci::CertificateId> for shared_v1::CertificateId {
-    fn from(value: topos_uci::CertificateId) -> Self {
-        Self {
-            value: value.into(),
-        }
-    }
-}
-
-impl TryFrom<shared_v1::CertificateId> for topos_uci::CertificateId {
-    type Error = topos_uci::Error;
-
-    fn try_from(
-        shared_v1::CertificateId { value }: shared_v1::CertificateId,
-    ) -> Result<Self, Self::Error> {
-        value.try_into()
     }
 }

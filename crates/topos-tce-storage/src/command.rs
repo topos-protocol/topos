@@ -105,7 +105,8 @@ mod tests {
 
     use super::*;
 
-    const SOURCE_SUBNET_ID: topos_core::uci::SubnetId = [1u8; 32];
+    const SOURCE_SUBNET_ID: topos_core::uci::SubnetId =
+        topos_core::uci::SubnetId::from_array([1u8; 32]);
     const PREV_CERTIFICATE_ID: topos_core::uci::CertificateId =
         CertificateId::from_array([4u8; 32]);
 

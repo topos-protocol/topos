@@ -155,7 +155,7 @@ impl Storage for RocksDBStorage {
             .last()
         {
             position.increment().map_err(|error| {
-                InternalStorageError::PositionError(error, certificate.source_subnet_id)
+                InternalStorageError::PositionError(error, certificate.source_subnet_id.into())
             })?
         } else {
             // TODO: Better error to define that we were expecting a previous defined position
@@ -191,7 +191,10 @@ impl Storage for RocksDBStorage {
                         target,
                         source,
                         position.increment().map_err(|error| {
-                            InternalStorageError::PositionError(error, certificate.source_subnet_id)
+                            InternalStorageError::PositionError(
+                                error,
+                                certificate.source_subnet_id.into(),
+                            )
                         })?,
                     ),
                     certificate.id,

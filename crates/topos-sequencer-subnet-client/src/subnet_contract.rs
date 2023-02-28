@@ -75,7 +75,7 @@ pub(crate) fn parse_events_from_log(
                         source_subnet_id: if let ethabi::Token::FixedBytes(bytes) =
                             &event_arguments[0]
                         {
-                            match bytes.clone().try_into() {
+                            match bytes.as_slice().try_into() {
                                 Ok(sender) => sender,
                                 Err(_) => {
                                     return Err(Error::InvalidArgument {
@@ -91,7 +91,7 @@ pub(crate) fn parse_events_from_log(
                         target_subnet_id: if let ethabi::Token::FixedBytes(bytes) =
                             &event_arguments[1]
                         {
-                            match bytes.clone().try_into() {
+                            match bytes.as_slice().try_into() {
                                 Ok(sender) => sender,
                                 Err(_) => {
                                     return Err(Error::InvalidArgument {
@@ -147,7 +147,7 @@ pub(crate) fn parse_events_from_log(
                         source_subnet_id: if let ethabi::Token::FixedBytes(bytes) =
                             &event_arguments[0]
                         {
-                            match bytes.clone().try_into() {
+                            match bytes.as_slice().try_into() {
                                 Ok(sender) => sender,
                                 Err(_) => {
                                     return Err(Error::InvalidArgument {
@@ -172,7 +172,7 @@ pub(crate) fn parse_events_from_log(
                         target_subnet_id: if let ethabi::Token::FixedBytes(bytes) =
                             &event_arguments[2]
                         {
-                            match bytes.clone().try_into() {
+                            match bytes.as_slice().try_into() {
                                 Ok(sender) => sender,
                                 Err(_) => {
                                     return Err(Error::InvalidArgument {
@@ -224,7 +224,7 @@ pub(crate) fn parse_events_from_log(
                         source_subnet_id: if let ethabi::Token::FixedBytes(bytes) =
                             &event_arguments[0]
                         {
-                            match bytes.clone().try_into() {
+                            match bytes.as_slice().try_into() {
                                 Ok(sender) => sender,
                                 Err(_) => {
                                     return Err(Error::InvalidArgument {
@@ -249,7 +249,7 @@ pub(crate) fn parse_events_from_log(
                         target_subnet_id: if let ethabi::Token::FixedBytes(bytes) =
                             &event_arguments[2]
                         {
-                            match bytes.clone().try_into() {
+                            match bytes.as_slice().try_into() {
                                 Ok(sender) => sender,
                                 Err(_) => {
                                     return Err(Error::InvalidArgument {

@@ -104,7 +104,7 @@ impl CertificationWorker {
 mod tests {
     use super::*;
     use test_log::test;
-    const TEST_SUBNET_ID: SubnetId = [1u8; 32];
+    const TEST_SUBNET_ID: SubnetId = SubnetId::from_array([1u8; 32]);
     const TEST_CERTIFICATE_ID: CertificateId = CertificateId::from_array([5u8; 32]);
 
     #[test(tokio::test)]

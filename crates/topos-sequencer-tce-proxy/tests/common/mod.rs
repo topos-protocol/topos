@@ -6,8 +6,10 @@ use topos_tce_storage::{RocksDBStorage, Storage};
 use topos_tce_transport::ReliableBroadcastParams;
 use tracing::info;
 
-pub const SOURCE_SUBNET_ID: topos_core::uci::SubnetId = [1u8; 32];
-pub const TARGET_SUBNET_ID: topos_core::uci::SubnetId = [2u8; 32];
+pub const SOURCE_SUBNET_ID: topos_core::uci::SubnetId =
+    topos_core::uci::SubnetId::from_array([1u8; 32]);
+pub const TARGET_SUBNET_ID: topos_core::uci::SubnetId =
+    topos_core::uci::SubnetId::from_array([2u8; 32]);
 
 /// Start test TCE node
 /// Return task handle, shutdown channel and address
