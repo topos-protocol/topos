@@ -32,8 +32,8 @@ const POLYGON_EDGE_CONTAINER_TAG: &str = "develop";
 const SUBNET_STARTUP_DELAY: u64 = 5; // seconds left for subnet startup
 const TOPOS_SMART_CONTRACTS_BUILD_PATH_VAR: &str = "TOPOS_SMART_CONTRACTS_BUILD_PATH";
 
-const SOURCE_SUBNET_ID: SubnetId = [1u8; 32];
-const SOURCE_SUBNET_ID_2: SubnetId = [2u8; 32];
+const SOURCE_SUBNET_ID: SubnetId = SubnetId::from_array([1u8; 32]);
+const SOURCE_SUBNET_ID_2: SubnetId = SubnetId::from_array([2u8; 32]);
 const PREV_CERTIFICATE_ID: CertificateId = CertificateId::from_array([4u8; 32]);
 const CERTIFICATE_ID: CertificateId = CertificateId::from_array([5u8; 32]);
 const CERTIFICATE_ID_2: CertificateId = CertificateId::from_array([6u8; 32]);
@@ -151,7 +151,7 @@ async fn deploy_contracts(
         &eth_private_key,
         Some((
             token_deployer_contract.address(),
-            SOURCE_SUBNET_ID.to_owned(),
+            SOURCE_SUBNET_ID.as_array().to_owned(),
         )),
     )
     .await?;

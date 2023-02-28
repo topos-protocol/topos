@@ -23,8 +23,10 @@ use topos_core::{
 use topos_tce_api::Runtime;
 use topos_tce_storage::{Connection, RocksDBStorage, Storage};
 
-const SOURCE_SUBNET_ID: topos_core::uci::SubnetId = [1u8; 32];
-const TARGET_SUBNET_ID: topos_core::uci::SubnetId = [2u8; 32];
+const SOURCE_SUBNET_ID: topos_core::uci::SubnetId =
+    topos_core::uci::SubnetId::from_array([1u8; 32]);
+const TARGET_SUBNET_ID: topos_core::uci::SubnetId =
+    topos_core::uci::SubnetId::from_array([2u8; 32]);
 const PREV_CERTIFICATE_ID: CertificateId = CertificateId::from_array([4u8; 32]);
 
 #[rstest]

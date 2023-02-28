@@ -3,6 +3,8 @@
 //! Data structures to support Certificates' exchange
 
 pub use certificate_id::CertificateId;
+pub use subnet_id::SubnetId;
+
 use keccak_hash::keccak_256;
 use serde::{Deserialize, Serialize};
 use std::borrow::BorrowMut;
@@ -12,8 +14,8 @@ use std::time;
 use thiserror::Error;
 
 mod certificate_id;
+mod subnet_id;
 
-pub type SubnetId = [u8; 32];
 pub type StarkProof = Vec<u8>;
 pub type Frost = Vec<u8>;
 pub type Address = [u8; 20];
@@ -55,8 +57,8 @@ pub struct Certificate {
 impl Debug for Certificate {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Certificate")
-            .field("prev_id", &self.prev_id)
-            .field("source_subnet_id", &hex::encode(self.source_subnet_id))
+            .field("prev_id", &self.prev_id.to_string())
+            .field("source_subnet_id", &self.source_subnet_id.to_string())
             .field("state_root", &&hex::encode(self.state_root))
             .field("tx_root_hash", &hex::encode(self.tx_root_hash))
             .field(
@@ -64,13 +66,13 @@ impl Debug for Certificate {
                 &self
                     .target_subnets
                     .iter()
-                    .map(hex::encode)
+                    .map(|ts| ts.to_string())
                     .collect::<Vec<_>>(),
             )
             .field("verifier", &self.verifier)
-            .field("id", &self.id)
-            .field("proof", &self.proof)
-            .field("signature", &self.signature)
+            .field("id", &self.id.to_string())
+            .field("proof", &hex::encode(&self.proof))
+            .field("signature", &hex::encode(&self.signature))
             .finish()
     }
 }
@@ -117,7 +119,7 @@ impl Certificate {
 pub fn calculate_keccak256(certificate: &Certificate) -> Result<[u8; 32], Error> {
     let mut buffer = Vec::new();
     buffer.extend_from_slice(&certificate.prev_id.as_array()[..]);
-    buffer.extend_from_slice(&certificate.source_subnet_id[..]);
+    buffer.extend_from_slice(certificate.source_subnet_id.as_array());
     buffer.extend_from_slice(&certificate.state_root[..]);
     buffer.extend_from_slice(&certificate.tx_root_hash[..]);
     buffer.extend_from_slice(bincode::serialize(&certificate.target_subnets)?.as_slice());

@@ -391,13 +391,8 @@ async fn test_tce_open_stream_with_checkpoint(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let context = context_running_tce_test_node_with_filled_db.await;
 
-    let source_subnet_id: SubnetId = SubnetId {
-        value: common::SOURCE_SUBNET_ID.to_vec(),
-    };
-
-    let target_subnet_id: SubnetId = SubnetId {
-        value: common::TARGET_SUBNET_ID.to_vec(),
-    };
+    let source_subnet_id: SubnetId = common::SOURCE_SUBNET_ID.into();
+    let target_subnet_id: SubnetId = common::TARGET_SUBNET_ID.into();
 
     info!("Creating TCE node client");
     let mut client = match topos_core::api::tce::v1::api_service_client::ApiServiceClient::connect(

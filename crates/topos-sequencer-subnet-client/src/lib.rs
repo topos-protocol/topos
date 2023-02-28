@@ -279,13 +279,13 @@ impl SubnetClient {
         cert_position: u64,
     ) -> Result<web3::types::TransactionReceipt, Error> {
         let prev_cert_id: Token = Token::FixedBytes(cert.prev_id.as_array().to_vec());
-        let source_subnet_id: Token = Token::FixedBytes(cert.source_subnet_id.to_vec());
+        let source_subnet_id: Token = Token::FixedBytes(cert.source_subnet_id.into());
         let state_root: Token = Token::FixedBytes(cert.state_root.to_vec());
         let tx_root: Token = Token::FixedBytes(cert.tx_root_hash.to_vec());
         let target_subnets: Token = Token::Array(
             cert.target_subnets
                 .iter()
-                .map(|target_subnet| Token::FixedBytes(target_subnet.to_vec()))
+                .map(|target_subnet| Token::FixedBytes((*target_subnet).into()))
                 .collect::<Vec<Token>>(),
         );
         let verifier = Token::Uint(U256::from(cert.verifier));

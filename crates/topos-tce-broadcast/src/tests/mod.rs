@@ -12,8 +12,8 @@ use tokio::sync::broadcast::Receiver;
 use tokio::time::Duration;
 use topos_p2p::PeerId;
 
-const PREV_CERTIFICATE_ID: topos_core::uci::CertificateId = CertificateId::from_array([4u8; 32]);
-const SOURCE_SUBNET_ID: topos_core::uci::SubnetId = [1u8; 32];
+const PREV_CERTIFICATE_ID: CertificateId = CertificateId::from_array([4u8; 32]);
+const SOURCE_SUBNET_ID: SubnetId = SubnetId::from_array([1u8; 32]);
 const CHANNEL_SIZE: usize = 10;
 const WAIT_EVENT_TIMEOUT: Duration = Duration::from_secs(1);
 
