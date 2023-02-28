@@ -71,6 +71,7 @@ pub struct TceProxyConfig {
 /// 1) Fetch the delivered certificates from the TCE
 /// 2) Submit the new certificate to the TCE
 pub struct TceProxyWorker {
+    pub config: TceProxyConfig,
     commands: mpsc::UnboundedSender<TceProxyCommand>,
     events: mpsc::UnboundedReceiver<TceProxyEvent>,
 }
@@ -151,6 +152,7 @@ impl TceClient {
 pub struct TceClientBuilder {
     tce_endpoint: Option<String>,
     subnet_id: Option<SubnetId>,
+    tce_proxy_event_sender: Option<mpsc::UnboundedSender<TceProxyEvent>>,
 }
 
 impl TceClientBuilder {
@@ -161,6 +163,14 @@ impl TceClientBuilder {
 
     pub fn set_subnet_id(mut self, subnet_id: SubnetId) -> Self {
         self.subnet_id = Some(subnet_id);
+        self
+    }
+
+    pub fn set_proxy_event_sender(
+        mut self,
+        tce_proxy_event_sender: mpsc::UnboundedSender<TceProxyEvent>,
+    ) -> Self {
+        self.tce_proxy_event_sender = Some(tce_proxy_event_sender);
         self
     }
 
@@ -214,7 +224,9 @@ impl TceClientBuilder {
             mpsc::unbounded_channel::<()>();
 
         let subnet_id = *self.subnet_id.as_ref().ok_or(Error::InvalidSubnetId)?;
-        //let tce_endpoint = self.tce_endpoint.ok_or(Error::InvalidTceEndpoint)?.clone();
+
+        let tce_proxy_event_sender = self.tce_proxy_event_sender.clone();
+
         // Run task and process inbound watch certificate stream responses
         tokio::spawn(async move {
             // Listen for feedback from TCE service (WatchCertificatesResponse)
@@ -268,11 +280,18 @@ impl TceClientBuilder {
                                 error!(
                                     "Watch certificates response error for tce node {} subnet_id {:?}, error details: {}",
                                     &tce_endpoint, &subnet_id, e.to_string()
-                                )
+                                );
+                                // Send warning to restart TCE proxy
+                                if let Some(tce_proxy_event_sender) = tce_proxy_event_sender.clone() {
+                                    if let Err(e) = tce_proxy_event_sender.send(TceProxyEvent::WatchCertificatesChannelFailed) {
+                                          error!("Unable to send watch certificates channel failed signal: {e}");
+                                    }
+                                }
                             }
                         }
                     }
                     Some(_) = inbound_shutdown_receiver.recv() => {
+                        info!("Finishing watch certificates task...");
                         // Finish this task listener
                         break;
                     }
@@ -429,11 +448,12 @@ impl TceProxyWorker {
         let (mut tce_client, mut receiving_certificate_stream) = TceClientBuilder::default()
             .set_subnet_id(config.subnet_id)
             .set_tce_endpoint(&config.base_tce_api_url)
+            .set_proxy_event_sender(evt_sender.clone())
             .build_and_launch()
             .await?;
 
         // TODO: retrieve target stream position from the subnet node
-        let target_stream_positions = config.positions;
+        let target_stream_positions = config.positions.clone();
 
         tce_client.open_stream(target_stream_positions).await?;
 
@@ -498,6 +518,7 @@ impl TceProxyWorker {
             Self {
                 commands: command_sender,
                 events: evt_rcv,
+                config,
             },
             source_head_certificate,
         ))

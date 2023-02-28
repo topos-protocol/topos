@@ -4,7 +4,7 @@ use topos_sequencer_certification::CertificationWorker;
 use topos_sequencer_subnet_runtime_proxy::{SubnetRuntimeProxyConfig, SubnetRuntimeProxyWorker};
 use topos_sequencer_tce_proxy::{TceProxyConfig, TceProxyWorker};
 use topos_sequencer_types::SubnetId;
-use tracing::{error, info};
+use tracing::info;
 
 mod app_context;
 
@@ -47,9 +47,8 @@ pub async fn run(config: SequencerConfiguration) -> Result<(), Box<dyn std::erro
             (tce_proxy_worker, source_head_certificate_id)
         }
         Err(e) => {
-            error!("Error creating tce proxy worker, error: {e}");
             //TODO Handle retry gracefully
-            panic!("Unable to create TCE Proxy");
+            panic!("Unable to create TCE Proxy: {e}");
         }
     };
 
