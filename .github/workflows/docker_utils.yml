@@ -65,12 +65,18 @@ jobs:
         uses: docker/metadata-action@v4
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=schedule,pattern=scheduled-{{date 'YYYYMMDD'}}
+            type=ref,event=branch
+            type=ref,event=tag
+            type=ref,event=pr
 
       - name: Push to GitHub Container Registry
         uses: docker/build-push-action@v3
         with:
           context: .
-          push: true
+          # push only images targeting topos (e.g.: exclude test, lint, etc.)
+          push: ${{ inputs.target == 'topos' }}
           target: ${{ inputs.target }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
