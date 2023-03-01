@@ -318,7 +318,10 @@ impl SubnetRuntimeProxy {
         .await
         {
             Ok(subnet_client) => {
-                info!("Connected to subnet node to acquire checkpoints {}", &http_runtime_endpoint);
+                info!(
+                    "Connected to subnet node to acquire checkpoints {}",
+                    &http_runtime_endpoint
+                );
                 subnet_client
             }
             Err(e) => {
