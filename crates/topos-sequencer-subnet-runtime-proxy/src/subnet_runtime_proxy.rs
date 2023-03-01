@@ -318,11 +318,11 @@ impl SubnetRuntimeProxy {
         .await
         {
             Ok(subnet_client) => {
-                info!("Connected to subnet node {}", &http_runtime_endpoint);
+                info!("Connected to subnet node to acquire checkpoints {}", &http_runtime_endpoint);
                 subnet_client
             }
             Err(e) => {
-                error!("Unable to connect to the subnet node: {e}");
+                error!("Unable to connect to the subnet node to get checkpoints: {e}");
                 return Err(Error::SubnetError { source: e });
             }
         };

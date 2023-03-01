@@ -271,7 +271,7 @@ impl SubnetClient {
             match subnet_contract::derive_eth_address(&eth_admin_secret_key) {
                 Ok(address) => address,
                 Err(e) => {
-                    error!("Unable to derive admin addres from secret key, error instantiating subnet client: {}", e);
+                    error!("Unable to derive admin address from secret key, error instantiating subnet client: {}", e);
                     return Err(e);
                 }
             }
@@ -387,7 +387,8 @@ impl SubnetClient {
                                 .into(),
                         ),
                         source_subnet_id: TryInto::<[u8; 32]>::try_into(source_subnet_id)
-                            .map_err(|_| Error::InvalidCheckpointsData)?,
+                            .map_err(|_| Error::InvalidCheckpointsData)?
+                            .into(),
                         position,
                     });
                 } else {
