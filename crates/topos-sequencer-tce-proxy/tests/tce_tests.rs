@@ -392,16 +392,24 @@ async fn test_tce_open_stream_with_checkpoint(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let context = context_running_tce_test_node_with_filled_db.await;
 
-    let source_subnet_id: SubnetId = SubnetId {
-        value: common::SOURCE_SUBNET_ID.to_vec(),
+    let source_subnet_id_1: SubnetId = SubnetId {
+        value: common::SOURCE_SUBNET_ID_1.into(),
     };
+    let source_subnet_id_1_stream_position = 4;
+    let source_subnet_id_1_prefilled_certificates =
+        &context.prefilled_certificates.as_ref().unwrap()
+            [0..common::SOURCE_SUBNET_ID_1_NUMBER_OF_PREFILLED_CERTIFICATES];
 
     let source_subnet_id_2: SubnetId = SubnetId {
-        value: common::SOURCE_SUBNET_ID_2.to_vec(),
+        value: common::SOURCE_SUBNET_ID_2.into(),
     };
+    let source_subnet_id_2_stream_position = 2;
+    let source_subnet_id_2_prefilled_certificates =
+        &context.prefilled_certificates.as_ref().unwrap()
+            [common::SOURCE_SUBNET_ID_1_NUMBER_OF_PREFILLED_CERTIFICATES..];
 
     let target_subnet_id: SubnetId = SubnetId {
-        value: common::TARGET_SUBNET_ID.to_vec(),
+        value: common::TARGET_SUBNET_ID.into(),
     };
 
     info!("Creating TCE node client");
@@ -422,22 +430,17 @@ async fn test_tce_open_stream_with_checkpoint(
         target_subnet_ids: vec![target_subnet_id.clone()],
         positions: vec![
             TargetStreamPosition {
-                source_subnet_id: source_subnet_id.clone().into(),
+                source_subnet_id: source_subnet_id_1.clone().into(),
                 target_subnet_id: target_subnet_id.clone().into(),
-                position: 4,
-                certificate_id: context.prefilled_certificates.as_ref().unwrap()[3]
-                    .id
-                    .clone(),
+                position: source_subnet_id_1_stream_position,
+                certificate_id: source_subnet_id_1_prefilled_certificates[3].id.clone(),
             }
             .into(),
             TargetStreamPosition {
                 source_subnet_id: source_subnet_id_2.clone().into(),
                 target_subnet_id: target_subnet_id.clone().into(),
-                position: 2,
-                certificate_id: context.prefilled_certificates.as_ref().unwrap()
-                    [common::SOURCE_SUBNET_ID_NUMBER_OF_PREFILLED_CERTIFICATES + 1]
-                    .id
-                    .clone(),
+                position: source_subnet_id_2_stream_position,
+                certificate_id: source_subnet_id_2_prefilled_certificates[1].id.clone(),
             }
             .into(),
         ],
@@ -454,12 +457,12 @@ async fn test_tce_open_stream_with_checkpoint(
     );
     expected_certs.insert(
         context.prefilled_certificates.as_ref().unwrap()
-            [common::SOURCE_SUBNET_ID_NUMBER_OF_PREFILLED_CERTIFICATES + 2]
+            [common::SOURCE_SUBNET_ID_1_NUMBER_OF_PREFILLED_CERTIFICATES + 2]
             .source_subnet_id
             .clone()
             .unwrap(),
         context.prefilled_certificates.as_ref().unwrap()
-            [common::SOURCE_SUBNET_ID_NUMBER_OF_PREFILLED_CERTIFICATES + 2]
+            [common::SOURCE_SUBNET_ID_1_NUMBER_OF_PREFILLED_CERTIFICATES + 2]
             .clone(),
     );
 
