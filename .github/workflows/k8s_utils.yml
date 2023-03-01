@@ -79,7 +79,7 @@ jobs:
           helmfile -f helmfile-ci.yaml sync
 
       - name: Sleep
-        run: sleep 300s
+        run: sleep 60s
         shell: bash
 
       - name: Export logs from boot and peers
