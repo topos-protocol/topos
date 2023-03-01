@@ -403,9 +403,13 @@ impl DoubleEcho {
                     });
                 }
                 state_to_delivery.subscriptions.ready.clear();
+                state_modified = true;
             }
 
-            if is_ok_to_deliver(&self.params, state_to_delivery) {
+            if !state_to_delivery.subscriptions.delivery.is_empty()
+                && is_ok_to_deliver(&self.params, state_to_delivery)
+            {
+                state_to_delivery.subscriptions.delivery.clear();
                 self.pending_delivery.insert(
                     *certificate_id,
                     (certificate.clone(), state_to_delivery.ctx.clone()),
@@ -456,17 +460,19 @@ impl DoubleEcho {
         }
 
         if state_modified {
-            self.cert_candidate
-                .retain(|c, _| !self.pending_delivery.contains_key(c));
+            // Keep the candidates only if not delivered, or not (E|R)-Ready yet
+            self.cert_candidate.retain(|c, (_, state)| {
+                !self.pending_delivery.contains_key(c) || !state.subscriptions.ready.is_empty()
+            });
 
-            let cert_to_pending = self
+            let delivered_certificates = self
                 .pending_delivery
                 .iter()
                 .filter(|(_, (c, _))| self.cert_post_delivery_check(c).is_ok())
                 .map(|(c, s)| (*c, s.clone()))
                 .collect::<HashMap<_, _>>();
 
-            for (certificate_id, (certificate, ctx)) in cert_to_pending {
+            for (certificate_id, (certificate, ctx)) in delivered_certificates {
                 let span = info_span!("Delivered");
                 span.set_parent(ctx);
 
