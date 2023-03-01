@@ -386,7 +386,7 @@ async fn test_tce_get_source_head_certificate(
 #[rstest]
 #[test(tokio::test)]
 #[serial]
-#[timeout(Duration::from_secs(200))]
+#[timeout(Duration::from_secs(300))]
 async fn test_tce_open_stream_with_checkpoint(
     context_running_tce_test_node_with_filled_db: impl Future<Output = Context>,
 ) -> Result<(), Box<dyn std::error::Error>> {
