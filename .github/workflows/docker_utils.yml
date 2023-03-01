@@ -1,0 +1,83 @@
+name: Docker build and push
+
+on:
+  workflow_call:
+    inputs:
+      # Docker target (test | fmt | lint | topos | etc)
+      target:
+        required: false
+        type: string
+        default: topos
+      # Rust toolchain version (stable | nightly)
+      toolchain_version:
+        required: false
+        type: string
+        default: stable
+
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  AWS_SHARED_CREDENTIALS_FILE: "${{ github.workspace }}/.aws/credentials"
+
+jobs:
+  docker:
+    name: Build and push docker image to GitHub Container Registry
+    runs-on: ubuntu-latest-16-cores
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Inject slug/short variables
+        uses: rlespinasse/github-slug-action@v4
+        with:
+          short-length: 7
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
+
+      - name: Configure AWS credentials for cicd-devnet-1 account
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: arn:aws:iam::367397670706:role/GitHubRole
+          role-session-name: GitHubRole-session
+          aws-region: us-east-1
+          role-skip-session-tagging: true
+          role-duration-seconds: 3600
+
+      - name: Add profile credentials to .aws/credentials
+        run: |
+            aws configure set aws_access_key_id ${{ env.AWS_ACCESS_KEY_ID }} --profile default
+            aws configure set aws_secret_access_key ${{ env.AWS_SECRET_ACCESS_KEY }} --profile default
+            aws configure set aws_session_token ${{ env.AWS_SESSION_TOKEN }} --profile default
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+
+      - name: Push to GitHub Container Registry
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          push: true
+          target: ${{ inputs.target }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          secret-files: |
+            "aws=${{ github.workspace }}/.aws/credentials"
+          build-args: |
+            GITHUB_TOKEN=${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
+            TOOLCHAIN_VERSION=${{ inputs.toolchain_version }}
+            FEATURES=tce,sequencer
+            SCCACHE_S3_KEY_PREFIX=${{ inputs.target }}

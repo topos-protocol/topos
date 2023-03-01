@@ -1,40 +1,41 @@
 variable "name" {}
 variable "region" {}
 variable "cidr_block" {}
+variable "instance_type" {}
 variable "min_num_nodes" {}
 variable "max_num_nodes" {}
 
 # Recipe to create a k8s cluster in 2 AZs
 # access to the internet provided by 2 public subnets
 
-locals {
-  subnets = cidrsubnets("${var.cidr_block}", "2", "2", "2", "2")
-}
-
-data "aws_availability_zones" "available" {
-  state = "available"
-}
-
 provider "aws" {
   region = var.region
 }
 
+module "network" {
+  source = "git::https://github.com/toposware/infrastructure-as-code.git//terraform/modules/aws/network?ref=v0.1.1"
+
+  name       = var.name
+  cidr_block = var.cidr_block
+  subnet_num = 4
+
+}
+
 module "eks" {
-  source = "git::https://github.com/toposware/infrastructure-as-code.git//terraform/modules/aws/eks"
+  source = "git::https://github.com/toposware/infrastructure-as-code.git//terraform/modules/aws/eks?ref=v0.1.1"
 
-  name   = var.name
-  region = var.region
+  name = var.name
 
-  cidr_block         = var.cidr_block
-  private_subnets    = slice(local.subnets, 0, 2)
-  public_subnets     = slice(local.subnets, 2, 4)
-  availability_zones = data.aws_availability_zones.available
-
-  min_num_nodes = var.min_num_nodes
-  max_num_nodes = var.max_num_nodes
+  vpc_id             = module.network.vpc_id
+  subnet_public_ids  = module.network.subnet_public_ids
+  subnet_private_ids = module.network.subnet_private_ids
+  instance_type      = var.instance_type
+  min_num_nodes      = var.min_num_nodes
+  max_num_nodes      = var.max_num_nodes
 
   create_external_dns = false
   create_ebs          = false
+
 }
 
 output "cluster_name" {

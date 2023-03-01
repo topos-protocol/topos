@@ -1,0 +1,120 @@
+name: E2E tests on Kubernetes
+
+on:
+  workflow_call:
+
+jobs:
+  k8s:
+    name: Deploy k8s cluster and run Observability Stack
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/toposware/k8s_e2e:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set environment
+        run: |
+          sha=${{ github.sha }}
+          e2e_id="e2e-${sha:0:6}"
+          echo "E2E_ID=${e2e_id}" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Enable remote modules download
+        run: git config --global url."https://${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}@github.com/".insteadOf "https://github.com/"
+
+      - name: Configure AWS credentials for cicd-devnet-1 account
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: arn:aws:iam::367397670706:role/TerraformRole
+          role-session-name: Terraform-TerraformRole-session
+          aws-region: us-east-1
+          role-skip-session-tagging: true
+          role-duration-seconds: 3600
+
+      - name: Terraform init
+        working-directory: tools/terraform/cicd-devnet-1
+        run: |
+          terraform init \
+            -backend-config="key=${{ env.E2E_ID }}.tfstate" \
+            -backend-config=backend.conf
+
+      - name: Terraform apply
+        working-directory: tools/terraform/cicd-devnet-1
+        run: |
+          terraform apply -auto-approve \
+            -var "name=${{ env.E2E_ID }}" \
+            -var-file=terraform.tfvars.default
+
+      - name: Grab results from Terraform
+        working-directory: tools/terraform/cicd-devnet-1
+        run: |
+          filesystem_id=$(terraform output --raw eks_efs_id)
+          echo "FILESYSTEM_ID=${filesystem_id}" >> $GITHUB_ENV
+
+          eks_efs_csi_irsa_arn=$(terraform output --raw eks_efs_csi_irsa_arn)
+          echo "EKS_EFS_CSI_IRSA_ARN=${eks_efs_csi_irsa_arn}" >> $GITHUB_ENV
+
+      - name: Configure kubeconfig
+        working-directory: tools/terraform/cicd-devnet-1
+        run: aws eks update-kubeconfig --region us-east-1 --name $(terraform output --raw cluster_name)
+
+      - name: Helm Install
+        working-directory: tools/
+        env:
+          GITHUB_USERNAME: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}
+          DOCKER_TAG: main
+          DOCKER_USERNAME: ${{ github.actor }}
+          DOCKER_PASSWORD: ${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
+          FILESYSTEM_ID: ${{ env.FILESYSTEM_ID }}
+        run: |
+          helmfile -f helmfile-ci.yaml sync
+
+      - name: Sleep
+        run: sleep 60s
+        shell: bash
+
+      - name: Export logs from boot and peers
+        if: always()
+        run: |
+          mkdir -p ./logs
+          kubectl logs -l node=peer > ./logs/peer.log
+          kubectl logs -l node=boot > ./logs/boot.log
+          kubectl logs -l app=cert-spammer > ./logs/cert-spammer.log
+
+      - name: Publish logs as artifact
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: logs
+          path: ./logs/
+
+      - name: Helm Clean up
+        if: always()
+        working-directory: tools/
+        env:
+          GITHUB_USERNAME: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}
+          DOCKER_TAG: main
+          DOCKER_USERNAME: ${{ github.actor }}
+          DOCKER_PASSWORD: ${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
+          FILESYSTEM_ID: ${{ env.FILESYSTEM_ID }}
+          EKS_EFS_CSI_IRSA_ARN: ${{ env.EKS_EFS_CSI_IRSA_ARN }}
+        run: |
+          helmfile -f helmfile-ci.yaml destroy
+
+      - name: Terraform destroy
+        if: always()
+        working-directory: tools/terraform/cicd-devnet-1
+        run: |
+          terraform destroy -auto-approve \
+            -var "name=${{ env.E2E_ID }}" \
+            -var-file=terraform.tfvars.default
