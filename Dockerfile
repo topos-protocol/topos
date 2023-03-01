@@ -5,28 +5,28 @@ FROM ghcr.io/toposware/rust_builder:1.65-bullseye-${TOOLCHAIN_VERSION} AS base
 ARG FEATURES
 ARG GITHUB_TOKEN
 
+# Rust cache
+ARG SCCACHE_S3_KEY_PREFIX=topos
+ENV SCCACHE_BUCKET=cicd-devnet-1-sccache
+ENV SCCACHE_REGION=us-east-1
+ENV RUSTC_WRAPPER=/usr/local/cargo/bin/sccache
+
 RUN git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
 
 WORKDIR /usr/src/app
 
-FROM base AS planner
-COPY . .
-RUN cargo chef prepare --recipe-path recipe.json
-
 FROM base AS build
-COPY --from=planner /usr/src/app/recipe.json recipe.json
-RUN cargo chef cook --release --recipe-path recipe.json
 COPY . .
-RUN cargo build --release --no-default-features --features=${FEATURES}
+RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
+  cargo build --release --no-default-features --features=${FEATURES}
 
 FROM base AS test
-COPY --from=planner /usr/src/app/recipe.json recipe.json
-RUN cargo chef cook --all-targets --recipe-path recipe.json
 RUN cargo install cargo-nextest --locked
 COPY . .
 # topos-sequencer integration tests require specific setup, so excluding them here. They are executed
 # with sequencer_tcc_test.yml CI setup
-RUN cargo nextest run --workspace --exclude topos-sequencer-subnet-runtime-proxy --config-file tools/config/nextest.toml && cargo test --doc --workspace
+RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
+  cargo nextest run --workspace --exclude topos-sequencer-subnet-runtime-proxy --config-file tools/config/nextest.toml && cargo test --doc --workspace
 
 FROM base AS fmt
 RUN rustup component add rustfmt
@@ -35,19 +35,16 @@ RUN cargo fmt --all -- --check
 
 FROM base AS lint
 RUN rustup component add clippy
-COPY --from=planner /usr/src/app/recipe.json recipe.json
-RUN cargo chef cook --recipe-path recipe.json
 COPY . .
-RUN cargo clippy --all
+RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
+  cargo clippy --all
 
 FROM base AS audit
-COPY --from=planner /usr/src/app/recipe.json recipe.json
-RUN cargo chef cook --recipe-path recipe.json
 RUN cargo install cargo-audit --locked
 COPY . .
 RUN cargo audit
 
-FROM debian:bullseye-slim
+FROM debian:bullseye-slim AS topos
 
 ENV TCE_PORT=9090
 ENV USER=topos
