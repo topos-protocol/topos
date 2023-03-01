@@ -6,15 +6,15 @@ on:
     - cron:  '30 5 * * *'
   push:
     # Triggers on merge into main
-    branches: [main]
+    branches: [main, test/clean-up-ci]
 
 jobs:
   docker:
-    uses: toposware/topos/.github/workflows/docker_utils.yml@main
+    uses: toposware/topos/.github/workflows/docker_utils.yml@test/clean-up-ci
     secrets: inherit
   k8s:
     # run only when the workflow was scheduled or a PR is being merged into main
     if: ${{ (github.event_name == 'push') || (github.event_name == 'schedule') }}
     needs: docker
-    uses: toposware/topos/.github/workflows/k8s_utils.yml@main
+    uses: toposware/topos/.github/workflows/k8s_utils.yml@test/clean-up-ci
     secrets: inherit

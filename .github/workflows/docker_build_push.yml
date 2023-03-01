@@ -2,9 +2,9 @@ name: Docker_build_push
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, test/clean-up-ci]
 
 jobs:
   docker:
-    uses: toposware/topos/.github/workflows/docker_utils.yml@main
+    uses: toposware/topos/.github/workflows/docker_utils.yml@test/clean-up-ci
     secrets: inherit
