@@ -1,6 +1,7 @@
 use futures::{Future, StreamExt};
 use rstest::*;
 use serial_test::serial;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::str::FromStr;
 use test_log::test;
@@ -20,7 +21,7 @@ use tracing::{debug, error, info};
 
 mod common;
 
-const TCE_NODE_STARTUP_DELAY: Duration = Duration::from_secs(5);
+const TCE_NODE_STARTUP_DELAY: Duration = Duration::from_secs(7);
 
 #[allow(dead_code)]
 struct Context {
@@ -385,14 +386,31 @@ async fn test_tce_get_source_head_certificate(
 #[rstest]
 #[test(tokio::test)]
 #[serial]
-#[ignore = "tce needs to implement streaming from checkpoint"]
+#[timeout(Duration::from_secs(300))]
 async fn test_tce_open_stream_with_checkpoint(
     context_running_tce_test_node_with_filled_db: impl Future<Output = Context>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let context = context_running_tce_test_node_with_filled_db.await;
 
-    let source_subnet_id: SubnetId = common::SOURCE_SUBNET_ID.into();
-    let target_subnet_id: SubnetId = common::TARGET_SUBNET_ID.into();
+    let source_subnet_id_1: SubnetId = SubnetId {
+        value: common::SOURCE_SUBNET_ID_1.into(),
+    };
+    let source_subnet_id_1_stream_position = 4;
+    let source_subnet_id_1_prefilled_certificates =
+        &context.prefilled_certificates.as_ref().unwrap()
+            [0..common::SOURCE_SUBNET_ID_1_NUMBER_OF_PREFILLED_CERTIFICATES];
+
+    let source_subnet_id_2: SubnetId = SubnetId {
+        value: common::SOURCE_SUBNET_ID_2.into(),
+    };
+    let source_subnet_id_2_stream_position = 2;
+    let source_subnet_id_2_prefilled_certificates =
+        &context.prefilled_certificates.as_ref().unwrap()
+            [common::SOURCE_SUBNET_ID_1_NUMBER_OF_PREFILLED_CERTIFICATES..];
+
+    let target_subnet_id: SubnetId = SubnetId {
+        value: common::TARGET_SUBNET_ID.into(),
+    };
 
     info!("Creating TCE node client");
     let mut client = match topos_core::api::tce::v1::api_service_client::ApiServiceClient::connect(
@@ -407,18 +425,61 @@ async fn test_tce_open_stream_with_checkpoint(
         }
     };
 
+    // Ask for target checkpoint for 2 subnets, one from position 4, other from position 2
     let target_checkpoint = TargetCheckpoint {
         target_subnet_ids: vec![target_subnet_id.clone()],
-        positions: vec![TargetStreamPosition {
-            source_subnet_id: source_subnet_id.clone().into(),
-            target_subnet_id: target_subnet_id.clone().into(),
-            position: 4,
-            certificate_id: context.prefilled_certificates.as_ref().unwrap()[3]
-                .id
-                .clone(),
-        }
-        .into()],
+        positions: vec![
+            TargetStreamPosition {
+                source_subnet_id: source_subnet_id_1.clone().into(),
+                target_subnet_id: target_subnet_id.clone().into(),
+                position: source_subnet_id_1_stream_position,
+                certificate_id: source_subnet_id_1_prefilled_certificates[3].id.clone(),
+            }
+            .into(),
+            TargetStreamPosition {
+                source_subnet_id: source_subnet_id_2.clone().into(),
+                target_subnet_id: target_subnet_id.clone().into(),
+                position: source_subnet_id_2_stream_position,
+                certificate_id: source_subnet_id_2_prefilled_certificates[1].id.clone(),
+            }
+            .into(),
+        ],
     };
+
+    // Make list of expected certificate, first received certificate for every source subnet
+    let mut expected_certs = HashMap::<SubnetId, Certificate>::new();
+    expected_certs.insert(
+        context.prefilled_certificates.as_ref().unwrap()[4]
+            .source_subnet_id
+            .clone()
+            .unwrap(),
+        context.prefilled_certificates.as_ref().unwrap()[4].clone(),
+    );
+    expected_certs.insert(
+        context.prefilled_certificates.as_ref().unwrap()
+            [common::SOURCE_SUBNET_ID_1_NUMBER_OF_PREFILLED_CERTIFICATES + 2]
+            .source_subnet_id
+            .clone()
+            .unwrap(),
+        context.prefilled_certificates.as_ref().unwrap()
+            [common::SOURCE_SUBNET_ID_1_NUMBER_OF_PREFILLED_CERTIFICATES + 2]
+            .clone(),
+    );
+
+    info!("Prefilled certificates:");
+    let mut index = -1;
+    context
+        .prefilled_certificates
+        .as_ref()
+        .unwrap()
+        .iter()
+        .map(|c| (c.id.as_ref().unwrap().clone()))
+        .collect::<Vec<_>>()
+        .iter()
+        .for_each(|id| {
+            index = index + 1;
+            info!("{index}: {id}")
+        });
 
     //Outbound stream
     let in_stream = async_stream::stream! {
@@ -431,25 +492,51 @@ async fn test_tce_open_stream_with_checkpoint(
     let mut resp_stream = response.into_inner();
     info!("TCE client: waiting for watch certificate response");
     while let Some(received) = resp_stream.next().await {
-        info!("TCE client received: {:?}", received);
+        debug!("TCE client received: {:?}", received);
         let received = received.unwrap();
         match received.event {
             Some(watch_certificates_response::Event::CertificatePushed(CertificatePushed {
-                certificate: Some(certificate),
+                certificate: Some(received_certificate),
             })) => {
-                info!("Certificate received {:?}", certificate);
-                assert_eq!(
-                    context.prefilled_certificates.as_ref().unwrap()[4].id,
-                    certificate.id
-                );
+                if let Some(expected_first_certificate_from_subnet) =
+                    expected_certs.get(received_certificate.source_subnet_id.as_ref().unwrap())
+                {
+                    info!(
+                        "\n\nCertificate received: {} source sid {}, target sid {}",
+                        received_certificate.id.as_ref().unwrap(),
+                        received_certificate.source_subnet_id.as_ref().unwrap(),
+                        received_certificate.target_subnets[0]
+                    );
+                    assert_eq!(
+                        received_certificate,
+                        *expected_first_certificate_from_subnet
+                    );
+                    // First certificate received from source subnet, remove it from the expected list
+                    expected_certs.remove(received_certificate.source_subnet_id.as_ref().unwrap());
+                    info!(
+                        "Received valid first certificate from source subnet {} certificate id {}",
+                        received_certificate.source_subnet_id.as_ref().unwrap(),
+                        received_certificate.id.as_ref().unwrap(),
+                    );
+                } else {
+                    debug!(
+                        "\n\nAdditional certificate received from the source subnet: {} source sid {}, target sid {}",
+                        received_certificate.id.as_ref().unwrap(),
+                        received_certificate.source_subnet_id.as_ref().unwrap(),
+                        received_certificate.target_subnets[0]
+                    );
+                }
+
+                if expected_certs.is_empty() {
+                    info!("All expected certificates received");
+                    break;
+                }
             }
             Some(watch_certificates_response::Event::StreamOpened(
                 watch_certificates_response::StreamOpened { subnet_ids },
             )) => {
                 debug!("TCE client: stream opened for subnet_ids {:?}", subnet_ids);
-                assert_eq!(subnet_ids[0].value, target_subnet_id.value);
-                // We have opened connection and 2 way stream, finishing test
-                break;
+                continue;
             }
             Some(watch_certificates_response::Event::CertificatePushed(CertificatePushed {
                 certificate: None,
