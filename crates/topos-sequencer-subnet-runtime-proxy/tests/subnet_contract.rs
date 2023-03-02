@@ -5,6 +5,7 @@ use fs_extra::dir::{copy, create_all, CopyOptions};
 use rstest::*;
 use secp256k1::SecretKey;
 use serial_test::serial;
+use std::collections::HashSet;
 use std::env;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -19,6 +20,7 @@ use web3::types::{BlockNumber, Log};
 
 mod common;
 use common::subnet_test_data::generate_test_validator_dir;
+use topos_core::api::checkpoints::TargetStreamPosition;
 use topos_sequencer_subnet_runtime_proxy::{SubnetRuntimeProxyConfig, SubnetRuntimeProxyWorker};
 
 const SUBNET_TCC_JSON_DEFINITION: &'static str = "ToposCore.json";
@@ -32,11 +34,14 @@ const POLYGON_EDGE_CONTAINER_TAG: &str = "develop";
 const SUBNET_STARTUP_DELAY: u64 = 5; // seconds left for subnet startup
 const TOPOS_SMART_CONTRACTS_BUILD_PATH_VAR: &str = "TOPOS_SMART_CONTRACTS_BUILD_PATH";
 
-const SOURCE_SUBNET_ID: SubnetId = SubnetId::from_array([1u8; 32]);
+const SOURCE_SUBNET_ID_1: SubnetId = SubnetId::from_array([1u8; 32]);
 const SOURCE_SUBNET_ID_2: SubnetId = SubnetId::from_array([2u8; 32]);
-const PREV_CERTIFICATE_ID: CertificateId = CertificateId::from_array([4u8; 32]);
-const CERTIFICATE_ID: CertificateId = CertificateId::from_array([5u8; 32]);
-const CERTIFICATE_ID_2: CertificateId = CertificateId::from_array([6u8; 32]);
+const TARGET_SUBNET_ID: SubnetId = SubnetId::from_array([3u8; 32]);
+const PREV_CERTIFICATE_ID_1: CertificateId = CertificateId::from_array([4u8; 32]);
+const PREV_CERTIFICATE_ID_2: CertificateId = CertificateId::from_array([5u8; 32]);
+const CERTIFICATE_ID_1: CertificateId = CertificateId::from_array([6u8; 32]);
+const CERTIFICATE_ID_2: CertificateId = CertificateId::from_array([7u8; 32]);
+const CERTIFICATE_ID_3: CertificateId = CertificateId::from_array([8u8; 32]);
 
 async fn deploy_contract<T, U>(
     contract_file_path: &str,
@@ -151,7 +156,7 @@ async fn deploy_contracts(
         &eth_private_key,
         Some((
             token_deployer_contract.address(),
-            SOURCE_SUBNET_ID.as_array().to_owned(),
+            SOURCE_SUBNET_ID_1.as_array().to_owned(),
         )),
     )
     .await?;
@@ -475,7 +480,7 @@ async fn test_create_runtime() -> Result<(), Box<dyn std::error::Error>> {
     let subnet_data_dir = generate_test_validator_dir()?;
     info!("Creating runtime proxy...");
     let runtime_proxy_worker = SubnetRuntimeProxyWorker::new(SubnetRuntimeProxyConfig {
-        subnet_id: SOURCE_SUBNET_ID,
+        subnet_id: SOURCE_SUBNET_ID_1,
         endpoint: format!("localhost:{}", SUBNET_RPC_PORT),
         subnet_contract_address: "0x0000000000000000000000000000000000000000".to_string(),
         subnet_data_dir,
@@ -502,7 +507,7 @@ async fn test_subnet_certificate_push_call(
     let subnet_smart_contract_address =
         "0x".to_string() + &hex::encode(context.subnet_contract.address());
     let runtime_proxy_worker = SubnetRuntimeProxyWorker::new(SubnetRuntimeProxyConfig {
-        subnet_id: SOURCE_SUBNET_ID,
+        subnet_id: SOURCE_SUBNET_ID_1,
         endpoint: context.jsonrpc(),
         subnet_contract_address: subnet_smart_contract_address.clone(),
         subnet_data_dir,
@@ -511,10 +516,10 @@ async fn test_subnet_certificate_push_call(
 
     // TODO: Adjust this mock certificate when ToposCoreContract gets stable enough
     let mock_cert = Certificate {
-        source_subnet_id: SOURCE_SUBNET_ID,
-        id: CERTIFICATE_ID,
-        prev_id: PREV_CERTIFICATE_ID,
-        target_subnets: vec![SOURCE_SUBNET_ID],
+        source_subnet_id: SOURCE_SUBNET_ID_1,
+        id: CERTIFICATE_ID_1,
+        prev_id: PREV_CERTIFICATE_ID_1,
+        target_subnets: vec![SOURCE_SUBNET_ID_1],
         ..Default::default()
     };
     info!("Sending mock certificate to subnet smart contract...");
@@ -548,59 +553,77 @@ async fn test_subnet_certificate_push_call(
     Ok(())
 }
 
-/// Test get last certificate id from subnet smart contract
+/// Test get last checkpoints from subnet smart contract
 #[rstest]
 #[test(tokio::test)]
 #[serial]
-async fn test_subnet_certificate_get_last_pushed_call(
+async fn test_subnet_certificate_get_checkpoints_call(
     #[with(8546)]
     #[future]
     context_running_subnet_node: Context,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    use topos_core::api::checkpoints;
     let context = context_running_subnet_node.await;
     let subnet_smart_contract_address =
         "0x".to_string() + &hex::encode(context.subnet_contract.address());
     let subnet_jsonrpc_endpoint = "http://".to_string() + &context.jsonrpc();
 
-    // Get last pushed certificate when contract is empty
+    // Get checkpoints when contract is empty
     let subnet_client = topos_sequencer_subnet_client::SubnetClient::new(
         &subnet_jsonrpc_endpoint,
-        hex::decode(TEST_SECRET_ETHEREUM_KEY).unwrap(),
+        Some(hex::decode(TEST_SECRET_ETHEREUM_KEY).unwrap()),
         &subnet_smart_contract_address,
     )
     .await
     .expect("Valid subnet client");
-    let (cert_id, cert_position) = match subnet_client.get_latest_pushed_cert_with_retry().await {
+    let target_stream_positions = match subnet_client.get_checkpoints(&TARGET_SUBNET_ID).await {
         Ok(result) => result,
         Err(e) => {
             panic!("Unable to get latest certificate id and position: {e}");
         }
     };
+    assert_eq!(
+        target_stream_positions,
+        Vec::<checkpoints::TargetStreamPosition>::new()
+    );
 
-    assert_eq!((cert_id, cert_position), (Default::default(), 0));
-
-    //TODO: Adjust this mock certificate when ToposCoreContract gets stable enough
     let test_certificates = vec![
-        Certificate {
-            source_subnet_id: SOURCE_SUBNET_ID_2,
-            id: CERTIFICATE_ID,
-            prev_id: PREV_CERTIFICATE_ID,
-            target_subnets: vec![SOURCE_SUBNET_ID],
-            ..Default::default()
-        },
-        Certificate {
-            source_subnet_id: SOURCE_SUBNET_ID_2,
-            id: CERTIFICATE_ID_2,
-            prev_id: CERTIFICATE_ID,
-            target_subnets: vec![SOURCE_SUBNET_ID],
-            ..Default::default()
-        },
+        (
+            Certificate {
+                source_subnet_id: SOURCE_SUBNET_ID_1,
+                id: CERTIFICATE_ID_1,
+                prev_id: PREV_CERTIFICATE_ID_1,
+                target_subnets: vec![TARGET_SUBNET_ID],
+                ..Default::default()
+            },
+            0,
+        ),
+        (
+            Certificate {
+                source_subnet_id: SOURCE_SUBNET_ID_2,
+                id: CERTIFICATE_ID_2,
+                prev_id: PREV_CERTIFICATE_ID_2,
+                target_subnets: vec![TARGET_SUBNET_ID],
+                ..Default::default()
+            },
+            0,
+        ),
+        (
+            Certificate {
+                source_subnet_id: SOURCE_SUBNET_ID_1,
+                id: CERTIFICATE_ID_3,
+                prev_id: CERTIFICATE_ID_1,
+                target_subnets: vec![TARGET_SUBNET_ID],
+                ..Default::default()
+            },
+            1,
+        ),
     ];
 
-    for (index, test_cert) in test_certificates.iter().enumerate() {
+    for (test_cert, test_cert_position) in test_certificates.iter() {
         info!("Pushing certificate id={:?}", test_cert.id);
         match subnet_client
-            .push_certificate(&test_cert, index as u64)
+            .push_certificate(&test_cert, *test_cert_position as u64)
             .await
         {
             Ok(_) => {
@@ -612,17 +635,36 @@ async fn test_subnet_certificate_get_last_pushed_call(
         }
     }
 
-    info!("Getting latest cert id and position");
-    let (final_cert_id, final_cert_position) =
-        match subnet_client.get_latest_pushed_cert_with_retry().await {
-            Ok(result) => result,
-            Err(e) => {
-                panic!("Unable to get the latest certificate id and position: {e}");
-            }
-        };
+    info!("Getting latest checkpoints ");
+    let target_stream_positions = match subnet_client.get_checkpoints(&TARGET_SUBNET_ID).await {
+        Ok(result) => result,
+        Err(e) => {
+            panic!("Unable to get the latest certificate id and position: {e}");
+        }
+    };
+
+    let expected_positions = vec![
+        TargetStreamPosition {
+            target_subnet_id: TARGET_SUBNET_ID,
+            source_subnet_id: SOURCE_SUBNET_ID_1,
+            certificate_id: Some(CERTIFICATE_ID_3),
+            position: 1,
+        },
+        TargetStreamPosition {
+            target_subnet_id: TARGET_SUBNET_ID,
+            source_subnet_id: SOURCE_SUBNET_ID_2,
+            certificate_id: Some(CERTIFICATE_ID_2),
+            position: 0,
+        },
+    ]
+    .into_iter()
+    .collect::<HashSet<TargetStreamPosition>>();
+
     assert_eq!(
-        (final_cert_id, final_cert_position),
-        (test_certificates.last().unwrap().id, 1)
+        target_stream_positions
+            .into_iter()
+            .collect::<std::collections::HashSet<TargetStreamPosition>>(),
+        expected_positions
     );
 
     info!("Shutting down context...");

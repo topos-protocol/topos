@@ -8,6 +8,7 @@ use subnet_runtime_proxy::SubnetRuntimeProxy;
 use thiserror::Error;
 use tokio::sync::Mutex;
 use tokio::sync::{mpsc, oneshot};
+use topos_core::api::checkpoints::TargetStreamPosition;
 use topos_sequencer_types::*;
 
 pub type Peer = String;
@@ -49,8 +50,10 @@ pub enum Error {
     },
     #[error("Invalid key error: {message}")]
     InvalidKeyError { message: String },
+
     #[error("Unable to execute shutdown on the subnet runtime proxy: {0}")]
     ShutdownCommunication(mpsc::error::SendError<oneshot::Sender<()>>),
+
     #[error("Shutdown channel receive error {0}")]
     ShutdownSignalReceiveError(tokio::sync::oneshot::error::RecvError),
 }
@@ -108,6 +111,11 @@ impl SubnetRuntimeProxyWorker {
     pub async fn shutdown(&mut self) -> Result<(), Error> {
         let runtime_proxy = self.runtime_proxy.lock().await;
         runtime_proxy.shutdown().await
+    }
+
+    pub async fn get_checkpoints(&self) -> Result<Vec<TargetStreamPosition>, Error> {
+        let runtime_proxy = self.runtime_proxy.lock().await;
+        runtime_proxy.get_checkpoints().await
     }
 }
 

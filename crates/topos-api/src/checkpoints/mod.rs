@@ -7,7 +7,7 @@ mod positions;
 pub use errors::*;
 pub use positions::*;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq, Eq)]
 pub struct TargetCheckpoint {
     pub target_subnet_ids: Vec<SubnetId>,
     pub positions: Vec<TargetStreamPosition>,

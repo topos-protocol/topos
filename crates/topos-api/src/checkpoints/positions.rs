@@ -3,7 +3,7 @@ use topos_uci::{CertificateId, SubnetId};
 
 use super::TargetStreamPositionError;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TargetStreamPosition {
     pub target_subnet_id: SubnetId,
     pub source_subnet_id: SubnetId,

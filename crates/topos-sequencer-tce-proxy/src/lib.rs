@@ -452,10 +452,7 @@ impl TceProxyWorker {
             .build_and_launch()
             .await?;
 
-        // TODO: retrieve target stream position from the subnet node
-        let target_stream_positions = config.positions.clone();
-
-        tce_client.open_stream(target_stream_positions).await?;
+        tce_client.open_stream(config.positions.clone()).await?;
 
         // Retrieve source head from TCE node, so that
         // we know from where to start creating certificates
