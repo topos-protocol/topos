@@ -13,7 +13,6 @@ use topos_sequencer_types::*;
 
 pub type Peer = String;
 
-pub mod keystore;
 pub mod subnet_runtime_proxy;
 
 #[derive(Debug, Error)]
@@ -38,18 +37,12 @@ pub enum Error {
         #[from]
         source: topos_sequencer_subnet_client::Error,
     },
-    #[error("keystore error: {source}")]
-    KeystoreError {
+
+    #[error("Unable to retrieve key error: {source}")]
+    UnableToRetrieveKey {
         #[from]
-        source: eth_keystore::KeystoreError,
+        source: topos_crypto::Error,
     },
-    #[error("Keystore file io error: {source}")]
-    KeystoreFileError {
-        #[from]
-        source: std::io::Error,
-    },
-    #[error("Invalid key error: {message}")]
-    InvalidKeyError { message: String },
 
     #[error("Unable to execute shutdown on the subnet runtime proxy: {0}")]
     ShutdownCommunication(mpsc::error::SendError<oneshot::Sender<()>>),
@@ -63,7 +56,6 @@ pub struct SubnetRuntimeProxyConfig {
     pub subnet_id: SubnetId,
     pub endpoint: String,
     pub subnet_contract_address: String,
-    pub subnet_data_dir: std::path::PathBuf,
 }
 
 /// Thread safe client to the protocol aggregate
@@ -78,8 +70,11 @@ impl SubnetRuntimeProxyWorker {
     /// Creates new instance of the aggregate and returns proxy to it.
     /// New client instances to the same aggregate can be cloned from the returned one.
     /// Aggregate is spawned as new task.
-    pub async fn new(config: SubnetRuntimeProxyConfig) -> Result<Self, Error> {
-        let runtime_proxy = SubnetRuntimeProxy::spawn_new(config)?;
+    pub async fn new(
+        config: SubnetRuntimeProxyConfig,
+        eth_admin_private_key: Vec<u8>,
+    ) -> Result<Self, Error> {
+        let runtime_proxy = SubnetRuntimeProxy::spawn_new(config, eth_admin_private_key)?;
         let (events_sender, events_rcv) = mpsc::unbounded_channel::<SubnetRuntimeProxyEvent>();
         let commands;
         {

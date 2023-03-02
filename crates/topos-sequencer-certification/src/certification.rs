@@ -22,6 +22,7 @@ pub struct Certification {
     pub verifier: u32,
     command_shutdown: mpsc::Sender<oneshot::Sender<()>>,
     cert_gen_shutdown: mpsc::Sender<oneshot::Sender<()>>,
+    signing_key: Vec<u8>,
 }
 
 impl Debug for Certification {
@@ -35,6 +36,7 @@ impl Certification {
         subnet_id: SubnetId,
         source_head_certificate_id: Option<CertificateId>,
         verifier: u32,
+        eth_admin_private_key: Vec<u8>,
     ) -> Result<Arc<Mutex<Certification>>, crate::Error> {
         let (command_sender, mut command_rcv) = mpsc::unbounded_channel::<CertificationCommand>();
         let (command_shutdown_channel, mut command_shutdown) =
@@ -59,6 +61,7 @@ impl Certification {
             verifier,
             command_shutdown: command_shutdown_channel,
             cert_gen_shutdown: cert_gen_shutdown_channel,
+            signing_key: eth_admin_private_key,
         }));
         // Certification info for passing for async tasks
         let me_cl = me.clone();
@@ -196,7 +199,7 @@ impl Certification {
                 }
             };
 
-            let certificate = Certificate::new(
+            let mut certificate = Certificate::new(
                 previous_cert_id,
                 subnet_id,
                 block_info.state_root,
@@ -205,6 +208,9 @@ impl Certification {
                 certification.verifier,
             )
             .map_err(|e| Error::CertificateGenerationError(e.to_string()))?;
+            certificate
+                .update_signature(certification.get_signing_key())
+                .map_err(Error::CertificateSigningError)?;
             generated_certificates.push(certificate);
         }
 
@@ -226,6 +232,10 @@ impl Certification {
         certification.finalized_blocks.clear();
 
         Ok(generated_certificates)
+    }
+
+    pub fn get_signing_key(&self) -> &[u8] {
+        self.signing_key.as_slice()
     }
 
     // Shutdown certification entity

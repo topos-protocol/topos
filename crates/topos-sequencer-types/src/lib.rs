@@ -93,8 +93,8 @@ pub enum SubnetRuntimeProxyCommand {
     /// Push the Certificate to the subnet runtime
     PushCertificate(Certificate),
 
-    /// propagate transacitons to the runtime
-    OnNewDeliveredTxns(Certificate),
+    /// propagate transacitons to the runtime, certificate and its position
+    OnNewDeliveredTxns((Certificate, u64)),
 }
 
 #[derive(Debug)]
@@ -108,8 +108,8 @@ pub enum TceProxyCommand {
 
 #[derive(Debug, Clone)]
 pub enum TceProxyEvent {
-    /// New delivered certificate fetched from the TCE network
-    NewDeliveredCerts(Vec<Certificate>),
+    /// New delivered certificate (and its position) fetched from the TCE network
+    NewDeliveredCerts(Vec<(Certificate, u64)>),
     /// Failed watching certificates channel
     /// Requires restart of sequencer tce proxy
     WatchCertificatesChannelFailed,

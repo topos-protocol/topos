@@ -32,6 +32,7 @@ impl Debug for SubnetRuntimeProxy {
 impl SubnetRuntimeProxy {
     pub fn spawn_new(
         config: SubnetRuntimeProxyConfig,
+        eth_admin_private_key: Vec<u8>,
     ) -> Result<Arc<Mutex<SubnetRuntimeProxy>>, crate::Error> {
         info!(
             "Spawning new runtime proxy, endpoint: {} ethereum contract address: {}, ",
@@ -46,35 +47,6 @@ impl SubnetRuntimeProxy {
             mpsc::channel::<oneshot::Sender<()>>(1);
         let (block_task_shutdown_channel, mut block_task_shutdown) =
             mpsc::channel::<oneshot::Sender<()>>(1);
-
-        // Get ethereum private key from keystore
-        debug!(
-            "Retrieving ethereum private key from subnet node {:?}",
-            config.subnet_data_dir.to_str()
-        );
-
-        let key_file_path = std::path::PathBuf::from(
-            &(config
-                .subnet_data_dir
-                .to_str()
-                .unwrap_or_default()
-                .to_string()
-                + crate::keystore::SUBNET_NODE_VALIDATOR_KEY_FILE_PATH),
-        );
-
-        // To sign transactions sent to Topos core contract, use admin private key from keystore
-        //TODO handle this key in more secure way (e.g. use SafeSecretKey)
-        let eth_admin_private_key: Vec<u8> =
-            match crate::keystore::get_private_key(&key_file_path, None) {
-                Ok(key) => key,
-                Err(e) => {
-                    error!(
-                        "unable to get ethereum private key from keystore, details: {}",
-                        e
-                    );
-                    return Err(e);
-                }
-            };
 
         let runtime_proxy = Arc::new(Mutex::from(Self {
             commands_channel: command_sender,
@@ -241,10 +213,36 @@ impl SubnetRuntimeProxy {
                     info!("New received Certificate {:?}", c);
                 }
                 // Process certificate retrieved from TCE node
-                SubnetRuntimeProxyCommand::OnNewDeliveredTxns(cert) => {
-                    info!("on_command - OnNewDeliveredTxns cert_id={:?}", &cert.id);
+                SubnetRuntimeProxyCommand::OnNewDeliveredTxns((cert, cert_position)) => {
+                    info!(
+                        "Processing certificate received from TCE, cert_id=0x{}",
+                        &cert.id
+                    );
 
-                    let cert_position = 0; //TODO Retrieve cert position from TCE node
+                    // Verify certificate signature
+                    // Well known subnet id is public key for certificate verification
+                    // Public key of secp256k1 is 33 bytes, we are keeping last 32 bytes as subnet id
+                    // Add manually first byte 0x02
+                    let mut public_key: Vec<u8> = vec![0x02u8];
+                    public_key.extend_from_slice(cert.source_subnet_id.as_array());
+
+                    // Verify signature of the certificate
+                    match topos_crypto::signatures::verify(
+                        public_key.as_slice(),
+                        cert.get_payload().as_slice(),
+                        cert.signature.as_slice(),
+                    ) {
+                        Ok(()) => {
+                            info!("Certificate 0x{} passed verification", cert.id)
+                        }
+                        Err(e) => {
+                            error!(
+                                "Failed to verify certificate id 0x{}, details: {e}",
+                                cert.id
+                            );
+                            return;
+                        }
+                    }
 
                     // Pass certificate to target subnet Topos core contract
                     match SubnetRuntimeProxy::push_certificate(

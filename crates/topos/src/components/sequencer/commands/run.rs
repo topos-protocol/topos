@@ -5,12 +5,8 @@ use std::path::PathBuf;
 #[command(about = "Run a full Topos Sequencer instance")]
 pub struct Run {
     /// SubnetId of the local subnet node, hex encoded 32 bytes starting with 0x
-    #[clap(
-        long,
-        default_value = "0x0000000000000000000000000000000000000000000000000000000000000000",
-        env = "TOPOS_LOCAL_SUBNET_ID"
-    )]
-    pub subnet_id: String,
+    #[clap(long, env = "TOPOS_LOCAL_SUBNET_ID")]
+    pub subnet_id: Option<String>,
 
     // Subnet endpoint in the form [ip address]:[port]
     // Topos sequencer expects both websocket and http protocol available

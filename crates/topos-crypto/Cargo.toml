@@ -1,0 +1,18 @@
+[package]
+name = "topos-crypto"
+description = "Implementation of the Topos crypto utility functions"
+license = "MIT"
+version = "0.1.0"
+authors = ["Toposware Developers <dev@toposware.com>"]
+edition = "2021"
+
+[dependencies]
+secp256k1.workspace = true
+byteorder.workspace = true
+clap.workspace = true
+hex.workspace = true
+thiserror.workspace = true
+
+keccak-hash = "0.10.0"
+eth-keystore = "0.5.0"
+ethereum-tx-sign = "6.0"

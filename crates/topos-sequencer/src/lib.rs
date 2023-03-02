@@ -1,41 +1,91 @@
 use crate::app_context::AppContext;
+use std::io::ErrorKind;
 use std::io::ErrorKind::InvalidInput;
 use topos_sequencer_certification::CertificationWorker;
 use topos_sequencer_subnet_runtime_proxy::{SubnetRuntimeProxyConfig, SubnetRuntimeProxyWorker};
 use topos_sequencer_tce_proxy::{TceProxyConfig, TceProxyWorker};
 use topos_sequencer_types::SubnetId;
-use tracing::info;
+use tracing::{error, info};
 
 mod app_context;
 
 #[derive(Debug)]
 pub struct SequencerConfiguration {
-    pub subnet_id: String,
+    pub subnet_id: Option<String>,
     pub subnet_jsonrpc_endpoint: String,
     pub subnet_contract_address: String,
     pub base_tce_api_url: String,
-    pub subnet_data_dir: std::path::PathBuf,
+    pub subnet_data_dir_path: std::path::PathBuf,
     pub verifier: u32,
 }
 
 pub async fn run(config: SequencerConfiguration) -> Result<(), Box<dyn std::error::Error>> {
     info!("Starting topos-sequencer application");
 
-    if &config.subnet_id[0..2] != "0x" {
-        return Err(Box::new(std::io::Error::new(
-            InvalidInput,
-            "Subnet id must start with `0x`",
-        )));
+    let subnet_data_dir_path = config
+        .subnet_data_dir_path
+        .to_str()
+        .ok_or(std::io::Error::new(
+            ErrorKind::InvalidInput,
+            "Invalid subnet data dir path",
+        ))?
+        .to_string();
+
+    let key_file_path = topos_crypto::keystore::get_keystore_path(subnet_data_dir_path.as_str());
+    //TODO handle this key in more secure way (e.g. use SafeSecretKey)
+    let eth_admin_private_key: Vec<u8> =
+        match topos_crypto::keystore::read_private_key_from_file(&key_file_path, None) {
+            Ok(key) => key,
+            Err(e) => {
+                error!(
+                    "unable to get ethereum private key from keystore, details: {}",
+                    e
+                );
+
+                return Err(Box::new(std::io::Error::new(
+                    ErrorKind::InvalidInput,
+                    "Unable to read private key from keystore file",
+                )));
+            }
+        };
+
+    // If subnetID is specified as command line argument, use it
+    let subnet_id: SubnetId = if let Some(subnet_id) = &config.subnet_id {
+        if &subnet_id[0..2] != "0x" {
+            return Err(Box::new(std::io::Error::new(
+                InvalidInput,
+                "Subnet id must start with `0x`",
+            )));
+        }
+        hex::decode(&subnet_id[2..])?.as_slice().try_into()?
     }
-    let subnet_id: SubnetId = hex::decode(&config.subnet_id[2..])?.as_slice().try_into()?;
+    // If subnetID is not specified in the command line arguments,
+    // Use last 32 bytes of secp256k1 public key (only for MVP before FROST signatures are implemented)
+    else {
+        let public_key = topos_crypto::keys::derive_public_key(eth_admin_private_key.as_slice()).map_err(|e| {
+            Box::new(std::io::Error::new(
+                ErrorKind::InvalidInput,
+                format!("Unable to derive public key: {e}"),
+            ))
+        })?;
+        TryInto::<SubnetId>::try_into(&public_key[1..])
+            .map_err(|e| {
+                Box::new(std::io::Error::new(
+                    ErrorKind::InvalidInput,
+                    format!("Unable to derive public key: {e}"),
+                ))
+            })?
+    };
 
     // Instantiate subnet runtime proxy, handling interaction with subnet node
-    let subnet_runtime_proxy = match SubnetRuntimeProxyWorker::new(SubnetRuntimeProxyConfig {
-        subnet_id,
-        endpoint: config.subnet_jsonrpc_endpoint.clone(),
-        subnet_contract_address: config.subnet_contract_address.clone(),
-        subnet_data_dir: config.subnet_data_dir.clone(),
-    })
+    let subnet_runtime_proxy = match SubnetRuntimeProxyWorker::new(
+        SubnetRuntimeProxyConfig {
+            subnet_id,
+            endpoint: config.subnet_jsonrpc_endpoint.clone(),
+            subnet_contract_address: config.subnet_contract_address.clone(),
+        },
+        eth_admin_private_key.clone(),
+    )
     .await
     {
         Ok(subnet_runtime_proxy) => subnet_runtime_proxy,
@@ -78,8 +128,13 @@ pub async fn run(config: SequencerConfiguration) -> Result<(), Box<dyn std::erro
     };
 
     // Launch the certification worker for certificate production
-    let certification =
-        CertificationWorker::new(subnet_id, source_head_certificate_id, config.verifier).await?;
+    let certification = CertificationWorker::new(
+        subnet_id,
+        source_head_certificate_id,
+        config.verifier,
+        eth_admin_private_key,
+    )
+    .await?;
 
     let mut app_context = AppContext::new(
         config,

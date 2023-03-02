@@ -5631,6 +5631,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "topos-crypto"
+version = "0.1.0"
+dependencies = [
+ "byteorder",
+ "clap 4.1.4",
+ "eth-keystore",
+ "ethereum-tx-sign",
+ "hex",
+ "keccak-hash 0.10.0",
+ "secp256k1 0.21.3",
+ "thiserror",
+]
+
+[[package]]
 name = "topos-p2p"
 version = "0.1.0"
 dependencies = [
@@ -5660,6 +5674,7 @@ dependencies = [
  "serde",
  "tokio",
  "topos-core",
+ "topos-crypto",
  "topos-p2p",
  "topos-sequencer-certification",
  "topos-sequencer-subnet-runtime-proxy",
@@ -5685,6 +5700,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "topos-core",
+ "topos-crypto",
  "topos-sequencer-types",
  "tracing",
  "tracing-subscriber",
@@ -5719,8 +5735,6 @@ dependencies = [
  "clap 4.1.4",
  "dockertest",
  "env_logger 0.10.0",
- "eth-keystore",
- "ethereum-tx-sign",
  "fs_extra",
  "hex",
  "rand 0.8.5",
@@ -5736,6 +5750,7 @@ dependencies = [
  "tiny-keccak 1.5.0",
  "tokio",
  "topos-core",
+ "topos-crypto",
  "topos-sequencer-subnet-client",
  "topos-sequencer-types",
  "tracing",
@@ -5969,12 +5984,11 @@ dependencies = [
 name = "topos-uci"
 version = "0.1.1"
 dependencies = [
- "bincode",
  "ethereum-types",
  "hex",
- "keccak-hash 0.10.0",
  "serde",
  "thiserror",
+ "topos-crypto",
 ]
 
 [[package]]
