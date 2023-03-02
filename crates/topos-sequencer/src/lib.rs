@@ -40,12 +40,12 @@ pub async fn run(config: SequencerConfiguration) -> Result<(), Box<dyn std::erro
     {
         Ok(subnet_runtime_proxy) => subnet_runtime_proxy,
         Err(e) => {
-            //TODO Handle retry connection to subnet node gracefully
             panic!("Unable to instantiate runtime proxy, error: {e}");
         }
     };
 
     // Get subnet checkpoints from subnet to pass them to the TCE node
+    // It will retry using backoff algorithm, but if it fails (default max backoff elapsed time is 15 min) we can not proceed
     let target_subnet_stream_positions = match subnet_runtime_proxy.get_checkpoints().await {
         Ok(checkpoints) => checkpoints,
         Err(e) => {
@@ -54,6 +54,9 @@ pub async fn run(config: SequencerConfiguration) -> Result<(), Box<dyn std::erro
     };
 
     // Launch Tce proxy worker for handling interaction with TCE node
+    // For initialization it will retry using backoff algorithm, but if it fails (default max backoff elapsed time is 15 min) we can not proceed
+    // Once it is initialized, TCE proxy will try reconnecting in the loop (with backoff) if TCE becomes unavailable
+    // TODO: Revise this approach?
     let (tce_proxy_worker, source_head_certificate_id) = match TceProxyWorker::new(TceProxyConfig {
         subnet_id,
         base_tce_api_url: config.base_tce_api_url.clone(),
@@ -70,7 +73,6 @@ pub async fn run(config: SequencerConfiguration) -> Result<(), Box<dyn std::erro
             (tce_proxy_worker, source_head_certificate_id)
         }
         Err(e) => {
-            //TODO Handle retry gracefully
             panic!("Unable to create TCE Proxy: {e}");
         }
     };

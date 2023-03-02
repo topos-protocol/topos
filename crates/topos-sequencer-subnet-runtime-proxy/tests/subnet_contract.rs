@@ -37,10 +37,11 @@ const TOPOS_SMART_CONTRACTS_BUILD_PATH_VAR: &str = "TOPOS_SMART_CONTRACTS_BUILD_
 const SOURCE_SUBNET_ID_1: SubnetId = SubnetId::from_array([1u8; 32]);
 const SOURCE_SUBNET_ID_2: SubnetId = SubnetId::from_array([2u8; 32]);
 const TARGET_SUBNET_ID: SubnetId = SubnetId::from_array([3u8; 32]);
-const PREV_CERTIFICATE_ID: CertificateId = CertificateId::from_array([4u8; 32]);
-const CERTIFICATE_ID_1: CertificateId = CertificateId::from_array([5u8; 32]);
-const CERTIFICATE_ID_2: CertificateId = CertificateId::from_array([6u8; 32]);
-const CERTIFICATE_ID_3: CertificateId = CertificateId::from_array([7u8; 32]);
+const PREV_CERTIFICATE_ID_1: CertificateId = CertificateId::from_array([4u8; 32]);
+const PREV_CERTIFICATE_ID_2: CertificateId = CertificateId::from_array([5u8; 32]);
+const CERTIFICATE_ID_1: CertificateId = CertificateId::from_array([6u8; 32]);
+const CERTIFICATE_ID_2: CertificateId = CertificateId::from_array([7u8; 32]);
+const CERTIFICATE_ID_3: CertificateId = CertificateId::from_array([8u8; 32]);
 
 async fn deploy_contract<T, U>(
     contract_file_path: &str,
@@ -517,7 +518,7 @@ async fn test_subnet_certificate_push_call(
     let mock_cert = Certificate {
         source_subnet_id: SOURCE_SUBNET_ID_1,
         id: CERTIFICATE_ID_1,
-        prev_id: PREV_CERTIFICATE_ID,
+        prev_id: PREV_CERTIFICATE_ID_1,
         target_subnets: vec![SOURCE_SUBNET_ID_1],
         ..Default::default()
     };
@@ -591,7 +592,7 @@ async fn test_subnet_certificate_get_checkpoints_call(
             Certificate {
                 source_subnet_id: SOURCE_SUBNET_ID_1,
                 id: CERTIFICATE_ID_1,
-                prev_id: PREV_CERTIFICATE_ID,
+                prev_id: PREV_CERTIFICATE_ID_1,
                 target_subnets: vec![TARGET_SUBNET_ID],
                 ..Default::default()
             },
@@ -601,7 +602,7 @@ async fn test_subnet_certificate_get_checkpoints_call(
             Certificate {
                 source_subnet_id: SOURCE_SUBNET_ID_2,
                 id: CERTIFICATE_ID_2,
-                prev_id: PREV_CERTIFICATE_ID,
+                prev_id: PREV_CERTIFICATE_ID_2,
                 target_subnets: vec![TARGET_SUBNET_ID],
                 ..Default::default()
             },
