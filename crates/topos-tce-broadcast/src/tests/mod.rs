@@ -267,6 +267,61 @@ async fn trigger_ready_when_reached_enough_ready(#[case] params: TceParams) {
 
 #[rstest]
 #[case(small_config())]
+#[case(medium_config())]
+#[tokio::test]
+#[trace]
+async fn process_after_delivery_until_sending_ready(#[case] params: TceParams) {
+    let (mut double_echo, mut ctx) = create_context(params);
+
+    let dummy_cert = Certificate::new(
+        PREV_CERTIFICATE_ID,
+        SOURCE_SUBNET_ID,
+        Default::default(),
+        Default::default(),
+        &vec![],
+        0,
+    )
+    .expect("Dummy certificate");
+
+    // Trigger Echo upon dispatching
+    double_echo.handle_broadcast(dummy_cert.clone());
+
+    assert_eq!(ctx.event_receiver.len(), 2);
+    assert!(matches!(
+        ctx.event_receiver.try_recv(),
+        Ok(TceEvents::Gossip { .. })
+    ));
+    assert!(matches!(
+        ctx.event_receiver.try_recv(),
+        Ok(TceEvents::Echo { .. })
+    ));
+
+    // Trigger Delivery upon reaching the Delivery threshold
+
+    // NOTE: Samples are done with replacement
+    // Reaching the D-threshold may bring the R-threshold reached
+    // If the overlap between R and D is greater than R-threshold
+    reach_delivery_threshold(&mut double_echo, &dummy_cert);
+    double_echo.state_change_follow_up();
+
+    assert!(matches!(
+         ctx.event_receiver.try_recv(),
+        Ok(TceEvents::CertificateDelivered { certificate }) if certificate == dummy_cert
+    ));
+
+    // Trigger Ready upon reaching the Echo threshold
+    reach_echo_threshold(&mut double_echo, &dummy_cert);
+    double_echo.state_change_follow_up();
+
+    assert_eq!(ctx.event_receiver.len(), 1);
+    assert!(matches!(
+        ctx.event_receiver.try_recv(),
+        Ok(TceEvents::Ready { peers, .. }) if peers.len() == double_echo.subscribers.ready.len()
+    ));
+}
+
+#[rstest]
+#[case(small_config())]
 #[tokio::test]
 async fn buffering_certificate(#[case] params: TceParams) {
     let (double_echo, mut ctx) = create_context(params);
