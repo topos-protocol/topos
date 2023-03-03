@@ -62,19 +62,19 @@ pub async fn run(config: SequencerConfiguration) -> Result<(), Box<dyn std::erro
     // If subnetID is not specified in the command line arguments,
     // Use last 32 bytes of secp256k1 public key (only for MVP before FROST signatures are implemented)
     else {
-        let public_key = topos_crypto::keys::derive_public_key(eth_admin_private_key.as_slice()).map_err(|e| {
-            Box::new(std::io::Error::new(
-                ErrorKind::InvalidInput,
-                format!("Unable to derive public key: {e}"),
-            ))
-        })?;
-        TryInto::<SubnetId>::try_into(&public_key[1..])
+        let public_key = topos_crypto::keys::derive_public_key(eth_admin_private_key.as_slice())
             .map_err(|e| {
                 Box::new(std::io::Error::new(
                     ErrorKind::InvalidInput,
                     format!("Unable to derive public key: {e}"),
                 ))
-            })?
+            })?;
+        TryInto::<SubnetId>::try_into(&public_key[1..]).map_err(|e| {
+            Box::new(std::io::Error::new(
+                ErrorKind::InvalidInput,
+                format!("Unable to derive public key: {e}"),
+            ))
+        })?
     };
 
     // Instantiate subnet runtime proxy, handling interaction with subnet node
