@@ -194,7 +194,7 @@ impl SubnetRuntimeProxy {
         cert_position: u64,
     ) -> Result<String, Error> {
         debug!(
-            "Pushing certificate with id {:?} to target subnet {:?}, tcc {}",
+            "Pushing certificate with id 0x{} to target subnet 0x{}, tcc {}",
             cert.id, runtime_proxy_config.subnet_id, runtime_proxy_config.subnet_contract_address,
         );
         let receipt = subnet_client.push_certificate(cert, cert_position).await?;
@@ -254,14 +254,14 @@ impl SubnetRuntimeProxy {
                     .await
                     {
                         Ok(tx_hash) => {
-                            debug!(
-                                "Successfully pushed certificate id={:?} to target subnet with tx hash {} ",
+                            info!(
+                                "Successfully pushed certificate id=0x{} to target subnet with tx hash {} ",
                                 &cert.id, &tx_hash
                             );
                         }
                         Err(e) => {
                             error!(
-                                "Failed to push certificate id={:?} to target subnet: {e}",
+                                "Failed to push certificate id=0x{} to target subnet: {e}",
                                 &cert.id
                             );
                         }
