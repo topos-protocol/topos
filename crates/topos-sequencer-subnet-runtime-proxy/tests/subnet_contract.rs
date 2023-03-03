@@ -514,18 +514,26 @@ async fn test_subnet_certificate_push_call(
             endpoint: context.jsonrpc(),
             subnet_contract_address: subnet_smart_contract_address.clone(),
         },
-        test_private_key,
+        test_private_key.clone(),
     )
     .await?;
 
-    // TODO: Adjust this mock certificate when ToposCoreContract gets stable enough
-    let mock_cert = Certificate {
-        source_subnet_id: SOURCE_SUBNET_ID_1,
+    let source_subnet_id_1 =
+        topos_crypto::keys::derive_public_key(test_private_key.as_slice()).unwrap();
+
+    let mut mock_cert = Certificate {
+        source_subnet_id: SubnetId::from_array(
+            TryInto::<[u8; 32]>::try_into(&source_subnet_id_1[1..33]).unwrap(),
+        ),
         id: CERTIFICATE_ID_1,
         prev_id: PREV_CERTIFICATE_ID_1,
         target_subnets: vec![SOURCE_SUBNET_ID_1],
         ..Default::default()
     };
+    mock_cert
+        .update_signature(test_private_key.as_slice())
+        .expect("valid signature update");
+
     info!("Sending mock certificate to subnet smart contract...");
     if let Err(e) = runtime_proxy_worker.eval(
         topos_sequencer_types::SubnetRuntimeProxyCommand::OnNewDeliveredTxns((
