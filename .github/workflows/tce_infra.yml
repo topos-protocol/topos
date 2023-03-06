@@ -1,11 +1,19 @@
 name: Create TCE Stack
 
 on:
-  push:
-    branches: [main]
+  pull_request:
+    branches:
+    - main
+    types:
+    - closed
 
 jobs:
+  docker:
+    if: github.event.pull_request.merged == true
+    uses: toposware/topos/.github/workflows/docker_utils.yml@main
+    secrets: inherit
   k8s:
+    needs: docker
     name: Deploy k8s cluster and run TCE Stack
     runs-on: ubuntu-latest
     container:
@@ -66,7 +74,7 @@ jobs:
         env:
           GITHUB_USERNAME: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}
-          DOCKER_TAG: main
+          DOCKER_TAG: ${{ github.event.pull_request.number }}
           DOCKER_USERNAME: ${{ github.actor }}
           DOCKER_PASSWORD: ${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
           FILESYSTEM_ID: ${{ env.FILESYSTEM_ID }}
