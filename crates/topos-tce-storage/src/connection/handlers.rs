@@ -181,7 +181,7 @@ where
             InternalStorageError::MissingHeadForSubnet(subnet_id),
         ))?;
         debug!(
-            "Source head certificate for subnet id {subnet_id:?} is {:?}",
+            "Source head certificate for subnet id {subnet_id} is {}",
             source_head.cert_id
         );
         let certificate = match self.storage.get_certificate(source_head.cert_id).await {

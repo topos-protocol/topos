@@ -41,7 +41,7 @@ pub enum InternalStorageError {
     #[error("InvalidSubnetId")]
     InvalidSubnetId,
 
-    #[error("Missing head certificate for source subnet id {0:?}")]
+    #[error("Missing head certificate for source subnet id {0}")]
     MissingHeadForSubnet(SubnetId),
 }
 
