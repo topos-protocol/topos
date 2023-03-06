@@ -34,6 +34,10 @@ pub enum Error {
     ShutdownCommunication(mpsc::error::SendError<oneshot::Sender<()>>),
     #[error("Shutdown channel receive error {0}")]
     ShutdownSignalReceiveError(RecvError),
+    #[error("Unable to retrieve key error: {0}")]
+    UnableToRetrieveKey(#[from] topos_crypto::Error),
+    #[error("Certificate signing error: {0}")]
+    CertificateSigningError(topos_core::uci::Error),
 }
 
 /// Thread safe client to the protocol aggregate
@@ -52,8 +56,10 @@ impl CertificationWorker {
         subnet_id: SubnetId,
         source_head_certificate_id: Option<CertificateId>,
         verifier: u32,
+        signing_key: Vec<u8>,
     ) -> Result<Self, Error> {
-        let w_aggr = Certification::spawn_new(subnet_id, source_head_certificate_id, verifier)?;
+        let w_aggr =
+            Certification::spawn_new(subnet_id, source_head_certificate_id, verifier, signing_key)?;
         let mut b_aggr = w_aggr.lock().await;
         let commands = b_aggr.commands_channel.clone();
 
@@ -106,29 +112,45 @@ mod tests {
     use test_log::test;
     const TEST_SUBNET_ID: SubnetId = SubnetId::from_array([1u8; 32]);
     const TEST_CERTIFICATE_ID: CertificateId = CertificateId::from_array([5u8; 32]);
+    pub const TEST_VALIDATOR_KEY: &str =
+        "11eddfae7abe45531b3f18342c8062969323a7131d3043f1a33c40df74803cc7";
 
     #[test(tokio::test)]
     async fn instantiate_certification_worker() {
+        let private_key = hex::decode(TEST_VALIDATOR_KEY).unwrap();
         // Launch the certification worker for certificate production
-        let _cert_worker =
-            match CertificationWorker::new(TEST_SUBNET_ID, Some(TEST_CERTIFICATE_ID), 0).await {
-                Ok(cert_worker) => cert_worker,
-                Err(e) => {
-                    panic!("Unable to create certification worker: {e:?}");
-                }
-            };
+        let _cert_worker = match CertificationWorker::new(
+            TEST_SUBNET_ID,
+            Some(TEST_CERTIFICATE_ID),
+            0,
+            private_key,
+        )
+        .await
+        {
+            Ok(cert_worker) => cert_worker,
+            Err(e) => {
+                panic!("Unable to create certification worker: {e:?}");
+            }
+        };
     }
 
     #[test(tokio::test)]
     async fn certification_worker_eval() {
+        let private_key = hex::decode(TEST_VALIDATOR_KEY).unwrap();
         // Launch the certification worker for certificate production
-        let cert_worker =
-            match CertificationWorker::new(TEST_SUBNET_ID, Some(TEST_CERTIFICATE_ID), 0).await {
-                Ok(cert_worker) => cert_worker,
-                Err(e) => {
-                    panic!("Unable to create certification worker: {e:?}")
-                }
-            };
+        let cert_worker = match CertificationWorker::new(
+            TEST_SUBNET_ID,
+            Some(TEST_CERTIFICATE_ID),
+            0,
+            private_key,
+        )
+        .await
+        {
+            Ok(cert_worker) => cert_worker,
+            Err(e) => {
+                panic!("Unable to create certification worker: {e:?}")
+            }
+        };
 
         let event = Event::RuntimeProxyEvent(SubnetRuntimeProxyEvent::BlockFinalized(BlockInfo {
             number: BlockNumber::from(10 as u64),

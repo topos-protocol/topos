@@ -15,7 +15,7 @@ pub(crate) async fn handle_command(
                 subnet_jsonrpc_endpoint: cmd.subnet_jsonrpc_endpoint,
                 subnet_contract_address: cmd.subnet_contract_address,
                 base_tce_api_url: cmd.base_tce_api_url,
-                subnet_data_dir: cmd.subnet_data_dir,
+                subnet_data_dir_path: cmd.subnet_data_dir,
                 verifier: cmd.verifier,
             };
 

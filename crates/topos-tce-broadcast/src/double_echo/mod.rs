@@ -336,7 +336,6 @@ impl DoubleEcho {
             }
         }
         self.all_known_certs.push(cert.clone());
-        self.store.new_cert_candidate(&cert, &Vec::new());
         self.delivery_time
             .insert(cert.id, (time::SystemTime::now(), Default::default()));
         // Send Echo to the echo sample

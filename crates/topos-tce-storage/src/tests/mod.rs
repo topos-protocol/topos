@@ -35,6 +35,7 @@ async fn can_persist_a_pending_certificate(storage: RocksDBStorage) {
         Default::default(),
         &[],
         0,
+        Vec::new(),
     )
     .unwrap();
 
@@ -55,6 +56,7 @@ async fn can_persist_a_delivered_certificate(storage: RocksDBStorage) {
         Default::default(),
         &vec![TARGET_SUBNET_ID_A],
         0,
+        Vec::new(),
     )
     .unwrap();
 
@@ -108,6 +110,7 @@ async fn delivered_certificate_are_added_to_target_stream(storage: RocksDBStorag
         Default::default(),
         &vec![TARGET_SUBNET_ID_A, TARGET_SUBNET_ID_B],
         0,
+        Vec::new(),
     )
     .unwrap();
 
@@ -153,6 +156,7 @@ async fn pending_certificate_are_removed_during_persist_action(storage: RocksDBS
         Default::default(),
         &vec![TARGET_SUBNET_ID_A],
         0,
+        Vec::new(),
     )
     .unwrap();
 
@@ -177,6 +181,7 @@ async fn fetch_certificates_for_subnets(storage: RocksDBStorage) {
         Default::default(),
         &[TARGET_SUBNET_ID_A],
         0,
+        Vec::new(),
     )
     .unwrap();
 
@@ -249,6 +254,7 @@ async fn pending_certificate_can_be_removed(storage: RocksDBStorage) {
         Default::default(),
         &[TARGET_SUBNET_ID_A],
         0,
+        Vec::new(),
     )
     .unwrap();
 
@@ -337,6 +343,7 @@ async fn get_source_head_for_subnet(storage: RocksDBStorage) {
         Default::default(),
         &[TARGET_SUBNET_ID_A],
         0,
+        Vec::new(),
     )
     .unwrap();
     storage.persist(&other_certificate, None).await.unwrap();
@@ -358,6 +365,7 @@ async fn get_source_head_for_subnet(storage: RocksDBStorage) {
         Default::default(),
         &[TARGET_SUBNET_ID_B, TARGET_SUBNET_ID_A],
         0,
+        Vec::new(),
     )
     .unwrap();
     storage.persist(&other_certificate_2, None).await.unwrap();
@@ -389,6 +397,7 @@ fn create_certificate_chain(
             Default::default(),
             &[target_subnet.clone()],
             0,
+            Default::default(),
         )
         .unwrap();
         parent = Some(cert.id.as_array().clone());

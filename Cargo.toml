@@ -6,6 +6,7 @@ members = [
 
 [workspace.dependencies]
 topos-core = { path = "./crates/topos-core", default-features = false }
+topos-crypto = { path = "./crates/topos-crypto", default-features = false }
 
 clap = { version = "4.0", features = ["derive", "env"] }
 hyper = { version = "0.14", features = ["full"] }

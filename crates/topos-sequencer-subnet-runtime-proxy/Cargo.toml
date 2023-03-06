@@ -6,8 +6,6 @@ edition = "2021"
 [dependencies]
 byteorder.workspace = true
 clap.workspace = true
-eth-keystore = "0.5.0"
-ethereum-tx-sign = "6.0"
 hex.workspace = true
 rand = { workspace = true, features = ["default"] }
 rand_core.workspace = true
@@ -30,6 +28,7 @@ tracing.workspace = true
 topos-core = { workspace = true, features = ["uci"] }
 topos-sequencer-subnet-client = { package = "topos-sequencer-subnet-client", path = "../topos-sequencer-subnet-client" }
 topos-sequencer-types = { package = "topos-sequencer-types", path = "../topos-sequencer-types" }
+topos-crypto = {package = "topos-crypto", path = "../topos-crypto"}
 
 [dev-dependencies]
 rstest.workspace = true
@@ -37,8 +36,8 @@ serde_json.workspace = true
 web3.workspace = true
 test-log.workspace = true
 env_logger.workspace = true
+secp256k1.workspace = true
 serial_test = "0.9"
 tiny-keccak = "1.2"
-secp256k1 = { version = "0.21", features = ["recovery"]}
 dockertest = "0.3.1"
 fs_extra = "1.2"

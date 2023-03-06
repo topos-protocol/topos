@@ -26,6 +26,7 @@ tracing.workspace = true
 
 topos-sequencer-types = { package = "topos-sequencer-types", path = "../topos-sequencer-types" }
 topos-core = { workspace = true, features = ["uci"] }
+topos-crypto.workspace = true
 
 
 [dev-dependencies]

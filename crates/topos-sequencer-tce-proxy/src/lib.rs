@@ -497,10 +497,14 @@ impl TceProxyWorker {
                             }
                         }
                     }
-                     // process certificates received from the TCE node
+                     // Process certificates received from the TCE node
                     Some(cert) = receiving_certificate_stream.next() => {
                         info!("Received certificate from TCE {:?}", cert);
-                        evt_sender.send(TceProxyEvent::NewDeliveredCerts(vec![cert])).expect("send");
+                        //***********************************************
+                        // TODO get certificate position from the TCE NODE
+                        //***********************************************
+                        let cert_position = 0;
+                        evt_sender.send(TceProxyEvent::NewDeliveredCerts(vec![(cert, cert_position)])).expect("send");
                     }
                 }
             }

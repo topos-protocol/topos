@@ -34,6 +34,7 @@ pub fn generate_cert(
             Default::default(),
             &target_subnets,
             0,
+            Vec::new(),
         )
         .expect("valid new certificate");
         *last_cert_id = gen_cert.id;

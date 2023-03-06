@@ -420,7 +420,7 @@ pub(crate) fn new_subnet_client_proxy_backoff_err<E: std::fmt::Display>(
 /// Retry until connection is valid
 pub async fn connect_to_subnet_with_retry(
     http_subnet_endpoint: &str,
-    eth_admin_private_key: Option<Vec<u8>>,
+    signing_key: Option<Vec<u8>>,
     contract_address: &str,
 ) -> Result<SubnetClient, crate::Error> {
     info!(
@@ -429,13 +429,7 @@ pub async fn connect_to_subnet_with_retry(
     );
 
     let op = || async {
-        match SubnetClient::new(
-            http_subnet_endpoint,
-            eth_admin_private_key.clone(),
-            contract_address,
-        )
-        .await
-        {
+        match SubnetClient::new(http_subnet_endpoint, signing_key.clone(), contract_address).await {
             Ok(subnet_client) => Ok(subnet_client),
             Err(e) => {
                 error!(

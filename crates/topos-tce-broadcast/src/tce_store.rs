@@ -1,7 +1,7 @@
 //!
 //! Storage interface required to support TCE
 //!
-use topos_core::uci::{Certificate, CertificateId, DigestCompressed, SubnetId};
+use topos_core::uci::{Certificate, CertificateId, SubnetId};
 
 use crate::Errors;
 
@@ -34,17 +34,8 @@ pub trait TceStore {
         last_n: u64,
     ) -> Vec<CertificateId>;
 
-    /// Compute the digest for a given Subnet
-    fn flush_digest_view(&mut self, subnet_id: &SubnetId) -> Option<DigestCompressed>;
-
     /// Read certificate
     fn cert_by_id(&self, cert_id: &CertificateId) -> Result<Certificate, Errors>;
-
-    /// Receive new cert from broadcast along with digest
-    fn new_cert_candidate(&mut self, cert: &Certificate, digest: &DigestCompressed);
-
-    /// Check on the digest
-    fn check_digest_inclusion(&self, cert: &Certificate) -> Result<(), Errors>;
 
     /// Check on the previous cert
     fn check_precedence(&self, cert: &Certificate) -> Result<(), Errors>;

@@ -4,9 +4,8 @@ version = "0.1.1"
 edition = "2021"
 
 [dependencies]
-bincode.workspace = true
+topos-crypto.workspace = true
 ethereum-types.workspace = true
 hex.workspace = true
-keccak-hash = "0.10.0"
 serde = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
