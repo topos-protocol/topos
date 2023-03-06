@@ -78,43 +78,43 @@ jobs:
         run: |
           helmfile -f helmfile-ci.yaml sync
 
-      # - name: Sleep
-      #   run: sleep 60s
-      #   shell: bash
+      - name: Sleep
+        run: sleep 60s
+        shell: bash
 
-      # - name: Export logs from boot and peers
-      #   if: always()
-      #   run: |
-      #     mkdir -p ./logs
-      #     kubectl logs -l node=peer > ./logs/peer.log
-      #     kubectl logs -l node=boot > ./logs/boot.log
-      #     kubectl logs -l app=cert-spammer > ./logs/cert-spammer.log
+      - name: Export logs from boot and peers
+        if: always()
+        run: |
+          mkdir -p ./logs
+          kubectl logs -l node=peer > ./logs/peer.log
+          kubectl logs -l node=boot > ./logs/boot.log
+          kubectl logs -l app=cert-spammer > ./logs/cert-spammer.log
 
-      # - name: Publish logs as artifact
-      #   if: always()
-      #   uses: actions/upload-artifact@v3
-      #   with:
-      #     name: logs
-      #     path: ./logs/
+      - name: Publish logs as artifact
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: logs
+          path: ./logs/
 
-      # - name: Helm Clean up
-      #   if: always()
-      #   working-directory: tools/
-      #   env:
-      #     GITHUB_USERNAME: ${{ github.actor }}
-      #     GITHUB_TOKEN: ${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}
-      #     DOCKER_TAG: main
-      #     DOCKER_USERNAME: ${{ github.actor }}
-      #     DOCKER_PASSWORD: ${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
-      #     FILESYSTEM_ID: ${{ env.FILESYSTEM_ID }}
-      #     EKS_EFS_CSI_IRSA_ARN: ${{ env.EKS_EFS_CSI_IRSA_ARN }}
-      #   run: |
-      #     helmfile -f helmfile-ci.yaml destroy
+      - name: Helm Clean up
+        if: always()
+        working-directory: tools/
+        env:
+          GITHUB_USERNAME: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}
+          DOCKER_TAG: main
+          DOCKER_USERNAME: ${{ github.actor }}
+          DOCKER_PASSWORD: ${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
+          FILESYSTEM_ID: ${{ env.FILESYSTEM_ID }}
+          EKS_EFS_CSI_IRSA_ARN: ${{ env.EKS_EFS_CSI_IRSA_ARN }}
+        run: |
+          helmfile -f helmfile-ci.yaml destroy
 
-      # - name: Terraform destroy
-      #   if: always()
-      #   working-directory: tools/terraform/cicd-devnet-1
-      #   run: |
-      #     terraform destroy -auto-approve \
-      #       -var "name=${{ env.E2E_ID }}" \
-      #       -var-file=terraform.tfvars.default
+      - name: Terraform destroy
+        if: always()
+        working-directory: tools/terraform/cicd-devnet-1
+        run: |
+          terraform destroy -auto-approve \
+            -var "name=${{ env.E2E_ID }}" \
+            -var-file=terraform.tfvars.default
