@@ -1,5 +1,4 @@
 services:
-
   jaeger:
     image: jaegertracing/all-in-one:latest
     container_name: jaeger
@@ -16,11 +15,11 @@ services:
     volumes:
       - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
     ports:
-      - "1888:1888"   # pprof extension
-      - "8888:8888"   # Prometheus metrics exposed by the collector
-      - "8889:8889"   # Prometheus exporter metrics
+      - "1888:1888" # pprof extension
+      - "8888:8888" # Prometheus metrics exposed by the collector
+      - "8889:8889" # Prometheus exporter metrics
       - "13133:13133" # health_check extension
-      - "4317:4317"   # OTLP gRPC receiver
+      - "4317:4317" # OTLP gRPC receiver
       - "55679:55679" # zpages extension
     depends_on:
       - jaeger
@@ -37,7 +36,7 @@ services:
   boot:
     container_name: boot
     command: boot tce run
-    image: ghcr.io/toposware/tce:pr-4
+    image: ghcr.io/toposware/topos:main
     init: true
     healthcheck:
       test: ./topos tce push-peer-list --endpoint http://localhost:1340 --format json /tmp/shared/peer_ids.json
@@ -72,11 +71,11 @@ services:
       - TCE_DELIVERY_THRESHOLD=2
 
   peer:
-    image: ghcr.io/toposware/tce:pr-4
+    image: ghcr.io/toposware/topos:main
     command: tce run
     init: true
     healthcheck:
-      test: ./topos tce push-peer-list --endpoint http://localhost:1340 --format json /tmp/shared/peer_ids.json && ./topos tce status --endpoint http://localhost:1340 
+      test: ./topos tce push-peer-list --endpoint http://localhost:1340 --format json /tmp/shared/peer_ids.json && ./topos tce status --endpoint http://localhost:1340
       interval: 5s
     volumes:
       - shared:/tmp/shared
