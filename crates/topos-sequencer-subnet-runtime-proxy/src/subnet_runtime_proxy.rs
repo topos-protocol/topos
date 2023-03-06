@@ -32,7 +32,7 @@ impl Debug for SubnetRuntimeProxy {
 impl SubnetRuntimeProxy {
     pub fn spawn_new(
         config: SubnetRuntimeProxyConfig,
-        eth_admin_private_key: Vec<u8>,
+        signing_key: Vec<u8>,
     ) -> Result<Arc<Mutex<SubnetRuntimeProxy>>, crate::Error> {
         info!(
             "Spawning new runtime proxy, endpoint: {} ethereum contract address: {}, ",
@@ -138,7 +138,7 @@ impl SubnetRuntimeProxy {
                 let mut subnet_client =
                     match topos_sequencer_subnet_client::connect_to_subnet_with_retry(
                         http_runtime_endpoint.as_ref(),
-                        Some(eth_admin_private_key.clone()),
+                        Some(signing_key.clone()),
                         subnet_contract_address.as_str(),
                     )
                     .await

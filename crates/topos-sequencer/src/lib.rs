@@ -33,7 +33,7 @@ pub async fn run(config: SequencerConfiguration) -> Result<(), Box<dyn std::erro
 
     let key_file_path = topos_crypto::keystore::get_keystore_path(subnet_data_dir_path.as_str());
     //TODO handle this key in more secure way (e.g. use SafeSecretKey)
-    let eth_admin_private_key: Vec<u8> =
+    let signing_key: Vec<u8> =
         match topos_crypto::keystore::read_private_key_from_file(&key_file_path, None) {
             Ok(key) => key,
             Err(e) => {
@@ -62,8 +62,8 @@ pub async fn run(config: SequencerConfiguration) -> Result<(), Box<dyn std::erro
     // If subnetID is not specified in the command line arguments,
     // Use last 32 bytes of secp256k1 public key (only for MVP before FROST signatures are implemented)
     else {
-        let public_key = topos_crypto::keys::derive_public_key(eth_admin_private_key.as_slice())
-            .map_err(|e| {
+        let public_key =
+            topos_crypto::keys::derive_public_key(signing_key.as_slice()).map_err(|e| {
                 Box::new(std::io::Error::new(
                     ErrorKind::InvalidInput,
                     format!("Unable to derive public key: {e}"),
@@ -84,7 +84,7 @@ pub async fn run(config: SequencerConfiguration) -> Result<(), Box<dyn std::erro
             endpoint: config.subnet_jsonrpc_endpoint.clone(),
             subnet_contract_address: config.subnet_contract_address.clone(),
         },
-        eth_admin_private_key.clone(),
+        signing_key.clone(),
     )
     .await
     {
@@ -132,7 +132,7 @@ pub async fn run(config: SequencerConfiguration) -> Result<(), Box<dyn std::erro
         subnet_id,
         source_head_certificate_id,
         config.verifier,
-        eth_admin_private_key,
+        signing_key,
     )
     .await?;
 

@@ -56,14 +56,10 @@ impl CertificationWorker {
         subnet_id: SubnetId,
         source_head_certificate_id: Option<CertificateId>,
         verifier: u32,
-        eth_admin_private_key: Vec<u8>,
+        signing_key: Vec<u8>,
     ) -> Result<Self, Error> {
-        let w_aggr = Certification::spawn_new(
-            subnet_id,
-            source_head_certificate_id,
-            verifier,
-            eth_admin_private_key,
-        )?;
+        let w_aggr =
+            Certification::spawn_new(subnet_id, source_head_certificate_id, verifier, signing_key)?;
         let mut b_aggr = w_aggr.lock().await;
         let commands = b_aggr.commands_channel.clone();
 

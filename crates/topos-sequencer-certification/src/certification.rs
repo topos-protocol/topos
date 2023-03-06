@@ -36,7 +36,7 @@ impl Certification {
         subnet_id: SubnetId,
         source_head_certificate_id: Option<CertificateId>,
         verifier: u32,
-        eth_admin_private_key: Vec<u8>,
+        signing_key: Vec<u8>,
     ) -> Result<Arc<Mutex<Certification>>, crate::Error> {
         let (command_sender, mut command_rcv) = mpsc::unbounded_channel::<CertificationCommand>();
         let (command_shutdown_channel, mut command_shutdown) =
@@ -61,7 +61,7 @@ impl Certification {
             verifier,
             command_shutdown: command_shutdown_channel,
             cert_gen_shutdown: cert_gen_shutdown_channel,
-            signing_key: eth_admin_private_key,
+            signing_key,
         }));
         // Certification info for passing for async tasks
         let me_cl = me.clone();

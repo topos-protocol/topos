@@ -72,9 +72,9 @@ impl SubnetRuntimeProxyWorker {
     /// Aggregate is spawned as new task.
     pub async fn new(
         config: SubnetRuntimeProxyConfig,
-        eth_admin_private_key: Vec<u8>,
+        signing_key: Vec<u8>,
     ) -> Result<Self, Error> {
-        let runtime_proxy = SubnetRuntimeProxy::spawn_new(config, eth_admin_private_key)?;
+        let runtime_proxy = SubnetRuntimeProxy::spawn_new(config, signing_key)?;
         let (events_sender, events_rcv) = mpsc::unbounded_channel::<SubnetRuntimeProxyEvent>();
         let commands;
         {
