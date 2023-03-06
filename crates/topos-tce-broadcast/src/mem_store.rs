@@ -1,6 +1,6 @@
 use crate::{Errors, TceStore};
 use std::collections::{BTreeSet, HashMap};
-use topos_core::uci::{Certificate, CertificateId, DigestCompressed, SubnetId};
+use topos_core::uci::{Certificate, CertificateId, SubnetId};
 
 /// Store implementation in RAM good enough for functional tests
 /// Might need to split through a new layer of TCEState
@@ -13,8 +13,6 @@ pub struct TceMemStore {
     history: HashMap<SubnetId, BTreeSet<CertificateId>>,
     /// Consider for now that each TCE nodes is following all subnets
     tracked_digest: HashMap<SubnetId, BTreeSet<CertificateId>>,
-    /// Digest received from elsewhere
-    received_digest: HashMap<CertificateId, DigestCompressed>,
     /// List of the subnets that we're part of
     /// NOTE: Below is for later, for now we're considering
     /// being part of all subnets, so following digest of everyone
@@ -27,7 +25,6 @@ impl TceMemStore {
             all_certs: Default::default(),
             history: Default::default(),
             tracked_digest: Default::default(),
-            received_digest: Default::default(),
             followed_subnet: subnets,
         };
         for subnet in &store.followed_subnet {
@@ -89,45 +86,11 @@ impl TceStore for TceMemStore {
         }
     }
 
-    /// Compute and flush the digest for the given subnet
-    fn flush_digest_view(&mut self, subnet_id: &SubnetId) -> Option<DigestCompressed> {
-        match self.tracked_digest.get_mut(subnet_id) {
-            Some(current_digest) => {
-                let digest_compressed = Some(current_digest.iter().cloned().collect::<Vec<_>>());
-                current_digest.clear();
-                digest_compressed
-            }
-            _ => None,
-        }
-    }
-
     fn cert_by_id(&self, cert_id: &CertificateId) -> Result<Certificate, Errors> {
         match self.all_certs.get(cert_id) {
             Some(cert) => Ok(cert.clone()),
             _ => Err(Errors::CertificateNotFound),
         }
-    }
-
-    // JAEGER END DELIVERY TRACE [ cert, peer ]
-    fn new_cert_candidate(&mut self, cert: &Certificate, digest: &DigestCompressed) {
-        self.received_digest.insert(cert.id, digest.clone());
-    }
-
-    ///
-    /// Checks
-    ///
-    fn check_digest_inclusion(&self, cert: &Certificate) -> Result<(), Errors> {
-        let received_digest = self
-            .received_digest
-            .get(&cert.id)
-            .ok_or_else(|| Errors::DigestNotFound(cert.id))?;
-
-        // Check that all cert in digest are in my history
-        received_digest
-            .iter()
-            .all(|cert_id| self.cert_by_id(cert_id).is_ok());
-
-        Ok(())
     }
 
     fn check_precedence(&self, cert: &Certificate) -> Result<(), Errors> {

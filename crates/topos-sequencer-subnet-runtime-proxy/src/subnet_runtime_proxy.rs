@@ -194,7 +194,7 @@ impl SubnetRuntimeProxy {
         cert_position: u64,
     ) -> Result<String, Error> {
         debug!(
-            "Pushing certificate with id 0x{} to target subnet 0x{}, tcc {}",
+            "Pushing certificate with id {} to target subnet {}, tcc {}",
             cert.id, runtime_proxy_config.subnet_id, runtime_proxy_config.subnet_contract_address,
         );
         let receipt = subnet_client.push_certificate(cert, cert_position).await?;
@@ -215,7 +215,7 @@ impl SubnetRuntimeProxy {
                 // Process certificate retrieved from TCE node
                 SubnetRuntimeProxyCommand::OnNewDeliveredTxns((cert, cert_position)) => {
                     info!(
-                        "Processing certificate received from TCE, cert_id=0x{}",
+                        "Processing certificate received from TCE, cert_id={}",
                         &cert.id
                     );
 
@@ -233,13 +233,10 @@ impl SubnetRuntimeProxy {
                         cert.signature.as_slice(),
                     ) {
                         Ok(()) => {
-                            info!("Certificate 0x{} passed verification", cert.id)
+                            info!("Certificate {} passed verification", cert.id)
                         }
                         Err(e) => {
-                            error!(
-                                "Failed to verify certificate id 0x{}, details: {e}",
-                                cert.id
-                            );
+                            error!("Failed to verify certificate id {}, details: {e}", cert.id);
                             return;
                         }
                     }
@@ -255,13 +252,13 @@ impl SubnetRuntimeProxy {
                     {
                         Ok(tx_hash) => {
                             info!(
-                                "Successfully pushed certificate id=0x{} to target subnet with tx hash {} ",
+                                "Successfully pushed certificate id={} to target subnet with tx hash {} ",
                                 &cert.id, &tx_hash
                             );
                         }
                         Err(e) => {
                             error!(
-                                "Failed to push certificate id=0x{} to target subnet: {e}",
+                                "Failed to push certificate id={} to target subnet: {e}",
                                 &cert.id
                             );
                         }

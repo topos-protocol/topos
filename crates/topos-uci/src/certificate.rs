@@ -6,13 +6,13 @@ use std::fmt::Debug;
 /// Certificate - main exchange item
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Certificate {
+    pub id: CertificateId,
     pub prev_id: CertificateId,
     pub source_subnet_id: SubnetId,
     pub state_root: StateRoot,
     pub tx_root_hash: TxRootHash,
     pub target_subnets: Vec<SubnetId>,
     pub verifier: u32,
-    pub id: CertificateId,
     pub proof: StarkProof,
     pub signature: Frost,
 }
@@ -20,10 +20,17 @@ pub struct Certificate {
 impl Debug for Certificate {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Certificate")
+            .field("id", &self.id.to_string())
             .field("prev_id", &self.prev_id.to_string())
             .field("source_subnet_id", &self.source_subnet_id.to_string())
-            .field("state_root", &&hex::encode(self.state_root))
-            .field("tx_root_hash", &hex::encode(self.tx_root_hash))
+            .field(
+                "state_root",
+                &("0x".to_string() + &hex::encode(self.state_root)),
+            )
+            .field(
+                "tx_root_hash",
+                &("0x".to_string() + &hex::encode(self.tx_root_hash)),
+            )
             .field(
                 "target_subnets",
                 &self
@@ -33,9 +40,11 @@ impl Debug for Certificate {
                     .collect::<Vec<_>>(),
             )
             .field("verifier", &self.verifier)
-            .field("id", &self.id.to_string())
-            .field("proof", &hex::encode(&self.proof))
-            .field("signature", &hex::encode(&self.signature))
+            .field("proof", &("0x".to_string() + &hex::encode(&self.proof)))
+            .field(
+                "signature",
+                &("0x".to_string() + &hex::encode(&self.signature)),
+            )
             .finish()
     }
 }
@@ -48,16 +57,17 @@ impl Certificate {
         tx_root_hash: TxRootHash,
         target_subnets: &[SubnetId],
         verifier: u32,
+        proof: Vec<u8>,
     ) -> Result<Certificate, Box<dyn std::error::Error>> {
         let mut cert = Certificate {
+            id: [0; 32].into(),
             prev_id: prev.into(),
             source_subnet_id,
             state_root,
             tx_root_hash,
             target_subnets: target_subnets.into(),
             verifier,
-            id: [0; 32].into(),
-            proof: Default::default(),
+            proof,
             signature: Default::default(),
         };
 
@@ -86,6 +96,7 @@ impl Certificate {
     /// Excludes frost signature and stark proof
     pub fn get_payload(&self) -> Vec<u8> {
         let mut buffer = Vec::new();
+        buffer.extend(self.id.as_array().as_ref());
         buffer.extend_from_slice(self.prev_id.as_array().as_ref());
         buffer.extend_from_slice(self.source_subnet_id.as_array().as_ref());
         buffer.extend_from_slice(self.state_root.as_ref());
@@ -94,7 +105,7 @@ impl Certificate {
             buffer.extend_from_slice(target_subnet.as_array().as_ref());
         }
         buffer.extend(self.verifier.to_be_bytes().as_ref());
-        buffer.extend(self.id.as_array().as_ref());
+        buffer.extend(self.proof.as_slice());
         buffer
     }
 
@@ -109,7 +120,8 @@ impl Certificate {
         for target_subnet in &certificate.target_subnets {
             buffer.extend_from_slice(target_subnet.as_array().as_ref());
         }
-        buffer.extend(certificate.verifier.to_be_bytes().as_ref());
+        buffer.extend_from_slice(certificate.verifier.to_be_bytes().as_ref());
+        buffer.extend_from_slice(certificate.proof.as_ref());
         let hash = topos_crypto::hash::calculate_hash(buffer.borrow());
         Ok(hash)
     }
@@ -134,6 +146,7 @@ mod tests {
             TX_ROOT_HASH,
             &vec![TARGET_SUBNET_ID],
             2,
+            Vec::new(),
         )
         .expect("Dummy certificate")
     }

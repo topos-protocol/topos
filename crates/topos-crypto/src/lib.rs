@@ -7,7 +7,7 @@ pub mod signatures;
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("keystore error: {0}")]
+    #[error("Keystore error: {0}")]
     KeystoreError(#[from] eth_keystore::KeystoreError),
 
     #[error("Keystore file io error: {0}")]

@@ -199,6 +199,9 @@ impl Certification {
                 }
             };
 
+            // TODO: acquire proof
+            let proof = Vec::new();
+
             let mut certificate = Certificate::new(
                 previous_cert_id,
                 subnet_id,
@@ -206,6 +209,7 @@ impl Certification {
                 block_info.tx_root_hash,
                 &target_subnets,
                 certification.verifier,
+                proof,
             )
             .map_err(|e| Error::CertificateGenerationError(e.to_string()))?;
             certificate

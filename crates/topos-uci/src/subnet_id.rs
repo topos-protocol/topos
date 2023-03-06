@@ -11,13 +11,13 @@ pub struct SubnetId {
 
 impl Display for SubnetId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", hex::encode(self.id))
+        write!(f, "0x{}", hex::encode(self.id))
     }
 }
 
 impl Debug for SubnetId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", hex::encode(self.id))
+        write!(f, "0x{}", hex::encode(self.id))
     }
 }
 

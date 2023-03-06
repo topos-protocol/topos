@@ -1,6 +1,6 @@
 [package]
 name = "topos-crypto"
-description = "Implementation of the Topos crypto utility functions"
+description = "Implementation of the Topos cryptography utility functions"
 license = "MIT"
 version = "0.1.0"
 authors = ["Toposware Developers <dev@toposware.com>"]

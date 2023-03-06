@@ -119,6 +119,7 @@ mod tests {
             Default::default(),
             &[],
             0,
+            Vec::new(),
         )
         .unwrap();
         let command = AddPendingCertificate { certificate: cert };

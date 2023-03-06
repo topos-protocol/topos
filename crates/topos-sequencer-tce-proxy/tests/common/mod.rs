@@ -75,6 +75,7 @@ fn create_certificate_chain(
             Default::default(),
             &[target_subnet.clone()],
             0,
+            Default::default(),
         )
         .unwrap();
         parent = Some(cert.id.as_array().clone());

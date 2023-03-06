@@ -3,9 +3,7 @@
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-pub use topos_core::uci::{
-    Address, Certificate, CertificateId, DigestCompressed, StateRoot, SubnetId, TxRootHash,
-};
+pub use topos_core::uci::{Address, Certificate, CertificateId, StateRoot, SubnetId, TxRootHash};
 
 pub type BlockData = Vec<u8>;
 pub type BlockNumber = u64;
@@ -93,7 +91,7 @@ pub enum SubnetRuntimeProxyCommand {
     /// Push the Certificate to the subnet runtime
     PushCertificate(Certificate),
 
-    /// propagate transacitons to the runtime, certificate and its position
+    /// Propagate certificate and its position to the runtime
     OnNewDeliveredTxns((Certificate, u64)),
 }
 
@@ -143,16 +141,8 @@ pub enum TceCommands {
     OnEchoSubscribeOk { from_peer: String },
     /// Given peer replied ok to the ReadySubscribe request
     OnReadySubscribeOk { from_peer: String },
-    /// Upon new certificate to start delivery
-    OnStartDelivery {
-        cert: Box<Certificate>,
-        digest: DigestCompressed,
-    },
     /// Received G-set message
-    OnGossip {
-        cert: Box<Certificate>,
-        digest: DigestCompressed,
-    },
+    OnGossip { cert: Box<Certificate> },
     /// When echo reply received
     OnEcho {
         from_peer: String,
@@ -184,7 +174,6 @@ pub enum TceEvents {
     Gossip {
         peers: Vec<String>,
         cert: Certificate,
-        digest: DigestCompressed,
     },
     /// Indicates that 'echo' message broadcasting is required
     Echo {

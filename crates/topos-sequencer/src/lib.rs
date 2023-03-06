@@ -38,7 +38,7 @@ pub async fn run(config: SequencerConfiguration) -> Result<(), Box<dyn std::erro
             Ok(key) => key,
             Err(e) => {
                 error!(
-                    "unable to get ethereum private key from keystore, details: {}",
+                    "Unable to get ethereum private key from keystore, details: {}",
                     e
                 );
 

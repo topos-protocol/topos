@@ -22,7 +22,6 @@ pub type Address = [u8; 20];
 pub type Amount = ethereum_types::U256;
 pub type StateRoot = [u8; 32];
 pub type TxRootHash = [u8; 32];
-pub type DigestCompressed = Vec<CertificateId>; // TODO: optimize cmp to hash of sorted set of hashes
 
 /// Heavily checked on the gossip, so not abstracted
 const DUMMY_FROST_VERIF_DELAY: time::Duration = time::Duration::from_millis(0);
