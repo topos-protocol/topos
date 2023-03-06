@@ -93,7 +93,7 @@ impl Certificate {
     }
 
     /// Get byte payload of the certificate
-    /// Excludes frost signature and stark proof
+    /// Excludes frost signature
     pub fn get_payload(&self) -> Vec<u8> {
         let mut buffer = Vec::new();
         buffer.extend(self.id.as_array().as_ref());
@@ -110,7 +110,7 @@ impl Certificate {
     }
 
     // To get unique id, calculate certificate id of certificate object using keccak256,
-    // excluding cert_id, signature and stark proof field
+    // excluding cert_id and signature fields
     fn calculate_cert_id(certificate: &Certificate) -> Result<[u8; 32], Error> {
         let mut buffer = Vec::new();
         buffer.extend_from_slice(certificate.prev_id.as_array().as_ref());
