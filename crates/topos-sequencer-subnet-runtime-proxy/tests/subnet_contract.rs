@@ -636,13 +636,13 @@ async fn test_subnet_certificate_get_checkpoints_call(
     ];
 
     for (test_cert, test_cert_position) in test_certificates.iter() {
-        info!("Pushing certificate id={:?}", test_cert.id);
+        info!("Pushing certificate id={}", test_cert.id);
         match subnet_client
             .push_certificate(&test_cert, *test_cert_position as u64)
             .await
         {
             Ok(_) => {
-                info!("Certificate id={:?} pushed", test_cert.id);
+                info!("Certificate id={} pushed", test_cert.id);
             }
             Err(e) => {
                 panic!("Unable to push certificate: {e}");

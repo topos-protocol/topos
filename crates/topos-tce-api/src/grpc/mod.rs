@@ -175,7 +175,7 @@ impl ApiService for TceGrpcService {
                     Ok(Err(crate::RuntimeError::UnknownSubnet(subnet_id))) => {
                         // Tce does not have Position::Zero certificate associated
                         Err(Status::internal(format!(
-                            "Unknown subnet, no genesis certificate associated with subnet id {:?}",
+                            "Unknown subnet, no genesis certificate associated with subnet id {}",
                             &subnet_id
                         )))
                     }
