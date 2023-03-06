@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
+use topos_test_sdk::constants::*;
 
 /// Generate and assign nb_cert number of certificates to existing subnets
 /// Could be different number of certificates per subnet
@@ -15,7 +16,7 @@ pub fn generate_cert(
 
     // Initialize the genesis of all subnets
     for subnet in subnets {
-        nonce_state.insert(*subnet, [0 as u8; 32].into());
+        nonce_state.insert(*subnet, PREV_CERTIFICATE_ID.into());
     }
 
     let mut gen_cert = |selected_subnet: SubnetId| -> Certificate {

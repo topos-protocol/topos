@@ -3984,6 +3984,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "proc_macro_sdk"
+version = "0.1.0"
+dependencies = [
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "prometheus-client"
 version = "0.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5574,6 +5582,7 @@ dependencies = [
  "topos-tce-storage",
  "topos-tce-synchronizer",
  "topos-tce-transport",
+ "topos-test-sdk",
  "tower",
  "tracing",
  "tracing-log",
@@ -5598,6 +5607,7 @@ dependencies = [
  "tokio-stream",
  "tonic",
  "tonic-build",
+ "topos-test-sdk",
  "topos-uci",
  "tower",
  "tracing",
@@ -5692,6 +5702,7 @@ dependencies = [
  "topos-core",
  "topos-crypto",
  "topos-sequencer-types",
+ "topos-test-sdk",
  "tracing",
  "tracing-subscriber",
 ]
@@ -5743,6 +5754,7 @@ dependencies = [
  "topos-crypto",
  "topos-sequencer-subnet-client",
  "topos-sequencer-types",
+ "topos-test-sdk",
  "tracing",
  "tracing-subscriber",
  "web3",
@@ -5774,6 +5786,7 @@ dependencies = [
  "topos-tce",
  "topos-tce-storage",
  "topos-tce-transport",
+ "topos-test-sdk",
  "tracing",
  "tracing-subscriber",
  "uuid 1.3.0",
@@ -5857,6 +5870,7 @@ dependencies = [
  "topos-core",
  "topos-p2p",
  "topos-tce-storage",
+ "topos-test-sdk",
  "tower",
  "tracing",
  "tracing-opentelemetry",
@@ -5884,6 +5898,7 @@ dependencies = [
  "topos-core",
  "topos-p2p",
  "topos-tce-transport",
+ "topos-test-sdk",
  "tracing",
  "tracing-opentelemetry",
  "tracing-subscriber",
@@ -5929,6 +5944,7 @@ dependencies = [
  "tokio-stream",
  "topos-commands",
  "topos-core",
+ "topos-test-sdk",
  "tracing",
  "tracing-subscriber",
  "uuid 1.3.0",
@@ -5968,6 +5984,14 @@ version = "0.1.0"
 dependencies = [
  "opentelemetry",
  "serde",
+]
+
+[[package]]
+name = "topos-test-sdk"
+version = "0.1.0"
+dependencies = [
+ "proc_macro_sdk",
+ "topos-core",
 ]
 
 [[package]]

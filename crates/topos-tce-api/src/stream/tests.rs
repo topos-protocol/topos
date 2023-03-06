@@ -1,6 +1,7 @@
 use rstest::*;
 use std::time::Duration;
 use topos_core::uci::Certificate;
+use topos_test_sdk::constants::{PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID_2, TARGET_SUBNET_ID_1};
 
 use crate::grpc::messaging::{OutboundMessage, StreamOpened};
 use crate::runtime::InternalRuntimeCommand;
@@ -11,7 +12,6 @@ use test_log::test;
 use tokio::spawn;
 use topos_core::api::shared::v1::checkpoints::TargetCheckpoint;
 use topos_core::api::shared::v1::positions::TargetStreamPosition;
-use topos_core::api::shared::v1::SubnetId;
 use topos_core::api::tce::v1::watch_certificates_request::OpenStream as GrpcOpenStream;
 use topos_core::api::tce::v1::WatchCertificatesRequest;
 
@@ -53,9 +53,7 @@ pub async fn sending_open_stream_message() -> Result<(), Box<dyn std::error::Err
 
     let msg: WatchCertificatesRequest = GrpcOpenStream {
         target_checkpoint: Some(TargetCheckpoint {
-            target_subnet_ids: vec![SubnetId {
-                value: [1u8; 32].into(),
-            }],
+            target_subnet_ids: vec![TARGET_SUBNET_ID_1.into()],
             positions: Vec::new(),
         }),
         source_checkpoint: None,
@@ -85,12 +83,10 @@ async fn subscribing_to_one_target_with_position() -> Result<(), Box<dyn std::er
 
     let msg: WatchCertificatesRequest = GrpcOpenStream {
         target_checkpoint: Some(TargetCheckpoint {
-            target_subnet_ids: vec![SubnetId {
-                value: [1u8; 32].into(),
-            }],
+            target_subnet_ids: vec![TARGET_SUBNET_ID_1.into()],
             positions: vec![TargetStreamPosition {
-                source_subnet_id: Some([2u8; 32].into()),
-                target_subnet_id: Some([1u8; 32].into()),
+                source_subnet_id: Some(SOURCE_SUBNET_ID_2.into()),
+                target_subnet_id: Some(TARGET_SUBNET_ID_1.into()),
                 position: 1,
                 certificate_id: None,
             }],
@@ -120,21 +116,21 @@ async fn receive_expected_certificate_from_zero() -> Result<(), Box<dyn std::err
     let (mut tx, stream, mut context) = StreamBuilder::default().build();
 
     let first = Certificate::new(
-        [0u8; 32],
-        [2u8; 32].into(),
+        PREV_CERTIFICATE_ID,
+        SOURCE_SUBNET_ID_2,
         Default::default(),
         Default::default(),
-        &vec![[1u8; 32].into()],
+        &vec![TARGET_SUBNET_ID_1],
         0,
         Default::default(),
     )
     .unwrap();
     let second = Certificate::new(
         first.id,
-        [2u8; 32].into(),
+        SOURCE_SUBNET_ID_2,
         Default::default(),
         Default::default(),
-        &vec![[1u8; 32].into()],
+        &vec![TARGET_SUBNET_ID_1],
         0,
         Default::default(),
     )
@@ -146,9 +142,7 @@ async fn receive_expected_certificate_from_zero() -> Result<(), Box<dyn std::err
 
     let msg: WatchCertificatesRequest = GrpcOpenStream {
         target_checkpoint: Some(TargetCheckpoint {
-            target_subnet_ids: vec![SubnetId {
-                value: [1u8; 32].into(),
-            }],
+            target_subnet_ids: vec![TARGET_SUBNET_ID_1.into()],
             positions: vec![],
         }),
         source_checkpoint: None,
@@ -170,7 +164,7 @@ async fn receive_expected_certificate_from_zero() -> Result<(), Box<dyn std::err
     assert!(
         matches!(
             msg,
-            Some(Ok((_, OutboundMessage::StreamOpened(StreamOpened { ref subnet_ids })))) if subnet_ids == &[[1u8; 32].into()],
+            Some(Ok((_, OutboundMessage::StreamOpened(StreamOpened { ref subnet_ids })))) if subnet_ids == &[TARGET_SUBNET_ID_1],
         ),
         "Expected StreamOpened, received: {:?}",
         msg

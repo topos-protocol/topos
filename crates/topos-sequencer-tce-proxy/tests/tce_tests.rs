@@ -19,6 +19,8 @@ use topos_core::api::tce::v1::{
 use topos_core::api::uci::v1::Certificate;
 use tracing::{debug, error, info};
 
+use topos_test_sdk::constants::*;
+
 mod common;
 
 const TCE_NODE_STARTUP_DELAY: Duration = Duration::from_secs(7);
@@ -154,9 +156,9 @@ async fn test_tce_submit_certificate(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let context = context_running_tce_test_node.await;
 
-    let source_subnet_id: SubnetId = [1u8; 32].into();
-    let prev_certificate_id: CertificateId = [01u8; 32].into();
-    let certificate_id: CertificateId = [02u8; 32].into();
+    let source_subnet_id: SubnetId = SOURCE_SUBNET_ID_1.into();
+    let prev_certificate_id: CertificateId = CERTIFICATE_ID_1.into();
+    let certificate_id: CertificateId = CERTIFICATE_ID_2.into();
 
     info!("Creating TCE node client");
     let mut client = match topos_core::api::tce::v1::api_service_client::ApiServiceClient::connect(
@@ -280,9 +282,9 @@ async fn test_tce_get_source_head_certificate(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let context = context_running_tce_test_node.await;
 
-    let source_subnet_id: SubnetId = [1u8; 32].into();
-    let default_cert_id: CertificateId = [0u8; 32].into();
-    let certificate_id: CertificateId = [02u8; 32].into();
+    let source_subnet_id: SubnetId = SOURCE_SUBNET_ID_1.into();
+    let default_cert_id: CertificateId = PREV_CERTIFICATE_ID.into();
+    let certificate_id: CertificateId = CERTIFICATE_ID_2.into();
 
     info!("Creating TCE node client");
     let mut client = match topos_core::api::tce::v1::api_service_client::ApiServiceClient::connect(
@@ -394,7 +396,7 @@ async fn test_tce_open_stream_with_checkpoint(
     let context = context_running_tce_test_node_with_filled_db.await;
 
     let source_subnet_id_1: SubnetId = SubnetId {
-        value: common::SOURCE_SUBNET_ID_1.into(),
+        value: SOURCE_SUBNET_ID_1.into(),
     };
     let source_subnet_id_1_stream_position = 4;
     let source_subnet_id_1_prefilled_certificates =
@@ -402,7 +404,7 @@ async fn test_tce_open_stream_with_checkpoint(
             [0..common::SOURCE_SUBNET_ID_1_NUMBER_OF_PREFILLED_CERTIFICATES];
 
     let source_subnet_id_2: SubnetId = SubnetId {
-        value: common::SOURCE_SUBNET_ID_2.into(),
+        value: SOURCE_SUBNET_ID_2.into(),
     };
     let source_subnet_id_2_stream_position = 2;
     let source_subnet_id_2_prefilled_certificates =
@@ -410,7 +412,7 @@ async fn test_tce_open_stream_with_checkpoint(
             [common::SOURCE_SUBNET_ID_1_NUMBER_OF_PREFILLED_CERTIFICATES..];
 
     let target_subnet_id: SubnetId = SubnetId {
-        value: common::TARGET_SUBNET_ID.into(),
+        value: TARGET_SUBNET_ID_1.into(),
     };
 
     info!("Creating TCE node client");

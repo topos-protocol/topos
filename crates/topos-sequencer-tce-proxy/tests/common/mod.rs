@@ -1,15 +1,12 @@
 use std::net::UdpSocket;
 use std::path::PathBuf;
 use tokio::sync::{mpsc, oneshot};
-use topos_core::uci::SubnetId;
 use topos_tce::{StorageConfiguration, TceConfiguration};
 use topos_tce_storage::{RocksDBStorage, Storage};
 use topos_tce_transport::ReliableBroadcastParams;
+use topos_test_sdk::constants::*;
 use tracing::info;
 
-pub const SOURCE_SUBNET_ID_1: SubnetId = SubnetId::from_array([1u8; 32]);
-pub const SOURCE_SUBNET_ID_2: SubnetId = SubnetId::from_array([2u8; 32]);
-pub const TARGET_SUBNET_ID: SubnetId = SubnetId::from_array([3u8; 32]);
 pub const SOURCE_SUBNET_ID_1_NUMBER_OF_PREFILLED_CERTIFICATES: usize = 15;
 pub const SOURCE_SUBNET_ID_2_NUMBER_OF_PREFILLED_CERTIFICATES: usize = 10;
 
@@ -93,12 +90,12 @@ pub async fn populate_test_database(
 
     let mut certificates = create_certificate_chain(
         SOURCE_SUBNET_ID_1,
-        TARGET_SUBNET_ID,
+        TARGET_SUBNET_ID_1,
         SOURCE_SUBNET_ID_1_NUMBER_OF_PREFILLED_CERTIFICATES,
     );
     certificates.append(&mut create_certificate_chain(
         SOURCE_SUBNET_ID_2,
-        TARGET_SUBNET_ID,
+        TARGET_SUBNET_ID_1,
         SOURCE_SUBNET_ID_2_NUMBER_OF_PREFILLED_CERTIFICATES,
     ));
 

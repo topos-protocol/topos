@@ -11,7 +11,6 @@ use tonic::transport::channel;
 use tonic::transport::Uri;
 use topos_core::api::shared::v1::checkpoints::TargetCheckpoint;
 use topos_core::api::shared::v1::positions::TargetStreamPosition;
-use topos_core::uci::CertificateId;
 use topos_core::{
     api::tce::v1::{
         api_service_client::ApiServiceClient,
@@ -23,11 +22,8 @@ use topos_core::{
 use topos_tce_api::Runtime;
 use topos_tce_storage::{Connection, RocksDBStorage, Storage};
 
-const SOURCE_SUBNET_ID: topos_core::uci::SubnetId =
-    topos_core::uci::SubnetId::from_array([1u8; 32]);
-const TARGET_SUBNET_ID: topos_core::uci::SubnetId =
-    topos_core::uci::SubnetId::from_array([2u8; 32]);
-const PREV_CERTIFICATE_ID: CertificateId = CertificateId::from_array([4u8; 32]);
+use topos_test_sdk::certificates::create_certificate_chain;
+use topos_test_sdk::constants::*;
 
 #[rstest]
 #[timeout(Duration::from_secs(1))]
@@ -73,7 +69,7 @@ async fn runtime_can_dispatch_a_cert() {
         let in_stream = async_stream::stream! {
             yield OpenStream {
                 target_checkpoint: Some(TargetCheckpoint {
-                    target_subnet_ids: vec![TARGET_SUBNET_ID.into()],
+                    target_subnet_ids: vec![TARGET_SUBNET_ID_1.into()],
                     positions: Vec::new()
                 }),
                 source_checkpoint: None
@@ -105,10 +101,10 @@ async fn runtime_can_dispatch_a_cert() {
 
     let cert = topos_core::uci::Certificate::new(
         PREV_CERTIFICATE_ID,
-        SOURCE_SUBNET_ID,
+        SOURCE_SUBNET_ID_1,
         Default::default(),
         Default::default(),
-        &vec![TARGET_SUBNET_ID],
+        &vec![TARGET_SUBNET_ID_1],
         0,
         Vec::new(),
     )
@@ -137,7 +133,7 @@ async fn can_catchup_with_old_certs() {
     let t = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
     temp_dir.push(format!("./can_dispatch_test_{}", t.as_nanos()));
 
-    let certificates = create_certificate_chain(SOURCE_SUBNET_ID, TARGET_SUBNET_ID, 15);
+    let certificates = create_certificate_chain(SOURCE_SUBNET_ID_1, TARGET_SUBNET_ID_1, 15);
 
     let (storage, storage_client, _storage_stream) = {
         let storage = RocksDBStorage::with_isolation(&temp_dir).expect("valid rocksdb storage");
@@ -172,7 +168,7 @@ async fn can_catchup_with_old_certs() {
         let in_stream = async_stream::stream! {
             yield OpenStream {
                 target_checkpoint: Some(TargetCheckpoint {
-                    target_subnet_ids: vec![TARGET_SUBNET_ID.into()],
+                    target_subnet_ids: vec![TARGET_SUBNET_ID_1.into()],
                     positions: Vec::new()
                 }),
                 source_checkpoint: None
@@ -200,10 +196,10 @@ async fn can_catchup_with_old_certs() {
     let last = certificates.last().map(|c| c.id).unwrap();
     let cert = topos_core::uci::Certificate::new(
         last,
-        SOURCE_SUBNET_ID,
+        SOURCE_SUBNET_ID_1,
         Default::default(),
         Default::default(),
-        &vec![TARGET_SUBNET_ID],
+        &vec![TARGET_SUBNET_ID_1],
         0,
         Vec::new(),
     )
@@ -243,7 +239,7 @@ async fn can_catchup_with_old_certs_with_position() {
     let t = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
     temp_dir.push(format!("./can_dispatch_test_{}", t.as_nanos()));
 
-    let certificates = create_certificate_chain(SOURCE_SUBNET_ID, TARGET_SUBNET_ID, 15);
+    let certificates = create_certificate_chain(SOURCE_SUBNET_ID_1, TARGET_SUBNET_ID_1, 15);
 
     let (storage, storage_client, _storage_stream) = {
         let storage = RocksDBStorage::with_isolation(&temp_dir).expect("valid rocksdb storage");
@@ -278,13 +274,13 @@ async fn can_catchup_with_old_certs_with_position() {
         let in_stream = async_stream::stream! {
             yield OpenStream {
                 target_checkpoint: Some(TargetCheckpoint {
-                    target_subnet_ids: vec![TARGET_SUBNET_ID.into()],
+                    target_subnet_ids: vec![TARGET_SUBNET_ID_1.into()],
                     positions: vec![
                         TargetStreamPosition {
                             certificate_id: None,
                             position: 5,
-                            source_subnet_id: Some(SOURCE_SUBNET_ID.into()),
-                            target_subnet_id: Some(TARGET_SUBNET_ID.into())
+                            source_subnet_id: Some(SOURCE_SUBNET_ID_1.into()),
+                            target_subnet_id: Some(TARGET_SUBNET_ID_1.into())
                         }
                     ]
                 }),
@@ -313,10 +309,10 @@ async fn can_catchup_with_old_certs_with_position() {
     let last = certificates.last().map(|c| c.id).unwrap();
     let cert = topos_core::uci::Certificate::new(
         last,
-        SOURCE_SUBNET_ID,
+        SOURCE_SUBNET_ID_1,
         Default::default(),
         Default::default(),
-        &vec![TARGET_SUBNET_ID],
+        &vec![TARGET_SUBNET_ID_1],
         0,
         Vec::new(),
     )
@@ -343,29 +339,3 @@ async fn can_catchup_with_old_certs_with_position() {
 #[test(tokio::test)]
 #[ignore = "not yet implemented"]
 async fn can_listen_for_multiple_subnet_id() {}
-
-fn create_certificate_chain(
-    source_subnet: topos_core::uci::SubnetId,
-    target_subnet: topos_core::uci::SubnetId,
-    number: usize,
-) -> Vec<Certificate> {
-    let mut certificates = Vec::new();
-    let mut parent = None;
-
-    for _ in 0..number {
-        let cert = Certificate::new(
-            parent.take().unwrap_or([0u8; 32]),
-            source_subnet.clone(),
-            Default::default(),
-            Default::default(),
-            &[target_subnet.clone()],
-            0,
-            Vec::new(),
-        )
-        .unwrap();
-        parent = Some(cert.id.as_array().clone());
-        certificates.push(cert);
-    }
-
-    certificates
-}
