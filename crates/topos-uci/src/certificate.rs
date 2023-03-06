@@ -131,22 +131,25 @@ impl Certificate {
 mod tests {
     use super::*;
     const PREV_CERTIFICATE_ID: CertificateId = CertificateId::from_array([1u8; 32]);
-    const SOURCE_SUBNET_ID: SubnetId = SubnetId::from_array([2u8; 32]);
     const TARGET_SUBNET_ID: SubnetId = SubnetId::from_array([3u8; 32]);
     const STATE_ROOT: StateRoot = [4u8; 32];
     const TX_ROOT_HASH: TxRootHash = [5u8; 32];
     const PRIVATE_TEST_KEY: &str =
         "5fb92d6e98884f76de468fa3f6278f8807c48bebc13595d45af5bdc4da702133";
 
-    fn generate_dummy_cert() -> Certificate {
+    fn generate_dummy_cert(signing_key: &[u8]) -> Certificate {
+        let public_key =
+            topos_crypto::keys::derive_public_key(signing_key).expect("valid public key");
+        let source_subnet_it: [u8; 32] = public_key[1..33].try_into().unwrap();
+
         Certificate::new(
             PREV_CERTIFICATE_ID,
-            SOURCE_SUBNET_ID,
+            source_subnet_it.into(),
             STATE_ROOT,
             TX_ROOT_HASH,
             &vec![TARGET_SUBNET_ID],
             2,
-            Vec::new(),
+            Default::default(),
         )
         .expect("Dummy certificate")
     }
@@ -155,16 +158,13 @@ mod tests {
     fn certificate_signatures() {
         let private_test_key = hex::decode(PRIVATE_TEST_KEY).unwrap();
 
-        let mut dummy_cert = generate_dummy_cert();
+        let mut dummy_cert = generate_dummy_cert(&private_test_key);
         dummy_cert
             .update_signature(private_test_key.as_slice())
             .expect("valid signature update");
 
-        let public_key = topos_crypto::keys::derive_public_key(private_test_key.as_slice())
-            .expect("valid public key");
-
         topos_crypto::signatures::verify(
-            &public_key,
+            &dummy_cert.source_subnet_id.to_secp256k1_public_key(),
             dummy_cert.get_payload().as_slice(),
             dummy_cert.signature.as_slice(),
         )
@@ -175,7 +175,7 @@ mod tests {
     #[should_panic]
     fn signature_verification_failed_corrupt_data() {
         let private_test_key = hex::decode(PRIVATE_TEST_KEY).unwrap();
-        let mut dummy_cert = generate_dummy_cert();
+        let mut dummy_cert = generate_dummy_cert(&private_test_key);
 
         dummy_cert
             .update_signature(private_test_key.as_slice())
@@ -198,7 +198,7 @@ mod tests {
     #[should_panic]
     fn signature_verification_failed_invalid_public_key() {
         let private_test_key = hex::decode(PRIVATE_TEST_KEY).unwrap();
-        let mut dummy_cert = generate_dummy_cert();
+        let mut dummy_cert = generate_dummy_cert(&private_test_key);
 
         dummy_cert
             .update_signature(private_test_key.as_slice())
@@ -211,7 +211,7 @@ mod tests {
         public_key[3] = 0xff;
 
         topos_crypto::signatures::verify(
-            &public_key,
+            &dummy_cert.source_subnet_id.to_secp256k1_public_key(),
             dummy_cert.get_payload().as_slice(),
             dummy_cert.signature.as_slice(),
         )
