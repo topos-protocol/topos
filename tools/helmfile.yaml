@@ -77,35 +77,74 @@ releases:
   - name: fileSystemId
     value: {{ requiredEnv "FILESYSTEM_ID" }}
 
-- name: tce-all-in-one
+# Boot node
+- name: boot
   namespace: default
   chart: toposware/tce-all-in-one
-  version: 0.1.24
+  version: 0.1.32-rc.4
   createNamespace: true
   needs:
   - tce-tmp-storage
   set:
+  - name: mode
+    value: boot
+  - name: replicas
+    value: 1
+  - name: certSpammer
+    value: false
   - name: image.repository
     value: ghcr.io/toposware/topos
-  - name: peerReplicas
-    value: 15
   - name: image.tag
     value: {{ requiredEnv "DOCKER_TAG"}}
   - name: credentials.username
     value: {{ requiredEnv "DOCKER_USERNAME"}}
   - name: credentials.password
     value: {{ requiredEnv "DOCKER_PASSWORD"}}
-  - name: otelEndpoint
-    value: https://otel-collector.telemetry.devnet-1.toposware.com:443
-  - name: bootHost
+  - name: ingress
+    value: true
+  - name: host
     value: boot\.tce\.devnet-1\.toposware\.com
-  - name: peersHost
+  - name: acme.environment
+    value: production
+  - name: acme.email
+    value: thiago.nobayashi@toposware.com
+  - name: env.TCE_JAEGER_SERVICE_NAME
+    value: tce-boot-node
+  - name: env.TCE_JAEGER_AGENT
+    value: https://otel-collector.telemetry.devnet-1.toposware.com:443
+
+# Peer nodes
+- name: peer
+  namespace: default
+  chart: toposware/tce-all-in-one
+  version: 0.1.32-rc.4
+  createNamespace: true
+  needs:
+  - boot
+  set:
+  - name: mode
+    value: peer
+  - name: replicas
+    value: 15
+  - name: certSpammer
+    value: false
+  - name: image.repository
+    value: ghcr.io/toposware/topos
+  - name: image.tag
+    value: {{ requiredEnv "DOCKER_TAG"}}
+  - name: credentials.username
+    value: {{ requiredEnv "DOCKER_USERNAME"}}
+  - name: credentials.password
+    value: {{ requiredEnv "DOCKER_PASSWORD"}}
+  - name: ingress
+    value: true
+  - name: host
     value: peers\.tce\.devnet-1\.toposware\.com
   - name: acme.environment
     value: production
   - name: acme.email
     value: thiago.nobayashi@toposware.com
-  - name: ingress
-    value: true
-  - name: certSpammer
-    value: false
+  - name: env.TCE_JAEGER_SERVICE_NAME
+    value: tce-peer-node
+  - name: env.TCE_JAEGER_AGENT
+    value: https://otel-collector.telemetry.devnet-1.toposware.com:443
