@@ -31,23 +31,62 @@ releases:
   - name: fileSystemId
     value: {{ requiredEnv "FILESYSTEM_ID" }}
 
-- name: tce-all-in-one
+# Boot node
+- name: boot
   namespace: default
   chart: toposware/tce-all-in-one
-  version: 0.1.24
+  version: 0.1.29
   createNamespace: true
   needs:
   - tce-tmp-storage
   set:
+  - name: mode
+    value: boot
+  - name: replicas
+    value: 1
+  - name: certSpammer
+    value: false
   - name: image.repository
     value: ghcr.io/toposware/topos
-  - name: peerReplicas
-    value: 15
   - name: image.tag
     value: {{ requiredEnv "DOCKER_TAG"}}
   - name: credentials.username
     value: {{ requiredEnv "DOCKER_USERNAME"}}
   - name: credentials.password
     value: {{ requiredEnv "DOCKER_PASSWORD"}}
-  - name: otelEndpoint
+  - name: ingress
+    value: false
+  - name: env.TCE_JAEGER_SERVICE_NAME
+    value: k8s-e2e-tce-boot-node
+  - name: env.TCE_JAEGER_AGENT
+    value: https://otel-collector.telemetry.devnet-1.toposware.com:443
+
+# Peer nodes
+- name: peer
+  namespace: default
+  chart: toposware/tce-all-in-one
+  version: 0.1.29
+  createNamespace: true
+  needs:
+  - boot
+  set:
+  - name: mode
+    value: peer
+  - name: replicas
+    value: 15
+  - name: certSpammer
+    value: true
+  - name: image.repository
+    value: ghcr.io/toposware/topos
+  - name: image.tag
+    value: {{ requiredEnv "DOCKER_TAG"}}
+  - name: credentials.username
+    value: {{ requiredEnv "DOCKER_USERNAME"}}
+  - name: credentials.password
+    value: {{ requiredEnv "DOCKER_PASSWORD"}}
+  - name: ingress
+    value: false
+  - name: env.TCE_JAEGER_SERVICE_NAME
+    value: k8s-e2e-tce-boot-node
+  - name: env.TCE_JAEGER_AGENT
     value: https://otel-collector.telemetry.devnet-1.toposware.com:443
