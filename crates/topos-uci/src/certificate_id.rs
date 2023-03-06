@@ -11,13 +11,13 @@ pub struct CertificateId {
 
 impl Display for CertificateId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", hex::encode(self.id))
+        write!(f, "0x{}", hex::encode(self.id))
     }
 }
 
 impl Debug for CertificateId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", hex::encode(self.id))
+        write!(f, "0x{}", hex::encode(self.id))
     }
 }
 

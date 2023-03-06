@@ -7,9 +7,8 @@ license = "MIT"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bincode.workspace = true
+topos-crypto.workspace = true
 ethereum-types.workspace = true
 hex.workspace = true
-keccak-hash = "0.10.0"
 serde = { workspace = true, features = ["derive"] }
 thiserror.workspace = true

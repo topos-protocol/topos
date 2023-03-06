@@ -110,6 +110,7 @@ async fn runtime_can_dispatch_a_cert() {
         Default::default(),
         &vec![TARGET_SUBNET_ID],
         0,
+        Vec::new(),
     )
     .unwrap();
 
@@ -204,6 +205,7 @@ async fn can_catchup_with_old_certs() {
         Default::default(),
         &vec![TARGET_SUBNET_ID],
         0,
+        Vec::new(),
     )
     .unwrap();
 
@@ -316,6 +318,7 @@ async fn can_catchup_with_old_certs_with_position() {
         Default::default(),
         &vec![TARGET_SUBNET_ID],
         0,
+        Vec::new(),
     )
     .unwrap();
 
@@ -357,6 +360,7 @@ fn create_certificate_chain(
             Default::default(),
             &[target_subnet.clone()],
             0,
+            Vec::new(),
         )
         .unwrap();
         parent = Some(cert.id.as_array().clone());

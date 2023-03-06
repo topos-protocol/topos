@@ -180,6 +180,7 @@ async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams)
         Default::default(),
         &vec![],
         0,
+        Default::default(),
     )
     .expect("Dummy certificate");
 
@@ -238,6 +239,7 @@ async fn trigger_ready_when_reached_enough_ready(#[case] params: TceParams) {
         Default::default(),
         &vec![],
         0,
+        Default::default(),
     )
     .expect("Dummy certificate");
 
@@ -280,6 +282,7 @@ async fn process_after_delivery_until_sending_ready(#[case] params: TceParams) {
         Default::default(),
         &vec![],
         0,
+        Default::default(),
     )
     .expect("Dummy certificate");
 

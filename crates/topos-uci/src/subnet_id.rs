@@ -11,13 +11,13 @@ pub struct SubnetId {
 
 impl Display for SubnetId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", hex::encode(self.id))
+        write!(f, "0x{}", hex::encode(self.id))
     }
 }
 
 impl Debug for SubnetId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", hex::encode(self.id))
+        write!(f, "0x{}", hex::encode(self.id))
     }
 }
 
@@ -72,5 +72,12 @@ impl SubnetId {
 
     pub const fn as_array(&self) -> &[u8; 32] {
         &self.id
+    }
+
+    pub fn to_secp256k1_public_key(&self) -> [u8; 33] {
+        let mut public_key: [u8; 33] = [0; 33];
+        public_key[0] = 0x02;
+        public_key[1..(self.id.len() + 1)].copy_from_slice(&self.id[..]);
+        public_key
     }
 }

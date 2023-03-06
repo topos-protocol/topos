@@ -15,6 +15,7 @@ tokio = { workspace = true, features = ["full"] }
 tracing-subscriber = {workspace = true, features = ["fmt", "std", "env-filter",]}
 tracing.workspace = true
 
+topos-crypto.workspace = true
 topos-core = { workspace = true, features = ["uci"] }
 topos-p2p = { path = "../topos-p2p/" }
 topos-sequencer-certification = { package = "topos-sequencer-certification", path = "../topos-sequencer-certification" }
@@ -22,3 +23,4 @@ topos-sequencer-subnet-runtime-proxy = { package = "topos-sequencer-subnet-runti
 topos-sequencer-tce-proxy = { package = "topos-sequencer-tce-proxy", path = "../topos-sequencer-tce-proxy" }
 topos-sequencer-types = { package = "topos-sequencer-types", path = "../topos-sequencer-types" }
 topos-tce-transport = { package = "topos-tce-transport", path = "../topos-tce-transport" }
+

@@ -3,9 +3,7 @@
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-pub use topos_core::uci::{
-    Address, Certificate, CertificateId, DigestCompressed, StateRoot, SubnetId, TxRootHash,
-};
+pub use topos_core::uci::{Address, Certificate, CertificateId, StateRoot, SubnetId, TxRootHash};
 
 pub type BlockData = Vec<u8>;
 pub type BlockNumber = u64;
@@ -93,8 +91,8 @@ pub enum SubnetRuntimeProxyCommand {
     /// Push the Certificate to the subnet runtime
     PushCertificate(Certificate),
 
-    /// propagate transacitons to the runtime
-    OnNewDeliveredTxns(Certificate),
+    /// Propagate certificate and its position to the runtime
+    OnNewDeliveredTxns((Certificate, u64)),
 }
 
 #[derive(Debug)]
@@ -108,8 +106,8 @@ pub enum TceProxyCommand {
 
 #[derive(Debug, Clone)]
 pub enum TceProxyEvent {
-    /// New delivered certificate fetched from the TCE network
-    NewDeliveredCerts(Vec<Certificate>),
+    /// New delivered certificate (and its position) fetched from the TCE network
+    NewDeliveredCerts(Vec<(Certificate, u64)>),
     /// Failed watching certificates channel
     /// Requires restart of sequencer tce proxy
     WatchCertificatesChannelFailed,
@@ -143,16 +141,8 @@ pub enum TceCommands {
     OnEchoSubscribeOk { from_peer: String },
     /// Given peer replied ok to the ReadySubscribe request
     OnReadySubscribeOk { from_peer: String },
-    /// Upon new certificate to start delivery
-    OnStartDelivery {
-        cert: Box<Certificate>,
-        digest: DigestCompressed,
-    },
     /// Received G-set message
-    OnGossip {
-        cert: Box<Certificate>,
-        digest: DigestCompressed,
-    },
+    OnGossip { cert: Box<Certificate> },
     /// When echo reply received
     OnEcho {
         from_peer: String,
@@ -184,7 +174,6 @@ pub enum TceEvents {
     Gossip {
         peers: Vec<String>,
         cert: Certificate,
-        digest: DigestCompressed,
     },
     /// Indicates that 'echo' message broadcasting is required
     Echo {

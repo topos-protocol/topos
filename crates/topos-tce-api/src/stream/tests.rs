@@ -126,6 +126,7 @@ async fn receive_expected_certificate_from_zero() -> Result<(), Box<dyn std::err
         Default::default(),
         &vec![[1u8; 32].into()],
         0,
+        Default::default(),
     )
     .unwrap();
     let second = Certificate::new(
@@ -135,6 +136,7 @@ async fn receive_expected_certificate_from_zero() -> Result<(), Box<dyn std::err
         Default::default(),
         &vec![[1u8; 32].into()],
         0,
+        Default::default(),
     )
     .unwrap();
 

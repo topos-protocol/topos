@@ -23,6 +23,7 @@ async fn can_persist_a_pending_certificate(pending_column: PendingCertificatesCo
         Default::default(),
         &[],
         0,
+        Vec::new(),
     )
     .unwrap();
 
@@ -40,6 +41,7 @@ async fn can_persist_a_delivered_certificate(certificates_column: CertificatesCo
         Default::default(),
         &Vec::new(),
         0,
+        Vec::new(),
     )
     .unwrap();
 
@@ -65,6 +67,7 @@ async fn delivered_certificate_position_are_incremented(
         Default::default(),
         &[],
         0,
+        Vec::new(),
     )
     .unwrap();
 
@@ -89,6 +92,7 @@ async fn position_can_be_fetch_for_one_subnet(source_streams_column: SourceStrea
         Default::default(),
         &[],
         0,
+        Vec::new(),
     )
     .unwrap();
 
@@ -114,6 +118,7 @@ async fn position_can_be_fetch_for_one_subnet(source_streams_column: SourceStrea
         Default::default(),
         &[],
         0,
+        Vec::new(),
     )
     .unwrap();
 
