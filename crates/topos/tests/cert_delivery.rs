@@ -161,7 +161,7 @@ async fn cert_delivery() {
                 })) = received.event
                 {
                     debug!(
-                        "Client peer_id: {} certificate id: {} delivered to subnet id {:?}, ",
+                        "Client peer_id: {} certificate id: {} delivered to subnet id {}, ",
                         &peer_id,
                         certificate.id.clone().unwrap(),
                         &client_subnet_id
@@ -197,7 +197,7 @@ async fn cert_delivery() {
                     // Iterate all certificates meant to be sent to the particular network
                     for cert in certificates.iter() {
                         info!(
-                            "Sending certificate id={:?} from subnet id: {:?} to peer id: {}",
+                            "Sending certificate id={} from subnet id: {} to peer id: {}",
                             &cert.id, &subnet_id, &peer_id
                         );
                         let _ = client
@@ -237,7 +237,7 @@ async fn cert_delivery() {
                 client_delivered_certificates.recv().await
             {
                 info!(
-                    "Delivered certificate on peer_Id: {} cert id: {:?} from source subnet id: {:?} to target subnet id {:?}",
+                    "Delivered certificate on peer_Id: {} cert id: {} from source subnet id: {} to target subnet id {}",
                     &peer_id, cert.id, cert.source_subnet_id, target_subnet_id
                 );
                 // Send certificates from every peer to one delivery_rx receiver

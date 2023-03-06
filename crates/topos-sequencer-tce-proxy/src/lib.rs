@@ -48,15 +48,13 @@ pub enum Error {
         #[from]
         source: hex::FromHexError,
     },
-    #[error(
-        "Unable to get source head certificate for subnet id {subnet_id:?}, details: {details}"
-    )]
+    #[error("Unable to get source head certificate for subnet id {subnet_id}, details: {details}")]
     UnableToGetSourceHeadCertificate {
         subnet_id: SubnetId,
         details: String,
     },
 
-    #[error("Certificate source head empty for subnet id {subnet_id:?}")]
+    #[error("Certificate source head empty for subnet id {subnet_id}")]
     SourceHeadEmpty { subnet_id: SubnetId },
 }
 
@@ -231,7 +229,7 @@ impl TceClientBuilder {
         tokio::spawn(async move {
             // Listen for feedback from TCE service (WatchCertificatesResponse)
             info!(
-                "Entering watch certificate response loop for tce node {} for subnet id {:?}",
+                "Entering watch certificate response loop for tce node {} for subnet id {}",
                 &tce_endpoint, &subnet_id
             );
             loop {
@@ -343,7 +341,7 @@ impl TceClientBuilder {
                             Some(TceClientCommand::OpenStream {target_checkpoint}) =>  {
                                 // Send command to TCE to open stream with my subnet id
                                 info!(
-                                    "Sending OpenStream command to tce node {} for subnet id {:?}",
+                                    "Sending OpenStream command to tce node {} for subnet id {}",
                                     &tce_endpoint, &subnet_id
                                 );
                                 if let Err(e) = outbound_stream_command_sender
