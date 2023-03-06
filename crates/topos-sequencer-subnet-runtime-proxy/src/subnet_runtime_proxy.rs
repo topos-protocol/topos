@@ -223,7 +223,7 @@ impl SubnetRuntimeProxy {
                     // Well known subnet id is public key for certificate verification
                     // Public key of secp256k1 is 33 bytes, we are keeping last 32 bytes as subnet id
                     // Add manually first byte 0x02
-                    let mut public_key = cert.source_subnet_id.to_secp256k1_public_key();
+                    let public_key = cert.source_subnet_id.to_secp256k1_public_key();
 
                     // Verify signature of the certificate
                     match topos_crypto::signatures::verify(

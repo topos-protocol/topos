@@ -77,9 +77,7 @@ impl SubnetId {
     pub fn to_secp256k1_public_key(&self) -> [u8; 33] {
         let mut public_key: [u8; 33] = [0; 33];
         public_key[0] = 0x02;
-        for i in 0..self.id.len() {
-            public_key[i + 1] = self.id[i];
-        }
+        public_key[1..(self.id.len() + 1)].copy_from_slice(&self.id[..]);
         public_key
     }
 }
