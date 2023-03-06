@@ -21,6 +21,8 @@ case "$1" in
     "boot")
         BOOT_PEER_ID=$($TOPOS_BIN tce keys --from-seed=$TCE_LOCAL_KS)
 
+        # clean up shared directory
+        rm $BOOT_PEERS_PATH $PEER_LIST_PATH $NODE_LIST_PATH 2> /dev/null || echo "everything's clean!"
 
         echo "Generating boot_peers file..."
         $JQ -n --arg PEER $BOOT_PEER_ID --arg ADDR $TCE_EXT_HOST '[$PEER + " " + $ADDR + "/tcp/9090"]' > $BOOT_PEERS_PATH
@@ -59,7 +61,10 @@ case "$1" in
            done
 
            PEER=$($TOPOS_BIN tce keys --from-seed=$HOSTNAME)
-           cat <<< $($JQ --arg PEER $PEER '. += [$PEER]' $PEER_LIST_PATH) > $PEER_LIST_PATH
+
+           if ! grep -q $PEER $PEER_LIST_PATH; then
+               cat <<< $($JQ --arg PEER $PEER '. += [$PEER]' $PEER_LIST_PATH) > $PEER_LIST_PATH
+           fi
 
            export TCE_LOCAL_KS=$HOSTNAME
            export TCE_EXT_HOST
@@ -70,7 +75,9 @@ case "$1" in
                sleep 1
            done
 
-           cat <<< $($JQ --arg NODE $NODE '.nodes += [$NODE]' $NODE_LIST_PATH) > $NODE_LIST_PATH
+           if ! grep -q $NODE $NODE_LIST_PATH; then
+               cat <<< $($JQ --arg NODE $NODE '.nodes += [$NODE]' $NODE_LIST_PATH) > $NODE_LIST_PATH
+           fi
        fi
 
        exec "$TOPOS_BIN" "$@"
