@@ -6,13 +6,13 @@ on:
     - cron:  '30 5 * * *'
   push:
     # Triggers on merge into main
-    branches: [main]
+    branches: [main, test/k8s-e2e]
 
 jobs:
   docker:
-    uses: toposware/topos/.github/workflows/docker_utils.yml@main
+    uses: toposware/topos/.github/workflows/docker_utils.yml@test/k8s-e2e
     secrets: inherit
   k8s:
     needs: docker
-    uses: toposware/topos/.github/workflows/k8s_utils.yml@main
+    uses: toposware/topos/.github/workflows/k8s_utils.yml@test/k8s-e2e
     secrets: inherit
