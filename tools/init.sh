@@ -10,8 +10,6 @@ fi
 
 JQ=$(which jq)
 TOPOS_BIN=./topos
-TMP_PEER_LIST_PATH=/tmp/shared/peer_ids.tmp
-TMP_NODE_LIST_PATH=/tmp/shared/peer_nodes.tmp
 BOOT_PEERS_PATH=/tmp/shared/boot_peers.json
 PEER_LIST_PATH=/tmp/shared/peer_ids.json
 NODE_LIST_PATH=/tmp/shared/peer_nodes.json
@@ -65,8 +63,7 @@ case "$1" in
            PEER=$($TOPOS_BIN tce keys --from-seed=$HOSTNAME)
 
            if ! grep -q $PEER $PEER_LIST_PATH; then
-               $JQ --arg PEER $PEER '. += [$PEER]' $PEER_LIST_PATH > "${TMP_PEER_LIST_PATH}" \
-                && mv "${TMP_PEER_LIST_PATH}" $PEER_LIST_PATH
+                cat <<< $($JQ --arg PEER $PEER '. += [$PEER]' $PEER_LIST_PATH) > $PEER_LIST_PATH
            fi
 
            export TCE_LOCAL_KS=$HOSTNAME
@@ -79,8 +76,7 @@ case "$1" in
            done
 
            if ! grep -q $NODE $NODE_LIST_PATH; then
-               $JQ --arg NODE $NODE '.nodes += [$NODE]' $NODE_LIST_PATH > "${TMP_NODE_LIST_PATH}" \
-                && mv "${TMP_NODE_LIST_PATH}" $NODE_LIST_PATH
+               cat <<< $($JQ --arg NODE $NODE '.nodes += [$NODE]' $NODE_LIST_PATH) > $NODE_LIST_PATH
            fi
        fi
 
