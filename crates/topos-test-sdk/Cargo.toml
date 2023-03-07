@@ -2,10 +2,10 @@
 name = "topos-test-sdk"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+build = "build.rs"
 
 [dependencies]
 topos-core = { workspace = true, features = ["uci"] }
-proc_macro_sdk = {path = "./proc_macro_sdk/" }
-
+topos-tce-storage = { path = "../topos-tce-storage/" }
+proc_macro_sdk = { path = "./proc_macro_sdk/" }
+futures.workspace = true

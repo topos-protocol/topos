@@ -1,5 +1,7 @@
 pub mod certificates;
 
+pub mod storage;
+
 pub mod constants {
     use proc_macro_sdk::generate_certificate_ids;
     use proc_macro_sdk::generate_source_subnet_ids;

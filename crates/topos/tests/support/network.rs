@@ -1,9 +1,4 @@
-use std::{
-    collections::HashMap,
-    net::UdpSocket,
-    str::FromStr,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::{collections::HashMap, net::UdpSocket, str::FromStr};
 
 use crate::SubnetId;
 use futures::{future::join_all, Stream, StreamExt};
@@ -25,7 +20,6 @@ use topos_p2p::{Client, Event, Runtime};
 use topos_tce_broadcast::{
     DoubleEchoCommand, ReliableBroadcastClient, ReliableBroadcastConfig, SamplerCommand,
 };
-use topos_tce_storage::{Connection, RocksDBStorage};
 use topos_tce_transport::{ReliableBroadcastParams, TceEvents};
 use tracing::{info_span, Instrument, Span};
 
@@ -85,17 +79,11 @@ where
             let socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
             let addr = socket.local_addr().ok().unwrap();
             let api_port = addr.port();
-            // launch data store
-            let mut temp_dir = std::path::PathBuf::from_str(env!("CARGO_TARGET_TMPDIR"))
-                .expect("Unable to read CARGO_TARGET_TMPDIR");
-            let t = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
-            temp_dir.push(format!("./{}_{}", peer_id, t.as_nanos()));
 
-            let (storage, storage_client, storage_stream) = {
-                let storage =
-                    RocksDBStorage::with_isolation(&temp_dir).expect("valid rocksdb storage");
-                Connection::build(Box::pin(async { Ok(storage) }))
-            };
+            let peer_id_str = peer_id.to_base58();
+            // launch data store
+            let (_, (storage, storage_client, storage_stream)) =
+                topos_test_sdk::storage::create_rocksdb(&peer_id_str, &[]).await;
             let storage_join_handle = spawn(storage.into_future());
 
             let (api_client, api_events) = topos_tce_api::Runtime::builder()

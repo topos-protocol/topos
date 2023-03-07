@@ -2,9 +2,7 @@ use std::net::UdpSocket;
 use std::path::PathBuf;
 use tokio::sync::{mpsc, oneshot};
 use topos_tce::{StorageConfiguration, TceConfiguration};
-use topos_tce_storage::{RocksDBStorage, Storage};
 use topos_tce_transport::ReliableBroadcastParams;
-use topos_test_sdk::constants::*;
 use tracing::info;
 
 pub const SOURCE_SUBNET_ID_1_NUMBER_OF_PREFILLED_CERTIFICATES: usize = 15;
@@ -54,56 +52,4 @@ pub async fn start_tce_test_service(
     tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
 
     Ok((shutdown_sender, tce_address))
-}
-
-fn create_certificate_chain(
-    source_subnet: topos_core::uci::SubnetId,
-    target_subnet: topos_core::uci::SubnetId,
-    number: usize,
-) -> Vec<topos_core::uci::Certificate> {
-    let mut certificates = Vec::new();
-    let mut parent = None;
-
-    for _ in 0..number {
-        let cert = topos_core::uci::Certificate::new(
-            parent.take().unwrap_or([0u8; 32]),
-            source_subnet.clone(),
-            Default::default(),
-            Default::default(),
-            &[target_subnet.clone()],
-            0,
-            Default::default(),
-        )
-        .unwrap();
-        parent = Some(cert.id.as_array().clone());
-        certificates.push(cert);
-    }
-
-    certificates
-}
-
-/// Populate database that will be used in test
-pub async fn populate_test_database(
-    rocksdb_dir: &PathBuf,
-) -> Result<Vec<topos_core::uci::Certificate>, Box<dyn std::error::Error>> {
-    info!("Populating test database storage in {rocksdb_dir:?}");
-
-    let mut certificates = create_certificate_chain(
-        SOURCE_SUBNET_ID_1,
-        TARGET_SUBNET_ID_1,
-        SOURCE_SUBNET_ID_1_NUMBER_OF_PREFILLED_CERTIFICATES,
-    );
-    certificates.append(&mut create_certificate_chain(
-        SOURCE_SUBNET_ID_2,
-        TARGET_SUBNET_ID_1,
-        SOURCE_SUBNET_ID_2_NUMBER_OF_PREFILLED_CERTIFICATES,
-    ));
-
-    let storage = RocksDBStorage::with_isolation(&rocksdb_dir).expect("valid rocksdb storage");
-    for certificate in &certificates {
-        storage.persist(&certificate, None).await.unwrap();
-    }
-
-    info!("Finished populating test database");
-    Ok(certificates)
 }

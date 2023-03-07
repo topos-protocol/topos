@@ -1,7 +1,5 @@
 use rstest::rstest;
 use std::future::IntoFuture;
-use std::str::FromStr;
-use std::time::{SystemTime, UNIX_EPOCH};
 use std::{net::UdpSocket, time::Duration};
 use test_log::test;
 use tokio::sync::mpsc;
@@ -20,8 +18,6 @@ use topos_core::{
     uci::Certificate,
 };
 use topos_tce_api::Runtime;
-use topos_tce_storage::{Connection, RocksDBStorage, Storage};
-
 use topos_test_sdk::certificates::create_certificate_chain;
 use topos_test_sdk::constants::*;
 
@@ -35,15 +31,8 @@ async fn runtime_can_dispatch_a_cert() {
     let addr = socket.local_addr().ok().unwrap();
 
     // launch data store
-    let mut temp_dir = std::path::PathBuf::from_str(env!("CARGO_TARGET_TMPDIR"))
-        .expect("Unable to read CARGO_TARGET_TMPDIR");
-    let t = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
-    temp_dir.push(format!("./can_dispatch_test_{}", t.as_nanos()));
-
-    let (storage, storage_client, _storage_stream) = {
-        let storage = RocksDBStorage::with_isolation(&temp_dir).expect("valid rocksdb storage");
-        Connection::build(Box::pin(async { Ok(storage) }))
-    };
+    let (_, (storage, storage_client, _storage_stream)) =
+        topos_test_sdk::storage::create_rocksdb("runtime_can_dispatch_a_cert", &[]).await;
     let _storage_join_handle = spawn(storage.into_future());
 
     let (runtime_client, _launcher) = Runtime::builder()
@@ -128,21 +117,12 @@ async fn can_catchup_with_old_certs() {
     let addr = socket.local_addr().ok().unwrap();
 
     // launch data store
-    let mut temp_dir = std::path::PathBuf::from_str(env!("CARGO_TARGET_TMPDIR"))
-        .expect("Unable to read CARGO_TARGET_TMPDIR");
-    let t = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
-    temp_dir.push(format!("./can_dispatch_test_{}", t.as_nanos()));
-
     let certificates = create_certificate_chain(SOURCE_SUBNET_ID_1, TARGET_SUBNET_ID_1, 15);
 
-    let (storage, storage_client, _storage_stream) = {
-        let storage = RocksDBStorage::with_isolation(&temp_dir).expect("valid rocksdb storage");
-        for certificate in &certificates {
-            _ = storage.persist(certificate, None).await;
-        }
+    let (_, (storage, storage_client, _storage_stream)) =
+        topos_test_sdk::storage::create_rocksdb("can_catchup_with_old_certs", certificates.iter())
+            .await;
 
-        Connection::build(Box::pin(async { Ok(storage) }))
-    };
     let _storage_join_handle = spawn(storage.into_future());
 
     let (runtime_client, _launcher) = Runtime::builder()
@@ -234,21 +214,14 @@ async fn can_catchup_with_old_certs_with_position() {
     let addr = socket.local_addr().ok().unwrap();
 
     // launch data store
-    let mut temp_dir = std::path::PathBuf::from_str(env!("CARGO_TARGET_TMPDIR"))
-        .expect("Unable to read CARGO_TARGET_TMPDIR");
-    let t = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
-    temp_dir.push(format!("./can_dispatch_test_{}", t.as_nanos()));
-
     let certificates = create_certificate_chain(SOURCE_SUBNET_ID_1, TARGET_SUBNET_ID_1, 15);
 
-    let (storage, storage_client, _storage_stream) = {
-        let storage = RocksDBStorage::with_isolation(&temp_dir).expect("valid rocksdb storage");
-        for certificate in &certificates {
-            _ = storage.persist(certificate, None).await;
-        }
+    let (_, (storage, storage_client, _storage_stream)) = topos_test_sdk::storage::create_rocksdb(
+        "can_catchup_with_old_certs_with_position",
+        certificates.iter(),
+    )
+    .await;
 
-        Connection::build(Box::pin(async { Ok(storage) }))
-    };
     let _storage_join_handle = spawn(storage.into_future());
 
     let (runtime_client, _launcher) = Runtime::builder()

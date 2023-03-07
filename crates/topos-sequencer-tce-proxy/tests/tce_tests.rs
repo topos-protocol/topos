@@ -19,7 +19,12 @@ use topos_core::api::tce::v1::{
 use topos_core::api::uci::v1::Certificate;
 use tracing::{debug, error, info};
 
-use topos_test_sdk::constants::*;
+use topos_test_sdk::{certificates::create_certificate_chain, constants::*};
+
+use crate::common::{
+    SOURCE_SUBNET_ID_1_NUMBER_OF_PREFILLED_CERTIFICATES,
+    SOURCE_SUBNET_ID_2_NUMBER_OF_PREFILLED_CERTIFICATES,
+};
 
 mod common;
 
@@ -83,29 +88,26 @@ async fn context_running_tce_test_node() -> Context {
 
 #[fixture]
 async fn context_running_tce_test_node_with_filled_db() -> Context {
-    // Generate rocksdb path
-    let mut rocksdb_dir =
-        PathBuf::from_str(env!("CARGO_TARGET_TMPDIR")).expect("Unable to read CARGO_TARGET_TMPDIR");
-    rocksdb_dir.push(format!(
-        "./topos-sequencer-tce-proxy/data_{}/rocksdb",
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .expect("valid system time duration")
-            .as_millis()
-            .to_string()
+    let mut certificates = create_certificate_chain(
+        SOURCE_SUBNET_ID_1,
+        TARGET_SUBNET_ID_1,
+        SOURCE_SUBNET_ID_1_NUMBER_OF_PREFILLED_CERTIFICATES,
+    );
+    certificates.append(&mut create_certificate_chain(
+        SOURCE_SUBNET_ID_2,
+        TARGET_SUBNET_ID_1,
+        SOURCE_SUBNET_ID_2_NUMBER_OF_PREFILLED_CERTIFICATES,
     ));
 
-    info!("Rocks db path is {rocksdb_dir:?}");
+    // Generate rocksdb path
+    let (path, _) =
+        topos_test_sdk::storage::create_rocksdb("topos-sequencer-tce-proxy", certificates.iter())
+            .await;
 
-    let certificates = match common::populate_test_database(&rocksdb_dir).await {
-        Ok(certificates) => certificates,
-        Err(e) => {
-            panic!("Unable to start mock tce node with database, details: {e}");
-        }
-    };
+    info!("Rocks db path is {path:?}");
 
     let (shutdown_tce_node_signal, endpoint) =
-        match common::start_tce_test_service(rocksdb_dir.clone()).await {
+        match common::start_tce_test_service(path.clone()).await {
             Ok(result) => result,
             Err(e) => {
                 panic!("Unable to start mock tce node with database, details: {e}");
@@ -117,7 +119,7 @@ async fn context_running_tce_test_node_with_filled_db() -> Context {
     Context {
         endpoint,
         shutdown_tce_node_signal,
-        rocksdb_dir,
+        rocksdb_dir: path,
         prefilled_certificates: Some(certificates.into_iter().map(|cert| cert.into()).collect()),
     }
 }

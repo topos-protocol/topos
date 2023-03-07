@@ -14,7 +14,8 @@ use crate::{
     PendingCertificateId, Storage,
 };
 
-use self::builder::{ConnectionBuilder, StorageBuilder};
+pub use self::builder::ConnectionBuilder;
+use self::builder::StorageBuilder;
 
 const MAX_PENDING_CERTIFICATES: usize = 1000;
 
