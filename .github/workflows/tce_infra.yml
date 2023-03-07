@@ -7,7 +7,7 @@ on:
 
 jobs:
   docker:
-    uses: ${{ github.repository }}/.github/workflows/docker_utils.yml@main
+    uses: ./.github/workflows/docker_utils.yml@main
     secrets: inherit
   k8s:
     needs: docker
