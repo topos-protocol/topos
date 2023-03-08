@@ -23,7 +23,7 @@ pub async fn create_rocksdb<'a, C: IntoIterator<Item = &'a Certificate>>(
 ) {
     let dir = env!("TOPOS_TEST_SDK_TMP");
     let mut temp_dir =
-        std::path::PathBuf::from_str(&dir).expect("Unable to read CARGO_TARGET_TMPDIR");
+        std::path::PathBuf::from_str(dir).expect("Unable to read CARGO_TARGET_TMPDIR");
     let time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
     temp_dir.push(format!(
         "./{}/data_{}/rocksdb",

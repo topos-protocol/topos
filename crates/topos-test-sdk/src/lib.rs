@@ -1,5 +1,9 @@
 pub mod certificates;
 
+#[cfg(feature = "tce")]
+pub mod tce;
+
+pub mod p2p;
 pub mod storage;
 
 pub mod constants {

@@ -5659,6 +5659,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-stream",
+ "topos-test-sdk",
  "tracing",
  "tracing-subscriber",
  "void",
@@ -5991,9 +5992,19 @@ name = "topos-test-sdk"
 version = "0.1.0"
 dependencies = [
  "futures",
+ "libp2p",
  "proc_macro_sdk",
+ "tokio",
+ "tonic",
  "topos-core",
+ "topos-p2p",
+ "topos-tce",
+ "topos-tce-api",
+ "topos-tce-broadcast",
+ "topos-tce-gatekeeper",
  "topos-tce-storage",
+ "topos-tce-synchronizer",
+ "topos-tce-transport",
 ]
 
 [[package]]

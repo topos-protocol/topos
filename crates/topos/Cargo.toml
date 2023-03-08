@@ -33,7 +33,7 @@ topos-tce-synchronizer = { path = "../topos-tce-synchronizer" }
 topos-tce-gatekeeper = { path = "../topos-tce-gatekeeper" }
 topos-tce-api = {path = "../topos-tce-api"}
 topos-tce-storage = { path = "../topos-tce-storage" }
-topos-test-sdk = { path = "../topos-test-sdk" }
+topos-test-sdk = { path = "../topos-test-sdk", features = ["tce"] }
 serde.workspace = true
 serde_json.workspace = true
 test-log.workspace = true

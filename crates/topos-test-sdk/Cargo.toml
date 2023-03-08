@@ -6,6 +6,30 @@ build = "build.rs"
 
 [dependencies]
 topos-core = { workspace = true, features = ["uci"] }
+topos-p2p = { path = "../topos-p2p/" }
+topos-tce = { path = "../topos-tce/", optional = true }
+topos-tce-api = { path = "../topos-tce-api/", optional = true }
 topos-tce-storage = { path = "../topos-tce-storage/" }
+topos-tce-gatekeeper = { path = "../topos-tce-gatekeeper/", optional = true }
+topos-tce-synchronizer = { path = "../topos-tce-synchronizer/", optional = true }
+topos-tce-broadcast = { path = "../topos-tce-broadcast/", optional = true }
+topos-tce-transport = { path = "../topos-tce-transport/", optional = true }
+
 proc_macro_sdk = { path = "./proc_macro_sdk/" }
 futures.workspace = true
+tokio.workspace = true
+libp2p.workspace = true
+tonic = { workspace = true, optional = true }
+
+[features]
+default = []
+tce = [
+    "topos-core/api",
+    "dep:tonic",
+    "topos-tce",
+    "topos-tce-api",
+    "topos-tce-broadcast",
+    "topos-tce-gatekeeper",
+    "topos-tce-synchronizer",
+    "topos-tce-transport",
+]
