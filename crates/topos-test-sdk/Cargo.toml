@@ -20,6 +20,7 @@ futures.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 libp2p.workspace = true
+rstest.workspace = true
 tonic = { workspace = true, optional = true }
 
 [features]

@@ -1,6 +1,5 @@
 use futures::StreamExt;
 use rstest::*;
-use serial_test::serial;
 use std::collections::HashMap;
 use test_log::test;
 use tokio::time::Duration;
@@ -18,49 +17,18 @@ use tracing::{debug, error, info};
 use topos_test_sdk::{
     certificates::create_certificate_chain,
     constants::*,
-    tce::{NodeConfig, TceContext},
+    tce::{start_node, TceContext},
 };
 
 pub const SOURCE_SUBNET_ID_1_NUMBER_OF_PREFILLED_CERTIFICATES: usize = 15;
 pub const SOURCE_SUBNET_ID_2_NUMBER_OF_PREFILLED_CERTIFICATES: usize = 10;
 
-#[fixture]
-fn base_certificates() -> Vec<uci::Certificate> {
-    Vec::new()
-}
-
-#[fixture]
-fn input_certificates(mut base_certificates: Vec<uci::Certificate>) -> Vec<uci::Certificate> {
-    base_certificates.append(&mut create_certificate_chain(
-        SOURCE_SUBNET_ID_1,
-        TARGET_SUBNET_ID_1,
-        SOURCE_SUBNET_ID_1_NUMBER_OF_PREFILLED_CERTIFICATES,
-    ));
-    base_certificates.append(&mut create_certificate_chain(
-        SOURCE_SUBNET_ID_2,
-        TARGET_SUBNET_ID_1,
-        SOURCE_SUBNET_ID_2_NUMBER_OF_PREFILLED_CERTIFICATES,
-    ));
-
-    base_certificates
-}
-
-#[fixture]
-async fn context_running_tce_test_node(base_certificates: Vec<uci::Certificate>) -> TceContext {
-    let ctx =
-        topos_test_sdk::tce::start_node(NodeConfig::default(), &[], base_certificates.as_slice())
-            .await;
-
-    ctx
-}
-
 #[rstest]
 #[test(tokio::test)]
-#[serial]
 async fn test_tce_submit_certificate(
-    #[future] context_running_tce_test_node: TceContext,
+    #[future] start_node: TceContext,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut context = context_running_tce_test_node.await;
+    let mut context = start_node.await;
 
     let source_subnet_id: SubnetId = SOURCE_SUBNET_ID_1.into();
     let prev_certificate_id: CertificateId = CERTIFICATE_ID_1.into();
@@ -99,11 +67,10 @@ async fn test_tce_submit_certificate(
 
 #[rstest]
 #[test(tokio::test)]
-#[serial]
 async fn test_tce_watch_certificates(
-    #[future] context_running_tce_test_node: TceContext,
+    #[future] start_node: TceContext,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut context = context_running_tce_test_node.await;
+    let mut context = start_node.await;
 
     let source_subnet_id: SubnetId = SubnetId {
         value: [1u8; 32].to_vec(),
@@ -163,11 +130,10 @@ async fn test_tce_watch_certificates(
 
 #[rstest]
 #[test(tokio::test)]
-#[serial]
 async fn test_tce_get_source_head_certificate(
-    #[future] context_running_tce_test_node: TceContext,
+    #[future] start_node: TceContext,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut context = context_running_tce_test_node.await;
+    let mut context = start_node.await;
 
     let source_subnet_id: SubnetId = SOURCE_SUBNET_ID_1.into();
     let default_cert_id: CertificateId = PREV_CERTIFICATE_ID.into();
@@ -265,16 +231,14 @@ async fn test_tce_get_source_head_certificate(
 
 #[rstest]
 #[test(tokio::test)]
-#[serial]
 #[timeout(Duration::from_secs(300))]
-// #[ignore = "ignore until flakiness is fixed"]
 async fn test_tce_open_stream_with_checkpoint(
     input_certificates: Vec<uci::Certificate>,
     #[with(input_certificates.clone())]
     #[future]
-    context_running_tce_test_node: TceContext,
+    start_node: TceContext,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut context = context_running_tce_test_node.await;
+    let mut context = start_node.await;
 
     let source_subnet_id_1: SubnetId = SubnetId {
         value: SOURCE_SUBNET_ID_1.into(),
@@ -420,4 +384,22 @@ async fn test_tce_open_stream_with_checkpoint(
     info!("Shutting down TCE node client");
     context.shutdown().await?;
     Ok(())
+}
+
+#[fixture]
+fn input_certificates() -> Vec<uci::Certificate> {
+    let mut certificates = Vec::new();
+    certificates.append(&mut create_certificate_chain(
+        SOURCE_SUBNET_ID_1,
+        TARGET_SUBNET_ID_1,
+        SOURCE_SUBNET_ID_1_NUMBER_OF_PREFILLED_CERTIFICATES,
+    ));
+
+    certificates.append(&mut create_certificate_chain(
+        SOURCE_SUBNET_ID_2,
+        TARGET_SUBNET_ID_1,
+        SOURCE_SUBNET_ID_2_NUMBER_OF_PREFILLED_CERTIFICATES,
+    ));
+
+    certificates
 }

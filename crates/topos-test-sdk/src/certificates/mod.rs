@@ -1,11 +1,16 @@
 use topos_core::uci::Certificate;
 
-use crate::constants::PREV_CERTIFICATE_ID;
+use rstest::*;
 
+use crate::constants::PREV_CERTIFICATE_ID;
+use crate::constants::SOURCE_SUBNET_ID_1;
+use crate::constants::TARGET_SUBNET_ID_1;
+
+#[fixture]
 pub fn create_certificate_chain(
-    source_subnet: topos_core::uci::SubnetId,
-    target_subnet: topos_core::uci::SubnetId,
-    number: usize,
+    #[default(SOURCE_SUBNET_ID_1)] source_subnet: topos_core::uci::SubnetId,
+    #[default(TARGET_SUBNET_ID_1)] target_subnet: topos_core::uci::SubnetId,
+    #[default(1)] number: usize,
 ) -> Vec<Certificate> {
     let mut certificates = Vec::new();
     let mut parent = None;

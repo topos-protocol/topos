@@ -1,3 +1,4 @@
+use futures::Stream;
 use rstest::rstest;
 use std::future::IntoFuture;
 use std::{net::UdpSocket, time::Duration};
@@ -17,45 +18,24 @@ use topos_core::{
     },
     uci::Certificate,
 };
-use topos_tce_api::Runtime;
+use topos_tce_api::{Runtime, RuntimeEvent};
 use topos_test_sdk::certificates::create_certificate_chain;
 use topos_test_sdk::constants::*;
+use topos_test_sdk::storage::storage_client;
+use topos_test_sdk::tce::public_api::{create_public_api, PublicApiContext};
 
 #[rstest]
 #[timeout(Duration::from_secs(1))]
 #[test(tokio::test)]
-async fn runtime_can_dispatch_a_cert() {
+async fn runtime_can_dispatch_a_cert(
+    #[future] create_public_api: (PublicApiContext, impl Stream<Item = RuntimeEvent>),
+) {
+    let (api_context, _) = create_public_api.await;
+    let mut client = api_context.api_client;
     let (tx, rx) = oneshot::channel::<Certificate>();
-
-    let socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
-    let addr = socket.local_addr().ok().unwrap();
-
-    // launch data store
-    let (_, (storage, storage_client, _storage_stream)) =
-        topos_test_sdk::storage::create_rocksdb::<Certificate>("runtime_can_dispatch_a_cert", &[])
-            .await;
-    let _storage_join_handle = spawn(storage.into_future());
-
-    let (runtime_client, _launcher) = Runtime::builder()
-        .storage(storage_client)
-        .serve_addr(addr)
-        .build_and_launch()
-        .await;
-
-    // Wait for server to boot
-    tokio::time::sleep(Duration::from_millis(100)).await;
-
-    let uri = Uri::builder()
-        .path_and_query("/")
-        .authority(addr.to_string())
-        .scheme("http")
-        .build()
-        .unwrap();
 
     // This block represent a subnet A
     spawn(async move {
-        let channel = channel::Channel::builder(uri).connect_lazy();
-        let mut client = ApiServiceClient::new(channel);
         let in_stream = async_stream::stream! {
             yield OpenStream {
                 target_checkpoint: Some(TargetCheckpoint {
@@ -87,7 +67,7 @@ async fn runtime_can_dispatch_a_cert() {
     });
 
     // Wait for client to be ready
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    tokio::time::sleep(Duration::from_millis(10)).await;
 
     let cert = topos_core::uci::Certificate::new(
         PREV_CERTIFICATE_ID,
@@ -101,50 +81,29 @@ async fn runtime_can_dispatch_a_cert() {
     .unwrap();
 
     // Send a dispatch command that will be push to the subnet A
-    runtime_client.dispatch_certificate(cert.clone()).await;
+    api_context.client.dispatch_certificate(cert.clone()).await;
 
     let certificate_received = rx.await.unwrap();
-
     assert_eq!(cert, certificate_received);
 }
 
 #[rstest]
 #[timeout(Duration::from_secs(2))]
 #[test(tokio::test)]
-async fn can_catchup_with_old_certs() {
+async fn can_catchup_with_old_certs(
+    #[with(SOURCE_SUBNET_ID_1, TARGET_SUBNET_ID_1, 15)]
+    #[from(create_certificate_chain)]
+    certificates: Vec<Certificate>,
+) {
+    let storage_client = storage_client::partial_1(certificates.clone());
+    let (api_context, _) = create_public_api::partial_1(storage_client).await;
+
+    let mut client = api_context.api_client;
+
     let (tx, mut rx) = mpsc::channel::<Certificate>(16);
-
-    let socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
-    let addr = socket.local_addr().ok().unwrap();
-
-    // launch data store
-    let certificates = create_certificate_chain(SOURCE_SUBNET_ID_1, TARGET_SUBNET_ID_1, 15);
-
-    let (_, (storage, storage_client, _storage_stream)) =
-        topos_test_sdk::storage::create_rocksdb("can_catchup_with_old_certs", &certificates).await;
-
-    let _storage_join_handle = spawn(storage.into_future());
-
-    let (runtime_client, _launcher) = Runtime::builder()
-        .storage(storage_client)
-        .serve_addr(addr)
-        .build_and_launch()
-        .await;
-
-    // Wait for server to boot
-    tokio::time::sleep(Duration::from_millis(100)).await;
-
-    let uri = Uri::builder()
-        .path_and_query("/")
-        .authority(addr.to_string())
-        .scheme("http")
-        .build()
-        .unwrap();
 
     // This block represent a subnet A
     spawn(async move {
-        let channel = channel::Channel::builder(uri).connect_lazy();
-        let mut client = ApiServiceClient::new(channel);
         let in_stream = async_stream::stream! {
             yield OpenStream {
                 target_checkpoint: Some(TargetCheckpoint {
@@ -186,7 +145,7 @@ async fn can_catchup_with_old_certs() {
     .unwrap();
 
     // Send a dispatch command that will be push to the subnet A
-    runtime_client.dispatch_certificate(cert.clone()).await;
+    api_context.client.dispatch_certificate(cert.clone()).await;
 
     for (index, certificate) in certificates.iter().enumerate() {
         let certificate_received = rx
@@ -218,7 +177,7 @@ async fn can_catchup_with_old_certs_with_position() {
 
     let (_, (storage, storage_client, _storage_stream)) = topos_test_sdk::storage::create_rocksdb(
         "can_catchup_with_old_certs_with_position",
-        &certificates,
+        certificates.clone(),
     )
     .await;
 

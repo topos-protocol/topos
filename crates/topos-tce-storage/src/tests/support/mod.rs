@@ -3,6 +3,7 @@ use std::{
     path::PathBuf,
     str::FromStr,
     sync::{atomic::AtomicU64, Arc, Mutex},
+    thread,
 };
 
 use once_cell::sync::Lazy;
@@ -33,10 +34,13 @@ pub(crate) static DB: Lazy<Mutex<HashMap<&'static str, Arc<RocksDB>>>> =
 
 #[fixture]
 pub(crate) fn database_name() -> &'static str {
-    Box::leak(Box::new(format!(
-        "tests/databases/{}",
-        uuid::Uuid::new_v4()
-    )))
+    Box::leak(Box::new(
+        topos_test_sdk::storage::create_folder(thread::current().name().unwrap())
+            .to_str()
+            .unwrap()
+            .replace("::", "_")
+            .to_string(),
+    ))
 }
 
 #[fixture]
