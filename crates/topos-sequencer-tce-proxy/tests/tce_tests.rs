@@ -1,14 +1,9 @@
-use futures::{Future, StreamExt};
+use futures::StreamExt;
 use rstest::*;
 use serial_test::serial;
 use std::collections::HashMap;
-use std::path::PathBuf;
-use std::str::FromStr;
 use test_log::test;
-use tokio::{
-    sync::{mpsc, oneshot},
-    time::Duration,
-};
+use tokio::time::Duration;
 use topos_core::api::shared::v1::{checkpoints::TargetCheckpoint, positions::TargetStreamPosition};
 use topos_core::api::shared::v1::{CertificateId, StarkProof, SubnetId};
 use topos_core::api::tce::v1::{
@@ -17,165 +12,62 @@ use topos_core::api::tce::v1::{
     SourceStreamPosition, SubmitCertificateRequest,
 };
 use topos_core::api::uci::v1::Certificate;
+use topos_core::uci;
 use tracing::{debug, error, info};
 
-use topos_test_sdk::{certificates::create_certificate_chain, constants::*};
-
-use crate::common::{
-    SOURCE_SUBNET_ID_1_NUMBER_OF_PREFILLED_CERTIFICATES,
-    SOURCE_SUBNET_ID_2_NUMBER_OF_PREFILLED_CERTIFICATES,
+use topos_test_sdk::{
+    certificates::create_certificate_chain,
+    constants::*,
+    tce::{NodeConfig, TceContext},
 };
 
-mod common;
+pub const SOURCE_SUBNET_ID_1_NUMBER_OF_PREFILLED_CERTIFICATES: usize = 15;
+pub const SOURCE_SUBNET_ID_2_NUMBER_OF_PREFILLED_CERTIFICATES: usize = 10;
 
-const TCE_NODE_STARTUP_DELAY: Duration = Duration::from_secs(7);
-
-#[allow(dead_code)]
-struct Context {
-    endpoint: String,
-    shutdown_tce_node_signal: mpsc::Sender<oneshot::Sender<()>>,
-    rocksdb_dir: PathBuf,
-    prefilled_certificates: Option<Vec<Certificate>>,
-}
-
-impl Context {
-    pub async fn shutdown(self) -> Result<(), Box<dyn std::error::Error>> {
-        info!("Context performing shutdown...");
-        let (shutdown_finished_sender, shutdown_finished_receiver) = oneshot::channel::<()>();
-        self.shutdown_tce_node_signal
-            .send(shutdown_finished_sender)
-            .await
-            .unwrap();
-
-        shutdown_finished_receiver.await.unwrap();
-        info!("Shutdown finished...");
-
-        Ok(())
-    }
+#[fixture]
+fn base_certificates() -> Vec<uci::Certificate> {
+    Vec::new()
 }
 
 #[fixture]
-async fn context_running_tce_test_node() -> Context {
-    // Generate rocksdb path
-    let mut rocksdb_dir =
-        PathBuf::from_str(env!("CARGO_TARGET_TMPDIR")).expect("Unable to read CARGO_TARGET_TMPDIR");
-    rocksdb_dir.push(format!(
-        "./topos-sequencer-tce-proxy/data_{}/rocksdb",
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .expect("valid system time duration")
-            .as_millis()
-            .to_string()
-    ));
-
-    let (shutdown_tce_node_signal, endpoint) =
-        match common::start_tce_test_service(rocksdb_dir.clone()).await {
-            Ok(result) => result,
-            Err(e) => {
-                panic!("Unable to start mock tce node, details: {e}");
-            }
-        };
-
-    tokio::time::sleep(TCE_NODE_STARTUP_DELAY).await;
-
-    Context {
-        endpoint,
-        shutdown_tce_node_signal,
-        rocksdb_dir,
-        prefilled_certificates: None,
-    }
-}
-
-#[fixture]
-async fn context_running_tce_test_node_with_filled_db() -> Context {
-    let mut certificates = create_certificate_chain(
+fn input_certificates(mut base_certificates: Vec<uci::Certificate>) -> Vec<uci::Certificate> {
+    base_certificates.append(&mut create_certificate_chain(
         SOURCE_SUBNET_ID_1,
         TARGET_SUBNET_ID_1,
         SOURCE_SUBNET_ID_1_NUMBER_OF_PREFILLED_CERTIFICATES,
-    );
-    certificates.append(&mut create_certificate_chain(
+    ));
+    base_certificates.append(&mut create_certificate_chain(
         SOURCE_SUBNET_ID_2,
         TARGET_SUBNET_ID_1,
         SOURCE_SUBNET_ID_2_NUMBER_OF_PREFILLED_CERTIFICATES,
     ));
 
-    // Generate rocksdb path
-    let (path, _) =
-        topos_test_sdk::storage::create_rocksdb("topos-sequencer-tce-proxy", certificates.iter())
-            .await;
-
-    info!("Rocks db path is {path:?}");
-
-    let (shutdown_tce_node_signal, endpoint) =
-        match common::start_tce_test_service(path.clone()).await {
-            Ok(result) => result,
-            Err(e) => {
-                panic!("Unable to start mock tce node with database, details: {e}");
-            }
-        };
-
-    tokio::time::sleep(TCE_NODE_STARTUP_DELAY).await;
-
-    Context {
-        endpoint,
-        shutdown_tce_node_signal,
-        rocksdb_dir: path,
-        prefilled_certificates: Some(certificates.into_iter().map(|cert| cert.into()).collect()),
-    }
+    base_certificates
 }
 
-#[rstest]
-#[test(tokio::test)]
-#[serial]
-async fn test_run_tce_node(
-    context_running_tce_test_node: impl Future<Output = Context>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let context = context_running_tce_test_node.await;
+#[fixture]
+async fn context_running_tce_test_node(base_certificates: Vec<uci::Certificate>) -> TceContext {
+    let ctx =
+        topos_test_sdk::tce::start_node(NodeConfig::default(), &[], base_certificates.as_slice())
+            .await;
 
-    info!("Creating TCE node client");
-    let _client = match topos_core::api::tce::v1::api_service_client::ApiServiceClient::connect(
-        format!("http://{}", context.endpoint),
-    )
-    .await
-    {
-        Ok(client) => client,
-        Err(e) => {
-            error!("Unable to create client, error: {}", e);
-            return Err(Box::from(e));
-        }
-    };
-
-    info!("Shutting down TCE node client");
-    context.shutdown().await?;
-    Ok(())
+    ctx
 }
 
 #[rstest]
 #[test(tokio::test)]
 #[serial]
 async fn test_tce_submit_certificate(
-    context_running_tce_test_node: impl Future<Output = Context>,
+    #[future] context_running_tce_test_node: TceContext,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let context = context_running_tce_test_node.await;
+    let mut context = context_running_tce_test_node.await;
 
     let source_subnet_id: SubnetId = SOURCE_SUBNET_ID_1.into();
     let prev_certificate_id: CertificateId = CERTIFICATE_ID_1.into();
     let certificate_id: CertificateId = CERTIFICATE_ID_2.into();
 
-    info!("Creating TCE node client");
-    let mut client = match topos_core::api::tce::v1::api_service_client::ApiServiceClient::connect(
-        format!("http://{}", context.endpoint),
-    )
-    .await
-    {
-        Ok(client) => client,
-        Err(e) => {
-            error!("Unable to create client, error: {}", e);
-            return Err(Box::from(e));
-        }
-    };
-
-    match client
+    match context
+        .api_grpc_client
         .submit_certificate(SubmitCertificateRequest {
             certificate: Some(Certificate {
                 source_subnet_id: Some(source_subnet_id.clone()),
@@ -209,25 +101,12 @@ async fn test_tce_submit_certificate(
 #[test(tokio::test)]
 #[serial]
 async fn test_tce_watch_certificates(
-    context_running_tce_test_node: impl Future<Output = Context>,
+    #[future] context_running_tce_test_node: TceContext,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let context = context_running_tce_test_node.await;
+    let mut context = context_running_tce_test_node.await;
 
     let source_subnet_id: SubnetId = SubnetId {
         value: [1u8; 32].to_vec(),
-    };
-
-    info!("Creating TCE node client");
-    let mut client = match topos_core::api::tce::v1::api_service_client::ApiServiceClient::connect(
-        format!("http://{}", context.endpoint),
-    )
-    .await
-    {
-        Ok(client) => client,
-        Err(e) => {
-            error!("Unable to create client, error: {}", e);
-            return Err(Box::from(e));
-        }
     };
 
     //Outbound stream
@@ -241,8 +120,14 @@ async fn test_tce_watch_certificates(
             source_checkpoint: None
         }.into()
     };
-    let response = client.watch_certificates(in_stream).await.unwrap();
+    let response = context
+        .api_grpc_client
+        .watch_certificates(in_stream)
+        .await
+        .unwrap();
+
     let mut resp_stream = response.into_inner();
+
     info!("TCE client: waiting for watch certificate response");
     while let Some(received) = resp_stream.next().await {
         info!("TCE client received: {:?}", received);
@@ -280,30 +165,18 @@ async fn test_tce_watch_certificates(
 #[test(tokio::test)]
 #[serial]
 async fn test_tce_get_source_head_certificate(
-    context_running_tce_test_node: impl Future<Output = Context>,
+    #[future] context_running_tce_test_node: TceContext,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let context = context_running_tce_test_node.await;
+    let mut context = context_running_tce_test_node.await;
 
     let source_subnet_id: SubnetId = SOURCE_SUBNET_ID_1.into();
     let default_cert_id: CertificateId = PREV_CERTIFICATE_ID.into();
     let certificate_id: CertificateId = CERTIFICATE_ID_2.into();
 
-    info!("Creating TCE node client");
-    let mut client = match topos_core::api::tce::v1::api_service_client::ApiServiceClient::connect(
-        format!("http://{}", context.endpoint),
-    )
-    .await
-    {
-        Ok(client) => client,
-        Err(e) => {
-            error!("Unable to create client, error: {}", e);
-            return Err(Box::from(e));
-        }
-    };
-
     // Test get source head certificate for empty TCE history
     // This will be actual genesis certificate
-    let response = client
+    let response = context
+        .api_grpc_client
         .get_source_head(GetSourceHeadRequest {
             subnet_id: Some(source_subnet_id.clone()),
         })
@@ -344,7 +217,9 @@ async fn test_tce_get_source_head_certificate(
         proof: Some(StarkProof { value: Vec::new() }),
         signature: Some(Default::default()),
     };
-    match client
+
+    match context
+        .api_grpc_client
         .submit_certificate(SubmitCertificateRequest {
             certificate: Some(test_certificate.clone()),
         })
@@ -361,7 +236,8 @@ async fn test_tce_get_source_head_certificate(
     };
 
     // Test get source head certificate for non empty certificate history
-    let response = client
+    let response = context
+        .api_grpc_client
         .get_source_head(GetSourceHeadRequest {
             subnet_id: Some(source_subnet_id.clone()),
         })
@@ -391,43 +267,31 @@ async fn test_tce_get_source_head_certificate(
 #[test(tokio::test)]
 #[serial]
 #[timeout(Duration::from_secs(300))]
-#[ignore = "ignore until flakiness is fixed"]
+// #[ignore = "ignore until flakiness is fixed"]
 async fn test_tce_open_stream_with_checkpoint(
-    context_running_tce_test_node_with_filled_db: impl Future<Output = Context>,
+    input_certificates: Vec<uci::Certificate>,
+    #[with(input_certificates.clone())]
+    #[future]
+    context_running_tce_test_node: TceContext,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let context = context_running_tce_test_node_with_filled_db.await;
+    let mut context = context_running_tce_test_node.await;
 
     let source_subnet_id_1: SubnetId = SubnetId {
         value: SOURCE_SUBNET_ID_1.into(),
     };
     let source_subnet_id_1_stream_position = 4;
     let source_subnet_id_1_prefilled_certificates =
-        &context.prefilled_certificates.as_ref().unwrap()
-            [0..common::SOURCE_SUBNET_ID_1_NUMBER_OF_PREFILLED_CERTIFICATES];
+        &input_certificates[0..SOURCE_SUBNET_ID_1_NUMBER_OF_PREFILLED_CERTIFICATES];
 
     let source_subnet_id_2: SubnetId = SubnetId {
         value: SOURCE_SUBNET_ID_2.into(),
     };
     let source_subnet_id_2_stream_position = 2;
     let source_subnet_id_2_prefilled_certificates =
-        &context.prefilled_certificates.as_ref().unwrap()
-            [common::SOURCE_SUBNET_ID_1_NUMBER_OF_PREFILLED_CERTIFICATES..];
+        &input_certificates[SOURCE_SUBNET_ID_1_NUMBER_OF_PREFILLED_CERTIFICATES..];
 
     let target_subnet_id: SubnetId = SubnetId {
         value: TARGET_SUBNET_ID_1.into(),
-    };
-
-    info!("Creating TCE node client");
-    let mut client = match topos_core::api::tce::v1::api_service_client::ApiServiceClient::connect(
-        format!("http://{}", context.endpoint),
-    )
-    .await
-    {
-        Ok(client) => client,
-        Err(e) => {
-            error!("Unable to create client, error: {}", e);
-            return Err(Box::from(e));
-        }
     };
 
     // Ask for target checkpoint for 2 subnets, one from position 4, other from position 2
@@ -438,14 +302,14 @@ async fn test_tce_open_stream_with_checkpoint(
                 source_subnet_id: source_subnet_id_1.clone().into(),
                 target_subnet_id: target_subnet_id.clone().into(),
                 position: source_subnet_id_1_stream_position,
-                certificate_id: source_subnet_id_1_prefilled_certificates[3].id.clone(),
+                certificate_id: Some(source_subnet_id_1_prefilled_certificates[3].id.into()),
             }
             .into(),
             TargetStreamPosition {
                 source_subnet_id: source_subnet_id_2.clone().into(),
                 target_subnet_id: target_subnet_id.clone().into(),
                 position: source_subnet_id_2_stream_position,
-                certificate_id: source_subnet_id_2_prefilled_certificates[1].id.clone(),
+                certificate_id: Some(source_subnet_id_2_prefilled_certificates[1].id.into()),
             }
             .into(),
         ],
@@ -454,31 +318,23 @@ async fn test_tce_open_stream_with_checkpoint(
     // Make list of expected certificate, first received certificate for every source subnet
     let mut expected_certs = HashMap::<SubnetId, Certificate>::new();
     expected_certs.insert(
-        context.prefilled_certificates.as_ref().unwrap()[4]
-            .source_subnet_id
-            .clone()
-            .unwrap(),
-        context.prefilled_certificates.as_ref().unwrap()[4].clone(),
+        input_certificates[4].source_subnet_id.into(),
+        input_certificates[4].clone().into(),
     );
     expected_certs.insert(
-        context.prefilled_certificates.as_ref().unwrap()
-            [common::SOURCE_SUBNET_ID_1_NUMBER_OF_PREFILLED_CERTIFICATES + 2]
+        input_certificates[SOURCE_SUBNET_ID_1_NUMBER_OF_PREFILLED_CERTIFICATES + 2]
             .source_subnet_id
+            .into(),
+        input_certificates[SOURCE_SUBNET_ID_1_NUMBER_OF_PREFILLED_CERTIFICATES + 2]
             .clone()
-            .unwrap(),
-        context.prefilled_certificates.as_ref().unwrap()
-            [common::SOURCE_SUBNET_ID_1_NUMBER_OF_PREFILLED_CERTIFICATES + 2]
-            .clone(),
+            .into(),
     );
 
     info!("Prefilled certificates:");
     let mut index = -1;
-    context
-        .prefilled_certificates
-        .as_ref()
-        .unwrap()
+    input_certificates
         .iter()
-        .map(|c| (c.id.as_ref().unwrap().clone()))
+        .map(|c| (c.id.clone()))
         .collect::<Vec<_>>()
         .iter()
         .for_each(|id| {
@@ -493,9 +349,17 @@ async fn test_tce_open_stream_with_checkpoint(
             source_checkpoint: None
         }.into()
     };
-    let response = client.watch_certificates(in_stream).await.unwrap();
+
+    let response = context
+        .api_grpc_client
+        .watch_certificates(in_stream)
+        .await
+        .unwrap();
+
     let mut resp_stream = response.into_inner();
+
     info!("TCE client: waiting for watch certificate response");
+
     while let Some(received) = resp_stream.next().await {
         debug!("TCE client received: {:?}", received);
         let received = received.unwrap();

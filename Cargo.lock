@@ -6005,6 +6005,7 @@ dependencies = [
  "topos-tce-storage",
  "topos-tce-synchronizer",
  "topos-tce-transport",
+ "tracing",
 ]
 
 [[package]]

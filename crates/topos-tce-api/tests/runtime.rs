@@ -32,7 +32,8 @@ async fn runtime_can_dispatch_a_cert() {
 
     // launch data store
     let (_, (storage, storage_client, _storage_stream)) =
-        topos_test_sdk::storage::create_rocksdb("runtime_can_dispatch_a_cert", &[]).await;
+        topos_test_sdk::storage::create_rocksdb::<Certificate>("runtime_can_dispatch_a_cert", &[])
+            .await;
     let _storage_join_handle = spawn(storage.into_future());
 
     let (runtime_client, _launcher) = Runtime::builder()
@@ -120,8 +121,7 @@ async fn can_catchup_with_old_certs() {
     let certificates = create_certificate_chain(SOURCE_SUBNET_ID_1, TARGET_SUBNET_ID_1, 15);
 
     let (_, (storage, storage_client, _storage_stream)) =
-        topos_test_sdk::storage::create_rocksdb("can_catchup_with_old_certs", certificates.iter())
-            .await;
+        topos_test_sdk::storage::create_rocksdb("can_catchup_with_old_certs", &certificates).await;
 
     let _storage_join_handle = spawn(storage.into_future());
 
@@ -218,7 +218,7 @@ async fn can_catchup_with_old_certs_with_position() {
 
     let (_, (storage, storage_client, _storage_stream)) = topos_test_sdk::storage::create_rocksdb(
         "can_catchup_with_old_certs_with_position",
-        certificates.iter(),
+        &certificates,
     )
     .await;
 

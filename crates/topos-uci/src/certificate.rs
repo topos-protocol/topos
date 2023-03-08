@@ -17,6 +17,12 @@ pub struct Certificate {
     pub signature: Frost,
 }
 
+impl AsRef<Certificate> for Certificate {
+    fn as_ref(&self) -> &Self {
+        self
+    }
+}
+
 impl Debug for Certificate {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Certificate")

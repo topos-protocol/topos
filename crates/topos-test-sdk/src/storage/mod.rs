@@ -10,9 +10,9 @@ use topos_tce_storage::{
     events::StorageEvent, Connection, ConnectionBuilder, RocksDBStorage, Storage, StorageClient,
 };
 
-pub async fn create_rocksdb<'a, C: IntoIterator<Item = &'a Certificate>>(
+pub async fn create_rocksdb<T: AsRef<Certificate>>(
     folder_name: &str,
-    certificates: C,
+    certificates: &[T],
 ) -> (
     PathBuf,
     (
@@ -33,7 +33,7 @@ pub async fn create_rocksdb<'a, C: IntoIterator<Item = &'a Certificate>>(
 
     let storage = RocksDBStorage::with_isolation(&temp_dir).expect("valid rocksdb storage");
     for certificate in certificates {
-        _ = storage.persist(certificate, None).await;
+        _ = storage.persist(certificate.as_ref(), None).await;
     }
     (temp_dir, Connection::build(Box::pin(async { Ok(storage) })))
 }

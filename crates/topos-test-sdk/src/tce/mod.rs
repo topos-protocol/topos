@@ -11,9 +11,11 @@ use tonic::transport::{channel, Channel};
 use topos_core::api::tce::v1::{
     api_service_client::ApiServiceClient, console_service_client::ConsoleServiceClient,
 };
+use topos_core::uci::Certificate;
 use topos_core::uci::SubnetId;
 use topos_tce::AppContext;
 use topos_tce_broadcast::{DoubleEchoCommand, SamplerCommand};
+use tracing::info;
 
 use crate::p2p::local_peer;
 use crate::storage::create_rocksdb;
@@ -43,8 +45,24 @@ pub struct TceContext {
     pub gatekeeper_join_handle: JoinHandle<Result<(), topos_tce_gatekeeper::GatekeeperError>>,
     pub synchronizer_join_handle: JoinHandle<Result<(), topos_tce_synchronizer::SynchronizerError>>,
     pub connected_subnets: Option<Vec<SubnetId>>, // Particular subnet clients (topos nodes) connected to this tce node
+    pub shutdown_sender: mpsc::Sender<oneshot::Sender<()>>,
 }
 
+impl TceContext {
+    pub async fn shutdown(self) -> Result<(), Box<dyn std::error::Error>> {
+        info!("Context performing shutdown...");
+        let (shutdown_finished_sender, shutdown_finished_receiver) = oneshot::channel::<()>();
+        self.shutdown_sender
+            .send(shutdown_finished_sender)
+            .await
+            .unwrap();
+
+        shutdown_finished_receiver.await.unwrap();
+        info!("Shutdown finished...");
+
+        Ok(())
+    }
+}
 #[derive(Clone)]
 pub struct NodeConfig {
     pub seed: u8,
@@ -77,7 +95,11 @@ impl NodeConfig {
     }
 }
 
-pub async fn start_node(config: NodeConfig, peers: &[NodeConfig]) -> TceContext {
+pub async fn start_node(
+    config: NodeConfig,
+    peers: &[NodeConfig],
+    certificates: &[Certificate],
+) -> TceContext {
     let (tce_cli, tce_stream) = create_reliable_broadcast_client(
         create_reliable_broadcast_params(config.correct_sample, config.g),
         config.keypair.public().to_peer_id().to_string(),
@@ -89,6 +111,7 @@ pub async fn start_node(config: NodeConfig, peers: &[NodeConfig]) -> TceContext 
         bootstrap_network(config.seed, config.port, config.addr.clone(), peers, 2)
             .await
             .expect("Unable to bootstrap tce network");
+
     let socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
     let addr = socket.local_addr().ok().unwrap();
     let api_port = addr.port();
@@ -96,7 +119,9 @@ pub async fn start_node(config: NodeConfig, peers: &[NodeConfig]) -> TceContext 
     let peer_id_str = peer_id.to_base58();
 
     // launch data store
-    let (_, (storage, storage_client, storage_stream)) = create_rocksdb(&peer_id_str, &[]).await;
+    let (_, (storage, storage_client, storage_stream)) =
+        create_rocksdb(&peer_id_str, certificates).await;
+
     let storage_join_handle = spawn(storage.into_future());
 
     let (api_client, api_events) = create_public_api(addr, storage_client.clone()).await;
@@ -115,7 +140,7 @@ pub async fn start_node(config: NodeConfig, peers: &[NodeConfig]) -> TceContext 
         synchronizer_client,
     );
 
-    let (_shutdown_sender, shutdown_receiver) = mpsc::channel::<oneshot::Sender<()>>(1);
+    let (shutdown_sender, shutdown_receiver) = mpsc::channel::<oneshot::Sender<()>>(1);
     let app_join_handle = spawn(app.run(
         network_stream,
         tce_stream,
@@ -146,5 +171,6 @@ pub async fn start_node(config: NodeConfig, peers: &[NodeConfig]) -> TceContext 
         gatekeeper_join_handle,
         synchronizer_join_handle,
         connected_subnets: None,
+        shutdown_sender,
     }
 }

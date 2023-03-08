@@ -27,7 +27,7 @@ pub async fn start_peer_pool(
         );
 
         let fut = async {
-            let client = topos_test_sdk::tce::start_node(config, &peers).await;
+            let client = topos_test_sdk::tce::start_node(config, &peers, &[]).await;
 
             (client.peer_id.clone(), client)
         }
