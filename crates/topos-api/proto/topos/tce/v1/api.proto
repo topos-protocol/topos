@@ -57,13 +57,15 @@ message WatchCertificatesResponse {
     CertificatePushed certificate_pushed = 3;
   }
 
-  // Sent by the TCE when the stream is ready to be used and that certificates will start being push
+  // Sent by the TCE when the stream is ready to be used and
+  // that certificates will start being pushed
   message StreamOpened {
     repeated topos.shared.v1.SubnetId subnet_ids = 1;
   }
 
-  // Main message pushed to the stream
+  // Target Certificate pushed from the TCE to the sequencer
   message CertificatePushed {
     topos.uci.v1.Certificate certificate = 1;
+    repeated topos.shared.v1.Positions.TargetStreamPosition positions = 2;
   }
 }

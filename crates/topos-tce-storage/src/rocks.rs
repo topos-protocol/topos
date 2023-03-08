@@ -1,14 +1,17 @@
+use std::collections::HashMap;
 use std::{
     fmt::Debug,
     path::PathBuf,
     sync::atomic::{AtomicU64, Ordering},
 };
 
+use topos_core::api::checkpoints::{SourceStreamPosition, TargetStreamPosition};
 use topos_core::uci::{Certificate, CertificateId};
 use tracing::warn;
 
 use crate::{
-    errors::InternalStorageError, PendingCertificateId, Position, SourceHead, Storage, SubnetId,
+    errors::InternalStorageError, CertificatePositions, PendingCertificateId, Position, SourceHead,
+    Storage, SubnetId,
 };
 
 use self::{db::DB, db_column::DBColumn, iterator::ColumnIterator};
@@ -123,7 +126,7 @@ impl Storage for RocksDBStorage {
         &self,
         certificate: &Certificate,
         pending_certificate_id: Option<PendingCertificateId>,
-    ) -> Result<(), InternalStorageError> {
+    ) -> Result<CertificatePositions, InternalStorageError> {
         let mut batch = self.certificates.batch();
 
         // Inserting the certificate data into the CERTIFICATES cf
@@ -149,7 +152,7 @@ impl Storage for RocksDBStorage {
 
         let source_subnet_position = if certificate.prev_id.as_array() == &EMPTY_PREVIOUS_CERT_ID {
             Position::ZERO
-        } else if let Some((SourceStreamPosition(_, position), _)) = self
+        } else if let Some((SourceStreamPositionKey(_, position), _)) = self
             .source_streams
             .prefix_iter(&certificate.source_subnet_id)?
             .last()
@@ -164,57 +167,85 @@ impl Storage for RocksDBStorage {
             ));
         };
 
+        // Return from function as info
+        let source_subnet_stream_position = SourceStreamPosition {
+            source_subnet_id: certificate.source_subnet_id,
+            position: source_subnet_position.0,
+            certificate_id: Some(certificate.id),
+        };
+
         // Adding the certificate to the stream
         batch = batch.insert_batch(
             &self.source_streams,
             [(
-                SourceStreamPosition(certificate.source_subnet_id, source_subnet_position),
+                SourceStreamPositionKey(certificate.source_subnet_id, source_subnet_position),
                 certificate.id,
             )],
         )?;
+
+        // Return list of new target stream positions of certificate that will be persisted
+        // Information is needed by sequencer/subnet contract to know from
+        // where to continue with streaming on restart
+        let mut target_subnet_stream_positions: HashMap<SubnetId, TargetStreamPosition> =
+            HashMap::new();
 
         // Adding certificate to target_streams
         // TODO: Add expected position instead of calculating on the go
         let mut targets = Vec::new();
 
         for target_subnet_id in &certificate.target_subnets {
-            let target = if let Some((TargetStreamPosition(target, source, position), _)) = self
+            let target = if let Some((TargetStreamPositionKey(target, source, position), _)) = self
                 .target_streams
-                .prefix_iter(&TargetStreamPrefix(
+                .prefix_iter(&StorageTargetStreamPrefix(
                     *target_subnet_id,
                     certificate.source_subnet_id,
                 ))?
                 .last()
             {
-                (
-                    TargetStreamPosition(
-                        target,
-                        source,
-                        position.increment().map_err(|error| {
-                            InternalStorageError::PositionError(
-                                error,
-                                certificate.source_subnet_id.into(),
-                            )
-                        })?,
-                    ),
-                    certificate.id,
-                )
+                let target_stream_position = TargetStreamPositionKey(
+                    target,
+                    source,
+                    position.increment().map_err(|error| {
+                        InternalStorageError::PositionError(
+                            error,
+                            certificate.source_subnet_id.into(),
+                        )
+                    })?,
+                );
+                target_subnet_stream_positions.insert(
+                    target_stream_position.0,
+                    TargetStreamPosition {
+                        target_subnet_id: target_stream_position.0,
+                        source_subnet_id: target_stream_position.1,
+                        position: target_stream_position.2 .0,
+                        certificate_id: Some(certificate.id),
+                    },
+                );
+                (target_stream_position, certificate.id)
             } else {
-                (
-                    TargetStreamPosition(
-                        *target_subnet_id,
-                        certificate.source_subnet_id,
-                        Position::ZERO,
-                    ),
-                    certificate.id,
-                )
+                let target_stream_position = TargetStreamPositionKey(
+                    *target_subnet_id,
+                    certificate.source_subnet_id,
+                    Position::ZERO,
+                );
+                target_subnet_stream_positions.insert(
+                    target_stream_position.0,
+                    TargetStreamPosition {
+                        target_subnet_id: target_stream_position.0,
+                        source_subnet_id: target_stream_position.1,
+                        position: target_stream_position.2 .0,
+                        certificate_id: Some(certificate.id),
+                    },
+                );
+
+                (target_stream_position, certificate.id)
             };
 
-            let TargetStreamPosition(_, _, position) = &target.0;
+            let TargetStreamPositionKey(_, _, position) = &target.0;
             batch = batch.insert_batch(
                 &self.target_source_list,
                 [(
-                    TargetStreamPrefix(*target_subnet_id, certificate.source_subnet_id),
+                    StorageTargetStreamPrefix(*target_subnet_id, certificate.source_subnet_id),
                     position.0,
                 )],
             )?;
@@ -225,7 +256,10 @@ impl Storage for RocksDBStorage {
 
         batch.write()?;
 
-        Ok(())
+        Ok(CertificatePositions {
+            targets: target_subnet_stream_positions,
+            source: source_subnet_stream_position,
+        })
     }
 
     async fn update(
@@ -325,10 +359,11 @@ impl Storage for RocksDBStorage {
         target: SubnetId,
         source: SubnetId,
         position: Position,
-    ) -> Result<ColumnIterator<'_, TargetStreamPosition, CertificateId>, InternalStorageError> {
+    ) -> Result<ColumnIterator<'_, TargetStreamPositionKey, CertificateId>, InternalStorageError>
+    {
         Ok(self.target_streams.prefix_iter_at(
             &(&target, &source),
-            &TargetStreamPosition(target, source, position),
+            &TargetStreamPositionKey(target, source, position),
         )?)
     }
 
@@ -339,7 +374,7 @@ impl Storage for RocksDBStorage {
         Ok(self
             .target_source_list
             .prefix_iter(&target)?
-            .map(|(TargetStreamPrefix(_, k), _)| k)
+            .map(|(StorageTargetStreamPrefix(_, k), _)| k)
             .collect())
     }
 }

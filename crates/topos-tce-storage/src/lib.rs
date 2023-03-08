@@ -1,7 +1,9 @@
 use errors::{InternalStorageError, PositionError};
-use rocks::{iterator::ColumnIterator, TargetStreamPosition};
+use rocks::{iterator::ColumnIterator, TargetStreamPositionKey};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
+use topos_core::api::checkpoints::{SourceStreamPosition, TargetStreamPosition};
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
 
 pub mod client;
@@ -41,8 +43,19 @@ pub enum FetchCertificatesFilter {
     },
 }
 
+#[derive(Debug)]
+pub enum FetchCertificatesPosition {
+    Source(SourceStreamPosition),
+    Target(TargetStreamPosition),
+}
+
+pub struct CertificatePositions {
+    pub targets: HashMap<SubnetId, TargetStreamPosition>,
+    pub source: SourceStreamPosition,
+}
+
 /// Certificate index in the history of the source subnet
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Copy)]
 pub struct Position(pub(crate) u64);
 
 impl Position {
@@ -98,7 +111,7 @@ pub trait Storage: Sync + Send + 'static {
         &self,
         certificate: &Certificate,
         pending_certificate_id: Option<PendingCertificateId>,
-    ) -> Result<(), InternalStorageError>;
+    ) -> Result<CertificatePositions, InternalStorageError>;
 
     /// Update the certificate entry with new status
     async fn update(
@@ -160,7 +173,7 @@ pub trait Storage: Sync + Send + 'static {
         target: SubnetId,
         source: SubnetId,
         position: Position,
-    ) -> Result<ColumnIterator<'_, TargetStreamPosition, CertificateId>, InternalStorageError>;
+    ) -> Result<ColumnIterator<'_, TargetStreamPositionKey, CertificateId>, InternalStorageError>;
 
     async fn get_source_list_by_target(
         &self,

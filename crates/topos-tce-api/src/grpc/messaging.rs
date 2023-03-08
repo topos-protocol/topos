@@ -1,12 +1,11 @@
 use tonic::Status;
-use topos_core::api::checkpoints::TargetCheckpoint;
+use topos_core::api::checkpoints::{TargetCheckpoint, TargetStreamPosition};
 use topos_core::api::tce::v1::watch_certificates_request::Command;
 use topos_core::api::tce::v1::watch_certificates_request::OpenStream as GrpcOpenStream;
 use topos_core::api::tce::v1::watch_certificates_response::CertificatePushed as GrpcCertificatePushed;
 use topos_core::api::tce::v1::watch_certificates_response::Event;
 use topos_core::api::tce::v1::watch_certificates_response::StreamOpened as GrpcStreamOpened;
-use topos_core::uci::Certificate;
-use topos_core::uci::SubnetId;
+use topos_core::uci::{Certificate, SubnetId};
 
 pub enum InboundMessage {
     OpenStream(OpenStream),
@@ -19,6 +18,7 @@ pub struct OpenStream {
 #[derive(Debug)]
 pub struct CertificatePushed {
     pub(crate) certificate: Certificate,
+    pub(crate) positions: Vec<TargetStreamPosition>,
 }
 
 #[derive(Debug)]
@@ -72,6 +72,11 @@ impl From<OutboundMessage> for Event {
             OutboundMessage::CertificatePushed(certificate_pushed) => {
                 Self::CertificatePushed(GrpcCertificatePushed {
                     certificate: Some(certificate_pushed.certificate.into()),
+                    positions: certificate_pushed
+                        .positions
+                        .into_iter()
+                        .map(Into::into)
+                        .collect(),
                 })
             }
         }

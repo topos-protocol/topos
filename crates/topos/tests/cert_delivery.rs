@@ -157,6 +157,7 @@ async fn cert_delivery() {
                 let received = received.unwrap();
                 if let Some(Event::CertificatePushed(CertificatePushed {
                     certificate: Some(certificate),
+                    ..
                 })) = received.event
                 {
                     debug!(

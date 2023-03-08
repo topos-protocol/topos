@@ -1,8 +1,11 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use super::RuntimeCommand;
 use futures::Future;
 use tokio::sync::{mpsc, oneshot, RwLock};
+use topos_core::api::checkpoints::TargetStreamPosition;
+use topos_core::uci::SubnetId;
 use topos_core::{api::tce::v1::StatusResponse, uci::Certificate};
 use tracing::error;
 
@@ -17,12 +20,16 @@ impl RuntimeClient {
     pub fn dispatch_certificate(
         &self,
         certificate: Certificate,
+        positions: HashMap<SubnetId, TargetStreamPosition>,
     ) -> impl Future<Output = ()> + 'static + Send {
         let sender = self.command_sender.clone();
 
         async move {
             if let Err(error) = sender
-                .send(RuntimeCommand::DispatchCertificate { certificate })
+                .send(RuntimeCommand::DispatchCertificate {
+                    certificate,
+                    positions,
+                })
                 .await
             {
                 error!("Can't dispatch certificate: {error:?}");

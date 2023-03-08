@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-topos-core = { workspace = true, features = ["uci"] }
+topos-core = { workspace = true, features = ["uci", "api"] }
 topos-commands = { path = "../topos-commands/" }
 
 async-stream.workspace = true

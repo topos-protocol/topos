@@ -127,7 +127,10 @@ impl Stream {
 impl Stream {
     async fn handle_command(&mut self, command: StreamCommand) -> Result<bool, StreamError> {
         match command {
-            StreamCommand::PushCertificate { certificate, .. } => {
+            StreamCommand::PushCertificate {
+                certificate,
+                positions,
+            } => {
                 let certificate_id = certificate.id;
                 if let Err(error) = self
                     .outbound_stream
@@ -135,6 +138,7 @@ impl Stream {
                         None,
                         OutboundMessage::CertificatePushed(Box::new(CertificatePushed {
                             certificate,
+                            positions,
                         })),
                     )))
                     .await

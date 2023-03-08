@@ -55,6 +55,7 @@ async fn runtime_can_dispatch_a_cert(
             let received = received.unwrap();
             if let Some(Event::CertificatePushed(CertificatePushed {
                 certificate: Some(certificate),
+                ..
             })) = received.event
             {
                 if let Some(tx) = tx.take() {
@@ -80,8 +81,22 @@ async fn runtime_can_dispatch_a_cert(
     )
     .unwrap();
 
+    let mut target_positions = std::collections::HashMap::new();
+    target_positions.insert(
+        TARGET_SUBNET_ID_1,
+        topos_core::api::checkpoints::TargetStreamPosition {
+            position: 0,
+            source_subnet_id: SOURCE_SUBNET_ID_1,
+            target_subnet_id: TARGET_SUBNET_ID_1,
+            certificate_id: Some(cert.id.clone()),
+        },
+    );
+
     // Send a dispatch command that will be push to the subnet A
-    api_context.client.dispatch_certificate(cert.clone()).await;
+    api_context
+        .client
+        .dispatch_certificate(cert.clone(), target_positions)
+        .await;
 
     let certificate_received = rx.await.unwrap();
     assert_eq!(cert, certificate_received);
@@ -122,6 +137,7 @@ async fn can_catchup_with_old_certs(
             let received = received.unwrap();
             if let Some(Event::CertificatePushed(CertificatePushed {
                 certificate: Some(certificate),
+                ..
             })) = received.event
             {
                 _ = tx.send(certificate.try_into().unwrap()).await;
@@ -144,8 +160,22 @@ async fn can_catchup_with_old_certs(
     )
     .unwrap();
 
+    let mut target_positions = std::collections::HashMap::new();
+    target_positions.insert(
+        TARGET_SUBNET_ID_1,
+        topos_core::api::checkpoints::TargetStreamPosition {
+            position: certificates.len() as u64,
+            source_subnet_id: SOURCE_SUBNET_ID_1,
+            target_subnet_id: TARGET_SUBNET_ID_1,
+            certificate_id: Some(cert.id.clone()),
+        },
+    );
+
     // Send a dispatch command that will be push to the subnet A
-    api_context.client.dispatch_certificate(cert.clone()).await;
+    api_context
+        .client
+        .dispatch_certificate(cert.clone(), target_positions)
+        .await;
 
     for (index, certificate) in certificates.iter().enumerate() {
         let certificate_received = rx
@@ -228,6 +258,7 @@ async fn can_catchup_with_old_certs_with_position() {
             let received = received.unwrap();
             if let Some(Event::CertificatePushed(CertificatePushed {
                 certificate: Some(certificate),
+                ..
             })) = received.event
             {
                 _ = tx.send(certificate.try_into().unwrap()).await;
@@ -250,8 +281,21 @@ async fn can_catchup_with_old_certs_with_position() {
     )
     .unwrap();
 
+    let mut target_positions = std::collections::HashMap::new();
+    target_positions.insert(
+        TARGET_SUBNET_ID_1,
+        topos_core::api::checkpoints::TargetStreamPosition {
+            position: certificates.len() as u64,
+            source_subnet_id: SOURCE_SUBNET_ID_1,
+            target_subnet_id: TARGET_SUBNET_ID_1,
+            certificate_id: Some(cert.id.clone()),
+        },
+    );
+
     // Send a dispatch command that will be push to the subnet A
-    runtime_client.dispatch_certificate(cert.clone()).await;
+    runtime_client
+        .dispatch_certificate(cert.clone(), target_positions)
+        .await;
 
     for (index, certificate) in certificates.iter().skip(5).enumerate() {
         let certificate_received = rx

@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use topos_commands::CommandHandler;
+use topos_core::api::checkpoints::{SourceStreamPosition, TargetStreamPosition};
 use topos_core::uci::{Certificate, SubnetId};
 use tracing::{debug, error, info};
 
@@ -9,8 +10,8 @@ use crate::{
         FetchCertificates, GetCertificate, GetSourceHead, RemovePendingCertificate, TargetedBy,
     },
     errors::StorageError,
-    Connection, FetchCertificatesFilter, InternalStorageError, PendingCertificateId, Position,
-    Storage,
+    CertificatePositions, Connection, FetchCertificatesFilter, FetchCertificatesPosition,
+    InternalStorageError, PendingCertificateId, Position, Storage,
 };
 
 /// Handle a AddPendingCertificate query
@@ -77,7 +78,10 @@ where
 {
     type Error = StorageError;
 
-    async fn handle(&mut self, command: CertificateDelivered) -> Result<(), StorageError> {
+    async fn handle(
+        &mut self,
+        command: CertificateDelivered,
+    ) -> Result<CertificatePositions, StorageError> {
         let certificate_id = command.certificate_id;
 
         let (pending_certificate_id, certificate) =
@@ -122,16 +126,31 @@ where
     async fn handle(
         &mut self,
         FetchCertificates { filter }: FetchCertificates,
-    ) -> Result<Vec<Certificate>, StorageError> {
-        let certificate_ids = match filter {
+    ) -> Result<Vec<(Certificate, FetchCertificatesPosition)>, StorageError> {
+        let mut result = Vec::new();
+        match filter {
             FetchCertificatesFilter::Source {
                 subnet_id,
                 position,
                 limit,
             } => {
-                self.storage
+                let certificate_ids = self
+                    .storage
                     .get_certificates_by_source(subnet_id, Position(position), limit)
-                    .await?
+                    .await?;
+                let certificates = self.storage.get_certificates(certificate_ids).await?;
+
+                for (index, cert) in certificates.into_iter().enumerate() {
+                    result.push((
+                        cert,
+                        FetchCertificatesPosition::Source(SourceStreamPosition {
+                            source_subnet_id: subnet_id,
+                            position: position + index as u64,
+                            certificate_id: None,
+                        }),
+                    ));
+                }
+                Ok(result)
             }
             FetchCertificatesFilter::Target {
                 target_subnet_id,
@@ -143,18 +162,30 @@ where
                     "Fetching {limit} certificates from the Position {:?}",
                     Position(position)
                 );
-                self.storage
+                let certificate_ids = self
+                    .storage
                     .get_certificates_by_target(
                         target_subnet_id,
                         source_subnet_id,
                         Position(position),
                         limit,
                     )
-                    .await?
+                    .await?;
+                let certificates = self.storage.get_certificates(certificate_ids).await?;
+                for (index, cert) in certificates.into_iter().enumerate() {
+                    result.push((
+                        cert,
+                        FetchCertificatesPosition::Target(TargetStreamPosition {
+                            target_subnet_id,
+                            source_subnet_id,
+                            position: position + index as u64,
+                            certificate_id: None,
+                        }),
+                    ));
+                }
+                Ok(result)
             }
-        };
-
-        Ok(self.storage.get_certificates(certificate_ids).await?)
+        }
     }
 }
 
@@ -191,7 +222,7 @@ where
             Ok(certificate) => certificate,
             Err(e) => {
                 error!(
-                    "Failure on the storage to get the source head Certificate {:?}",
+                    "Failure on the storage to get the source head Certificate {}",
                     source_head.cert_id
                 );
                 return Err(e.into());

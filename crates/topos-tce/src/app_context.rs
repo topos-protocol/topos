@@ -214,11 +214,18 @@ impl AppContext {
             }
 
             TceEvents::CertificateDelivered { certificate } => {
-                _ = self
+                if let Ok(positions) = self
                     .pending_storage
                     .certificate_delivered(certificate.id)
-                    .await;
-                spawn(self.api_client.dispatch_certificate(certificate));
+                    .await
+                {
+                    spawn(
+                        self.api_client
+                            .dispatch_certificate(certificate, positions.targets),
+                    );
+                } else {
+                    error!("Invalid target stream positions for delivered certificate!");
+                }
             }
 
             TceEvents::EchoSubscribeReq { peers } => {

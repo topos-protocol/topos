@@ -174,10 +174,16 @@ impl TceClientBuilder {
 
     pub async fn build_and_launch(
         self,
-    ) -> Result<(TceClient, impl futures::stream::Stream<Item = Certificate>), Error> {
+    ) -> Result<
+        (
+            TceClient,
+            impl futures::stream::Stream<Item = (Certificate, TargetStreamPosition)>,
+        ),
+        Error,
+    > {
         // Channel used to pass received certificates (certificates pushed TCE node) from the TCE client to the application
         let (inbound_certificate_sender, inbound_certificate_receiver) =
-            mpsc::channel(CERTIFICATE_INBOUND_CHANNEL_SIZE);
+            mpsc::channel::<(Certificate, TargetStreamPosition)>(CERTIFICATE_INBOUND_CHANNEL_SIZE);
 
         let tce_endpoint = self
             .tce_endpoint
@@ -239,19 +245,34 @@ impl TceClientBuilder {
                             Ok(watch_certificate_response) => match watch_certificate_response.event {
                                 // Received CertificatePushed event from TCE (new certificate has been received from TCE)
                                 Some(watch_certificates_response::Event::CertificatePushed(
-                                    certificate_pushed,
+                                    mut certificate_pushed
                                 )) => {
                                     info!("Certificate {:?} received from the TCE", &certificate_pushed);
-                                    if let Some(certificate) = certificate_pushed.certificate {
-                                        let cert = match certificate.clone().try_into() {
+                                    if let Some(certificate) = certificate_pushed.certificate.take() {
+                                        let cert: Certificate = match certificate.try_into() {
                                             Ok(c) => c,
-                                            Err(_) => {
-                                                error!("Invalid Certificate conversion for {certificate:?}");
+                                            Err(e) => {
+                                                error!("Invalid Certificate conversion for  certificate: {e}");
+                                                continue;
+                                            }
+                                        };
+                                        // Currently only one target stream position is expected
+                                        let position: TargetStreamPosition = match certificate_pushed.positions.get(0) {
+                                            Some(p) => {
+                                                if let Ok(p) = TryInto::<TargetStreamPosition>::try_into(p.clone()) {
+                                                    p
+                                                } else {
+                                                    error!("Invalid target stream position for certificate id {}",cert.id);
+                                                    continue;
+                                                }
+                                            },
+                                            None => {
+                                                error!("Invalid target stream position for certificate id {}",cert.id);
                                                 continue;
                                             }
                                         };
                                         if let Err(e) = inbound_certificate_sender
-                                            .send(cert)
+                                            .send((cert, position))
                                             .await
                                         {
                                             error!(
@@ -490,13 +511,9 @@ impl TceProxyWorker {
                         }
                     }
                      // Process certificates received from the TCE node
-                    Some(cert) = receiving_certificate_stream.next() => {
-                        info!("Received certificate from TCE {:?}", cert);
-                        //***********************************************
-                        // TODO get certificate position from the TCE NODE
-                        //***********************************************
-                        let cert_position = 0;
-                        evt_sender.send(TceProxyEvent::NewDeliveredCerts(vec![(cert, cert_position)])).expect("send");
+                    Some((cert, target_stream_position)) = receiving_certificate_stream.next() => {
+                        info!("Received certificate from TCE {:?}, target stream position {}", cert, target_stream_position.position);
+                        evt_sender.send(TceProxyEvent::NewDeliveredCerts(vec![(cert, target_stream_position.position)])).expect("send");
                     }
                 }
             }
