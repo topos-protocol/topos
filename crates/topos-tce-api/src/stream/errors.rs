@@ -8,17 +8,17 @@ use uuid::Uuid;
 pub(crate) enum StreamErrorKind {
     #[error(transparent)]
     HandshakeFailed(#[from] HandshakeError),
-    #[error("Prestart error")]
+    #[error("Pre-start error")]
     PreStartError,
     #[error("Stream is closed")]
     StreamClosed,
-    #[error("A timeout occured")]
+    #[error("A timeout occurred")]
     Timeout,
     #[error("The submitted command is invalid")]
     InvalidCommand,
     #[error("Transport error: {0}")]
     Transport(Code),
-    #[error("The submitted TargetCheckpoint is malformed")]
+    #[error("The submitted TargetCheckpoint is ill-formed")]
     MalformedTargetCheckpoint,
 }
 

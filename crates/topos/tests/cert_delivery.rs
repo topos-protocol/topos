@@ -28,7 +28,7 @@ use topos_core::{
 use topos_test_sdk::tce::TceContext;
 use tracing::{debug, info};
 
-const NUMBER_OF_SUBNETS_PER_CLIENT: usize = 1; // In real life this would be always 1, topos node would represent one subnet
+const NUMBER_OF_SUBNETS_PER_CLIENT: usize = 1;
 
 fn get_subset_of_subnets(subnets: &[SubnetId], subset_size: usize) -> Vec<SubnetId> {
     let mut rng = rand::thread_rng();

@@ -12,7 +12,7 @@ pub trait CommandHandler<C: Command> {
     ///
     /// # Errors
     ///
-    /// This function will return an error if the command can't be executed'
+    /// This function will return an error if the command can't be executed
     async fn handle(&mut self, command: C) -> Result<C::Result, Self::Error>;
 }
 

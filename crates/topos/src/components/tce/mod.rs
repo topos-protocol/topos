@@ -175,15 +175,15 @@ pub fn print_node_info(config: &TceConfiguration) {
         info!("RocksDB at {:?}", path);
     }
 
-    info!("gRPC at {}", config.api_addr);
-    info!("Jaeger at {}", config.jaeger_agent);
-    info!("Broadcast params {:?}", config.tce_params);
+    info!("API gRPC endpoint reachable at {}", config.api_addr);
+    info!("Jaeger Agent reached at {}", config.jaeger_agent);
+    info!("Broadcast Parameters {:?}", config.tce_params);
 }
 
 async fn setup_tce_grpc(endpoint: &str) -> Arc<Mutex<ConsoleServiceClient<Channel>>> {
     match ConsoleServiceClient::connect(endpoint.to_string()).await {
-        Err(_) => {
-            error!("Unable to connect to TCE on {:?}", endpoint);
+        Err(e) => {
+            error!("Failure to setup the gRPC API endpoint on {endpoint}: {e}");
             std::process::exit(1);
         }
 

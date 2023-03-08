@@ -419,7 +419,7 @@ impl AppContext {
                 let future_pool = peers
                     .iter()
                     .map(|peer_id| {
-                        debug!("peer_id: {} sending Echo to {}", &my_peer_id, &peer_id);
+                        debug!("Peer {} is sending Echo to {}", &my_peer_id, &peer_id);
                         self.network_client
                             .send_request::<_, NetworkMessage>(
                                 *peer_id,
@@ -461,7 +461,7 @@ impl AppContext {
                 let future_pool = peers
                     .iter()
                     .map(|peer_id| {
-                        debug!("peer_id: {} sending Ready to {}", &my_peer_id, &peer_id);
+                        debug!("Peer {} is sending Ready to {}", &my_peer_id, &peer_id);
                         self.network_client
                             .send_request::<_, NetworkMessage>(
                                 *peer_id,

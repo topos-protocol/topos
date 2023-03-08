@@ -170,10 +170,10 @@ impl Sampler {
         };
 
         if let Some(sender) = shutdowned {
-            info!("Shutting down broadcast sampler...");
+            info!("Shutting down the sampler...");
             _ = sender.send(());
         } else {
-            info!("Shutting down broadcast sampler due to error...");
+            error!("Shutting down the sampler due to error...");
         }
     }
 }
@@ -202,13 +202,13 @@ impl Sampler {
                     {
                         Ok(_) => {
                             self.status = SampleProviderStatus::Stabilized;
-                            warn!("New subscription view sent");
+                            info!("Successfully established the new set of samples");
                             if self.event_sender.send(TceEvents::StableSample).is_err() {
-                                error!("Unable to notify TCE runtime for new stable sample");
+                                error!("Unable to notify the TCE runtime for the set of samples");
                             }
                         }
                         Err(e) => {
-                            error!("Fail to send new subscription sample view {:?} ", e);
+                            error!("Failed to send new subscription sample view {:?} ", e);
                         }
                     }
                 }
@@ -217,7 +217,7 @@ impl Sampler {
     }
 
     async fn handle_peer_confirmation_failure(&mut self, sample_type: SampleType, peer: PeerId) {
-        debug!("Peer confirmation failed {peer} in {sample_type:?}");
+        warn!("Failed to confirm the Peer {peer} for the sample {sample_type:?}");
 
         match sample_type {
             SampleType::EchoSubscription => self.pending_subscriptions.echo.remove(&peer),
@@ -232,7 +232,7 @@ impl Sampler {
         sample_type: SampleType,
         peer: PeerId,
     ) -> Result<bool, ()> {
-        debug!("ConfirmPeer {peer} in {sample_type:?}",);
+        info!("Successful handshake with the Peer {peer} for the sample {sample_type:?}",);
         let inserted = match sample_type {
             SampleType::EchoSubscription => {
                 if self.pending_subscriptions.echo.remove(&peer) {
@@ -345,12 +345,12 @@ impl Sampler {
         match sample_reduce_from(&self.visible_peers, echo_sizer) {
             Ok(echo_candidates) => {
                 debug!(
-                    "reset_echo_subscription_sample - echo_candidates: {:?}",
+                    "Start the reset of the the Echo Sample currently composed by: {:?}",
                     echo_candidates
                 );
 
                 for peer in &echo_candidates.value {
-                    info!("Adding {peer} to pending echo subscriptions");
+                    info!("Adding the Peer {peer} to the pending Echo Subscriptions");
                     self.pending_subscriptions.echo.insert(*peer);
                 }
 
@@ -361,10 +361,7 @@ impl Sampler {
                 }
             }
             Err(e) => {
-                warn!(
-                    "reset_echo_subscription_sample - failed to sample due to {:?}",
-                    e
-                );
+                error!("Failed to create the sample for the Echo Subscriptions: {e:?}");
             }
         }
     }
@@ -377,12 +374,12 @@ impl Sampler {
         match sample_reduce_from(&self.visible_peers, ready_sizer) {
             Ok(ready_candidates) => {
                 debug!(
-                    "reset_ready_subscription_sample - ready_candidates: {:?}",
+                    "Start the reset of the the Ready Sample currently composed by: {:?}",
                     ready_candidates
                 );
 
                 for peer in &ready_candidates.value {
-                    info!("Adding {peer} to pending ready subscriptions");
+                    info!("Adding the Peer {peer} to the pending Ready Subscriptions");
                     self.pending_subscriptions.ready.insert(*peer);
                 }
 
@@ -393,10 +390,7 @@ impl Sampler {
                 }
             }
             Err(e) => {
-                warn!(
-                    "reset_ready_subscription_sample - failed to sample due to {:?}",
-                    e
-                );
+                error!("Failed to create the sample for the Ready Subscriptions: {e:?}");
             }
         }
     }
@@ -408,13 +402,13 @@ impl Sampler {
         let delivery_sizer = |len| min(len, self.params.delivery_sample_size);
         match sample_reduce_from(&self.visible_peers, delivery_sizer) {
             Ok(delivery_candidates) => {
-                debug!(
-                    "reset_delivery_subscription_sample - delivery_candidates: {:?}",
+                info!(
+                    "Start the reset of the the Delivery Sample currently composed by: {:?}",
                     delivery_candidates
                 );
 
                 for peer in &delivery_candidates.value {
-                    info!("Adding {peer} to pending delivery subscriptions");
+                    info!("Adding the Peer {peer} to the pending Delivery Subscriptions");
                     self.pending_subscriptions.delivery.insert(*peer);
                 }
 
@@ -425,10 +419,7 @@ impl Sampler {
                 }
             }
             Err(e) => {
-                warn!(
-                    "reset_delivery_subscription_sample - failed to sample due to {:?}",
-                    e
-                );
+                error!("Failed to create the sample for the Delivery Subscriptions: {e:?}");
             }
         }
     }

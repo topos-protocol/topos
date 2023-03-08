@@ -32,8 +32,7 @@ impl Service<Status> for TCEService {
             match client.lock().await.status(StatusRequest {}).await {
                 Ok(status_response) => {
                     let status = status_response.into_inner();
-                    debug!("Successfuly fetch the status from the TCE");
-                    trace!("Status is: {:?}", status);
+                    debug!("Successfully fetched the status {:?} from the TCE", status);
                     Ok(status.has_active_sample)
                 }
                 Err(err) => {

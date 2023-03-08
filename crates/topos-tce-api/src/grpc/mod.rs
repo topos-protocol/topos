@@ -82,8 +82,8 @@ impl ApiService for TceGrpcService {
         &self,
         request: Request<SubmitCertificateRequest>,
     ) -> Result<Response<SubmitCertificateResponse>, Status> {
-        tracing::warn!(span_span_id = ?Span::current().context().span().span_context().span_id(), "pre_run");
-        tracing::warn!(cx_span_id = ?Context::current().span().span_context().span_id(), "pre_run");
+        tracing::trace!(span_span_id = ?Span::current().context().span().span_context().span_id(), "pre_run");
+        tracing::trace!(cx_span_id = ?Context::current().span().span_context().span_id(), "pre_run");
 
         let data = request.into_inner();
         if let Some(certificate) = data.certificate {
@@ -203,8 +203,8 @@ impl ApiService for TceGrpcService {
         request: Request<Streaming<WatchCertificatesRequest>>,
     ) -> Result<Response<Self::WatchCertificatesStream>, Status> {
         match request.remote_addr() {
-            Some(addr) => info!(client.addr = %addr, "starting a new stream"),
-            None => info!(client.addr = %"<unknown>", "starting a new stream"),
+            Some(addr) => info!(client.addr = %addr, "Starting a new stream"),
+            None => info!(client.addr = %"<unknown>", "Starting a new stream"),
         }
         // TODO: Use Cow
         let stream_id = Uuid::new_v4();

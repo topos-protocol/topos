@@ -71,7 +71,7 @@ impl Service<PushPeerList> for TCEService {
                 return Err(Error::new(std::io::ErrorKind::Other, err));
             }
 
-            info!("Successfuly pushed the peer list to the TCE");
+            info!("Successfully pushed the peer list to the TCE");
 
             Ok(())
         }

@@ -76,7 +76,7 @@ impl Runtime {
     pub async fn bootstrap(mut self) -> Result<Self, Box<dyn std::error::Error>> {
         if self.bootstrapped {
             return Err(Box::new(P2PError::BootstrapError(
-                "Network already boostrapped or in bootstrap",
+                "Network is already bootstrapped or in bootstrap",
             )));
         }
 

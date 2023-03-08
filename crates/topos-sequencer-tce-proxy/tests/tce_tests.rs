@@ -56,7 +56,7 @@ async fn test_tce_submit_certificate(
             debug!("Certificate successfully submitted {:?}", response);
         }
         Err(e) => {
-            error!("Unable to submit certificate, details: {e:?}");
+            error!("Unable to submit the certificate: {e:?}");
             return Err(Box::from(e));
         }
     };
@@ -193,10 +193,10 @@ async fn test_tce_get_source_head_certificate(
         .map(|r| r.into_inner())
     {
         Ok(response) => {
-            debug!("Certificate successfully submitted {:?}", response);
+            debug!("Successfully submitted the Certificate {:?}", response);
         }
         Err(e) => {
-            error!("Unable to submit certificate, details: {e:?}");
+            error!("Unable to submit the certificate: {e:?}");
             return Err(Box::from(e));
         }
     };

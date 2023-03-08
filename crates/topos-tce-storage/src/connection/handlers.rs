@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use topos_commands::CommandHandler;
 use topos_core::uci::{Certificate, SubnetId};
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info};
 
 use crate::{
     command::{
@@ -139,7 +139,10 @@ where
                 position,
                 limit,
             } => {
-                info!("Fetching certificates at {:?}", Position(position));
+                info!(
+                    "Fetching {limit} certificates from the Position {:?}",
+                    Position(position)
+                );
                 self.storage
                     .get_certificates_by_target(
                         target_subnet_id,
@@ -173,7 +176,7 @@ where
         let heads = match self.storage.get_source_heads(vec![subnet_id]).await {
             Ok(heads) => heads,
             Err(e) => {
-                warn!("Error getting source head: {e}");
+                error!("Failure on the storage to get the source head: {e}");
                 return Err(e.into());
             }
         };
@@ -187,8 +190,8 @@ where
         let certificate = match self.storage.get_certificate(source_head.cert_id).await {
             Ok(certificate) => certificate,
             Err(e) => {
-                warn!(
-                    "Unable to get source head certificate with id {:?}",
+                error!(
+                    "Failure on the storage to get the source head Certificate {:?}",
                     source_head.cert_id
                 );
                 return Err(e.into());

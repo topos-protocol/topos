@@ -219,13 +219,6 @@ impl ReliableBroadcastClient {
         }
     }
 
-    /// known peers
-    /// todo: move it out somewhere out of here, use DHT to advertise urls of API nodes
-    pub async fn known_peers_api_addrs(&self) -> Result<Vec<String>, Errors> {
-        // todo
-        Ok(vec![])
-    }
-
     /// delivered certificates for given target chain after the given certificate
     pub fn delivered_certs(
         &self,
@@ -305,7 +298,7 @@ impl ReliableBroadcastClient {
     pub async fn broadcast_new_certificate(&self, certificate: Certificate) -> Result<(), ()> {
         let broadcast_commands = self.broadcast_commands.clone();
 
-        info!("send certificate to be broadcast");
+        info!("Send certificate to be broadcast");
         if broadcast_commands
             .send(DoubleEchoCommand::Broadcast {
                 cert: certificate,

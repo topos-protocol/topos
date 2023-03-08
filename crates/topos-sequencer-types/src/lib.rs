@@ -82,22 +82,19 @@ pub enum CertificationCommand {
 pub enum SubnetRuntimeProxyEvent {
     /// New Finalized block
     BlockFinalized(BlockInfo),
-    /// New set of authorities in charge of threshold signature
+    /// New set of authorities in charge of the threshold signature
     NewEra(Vec<Authorities>),
 }
 
 #[derive(Debug)]
 pub enum SubnetRuntimeProxyCommand {
-    /// Push the Certificate to the subnet runtime
-    PushCertificate(Certificate),
-
-    /// Propagate certificate and its position to the runtime
-    OnNewDeliveredTxns((Certificate, u64)),
+    /// Upon receiving a new delivered Certificate from the TCE
+    OnNewDeliveredCertificate((Certificate, u64)),
 }
 
 #[derive(Debug)]
 pub enum TceProxyCommand {
-    /// Submit a newly created certificate to the TCE network
+    /// Submit a newly created certificate to the TCE
     SubmitCertificate(Box<Certificate>),
 
     /// Shutdown command
@@ -118,73 +115,4 @@ pub enum TceProxyEvent {
 pub enum Event {
     CertificationEvent(CertificationEvent),
     RuntimeProxyEvent(SubnetRuntimeProxyEvent),
-}
-
-/// Protocol commands
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum TceCommands {
-    /// Initialize the instance, signals the environment is ready
-    StartUp,
-    /// Shuts down the instance
-    Shutdown,
-    /// Entry point for new certificate to submit as initial sender
-    OnBroadcast { cert: Box<Certificate> },
-    /// We got updated list of visible peers to work with, let protocol do the sampling
-    OnVisiblePeersChanged { peers: Vec<String> },
-    /// We got updated list of connected peers to gossip to
-    OnConnectedPeersChanged { peers: Vec<String> },
-    /// Given peer sent EchoSubscribe request
-    OnEchoSubscribeReq { from_peer: String },
-    /// Given peer sent ReadySubscribe request
-    OnReadySubscribeReq { from_peer: String },
-    /// Given peer replied ok to the EchoSubscribe request
-    OnEchoSubscribeOk { from_peer: String },
-    /// Given peer replied ok to the ReadySubscribe request
-    OnReadySubscribeOk { from_peer: String },
-    /// Received G-set message
-    OnGossip { cert: Box<Certificate> },
-    /// When echo reply received
-    OnEcho {
-        from_peer: String,
-        cert: Box<Certificate>,
-    },
-    /// When ready reply received
-    OnReady {
-        from_peer: String,
-        cert: Box<Certificate>,
-    },
-}
-
-/// Protocol events
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum TceEvents {
-    /// Emitted to get peers list, expected that Commands.ApplyPeers will come as reaction
-    NeedPeers,
-    /// (pb.Broadcast)
-    Broadcast { cert: Certificate },
-    /// After sampling is done we ask peers to participate in the protocol
-    EchoSubscribeReq { peers: Vec<String> },
-    /// After sampling is done we ask peers to participate in the protocol
-    ReadySubscribeReq { peers: Vec<String> },
-    /// We are ok to participate in the protocol
-    EchoSubscribeOk { to_peer: String },
-    /// We are ok to participate in the protocol
-    ReadySubscribeOk { to_peer: String },
-    /// Indicates that 'gossip' message broadcasting is required
-    Gossip {
-        peers: Vec<String>,
-        cert: Certificate,
-    },
-    /// Indicates that 'echo' message broadcasting is required
-    Echo {
-        peers: Vec<String>,
-        cert: Certificate,
-    },
-    /// Indicates that 'ready' message broadcasting is required
-    Ready {
-        peers: Vec<String>,
-        cert: Certificate,
-    },
-    /// For simulation purpose, for now only caused by ill-formed sampling
-    Die,
 }
