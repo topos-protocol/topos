@@ -1,8 +1,9 @@
 use rstest::rstest;
 use test_log::test;
 use topos_core::uci::Certificate;
+use topos_test_sdk::constants::SOURCE_SUBNET_ID_1;
 
-use crate::tests::{PREV_CERTIFICATE_ID, SOURCE_STORAGE_SUBNET_ID, SOURCE_SUBNET_ID};
+use crate::tests::{PREV_CERTIFICATE_ID, SOURCE_STORAGE_SUBNET_ID};
 use crate::{
     rocks::{
         map::Map, CertificatesColumn, PendingCertificatesColumn, SourceStreamPosition,
@@ -18,7 +19,7 @@ use super::support::columns::{certificates_column, pending_column, source_stream
 async fn can_persist_a_pending_certificate(pending_column: PendingCertificatesColumn) {
     let certificate = Certificate::new(
         PREV_CERTIFICATE_ID,
-        SOURCE_SUBNET_ID,
+        SOURCE_SUBNET_ID_1,
         Default::default(),
         Default::default(),
         &[],
@@ -36,7 +37,7 @@ async fn can_persist_a_pending_certificate(pending_column: PendingCertificatesCo
 async fn can_persist_a_delivered_certificate(certificates_column: CertificatesColumn) {
     let certificate = Certificate::new(
         PREV_CERTIFICATE_ID,
-        SOURCE_SUBNET_ID,
+        SOURCE_SUBNET_ID_1,
         Default::default(),
         Default::default(),
         &Vec::new(),
@@ -62,7 +63,7 @@ async fn delivered_certificate_position_are_incremented(
 ) {
     let certificate = Certificate::new(
         PREV_CERTIFICATE_ID,
-        SOURCE_SUBNET_ID,
+        SOURCE_SUBNET_ID_1,
         Default::default(),
         Default::default(),
         &[],
@@ -87,7 +88,7 @@ async fn delivered_certificate_position_are_incremented(
 async fn position_can_be_fetch_for_one_subnet(source_streams_column: SourceStreamsColumn) {
     let certificate = Certificate::new(
         PREV_CERTIFICATE_ID,
-        SOURCE_SUBNET_ID,
+        SOURCE_SUBNET_ID_1,
         Default::default(),
         Default::default(),
         &[],
@@ -105,7 +106,7 @@ async fn position_can_be_fetch_for_one_subnet(source_streams_column: SourceStrea
 
     assert!(matches!(
         source_streams_column
-            .prefix_iter(&SOURCE_SUBNET_ID)
+            .prefix_iter(&SOURCE_SUBNET_ID_1)
             .unwrap()
             .last(),
         Some((SourceStreamPosition(_, Position::ZERO), _))
@@ -113,7 +114,7 @@ async fn position_can_be_fetch_for_one_subnet(source_streams_column: SourceStrea
 
     let certificate = Certificate::new(
         PREV_CERTIFICATE_ID,
-        SOURCE_SUBNET_ID,
+        SOURCE_SUBNET_ID_1,
         Default::default(),
         Default::default(),
         &[],
@@ -131,7 +132,7 @@ async fn position_can_be_fetch_for_one_subnet(source_streams_column: SourceStrea
 
     assert!(matches!(
         source_streams_column
-            .prefix_iter(&SOURCE_SUBNET_ID)
+            .prefix_iter(&SOURCE_SUBNET_ID_1)
             .unwrap()
             .last(),
         Some((SourceStreamPosition(_, Position(1)), _))

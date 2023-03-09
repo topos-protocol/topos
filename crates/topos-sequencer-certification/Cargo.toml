@@ -32,3 +32,5 @@ topos-crypto.workspace = true
 [dev-dependencies]
 test-log.workspace = true
 env_logger.workspace = true
+
+topos-test-sdk = { path = "../topos-test-sdk/" }

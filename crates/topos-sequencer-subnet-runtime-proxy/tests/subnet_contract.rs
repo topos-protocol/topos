@@ -11,7 +11,8 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use test_log::test;
 use tokio::sync::oneshot;
-use topos_core::uci::{Certificate, CertificateId, SubnetId};
+use topos_core::uci::{Certificate, CertificateId};
+use topos_sequencer_types::SubnetId;
 use tracing::{error, info};
 use web3::contract::tokens::Tokenize;
 use web3::ethabi::Token;
@@ -22,6 +23,8 @@ mod common;
 use crate::common::subnet_test_data::generate_test_private_key;
 use topos_core::api::checkpoints::TargetStreamPosition;
 use topos_sequencer_subnet_runtime_proxy::{SubnetRuntimeProxyConfig, SubnetRuntimeProxyWorker};
+
+use topos_test_sdk::constants::*;
 
 const SUBNET_TCC_JSON_DEFINITION: &'static str = "ToposCore.json";
 const SUBNET_TOKEN_DEPLOYER_JSON_DEFINITION: &'static str = "TokenDeployer.json";
@@ -34,14 +37,11 @@ const POLYGON_EDGE_CONTAINER_TAG: &str = "develop";
 const SUBNET_STARTUP_DELAY: u64 = 5; // seconds left for subnet startup
 const TOPOS_SMART_CONTRACTS_BUILD_PATH_VAR: &str = "TOPOS_SMART_CONTRACTS_BUILD_PATH";
 
-const SOURCE_SUBNET_ID_1: SubnetId = SubnetId::from_array([1u8; 32]);
-const SOURCE_SUBNET_ID_2: SubnetId = SubnetId::from_array([2u8; 32]);
-const TARGET_SUBNET_ID: SubnetId = SubnetId::from_array([3u8; 32]);
-const PREV_CERTIFICATE_ID_1: CertificateId = CertificateId::from_array([4u8; 32]);
-const PREV_CERTIFICATE_ID_2: CertificateId = CertificateId::from_array([5u8; 32]);
-const CERTIFICATE_ID_1: CertificateId = CertificateId::from_array([6u8; 32]);
-const CERTIFICATE_ID_2: CertificateId = CertificateId::from_array([7u8; 32]);
-const CERTIFICATE_ID_3: CertificateId = CertificateId::from_array([8u8; 32]);
+const PREV_CERTIFICATE_ID_1: CertificateId = CERTIFICATE_ID_4;
+const PREV_CERTIFICATE_ID_2: CertificateId = CERTIFICATE_ID_5;
+const CERTIFICATE_ID_1: CertificateId = CERTIFICATE_ID_6;
+const CERTIFICATE_ID_2: CertificateId = CERTIFICATE_ID_7;
+const CERTIFICATE_ID_3: CertificateId = CERTIFICATE_ID_8;
 
 async fn deploy_contract<T, U>(
     contract_file_path: &str,
@@ -591,7 +591,7 @@ async fn test_subnet_certificate_get_checkpoints_call(
     )
     .await
     .expect("Valid subnet client");
-    let target_stream_positions = match subnet_client.get_checkpoints(&TARGET_SUBNET_ID).await {
+    let target_stream_positions = match subnet_client.get_checkpoints(&TARGET_SUBNET_ID_1).await {
         Ok(result) => result,
         Err(e) => {
             panic!("Unable to get latest certificate id and position: {e}");
@@ -608,7 +608,7 @@ async fn test_subnet_certificate_get_checkpoints_call(
                 source_subnet_id: SOURCE_SUBNET_ID_1,
                 id: CERTIFICATE_ID_1,
                 prev_id: PREV_CERTIFICATE_ID_1,
-                target_subnets: vec![TARGET_SUBNET_ID],
+                target_subnets: vec![TARGET_SUBNET_ID_1],
                 ..Default::default()
             },
             0,
@@ -618,7 +618,7 @@ async fn test_subnet_certificate_get_checkpoints_call(
                 source_subnet_id: SOURCE_SUBNET_ID_2,
                 id: CERTIFICATE_ID_2,
                 prev_id: PREV_CERTIFICATE_ID_2,
-                target_subnets: vec![TARGET_SUBNET_ID],
+                target_subnets: vec![TARGET_SUBNET_ID_1],
                 ..Default::default()
             },
             0,
@@ -628,7 +628,7 @@ async fn test_subnet_certificate_get_checkpoints_call(
                 source_subnet_id: SOURCE_SUBNET_ID_1,
                 id: CERTIFICATE_ID_3,
                 prev_id: CERTIFICATE_ID_1,
-                target_subnets: vec![TARGET_SUBNET_ID],
+                target_subnets: vec![TARGET_SUBNET_ID_1],
                 ..Default::default()
             },
             1,
@@ -651,7 +651,7 @@ async fn test_subnet_certificate_get_checkpoints_call(
     }
 
     info!("Getting latest checkpoints ");
-    let target_stream_positions = match subnet_client.get_checkpoints(&TARGET_SUBNET_ID).await {
+    let target_stream_positions = match subnet_client.get_checkpoints(&TARGET_SUBNET_ID_1).await {
         Ok(result) => result,
         Err(e) => {
             panic!("Unable to get the latest certificate id and position: {e}");
@@ -660,13 +660,13 @@ async fn test_subnet_certificate_get_checkpoints_call(
 
     let expected_positions = vec![
         TargetStreamPosition {
-            target_subnet_id: TARGET_SUBNET_ID,
+            target_subnet_id: TARGET_SUBNET_ID_1,
             source_subnet_id: SOURCE_SUBNET_ID_1,
             certificate_id: Some(CERTIFICATE_ID_3),
             position: 1,
         },
         TargetStreamPosition {
-            target_subnet_id: TARGET_SUBNET_ID,
+            target_subnet_id: TARGET_SUBNET_ID_1,
             source_subnet_id: SOURCE_SUBNET_ID_2,
             certificate_id: Some(CERTIFICATE_ID_2),
             position: 0,

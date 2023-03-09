@@ -18,6 +18,7 @@ mod tests;
 
 pub use client::StorageClient;
 pub use connection::Connection;
+pub use connection::ConnectionBuilder;
 
 #[cfg(feature = "rocksdb")]
 pub use rocks::RocksDBStorage;

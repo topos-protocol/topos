@@ -18,6 +18,8 @@ use topos_api::tce::v1::{
 use topos_api::uci::v1::Certificate;
 use uuid::Uuid;
 
+use topos_test_sdk::constants::*;
+
 #[test(tokio::test)]
 async fn create_tce_layer() {
     struct TceServer;
@@ -39,12 +41,8 @@ async fn create_tce_layer() {
             request: Request<GetSourceHeadRequest>,
         ) -> Result<Response<GetSourceHeadResponse>, tonic::Status> {
             let request = request.into_inner();
-            let return_certificate_id = CertificateId {
-                value: [02u8; 32].to_vec(),
-            };
-            let return_prev_certificate_id: CertificateId = CertificateId {
-                value: [01u8; 32].to_vec(),
-            };
+            let return_certificate_id: CertificateId = CERTIFICATE_ID_2.into();
+            let return_prev_certificate_id: CertificateId = CERTIFICATE_ID_1.into();
             Ok(Response::new(GetSourceHeadResponse {
                 position: Some(SourceStreamPosition {
                     subnet_id: request.subnet_id.clone(),
@@ -115,14 +113,10 @@ async fn create_tce_layer() {
             .await
             .unwrap();
 
-    let source_subnet_id: SubnetId = [1u8; 32].into();
+    let source_subnet_id: SubnetId = SOURCE_SUBNET_ID_1.into();
 
-    let prev_certificate_id: CertificateId = CertificateId {
-        value: [01u8; 32].to_vec(),
-    };
-    let certificate_id: CertificateId = CertificateId {
-        value: [02u8; 32].to_vec(),
-    };
+    let prev_certificate_id: CertificateId = CERTIFICATE_ID_1.into();
+    let certificate_id: CertificateId = CERTIFICATE_ID_2.into();
 
     let original_certificate = Certificate {
         source_subnet_id: Some(source_subnet_id.clone()),

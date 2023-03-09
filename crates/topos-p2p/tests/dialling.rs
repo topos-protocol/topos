@@ -49,7 +49,7 @@ async fn dialling_between_3_peers() {
     assert_eq!(nodes.len(), 3);
 
     for node in &nodes {
-        for (key, addr) in all_peers.to_owned() {
+        for (key, _port, addr) in all_peers.to_owned() {
             let _ = node.client.dial(key.public().to_peer_id(), addr).await;
         }
     }
@@ -122,7 +122,7 @@ async fn request_response() {
     let peer_1 = local_peer(1);
     let peer_2 = local_peer(2);
     let known_peers_1 = vec![];
-    let known_peers_2 = vec![(peer_2.0.public().to_peer_id(), peer_2.1.clone())];
+    let known_peers_2 = vec![(peer_2.0.public().to_peer_id(), peer_2.2.clone())];
 
     let mut receiver = start_node(peer_1, known_peers_1).await;
     let sender = start_node(peer_2, known_peers_2).await;

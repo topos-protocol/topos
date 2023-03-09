@@ -28,3 +28,5 @@ tracing-opentelemetry.workspace = true
 test-log.workspace = true
 env_logger.workspace = true
 rstest.workspace = true
+
+topos-test-sdk = { path = "../topos-test-sdk/" }

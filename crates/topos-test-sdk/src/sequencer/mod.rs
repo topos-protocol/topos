@@ -1,0 +1,2 @@
+pub const TEST_VALIDATOR_KEY: &str =
+    "11eddfae7abe45531b3f18342c8062969323a7131d3043f1a33c40df74803cc7";
