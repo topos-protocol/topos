@@ -182,7 +182,7 @@ async fn fetch_certificates_for_subnets(storage: RocksDBStorage) {
     .unwrap();
 
     storage.persist(&other_certificate, None).await.unwrap();
-    let expected_certificates =
+    let mut expected_certificates =
         create_certificate_chain(SOURCE_SUBNET_ID_1, TARGET_SUBNET_ID_1, 10);
 
     for cert in &expected_certificates {
@@ -235,9 +235,9 @@ async fn fetch_certificates_for_subnets(storage: RocksDBStorage) {
 
     let certificates = storage.get_certificates(certificate_ids).await.unwrap();
 
-    // expected_certificates.push(other_certificate);
+    expected_certificates.push(other_certificate);
 
-    assert_eq!(&other_certificate, certificates.last().unwrap());
+    assert_eq!(expected_certificates, certificates);
 }
 
 #[rstest]

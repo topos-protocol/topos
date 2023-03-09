@@ -4,6 +4,7 @@ pub mod certificates;
 pub mod tce;
 
 pub mod p2p;
+pub mod sequencer;
 pub mod storage;
 
 pub mod constants {

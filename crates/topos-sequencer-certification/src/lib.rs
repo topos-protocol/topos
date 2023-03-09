@@ -111,10 +111,10 @@ mod tests {
     use super::*;
     use test_log::test;
 
+    use topos_test_sdk::sequencer::TEST_VALIDATOR_KEY;
+
     const TEST_SUBNET_ID: SubnetId = topos_test_sdk::constants::SOURCE_SUBNET_ID_1;
     const TEST_CERTIFICATE_ID: CertificateId = topos_test_sdk::constants::CERTIFICATE_ID_1;
-    pub const TEST_VALIDATOR_KEY: &str =
-        "11eddfae7abe45531b3f18342c8062969323a7131d3043f1a33c40df74803cc7";
 
     #[test(tokio::test)]
     async fn instantiate_certification_worker() {
