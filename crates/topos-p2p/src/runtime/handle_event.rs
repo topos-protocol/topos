@@ -147,7 +147,7 @@ impl
                 let kad_addr = behaviour.discovery.addresses_of_peer(&peer_id);
                 let addr = behaviour.transmission.addresses_of_peer(&peer_id);
 
-                info!(
+                debug!(
                     "Checking if we know {peer_id} -> KAD {:?}, Transmission {:?}",
                     kad_addr, addr
                 );

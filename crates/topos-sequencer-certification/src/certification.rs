@@ -194,7 +194,7 @@ impl Certification {
                     }
                 },
                 None => {
-                    error!("ill-formed subnet history for {:?}", subnet_id);
+                    error!("Ill-formed subnet history for {:?}", subnet_id);
                     return Err(Error::IllFormedSubnetHistory);
                 }
             };

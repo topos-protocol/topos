@@ -37,10 +37,7 @@ pub async fn run(config: SequencerConfiguration) -> Result<(), Box<dyn std::erro
         match topos_crypto::keystore::read_private_key_from_file(&key_file_path, None) {
             Ok(key) => key,
             Err(e) => {
-                error!(
-                    "Unable to get ethereum private key from keystore, details: {}",
-                    e
-                );
+                error!("Unable to get ethereum private key from keystore: {}", e);
 
                 return Err(Box::new(std::io::Error::new(
                     ErrorKind::InvalidInput,

@@ -19,15 +19,15 @@ impl EventHandler<KademliaEvent> for Runtime {
             KademliaEvent::RoutingUpdated {
                 peer, addresses, ..
             } => {
-                info!("DHT -> RoutingUpdated {:?} {:?}", peer, addresses);
+                debug!("DHT -> RoutingUpdated {:?} {:?}", peer, addresses);
             }
 
             KademliaEvent::RoutablePeer { peer, address } => {
-                info!("DHT -> RoutablePeer {:?}, {:?}", peer, address);
+                debug!("DHT -> RoutablePeer {:?}, {:?}", peer, address);
             }
 
             KademliaEvent::PendingRoutablePeer { peer, address } => {
-                info!("DHT -> PendingRoutablePeer {:?}, {:?}", peer, address);
+                debug!("DHT -> PendingRoutablePeer {:?}, {:?}", peer, address);
             }
 
             KademliaEvent::UnroutablePeer { peer } => {
@@ -38,7 +38,7 @@ impl EventHandler<KademliaEvent> for Runtime {
                 id,
                 ..
             } => {
-                warn!("BootstrapResult query: {id:?},  {res:?}");
+                debug!("BootstrapResult query: {id:?},  {res:?}");
             }
 
             KademliaEvent::OutboundQueryProgressed {

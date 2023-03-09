@@ -44,7 +44,7 @@ impl DiscoveryBehaviour {
 
         for known_peer in known_peers {
             info!(
-                "Kademlia:  ---- adding peer:{} at {}",
+                "Adding the known peer:{} reachable at {}",
                 &known_peer.0, &known_peer.1
             );
             kademlia.add_address(&known_peer.0, known_peer.1.clone());

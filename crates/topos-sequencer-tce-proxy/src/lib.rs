@@ -48,7 +48,7 @@ pub enum Error {
         #[from]
         source: hex::FromHexError,
     },
-    #[error("Unable to get source head certificate for subnet id {subnet_id}, details: {details}")]
+    #[error("Unable to get source head certificate for subnet id {subnet_id}: {details}")]
     UnableToGetSourceHeadCertificate {
         subnet_id: SubnetId,
         details: String,
@@ -188,11 +188,11 @@ impl TceClientBuilder {
         let mut tce_grpc_client =
             match connect_to_tce_service_with_retry(tce_endpoint.clone()).await {
                 Ok(client) => {
-                    info!("Connected to tce service on endpoint {}", &tce_endpoint);
+                    info!("Connected to the TCE service at {}", &tce_endpoint);
                     client
                 }
                 Err(e) => {
-                    error!("Unable to connect to tce client, error details: {}", e);
+                    error!("Unable to connect to tce client: {}", e);
                     return Err(e);
                 }
             };
@@ -241,12 +241,12 @@ impl TceClientBuilder {
                                 Some(watch_certificates_response::Event::CertificatePushed(
                                     certificate_pushed,
                                 )) => {
-                                    info!("Certificate {:?} received from tce", &certificate_pushed);
+                                    info!("Certificate {:?} received from the TCE", &certificate_pushed);
                                     if let Some(certificate) = certificate_pushed.certificate {
                                         let cert = match certificate.clone().try_into() {
                                             Ok(c) => c,
                                             Err(_) => {
-                                                error!("invalid certificate conversion for {certificate:?}");
+                                                error!("Invalid Certificate conversion for {certificate:?}");
                                                 continue;
                                             }
                                         };
@@ -255,8 +255,7 @@ impl TceClientBuilder {
                                             .await
                                         {
                                             error!(
-                                                "unable to pass received certificate to application, error details: {}",
-                                                e.to_string()
+                                                "Unable to pass received certificate to application: {e}"
                                             )
                                         }
                                     }
@@ -264,19 +263,19 @@ impl TceClientBuilder {
                                 // Confirmation from TCE that stream has been opened
                                 Some(watch_certificates_response::Event::StreamOpened(stream_opened)) => {
                                     info!(
-                                        "Watch certificate stream opened for for tce node {} subnet ids {:?}",
+                                        "Successfully opened the Certificate stream with the TCE at {} for the subnet(s): {:?}",
                                          &tce_endpoint, stream_opened.subnet_ids
                                     );
                                 }
                                 None => {
                                     warn!(
-                                        "Watch certificate stream received None object from tce node {}", &tce_endpoint
+                                        "Watch certificate stream received None object from the TCE node at {}", &tce_endpoint
                                     );
                                 }
                             },
                             Err(e) => {
                                 error!(
-                                    "Watch certificates response error for tce node {} subnet_id {:?}, error details: {}",
+                                    "Failed to open the Certificate stream with the TCE node at {} for the subnet(s): {:?}: {}",
                                     &tce_endpoint, &subnet_id, e.to_string()
                                 );
                                 // Send warning to restart TCE proxy
@@ -331,17 +330,17 @@ impl TceClientBuilder {
                                 .await
                                 .map(|r| r.into_inner()) {
                                     Ok(_response)=> {
-                                        info!("Certificate cert_id: {:?} previous_cert_id: {:?} successfully sent to tce {}", &cert_id, &previous_cert_id, &tce_endpoint);
+                                        info!("Successfully sent the Certificate {} (previous: {}) to the TCE at {}", &cert_id, &previous_cert_id, &tce_endpoint);
                                     }
                                     Err(e) => {
-                                        error!("Certificate submit failed, error details: {}", e);
+                                        error!("Failed to submit the Certificate to the TCE at {}: {e}", &tce_endpoint);
                                     }
                                 }
                             }
                             Some(TceClientCommand::OpenStream {target_checkpoint}) =>  {
                                 // Send command to TCE to open stream with my subnet id
                                 info!(
-                                    "Sending OpenStream command to tce node {} for subnet id {}",
+                                    "Sending OpenStream command to the TCE node at {} for the Subnet {}",
                                     &tce_endpoint, &subnet_id
                                 );
                                 if let Err(e) = outbound_stream_command_sender
@@ -355,8 +354,7 @@ impl TceClientBuilder {
                                     .await
                                     {
                                         error!(
-                                            "Unable to send OpenStream command, error details: {}",
-                                            e.to_string()
+                                            "Unable to send OpenStream command: {e}"
                                         )
                                     }
                             }
@@ -385,7 +383,7 @@ impl TceClientBuilder {
                                 };
                             }
                             None => {
-                                panic!("None should not be possible");
+                                panic!("Unexpected termination of the TCE proxy service of the Sequencer");
                             }
                         }
                     }
@@ -413,7 +411,7 @@ async fn connect_to_tce_service_with_retry(
     endpoint: String,
 ) -> Result<ApiServiceClient<tonic::transport::channel::Channel>, Error> {
     info!(
-        "Connecting to tce service endpoint {} using backoff strategy...",
+        "Connecting to the TCE at {} using backoff strategy...",
         endpoint
     );
     let op = || async {
@@ -421,11 +419,7 @@ async fn connect_to_tce_service_with_retry(
             .connect()
             .await
             .map_err(|e| {
-                error!(
-                    "Unable to connect to tce service {}, error details: {}",
-                    &endpoint,
-                    e.to_string()
-                );
+                error!("Failed to connect to the TCE at {}: {e}", &endpoint);
                 e
             })?;
         Ok(ApiServiceClient::new(channel))
@@ -433,7 +427,7 @@ async fn connect_to_tce_service_with_retry(
     backoff::future::retry(backoff::ExponentialBackoff::default(), op)
         .await
         .map_err(|e| {
-            error!("Error connecting to  service api {} ...", e.to_string());
+            error!("Failed to connect to the TCE: {e}");
             Error::TonicTransportError { source: e }
         })
 }
@@ -468,7 +462,7 @@ impl TceProxyWorker {
 
         tokio::spawn(async move {
             info!(
-                "Entering tce proxy worker loop to handle app commands for tce endpoint {}",
+                "Starting the TCE proxy connected to the TCE at {}",
                 &tce_client.tce_endpoint
             );
             loop {
@@ -482,13 +476,13 @@ impl TceProxyWorker {
                                     &cert
                                 );
                                 if let Err(e) = tce_client.send_certificate(*cert).await {
-                                    error!("failed to pass certificate to tce client, error details: {}", e);
+                                    error!("Failure on the submission of the Certificate to the TCE client: {e}");
                                 }
                             }
                             TceProxyCommand::Shutdown(sender) => {
                                 info!("Received TceProxyCommand::Shutdown command, closing tce client...");
                                 if let Err(e) = tce_client.close().await {
-                                    error!("Unable to shutdown tce client, error details: {}", e);
+                                    error!("Unable to shutdown the TCE client: {e}");
                                 }
                                  _ = sender.send(());
                                 break;
@@ -507,7 +501,7 @@ impl TceProxyWorker {
                 }
             }
             info!(
-                "Exiting tce proxy worker handle loop for endpoint {}",
+                "Exiting the TCE proxy worker handle loop connected to the TCE at {}",
                 &tce_client.tce_endpoint
             );
         });

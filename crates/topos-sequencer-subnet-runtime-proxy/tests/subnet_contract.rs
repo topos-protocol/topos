@@ -186,7 +186,7 @@ fn spawn_subnet_node(
         test_chain_dir.push("./test-chain-1");
         genesis_dir.push("./genesis");
 
-        info!("genesis_dir {:?}", genesis_dir);
+        info!("genesis_dir: {:?}", genesis_dir);
         let img = Image::with_repository(POLYGON_EDGE_CONTAINER)
             .source(Source::Local)
             .tag(POLYGON_EDGE_CONTAINER_TAG)
@@ -536,7 +536,7 @@ async fn test_subnet_certificate_push_call(
 
     info!("Sending mock certificate to subnet smart contract...");
     if let Err(e) = runtime_proxy_worker.eval(
-        topos_sequencer_types::SubnetRuntimeProxyCommand::OnNewDeliveredTxns((
+        topos_sequencer_types::SubnetRuntimeProxyCommand::OnNewDeliveredCertificate((
             mock_cert.clone(),
             0,
         )),

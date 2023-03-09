@@ -16,7 +16,7 @@ pub enum Error {
     #[error("Invalid key error: {0}")]
     InvalidKeyError(String),
 
-    #[error("Eliptic curve error: {0}")]
+    #[error("Elliptic curve error: {0}")]
     Secp256k1Error(#[from] secp256k1::Error),
 
     #[error("Invalid signature: {0}")]

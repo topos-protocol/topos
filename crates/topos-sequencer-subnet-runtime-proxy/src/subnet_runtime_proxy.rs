@@ -11,8 +11,9 @@ use topos_core::api::checkpoints::TargetStreamPosition;
 use topos_core::uci::Certificate;
 use topos_sequencer_subnet_client::{self, SubnetClient};
 use topos_sequencer_types::{SubnetRuntimeProxyCommand, SubnetRuntimeProxyEvent};
-use tracing::{debug, error, info, trace, warn};
+use tracing::{debug, error, info, warn};
 
+/// Arbitrary tick duration for fetching new finalized blocks
 const SUBNET_BLOCK_TIME: Duration = Duration::new(2, 0);
 
 pub struct SubnetRuntimeProxy {
@@ -72,12 +73,12 @@ impl SubnetRuntimeProxy {
                         {
                             Ok(subnet_listener) => subnet_listener,
                             Err(e) => {
-                                error!("Unable create subnet listener, details: {e}");
+                                error!("Unable create subnet listener: {e}");
                                 continue;
                             }
                         };
 
-                    let mut interval = time::interval(SUBNET_BLOCK_TIME); // arbitrary time for 1 block
+                    let mut interval = time::interval(SUBNET_BLOCK_TIME);
 
                     let shutdowned: Option<oneshot::Sender<()>> = loop {
                         tokio::select! {
@@ -93,15 +94,15 @@ impl SubnetRuntimeProxy {
                                             SubnetRuntimeProxyEvent::BlockFinalized(block_info),
                                         ).await {
                                             Ok(()) => {
-                                                trace!(
-                                                    "Finalized block {:?} successfully sent",
+                                                debug!(
+                                                    "Successfully fetched the finalized block {:?} from the subnet runtime",
                                                     block_number
                                                 )
                                             }
                                             Err(e) => {
-                                                // todo determine if task should end on some type of error
+                                                // TODO: Determine if task should end on some type of error
                                                 error!(
-                                                    "failed to send new finalize block, details: {}",
+                                                    "Failed to send new finalize block: {}",
                                                     e
                                                 );
                                                 break None;
@@ -109,8 +110,8 @@ impl SubnetRuntimeProxy {
                                         }
                                     }
                                     Err(e) => {
-                                        // todo determine if task should end on some type of error
-                                        error!("failed to get new finalized block, details: {}", e);
+                                        // TODO: Determine if task should end on some type of error
+                                        error!("Failed to fetch the new finalized block: {e}");
                                         break None;
                                     }
                                 }
@@ -209,11 +210,8 @@ impl SubnetRuntimeProxy {
     ) {
         match mb_cmd {
             Some(cmd) => match cmd {
-                SubnetRuntimeProxyCommand::PushCertificate(c) => {
-                    info!("New received Certificate {:?}", c);
-                }
                 // Process certificate retrieved from TCE node
-                SubnetRuntimeProxyCommand::OnNewDeliveredTxns((cert, cert_position)) => {
+                SubnetRuntimeProxyCommand::OnNewDeliveredCertificate((cert, cert_position)) => {
                     info!(
                         "Processing certificate received from TCE, cert_id={}",
                         &cert.id
@@ -235,12 +233,12 @@ impl SubnetRuntimeProxy {
                             info!("Certificate {} passed verification", cert.id)
                         }
                         Err(e) => {
-                            error!("Failed to verify certificate id {}, details: {e}", cert.id);
+                            error!("Failed to verify certificate id {}: {e}", cert.id);
                             return;
                         }
                     }
 
-                    // Pass certificate to target subnet Topos core contract
+                    // Push the Certificate to the ToposCore contract on the target subnet
                     match SubnetRuntimeProxy::push_certificate(
                         runtime_proxy_config,
                         subnet_client,
@@ -250,14 +248,14 @@ impl SubnetRuntimeProxy {
                     .await
                     {
                         Ok(tx_hash) => {
-                            info!(
-                                "Successfully pushed certificate id={} to target subnet with tx hash {} ",
+                            debug!(
+                                "Successfully pushed the Certificate {} to target subnet with tx hash {}",
                                 &cert.id, &tx_hash
                             );
                         }
                         Err(e) => {
                             error!(
-                                "Failed to push certificate id={} to target subnet: {e}",
+                                "Failed to push the Certificate {} to target subnet: {e}",
                                 &cert.id
                             );
                         }
@@ -326,12 +324,12 @@ impl SubnetRuntimeProxy {
 
         match subnet_client.get_checkpoints(&self.config.subnet_id).await {
             Ok(checkpoints) => {
-                info!("Checkpoints successfully retrieved");
+                info!("Successfully retrieved the Checkpoints");
                 Ok(checkpoints)
             }
             Err(e) => {
                 error!(
-                    "Unable to get checkpoints for subnet {:?}",
+                    "Unable to get the Checkpoints for subnet {:?}",
                     self.config.subnet_id
                 );
                 Err(Error::SubnetError { source: e })

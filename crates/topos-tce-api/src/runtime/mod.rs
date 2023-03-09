@@ -22,7 +22,7 @@ use topos_core::uci::SubnetId;
 use topos_tce_storage::{FetchCertificatesFilter, StorageClient};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
-use tracing::{debug, error, info, info_span, warn, Instrument, Span};
+use tracing::{debug, error, info, info_span, Instrument, Span};
 use uuid::Uuid;
 
 use crate::{
@@ -105,7 +105,7 @@ impl Runtime {
         };
 
         if let Some(sender) = shutdowned {
-            info!("Shutting down TCE api service...");
+            info!("Shutting down the TCE API service...");
             _ = sender.send(());
         }
     }
@@ -126,7 +126,7 @@ impl Runtime {
                 | StreamErrorKind::PreStartError
                 | StreamErrorKind::StreamClosed
                 | StreamErrorKind::Timeout => {
-                    warn!("Stream {stream_id} error: {kind:?}");
+                    error!("Stream {stream_id} error: {kind:?}");
 
                     self.active_streams.remove(&stream_id);
                     self.pending_streams.remove(&stream_id);
@@ -163,7 +163,7 @@ impl Runtime {
                                         .send(StreamCommand::PushCertificate { certificate })
                                         .await
                                     {
-                                        error!(%error, "Can't push certificate because receiver is dropped");
+                                        error!(%error, "Can't push certificate because the receiver is dropped");
                                     }
                                 });
                             }
@@ -214,7 +214,10 @@ impl Runtime {
                     .cloned();
 
                 if let Err(error) = sender.send(Ok(())) {
-                    error!(?error, "Can't send response to Stream, receiver is dropped");
+                    error!(
+                        ?error,
+                        "Failed to send response to the Stream, receiver is dropped"
+                    );
                 }
 
                 if let Some(notifier) = notifier {
