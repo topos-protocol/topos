@@ -49,3 +49,5 @@ insta = { version = "1.21", features = ["json", "redactions"] }
 default = ["tce", "sequencer"]
 tce = ["topos-tce", "topos-tce-transport"]
 sequencer = ["topos-sequencer"]
+
+tce-instant = ["topos-tce", "topos-tce/no-double-echo"]

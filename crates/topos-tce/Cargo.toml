@@ -53,3 +53,4 @@ cucumber = "0.13.0"
 default = []
 log-json = ["tracing-subscriber/json"]
 
+no-double-echo = ["topos-tce-broadcast/direct"]

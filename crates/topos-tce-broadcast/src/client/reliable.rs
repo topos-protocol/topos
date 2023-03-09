@@ -1,109 +1,23 @@
-//! implementation of Topos Reliable Broadcast to be used in the Transmission Control Engine (TCE)
-//!
-//! Abstracted from actual transport implementation.
-//! Abstracted from actual storage implementation.
-//!
+use tokio::spawn;
+use tokio_stream::wrappers::BroadcastStream;
 
-use opentelemetry::Context;
-use sampler::SampleType;
-use thiserror::Error;
-use tokio::sync::{mpsc, oneshot};
+use futures::{Future, Stream, TryStreamExt};
+#[allow(unused)]
+use opentelemetry::global;
+use tokio::sync::mpsc::Sender;
+use tokio::sync::{broadcast, mpsc, oneshot};
 
-use tce_transport::ReliableBroadcastParams;
+use tce_transport::TceEvents;
 
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
 use topos_p2p::PeerId;
-use tracing::error;
+use tracing::{debug, error, info, Span};
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 
-use crate::tce_store::TceStore;
+use crate::mem_store::TceMemStore;
+use crate::sampler::{SampleType, Sampler, SubscribersUpdate, SubscriptionsView};
+use crate::{double_echo, DoubleEchoCommand, Errors, ReliableBroadcastConfig, SamplerCommand};
 pub use topos_core::uci;
-
-#[cfg(feature = "direct")]
-pub use client::direct::ReliableBroadcastClient;
-
-#[cfg(not(feature = "direct"))]
-pub use client::reliable::ReliableBroadcastClient;
-
-pub type Peer = String;
-
-#[cfg(not(feature = "direct"))]
-pub mod double_echo;
-pub mod mem_store;
-pub mod sampler;
-pub mod tce_store;
-
-pub mod client;
-
-#[cfg(test)]
-#[cfg(not(feature = "direct"))]
-mod tests;
-
-/// Configuration of TCE implementation
-pub struct ReliableBroadcastConfig {
-    pub tce_params: ReliableBroadcastParams,
-}
-
-#[derive(Debug)]
-pub enum SamplerCommand {
-    PeersChanged {
-        peers: Vec<PeerId>,
-    },
-    ConfirmPeer {
-        peer: PeerId,
-        sample_type: SampleType,
-        sender: oneshot::Sender<Result<(), ()>>,
-    },
-    PeerConfirmationFailed {
-        peer: PeerId,
-        sample_type: SampleType,
-    },
-    ForceResample,
-}
-
-#[derive(Debug)]
-pub enum DoubleEchoCommand {
-    GetSpanOfCert {
-        certificate_id: CertificateId,
-        sender: oneshot::Sender<Result<opentelemetry::Context, Errors>>,
-    },
-
-    /// Received G-set message
-    Deliver {
-        from_peer: PeerId,
-        certificate_id: CertificateId,
-        ctx: Context,
-    },
-
-    /// Entry point for new certificate to submit as initial sender
-    Broadcast {
-        cert: Certificate,
-        ctx: Context,
-    },
-
-    // Entry point to broadcast many Certificates
-    BroadcastMany {
-        certificates: Vec<Certificate>,
-    },
-
-    /// When echo reply received
-    Echo {
-        from_peer: PeerId,
-        certificate_id: CertificateId,
-        ctx: Context,
-    },
-
-    /// When ready reply received
-    Ready {
-        from_peer: PeerId,
-        certificate_id: CertificateId,
-        ctx: Context,
-    },
-    DeliveredCerts {
-        subnet_id: SubnetId,
-        limit: u64,
-        sender: oneshot::Sender<Result<Vec<Certificate>, Errors>>,
-    },
-}
 
 /// Thread safe client to the protocol aggregate
 #[derive(Clone, Debug)]
@@ -147,7 +61,7 @@ impl ReliableBroadcastClient {
         let (double_echo_shutdown_channel, double_echo_shutdown_receiver) =
             mpsc::channel::<oneshot::Sender<()>>(1);
 
-        let double_echo = DoubleEcho::new(
+        let double_echo = double_echo::DoubleEcho::new(
             config.tce_params,
             command_receiver,
             subscriptions_view_receiver,
@@ -216,6 +130,13 @@ impl ReliableBroadcastClient {
         if receiver.await.is_err() {
             error!("Unable to receive add_confirmed_peer_to_sample response, Sender was dropped");
         }
+    }
+
+    /// known peers
+    /// todo: move it out somewhere out of here, use DHT to advertise urls of API nodes
+    pub async fn known_peers_api_addrs(&self) -> Result<Vec<String>, Errors> {
+        // todo
+        Ok(vec![])
     }
 
     /// delivered certificates for given target chain after the given certificate
@@ -297,7 +218,7 @@ impl ReliableBroadcastClient {
     pub async fn broadcast_new_certificate(&self, certificate: Certificate) -> Result<(), ()> {
         let broadcast_commands = self.broadcast_commands.clone();
 
-        info!("Send certificate to be broadcast");
+        info!("send certificate to be broadcast");
         if broadcast_commands
             .send(DoubleEchoCommand::Broadcast {
                 cert: certificate,
@@ -328,26 +249,4 @@ impl ReliableBroadcastClient {
             .map_err(Errors::ShutdownCommunication)?;
         Ok(sampler_receiver.await?)
     }
-}
-
-/// Protocol and technical errors
-#[derive(Error, Debug)]
-pub enum Errors {
-    #[error("Error while sending a DoubleEchoCommand to DoubleEcho: {0:?}")]
-    DoubleEchoSend(#[from] mpsc::error::SendError<DoubleEchoCommand>),
-
-    #[error("Error while waiting for a DoubleEchoCommand response: {0:?}")]
-    DoubleEchoRecv(#[from] oneshot::error::RecvError),
-
-    #[error("Error while sending a SamplerCommand to Sampler: {0:?}")]
-    SamplerSend(#[from] mpsc::error::SendError<SamplerCommand>),
-
-    #[error("Requested certificate not found")]
-    CertificateNotFound,
-
-    #[error("Requested digest not found for certificate {0:?}")]
-    DigestNotFound(CertificateId),
-
-    #[error("Unable to execute shutdown for the reliable broadcast: {0}")]
-    ShutdownCommunication(mpsc::error::SendError<oneshot::Sender<()>>),
 }

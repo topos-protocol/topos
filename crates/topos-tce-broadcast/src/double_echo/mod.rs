@@ -1,9 +1,6 @@
-use crate::sampler::SubscribersView;
+use crate::sampler::{SubscribersUpdate, SubscribersView, SubscriptionsView};
 use crate::Errors;
-use crate::{
-    sampler::SampleType, tce_store::TceStore, DoubleEchoCommand, SubscribersUpdate,
-    SubscriptionsView,
-};
+use crate::{sampler::SampleType, tce_store::TceStore, DoubleEchoCommand};
 use opentelemetry::Context;
 use std::{
     collections::{HashMap, HashSet, VecDeque},
