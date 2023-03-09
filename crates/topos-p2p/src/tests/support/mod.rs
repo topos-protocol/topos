@@ -42,6 +42,6 @@ pub fn local_peer(peer_index: u8) -> (Keypair, Multiaddr) {
     let peer_id: Keypair = keypair_from_byte(peer_index);
     let socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
     let port = socket.local_addr().unwrap().port();
-    let local_listen_addr: Multiaddr = format!("/ip4/127.0.0.1/tcp/{}", port).parse().unwrap();
+    let local_listen_addr: Multiaddr = format!("/ip4/127.0.0.1/tcp/{port}").parse().unwrap();
     (peer_id, local_listen_addr)
 }

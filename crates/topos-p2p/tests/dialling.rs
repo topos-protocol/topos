@@ -37,7 +37,7 @@ async fn dialling_between_3_peers() {
 
     let tasks: Vec<_> = peer_configs
         .into_iter()
-        .map(|peer| start_node(peer.to_owned(), vec![]))
+        .map(|peer| start_node(peer, vec![]))
         .collect();
 
     let mut nodes: Vec<TestNodeContext> = Vec::new();
@@ -49,7 +49,7 @@ async fn dialling_between_3_peers() {
     assert_eq!(nodes.len(), 3);
 
     for node in &nodes {
-        for (key, _port, addr) in all_peers.to_owned() {
+        for (key, _port, addr) in all_peers.iter().cloned() {
             let _ = node.client.dial(key.public().to_peer_id(), addr).await;
         }
     }
@@ -69,7 +69,7 @@ async fn dialling_between_3_peers() {
     let first_node = drained_node.first_mut().unwrap();
     let first_node_peer_id = first_node.peer_id;
 
-    let _ = first_node
+    first_node
         .client
         .disconnect()
         .await

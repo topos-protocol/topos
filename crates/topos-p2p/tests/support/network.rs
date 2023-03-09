@@ -6,7 +6,7 @@ use topos_p2p::{network, Client};
 pub use topos_test_sdk::p2p::local_peer;
 
 pub fn local_peers(count: u8) -> Vec<(Keypair, u16, Multiaddr)> {
-    (0..count).map(|i: u8| local_peer(i)).collect()
+    (0..count).map(local_peer).collect()
 }
 
 pub async fn start_node(

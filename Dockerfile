@@ -34,10 +34,11 @@ COPY . .
 RUN cargo fmt --all -- --check
 
 FROM base AS lint
+RUN rustup default 1.68.0
 RUN rustup component add clippy
 COPY . .
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
-  cargo clippy --all
+  cargo clippy --all --tests
 
 FROM base AS audit
 RUN cargo install cargo-audit --locked

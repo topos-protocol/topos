@@ -87,7 +87,7 @@ fn create_context(params: TceParams) -> (DoubleEcho, Context) {
         subscriptions_view_receiver,
         subscribers_update_receiver,
         event_sender,
-        Box::new(TceMemStore::default()),
+        Box::<TceMemStore>::default(),
         double_echo_shutdown_receiver,
         String::new(),
     );
@@ -178,7 +178,7 @@ async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams)
         SOURCE_SUBNET_ID_1,
         Default::default(),
         Default::default(),
-        &vec![],
+        &[],
         0,
         Default::default(),
     )
@@ -237,7 +237,7 @@ async fn trigger_ready_when_reached_enough_ready(#[case] params: TceParams) {
         SOURCE_SUBNET_ID_1,
         Default::default(),
         Default::default(),
-        &vec![],
+        &[],
         0,
         Default::default(),
     )
@@ -280,7 +280,7 @@ async fn process_after_delivery_until_sending_ready(#[case] params: TceParams) {
         SOURCE_SUBNET_ID_1,
         Default::default(),
         Default::default(),
-        &vec![],
+        &[],
         0,
         Default::default(),
     )

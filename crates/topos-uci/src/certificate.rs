@@ -153,7 +153,7 @@ mod tests {
             source_subnet_it.into(),
             STATE_ROOT,
             TX_ROOT_HASH,
-            &vec![TARGET_SUBNET_ID],
+            &[TARGET_SUBNET_ID],
             2,
             Default::default(),
         )

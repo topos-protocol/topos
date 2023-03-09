@@ -1,4 +1,8 @@
-use std::{fs, path::PathBuf, thread};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    thread,
+};
 
 use rstest::fixture;
 
@@ -8,6 +12,6 @@ pub(crate) fn random_path() -> Box<PathBuf> {
     Box::new(temp_dir)
 }
 
-pub(crate) fn created_folder(random_path: &PathBuf) {
-    fs::create_dir_all(random_path.clone()).unwrap();
+pub(crate) fn created_folder(random_path: &Path) {
+    fs::create_dir_all(random_path).unwrap();
 }

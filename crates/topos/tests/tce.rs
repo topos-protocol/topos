@@ -45,7 +45,7 @@ async fn do_not_push_empty_list() -> Result<(), Box<dyn std::error::Error>> {
         .arg("push-peer-list")
         .arg("1234")
         .arg("--endpoint")
-        .arg(format!("http://localhost:{}", port));
+        .arg(format!("http://localhost:{port}"));
 
     let output = cmd.assert().failure();
 

@@ -120,7 +120,7 @@ async fn receive_expected_certificate_from_zero() -> Result<(), Box<dyn std::err
         SOURCE_SUBNET_ID_2,
         Default::default(),
         Default::default(),
-        &vec![TARGET_SUBNET_ID_1],
+        &[TARGET_SUBNET_ID_1],
         0,
         Default::default(),
     )
@@ -130,7 +130,7 @@ async fn receive_expected_certificate_from_zero() -> Result<(), Box<dyn std::err
         SOURCE_SUBNET_ID_2,
         Default::default(),
         Default::default(),
-        &vec![TARGET_SUBNET_ID_1],
+        &[TARGET_SUBNET_ID_1],
         0,
         Default::default(),
     )

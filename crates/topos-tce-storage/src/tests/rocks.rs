@@ -42,7 +42,7 @@ async fn create_batch_multithread(database_name: &'static str) {
 
     assert_eq!(column.get(&"key1".to_string()).unwrap(), "thread_1_value");
 
-    _ = join.join().unwrap().write().unwrap();
+    join.join().unwrap().write().unwrap();
 
     assert_eq!(column.get(&"key1".to_string()).unwrap(), "thread_2_value");
 }

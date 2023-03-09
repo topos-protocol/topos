@@ -74,7 +74,7 @@ async fn runtime_can_dispatch_a_cert(
         SOURCE_SUBNET_ID_1,
         Default::default(),
         Default::default(),
-        &vec![TARGET_SUBNET_ID_1],
+        &[TARGET_SUBNET_ID_1],
         0,
         Vec::new(),
     )
@@ -138,7 +138,7 @@ async fn can_catchup_with_old_certs(
         SOURCE_SUBNET_ID_1,
         Default::default(),
         Default::default(),
-        &vec![TARGET_SUBNET_ID_1],
+        &[TARGET_SUBNET_ID_1],
         0,
         Vec::new(),
     )
@@ -151,7 +151,7 @@ async fn can_catchup_with_old_certs(
         let certificate_received = rx
             .recv()
             .await
-            .expect(&format!("Didn't received index {}", index));
+            .unwrap_or_else(|| panic!("Didn't received index {}", index));
         assert_eq!(
             certificate, &certificate_received,
             "Certificate at index {} not received",
@@ -244,7 +244,7 @@ async fn can_catchup_with_old_certs_with_position() {
         SOURCE_SUBNET_ID_1,
         Default::default(),
         Default::default(),
-        &vec![TARGET_SUBNET_ID_1],
+        &[TARGET_SUBNET_ID_1],
         0,
         Vec::new(),
     )
@@ -257,7 +257,7 @@ async fn can_catchup_with_old_certs_with_position() {
         let certificate_received = rx
             .recv()
             .await
-            .expect(&format!("Didn't received index {}", index));
+            .unwrap_or_else(|| panic!("Didn't received index {}", index));
         assert_eq!(
             certificate, &certificate_received,
             "Certificate at index {} not received",

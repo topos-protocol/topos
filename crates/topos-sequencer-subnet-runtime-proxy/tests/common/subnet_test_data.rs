@@ -15,7 +15,7 @@ pub fn generate_test_subnet_data_dir() -> Result<std::path::PathBuf, Box<dyn std
         tmp + TEST_VALIDATOR_SUBNET_DATA_DIR + TEST_VALIDATOR_KEY_FILE_NAME,
     );
     std::fs::create_dir_all(consensus_dir)?;
-    let mut keystore_file = std::fs::File::create(keystore_file_path.clone())?;
+    let mut keystore_file = std::fs::File::create(keystore_file_path)?;
     writeln!(&mut keystore_file, "{}", TEST_VALIDATOR_KEY_FILE_DATA)?;
     Ok(subnet_data_dir)
 }

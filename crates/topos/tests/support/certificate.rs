@@ -11,12 +11,12 @@ pub fn generate_cert(
     let mut nonce_state: HashMap<SubnetId, CertificateId> = HashMap::new();
     let mut result: HashMap<SubnetId, Vec<Certificate>> = HashMap::new();
     for subnet in subnets {
-        result.insert(subnet.clone(), Vec::new());
+        result.insert(*subnet, Vec::new());
     }
 
     // Initialize the genesis of all subnets
     for subnet in subnets {
-        nonce_state.insert(*subnet, PREV_CERTIFICATE_ID.into());
+        nonce_state.insert(*subnet, PREV_CERTIFICATE_ID);
     }
 
     let mut gen_cert = |selected_subnet: SubnetId| -> Certificate {
@@ -29,7 +29,7 @@ pub fn generate_cert(
             .collect::<Vec<_>>();
 
         let gen_cert = Certificate::new(
-            last_cert_id.clone(),
+            *last_cert_id,
             selected_subnet,
             Default::default(),
             Default::default(),
@@ -44,9 +44,9 @@ pub fn generate_cert(
 
     for selected_subnet in subnets {
         for _ in 0..number_of_certificates_per_subnet {
-            let cert = gen_cert(selected_subnet.clone());
+            let cert = gen_cert(*selected_subnet);
             result
-                .entry(selected_subnet.clone())
+                .entry(*selected_subnet)
                 .or_insert(Vec::new())
                 .push(cert);
         }

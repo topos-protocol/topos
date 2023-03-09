@@ -29,7 +29,7 @@ pub async fn start_peer_pool(
         let fut = async {
             let client = topos_test_sdk::tce::start_node(vec![], config, &peers).await;
 
-            (client.peer_id.clone(), client)
+            (client.peer_id, client)
         }
         .instrument(span);
 
@@ -44,10 +44,7 @@ pub async fn start_peer_pool(
 }
 
 fn build_peer_config_pool(peer_number: u8) -> Vec<NodeConfig> {
-    (1..=peer_number)
-        .into_iter()
-        .map(|id| NodeConfig::from_seed(id))
-        .collect()
+    (1..=peer_number).map(NodeConfig::from_seed).collect()
 }
 
 #[allow(dead_code)]

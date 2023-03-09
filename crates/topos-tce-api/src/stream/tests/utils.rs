@@ -20,12 +20,12 @@ use crate::{
     stream::{Stream, StreamCommand, StreamError},
 };
 
-pub fn create_stream(
-    stream_id: Uuid,
-) -> (
+type CreateStreamResult = (
     Sender,
     BoxStream<'static, Result<(Option<Uuid>, InboundMessage), StreamError>>,
-) {
+);
+
+pub fn create_stream(stream_id: Uuid) -> CreateStreamResult {
     let (tx, body) = Body::channel();
     let mut codec = ProstCodec::<WatchCertificatesResponse, WatchCertificatesRequest>::default();
     let stream = Streaming::new_request(codec.decoder(), body, None)

@@ -50,13 +50,13 @@ async fn can_persist_a_delivered_certificate(storage: RocksDBStorage) {
         SOURCE_SUBNET_ID_1,
         Default::default(),
         Default::default(),
-        &vec![TARGET_SUBNET_ID_1],
+        &[TARGET_SUBNET_ID_1],
         0,
         Vec::new(),
     )
     .unwrap();
 
-    let cert_id = certificate.id.clone();
+    let cert_id = certificate.id;
     storage.persist(&certificate, None).await.unwrap();
 
     assert!(certificates_column.get(&cert_id).is_ok());
@@ -88,7 +88,7 @@ async fn delivered_certificate_are_added_to_target_stream(storage: RocksDBStorag
     let source_streams_column = storage.source_streams_column();
     let target_streams_column = storage.target_streams_column();
 
-    _ = target_streams_column
+    target_streams_column
         .insert(
             &TargetStreamPosition(
                 TARGET_STORAGE_SUBNET_ID_1,
@@ -104,13 +104,13 @@ async fn delivered_certificate_are_added_to_target_stream(storage: RocksDBStorag
         SOURCE_SUBNET_ID_1,
         Default::default(),
         Default::default(),
-        &vec![TARGET_SUBNET_ID_1, TARGET_SUBNET_ID_2],
+        &[TARGET_SUBNET_ID_1, TARGET_SUBNET_ID_2],
         0,
         Vec::new(),
     )
     .unwrap();
 
-    let cert_id = certificate.id.clone();
+    let cert_id = certificate.id;
     storage.persist(&certificate, None).await.unwrap();
 
     assert!(certificates_column.get(&cert_id).is_ok());
@@ -150,7 +150,7 @@ async fn pending_certificate_are_removed_during_persist_action(storage: RocksDBS
         SOURCE_SUBNET_ID_1,
         Default::default(),
         Default::default(),
-        &vec![TARGET_SUBNET_ID_1],
+        &[TARGET_SUBNET_ID_1],
         0,
         Vec::new(),
     )
@@ -159,7 +159,7 @@ async fn pending_certificate_are_removed_during_persist_action(storage: RocksDBS
     let pending_id = storage.add_pending_certificate(&certificate).await.unwrap();
 
     assert!(pending_column.get(&pending_id).is_ok());
-    _ = storage
+    storage
         .persist(&certificate, Some(pending_id))
         .await
         .unwrap();
@@ -259,14 +259,14 @@ async fn pending_certificate_can_be_removed(storage: RocksDBStorage) {
     let pending_id = storage.add_pending_certificate(&certificate).await.unwrap();
 
     assert!(pending_column.get(&pending_id).is_ok());
-    _ = storage
+    storage
         .remove_pending_certificate(pending_id)
         .await
         .unwrap();
 
     assert!(pending_column.get(&pending_id).is_err());
 
-    _ = storage.remove_pending_certificate(1234).await.unwrap();
+    storage.remove_pending_certificate(1234).await.unwrap();
 
     assert!(pending_column
         .iter()
@@ -279,7 +279,7 @@ async fn pending_certificate_can_be_removed(storage: RocksDBStorage) {
     let pending_id = storage.add_pending_certificate(&certificate).await.unwrap();
 
     assert!(pending_column.get(&pending_id).is_ok());
-    _ = storage
+    storage
         .remove_pending_certificate(pending_id)
         .await
         .unwrap();
@@ -298,25 +298,25 @@ async fn get_source_head_for_subnet(storage: RocksDBStorage) {
         create_certificate_chain(SOURCE_SUBNET_ID_1, TARGET_SUBNET_ID_2, 10);
 
     for cert in &expected_certificates_for_source_subnet {
-        storage.persist(&cert, None).await.unwrap();
+        storage.persist(cert, None).await.unwrap();
     }
 
     let expected_certificates_for_source_subnet_a =
         create_certificate_chain(TARGET_SUBNET_ID_1, TARGET_SUBNET_ID_2, 10);
 
     for cert in &expected_certificates_for_source_subnet_a {
-        storage.persist(&cert, None).await.unwrap();
+        storage.persist(cert, None).await.unwrap();
     }
 
     let last_certificate_subnet = storage
-        .get_source_heads(vec![SOURCE_SUBNET_ID_1.into()])
+        .get_source_heads(vec![SOURCE_SUBNET_ID_1])
         .await
         .unwrap()
         .last()
         .unwrap()
         .clone();
     let last_certificate_subnet_a = storage
-        .get_source_heads(vec![TARGET_SUBNET_ID_1.into()])
+        .get_source_heads(vec![TARGET_SUBNET_ID_1])
         .await
         .unwrap()
         .last()
@@ -347,7 +347,7 @@ async fn get_source_head_for_subnet(storage: RocksDBStorage) {
     storage.persist(&other_certificate, None).await.unwrap();
 
     let last_certificate_subnet = storage
-        .get_source_heads(vec![SOURCE_SUBNET_ID_1.into()])
+        .get_source_heads(vec![SOURCE_SUBNET_ID_1])
         .await
         .unwrap()
         .last()
@@ -369,7 +369,7 @@ async fn get_source_head_for_subnet(storage: RocksDBStorage) {
     storage.persist(&other_certificate_2, None).await.unwrap();
 
     let last_certificate_subnet = storage
-        .get_source_heads(vec![SOURCE_SUBNET_ID_1.into()])
+        .get_source_heads(vec![SOURCE_SUBNET_ID_1])
         .await
         .unwrap()
         .last()
