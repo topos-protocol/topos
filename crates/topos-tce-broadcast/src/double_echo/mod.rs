@@ -261,10 +261,7 @@ impl DoubleEcho {
     }
 
     pub(crate) fn handle_broadcast(&mut self, cert: Certificate) {
-        info!(
-            "🙌 Starting the broadcast process for the Certificate {}",
-            &cert.id
-        );
+        info!("🙌 Starting broadcasting the Certificate {}", &cert.id);
 
         self.dispatch(cert);
     }
@@ -277,7 +274,7 @@ impl DoubleEcho {
     /// - either submitted from API ( [tce_transport::TceCommands::Broadcast] command)
     /// - or received through the gossip (first step of protocol exchange)
     pub(crate) fn dispatch(&mut self, cert: Certificate) {
-        if self.cert_pre_delivery_check(&cert).is_err() {
+        if self.cert_pre_broadcast_check(&cert).is_err() {
             error!("Failure on the pre-check for the Certificate {}", &cert.id);
             return;
         }
@@ -492,10 +489,8 @@ impl DoubleEcho {
         }
     }
 
-    /// Here comes test that can be done before delivery process
-    /// in order to avoid going to delivery process for a Cert
-    /// that is already known as incorrect
-    fn cert_pre_delivery_check(&self, cert: &Certificate) -> Result<(), ()> {
+    /// Checks done before starting to broadcast
+    fn cert_pre_broadcast_check(&self, cert: &Certificate) -> Result<(), ()> {
         if cert.check_signature().is_err() {
             error!("Error on the signature");
         }
