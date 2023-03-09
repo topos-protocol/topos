@@ -23,4 +23,4 @@ env_logger.workspace = true
 rstest = "0.15"
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 
-topos-test-sdk = { path = "../topos-test-sdk/", features = [] }
+topos-test-sdk = { path = "../topos-test-sdk/", features = ["tce"] }

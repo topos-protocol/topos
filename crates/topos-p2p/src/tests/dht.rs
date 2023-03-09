@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use futures::StreamExt;
 use libp2p::{
     kad::{record::Key, KademliaEvent, PutRecordOk, QueryResult, Record},
@@ -5,6 +7,7 @@ use libp2p::{
 };
 use rstest::rstest;
 use test_log::test;
+use topos_test_sdk::tce::NodeConfig;
 
 use crate::{
     event::ComposedEvent, network::NetworkBuilder, tests::support::local_peer, wait_for_event,
@@ -15,22 +18,27 @@ use super::support::{dummy_peer, PeerAddr};
 
 #[rstest]
 #[test(tokio::test)]
-#[ignore = "need to be fixed"]
-async fn put_value_in_dht(#[future] dummy_peer: (Client, PeerAddr)) {
-    let (_client, dummy_peer) = dummy_peer.await;
+#[timeout(Duration::from_secs(1))]
+async fn put_value_in_dht() {
+    let peer_1 = NodeConfig::from_seed(1);
+    let peer_2 = NodeConfig::from_seed(2);
 
-    let (key, addr) = local_peer(2);
-    println!("multi addr: {}", addr);
-    let (_client, _stream, mut runtime): (_, _, Runtime) = NetworkBuilder::default()
-        .peer_key(key)
-        .known_peers(&[dummy_peer])
-        .listen_addr(addr.clone())
-        .exposed_addresses(addr)
+    let (_client, _, join) = peer_1.bootstrap(&[]).await.unwrap();
+
+    let (_, _, runtime) = crate::network::builder()
+        .peer_key(peer_2.keypair.clone())
+        .known_peers(&[])
+        .exposed_addresses(peer_2.addr.clone())
+        .listen_addr(peer_2.addr.clone())
+        .minimum_cluster_size(0)
         .build()
         .await
-        .unwrap();
+        .expect("Unable to create p2p network");
+
+    let mut runtime = runtime.bootstrap().await.unwrap();
 
     let kad = &mut runtime.swarm.behaviour_mut().discovery;
+    kad.add_address(&peer_1.keypair.public().to_peer_id(), peer_1.addr);
 
     let input_key = Key::new(&runtime.local_peer_id.to_string());
     _ = kad
@@ -46,6 +54,8 @@ async fn put_value_in_dht(#[future] dummy_peer: (Client, PeerAddr)) {
         swarm,
         matches: SwarmEvent::Behaviour(ComposedEvent::Kademlia(KademliaEvent::OutboundQueryProgressed { result: QueryResult::PutRecord(Ok(PutRecordOk { key })), .. } )) if key == input_key
     );
+
+    join.abort();
 }
 
 #[test(tokio::test)]

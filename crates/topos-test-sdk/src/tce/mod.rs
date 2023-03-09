@@ -1,5 +1,7 @@
+use std::error::Error;
 use std::future::IntoFuture;
 
+use futures::Stream;
 use libp2p::identity::Keypair;
 use libp2p::{Multiaddr, PeerId};
 use rstest::*;
@@ -12,6 +14,7 @@ use topos_core::api::tce::v1::{
 };
 use topos_core::uci::Certificate;
 use topos_core::uci::SubnetId;
+use topos_p2p::{error::P2PError, Client, Event, Runtime};
 use topos_tce::AppContext;
 use topos_tce_broadcast::{DoubleEchoCommand, SamplerCommand};
 use tracing::info;
@@ -20,7 +23,7 @@ use crate::p2p::local_peer;
 use crate::storage::create_rocksdb;
 
 use self::gatekeeper::create_gatekeeper;
-use self::p2p::bootstrap_network;
+use self::p2p::{bootstrap_network, create_network_worker};
 use self::protocol::{create_reliable_broadcast_client, create_reliable_broadcast_params};
 use self::public_api::create_public_api;
 use self::synchronizer::create_synchronizer;
@@ -62,6 +65,7 @@ impl TceContext {
         Ok(())
     }
 }
+
 #[derive(Clone)]
 pub struct NodeConfig {
     pub seed: u8,
@@ -91,6 +95,27 @@ impl NodeConfig {
             g,
             correct_sample: 2,
         }
+    }
+
+    pub async fn bootstrap(
+        &self,
+        peers: &[NodeConfig],
+    ) -> Result<
+        (
+            Client,
+            impl Stream<Item = Event> + Unpin + Send,
+            JoinHandle<Result<(), ()>>,
+        ),
+        Box<dyn Error>,
+    > {
+        bootstrap_network(self.seed, self.port, self.addr.clone(), peers, 2).await
+    }
+
+    pub async fn create(
+        &self,
+        peers: &[NodeConfig],
+    ) -> Result<(Client, impl Stream<Item = Event>, Runtime), P2PError> {
+        create_network_worker(self.seed, self.port, self.addr.clone(), peers, 2).await
     }
 }
 
