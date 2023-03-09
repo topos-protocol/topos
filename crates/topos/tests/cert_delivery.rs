@@ -11,7 +11,6 @@ use std::{
     collections::{HashMap, HashSet},
     time::Duration,
 };
-use support::network::TestAppContext;
 use test_log::test;
 use tokio::spawn;
 use tokio::sync::mpsc;
@@ -26,6 +25,7 @@ use topos_core::{
     },
     uci::{Certificate, SubnetId},
 };
+use topos_test_sdk::tce::TceContext;
 use tracing::{debug, info};
 
 const NUMBER_OF_SUBNETS_PER_CLIENT: usize = 1; // In real life this would be always 1, topos node would represent one subnet
@@ -297,10 +297,7 @@ pub fn sample_lower_bound(n_u: usize) -> usize {
     (n_u as f32).log(k) as usize
 }
 
-async fn create_network(
-    peer_number: usize,
-    correct_sample: usize,
-) -> HashMap<PeerId, TestAppContext> {
+async fn create_network(peer_number: usize, correct_sample: usize) -> HashMap<PeerId, TceContext> {
     let g = |a, b| (((a as f32) * b) as f32).ceil() as usize;
 
     // List of peers (tce nodes) with their context

@@ -40,4 +40,5 @@ env_logger.workspace = true
 http = "0.2.8"
 http-body = "0.4.5"
 rstest = { workspace = true, features = ["async-timeout"] }
+topos-test-sdk = { path = "../topos-test-sdk/" }
 

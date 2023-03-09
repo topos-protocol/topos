@@ -12,8 +12,8 @@ use tokio::sync::broadcast::Receiver;
 use tokio::time::Duration;
 use topos_p2p::PeerId;
 
-const PREV_CERTIFICATE_ID: CertificateId = CertificateId::from_array([4u8; 32]);
-const SOURCE_SUBNET_ID: SubnetId = SubnetId::from_array([1u8; 32]);
+use topos_test_sdk::constants::*;
+
 const CHANNEL_SIZE: usize = 10;
 const WAIT_EVENT_TIMEOUT: Duration = Duration::from_secs(1);
 
@@ -175,7 +175,7 @@ async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams)
 
     let dummy_cert = Certificate::new(
         PREV_CERTIFICATE_ID,
-        SOURCE_SUBNET_ID,
+        SOURCE_SUBNET_ID_1,
         Default::default(),
         Default::default(),
         &vec![],
@@ -234,7 +234,7 @@ async fn trigger_ready_when_reached_enough_ready(#[case] params: TceParams) {
 
     let dummy_cert = Certificate::new(
         PREV_CERTIFICATE_ID,
-        SOURCE_SUBNET_ID,
+        SOURCE_SUBNET_ID_1,
         Default::default(),
         Default::default(),
         &vec![],
@@ -277,7 +277,7 @@ async fn process_after_delivery_until_sending_ready(#[case] params: TceParams) {
 
     let dummy_cert = Certificate::new(
         PREV_CERTIFICATE_ID,
-        SOURCE_SUBNET_ID,
+        SOURCE_SUBNET_ID_1,
         Default::default(),
         Default::default(),
         &vec![],

@@ -102,19 +102,15 @@ mod tests {
     use test_log::test;
 
     use tokio::spawn;
+    use topos_test_sdk::constants::*;
 
     use super::*;
-
-    const SOURCE_SUBNET_ID: topos_core::uci::SubnetId =
-        topos_core::uci::SubnetId::from_array([1u8; 32]);
-    const PREV_CERTIFICATE_ID: topos_core::uci::CertificateId =
-        CertificateId::from_array([4u8; 32]);
 
     #[test(tokio::test)]
     async fn send_command() {
         let cert = Certificate::new(
             PREV_CERTIFICATE_ID,
-            SOURCE_SUBNET_ID,
+            SOURCE_SUBNET_ID_1,
             Default::default(),
             Default::default(),
             &[],
