@@ -7,35 +7,36 @@
 use opentelemetry::Context;
 use sampler::SampleType;
 use thiserror::Error;
-use tokio::sync::{mpsc, oneshot};
+use tokio::spawn;
+use tokio_stream::wrappers::BroadcastStream;
 
-use tce_transport::ReliableBroadcastParams;
+use futures::{Future, Stream, TryStreamExt};
+#[allow(unused)]
+use opentelemetry::global;
+use tokio::sync::mpsc::Sender;
+use tokio::sync::{broadcast, mpsc, oneshot};
+
+use double_echo::DoubleEcho;
+use tce_transport::{ReliableBroadcastParams, TceEvents};
 
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
 use topos_p2p::PeerId;
-use tracing::error;
+use tracing::{debug, error, info, Span};
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 
+use crate::mem_store::TceMemStore;
+use crate::sampler::{Sampler, SubscribersUpdate, SubscriptionsView};
 use crate::tce_store::TceStore;
 pub use topos_core::uci;
 
-#[cfg(feature = "direct")]
-pub use client::direct::ReliableBroadcastClient;
-
-#[cfg(not(feature = "direct"))]
-pub use client::reliable::ReliableBroadcastClient;
-
 pub type Peer = String;
 
-#[cfg(not(feature = "direct"))]
 pub mod double_echo;
 pub mod mem_store;
 pub mod sampler;
 pub mod tce_store;
 
-pub mod client;
-
 #[cfg(test)]
-#[cfg(not(feature = "direct"))]
 mod tests;
 
 /// Configuration of TCE implementation

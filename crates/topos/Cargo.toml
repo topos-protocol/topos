@@ -50,4 +50,4 @@ default = ["tce", "sequencer"]
 tce = ["topos-tce", "topos-tce-transport"]
 sequencer = ["topos-sequencer"]
 
-tce-instant = ["topos-tce", "topos-tce/no-double-echo"]
+tce-direct = ["tce", "topos-tce-broadcast/direct"]

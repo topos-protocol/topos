@@ -11,8 +11,7 @@ use tce_transport::ReliableBroadcastParams;
 use tokio::{spawn, sync::mpsc, sync::oneshot};
 use topos_p2p::utils::local_key_pair_from_slice;
 use topos_p2p::{utils::local_key_pair, Multiaddr, PeerId};
-use topos_tce_broadcast::ReliableBroadcastClient;
-use topos_tce_broadcast::ReliableBroadcastConfig;
+use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
 use topos_tce_storage::{Connection, RocksDBStorage};
 use tracing::{debug, info};
 
@@ -81,12 +80,14 @@ pub async fn run(
     spawn(gatekeeper_runtime.into_future());
     debug!("Gatekeeper started");
 
+    debug!("Starting reliable broadcast");
     let (tce_cli, tce_stream) = ReliableBroadcastClient::new(
         ReliableBroadcastConfig {
             tce_params: config.tce_params.clone(),
         },
         peer_id.to_string(),
     );
+    debug!("Reliable broadcast started");
 
     debug!("Starting the Storage");
     let (storage, storage_client, storage_stream) =

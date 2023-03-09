@@ -1,18 +1,16 @@
 use crate::double_echo::*;
 use crate::mem_store::TceMemStore;
-use crate::sampler::{SubscribersUpdate, SubscriptionsView};
+use crate::sampler::SubscribersUpdate;
 use crate::*;
 use rand::seq::IteratorRandom;
 use rstest::*;
 use std::collections::HashSet;
 use std::usize;
-use tce_transport::{ReliableBroadcastParams, TceEvents};
+use tce_transport::ReliableBroadcastParams;
 use tokio::sync::broadcast::error::TryRecvError;
-use tokio::sync::broadcast::{self, Receiver};
-use tokio::sync::mpsc::Sender;
+use tokio::sync::broadcast::Receiver;
 use tokio::time::Duration;
 use topos_p2p::PeerId;
-use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 use topos_test_sdk::constants::*;
 
@@ -334,7 +332,7 @@ async fn buffering_certificate(#[case] params: TceParams) {
     let subscribers = double_echo.subscribers.clone();
     let subscriptions = double_echo.subscriptions.clone();
 
-    tokio::spawn(double_echo.run());
+    spawn(double_echo.run());
 
     // Add subscribers
     for &peer in subscribers.echo.iter() {
@@ -357,7 +355,7 @@ async fn buffering_certificate(#[case] params: TceParams) {
     ctx.cmd_sender
         .send(DoubleEchoCommand::Broadcast {
             cert: le_cert.clone(),
-            ctx: tracing::Span::current().context(),
+            ctx: Span::current().context(),
         })
         .await
         .expect("Cannot send broadcast command");
@@ -396,7 +394,7 @@ async fn buffering_certificate(#[case] params: TceParams) {
     assert_eq!(received_gossip_commands[0].1.id, le_cert.id);
 
     // Test shutdown
-    tracing::info!("Waiting for double echo to shutdown...");
+    info!("Waiting for double echo to shutdown...");
     let (sender, receiver) = oneshot::channel();
     ctx.double_echo_shutdown_sender
         .send(sender)
