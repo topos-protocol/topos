@@ -30,3 +30,7 @@ env_logger.workspace = true
 rstest.workspace = true
 
 topos-test-sdk = { path = "../topos-test-sdk/" }
+
+[features]
+default = []
+direct = []

@@ -208,8 +208,14 @@ impl DoubleEcho {
                 }
             };
 
+            #[cfg(not(feature = "direct"))]
+            let has_subscriptions = self.subscriptions.is_some();
+
+            #[cfg(feature = "direct")]
+            let has_subscriptions = true;
+
             // Broadcast next certificate
-            if self.subscriptions.is_some() {
+            if has_subscriptions {
                 while let Some((cert, ctx)) = self.buffer.pop_front() {
                     let span = info_span!(
                         "DoubleEcho start dispatching",
@@ -221,8 +227,17 @@ impl DoubleEcho {
                     let entry = self.span_tracker.entry(cert.id).or_default();
 
                     *entry = span.context();
+
                     span.in_scope(|| {
+                        #[cfg(not(feature = "direct"))]
                         self.handle_broadcast(cert);
+
+                        #[cfg(feature = "direct")]
+                        {
+                            _ = self
+                                .event_sender
+                                .send(TceEvents::CertificateDelivered { certificate: cert });
+                        }
                     });
                 }
             }
@@ -260,6 +275,7 @@ impl DoubleEcho {
         }
     }
 
+    #[cfg_attr(feature = "direct", allow(dead_code))]
     pub(crate) fn handle_broadcast(&mut self, cert: Certificate) {
         info!("🙌 Starting broadcasting the Certificate {}", &cert.id);
 

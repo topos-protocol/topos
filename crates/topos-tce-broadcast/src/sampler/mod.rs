@@ -139,6 +139,10 @@ impl Sampler {
     }
 
     pub async fn run(mut self) {
+        #[cfg(feature = "direct")]
+        if self.event_sender.send(TceEvents::StableSample).is_err() {
+            error!("Unable to notify the TCE runtime for the set of samples");
+        }
         let shutdowned: Option<oneshot::Sender<()>> = loop {
             tokio::select! {
                 shutdown = self.shutdown.recv() => {
