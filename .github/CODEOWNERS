@@ -1,5 +1,7 @@
 *       @toposware/protocol
 
 # Github Actions
-/.github/workflows/ @toposware/protocol @sebastiendan
+/.github/workflows/ @toposware/protocol @toposware/tools
 
+# Crypto Internals
+/crates/topos-crypto/ @toposware/protocol @toposware/crypto @Nashtare
