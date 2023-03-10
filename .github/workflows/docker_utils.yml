@@ -13,6 +13,10 @@ on:
         required: false
         type: string
         default: stable
+      features:
+        required: false
+        type: string
+        default: tce,sequencer
 
 
 env:
@@ -85,5 +89,5 @@ jobs:
           build-args: |
             GITHUB_TOKEN=${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
             TOOLCHAIN_VERSION=${{ inputs.toolchain_version }}
-            FEATURES=${{ inputs.features:-"tce,sequencer"}}
+            FEATURES=${{ inputs.features }}
             SCCACHE_S3_KEY_PREFIX=${{ inputs.target }}
