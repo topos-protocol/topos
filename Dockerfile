@@ -1,15 +1,13 @@
 ARG TOOLCHAIN_VERSION
-
 FROM ghcr.io/toposware/rust_builder:1.65-bullseye-${TOOLCHAIN_VERSION} AS base
 
 ARG FEATURES
 ARG GITHUB_TOKEN
-
 # Rust cache
-ARG SCCACHE_S3_KEY_PREFIX=topos
-ENV SCCACHE_BUCKET=cicd-devnet-1-sccache
-ENV SCCACHE_REGION=us-east-1
-ENV RUSTC_WRAPPER=/usr/local/cargo/bin/sccache
+ARG SCCACHE_S3_KEY_PREFIX
+ARG SCCACHE_BUCKET
+ARG SCCACHE_REGION
+ARG RUSTC_WRAPPER
 
 RUN git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
 
