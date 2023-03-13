@@ -271,7 +271,30 @@ impl Storage for RocksDBStorage {
         subnets: Vec<SubnetId>,
     ) -> Result<Vec<crate::SourceHead>, InternalStorageError> {
         let mut result: Vec<crate::SourceHead> = Vec::new();
+
         for source_subnet_id in subnets {
+            // Run through pending certificates. If there are source subnet certificates pending,
+            // take the last inserted into pending table (it should have bigger index)
+            if let Ok(pending_certificates) = self.get_pending_certificates().await {
+                let mut last_certificate: Option<Certificate> = None;
+                for (_index, cert) in pending_certificates {
+                    if cert.source_subnet_id == source_subnet_id {
+                        last_certificate = Some(cert);
+                    }
+                }
+
+                if let Some(last_certificate) = last_certificate {
+                    result.push(SourceHead {
+                        cert_id: last_certificate.id,
+                        subnet_id: source_subnet_id,
+                        position: None,
+                    });
+                    // Skip checking for delivered certificates
+                    continue;
+                }
+            }
+
+            // Check delivered certificates if there are no pending certificates
             let (position, cert_id) = self
                 .source_streams
                 .prefix_iter(&source_subnet_id)?
@@ -279,7 +302,7 @@ impl Storage for RocksDBStorage {
                 .map(|(source_stream_position, cert_id)| (source_stream_position.1, cert_id))
                 .ok_or(InternalStorageError::MissingHeadForSubnet(source_subnet_id))?;
             result.push(SourceHead {
-                position,
+                position: Some(position),
                 cert_id,
                 subnet_id: source_subnet_id,
             });

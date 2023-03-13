@@ -3,12 +3,13 @@ use rstest::*;
 use std::collections::HashMap;
 use test_log::test;
 use tokio::time::Duration;
+use topos_core::api::shared::v1::positions::SourceStreamPosition;
 use topos_core::api::shared::v1::{checkpoints::TargetCheckpoint, positions::TargetStreamPosition};
 use topos_core::api::shared::v1::{CertificateId, StarkProof, SubnetId};
 use topos_core::api::tce::v1::{
     watch_certificates_request, watch_certificates_response,
     watch_certificates_response::CertificatePushed, GetSourceHeadRequest, GetSourceHeadResponse,
-    SourceStreamPosition, SubmitCertificateRequest,
+    SubmitCertificateRequest,
 };
 use topos_core::api::uci::v1::Certificate;
 use topos_core::uci;
@@ -166,9 +167,9 @@ async fn test_tce_get_source_head_certificate(
     let expected_response = GetSourceHeadResponse {
         certificate: Some(expected_default_genesis_certificate.clone()),
         position: Some(SourceStreamPosition {
-            subnet_id: Some(source_subnet_id.clone()),
+            source_subnet_id: Some(source_subnet_id.clone()),
             certificate_id: expected_default_genesis_certificate.id.clone(),
-            position: 0,
+            position: Some(0),
         }),
     };
 
@@ -213,15 +214,12 @@ async fn test_tce_get_source_head_certificate(
         .map(|r| r.into_inner())
         .unwrap();
 
-    // TODO currently only delivered certificates are counted as
-    // head source certificate, so default certificate is expected
-    // Should be updated to count also pending certificates
     let expected_response = GetSourceHeadResponse {
-        certificate: Some(expected_default_genesis_certificate.clone()),
+        certificate: Some(test_certificate.clone()),
         position: Some(SourceStreamPosition {
-            subnet_id: Some(source_subnet_id.clone()),
-            certificate_id: expected_default_genesis_certificate.id,
-            position: 0,
+            source_subnet_id: Some(source_subnet_id.clone()),
+            certificate_id: test_certificate.id,
+            position: None,
         }),
     };
     assert_eq!(response, expected_response);

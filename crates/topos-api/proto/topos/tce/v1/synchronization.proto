@@ -5,6 +5,7 @@ package topos.tce.v1;
 import "topos/shared/v1/certificate.proto";
 import "topos/shared/v1/subnet.proto";
 import "topos/shared/v1/uuid.proto";
+import "topos/shared/v1/checkpoints.proto";
 
 message CheckpointRequest {
   // Provide a request_id to track response
@@ -43,13 +44,5 @@ message CheckpointResponse {
 
   // Contains the positions returned by the peer, this can be empty if the peer
   // doesn't have any position regarding the subnets list
-  repeated SourceStreamPosition positions = 2;
-}
-
-// Type that represents a SourceStreamPosition, or position, it represents a
-// particular position in the stream of a subnet in a peer context.
-message SourceStreamPosition {
-  topos.shared.v1.SubnetId subnet_id = 1;
-  topos.shared.v1.CertificateId certificate_id = 2;
-  uint64 position = 3;
+  repeated topos.shared.v1.Positions.SourceStreamPosition positions = 2;
 }

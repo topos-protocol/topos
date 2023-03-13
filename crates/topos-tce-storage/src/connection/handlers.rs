@@ -202,7 +202,7 @@ where
     async fn handle(
         &mut self,
         GetSourceHead { subnet_id }: GetSourceHead,
-    ) -> Result<(u64, Certificate), StorageError> {
+    ) -> Result<(Option<u64>, Certificate), StorageError> {
         let heads = match self.storage.get_source_heads(vec![subnet_id]).await {
             Ok(heads) => heads,
             Err(e) => {
@@ -217,17 +217,38 @@ where
             "Source head certificate for subnet id {subnet_id} is {}",
             source_head.cert_id
         );
-        let certificate = match self.storage.get_certificate(source_head.cert_id).await {
-            Ok(certificate) => certificate,
-            Err(e) => {
-                error!(
-                    "Failure on the storage to get the source head Certificate {}",
-                    source_head.cert_id
-                );
-                return Err(e.into());
+        let certificate = if source_head.position.is_some() {
+            // delivered certificate
+            match self.storage.get_certificate(source_head.cert_id).await {
+                Ok(certificate) => certificate,
+                Err(e) => {
+                    error!(
+                        "Failure on the storage to get the delivered source head Certificate {}",
+                        source_head.cert_id
+                    );
+                    return Err(e.into());
+                }
+            }
+        } else {
+            // pending certificate
+            match self
+                .storage
+                .get_pending_certificate(source_head.cert_id)
+                .await
+            {
+                Ok((_pending_certificate_id, pending_certificate)) => pending_certificate,
+                Err(e) => {
+                    error!(
+                        "Failure on the storage to get the pending source head Certificate {}",
+                        source_head.cert_id
+                    );
+                    return Err(e.into());
+                }
             }
         };
-        Ok((source_head.position.0, certificate))
+        let position: Option<u64> = source_head.position.map(|position| position.0);
+
+        Ok((position, certificate))
     }
 }
 

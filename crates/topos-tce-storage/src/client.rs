@@ -89,10 +89,11 @@ impl StorageClient {
     /// Fetch source head certificate for subnet
     ///
     /// Return position of the certificate and certificate itself
+    /// If certificate is not yet delivered return None for position
     pub async fn get_source_head(
         &self,
         subnet_id: SubnetId,
-    ) -> Result<(u64, Certificate), StorageError> {
+    ) -> Result<(Option<u64>, Certificate), StorageError> {
         GetSourceHead { subnet_id }.send_to(&self.sender).await
     }
 

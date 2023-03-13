@@ -49,7 +49,7 @@ impl From<TargetStreamPosition> for shared_v1::positions::TargetStreamPosition {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SourceStreamPosition {
     pub source_subnet_id: SubnetId,
-    pub position: u64,
+    pub position: Option<u64>,
     pub certificate_id: Option<CertificateId>,
 }
 

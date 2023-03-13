@@ -63,19 +63,9 @@ pub struct CheckpointResponse {
     /// Contains the positions returned by the peer, this can be empty if the peer
     /// doesn't have any position regarding the subnets list
     #[prost(message, repeated, tag = "2")]
-    pub positions: ::prost::alloc::vec::Vec<SourceStreamPosition>,
-}
-/// Type that represents a SourceStreamPosition, or position, it represents a
-/// particular position in the stream of a subnet in a peer context.
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct SourceStreamPosition {
-    #[prost(message, optional, tag = "1")]
-    pub subnet_id: ::core::option::Option<super::super::shared::v1::SubnetId>,
-    #[prost(message, optional, tag = "2")]
-    pub certificate_id: ::core::option::Option<super::super::shared::v1::CertificateId>,
-    #[prost(uint64, tag = "3")]
-    pub position: u64,
+    pub positions: ::prost::alloc::vec::Vec<
+        super::super::shared::v1::positions::SourceStreamPosition,
+    >,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -96,7 +86,9 @@ pub struct GetSourceHeadRequest {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetSourceHeadResponse {
     #[prost(message, optional, tag = "1")]
-    pub position: ::core::option::Option<SourceStreamPosition>,
+    pub position: ::core::option::Option<
+        super::super::shared::v1::positions::SourceStreamPosition,
+    >,
     #[prost(message, optional, tag = "2")]
     pub certificate: ::core::option::Option<super::super::uci::v1::Certificate>,
 }

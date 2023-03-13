@@ -61,8 +61,8 @@ pub mod positions {
         /// The source_subnet_id is a mandatory field for the SourceStreamPosition
         #[prost(message, optional, tag = "1")]
         pub source_subnet_id: ::core::option::Option<super::SubnetId>,
-        #[prost(uint64, tag = "2")]
-        pub position: u64,
+        #[prost(uint64, optional, tag = "2")]
+        pub position: ::core::option::Option<u64>,
         #[prost(message, optional, tag = "3")]
         pub certificate_id: ::core::option::Option<super::CertificateId>,
     }

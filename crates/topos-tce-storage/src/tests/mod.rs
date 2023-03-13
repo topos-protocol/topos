@@ -1,6 +1,7 @@
 use rstest::rstest;
 use test_log::test;
 use topos_core::uci::{Certificate, SubnetId};
+use tracing::debug;
 
 use crate::{
     rocks::{map::Map, TargetStreamPositionKey},
@@ -302,21 +303,21 @@ async fn get_source_head_for_subnet(storage: RocksDBStorage) {
     }
 
     let expected_certificates_for_source_subnet_a =
-        create_certificate_chain(TARGET_SUBNET_ID_1, TARGET_SUBNET_ID_2, 10);
+        create_certificate_chain(SOURCE_SUBNET_ID_2, TARGET_SUBNET_ID_2, 10);
 
     for cert in &expected_certificates_for_source_subnet_a {
         storage.persist(cert, None).await.unwrap();
     }
 
-    let last_certificate_subnet = storage
+    let last_certificate_subnet_1 = storage
         .get_source_heads(vec![SOURCE_SUBNET_ID_1])
         .await
         .unwrap()
         .last()
         .unwrap()
         .clone();
-    let last_certificate_subnet_a = storage
-        .get_source_heads(vec![TARGET_SUBNET_ID_1])
+    let last_certificate_subnet_2 = storage
+        .get_source_heads(vec![SOURCE_SUBNET_ID_2])
         .await
         .unwrap()
         .last()
@@ -325,14 +326,14 @@ async fn get_source_head_for_subnet(storage: RocksDBStorage) {
 
     assert_eq!(
         expected_certificates_for_source_subnet.last().unwrap().id,
-        last_certificate_subnet.cert_id
+        last_certificate_subnet_1.cert_id
     );
-    assert_eq!(9, last_certificate_subnet.position.0); //check position
+    assert_eq!(9, last_certificate_subnet_1.position.unwrap().0); //check position
     assert_eq!(
         expected_certificates_for_source_subnet_a.last().unwrap().id,
-        last_certificate_subnet_a.cert_id
+        last_certificate_subnet_2.cert_id
     );
-    assert_eq!(9, last_certificate_subnet_a.position.0); //check position
+    assert_eq!(9, last_certificate_subnet_2.position.unwrap().0); //check position
 
     let other_certificate = Certificate::new(
         expected_certificates_for_source_subnet.last().unwrap().id,
@@ -354,14 +355,14 @@ async fn get_source_head_for_subnet(storage: RocksDBStorage) {
         .unwrap()
         .clone();
     assert_eq!(other_certificate.id, last_certificate_subnet.cert_id);
-    assert_eq!(10, last_certificate_subnet.position.0); //check position
+    assert_eq!(10, last_certificate_subnet.position.unwrap().0); //check position
 
     let other_certificate_2 = Certificate::new(
         other_certificate.id,
         SOURCE_SUBNET_ID_1,
         Default::default(),
         Default::default(),
-        &[TARGET_SUBNET_ID_2, TARGET_SUBNET_ID_1],
+        &[TARGET_SUBNET_ID_1, TARGET_SUBNET_ID_2],
         0,
         Vec::new(),
     )
@@ -376,5 +377,220 @@ async fn get_source_head_for_subnet(storage: RocksDBStorage) {
         .unwrap()
         .clone();
     assert_eq!(other_certificate_2.id, last_certificate_subnet.cert_id);
-    assert_eq!(11, last_certificate_subnet.position.0); //check position
+    assert_eq!(11, last_certificate_subnet.position.unwrap().0); //check position
+}
+
+#[rstest]
+#[test(tokio::test)]
+async fn get_source_head_for_subnet_pending_certificates(storage: RocksDBStorage) {
+    let mut delivered_certificates =
+        create_certificate_chain(SOURCE_SUBNET_ID_1, TARGET_SUBNET_ID_2, 5);
+    delivered_certificates.append(&mut create_certificate_chain(
+        SOURCE_SUBNET_ID_2,
+        TARGET_SUBNET_ID_2,
+        5,
+    ));
+    delivered_certificates.append(&mut create_certificate_chain(
+        SOURCE_SUBNET_ID_3,
+        TARGET_SUBNET_ID_2,
+        5,
+    ));
+    delivered_certificates.append(&mut create_certificate_chain(
+        SOURCE_SUBNET_ID_1,
+        TARGET_SUBNET_ID_2,
+        5,
+    ));
+    delivered_certificates.append(&mut create_certificate_chain(
+        SOURCE_SUBNET_ID_3,
+        TARGET_SUBNET_ID_2,
+        5,
+    ));
+    delivered_certificates.append(&mut create_certificate_chain(
+        SOURCE_SUBNET_ID_1,
+        TARGET_SUBNET_ID_1,
+        5,
+    ));
+    delivered_certificates.append(&mut create_certificate_chain(
+        SOURCE_SUBNET_ID_3,
+        TARGET_SUBNET_ID_1,
+        5,
+    ));
+
+    let mut pending_certificates =
+        create_certificate_chain(SOURCE_SUBNET_ID_1, TARGET_SUBNET_ID_2, 3);
+    pending_certificates.append(&mut create_certificate_chain(
+        SOURCE_SUBNET_ID_2,
+        TARGET_SUBNET_ID_2,
+        3,
+    ));
+    pending_certificates.append(&mut create_certificate_chain(
+        SOURCE_SUBNET_ID_1,
+        TARGET_SUBNET_ID_2,
+        3,
+    ));
+    pending_certificates.append(&mut create_certificate_chain(
+        SOURCE_SUBNET_ID_2,
+        TARGET_SUBNET_ID_2,
+        3,
+    ));
+    pending_certificates.append(&mut create_certificate_chain(
+        SOURCE_SUBNET_ID_3,
+        TARGET_SUBNET_ID_2,
+        3,
+    ));
+    pending_certificates.append(&mut create_certificate_chain(
+        SOURCE_SUBNET_ID_1,
+        TARGET_SUBNET_ID_2,
+        3,
+    ));
+    pending_certificates.append(&mut create_certificate_chain(
+        SOURCE_SUBNET_ID_1,
+        TARGET_SUBNET_ID_1,
+        3,
+    ));
+    pending_certificates.append(&mut create_certificate_chain(
+        SOURCE_SUBNET_ID_2,
+        TARGET_SUBNET_ID_1,
+        3,
+    ));
+
+    for cert in &delivered_certificates {
+        storage.persist(cert, None).await.unwrap();
+    }
+
+    for cert in &pending_certificates {
+        storage.add_pending_certificate(cert).await.unwrap();
+    }
+
+    // Find last pending certificate from the list for every subnet
+    let mut expected_pending_certificates: (Certificate, Certificate, Certificate) =
+        (Default::default(), Default::default(), Default::default());
+    for cert in &pending_certificates {
+        if cert.source_subnet_id == SOURCE_SUBNET_ID_1 {
+            expected_pending_certificates.0 = cert.clone();
+        } else if cert.source_subnet_id == SOURCE_SUBNET_ID_2 {
+            expected_pending_certificates.1 = cert.clone();
+        } else if cert.source_subnet_id == SOURCE_SUBNET_ID_3 {
+            expected_pending_certificates.2 = cert.clone();
+        }
+    }
+
+    // Find last delivered certificate from the list for every subnet
+    let mut expected_delivered_certificates: (Certificate, Certificate, Certificate) =
+        (Default::default(), Default::default(), Default::default());
+    for cert in &delivered_certificates {
+        if cert.source_subnet_id == SOURCE_SUBNET_ID_1 {
+            expected_delivered_certificates.0 = cert.clone();
+        } else if cert.source_subnet_id == SOURCE_SUBNET_ID_2 {
+            expected_delivered_certificates.1 = cert.clone();
+        } else if cert.source_subnet_id == SOURCE_SUBNET_ID_3 {
+            expected_delivered_certificates.2 = cert.clone();
+        }
+    }
+
+    debug!("pending certificates:");
+    for cert in &pending_certificates {
+        debug!("{}", cert.id);
+    }
+
+    debug!(
+        "expected pending certificates: ({}, {}, {})",
+        expected_pending_certificates.0.id,
+        expected_pending_certificates.1.id,
+        expected_pending_certificates.2.id,
+    );
+
+    debug!("delivered certificates:");
+    for cert in &delivered_certificates {
+        debug!("{}", cert.id);
+    }
+
+    debug!(
+        "expected delivered certificates: ({}, {}, {})",
+        expected_delivered_certificates.0.id,
+        expected_delivered_certificates.1.id,
+        expected_delivered_certificates.2.id,
+    );
+
+    let last_certificate_subnet_1 = storage
+        .get_source_heads(vec![SOURCE_SUBNET_ID_1])
+        .await
+        .unwrap()
+        .last()
+        .unwrap()
+        .clone();
+    assert_eq!(
+        expected_pending_certificates.0.id,
+        last_certificate_subnet_1.cert_id
+    );
+
+    let last_certificate_subnet_2 = storage
+        .get_source_heads(vec![SOURCE_SUBNET_ID_2])
+        .await
+        .unwrap()
+        .last()
+        .unwrap()
+        .clone();
+    assert_eq!(
+        expected_pending_certificates.1.id,
+        last_certificate_subnet_2.cert_id
+    );
+
+    let last_certificate_subnet_3 = storage
+        .get_source_heads(vec![SOURCE_SUBNET_ID_3])
+        .await
+        .unwrap()
+        .last()
+        .unwrap()
+        .clone();
+    assert_eq!(
+        expected_pending_certificates.2.id,
+        last_certificate_subnet_3.cert_id
+    );
+
+    // Persist all pending certificates and check again
+    for cert in &pending_certificates {
+        let (pending_certificate_id, _) = storage.get_pending_certificate(cert.id).await.unwrap();
+        storage
+            .persist(cert, Some(pending_certificate_id))
+            .await
+            .unwrap();
+    }
+
+    // Now all last pending certificates should be last delivered certificates
+    let last_certificate_subnet_1 = storage
+        .get_source_heads(vec![SOURCE_SUBNET_ID_1])
+        .await
+        .unwrap()
+        .last()
+        .unwrap()
+        .clone();
+    assert_eq!(
+        expected_pending_certificates.0.id,
+        last_certificate_subnet_1.cert_id
+    );
+
+    let last_certificate_subnet_2 = storage
+        .get_source_heads(vec![SOURCE_SUBNET_ID_2])
+        .await
+        .unwrap()
+        .last()
+        .unwrap()
+        .clone();
+    assert_eq!(
+        expected_pending_certificates.1.id,
+        last_certificate_subnet_2.cert_id
+    );
+
+    let last_certificate_subnet_3 = storage
+        .get_source_heads(vec![SOURCE_SUBNET_ID_3])
+        .await
+        .unwrap()
+        .last()
+        .unwrap()
+        .clone();
+    assert_eq!(
+        expected_pending_certificates.2.id,
+        last_certificate_subnet_3.cert_id
+    );
 }

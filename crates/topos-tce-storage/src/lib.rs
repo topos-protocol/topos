@@ -91,7 +91,8 @@ pub struct SourceHead {
     /// Subnet id of the head
     subnet_id: SubnetId,
     /// Position of the Certificate
-    position: Position,
+    /// If certificate is still pending (not yet delivered) it does not have position yet
+    position: Option<Position>,
 }
 
 /// Define possible status of a certificate

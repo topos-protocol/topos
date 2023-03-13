@@ -188,7 +188,7 @@ impl AppContext {
                 // So for MissingHeadForSubnet error we will return some default dummy certificate
                 if let Err(RuntimeError::UnknownSubnet(subnet_id)) = result {
                     result = Ok((
-                        0,
+                        Some(0),
                         topos_core::uci::Certificate {
                             prev_id: AppContext::DUMMY_INITIAL_CERTIFICATE_ID,
                             source_subnet_id: subnet_id,

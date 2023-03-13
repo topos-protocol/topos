@@ -139,7 +139,7 @@ impl ApiService for TceGrpcService {
         let data = request.into_inner();
         if let Some(subnet_id) = data.subnet_id {
             let (sender, receiver) =
-                oneshot::channel::<Result<(u64, topos_core::uci::Certificate), _>>();
+                oneshot::channel::<Result<(Option<u64>, topos_core::uci::Certificate), _>>();
 
             let subnet_id = match subnet_id.try_into() {
                 Ok(id) => id,
@@ -165,11 +165,13 @@ impl ApiService for TceGrpcService {
                     Ok(Ok((position, ref certificate))) => {
                         Ok(Response::new(GetSourceHeadResponse {
                             certificate: Some(certificate.clone().into()),
-                            position: Some(topos_core::api::tce::v1::SourceStreamPosition {
-                                subnet_id: Some(certificate.source_subnet_id.into()),
-                                certificate_id: Some((*certificate.id.as_array()).into()),
-                                position,
-                            }),
+                            position: Some(
+                                topos_core::api::shared::v1::positions::SourceStreamPosition {
+                                    source_subnet_id: Some(certificate.source_subnet_id.into()),
+                                    certificate_id: Some((*certificate.id.as_array()).into()),
+                                    position,
+                                },
+                            ),
                         }))
                     }
                     Ok(Err(crate::RuntimeError::UnknownSubnet(subnet_id))) => {

@@ -19,6 +19,6 @@ pub enum RuntimeEvent {
 
     GetSourceHead {
         subnet_id: SubnetId,
-        sender: oneshot::Sender<Result<(u64, topos_core::uci::Certificate), RuntimeError>>,
+        sender: oneshot::Sender<Result<(Option<u64>, topos_core::uci::Certificate), RuntimeError>>,
     },
 }
