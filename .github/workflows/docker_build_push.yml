@@ -15,4 +15,17 @@ jobs:
     with:
       features: "tce-direct,sequencer"
 
-
+  trigger:
+    runs-on: ubuntu-latest
+    needs: docker
+    steps:
+      - uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: 'toposware',
+              repo: 'k8s-e2e',
+              workflow_id: 'test.yml',
+              ref: 'chore/move-k8s-e2e'
+            })
