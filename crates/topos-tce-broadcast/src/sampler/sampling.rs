@@ -119,7 +119,7 @@ mod should {
 
         let expected = vec![3, 5, 7];
 
-        assert_eq!(expected, actual.value, "{:?}", actual);
+        assert_eq!(expected, actual.value, "{actual:?}");
     }
 
     #[test]
@@ -132,6 +132,6 @@ mod should {
 
         let expected = vec![3, 4, 5];
 
-        assert_eq!(expected, actual.value, "{:?}", actual);
+        assert_eq!(expected, actual.value, "{actual:?}");
     }
 }

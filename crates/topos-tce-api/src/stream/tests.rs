@@ -35,8 +35,7 @@ pub async fn sending_no_message() -> Result<(), Box<dyn std::error::Error>> {
 
     assert!(
         matches!(result, Err(StreamError { stream_id, kind: StreamErrorKind::PreStartError}) if stream_id == context.stream_id),
-        "Doesn't match {:?}",
-        result
+        "Doesn't match {result:?}",
     );
 
     Ok(())
@@ -165,8 +164,7 @@ async fn receive_expected_certificate_from_zero() -> Result<(), Box<dyn std::err
             msg,
             Some(Ok((_, OutboundMessage::StreamOpened(StreamOpened { ref subnet_ids })))) if subnet_ids == &[TARGET_SUBNET_ID_1],
         ),
-        "Expected StreamOpened, received: {:?}",
-        msg
+        "Expected StreamOpened, received: {msg:?}"
     );
 
     for (index, expected_certificate) in expected_certificates.iter().enumerate() {

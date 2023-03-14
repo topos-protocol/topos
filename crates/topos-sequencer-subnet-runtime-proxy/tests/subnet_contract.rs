@@ -358,7 +358,7 @@ async fn context_running_subnet_node(#[default(8545)] port: u32) -> Context {
             }
         };
 
-    let json_rpc_endpoint = format!("http://127.0.0.1:{}", port);
+    let json_rpc_endpoint = format!("http://127.0.0.1:{port}");
 
     subnet_ready_receiver
         .await
@@ -482,7 +482,7 @@ async fn test_create_runtime() -> Result<(), Box<dyn std::error::Error>> {
     let runtime_proxy_worker = SubnetRuntimeProxyWorker::new(
         SubnetRuntimeProxyConfig {
             subnet_id: SOURCE_SUBNET_ID_1,
-            endpoint: format!("localhost:{}", SUBNET_RPC_PORT),
+            endpoint: format!("localhost:{SUBNET_RPC_PORT}"),
             subnet_contract_address: "0x0000000000000000000000000000000000000000".to_string(),
         },
         test_private_key,

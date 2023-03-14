@@ -88,7 +88,7 @@ async fn runtime_can_dispatch_a_cert(
             position: 0,
             source_subnet_id: SOURCE_SUBNET_ID_1,
             target_subnet_id: TARGET_SUBNET_ID_1,
-            certificate_id: Some(cert.id.clone()),
+            certificate_id: Some(cert.id),
         },
     );
 
@@ -167,7 +167,7 @@ async fn can_catchup_with_old_certs(
             position: certificates.len() as u64,
             source_subnet_id: SOURCE_SUBNET_ID_1,
             target_subnet_id: TARGET_SUBNET_ID_1,
-            certificate_id: Some(cert.id.clone()),
+            certificate_id: Some(cert.id),
         },
     );
 
@@ -181,11 +181,10 @@ async fn can_catchup_with_old_certs(
         let certificate_received = rx
             .recv()
             .await
-            .unwrap_or_else(|| panic!("Didn't received index {}", index));
+            .unwrap_or_else(|| panic!("Didn't received index {index}"));
         assert_eq!(
             certificate, &certificate_received,
-            "Certificate at index {} not received",
-            index
+            "Certificate at index {index} not received"
         );
     }
 
@@ -288,7 +287,7 @@ async fn can_catchup_with_old_certs_with_position() {
             position: certificates.len() as u64,
             source_subnet_id: SOURCE_SUBNET_ID_1,
             target_subnet_id: TARGET_SUBNET_ID_1,
-            certificate_id: Some(cert.id.clone()),
+            certificate_id: Some(cert.id),
         },
     );
 
@@ -301,11 +300,10 @@ async fn can_catchup_with_old_certs_with_position() {
         let certificate_received = rx
             .recv()
             .await
-            .unwrap_or_else(|| panic!("Didn't received index {}", index));
+            .unwrap_or_else(|| panic!("Didn't received index {index}"));
         assert_eq!(
             certificate, &certificate_received,
-            "Certificate at index {} not received",
-            index
+            "Certificate at index {index} not received"
         );
     }
 
