@@ -6,11 +6,11 @@ on:
 
 jobs:
   docker:
-    uses: toposware/topos/.github/workflows/docker_utils.yml@main
+    uses: ./.github/workflows/docker_utils.yml
     secrets: inherit
 
   direct:
-    uses: toposware/topos/.github/workflows/docker_utils.yml@main
+    uses: ./.github/workflows/docker_utils.yml
     secrets: inherit
     with:
       features: "tce-direct,sequencer"
