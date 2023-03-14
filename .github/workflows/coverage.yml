@@ -34,7 +34,7 @@ jobs:
         with:
           crate: cargo-tarpaulin
           version: 0.24.0
-      - run: cargo tarpaulin --engine llvm --workspace --all-features --release --exclude topos-sequencer-subnet-runtime-proxy
+      - run: cargo tarpaulin --engine llvm --workspace --features tce,sequencer --release --exclude topos-sequencer-subnet-runtime-proxy
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3.1.1
