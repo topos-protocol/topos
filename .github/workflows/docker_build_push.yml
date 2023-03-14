@@ -3,6 +3,13 @@ name: Docker_build_push
 on:
   pull_request:
     branches: [main]
+    types:
+      # default
+      - opened
+      - synchronize
+      - reopened
+      # custom
+      - closed
 
 jobs:
   docker:
