@@ -38,8 +38,7 @@ pub(crate) fn database_name() -> &'static str {
         topos_test_sdk::storage::create_folder(thread::current().name().unwrap())
             .to_str()
             .unwrap()
-            .replace("::", "_")
-            .to_string(),
+            .replace("::", "_"),
     ))
 }
 

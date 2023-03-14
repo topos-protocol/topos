@@ -51,8 +51,8 @@ async fn create_tce_layer() {
                 }),
                 certificate: Some(Certificate {
                     source_subnet_id: request.subnet_id,
-                    id: Some(return_certificate_id.clone()),
-                    prev_id: Some(return_prev_certificate_id.clone()),
+                    id: Some(return_certificate_id),
+                    prev_id: Some(return_prev_certificate_id),
                     target_subnets: Vec::new(),
                     ..Default::default()
                 }),
@@ -163,7 +163,7 @@ async fn create_tce_layer() {
     }));
     let request_id: shared::v1::Uuid = Uuid::new_v4().into();
     let first_request = WatchCertificatesRequest {
-        request_id: Some(request_id.clone()),
+        request_id: Some(request_id),
         command,
     };
 

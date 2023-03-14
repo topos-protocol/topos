@@ -267,15 +267,13 @@ async fn test_tce_open_stream_with_checkpoint(
                 target_subnet_id: target_subnet_id.clone().into(),
                 position: source_subnet_id_1_stream_position,
                 certificate_id: Some(source_subnet_id_1_prefilled_certificates[3].id.into()),
-            }
-            .into(),
+            },
             TargetStreamPosition {
                 source_subnet_id: source_subnet_id_2.clone().into(),
                 target_subnet_id: target_subnet_id.clone().into(),
                 position: source_subnet_id_2_stream_position,
                 certificate_id: Some(source_subnet_id_2_prefilled_certificates[1].id.into()),
-            }
-            .into(),
+            },
         ],
     };
 
@@ -298,11 +296,11 @@ async fn test_tce_open_stream_with_checkpoint(
     let mut index = -1;
     input_certificates
         .iter()
-        .map(|c| (c.id.clone()))
+        .map(|c| c.id)
         .collect::<Vec<_>>()
         .iter()
         .for_each(|id| {
-            index = index + 1;
+            index += 1;
             info!("{index}: {id}")
         });
 

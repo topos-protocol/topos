@@ -449,10 +449,10 @@ mod tests {
     }
 
     fn get_subscriber_view(peers: &[PeerId], sample_size: usize) -> SubscribersView {
-        let mut expected_view = SubscribersView::default();
-        expected_view.echo = get_sample(&peers, sample_size);
-        expected_view.ready = get_sample(&peers, sample_size);
-        expected_view
+        SubscribersView {
+            echo: get_sample(peers, sample_size),
+            ready: get_sample(peers, sample_size),
+        }
     }
 
     #[test(tokio::test)]
@@ -708,16 +708,10 @@ mod tests {
                     resulting_ready_subscribers.remove(&subscriber);
                 }
                 SubscribersUpdate::RemoveEchoSubscribers(subscribers) => {
-                    resulting_echo_subscribers = resulting_echo_subscribers
-                        .into_iter()
-                        .filter(|p| !subscribers.contains(p))
-                        .collect();
+                    resulting_echo_subscribers.retain(|p| !subscribers.contains(p));
                 }
                 SubscribersUpdate::RemoveReadySubscribers(subscribers) => {
-                    resulting_ready_subscribers = resulting_ready_subscribers
-                        .into_iter()
-                        .filter(|p| !subscribers.contains(p))
-                        .collect();
+                    resulting_ready_subscribers.retain(|p| !subscribers.contains(p));
                 }
             }
         }

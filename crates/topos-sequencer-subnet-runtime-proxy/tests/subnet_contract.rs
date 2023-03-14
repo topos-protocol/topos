@@ -26,13 +26,13 @@ use topos_sequencer_subnet_runtime_proxy::{SubnetRuntimeProxyConfig, SubnetRunti
 
 use topos_test_sdk::constants::*;
 
-const SUBNET_TCC_JSON_DEFINITION: &'static str = "ToposCore.json";
-const SUBNET_TOKEN_DEPLOYER_JSON_DEFINITION: &'static str = "TokenDeployer.json";
+const SUBNET_TCC_JSON_DEFINITION: &str = "ToposCore.json";
+const SUBNET_TOKEN_DEPLOYER_JSON_DEFINITION: &str = "TokenDeployer.json";
 const SUBNET_CHAIN_ID: u64 = 100;
 const SUBNET_RPC_PORT: u32 = 8545;
-const TEST_SECRET_ETHEREUM_KEY: &'static str =
+const TEST_SECRET_ETHEREUM_KEY: &str =
     "5fb92d6e98884f76de468fa3f6278f8807c48bebc13595d45af5bdc4da702133";
-const POLYGON_EDGE_CONTAINER: &'static str = "ghcr.io/toposware/polygon-edge";
+const POLYGON_EDGE_CONTAINER: &str = "ghcr.io/toposware/polygon-edge";
 const POLYGON_EDGE_CONTAINER_TAG: &str = "develop";
 const SUBNET_STARTUP_DELAY: u64 = 5; // seconds left for subnet startup
 const TOPOS_SMART_CONTRACTS_BUILD_PATH_VAR: &str = "TOPOS_SMART_CONTRACTS_BUILD_PATH";
@@ -179,7 +179,6 @@ fn spawn_subnet_node(
                 .duration_since(std::time::UNIX_EPOCH)
                 .expect("valid system time duration")
                 .as_millis()
-                .to_string()
         ));
         let mut test_chain_dir = temp_dir.clone();
         let mut genesis_dir = temp_dir.clone();
@@ -218,7 +217,7 @@ fn spawn_subnet_node(
             error!("Unable to copy test chain directory {err}");
         };
         if let Err(err) = copy(
-            current_dir.clone() + "/tests/artifacts/genesis",
+            current_dir + "/tests/artifacts/genesis",
             &genesis_dir,
             &copy_options,
         ) {
@@ -283,7 +282,7 @@ async fn read_logs_for_address(
     let event_topic: [u8; 32] = tiny_keccak::keccak256(event_signature.as_bytes());
     info!(
         "Looking for event signature {} and from address {}",
-        hex::encode(&event_topic),
+        hex::encode(event_topic),
         contract_address
     );
     let filter = web3::types::FilterBuilder::default()
@@ -638,7 +637,7 @@ async fn test_subnet_certificate_get_checkpoints_call(
     for (test_cert, test_cert_position) in test_certificates.iter() {
         info!("Pushing certificate id={}", test_cert.id);
         match subnet_client
-            .push_certificate(&test_cert, *test_cert_position as u64)
+            .push_certificate(test_cert, *test_cert_position as u64)
             .await
         {
             Ok(_) => {

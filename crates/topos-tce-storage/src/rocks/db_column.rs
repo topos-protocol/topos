@@ -43,7 +43,7 @@ impl<K, V> DBColumn<K, V> {
             Arc::new(
                 rocksdb::DBWithThreadMode::<rocksdb::MultiThreaded>::open_cf_descriptors(
                     &options,
-                    &primary,
+                    primary,
                     vec![ColumnFamilyDescriptor::new(column, default_rocksdb_options)],
                 )?,
             )

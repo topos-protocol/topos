@@ -154,7 +154,7 @@ mod tests {
         };
 
         let event = Event::RuntimeProxyEvent(SubnetRuntimeProxyEvent::BlockFinalized(BlockInfo {
-            number: BlockNumber::from(10 as u64),
+            number: 10_u64,
             ..Default::default()
         }));
         match cert_worker.eval(event) {

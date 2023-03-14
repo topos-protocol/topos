@@ -56,7 +56,7 @@ async fn start_a_cluster() {
         status.push(response.into_inner().has_active_sample);
     }
 
-    assert!(status.iter().all(|s| *s == true));
+    assert!(status.iter().all(|s| *s));
 }
 
 #[tokio::test]
@@ -87,7 +87,7 @@ async fn cert_delivery() {
     // Calculate expected final set of delivered certificates (every subnet  should receive certificates that has cross
     // chain transaction targeting it)
     let mut expected_certificates: HashMap<SubnetId, HashSet<Certificate>> = HashMap::new();
-    for (_source_subnet_id, certificates) in &subnet_certificates {
+    for certificates in subnet_certificates.values() {
         for cert in certificates {
             for target_subnet in &cert.target_subnets {
                 expected_certificates
@@ -108,7 +108,7 @@ async fn cert_delivery() {
 
     let mut assign_at_least_one_client_to_every_subnet = all_subnets.clone();
     for (peer_id, ctx) in peers_context.iter_mut() {
-        let peer_id = peer_id.clone();
+        let peer_id = *peer_id;
         // Make sure that every subnet is represented (connected through client) to at least 1 peer
         // After that assign subnets randomly to clients, 1 subnet per connection to TCE
         // as it is assumed that NUMBER_OF_SUBNETS_PER_CLIENT is 1 - that is also realistic case, topos node representing one subnet
@@ -119,7 +119,7 @@ async fn cert_delivery() {
         };
 
         // Number of subnets one client is representing, normally 1
-        ctx.connected_subnets = Some(vec![client_subnet_id.clone()]);
+        ctx.connected_subnets = Some(vec![client_subnet_id]);
         debug!(
             "Opening client for peer id: {} with subnet_ids: {:?}",
             &peer_id, &client_subnet_id,
@@ -131,7 +131,7 @@ async fn cert_delivery() {
         );
         clients_delivered_certificates.push(rx);
 
-        let in_stream_subnet_id = client_subnet_id.clone();
+        let in_stream_subnet_id = client_subnet_id;
         let in_stream = async_stream::stream! {
             yield OpenStream {
                 target_checkpoint: Some(TargetCheckpoint{
@@ -148,7 +148,6 @@ async fn cert_delivery() {
             expected_certificates.get(&client_subnet_id).unwrap().len();
         // Open client connection to TCE service in separate async tasks
         let mut client = ctx.api_grpc_client.clone();
-        let client_subnet_id = client_subnet_id.clone();
         let client_task = spawn(async move {
             debug!("Spawning client task for peer: {}", peer_id);
             let response = client.watch_certificates(in_stream).await.unwrap();
@@ -166,13 +165,9 @@ async fn cert_delivery() {
                         certificate.id.clone().unwrap(),
                         &client_subnet_id
                     );
-                    tx.send((
-                        peer_id.clone(),
-                        client_subnet_id.clone().into(),
-                        certificate.try_into().unwrap(),
-                    ))
-                    .await
-                    .unwrap();
+                    tx.send((peer_id, client_subnet_id, certificate.try_into().unwrap()))
+                        .await
+                        .unwrap();
                     incoming_certificates_number -= 1;
                     if incoming_certificates_number == 0 {
                         // We have received all expected certificates for this subnet, end client
@@ -272,7 +267,7 @@ async fn cert_delivery() {
         }
         info!("All incoming certificates received");
         // Check received certificates for every peer and every subnet
-        for (_peer, delivered_certificates_per_peer) in &delivered_certificates {
+        for delivered_certificates_per_peer in delivered_certificates.values() {
             for (subnet_id, delivered_certificates_per_subnet) in delivered_certificates_per_peer {
                 assert_eq!(
                     expected_certificates.get(subnet_id).unwrap().len(),
@@ -287,7 +282,10 @@ async fn cert_delivery() {
     };
 
     // Set big timeout to prevent flaky fails. Instead fail/panic early in the test to indicate actual error
-    if let Err(_) = tokio::time::timeout(std::time::Duration::from_secs(10), assertion).await {
+    if tokio::time::timeout(std::time::Duration::from_secs(10), assertion)
+        .await
+        .is_err()
+    {
         panic!("Timeout waiting for command");
     }
 }
@@ -298,7 +296,7 @@ pub fn sample_lower_bound(n_u: usize) -> usize {
 }
 
 async fn create_network(peer_number: usize, correct_sample: usize) -> HashMap<PeerId, TceContext> {
-    let g = |a, b| (((a as f32) * b) as f32).ceil() as usize;
+    let g = |a, b: f32| ((a as f32) * b).ceil() as usize;
 
     // List of peers (tce nodes) with their context
     let mut peers_context =
@@ -342,7 +340,7 @@ async fn create_network(peer_number: usize, correct_sample: usize) -> HashMap<Pe
         status.push(response.into_inner().has_active_sample);
     }
 
-    assert!(status.iter().all(|s| *s == true));
+    assert!(status.iter().all(|s| *s));
 
     peers_context
 }
