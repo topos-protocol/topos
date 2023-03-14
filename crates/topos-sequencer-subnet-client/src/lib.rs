@@ -4,6 +4,7 @@ use crate::subnet_contract::{
     create_topos_core_contract_from_json, parse_events_from_json, parse_events_from_log,
 };
 use topos_core::api::checkpoints::TargetStreamPosition;
+use topos_core::uci::SubnetId;
 use topos_sequencer_types::{BlockInfo, Certificate};
 use tracing::{debug, error, info};
 use web3::ethabi::Token;
@@ -87,6 +88,8 @@ pub enum Error {
     InvalidCertificateId,
     #[error("invalid checkpoints data")]
     InvalidCheckpointsData,
+    #[error("invalid subnet id")]
+    InvalidSubnetId,
 }
 
 // Subnet client for listening events from subnet node
@@ -403,9 +406,40 @@ impl SubnetClient {
 
         backoff::future::retry(backoff::ExponentialBackoff::default(), op).await
     }
+
+    /// Ask subnet for its subnet id
+    pub async fn get_subnet_id(&self) -> Result<SubnetId, Error> {
+        let op = || async {
+            let data: Token = self
+                .contract
+                .query(
+                    "getNetworkSubnetId",
+                    (),
+                    None,
+                    web3::contract::Options::default(),
+                    None,
+                )
+                .await
+                .map_err(|e| {
+                    error!("Error retrieving subnet id from smart contract: {e}");
+                    Error::EthContractError { source: e }
+                })?;
+
+            let subnet_id = data
+                .into_fixed_bytes()
+                .ok_or(Error::InvalidSubnetId)?
+                .as_slice()
+                .try_into()
+                .map_err(|_| Error::InvalidSubnetId)?;
+
+            Ok(subnet_id)
+        };
+
+        backoff::future::retry(backoff::ExponentialBackoff::default(), op).await
+    }
 }
 
-// /// Create new backoff library error based on error that happened
+/// Create new backoff library error based on error that happened
 pub(crate) fn new_subnet_client_proxy_backoff_err<E: std::fmt::Display>(
     err: E,
 ) -> backoff::Error<E> {

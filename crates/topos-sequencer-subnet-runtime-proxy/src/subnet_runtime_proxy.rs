@@ -8,7 +8,7 @@ use tokio::sync::Mutex;
 use tokio::sync::{mpsc, oneshot};
 use tokio::time::{self, Duration};
 use topos_core::api::checkpoints::TargetStreamPosition;
-use topos_core::uci::Certificate;
+use topos_core::uci::{Certificate, SubnetId};
 use topos_sequencer_subnet_client::{self, SubnetClient};
 use topos_sequencer_types::{SubnetRuntimeProxyCommand, SubnetRuntimeProxyEvent};
 use tracing::{debug, error, info, warn};
@@ -329,9 +329,45 @@ impl SubnetRuntimeProxy {
             }
             Err(e) => {
                 error!(
-                    "Unable to get the Checkpoints for subnet {:?}",
+                    "Unable to get the checkpoints for subnet {}",
                     self.config.subnet_id
                 );
+                Err(Error::SubnetError { source: e })
+            }
+        }
+    }
+
+    pub async fn get_subnet_id(endpoint: &str, contract_address: &str) -> Result<SubnetId, Error> {
+        info!("Connecting to subnet to query for subnet id...");
+        let http_runtime_endpoint = format!("http://{}", endpoint);
+        // Create subnet client
+        let subnet_client = match topos_sequencer_subnet_client::connect_to_subnet_with_retry(
+            http_runtime_endpoint.as_ref(),
+            None, // We do not need actual key here as we are just reading state
+            contract_address,
+        )
+        .await
+        {
+            Ok(subnet_client) => {
+                info!(
+                    "Connected to subnet node to acquire subnet id {}",
+                    &http_runtime_endpoint
+                );
+                subnet_client
+            }
+            Err(e) => {
+                error!("Unable to connect to the subnet node to get subnet id: {e}");
+                return Err(Error::SubnetError { source: e });
+            }
+        };
+
+        match subnet_client.get_subnet_id().await {
+            Ok(subnet_id) => {
+                info!("Successfully retrieved the subnet id for subnet: {subnet_id}");
+                Ok(subnet_id)
+            }
+            Err(e) => {
+                error!("Unable to get the subnet id {e}",);
                 Err(Error::SubnetError { source: e })
             }
         }

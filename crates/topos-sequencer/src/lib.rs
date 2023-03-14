@@ -56,22 +56,23 @@ pub async fn run(config: SequencerConfiguration) -> Result<(), Box<dyn std::erro
         }
         hex::decode(&subnet_id[2..])?.as_slice().try_into()?
     }
-    // If subnetID is not specified in the command line arguments,
-    // Use last 32 bytes of secp256k1 public key (only for MVP before FROST signatures are implemented)
+    // Get subnet id from the subnet node if not provided via the command line argument
+    // It will retry using backoff algorithm, but if it fails (default max backoff elapsed time is 15 min) we can not proceed
     else {
-        let public_key =
-            topos_crypto::keys::derive_public_key(signing_key.as_slice()).map_err(|e| {
-                Box::new(std::io::Error::new(
-                    ErrorKind::InvalidInput,
-                    format!("Unable to derive public key: {e}"),
-                ))
-            })?;
-        TryInto::<SubnetId>::try_into(&public_key[1..]).map_err(|e| {
-            Box::new(std::io::Error::new(
-                ErrorKind::InvalidInput,
-                format!("Unable to derive public key: {e}"),
-            ))
-        })?
+        match SubnetRuntimeProxyWorker::get_subnet_id(
+            config.subnet_jsonrpc_endpoint.as_str(),
+            config.subnet_contract_address.as_str(),
+        )
+        .await
+        {
+            Ok(subnet_id) => {
+                info!("Retrieved subnet id from the subnet node {subnet_id}");
+                subnet_id
+            }
+            Err(e) => {
+                panic!("Unable to get subnet id from the subnet {e}");
+            }
+        }
     };
 
     // Instantiate subnet runtime proxy, handling interaction with subnet node

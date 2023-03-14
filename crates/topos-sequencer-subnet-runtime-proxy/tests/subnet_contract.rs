@@ -36,6 +36,7 @@ const POLYGON_EDGE_CONTAINER: &str = "ghcr.io/toposware/polygon-edge";
 const POLYGON_EDGE_CONTAINER_TAG: &str = "develop";
 const SUBNET_STARTUP_DELAY: u64 = 5; // seconds left for subnet startup
 const TOPOS_SMART_CONTRACTS_BUILD_PATH_VAR: &str = "TOPOS_SMART_CONTRACTS_BUILD_PATH";
+const TEST_SUBNET_ID: &str = "6464646464646464646464646464646464646464646464646464646464646464";
 
 const PREV_CERTIFICATE_ID_1: CertificateId = CERTIFICATE_ID_4;
 const PREV_CERTIFICATE_ID_2: CertificateId = CERTIFICATE_ID_5;
@@ -680,6 +681,52 @@ async fn test_subnet_certificate_get_checkpoints_call(
             .collect::<std::collections::HashSet<TargetStreamPosition>>(),
         expected_positions
     );
+
+    info!("Shutting down context...");
+    context.shutdown().await?;
+    Ok(())
+}
+
+/// Test get subnet id from subnet smart contract
+#[rstest]
+#[test(tokio::test)]
+#[serial]
+async fn test_subnet_id_call(
+    #[with(8546)]
+    #[future]
+    context_running_subnet_node: Context,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let context = context_running_subnet_node.await;
+    let subnet_smart_contract_address =
+        "0x".to_string() + &hex::encode(context.subnet_contract.address());
+    let subnet_jsonrpc_endpoint = "http://".to_string() + &context.jsonrpc();
+
+    // Create subnet client
+    let subnet_client = topos_sequencer_subnet_client::SubnetClient::new(
+        &subnet_jsonrpc_endpoint,
+        Some(hex::decode(TEST_SECRET_ETHEREUM_KEY).unwrap()),
+        &subnet_smart_contract_address,
+    )
+    .await
+    .expect("Valid subnet client");
+
+    // Get subnet id
+    let retrieved_subnet_id = match subnet_client.get_subnet_id().await {
+        Ok(result) => {
+            info!("Retrieved subnet id {result}");
+            result
+        }
+        Err(e) => {
+            panic!("Unable to get subnet id: {e}");
+        }
+    };
+    
+    let expected_subnet_id = hex::decode(TEST_SUBNET_ID)
+        .unwrap()
+        .as_slice()
+        .try_into()
+        .unwrap();
+    assert_eq!(retrieved_subnet_id, expected_subnet_id);
 
     info!("Shutting down context...");
     context.shutdown().await?;
