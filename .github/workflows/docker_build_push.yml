@@ -29,5 +29,5 @@ jobs:
               owner: 'toposware',
               repo: 'k8s-e2e',
               workflow_id: 'test.yml',
-              ref: 'chore/move-k8s-e2e'
+              ref: 'main'
             })
