@@ -24,6 +24,7 @@ jobs:
     steps:
       - uses: actions/github-script@v6
         with:
+          github-token: ${{ secrets.ROBOT_TOPOSWARE_K8S_E2E_RW }}
           script: |
             await github.rest.actions.createWorkflowDispatch({
               owner: 'toposware',
