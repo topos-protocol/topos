@@ -44,7 +44,7 @@ jobs:
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Configure AWS credentials for cicd-devnet-1 account
         uses: aws-actions/configure-aws-credentials@v1
@@ -85,7 +85,6 @@ jobs:
           secret-files: |
             "aws=${{ github.workspace }}/.aws/credentials"
           build-args: |
-            GITHUB_TOKEN=${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
             TOOLCHAIN_VERSION=${{ inputs.toolchain_version }}
             FEATURES=${{ inputs.features }}
             SCCACHE_S3_KEY_PREFIX=${{ inputs.target }}

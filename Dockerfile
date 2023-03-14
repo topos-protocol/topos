@@ -9,8 +9,6 @@ ARG SCCACHE_BUCKET
 ARG SCCACHE_REGION
 ARG RUSTC_WRAPPER
 
-RUN git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
-
 WORKDIR /usr/src/app
 
 FROM base AS build
