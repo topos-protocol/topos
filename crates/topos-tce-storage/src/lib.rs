@@ -3,7 +3,6 @@ use rocks::{iterator::ColumnIterator, TargetStreamPositionKey};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use topos_core::api::checkpoints::{SourceStreamPosition, TargetStreamPosition};
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
 
 pub mod client;
@@ -27,36 +26,9 @@ pub use rocks::RocksDBStorage;
 
 pub type PendingCertificateId = u64;
 
-#[derive(Debug)]
-pub enum FetchCertificatesFilter {
-    Source {
-        subnet_id: SubnetId,
-        position: u64,
-        limit: usize,
-    },
-
-    Target {
-        target_subnet_id: SubnetId,
-        source_subnet_id: SubnetId,
-        position: u64,
-        limit: usize,
-    },
-}
-
-#[derive(Debug)]
-pub enum FetchCertificatesPosition {
-    Source(SourceStreamPosition),
-    Target(TargetStreamPosition),
-}
-
-pub struct CertificatePositions {
-    pub targets: HashMap<SubnetId, TargetStreamPosition>,
-    pub source: SourceStreamPosition,
-}
-
 /// Certificate index in the history of the source subnet
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Copy)]
-pub struct Position(pub(crate) u64);
+pub struct Position(pub u64);
 
 impl Position {
     const ZERO: Self = Self(0);
@@ -70,6 +42,43 @@ impl Position {
                 .map(Self),
         }
     }
+}
+
+#[derive(Debug)]
+pub struct CertificateSourceStreamPosition {
+    pub source_subnet_id: SubnetId,
+    pub position: Position,
+}
+
+#[derive(Debug)]
+pub struct CertificateTargetStreamPosition {
+    pub target_subnet_id: SubnetId,
+    pub source_subnet_id: SubnetId,
+    pub position: Position,
+}
+
+#[derive(Debug)]
+pub enum FetchCertificatesFilter {
+    Source {
+        source_stream_position: CertificateSourceStreamPosition,
+        limit: usize,
+    },
+
+    Target {
+        target_stream_position: CertificateTargetStreamPosition,
+        limit: usize,
+    },
+}
+
+#[derive(Debug)]
+pub enum FetchCertificatesPosition {
+    Source(CertificateSourceStreamPosition),
+    Target(CertificateTargetStreamPosition),
+}
+
+pub struct CertificatePositions {
+    pub targets: HashMap<SubnetId, CertificateTargetStreamPosition>,
+    pub source: CertificateSourceStreamPosition,
 }
 
 /// Uniquely identify the source certificate stream head of one subnet.

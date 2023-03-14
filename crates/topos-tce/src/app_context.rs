@@ -6,10 +6,12 @@ use futures::FutureExt;
 use futures::{future::join_all, Stream, StreamExt};
 use opentelemetry::trace::{FutureExt as TraceFutureExt, TraceContextExt};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use tce_transport::{TceCommands, TceEvents};
 use tokio::spawn;
 use tokio::sync::{mpsc, oneshot};
-use topos_core::uci::CertificateId;
+use topos_core::api::checkpoints::TargetStreamPosition;
+use topos_core::uci::{CertificateId, SubnetId};
 use topos_p2p::{Client as NetworkClient, Event as NetEvent, RetryPolicy};
 use topos_tce_api::RuntimeEvent as ApiEvent;
 use topos_tce_api::{RuntimeClient as ApiClient, RuntimeError};
@@ -219,9 +221,30 @@ impl AppContext {
                     .certificate_delivered(certificate.id)
                     .await
                 {
+                    let certificate_id = certificate.id;
                     spawn(
-                        self.api_client
-                            .dispatch_certificate(certificate, positions.targets),
+                        self.api_client.dispatch_certificate(
+                            certificate,
+                            positions
+                                .targets
+                                .into_iter()
+                                .map(|(subnet_id, ceritificate_target_stream_position)| {
+                                    (
+                                        subnet_id,
+                                        TargetStreamPosition {
+                                            target_subnet_id: ceritificate_target_stream_position
+                                                .target_subnet_id,
+                                            source_subnet_id: ceritificate_target_stream_position
+                                                .source_subnet_id,
+                                            position: ceritificate_target_stream_position
+                                                .position
+                                                .0,
+                                            certificate_id: Some(certificate_id),
+                                        },
+                                    )
+                                })
+                                .collect::<HashMap<SubnetId, TargetStreamPosition>>(),
+                        ),
                     );
                 } else {
                     error!("Invalid target stream positions for delivered certificate!");

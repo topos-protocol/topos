@@ -5,13 +5,12 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
-use topos_core::api::checkpoints::{SourceStreamPosition, TargetStreamPosition};
 use topos_core::uci::{Certificate, CertificateId};
 use tracing::warn;
 
 use crate::{
-    errors::InternalStorageError, CertificatePositions, PendingCertificateId, Position, SourceHead,
-    Storage, SubnetId,
+    errors::InternalStorageError, CertificatePositions, CertificateSourceStreamPosition,
+    CertificateTargetStreamPosition, PendingCertificateId, Position, SourceHead, Storage, SubnetId,
 };
 
 use self::{db::DB, db_column::DBColumn, iterator::ColumnIterator};
@@ -168,10 +167,9 @@ impl Storage for RocksDBStorage {
         };
 
         // Return from function as info
-        let source_subnet_stream_position = SourceStreamPosition {
+        let source_subnet_stream_position = CertificateSourceStreamPosition {
             source_subnet_id: certificate.source_subnet_id,
-            position: source_subnet_position.0,
-            certificate_id: Some(certificate.id),
+            position: Position(source_subnet_position.0),
         };
 
         // Adding the certificate to the stream
@@ -186,7 +184,7 @@ impl Storage for RocksDBStorage {
         // Return list of new target stream positions of certificate that will be persisted
         // Information is needed by sequencer/subnet contract to know from
         // where to continue with streaming on restart
-        let mut target_subnet_stream_positions: HashMap<SubnetId, TargetStreamPosition> =
+        let mut target_subnet_stream_positions: HashMap<SubnetId, CertificateTargetStreamPosition> =
             HashMap::new();
 
         // Adding certificate to target_streams
@@ -196,7 +194,7 @@ impl Storage for RocksDBStorage {
         for target_subnet_id in &certificate.target_subnets {
             let target = if let Some((TargetStreamPositionKey(target, source, position), _)) = self
                 .target_streams
-                .prefix_iter(&StorageTargetStreamPrefix(
+                .prefix_iter(&TargetSourceListKey(
                     *target_subnet_id,
                     certificate.source_subnet_id,
                 ))?
@@ -214,11 +212,10 @@ impl Storage for RocksDBStorage {
                 );
                 target_subnet_stream_positions.insert(
                     target_stream_position.0,
-                    TargetStreamPosition {
+                    CertificateTargetStreamPosition {
                         target_subnet_id: target_stream_position.0,
                         source_subnet_id: target_stream_position.1,
-                        position: target_stream_position.2 .0,
-                        certificate_id: Some(certificate.id),
+                        position: target_stream_position.2,
                     },
                 );
                 (target_stream_position, certificate.id)
@@ -230,11 +227,10 @@ impl Storage for RocksDBStorage {
                 );
                 target_subnet_stream_positions.insert(
                     target_stream_position.0,
-                    TargetStreamPosition {
+                    CertificateTargetStreamPosition {
                         target_subnet_id: target_stream_position.0,
                         source_subnet_id: target_stream_position.1,
-                        position: target_stream_position.2 .0,
-                        certificate_id: Some(certificate.id),
+                        position: target_stream_position.2,
                     },
                 );
 
@@ -245,7 +241,7 @@ impl Storage for RocksDBStorage {
             batch = batch.insert_batch(
                 &self.target_source_list,
                 [(
-                    StorageTargetStreamPrefix(*target_subnet_id, certificate.source_subnet_id),
+                    TargetSourceListKey(*target_subnet_id, certificate.source_subnet_id),
                     position.0,
                 )],
             )?;
@@ -374,7 +370,7 @@ impl Storage for RocksDBStorage {
         Ok(self
             .target_source_list
             .prefix_iter(&target)?
-            .map(|(StorageTargetStreamPrefix(_, k), _)| k)
+            .map(|(TargetSourceListKey(_, k), _)| k)
             .collect())
     }
 }

@@ -16,7 +16,7 @@ pub struct TargetStreamPositionKey(
 );
 
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct StorageTargetStreamPrefix(
+pub(crate) struct TargetSourceListKey(
     // Target subnet id
     pub(crate) SubnetId,
     // Source subnet id
@@ -43,4 +43,4 @@ pub(crate) type SourceStreamsColumn = DBColumn<SourceStreamPositionKey, Certific
 /// to certificate id
 pub(crate) type TargetStreamsColumn = DBColumn<TargetStreamPositionKey, CertificateId>;
 /// Keeps position for particular target subnet id <- source subnet id column in TargetStreamsColumn
-pub(crate) type TargetSourceListColumn = DBColumn<StorageTargetStreamPrefix, u64>;
+pub(crate) type TargetSourceListColumn = DBColumn<TargetSourceListKey, u64>;

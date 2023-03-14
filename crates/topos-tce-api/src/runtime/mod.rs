@@ -19,7 +19,10 @@ use tonic_health::server::HealthReporter;
 use topos_core::api::checkpoints::TargetStreamPosition;
 use topos_core::api::tce::v1::api_service_server::ApiServiceServer;
 use topos_core::uci::{Certificate, SubnetId};
-use topos_tce_storage::{FetchCertificatesFilter, FetchCertificatesPosition, StorageClient};
+use topos_tce_storage::{
+    CertificateTargetStreamPosition, FetchCertificatesFilter, FetchCertificatesPosition,
+    StorageClient,
+};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 use tracing::{debug, error, info, info_span, Instrument, Span};
@@ -279,9 +282,11 @@ impl Runtime {
                             {
                                 if let Ok(certificates_with_positions) = storage
                                     .fetch_certificates(FetchCertificatesFilter::Target {
-                                        target_subnet_id,
-                                        source_subnet_id,
-                                        position,
+                                        target_stream_position: CertificateTargetStreamPosition {
+                                            target_subnet_id,
+                                            source_subnet_id,
+                                            position: topos_tce_storage::Position(position),
+                                        },
                                         limit: 100,
                                     })
                                     .await
@@ -297,19 +302,20 @@ impl Runtime {
                                 stream_id, certificate.id
                             );
                             // TODO catch error on send
-                            if let FetchCertificatesPosition::Target(TargetStreamPosition {
-                                target_subnet_id,
-                                source_subnet_id,
-                                position,
-                                certificate_id: _,
-                            }) = position
+                            if let FetchCertificatesPosition::Target(
+                                CertificateTargetStreamPosition {
+                                    target_subnet_id,
+                                    source_subnet_id,
+                                    position,
+                                },
+                            ) = position
                             {
                                 _ = notifier
                                     .send(StreamCommand::PushCertificate {
                                         positions: vec![TargetStreamPosition {
                                             target_subnet_id,
                                             source_subnet_id,
-                                            position,
+                                            position: position.0,
                                             certificate_id: Some(certificate.id),
                                         }],
                                         certificate,

@@ -1,6 +1,5 @@
 use async_trait::async_trait;
 use topos_commands::CommandHandler;
-use topos_core::api::checkpoints::{SourceStreamPosition, TargetStreamPosition};
 use topos_core::uci::{Certificate, SubnetId};
 use tracing::{debug, error, info};
 
@@ -10,8 +9,9 @@ use crate::{
         FetchCertificates, GetCertificate, GetSourceHead, RemovePendingCertificate, TargetedBy,
     },
     errors::StorageError,
-    CertificatePositions, Connection, FetchCertificatesFilter, FetchCertificatesPosition,
-    InternalStorageError, PendingCertificateId, Position, Storage,
+    CertificatePositions, CertificateSourceStreamPosition, CertificateTargetStreamPosition,
+    Connection, FetchCertificatesFilter, FetchCertificatesPosition, InternalStorageError,
+    PendingCertificateId, Position, Storage,
 };
 
 /// Handle a AddPendingCertificate query
@@ -130,56 +130,55 @@ where
         let mut result = Vec::new();
         match filter {
             FetchCertificatesFilter::Source {
-                subnet_id,
-                position,
+                source_stream_position:
+                    CertificateSourceStreamPosition {
+                        source_subnet_id: subnet_id,
+                        position,
+                    },
                 limit,
             } => {
                 let certificate_ids = self
                     .storage
-                    .get_certificates_by_source(subnet_id, Position(position), limit)
+                    .get_certificates_by_source(subnet_id, position, limit)
                     .await?;
                 let certificates = self.storage.get_certificates(certificate_ids).await?;
 
                 for (index, cert) in certificates.into_iter().enumerate() {
                     result.push((
                         cert,
-                        FetchCertificatesPosition::Source(SourceStreamPosition {
+                        FetchCertificatesPosition::Source(CertificateSourceStreamPosition {
                             source_subnet_id: subnet_id,
-                            position: position + index as u64,
-                            certificate_id: None,
+                            position: Position(position.0 + index as u64),
                         }),
                     ));
                 }
                 Ok(result)
             }
             FetchCertificatesFilter::Target {
-                target_subnet_id,
-                source_subnet_id,
-                position,
+                target_stream_position:
+                    CertificateTargetStreamPosition {
+                        target_subnet_id,
+                        source_subnet_id,
+                        position,
+                    },
                 limit,
             } => {
                 info!(
                     "Fetching {limit} certificates from the Position {:?}",
-                    Position(position)
+                    Position(position.0)
                 );
                 let certificate_ids = self
                     .storage
-                    .get_certificates_by_target(
-                        target_subnet_id,
-                        source_subnet_id,
-                        Position(position),
-                        limit,
-                    )
+                    .get_certificates_by_target(target_subnet_id, source_subnet_id, position, limit)
                     .await?;
                 let certificates = self.storage.get_certificates(certificate_ids).await?;
                 for (index, cert) in certificates.into_iter().enumerate() {
                     result.push((
                         cert,
-                        FetchCertificatesPosition::Target(TargetStreamPosition {
+                        FetchCertificatesPosition::Target(CertificateTargetStreamPosition {
                             target_subnet_id,
                             source_subnet_id,
-                            position: position + index as u64,
-                            certificate_id: None,
+                            position: Position(position.0 + index as u64),
                         }),
                     ));
                 }
