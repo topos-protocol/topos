@@ -159,30 +159,25 @@ impl Runtime {
                         for uuid in uuids {
                             if let Some(sender) = self.active_streams.get(uuid) {
                                 let sender = sender.clone();
-                                // TODO: Switch to arc
                                 let certificate = certificate.clone();
-                                let target_position = target_position.clone();
-
                                 info!("Sending certificate to {uuid}");
-                                spawn(async move {
-                                    if let Some(target_position) = target_position {
-                                        if let Err(error) = sender
-                                            .send(StreamCommand::PushCertificate {
-                                                certificate,
-                                                positions: vec![target_position],
-                                            })
-                                            .await
-                                        {
-                                            error!(%error, "Can't push certificate because the receiver is dropped");
-                                        }
-                                    } else {
-                                        error!(
-                                            "Invalid target stream position for cert id {}, \
-                                        target subnet id {target_subnet_id}, dispatch failed",
-                                            &certificate.id
-                                        );
+                                if let Some(target_position) = target_position.clone() {
+                                    if let Err(error) = sender
+                                        .send(StreamCommand::PushCertificate {
+                                            certificate,
+                                            positions: vec![target_position],
+                                        })
+                                        .await
+                                    {
+                                        error!(%error, "Can't push certificate because the receiver is dropped");
                                     }
-                                });
+                                } else {
+                                    error!(
+                                        "Invalid target stream position for cert id {}, \
+                                        target subnet id {target_subnet_id}, dispatch failed",
+                                        &certificate.id
+                                    );
+                                }
                             }
                         }
                     }
