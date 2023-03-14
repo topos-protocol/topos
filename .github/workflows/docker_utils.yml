@@ -49,10 +49,10 @@ jobs:
       - name: Configure AWS credentials for cicd-devnet-1 account
         uses: aws-actions/configure-aws-credentials@v1
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          role-to-assume: arn:aws:iam::367397670706:role/GitHubRole
-          role-session-name: GitHubRole-session
+          aws-access-key-id: ${{ secrets.ROBOT_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.ROBOT_AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: arn:aws:iam::367397670706:role/CacheBucketAccessRole
+          role-session-name: RobotToposware-session
           aws-region: us-east-1
           role-skip-session-tagging: true
           role-duration-seconds: 3600
@@ -89,3 +89,6 @@ jobs:
             TOOLCHAIN_VERSION=${{ inputs.toolchain_version }}
             FEATURES=${{ inputs.features }}
             SCCACHE_S3_KEY_PREFIX=${{ inputs.target }}
+            SCCACHE_BUCKET=cicd-devnet-1-sccache
+            SCCACHE_REGION=us-east-1
+            RUSTC_WRAPPER=/usr/local/cargo/bin/sccache
