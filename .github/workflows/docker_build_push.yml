@@ -1,6 +1,7 @@
 name: Docker_build_push
 
 on:
+  push: [main]
   pull_request:
     branches: [main]
 
@@ -16,7 +17,7 @@ jobs:
       features: "tce-direct,sequencer"
 
   k8s_e2e:
-    if: github.event.pull_request.merged
+    if: ${{ github.event_name == 'push' }}
     runs-on: ubuntu-latest
     needs: docker
     steps:
