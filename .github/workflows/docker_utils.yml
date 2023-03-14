@@ -1,5 +1,10 @@
 name: Docker build and push
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  AWS_SHARED_CREDENTIALS_FILE: "${{ github.workspace }}/.aws/credentials"
+
 on:
   workflow_call:
     inputs:
@@ -17,12 +22,6 @@ on:
         required: false
         type: string
         default: tce,sequencer
-
-
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
-  AWS_SHARED_CREDENTIALS_FILE: "${{ github.workspace }}/.aws/credentials"
 
 jobs:
   docker:
@@ -60,9 +59,9 @@ jobs:
 
       - name: Add profile credentials to .aws/credentials
         run: |
-            aws configure set aws_access_key_id ${{ env.AWS_ACCESS_KEY_ID }} --profile default
-            aws configure set aws_secret_access_key ${{ env.AWS_SECRET_ACCESS_KEY }} --profile default
-            aws configure set aws_session_token ${{ env.AWS_SESSION_TOKEN }} --profile default
+          aws configure set aws_access_key_id ${{ env.AWS_ACCESS_KEY_ID }} --profile default
+          aws configure set aws_secret_access_key ${{ env.AWS_SECRET_ACCESS_KEY }} --profile default
+          aws configure set aws_session_token ${{ env.AWS_SESSION_TOKEN }} --profile default
 
       - name: Extract metadata (tags, labels) for Docker
         id: meta
@@ -70,10 +69,9 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=schedule,pattern=scheduled-{{date 'YYYYMMDD'}}
-            type=ref,event=branch
-            type=ref,event=tag
-            type=ref,event=pr
+            type=ref,event=branch,suffix=${{ inputs.features == 'tce-direct,sequencer' && '-direct' || ''}}
+            type=ref,event=tag,suffix=${{ inputs.features == 'tce-direct,sequencer' && '-direct' || ''}}
+            type=ref,event=pr,suffix=${{ inputs.features == 'tce-direct,sequencer' && '-direct' || ''}}
 
       - name: Push to GitHub Container Registry
         uses: docker/build-push-action@v3
