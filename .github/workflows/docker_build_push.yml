@@ -14,3 +14,29 @@ jobs:
     secrets: inherit
     with:
       features: "tce-direct,sequencer"
+
+  k8s_e2e:
+    if: github.event.pull_request.merged
+    runs-on: ubuntu-latest
+    needs: docker
+    steps:
+      - name: Set environment
+        run: |
+          sha=${{ github.sha }}
+          uid="${sha:0:6}-${{ github.run_number }}"
+          echo "UID=${uid}" >> $GITHUB_ENV
+        shell: bash
+
+      - uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.ROBOT_TOPOSWARE_K8S_E2E_RW }}
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: 'toposware',
+              repo: 'k8s-e2e',
+              workflow_id: 'test.yml',
+              ref: 'main',
+              inputs: {
+                uid: '${{ env.UID }}'
+              },
+            })
