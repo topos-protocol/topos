@@ -18,12 +18,14 @@ jobs:
       features: "tce-direct,sequencer"
       
   trigger_and_wait:
-    uses: convictional/trigger-workflow-and-wait@v1.6.1
-    with:
-      owner: toposware
-      repo: k8s-e2e
-      workflow_file_name: test.yml
-      github_token: ${{ secrets.ROBOT_TOPOSWARE_K8S_E2E_RW }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: convictional/trigger-workflow-and-wait@v1.6.1
+        with:
+          owner: toposware
+          repo: k8s-e2e
+          workflow_file_name: test.yml
+          github_token: ${{ secrets.ROBOT_TOPOSWARE_K8S_E2E_RW }}
 
   trigger:
     # if: github.event.pull_request.merged
