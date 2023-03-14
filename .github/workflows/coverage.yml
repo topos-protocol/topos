@@ -17,9 +17,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - run: |
-          git config --global url."https://${{ secrets.ROBOT_TOPOSWARE_PRIV_REPOS_TOKEN }}@github.com/".insteadOf "https://github.com/"
-
       - name: Install Protoc
         uses: arduino/setup-protoc@v1
 
