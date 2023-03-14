@@ -720,7 +720,7 @@ async fn test_subnet_id_call(
             panic!("Unable to get subnet id: {e}");
         }
     };
-    
+
     let expected_subnet_id = hex::decode(TEST_SUBNET_ID)
         .unwrap()
         .as_slice()
