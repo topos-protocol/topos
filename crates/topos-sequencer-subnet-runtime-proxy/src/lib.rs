@@ -112,6 +112,10 @@ impl SubnetRuntimeProxyWorker {
         let runtime_proxy = self.runtime_proxy.lock().await;
         runtime_proxy.get_checkpoints().await
     }
+
+    pub async fn get_subnet_id(endpoint: &str, contract_address: &str) -> Result<SubnetId, Error> {
+        SubnetRuntimeProxy::get_subnet_id(endpoint, contract_address).await
+    }
 }
 
 pub mod testing {

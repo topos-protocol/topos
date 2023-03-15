@@ -801,6 +801,19 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "getNetworkSubnetId",
+    "outputs": [
+      {
+        "internalType": "SubnetId",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "uint256",
