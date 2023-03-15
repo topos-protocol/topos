@@ -26,7 +26,7 @@ use topos_sequencer_subnet_runtime_proxy::{SubnetRuntimeProxyConfig, SubnetRunti
 
 use topos_test_sdk::constants::*;
 
-const SUBNET_TCC_JSON_DEFINITION: &str = "ToposCore.json";
+const SUBNET_TOPOS_CORE_CONTRACT_JSON_DEFINITION: &str = "ToposCore.json";
 const SUBNET_TOKEN_DEPLOYER_JSON_DEFINITION: &str = "TokenDeployer.json";
 const SUBNET_CHAIN_ID: u64 = 100;
 const SUBNET_RPC_PORT: u32 = 8545;
@@ -144,11 +144,11 @@ async fn deploy_contracts(
     info!("Getting Topos Core Contract definition...");
     // Deploy subnet smart contract (currently topos core contract)
     let tcc_contract_file_path = match std::env::var(TOPOS_SMART_CONTRACTS_BUILD_PATH_VAR) {
-        Ok(path) => path + "/" + SUBNET_TCC_JSON_DEFINITION,
+        Ok(path) => path + "/" + SUBNET_TOPOS_CORE_CONTRACT_JSON_DEFINITION,
         Err(_e) => {
             error!("Error reading contract build path from `{TOPOS_SMART_CONTRACTS_BUILD_PATH_VAR}` environment variable, using current folder {}",
                      std::env::current_dir().unwrap().display());
-            String::from(SUBNET_TCC_JSON_DEFINITION)
+            String::from(SUBNET_TOPOS_CORE_CONTRACT_JSON_DEFINITION)
         }
     };
     let topos_core_contract = deploy_contract(
