@@ -202,7 +202,7 @@ where
     async fn handle(
         &mut self,
         GetSourceHead { subnet_id }: GetSourceHead,
-    ) -> Result<(Option<u64>, Certificate), StorageError> {
+    ) -> Result<(Option<Position>, Certificate), StorageError> {
         let heads = match self.storage.get_source_heads(vec![subnet_id]).await {
             Ok(heads) => heads,
             Err(e) => {
@@ -246,9 +246,8 @@ where
                 }
             }
         };
-        let position: Option<u64> = source_head.position.map(|position| position.0);
 
-        Ok((position, certificate))
+        Ok((source_head.position, certificate))
     }
 }
 

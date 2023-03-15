@@ -181,7 +181,8 @@ impl AppContext {
                             }
                         }
                         e => RuntimeError::UnableToGetSourceHead(subnet_id, e.to_string()),
-                    });
+                    })
+                    .map(|(position, certificate)| (position.map(|p| p.0), certificate));
 
                 //TODO Initial genesis certificate eventually will be fetched from the topos subnet
                 //Currently, for subnet starting from scratch there are no certificates in the database

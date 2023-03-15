@@ -9,6 +9,7 @@ use crate::{
     },
     errors::StorageError,
     CertificatePositions, FetchCertificatesFilter, FetchCertificatesPosition, PendingCertificateId,
+    Position,
 };
 
 #[derive(Debug, Clone)]
@@ -93,7 +94,7 @@ impl StorageClient {
     pub async fn get_source_head(
         &self,
         subnet_id: SubnetId,
-    ) -> Result<(Option<u64>, Certificate), StorageError> {
+    ) -> Result<(Option<Position>, Certificate), StorageError> {
         GetSourceHead { subnet_id }.send_to(&self.sender).await
     }
 

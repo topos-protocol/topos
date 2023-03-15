@@ -77,7 +77,7 @@ pub struct GetSourceHead {
 }
 
 impl Command for GetSourceHead {
-    type Result = (Option<u64>, Certificate);
+    type Result = (Option<crate::Position>, Certificate);
 }
 
 #[derive(Debug)]
