@@ -3,6 +3,7 @@ use std::time::Duration;
 use topos_core::uci::Certificate;
 use topos_test_sdk::constants::{PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID_2, TARGET_SUBNET_ID_1};
 
+use self::utils::StreamBuilder;
 use crate::grpc::messaging::{OutboundMessage, StreamOpened};
 use crate::runtime::InternalRuntimeCommand;
 use crate::stream::{StreamError, StreamErrorKind};
@@ -14,8 +15,6 @@ use topos_core::api::shared::v1::checkpoints::TargetCheckpoint;
 use topos_core::api::shared::v1::positions::TargetStreamPosition;
 use topos_core::api::tce::v1::watch_certificates_request::OpenStream as GrpcOpenStream;
 use topos_core::api::tce::v1::WatchCertificatesRequest;
-
-use self::utils::StreamBuilder;
 
 mod utils;
 
@@ -36,8 +35,7 @@ pub async fn sending_no_message() -> Result<(), Box<dyn std::error::Error>> {
 
     assert!(
         matches!(result, Err(StreamError { stream_id, kind: StreamErrorKind::PreStartError}) if stream_id == context.stream_id),
-        "Doesn't match {:?}",
-        result
+        "Doesn't match {result:?}",
     );
 
     Ok(())
@@ -166,25 +164,31 @@ async fn receive_expected_certificate_from_zero() -> Result<(), Box<dyn std::err
             msg,
             Some(Ok((_, OutboundMessage::StreamOpened(StreamOpened { ref subnet_ids })))) if subnet_ids == &[TARGET_SUBNET_ID_1],
         ),
-        "Expected StreamOpened, received: {:?}",
-        msg
+        "Expected StreamOpened, received: {msg:?}"
     );
 
-    for expected_certificate in expected_certificates.iter() {
+    for (index, expected_certificate) in expected_certificates.iter().enumerate() {
         context
             .command_sender
             .send(crate::stream::StreamCommand::PushCertificate {
                 certificate: expected_certificate.clone(),
+                positions: vec![topos_core::api::checkpoints::TargetStreamPosition {
+                    position: index as u64,
+                    certificate_id: Some(expected_certificate.id),
+                    target_subnet_id: [1u8; 32].into(),
+                    source_subnet_id: expected_certificate.source_subnet_id,
+                }],
             })
             .await
             .expect("Unable to send certificate during test");
     }
 
-    for expected_certificate in expected_certificates {
+    for (expected_position, expected_certificate) in expected_certificates.into_iter().enumerate() {
         assert!(
             matches!(
                 context.stream_receiver.recv().await,
-                Some(Ok((_, OutboundMessage::CertificatePushed(certificate_pushed)))) if certificate_pushed.certificate == expected_certificate,
+                Some(Ok((_, OutboundMessage::CertificatePushed(certificate_pushed)))) if certificate_pushed.certificate == expected_certificate
+                && certificate_pushed.positions[0].position == expected_position as u64,
             ),
             "Expected CertificatePushed with {}, received: {:?}",
             expected_certificate.id,

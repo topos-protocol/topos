@@ -144,7 +144,8 @@ pub struct WatchCertificatesResponse {
 }
 /// Nested message and enum types in `WatchCertificatesResponse`.
 pub mod watch_certificates_response {
-    /// Sent by the TCE when the stream is ready to be used and that certificates will start being push
+    /// Sent by the TCE when the stream is ready to be used and
+    /// that certificates will start being pushed
     #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct StreamOpened {
@@ -153,13 +154,17 @@ pub mod watch_certificates_response {
             super::super::super::shared::v1::SubnetId,
         >,
     }
-    /// Main message pushed to the stream
+    /// Target Certificate pushed from the TCE to the sequencer
     #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct CertificatePushed {
         #[prost(message, optional, tag = "1")]
         pub certificate: ::core::option::Option<
             super::super::super::uci::v1::Certificate,
+        >,
+        #[prost(message, repeated, tag = "2")]
+        pub positions: ::prost::alloc::vec::Vec<
+            super::super::super::shared::v1::positions::TargetStreamPosition,
         >,
     }
     #[allow(clippy::derive_partial_eq_without_eq)]

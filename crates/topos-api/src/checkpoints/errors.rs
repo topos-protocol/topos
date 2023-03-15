@@ -11,7 +11,7 @@ pub enum TargetCheckpointError {
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum TargetStreamPositionError {
+pub enum StreamPositionError {
     #[error("The target_subnet_id field is missing")]
     MissingTargetSubnetId,
     #[error("The source_subnet_id field is missing")]

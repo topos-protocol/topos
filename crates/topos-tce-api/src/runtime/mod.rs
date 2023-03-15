@@ -18,8 +18,11 @@ use tokio::{
 use tonic_health::server::HealthReporter;
 use topos_core::api::checkpoints::TargetStreamPosition;
 use topos_core::api::tce::v1::api_service_server::ApiServiceServer;
-use topos_core::uci::SubnetId;
-use topos_tce_storage::{FetchCertificatesFilter, StorageClient};
+use topos_core::uci::{Certificate, SubnetId};
+use topos_tce_storage::{
+    CertificateTargetStreamPosition, FetchCertificatesFilter, FetchCertificatesPosition,
+    StorageClient,
+};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 use tracing::{debug, error, info, info_span, Instrument, Span};
@@ -137,7 +140,10 @@ impl Runtime {
 
     async fn handle_runtime_command(&mut self, command: RuntimeCommand) {
         match command {
-            RuntimeCommand::DispatchCertificate { certificate } => {
+            RuntimeCommand::DispatchCertificate {
+                certificate,
+                mut positions,
+            } => {
                 info!(
                     "Received DispatchCertificate for certificate cert_id: {:?}",
                     certificate.id
@@ -149,23 +155,32 @@ impl Runtime {
                     &certificate.id, target_subnets
                 );
                 for target_subnet_id in target_subnets {
-                    if let Some(stream_list) = self.subnet_subscriptions.get(target_subnet_id) {
+                    let target_subnet_id = *target_subnet_id;
+                    let target_position = positions.remove(&target_subnet_id);
+                    if let Some(stream_list) = self.subnet_subscriptions.get(&target_subnet_id) {
                         let uuids: Vec<&Uuid> = stream_list.iter().collect();
                         for uuid in uuids {
                             if let Some(sender) = self.active_streams.get(uuid) {
                                 let sender = sender.clone();
-                                // TODO: Switch to arc
                                 let certificate = certificate.clone();
-
                                 info!("Sending certificate to {uuid}");
-                                spawn(async move {
+                                if let Some(target_position) = target_position.clone() {
                                     if let Err(error) = sender
-                                        .send(StreamCommand::PushCertificate { certificate })
+                                        .send(StreamCommand::PushCertificate {
+                                            certificate,
+                                            positions: vec![target_position],
+                                        })
                                         .await
                                     {
                                         error!(%error, "Can't push certificate because the receiver is dropped");
                                     }
-                                });
+                                } else {
+                                    error!(
+                                        "Invalid target stream position for cert id {}, \
+                                        target subnet id {target_subnet_id}, dispatch failed",
+                                        &certificate.id
+                                    );
+                                }
                             }
                         }
                     }
@@ -231,13 +246,17 @@ impl Runtime {
 
                     // TODO Refactor this using a better handle, FuturesUnordered + Killswitch
                     let task = spawn(async move {
-                        info!("Sync task started for {}", stream_id);
-                        let mut collector = Vec::new();
+                        info!("Sync task started for sequencer stream {}", stream_id);
+                        let mut collector: Vec<(Certificate, FetchCertificatesPosition)> =
+                            Vec::new();
 
                         for (target_subnet_id, mut source) in target_subnet_stream_positions {
                             let source_subnet_list = storage.targeted_by(target_subnet_id).await;
 
-                            info!("Sync task detected {:?} as source list", source_subnet_list);
+                            info!(
+                                "Sequencer sync task detected {:?} as source list",
+                                source_subnet_list
+                            );
                             if let Ok(source_subnet_list) = source_subnet_list {
                                 for source_subnet_id in source_subnet_list {
                                     if let Entry::Vacant(entry) = source.entry(source_subnet_id) {
@@ -261,26 +280,50 @@ impl Runtime {
                                 },
                             ) in source
                             {
-                                if let Ok(certificates) = storage
+                                if let Ok(certificates_with_positions) = storage
                                     .fetch_certificates(FetchCertificatesFilter::Target {
-                                        target_subnet_id,
-                                        source_subnet_id,
-                                        position,
+                                        target_stream_position: CertificateTargetStreamPosition {
+                                            target_subnet_id,
+                                            source_subnet_id,
+                                            position: topos_tce_storage::Position(position),
+                                        },
                                         limit: 100,
                                     })
                                     .await
                                 {
-                                    collector.extend(certificates)
+                                    collector.extend(certificates_with_positions)
                                 }
                             }
                         }
 
-                        for certificate in collector {
-                            info!("Sync task for {} is sending {}", stream_id, certificate.id);
+                        for (certificate, position) in collector {
+                            info!(
+                                "Sequencer sync task for {} is sending {}",
+                                stream_id, certificate.id
+                            );
                             // TODO catch error on send
-                            _ = notifier
-                                .send(StreamCommand::PushCertificate { certificate })
-                                .await;
+                            if let FetchCertificatesPosition::Target(
+                                CertificateTargetStreamPosition {
+                                    target_subnet_id,
+                                    source_subnet_id,
+                                    position,
+                                },
+                            ) = position
+                            {
+                                _ = notifier
+                                    .send(StreamCommand::PushCertificate {
+                                        positions: vec![TargetStreamPosition {
+                                            target_subnet_id,
+                                            source_subnet_id,
+                                            position: position.0,
+                                            certificate_id: Some(certificate.id),
+                                        }],
+                                        certificate,
+                                    })
+                                    .await;
+                            } else {
+                                error!("Invalid certificate position fetched");
+                            }
                         }
                     });
 

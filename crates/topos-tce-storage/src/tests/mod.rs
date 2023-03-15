@@ -3,7 +3,7 @@ use test_log::test;
 use topos_core::uci::{Certificate, SubnetId};
 
 use crate::{
-    rocks::{map::Map, TargetStreamPosition},
+    rocks::{map::Map, TargetStreamPositionKey},
     Position, RocksDBStorage, Storage,
 };
 
@@ -90,7 +90,7 @@ async fn delivered_certificate_are_added_to_target_stream(storage: RocksDBStorag
 
     target_streams_column
         .insert(
-            &TargetStreamPosition(
+            &TargetStreamPositionKey(
                 TARGET_STORAGE_SUBNET_ID_1,
                 SOURCE_STORAGE_SUBNET_ID,
                 Position::ZERO,

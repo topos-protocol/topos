@@ -1,6 +1,5 @@
-use std::collections::HashMap;
-
 use opentelemetry::Context;
+use std::collections::HashMap;
 use tokio::sync::{mpsc::Sender, oneshot};
 use topos_core::api::checkpoints::TargetStreamPosition;
 use topos_core::uci::{Certificate, SubnetId};
@@ -13,8 +12,11 @@ use super::error::RuntimeError;
 
 #[derive(Debug)]
 pub enum RuntimeCommand {
-    /// This command is dispatch when a certificate is ready to be dispatch to related subnet
-    DispatchCertificate { certificate: Certificate },
+    /// Dispatch certificate to gRPC API Runtime in order to push it to listening open streams
+    DispatchCertificate {
+        certificate: Certificate,
+        positions: HashMap<SubnetId, TargetStreamPosition>,
+    },
 }
 
 #[derive(Debug)]

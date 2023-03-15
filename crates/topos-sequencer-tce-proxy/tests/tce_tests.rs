@@ -102,6 +102,7 @@ async fn test_tce_watch_certificates(
         match received.event {
             Some(watch_certificates_response::Event::CertificatePushed(CertificatePushed {
                 certificate: Some(certificate),
+                ..
             })) => {
                 info!("Certificate received {:?}", certificate);
             }
@@ -115,6 +116,7 @@ async fn test_tce_watch_certificates(
             }
             Some(watch_certificates_response::Event::CertificatePushed(CertificatePushed {
                 certificate: None,
+                ..
             })) => {
                 panic!("TCE client: empty certificate received");
             }
@@ -277,19 +279,22 @@ async fn test_tce_open_stream_with_checkpoint(
         ],
     };
 
-    // Make list of expected certificate, first received certificate for every source subnet
-    let mut expected_certs = HashMap::<SubnetId, Certificate>::new();
+    // Make list of expected certificate, first received certificate for every source subnet and its position
+    let mut expected_certs = HashMap::<SubnetId, (Certificate, u64)>::new();
     expected_certs.insert(
         input_certificates[4].source_subnet_id.into(),
-        input_certificates[4].clone().into(),
+        (input_certificates[4].clone().into(), 4),
     );
     expected_certs.insert(
         input_certificates[SOURCE_SUBNET_ID_1_NUMBER_OF_PREFILLED_CERTIFICATES + 2]
             .source_subnet_id
             .into(),
-        input_certificates[SOURCE_SUBNET_ID_1_NUMBER_OF_PREFILLED_CERTIFICATES + 2]
-            .clone()
-            .into(),
+        (
+            input_certificates[SOURCE_SUBNET_ID_1_NUMBER_OF_PREFILLED_CERTIFICATES + 2]
+                .clone()
+                .into(),
+            2,
+        ),
     );
 
     info!("Prefilled certificates:");
@@ -328,8 +333,9 @@ async fn test_tce_open_stream_with_checkpoint(
         match received.event {
             Some(watch_certificates_response::Event::CertificatePushed(CertificatePushed {
                 certificate: Some(received_certificate),
+                positions,
             })) => {
-                if let Some(expected_first_certificate_from_subnet) =
+                if let Some((expected_first_certificate_from_subnet, expected_position)) =
                     expected_certs.get(received_certificate.source_subnet_id.as_ref().unwrap())
                 {
                     info!(
@@ -341,6 +347,12 @@ async fn test_tce_open_stream_with_checkpoint(
                     assert_eq!(
                         received_certificate,
                         *expected_first_certificate_from_subnet
+                    );
+                    let received_position = positions.get(0).unwrap();
+                    assert_eq!(*expected_position, received_position.position);
+                    assert_eq!(
+                        received_position.target_subnet_id.as_ref().unwrap(),
+                        &received_certificate.target_subnets[0]
                     );
                     // First certificate received from source subnet, remove it from the expected list
                     expected_certs.remove(received_certificate.source_subnet_id.as_ref().unwrap());
@@ -371,6 +383,7 @@ async fn test_tce_open_stream_with_checkpoint(
             }
             Some(watch_certificates_response::Event::CertificatePushed(CertificatePushed {
                 certificate: None,
+                ..
             })) => {
                 panic!("TCE client: empty certificate received");
             }

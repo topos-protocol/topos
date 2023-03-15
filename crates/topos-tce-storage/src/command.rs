@@ -1,7 +1,10 @@
 use tokio::sync::{mpsc, oneshot};
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
 
-use crate::{errors::StorageError, FetchCertificatesFilter, PendingCertificateId};
+use crate::{
+    errors::StorageError, CertificatePositions, FetchCertificatesFilter, FetchCertificatesPosition,
+    PendingCertificateId,
+};
 
 use topos_commands::{Command, RegisterCommands};
 
@@ -42,17 +45,16 @@ impl Command for RemovePendingCertificate {
 
 #[derive(Debug)]
 pub struct CertificateDelivered {
-    #[allow(dead_code)]
     pub(crate) certificate_id: CertificateId,
 }
 
 impl Command for CertificateDelivered {
-    type Result = ();
+    // Return target and source stream positions for newly persisted certificate
+    type Result = CertificatePositions;
 }
 
 #[derive(Debug)]
 pub struct GetCertificate {
-    #[allow(dead_code)]
     pub(crate) certificate_id: CertificateId,
 }
 
@@ -66,7 +68,7 @@ pub struct FetchCertificates {
 }
 
 impl Command for FetchCertificates {
-    type Result = Vec<Certificate>;
+    type Result = Vec<(Certificate, FetchCertificatesPosition)>;
 }
 
 #[derive(Debug)]

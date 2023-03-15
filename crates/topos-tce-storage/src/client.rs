@@ -8,7 +8,7 @@ use crate::{
         TargetedBy,
     },
     errors::StorageError,
-    FetchCertificatesFilter, PendingCertificateId,
+    CertificatePositions, FetchCertificatesFilter, FetchCertificatesPosition, PendingCertificateId,
 };
 
 #[derive(Debug, Clone)]
@@ -73,7 +73,7 @@ impl StorageClient {
     pub async fn certificate_delivered(
         &self,
         certificate_id: CertificateId,
-    ) -> Result<(), StorageError> {
+    ) -> Result<CertificatePositions, StorageError> {
         CertificateDelivered { certificate_id }
             .send_to(&self.sender)
             .await
@@ -82,7 +82,7 @@ impl StorageClient {
     pub async fn fetch_certificates(
         &self,
         filter: FetchCertificatesFilter,
-    ) -> Result<Vec<Certificate>, StorageError> {
+    ) -> Result<Vec<(Certificate, FetchCertificatesPosition)>, StorageError> {
         FetchCertificates { filter }.send_to(&self.sender).await
     }
 

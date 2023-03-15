@@ -6,7 +6,7 @@ use topos_test_sdk::constants::SOURCE_SUBNET_ID_1;
 use crate::tests::{PREV_CERTIFICATE_ID, SOURCE_STORAGE_SUBNET_ID};
 use crate::{
     rocks::{
-        map::Map, CertificatesColumn, PendingCertificatesColumn, SourceStreamPosition,
+        map::Map, CertificatesColumn, PendingCertificatesColumn, SourceStreamPositionKey,
         SourceStreamsColumn,
     },
     Position,
@@ -77,7 +77,7 @@ async fn delivered_certificate_position_are_incremented(
         .is_ok());
     assert!(source_streams_column
         .insert(
-            &SourceStreamPosition(SOURCE_STORAGE_SUBNET_ID, Position::ZERO),
+            &SourceStreamPositionKey(SOURCE_STORAGE_SUBNET_ID, Position::ZERO),
             &certificate.id
         )
         .is_ok());
@@ -99,7 +99,7 @@ async fn position_can_be_fetch_for_one_subnet(source_streams_column: SourceStrea
 
     assert!(source_streams_column
         .insert(
-            &SourceStreamPosition(SOURCE_STORAGE_SUBNET_ID, Position::ZERO),
+            &SourceStreamPositionKey(SOURCE_STORAGE_SUBNET_ID, Position::ZERO),
             &certificate.id
         )
         .is_ok());
@@ -109,7 +109,7 @@ async fn position_can_be_fetch_for_one_subnet(source_streams_column: SourceStrea
             .prefix_iter(&SOURCE_SUBNET_ID_1)
             .unwrap()
             .last(),
-        Some((SourceStreamPosition(_, Position::ZERO), _))
+        Some((SourceStreamPositionKey(_, Position::ZERO), _))
     ));
 
     let certificate = Certificate::new(
@@ -125,7 +125,7 @@ async fn position_can_be_fetch_for_one_subnet(source_streams_column: SourceStrea
 
     assert!(source_streams_column
         .insert(
-            &SourceStreamPosition(SOURCE_STORAGE_SUBNET_ID, Position(1)),
+            &SourceStreamPositionKey(SOURCE_STORAGE_SUBNET_ID, Position(1)),
             &certificate.id
         )
         .is_ok());
@@ -135,7 +135,7 @@ async fn position_can_be_fetch_for_one_subnet(source_streams_column: SourceStrea
             .prefix_iter(&SOURCE_SUBNET_ID_1)
             .unwrap()
             .last(),
-        Some((SourceStreamPosition(_, Position(1)), _))
+        Some((SourceStreamPositionKey(_, Position(1)), _))
     ));
 }
 
