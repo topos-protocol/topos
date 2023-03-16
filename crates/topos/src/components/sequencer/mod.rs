@@ -3,10 +3,13 @@ use tokio::{signal, spawn};
 use topos_sequencer::{self, SequencerConfiguration};
 use tracing::{error, info};
 
+use crate::tracing::setup_tracing;
+
 pub(crate) mod commands;
 
 pub(crate) async fn handle_command(
     SequencerCommand { subcommands }: SequencerCommand,
+    verbose: u8,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match subcommands {
         Some(SequencerCommands::Run(cmd)) => {
@@ -18,6 +21,9 @@ pub(crate) async fn handle_command(
                 subnet_data_dir_path: cmd.subnet_data_dir,
                 verifier: cmd.verifier,
             };
+
+            // Setup instrumentation if both otlp agent and otlp service name are provided as arguments
+            setup_tracing(verbose, cmd.otlp_agent, cmd.otlp_service_name)?;
 
             print_sequencer_info(&config);
 

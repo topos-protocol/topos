@@ -1,7 +1,5 @@
-//! Protocol implementation guts.
-//!
-
 use crate::Error;
+use opentelemetry::trace::FutureExt;
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
@@ -9,13 +7,14 @@ use tokio::sync::{mpsc, oneshot, Mutex};
 use tokio::time::{self, Duration};
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
 use topos_sequencer_types::{BlockInfo, CertificationCommand, CertificationEvent, SubnetEvent};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, field, info, instrument, warn, Instrument, Span};
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 const AVERAGE_BLOCK_TIME: Duration = Duration::from_secs(2);
 
 pub struct Certification {
-    pub commands_channel: mpsc::UnboundedSender<CertificationCommand>,
-    pub events_subscribers: Vec<mpsc::UnboundedSender<CertificationEvent>>,
+    pub commands_channel: mpsc::Sender<CertificationCommand>,
+    pub events_subscribers: Vec<mpsc::Sender<CertificationEvent>>,
     pub history: HashMap<SubnetId, Vec<CertificateId>>,
     pub finalized_blocks: Vec<BlockInfo>,
     pub subnet_id: SubnetId,
@@ -38,7 +37,7 @@ impl Certification {
         verifier: u32,
         signing_key: Vec<u8>,
     ) -> Result<Arc<Mutex<Certification>>, crate::Error> {
-        let (command_sender, mut command_rcv) = mpsc::unbounded_channel::<CertificationCommand>();
+        let (command_sender, mut command_rcv) = mpsc::channel::<CertificationCommand>(128);
         let (command_shutdown_channel, mut command_shutdown) =
             mpsc::channel::<oneshot::Sender<()>>(1);
         let (cert_gen_shutdown_channel, mut cert_gen_shutdown) =
@@ -76,8 +75,9 @@ impl Certification {
                             for cert in certs {
                                 Self::send_new_certificate(
                                     me_c2.clone(),
-                                    CertificationEvent::NewCertificate(cert),
-                                ).await;
+                                    cert
+                                )
+                                .await;
                             }
                         }
                     },
@@ -114,12 +114,20 @@ impl Certification {
         Ok(me)
     }
 
-    async fn send_new_certificate(
-        certification: Arc<Mutex<Certification>>,
-        evt: CertificationEvent,
-    ) {
+    #[instrument(name = "NewCertificate", fields(certification = field::Empty, source_subnet_id = field::Empty, certificate_id = field::Empty))]
+    async fn send_new_certificate(certification: Arc<Mutex<Certification>>, cert: Certificate) {
         let mut certification = certification.lock().await;
-        certification.send_out_events(evt);
+        Span::current().record("certificate_id", cert.id.to_string());
+        Span::current().record("source_subnet_id", cert.source_subnet_id.to_string());
+
+        certification
+            .send_out_events(CertificationEvent::NewCertificate {
+                cert,
+                ctx: Span::current().context(),
+            })
+            .with_current_context()
+            .instrument(Span::current())
+            .await;
     }
 
     async fn on_command(
@@ -144,12 +152,16 @@ impl Certification {
         }
     }
 
-    fn send_out_events(&mut self, evt: CertificationEvent) {
-        for tx in &self.events_subscribers {
-            // FIXME: When error is returned it means that receiving side of the channel is closed
-            // Thus we better remove the sender from our subscribers
-            let _ = tx.send(evt.clone());
-        }
+    async fn send_out_events(&mut self, evt: CertificationEvent) {
+        self.events_subscribers.retain(|tx| {
+            if let Ok(reserve) = tx.try_reserve() {
+                reserve.send(evt.clone());
+                true
+            } else {
+                error!("Unable to send certification event to event subscribers");
+                false
+            }
+        });
     }
 
     /// Generation of Certificate

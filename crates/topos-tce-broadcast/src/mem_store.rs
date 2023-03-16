@@ -40,7 +40,7 @@ impl TceMemStore {
 }
 
 impl TceStore for TceMemStore {
-    // JAEGER START DELIVERY TRACE [ cert, peer ]
+    // OTLP START DELIVERY TRACE [ cert, peer ]
     fn apply_cert(&mut self, cert: &Certificate) -> Result<(), Errors> {
         // Add the entry in the history <SubnetId, CertId>
         let _ = self.add_cert_in_hist(&cert.source_subnet_id, cert);

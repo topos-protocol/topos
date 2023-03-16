@@ -339,7 +339,7 @@ impl SubnetRuntimeProxy {
 
     pub async fn get_subnet_id(endpoint: &str, contract_address: &str) -> Result<SubnetId, Error> {
         info!("Connecting to subnet to query for subnet id...");
-        let http_runtime_endpoint = format!("http://{}", endpoint);
+        let http_runtime_endpoint = format!("http://{endpoint}");
         // Create subnet client
         let subnet_client = match topos_sequencer_subnet_client::connect_to_subnet_with_retry(
             http_runtime_endpoint.as_ref(),

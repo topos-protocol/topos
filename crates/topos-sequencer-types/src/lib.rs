@@ -1,6 +1,6 @@
 //! Implementation of Topos Network Transport
 //!
-
+use opentelemetry::Context;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 pub use topos_core::uci::{Address, Certificate, CertificateId, StateRoot, SubnetId, TxRootHash};
@@ -66,10 +66,10 @@ pub struct Authorities {
     // TODO: proper dependencies to block type etc
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub enum CertificationEvent {
     /// Created Certificate ready to be threshold signed
-    NewCertificate(Certificate),
+    NewCertificate { cert: Certificate, ctx: Context },
 }
 
 #[derive(Debug)]
@@ -95,7 +95,10 @@ pub enum SubnetRuntimeProxyCommand {
 #[derive(Debug)]
 pub enum TceProxyCommand {
     /// Submit a newly created certificate to the TCE
-    SubmitCertificate(Box<Certificate>),
+    SubmitCertificate {
+        cert: Box<Certificate>,
+        ctx: Context,
+    },
 
     /// Shutdown command
     Shutdown(tokio::sync::oneshot::Sender<()>),
@@ -113,6 +116,5 @@ pub enum TceProxyEvent {
 // A wrapper to handle all events
 #[derive(Debug, Clone)]
 pub enum Event {
-    CertificationEvent(CertificationEvent),
     RuntimeProxyEvent(SubnetRuntimeProxyEvent),
 }

@@ -37,6 +37,16 @@ pub struct Run {
     /// Verifier version
     #[clap(long, default_value = "0", env = "TOPOS_SEQUENCER_VERIFIER_VERSION")]
     pub verifier: u32,
+
+    /// Socket of the opentelemetry agent endpoint
+    /// If not provided open telemetry will not be used
+    #[arg(long, env = "TOPOS_OTLP_AGENT", global = true)]
+    pub otlp_agent: Option<String>,
+
+    /// Otlp service name
+    /// If not provided open telemetry will not be used
+    #[arg(long, env = "TOPOS_OTLP_SERVICE_NAME", global = true)]
+    pub otlp_service_name: Option<String>,
 }
 
 impl Run {}

@@ -9,3 +9,5 @@ tokio.workspace = true
 thiserror.workspace = true
 ethereum-types.workspace = true
 serde = { workspace = true, features = ["derive"] }
+tracing.workspace = true
+opentelemetry.workspace = true

@@ -5,7 +5,7 @@ use topos_sequencer_certification::CertificationWorker;
 use topos_sequencer_subnet_runtime_proxy::{SubnetRuntimeProxyConfig, SubnetRuntimeProxyWorker};
 use topos_sequencer_tce_proxy::{TceProxyConfig, TceProxyWorker};
 use topos_sequencer_types::SubnetId;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 mod app_context;
 
@@ -20,7 +20,7 @@ pub struct SequencerConfiguration {
 }
 
 pub async fn run(config: SequencerConfiguration) -> Result<(), Box<dyn std::error::Error>> {
-    info!("Starting topos-sequencer application");
+    debug!("Starting topos-sequencer application");
 
     let subnet_data_dir_path = config
         .subnet_data_dir_path

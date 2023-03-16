@@ -27,10 +27,6 @@ Options:
           Local peer key-pair (in base64 format) [env: TCE_LOCAL_KEYPAIR=]
       --db-path <DB_PATH>
           Storage database path, if not set RAM storage is used [env: TCE_DB_PATH=] [default: ./default_db/]
-      --jaeger-agent <JAEGER_AGENT>
-          Socket of the Jaeger agent endpoint [env: TCE_JAEGER_AGENT=] [default: http://otel-collector:4317]
-      --jaeger-service-name <JAEGER_SERVICE_NAME>
-          Jaeger service name [env: TCE_JAEGER_SERVICE_NAME=] [default: topos]
       --api-addr <API_ADDR>
           gRPC API Addr [env: TCE_API_ADDR=] [default: [::1]:1340]
       --echo-threshold <ECHO_THRESHOLD>
@@ -45,6 +41,10 @@ Options:
           Delivery threshold [env: TCE_DELIVERY_THRESHOLD=] [default: 1]
       --delivery-sample-size <DELIVERY_SAMPLE_SIZE>
           Delivery sample size [env: TCE_DELIVERY_SAMPLE_SIZE=] [default: 1]
+      --otlp-agent <OTLP_AGENT>
+          Socket of the opentelemetry agent endpoint If not provided open telemetry will not be used [env: TOPOS_OTLP_AGENT=]
+      --otlp-service-name <OTLP_SERVICE_NAME>
+          Otlp service name If not provided open telemetry will not be used [env: TOPOS_OTLP_SERVICE_NAME=]
   -h, --help
           Print help
 

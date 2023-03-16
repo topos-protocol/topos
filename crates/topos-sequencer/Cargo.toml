@@ -12,6 +12,7 @@ serde = { workspace = true, features = ["derive"] }
 tokio = { workspace = true, features = ["full"] }
 tracing-subscriber = {workspace = true, features = ["fmt", "std", "env-filter",]}
 tracing.workspace = true
+tracing-opentelemetry.workspace = true
 
 topos-crypto.workspace = true
 topos-core = { workspace = true, features = ["uci"] }
