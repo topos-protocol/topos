@@ -2,7 +2,6 @@
 name = "topos-crypto"
 description = "Implementation of the Topos cryptography utility functions"
 version = "0.1.0"
-authors = ["Toposware Developers <dev@toposware.com>"]
 edition = "2021"
 
 [dependencies]
