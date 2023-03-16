@@ -11,7 +11,7 @@ services:
   otel-collector:
     image: otel/opentelemetry-collector-contrib-dev:latest
     restart: always
-    command: ["--config=/etc/otel-collector-config.yaml"]
+    command: [ "--config=/etc/otel-collector-config.yaml" ]
     volumes:
       - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
     ports:
@@ -36,7 +36,7 @@ services:
   boot:
     container_name: boot
     command: boot tce run
-    image: ghcr.io/toposware/topos:main
+    image: ghcr.io/topos-network/topos:main
     init: true
     healthcheck:
       test: ./topos tce push-peer-list --endpoint http://localhost:1340 --format json /tmp/shared/peer_ids.json
@@ -70,7 +70,7 @@ services:
       - TCE_DELIVERY_THRESHOLD=2
 
   peer:
-    image: ghcr.io/toposware/topos:main
+    image: ghcr.io/topos-network/topos:main
     command: tce run
     init: true
     healthcheck:

@@ -18,10 +18,10 @@ topos is the unified command line interface to the <a href="https://docs.toposwa
 
 <!-- **`topos` is the unified command line interface to the [Topos](https://docs.toposware.com/general-overview) network.** -->
 
-[![codecov](https://codecov.io/gh/toposware/topos/branch/main/graph/badge.svg?token=FOH2B2GRL9&style=flat)](https://codecov.io/gh/toposware/topos)
-![example workflow](https://github.com/toposware/topos/actions/workflows/test.yml/badge.svg)
-![example workflow](https://github.com/toposware/topos/actions/workflows/format.yml/badge.svg)
-![example workflow](https://github.com/toposware/topos/actions/workflows/lint.yml/badge.svg)
+[![codecov](https://codecov.io/gh/topos-network/topos/branch/main/graph/badge.svg?token=FOH2B2GRL9&style=flat)](https://codecov.io/gh/topos-network/topos)
+![example workflow](https://github.com/topos-network/topos/actions/workflows/test.yml/badge.svg)
+![example workflow](https://github.com/topos-network/topos/actions/workflows/format.yml/badge.svg)
+![example workflow](https://github.com/topos-network/topos/actions/workflows/lint.yml/badge.svg)
 [![](https://dcbadge.vercel.app/api/server/7HZ8F8ykBT?style=flat)](https://discord.gg/7HZ8F8ykBT)
 
 
@@ -34,7 +34,7 @@ The first step is to install Rust along with `cargo` by following the instructio
 **Install `topos`**
 
 ```
-cargo install topos --git https://github.com/toposware/topos
+cargo install topos --git https://github.com/topos-network/topos
 ```
 
 **Try out `topos`!**
@@ -46,12 +46,12 @@ Find more about how topos works in the [documentation](https://docs.toposware.co
 
 ## Development
 
-Contributions are very welcomed, the guidelines are outlined in [`CONTRIBUTING.md`](./CONTRIBUTING.md).<br />
+Contributions are very welcomed, the guidelines are outlined in [`CONTRIBUTING.md`](https://github.com/topos-network/.github/blob/main/CONTRIBUTING.md).<br />
 Running a minimal local setup with docker compose is described [here](./tools/README.md).
 
 ## Support
 
-Feel free to [open an issue](https://github.com/toposware/topos/issues/new) if you have any feature request or bug report.<br />
+Feel free to [open an issue](https://github.com/topos-network/topos/issues/new) if you have any feature request or bug report.<br />
 If you have any questions, do not hesitate to reach us on [Discord](https://discord.gg/7HZ8F8ykBT)!
 
 ## Resources

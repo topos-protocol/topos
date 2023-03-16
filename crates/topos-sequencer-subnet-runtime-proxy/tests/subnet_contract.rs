@@ -32,7 +32,7 @@ const SUBNET_CHAIN_ID: u64 = 100;
 const SUBNET_RPC_PORT: u32 = 8545;
 const TEST_SECRET_ETHEREUM_KEY: &str =
     "5fb92d6e98884f76de468fa3f6278f8807c48bebc13595d45af5bdc4da702133";
-const POLYGON_EDGE_CONTAINER: &str = "ghcr.io/toposware/polygon-edge";
+const POLYGON_EDGE_CONTAINER: &str = "ghcr.io/topos-network/polygon-edge";
 const POLYGON_EDGE_CONTAINER_TAG: &str = "develop";
 const SUBNET_STARTUP_DELAY: u64 = 5; // seconds left for subnet startup
 const TOPOS_SMART_CONTRACTS_BUILD_PATH_VAR: &str = "TOPOS_SMART_CONTRACTS_BUILD_PATH";

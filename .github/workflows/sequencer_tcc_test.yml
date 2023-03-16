@@ -13,7 +13,7 @@ env:
   # Change to specific Rust release to pin
   rust_clippy: 1.62.1
   REGISTRY: ghcr.io
-  POLYGON_SUBNET_IMAGE_NAME: toposware/polygon-edge
+  POLYGON_SUBNET_IMAGE_NAME: topos-network/polygon-edge
   POLYGON_SUBNET_IMAGE_TAG: develop
   TOPOS_SMART_CONTRACTS_IMAGE_NAME: toposware/topos-smart-contracts
   TOPOS_SMART_CONTRACTS_IMAGE_TAG: main
