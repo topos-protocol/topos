@@ -24,5 +24,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         options::ToposCommand::Sequencer(cmd) => {
             components::sequencer::handle_command(cmd, verbose).await
         }
+        #[cfg(feature = "checker")]
+        options::ToposCommand::Checker(cmd) => {
+            components::checker::handle_command(cmd, verbose).await
+        }
     }
 }

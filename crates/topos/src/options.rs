@@ -3,6 +3,8 @@ use clap::{Parser, Subcommand};
 #[cfg(feature = "sequencer")]
 use crate::components::sequencer::commands::SequencerCommand;
 
+#[cfg(feature = "checker")]
+use crate::components::checker::commands::CheckerCommand;
 #[cfg(feature = "tce")]
 use crate::components::tce::commands::TceCommand;
 
@@ -29,4 +31,6 @@ pub(crate) enum ToposCommand {
     Tce(TceCommand),
     #[cfg(feature = "sequencer")]
     Sequencer(SequencerCommand),
+    #[cfg(feature = "checker")]
+    Checker(CheckerCommand),
 }

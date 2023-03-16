@@ -42,3 +42,12 @@ impl TryFrom<CertificateId> for topos_uci::CertificateId {
         Ok(id.into())
     }
 }
+
+impl PartialEq<CertificateId> for topos_uci::CertificateId {
+    fn eq(&self, other: &CertificateId) -> bool {
+        if other.value.len() != 32 {
+            return false;
+        }
+        self.as_array() == &other.value[..32]
+    }
+}
