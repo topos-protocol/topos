@@ -5,7 +5,7 @@ The `TOOLCHAIN_VERSION` needs to be defined through `(stable|nightly-2022-07-20|
 Targeted docker build commands follow the following pattern:
 
 ```
-docker build . --build-arg GITHUB_TOKEN=*** --build-arg TOOLCHAIN_VERSION=[...] --target [TARGET]
+docker build . --build-arg TOOLCHAIN_VERSION=[...] --target [TARGET]
 ```
 
 The development workflow through docker.
@@ -13,6 +13,7 @@ The development workflow through docker.
 ```
 docker build . ... --target (build|test|fmt|lint)
 ```
+
 # Docker Compose Setup
 
 The [`docker-compose.yml`](./docker-compose.yml) provides a pre-configured local TCE network setup.

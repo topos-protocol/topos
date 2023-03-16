@@ -13,7 +13,7 @@ jobs:
       matrix:
         version: [stable]
     name: ${{ matrix.version }} - Audit
-    uses: toposware/topos/.github/workflows/docker_utils.yml@main
+    uses: ./.github/workflows/docker_utils.yml
     secrets: inherit
     with:
       target: audit
