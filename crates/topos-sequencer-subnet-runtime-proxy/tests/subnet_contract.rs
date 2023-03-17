@@ -229,7 +229,7 @@ async fn deploy_contracts(
     .await?;
 
     info!("Getting Topos Core Proxy Contract definition...");
-    // Deploy subnet smart contract (currently topos core contract)
+    // Deploy subnet smart contract proxy
     let tcc_proxy_contract_file_path = match std::env::var(TOPOS_SMART_CONTRACTS_BUILD_PATH_VAR) {
         Ok(path) => path + "/" + SUBNET_TCC_PROXY_JSON_DEFINITION,
         Err(_e) => {
@@ -255,7 +255,6 @@ async fn deploy_contracts(
     .await?;
 
     // Make interface contract from topos contract contract proxy
-    // Deploy subnet smart contract (currently topos core contract)
     let tcc_interface_file_path = match std::env::var(TOPOS_SMART_CONTRACTS_BUILD_PATH_VAR) {
         Ok(path) => path + "/" + SUBNET_ITCC_JSON_DEFINITION,
         Err(_e) => {
