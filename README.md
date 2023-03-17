@@ -51,7 +51,6 @@ Running a minimal local setup with docker compose is described [here](./tools/RE
 ## Support
 
 Feel free to [open an issue](https://github.com/topos-network/topos/issues/new) if you have any feature request or bug report.<br />
-If you have any questions, do not hesitate to reach us on [Discord](https://discord.gg/7HZ8F8ykBT)!
 
 ## Resources
 
