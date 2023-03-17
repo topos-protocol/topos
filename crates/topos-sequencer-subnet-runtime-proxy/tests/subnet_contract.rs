@@ -47,14 +47,16 @@ const CERTIFICATE_ID_1: CertificateId = CERTIFICATE_ID_6;
 const CERTIFICATE_ID_2: CertificateId = CERTIFICATE_ID_7;
 const CERTIFICATE_ID_3: CertificateId = CERTIFICATE_ID_8;
 
-async fn deploy_contract<T>(
+async fn deploy_contract<T, U, Z>(
     contract_file_path: &str,
     web3_client: &mut web3::Web3<Http>,
     eth_private_key: &SecretKey,
-    params: Option<T>,
+    params: (Option<T>, Option<U>, Option<Z>),
 ) -> Result<web3::contract::Contract<Http>, Box<dyn std::error::Error>>
 where
     T: Tokenize,
+    (T, U): Tokenize,
+    (T, U, Z): Tokenize,
 {
     info!("Parsing  contract file {}", contract_file_path);
     let contract_file = std::fs::File::open(contract_file_path).unwrap();
@@ -73,8 +75,8 @@ where
             opt.gas = Some(4_000_000.into());
         }));
 
-    let deployment_result = if params.is_none() {
-        // Contract without contstructor
+    let deployment_result = if params.0.is_none() {
+        // Contract without constructor
         deployment
             .sign_with_key_and_execute(
                 contract_bytecode,
@@ -83,70 +85,39 @@ where
                 Some(SUBNET_CHAIN_ID),
             )
             .await
-    } else {
+    } else if params.1.is_none() {
         // Contract with 1 arguments
         deployment
             .sign_with_key_and_execute(
                 contract_bytecode,
-                params.unwrap(),
+                params.0.unwrap(),
+                eth_private_key,
+                Some(SUBNET_CHAIN_ID),
+            )
+            .await
+    } else if params.2.is_none() {
+        // Contract with 2 arguments
+        deployment
+            .sign_with_key_and_execute(
+                contract_bytecode,
+                (params.0.unwrap(), params.1.unwrap()),
+                eth_private_key,
+                Some(SUBNET_CHAIN_ID),
+            )
+            .await
+    } else {
+        // Contract with 3 arguments
+        deployment
+            .sign_with_key_and_execute(
+                contract_bytecode,
+                (params.0.unwrap(), params.1.unwrap(), params.2.unwrap()),
                 eth_private_key,
                 Some(SUBNET_CHAIN_ID),
             )
             .await
     };
-
+    
     match deployment_result {
-        Ok(contract) => {
-            info!(
-                "Contract {} deployment ok, new contract address: {}",
-                contract_file_path,
-                contract.address()
-            );
-            Ok(contract)
-        }
-        Err(e) => {
-            error!("Contract {} deployment error {}", contract_file_path, e);
-            Err(Box::<dyn std::error::Error>::from(e))
-        }
-    }
-}
-
-async fn deploy_contract_2<T, U>(
-    contract_file_path: &str,
-    web3_client: &mut web3::Web3<Http>,
-    eth_private_key: &SecretKey,
-    params: (T, U),
-) -> Result<web3::contract::Contract<Http>, Box<dyn std::error::Error>>
-where
-    (T, U): Tokenize,
-{
-    info!("Parsing  contract file {}", contract_file_path);
-    let contract_file = std::fs::File::open(contract_file_path).unwrap();
-    let contract_json: serde_json::Value =
-        serde_json::from_reader(contract_file).expect("error while reading or parsing");
-    let contract_abi = contract_json.get("abi").unwrap().to_string();
-    let contract_bytecode = contract_json
-        .get("bytecode")
-        .unwrap()
-        .to_string()
-        .replace('"', "");
-    // Deploy contract, check result
-    let deployment = web3::contract::Contract::deploy(web3_client.eth(), contract_abi.as_bytes())?
-        .confirmations(1)
-        .options(web3::contract::Options::with(|opt| {
-            opt.gas = Some(4_000_000.into());
-        }));
-
-    // Contract with 2 arguments
-    match deployment
-        .sign_with_key_and_execute(
-            contract_bytecode,
-            params,
-            eth_private_key,
-            Some(SUBNET_CHAIN_ID),
-        )
-        .await
-    {
         Ok(contract) => {
             info!(
                 "Contract {} deployment ok, new contract address: {}",
@@ -202,11 +173,11 @@ async fn deploy_contracts(
         }
     };
 
-    let token_deployer_contract = deploy_contract(
+    let token_deployer_contract = deploy_contract::<u8, u8, u8>(
         &token_deployer_contract_file_path,
         web3_client,
         &eth_private_key,
-        Option::<Token>::None,
+        (Option::<u8>::None, Option::<u8>::None, Option::<u8>::None),
     )
     .await?;
 
@@ -224,7 +195,11 @@ async fn deploy_contracts(
         &tcc_contract_file_path,
         web3_client,
         &eth_private_key,
-        Some(token_deployer_contract.address()),
+        (
+            Some(token_deployer_contract.address()),
+            Option::<u8>::None,
+            Option::<u8>::None,
+        ),
     )
     .await?;
 
@@ -246,11 +221,15 @@ async fn deploy_contracts(
     let new_admin_threshold: Token = Token::Uint(U256::from(1));
     let encoded_params = web3::ethabi::encode(&[admin_account, new_admin_threshold]);
 
-    let topos_core_contract_proxy = deploy_contract_2(
+    let topos_core_contract_proxy = deploy_contract(
         &tcc_proxy_contract_file_path,
         web3_client,
         &eth_private_key,
-        (topos_core_contract.address(), encoded_params),
+        (
+            Some(topos_core_contract.address()),
+            Some(encoded_params),
+            Option::<u8>::None,
+        ),
     )
     .await?;
 
