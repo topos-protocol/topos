@@ -17,7 +17,7 @@ use tracing::{error, info};
 use web3::contract::tokens::Tokenize;
 use web3::ethabi::Token;
 use web3::transports::Http;
-use web3::types::{BlockNumber, Log};
+use web3::types::{BlockNumber, Log, H160, U256};
 
 mod common;
 use crate::common::subnet_test_data::generate_test_private_key;
@@ -27,11 +27,14 @@ use topos_sequencer_subnet_runtime_proxy::{SubnetRuntimeProxyConfig, SubnetRunti
 use topos_test_sdk::constants::*;
 
 const SUBNET_TCC_JSON_DEFINITION: &str = "ToposCore.json";
+const SUBNET_TCC_PROXY_JSON_DEFINITION: &str = "ToposCoreProxy.json";
+const SUBNET_ITCC_JSON_DEFINITION: &str = "IToposCore.json";
 const SUBNET_TOKEN_DEPLOYER_JSON_DEFINITION: &str = "TokenDeployer.json";
 const SUBNET_CHAIN_ID: u64 = 100;
 const SUBNET_RPC_PORT: u32 = 8545;
 const TEST_SECRET_ETHEREUM_KEY: &str =
     "5fb92d6e98884f76de468fa3f6278f8807c48bebc13595d45af5bdc4da702133";
+const TEST_ETHEREUM_ACCOUNT: &str = "0xf24FF3a9CF04c71Dbc94D0b566f7A27B94566cac";
 const POLYGON_EDGE_CONTAINER: &str = "ghcr.io/topos-network/polygon-edge";
 const POLYGON_EDGE_CONTAINER_TAG: &str = "develop";
 const SUBNET_STARTUP_DELAY: u64 = 5; // seconds left for subnet startup
@@ -44,14 +47,16 @@ const CERTIFICATE_ID_1: CertificateId = CERTIFICATE_ID_6;
 const CERTIFICATE_ID_2: CertificateId = CERTIFICATE_ID_7;
 const CERTIFICATE_ID_3: CertificateId = CERTIFICATE_ID_8;
 
-async fn deploy_contract<T, U>(
+async fn deploy_contract<T, U, Z>(
     contract_file_path: &str,
     web3_client: &mut web3::Web3<Http>,
     eth_private_key: &SecretKey,
-    params: Option<(T, U)>,
+    params: (Option<T>, Option<U>, Option<Z>),
 ) -> Result<web3::contract::Contract<Http>, Box<dyn std::error::Error>>
 where
+    T: Tokenize,
     (T, U): Tokenize,
+    (T, U, Z): Tokenize,
 {
     info!("Parsing  contract file {}", contract_file_path);
     let contract_file = std::fs::File::open(contract_file_path).unwrap();
@@ -70,8 +75,8 @@ where
             opt.gas = Some(4_000_000.into());
         }));
 
-    let deployment_result = if params.is_none() {
-        // Contract without contstructor
+    let deployment_result = if params.0.is_none() {
+        // Contract without constructor
         deployment
             .sign_with_key_and_execute(
                 contract_bytecode,
@@ -80,12 +85,32 @@ where
                 Some(SUBNET_CHAIN_ID),
             )
             .await
-    } else {
+    } else if params.1.is_none() {
+        // Contract with 1 arguments
+        deployment
+            .sign_with_key_and_execute(
+                contract_bytecode,
+                params.0.unwrap(),
+                eth_private_key,
+                Some(SUBNET_CHAIN_ID),
+            )
+            .await
+    } else if params.2.is_none() {
         // Contract with 2 arguments
         deployment
             .sign_with_key_and_execute(
                 contract_bytecode,
-                params.unwrap(),
+                (params.0.unwrap(), params.1.unwrap()),
+                eth_private_key,
+                Some(SUBNET_CHAIN_ID),
+            )
+            .await
+    } else {
+        // Contract with 3 arguments
+        deployment
+            .sign_with_key_and_execute(
+                contract_bytecode,
+                (params.0.unwrap(), params.1.unwrap(), params.2.unwrap()),
                 eth_private_key,
                 Some(SUBNET_CHAIN_ID),
             )
@@ -106,6 +131,21 @@ where
             Err(Box::<dyn std::error::Error>::from(e))
         }
     }
+}
+
+fn get_contract_interface(
+    contract_file_path: &str,
+    address: H160,
+    web3_client: &mut web3::Web3<Http>,
+) -> Result<web3::contract::Contract<Http>, Box<dyn std::error::Error>> {
+    info!("Parsing  contract file {}", contract_file_path);
+    let contract_file = std::fs::File::open(contract_file_path).unwrap();
+    let contract_json: serde_json::Value =
+        serde_json::from_reader(contract_file).expect("error while reading or parsing");
+    let contract_abi = contract_json.get("abi").unwrap().to_string();
+    let contract =
+        web3::contract::Contract::from_json(web3_client.eth(), address, contract_abi.as_bytes())?;
+    Ok(contract)
 }
 
 async fn deploy_contracts(
@@ -133,11 +173,11 @@ async fn deploy_contracts(
         }
     };
 
-    let token_deployer_contract = deploy_contract(
+    let token_deployer_contract = deploy_contract::<u8, u8, u8>(
         &token_deployer_contract_file_path,
         web3_client,
         &eth_private_key,
-        Option::<(Token, Token)>::None,
+        (Option::<u8>::None, Option::<u8>::None, Option::<u8>::None),
     )
     .await?;
 
@@ -155,12 +195,82 @@ async fn deploy_contracts(
         &tcc_contract_file_path,
         web3_client,
         &eth_private_key,
-        Some((
-            token_deployer_contract.address(),
-            SOURCE_SUBNET_ID_1.as_array().to_owned(),
-        )),
+        (
+            Some(token_deployer_contract.address()),
+            Option::<u8>::None,
+            Option::<u8>::None,
+        ),
     )
     .await?;
+
+    info!("Getting Topos Core Proxy Contract definition...");
+    // Deploy subnet smart contract proxy
+    let tcc_proxy_contract_file_path = match std::env::var(TOPOS_SMART_CONTRACTS_BUILD_PATH_VAR) {
+        Ok(path) => path + "/" + SUBNET_TCC_PROXY_JSON_DEFINITION,
+        Err(_e) => {
+            error!("Error reading contract build path from `{TOPOS_SMART_CONTRACTS_BUILD_PATH_VAR}` environment variable, using current folder {}",
+                     std::env::current_dir().unwrap().display());
+            String::from(SUBNET_TCC_PROXY_JSON_DEFINITION)
+        }
+    };
+
+    // Encode params for topos core contract proxy
+    let admin_account: Token = Token::Array(vec![Token::Address(H160::from_slice(
+        hex::decode(&TEST_ETHEREUM_ACCOUNT[2..]).unwrap().as_slice(),
+    ))]);
+    let new_admin_threshold: Token = Token::Uint(U256::from(1));
+    let encoded_params = web3::ethabi::encode(&[admin_account, new_admin_threshold]);
+
+    let topos_core_contract_proxy = deploy_contract(
+        &tcc_proxy_contract_file_path,
+        web3_client,
+        &eth_private_key,
+        (
+            Some(topos_core_contract.address()),
+            Some(encoded_params),
+            Option::<u8>::None,
+        ),
+    )
+    .await?;
+
+    // Make interface contract from ToposCoreProxy address
+    let tcc_interface_file_path = match std::env::var(TOPOS_SMART_CONTRACTS_BUILD_PATH_VAR) {
+        Ok(path) => path + "/" + SUBNET_ITCC_JSON_DEFINITION,
+        Err(_e) => {
+            error!("Error reading contract build path from `{TOPOS_SMART_CONTRACTS_BUILD_PATH_VAR}` environment variable, using current folder {}",
+                     std::env::current_dir().unwrap().display());
+            String::from(SUBNET_ITCC_JSON_DEFINITION)
+        }
+    };
+    let topos_core_contract = get_contract_interface(
+        tcc_interface_file_path.as_str(),
+        topos_core_contract_proxy.address(),
+        web3_client,
+    )?;
+
+    // Set subnet id on topos core smart contract
+    let options = web3::contract::Options {
+        gas: Some(4_000_000.into()),
+        ..Default::default()
+    };
+    match topos_core_contract
+        .signed_call_with_confirmations(
+            "setNetworkSubnetId",
+            SOURCE_SUBNET_ID_1.as_array().to_owned(),
+            options,
+            1_usize,
+            &eth_private_key,
+        )
+        .await
+    {
+        Ok(v) => {
+            info!("Subnet id successfully set on smart contract subnet_id: {SOURCE_SUBNET_ID_1} value {v:?}");
+        }
+        Err(e) => {
+            panic!("Failed to set subnet id on smart contract {e}");
+        }
+    }
+
     Ok((topos_core_contract, token_deployer_contract))
 }
 

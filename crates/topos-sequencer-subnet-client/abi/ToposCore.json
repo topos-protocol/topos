@@ -5,11 +5,6 @@
         "internalType": "address",
         "name": "tokenDeployerImplementation",
         "type": "address"
-      },
-      {
-        "internalType": "SubnetId",
-        "name": "networkSubnetId",
-        "type": "bytes32"
       }
     ],
     "stateMutability": "nonpayable",
@@ -801,19 +796,6 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "getNetworkSubnetId",
-    "outputs": [
-      {
-        "internalType": "SubnetId",
-        "name": "",
-        "type": "bytes32"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [
       {
         "internalType": "uint256",
@@ -983,6 +965,19 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "networkSubnetId",
+    "outputs": [
+      {
+        "internalType": "SubnetId",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "bytes",
@@ -1024,6 +1019,19 @@
       }
     ],
     "name": "sendToken",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "SubnetId",
+        "name": "_networkSubnetId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "setNetworkSubnetId",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
