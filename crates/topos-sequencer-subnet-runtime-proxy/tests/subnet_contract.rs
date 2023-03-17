@@ -34,7 +34,7 @@ const SUBNET_CHAIN_ID: u64 = 100;
 const SUBNET_RPC_PORT: u32 = 8545;
 const TEST_SECRET_ETHEREUM_KEY: &str =
     "5fb92d6e98884f76de468fa3f6278f8807c48bebc13595d45af5bdc4da702133";
-const TEST_ETHEREYM_ACCOUNT: &str = "0xf24FF3a9CF04c71Dbc94D0b566f7A27B94566cac";
+const TEST_ETHEREUM_ACCOUNT: &str = "0xf24FF3a9CF04c71Dbc94D0b566f7A27B94566cac";
 const POLYGON_EDGE_CONTAINER: &str = "ghcr.io/topos-network/polygon-edge";
 const POLYGON_EDGE_CONTAINER_TAG: &str = "develop";
 const SUBNET_STARTUP_DELAY: u64 = 5; // seconds left for subnet startup
@@ -241,7 +241,7 @@ async fn deploy_contracts(
 
     // Encode params for topos core contract proxy
     let admin_account: Token = Token::Array(vec![Token::Address(H160::from_slice(
-        hex::decode(&TEST_ETHEREYM_ACCOUNT[2..]).unwrap().as_slice(),
+        hex::decode(&TEST_ETHEREUM_ACCOUNT[2..]).unwrap().as_slice(),
     ))]);
     let new_admin_threshold: Token = Token::Uint(U256::from(1));
     let encoded_params = web3::ethabi::encode(&[admin_account, new_admin_threshold]);
@@ -254,7 +254,7 @@ async fn deploy_contracts(
     )
     .await?;
 
-    // Make interface contract from topos contract contract proxy
+    // Make interface contract from ToposCoreProxy address
     let tcc_interface_file_path = match std::env::var(TOPOS_SMART_CONTRACTS_BUILD_PATH_VAR) {
         Ok(path) => path + "/" + SUBNET_ITCC_JSON_DEFINITION,
         Err(_e) => {
