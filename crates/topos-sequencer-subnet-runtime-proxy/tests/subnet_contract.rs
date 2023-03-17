@@ -116,7 +116,7 @@ where
             )
             .await
     };
-    
+
     match deployment_result {
         Ok(contract) => {
             info!(
