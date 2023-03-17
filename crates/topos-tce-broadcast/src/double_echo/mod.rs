@@ -342,6 +342,10 @@ impl DoubleEcho {
 
                 self.cert_candidate
                     .insert(cert.id, (cert.clone(), delivery_state));
+
+                _ = self.event_sender.send(TceEvents::Broadcast {
+                    certificate_id: cert.id,
+                });
             }
             None => {
                 error!("Ill-formed samples");

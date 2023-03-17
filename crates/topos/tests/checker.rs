@@ -1,12 +1,7 @@
 use crate::support::network::create_network;
-use assert_cmd::{prelude::*, Command};
-use std::{net::UdpSocket, thread, time::Duration};
-use test_log::test;
-use tonic::{Request, Response, Status};
-use topos_core::api::tce::v1::{
-    console_service_server::{ConsoleService, ConsoleServiceServer},
-    PushPeerListRequest, PushPeerListResponse, StatusRequest, StatusResponse,
-};
+use assert_cmd::Command;
+use std::{thread, time::Duration};
+use topos_core::api::tce::v1::StatusRequest;
 
 mod support {
     pub mod network;
@@ -70,7 +65,7 @@ async fn assert_delivery() -> Result<(), Box<dyn std::error::Error>> {
 
     let (tx, rx) = tokio::sync::oneshot::channel::<()>();
 
-    let join = thread::spawn(|| {
+    _ = thread::spawn(|| {
         let mut cmd = Command::cargo_bin("topos").unwrap();
         cmd.env("TOPOS_LOG_FORMAT", "json");
         cmd.env("RUST_LOG", "topos=debug");
@@ -78,16 +73,17 @@ async fn assert_delivery() -> Result<(), Box<dyn std::error::Error>> {
         cmd.arg("checker")
             .arg("tce")
             .arg("assert-delivery")
-            // .args(&["--timeout-broadcast", "15"])
-            .args(&["-f", "plain"])
+            .args(["-f", "plain"])
             .arg(nodes);
 
-        let output = cmd.assert().success();
+        cmd.assert().success();
 
         tx.send(()).unwrap();
     });
 
-    rx.await.unwrap();
+    _ = tokio::time::timeout(Duration::from_secs(15), rx)
+        .await
+        .unwrap();
 
     Ok(())
 }

@@ -1,7 +1,0 @@
----
-source: crates/topos/tests/verifier.rs
-assertion_line: 90
-expression: result
----
-[2m2023-03-17T16:12:52.394947Z[0m [32m INFO[0m [1mtopos::components::verifier[0m[2m:[0m Verification passed
-

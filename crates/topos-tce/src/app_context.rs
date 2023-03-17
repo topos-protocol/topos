@@ -42,6 +42,9 @@ pub struct AppContext {
     pub pending_storage: StorageClient,
     pub gatekeeper: GatekeeperClient,
     pub synchronizer: SynchronizerClient,
+    // TODO: hack to buffer messages until certificate is gossiped, need to be moved to the future
+    // dedicated task
+    pub(crate) buffered_messages: HashMap<CertificateId, Vec<DoubleEchoCommand>>,
 }
 
 impl AppContext {
@@ -65,6 +68,7 @@ impl AppContext {
             pending_storage,
             gatekeeper,
             synchronizer,
+            buffered_messages: HashMap::new(),
         }
     }
 
@@ -215,7 +219,19 @@ impl AppContext {
                 self.api_client.set_active_sample(true).await;
             }
 
+            TceEvents::Broadcast { certificate_id } => {
+                info!("Broadcasting certificate {}", certificate_id);
+                if let Some(messages) = self.buffered_messages.remove(&certificate_id) {
+                    let sender = self.tce_cli.get_double_echo_channel();
+                    for message in messages {
+                        debug!("Sending message {:?}", message);
+                        _ = sender.send(message).await;
+                    }
+                }
+            }
+
             TceEvents::CertificateDelivered { certificate } => {
+                info!("Certificate delivered {}", certificate.id);
                 if let Ok(positions) = self
                     .pending_storage
                     .certificate_delivered(certificate.id)
@@ -523,6 +539,7 @@ impl AppContext {
             &self.network_client.local_peer_id,
             &evt
         );
+
         match evt {
             NetEvent::PeersChanged { .. } => {}
 
@@ -631,6 +648,14 @@ impl AppContext {
                                         .instrument(span)
                                         .with_context(parent)
                                         .await;
+                                } else {
+                                    debug!("Received gossip for already known certificate");
+                                    spawn(self.network_client.respond_to_request(
+                                        NetworkMessage::from(TceCommands::OnDoubleEchoOk {
+                                            from_peer: my_peer,
+                                        }),
+                                        channel,
+                                    ));
                                 }
                             }
                             TceCommands::OnEcho {
@@ -662,14 +687,14 @@ impl AppContext {
 
                                     // We have received Echo echo message, we are responding with OnDoubleEchoOk
                                     let command_sender = span.in_scope(||{
-                                    info!(
-                                    sender = from.to_string(),
-                                        "peer_id: {} on_net_event TceCommands::OnEcho from peer {} cert id: {}",
-                                        &self.network_client.local_peer_id, &from_peer, &certificate_id
-                                    );
-                                    // We have received echo message from external peer
-                                    self.tce_cli.get_double_echo_channel()
-                                });
+                                        info!(
+                                            sender = from.to_string(),
+                                            "peer_id: {} on_net_event TceCommands::OnEcho from peer {} cert id: {}",
+                                            &self.network_client.local_peer_id, &from_peer, &certificate_id
+                                        );
+                                        // We have received echo message from external peer
+                                        self.tce_cli.get_double_echo_channel()
+                                    });
                                     //We are responding with OnDoubleEchoOk to remote peer
                                     spawn(self.network_client.respond_to_request(
                                         NetworkMessage::from(TceCommands::OnDoubleEchoOk {
@@ -687,6 +712,36 @@ impl AppContext {
                                         .instrument(span)
                                         .await
                                         .expect("Receive the Echo");
+                                } else if self
+                                    .pending_storage
+                                    .get_certificate(certificate_id)
+                                    .await
+                                    .is_ok()
+                                {
+                                    info!("Received Echo for already delivered certificate {certificate_id}, ignoring");
+                                    spawn(self.network_client.respond_to_request(
+                                        NetworkMessage::from(TceCommands::OnDoubleEchoOk {
+                                            from_peer: my_peer,
+                                        }),
+                                        channel,
+                                    ));
+                                } else {
+                                    warn!("Received Echo for unknown certificate {certificate_id}, buffering");
+                                    self.buffered_messages
+                                        .entry(certificate_id)
+                                        .or_default()
+                                        .push(DoubleEchoCommand::Echo {
+                                            from_peer,
+                                            certificate_id,
+                                            ctx: span.context(),
+                                        });
+
+                                    spawn(self.network_client.respond_to_request(
+                                        NetworkMessage::from(TceCommands::OnDoubleEchoOk {
+                                            from_peer: my_peer,
+                                        }),
+                                        channel,
+                                    ));
                                 }
                             }
                             TceCommands::OnReady {
@@ -702,36 +757,76 @@ impl AppContext {
                                 );
                                 let context = ctx.extract();
                                 span.set_parent(context.clone());
-                                if let Ok(root) = self.tce_cli.get_span_cert(certificate_id).await {
-                                    span.add_link(root.span().span_context().clone());
-                                }
-                                let command_sender = span.in_scope(||{
+
+                                if self
+                                    .pending_storage
+                                    .pending_certificate_exists(certificate_id)
+                                    .await
+                                    .is_ok()
+                                {
+                                    if let Ok(root) =
+                                        self.tce_cli.get_span_cert(certificate_id).await
+                                    {
+                                        span.add_link(root.span().span_context().clone());
+                                    }
+                                    let command_sender = span.in_scope(||{
 
                                     // We have received Ready echo message, we are responding with OnDoubleEchoOk
                                     info!(
-                                    sender = from.to_string(),
-                                        "peer_id {} on_net_event TceCommands::OnReady from peer {} cert id: {}",
-                                        &self.network_client.local_peer_id, &from_peer, &certificate_id
-                                    );
-                                    self.tce_cli.get_double_echo_channel()
-                                });
+                                        sender = from.to_string(),
+                                            "peer_id {} on_net_event TceCommands::OnReady from peer {} cert id: {}",
+                                            &self.network_client.local_peer_id, &from_peer, &certificate_id
+                                        );
+                                        self.tce_cli.get_double_echo_channel()
+                                    });
 
-                                spawn(self.network_client.respond_to_request(
-                                    NetworkMessage::from(TceCommands::OnDoubleEchoOk {
-                                        from_peer: my_peer,
-                                    }),
-                                    channel,
-                                ));
-                                command_sender
-                                    .send(DoubleEchoCommand::Ready {
-                                        from_peer,
-                                        certificate_id,
-                                        ctx: span.context(),
-                                    })
-                                    .with_context(context)
-                                    .instrument(span)
+                                    spawn(self.network_client.respond_to_request(
+                                        NetworkMessage::from(TceCommands::OnDoubleEchoOk {
+                                            from_peer: my_peer,
+                                        }),
+                                        channel,
+                                    ));
+                                    command_sender
+                                        .send(DoubleEchoCommand::Ready {
+                                            from_peer,
+                                            certificate_id,
+                                            ctx: span.context(),
+                                        })
+                                        .with_context(context)
+                                        .instrument(span)
+                                        .await
+                                        .expect("Receive the Ready");
+                                } else if self
+                                    .pending_storage
+                                    .get_certificate(certificate_id)
                                     .await
-                                    .expect("Receive the Ready");
+                                    .is_ok()
+                                {
+                                    info!("Received Ready for already delivered certificate {certificate_id}, ignoring");
+                                    spawn(self.network_client.respond_to_request(
+                                        NetworkMessage::from(TceCommands::OnDoubleEchoOk {
+                                            from_peer: my_peer,
+                                        }),
+                                        channel,
+                                    ));
+                                } else {
+                                    warn!("Received Ready for unknown certificate {certificate_id}, buffering");
+                                    self.buffered_messages
+                                        .entry(certificate_id)
+                                        .or_default()
+                                        .push(DoubleEchoCommand::Ready {
+                                            from_peer,
+                                            certificate_id,
+                                            ctx: span.context(),
+                                        });
+
+                                    spawn(self.network_client.respond_to_request(
+                                        NetworkMessage::from(TceCommands::OnDoubleEchoOk {
+                                            from_peer: my_peer,
+                                        }),
+                                        channel,
+                                    ));
+                                }
                             }
                             _ => todo!(),
                         }

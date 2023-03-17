@@ -143,7 +143,7 @@ impl Stream {
                     )))
                     .await
                 {
-                    error!(%error, "Can't forward WatchCertificatesResponse to stream, channel seems dropped");
+                    error!(%error, "Can't forward WatchCertificatesResponse to stream, channel seems dropped certificate {certificate_id}");
 
                     return Err(StreamError::new(
                         self.stream_id,

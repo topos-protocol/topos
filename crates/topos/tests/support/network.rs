@@ -63,11 +63,6 @@ impl TestNodeContext {
     }
 }
 
-pub fn sample_lower_bound(n_u: usize) -> usize {
-    let k: f32 = 2.;
-    (n_u as f32).log(k) as usize
-}
-
 pub(crate) async fn create_network(
     peer_number: usize,
     correct_sample: usize,

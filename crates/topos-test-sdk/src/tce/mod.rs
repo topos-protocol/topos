@@ -37,6 +37,7 @@ pub mod synchronizer;
 #[derive(Debug)]
 pub struct TceContext {
     pub peer_id: PeerId, // P2P ID
+    pub api_entrypoint: String,
     pub command_sampler: mpsc::Sender<SamplerCommand>,
     pub command_broadcast: mpsc::Sender<DoubleEchoCommand>,
     pub api_grpc_client: ApiServiceClient<Channel>, // GRPC Client for this peer (tce node)
@@ -175,6 +176,7 @@ pub async fn start_node(
 
     TceContext {
         peer_id,
+        api_entrypoint: api_context.entrypoint,
         command_sampler,
         command_broadcast,
         api_grpc_client: api_context.api_client,

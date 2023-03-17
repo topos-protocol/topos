@@ -16,6 +16,7 @@ use topos_tce_storage::StorageClient;
 use crate::storage::storage_client;
 
 pub struct PublicApiContext {
+    pub entrypoint: String,
     pub client: RuntimeClient,
     pub api_client: ApiServiceClient<Channel>,
     pub console_client: ConsoleServiceClient<Channel>,
@@ -36,22 +37,26 @@ pub async fn create_public_api(
     let addr = default_public_api_addr;
     let api_port = addr.port();
 
+    let api_endpoint = format!("http://0.0.0.0:{api_port}");
     let (client, stream) = topos_tce_api::Runtime::builder()
         .serve_addr(addr)
         .storage(storage_client)
         .build_and_launch()
         .await;
 
-    let api_endpoint = format!("http://127.0.0.1:{api_port}");
-
-    let channel = channel::Endpoint::from_str(&api_endpoint)
+    let api_channel = channel::Endpoint::from_str(&api_endpoint)
         .unwrap()
         .connect_lazy();
 
-    let api_client = ApiServiceClient::new(channel.clone());
-    let console_client = ConsoleServiceClient::new(channel);
+    let console_channel = channel::Endpoint::from_str(&api_endpoint)
+        .unwrap()
+        .connect_lazy();
+
+    let api_client = ApiServiceClient::new(api_channel);
+    let console_client = ConsoleServiceClient::new(console_channel);
 
     let context = PublicApiContext {
+        entrypoint: api_endpoint,
         client,
         api_client,
         console_client,

@@ -20,12 +20,11 @@ use topos_core::{
         tce::v1::{
             watch_certificates_request::OpenStream,
             watch_certificates_response::{CertificatePushed, Event},
-            PushPeerListRequest, StatusRequest, SubmitCertificateRequest,
+            StatusRequest, SubmitCertificateRequest,
         },
     },
     uci::{Certificate, SubnetId},
 };
-use topos_test_sdk::tce::TceContext;
 use tracing::{debug, info};
 
 const NUMBER_OF_SUBNETS_PER_CLIENT: usize = 1;
