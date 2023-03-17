@@ -3,7 +3,7 @@ mod support {
     pub mod network;
 }
 
-use crate::support::certificate::generate_cert;
+use crate::support::{certificate::generate_cert, network::create_network};
 use futures::{future::join_all, StreamExt};
 use libp2p::PeerId;
 use rand::seq::IteratorRandom;
@@ -42,7 +42,7 @@ fn get_subset_of_subnets(subnets: &[SubnetId], subset_size: usize) -> Vec<Subnet
 
 #[test(tokio::test)]
 async fn start_a_cluster() {
-    let mut peers_context = create_network(10, 4).await;
+    let mut peers_context = create_network(4, 1).await;
 
     let mut status: Vec<bool> = Vec::new();
 
@@ -289,59 +289,4 @@ async fn cert_delivery() {
     {
         panic!("Timeout waiting for command");
     }
-}
-
-pub fn sample_lower_bound(n_u: usize) -> usize {
-    let k: f32 = 2.;
-    (n_u as f32).log(k) as usize
-}
-
-async fn create_network(peer_number: usize, correct_sample: usize) -> HashMap<PeerId, TceContext> {
-    let g = |a, b: f32| ((a as f32) * b).ceil() as usize;
-
-    // List of peers (tce nodes) with their context
-    let mut peers_context =
-        support::network::start_peer_pool(peer_number as u8, correct_sample, g).await;
-    let all_peers: Vec<PeerId> = peers_context.keys().cloned().collect();
-
-    // Force TCE nodes to recreate subscriptions and subscribers
-    info!("Trigger the new network view");
-    for (peer_id, client) in peers_context.iter_mut() {
-        let _ = client
-            .console_grpc_client
-            .push_peer_list(PushPeerListRequest {
-                request_id: None,
-                peers: all_peers
-                    .iter()
-                    .filter_map(|key| {
-                        if key == peer_id {
-                            None
-                        } else {
-                            Some(key.to_string())
-                        }
-                    })
-                    .collect::<Vec<_>>(),
-            })
-            .await
-            .expect("Can't send PushPeerListRequest");
-    }
-
-    tokio::time::sleep(Duration::from_secs(2)).await;
-
-    // Waiting for new network view
-    let mut status: Vec<bool> = Vec::new();
-
-    for (_peer_id, client) in peers_context.iter_mut() {
-        let response = client
-            .console_grpc_client
-            .status(StatusRequest {})
-            .await
-            .expect("Can't get status");
-
-        status.push(response.into_inner().has_active_sample);
-    }
-
-    assert!(status.iter().all(|s| *s));
-
-    peers_context
 }

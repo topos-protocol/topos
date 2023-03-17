@@ -44,20 +44,28 @@ pub(crate) async fn handle_command(
                 Some(CheckerTceCommands::AssertDelivery(AssertDelivery {
                     timeout_broadcast,
                     format,
-                    peers,
+                    nodes: peers,
                     timeout,
                 })),
         })) => {
-            if services::check_delivery(timeout_broadcast, format, peers, timeout)
+            setup_tracing(verbose, None, None)?;
+
+            match services::check_delivery(timeout_broadcast, format, peers, timeout)
                 .await
-                .map_err(Box::<dyn std::error::Error>::from)?
-                .is_err()
+                .map_err(Box::<dyn std::error::Error>::from)
             {
-                error!("check failed");
-                std::process::exit(1);
-            } else {
-                info!("check passed");
-                Ok(())
+                Err(_) => {
+                    error!("Check failed due to timeout");
+                    std::process::exit(1);
+                }
+                Ok(Err(errors)) => {
+                    error!("Check failed due to errors: {:?}", errors);
+                    std::process::exit(1);
+                }
+                _ => {
+                    info!("Check passed");
+                    Ok(())
+                }
             }
         }
         _ => todo!(),

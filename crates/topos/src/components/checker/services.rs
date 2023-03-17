@@ -16,7 +16,7 @@ use topos_core::{
     },
     uci::Certificate,
 };
-use tracing::trace;
+use tracing::{debug, info, trace};
 
 use crate::{
     components::checker::parser::NodeList,
@@ -47,7 +47,6 @@ pub(crate) async fn check_delivery(
             .try_into()
             .map_err(|_| vec![format!("Unable to parse the peer address")])?;
 
-        trace!("selected: {:?}", random_peer);
         let pushed_certificate = Certificate::new(
             [0u8; 32],
             [1u8; 32].into(),
@@ -95,6 +94,7 @@ pub(crate) async fn check_delivery(
                         source_checkpoint: None
                     }.into()
                 };
+
                 let response = client.watch_certificates(in_stream).await.map_err(|_| {
                     (
                         peer_string.clone(),
@@ -102,8 +102,7 @@ pub(crate) async fn check_delivery(
                     )
                 })?;
                 let mut resp_stream = response.into_inner();
-
-                tokio::time::timeout(Duration::from_secs(timeout_broadcast), async move {
+                async move {
                     while let Some(received) = resp_stream.next().await {
                         let received = received.unwrap();
                         if let Some(Event::CertificatePushed(CertificatePushed {
@@ -113,15 +112,15 @@ pub(crate) async fn check_delivery(
                         {
                             // unwrap is safe because we are sure that the certificate is present
                             if certificate_id == certificate.id.unwrap() {
+                                debug!("Received the certificate on {}", peer_string);
                                 return Ok(());
                             }
                         }
                     }
 
-                    Err((peer_string.clone(), "didn't received any certificate"))
-                })
+                    Err((peer_string.clone(), "didn't receive any certificate"))
+                }
                 .await
-                .map_err(|_| (peer.clone(), "Timeout waiting for event"))?
             }));
         }
 
@@ -170,4 +169,8 @@ pub(crate) async fn check_delivery(
         }
     })
     .await
+    .map_err(|error| {
+        info!("Timeout reached: {:?}", error);
+        error
+    })
 }

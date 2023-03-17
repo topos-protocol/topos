@@ -18,5 +18,5 @@ pub(crate) struct AssertDelivery {
     /// The node list to be used, can be a file path or a comma separated list of Uri. If
     /// not provided, stdin is listened.
     #[arg(env = "TARGET_NODES_PATH")]
-    pub(crate) peers: Option<String>,
+    pub(crate) nodes: Option<String>,
 }

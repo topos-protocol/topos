@@ -23,5 +23,6 @@ pub(crate) struct CheckerTceCommand {
 
 #[derive(Subcommand, Clone, Debug)]
 pub(crate) enum CheckerTceCommands {
+    /// Assert that a delivery was made to a list of peers
     AssertDelivery(AssertDelivery),
 }
