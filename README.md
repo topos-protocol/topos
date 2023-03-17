@@ -22,8 +22,6 @@ topos is the unified command line interface to the <a href="https://docs.toposwa
 ![example workflow](https://github.com/topos-network/topos/actions/workflows/test.yml/badge.svg)
 ![example workflow](https://github.com/topos-network/topos/actions/workflows/format.yml/badge.svg)
 ![example workflow](https://github.com/topos-network/topos/actions/workflows/lint.yml/badge.svg)
-[![](https://dcbadge.vercel.app/api/server/7HZ8F8ykBT?style=flat)](https://discord.gg/7HZ8F8ykBT)
-
 
 ## Getting Started
 
@@ -38,6 +36,7 @@ cargo install topos --git https://github.com/topos-network/topos
 ```
 
 **Try out `topos`!**
+
 ```
 topos --help
 ```
@@ -55,9 +54,10 @@ Feel free to [open an issue](https://github.com/topos-network/topos/issues/new) 
 If you have any questions, do not hesitate to reach us on [Discord](https://discord.gg/7HZ8F8ykBT)!
 
 ## Resources
-- Website: https://toposware.com
-- Technical Documentation: https://docs.toposware.com
-- Medium: https://toposware.medium.com
+
+- Website: <https://toposware.com>
+- Technical Documentation: <https://docs.toposware.com>
+- Medium: <https://toposware.medium.com>
 - Whitepaper: [Topos: A Secure, Trustless, and Decentralized
   Interoperability Protocol](https://arxiv.org/pdf/2206.03481.pdf)
 
