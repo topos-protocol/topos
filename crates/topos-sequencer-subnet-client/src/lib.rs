@@ -413,7 +413,7 @@ impl SubnetClient {
             let data: Token = self
                 .contract
                 .query(
-                    "getNetworkSubnetId",
+                    "networkSubnetId",
                     (),
                     None,
                     web3::contract::Options::default(),
