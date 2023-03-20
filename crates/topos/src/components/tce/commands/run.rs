@@ -41,18 +41,6 @@ pub struct Run {
     #[clap(long, default_value = "./default_db/", env = "TCE_DB_PATH")]
     pub db_path: Option<String>,
 
-    /// Socket of the Jaeger agent endpoint
-    #[clap(
-        long,
-        default_value = "http://otel-collector:4317",
-        env = "TCE_JAEGER_AGENT"
-    )]
-    pub jaeger_agent: String,
-
-    /// Jaeger service name
-    #[clap(long, default_value = "topos", env = "TCE_JAEGER_SERVICE_NAME")]
-    pub jaeger_service_name: String,
-
     /// gRPC API Addr
     #[clap(long, env = "TCE_API_ADDR", default_value = "[::1]:1340")]
     pub api_addr: SocketAddr,
@@ -60,6 +48,16 @@ pub struct Run {
     /// Broadcast parameters
     #[command(flatten)]
     pub tce_params: ReliableBroadcastParams,
+
+    /// Socket of the opentelemetry agent endpoint
+    /// If not provided open telemetry will not be used
+    #[arg(long, env = "TOPOS_OTLP_AGENT")]
+    pub otlp_agent: Option<String>,
+
+    /// Otlp service name
+    /// If not provided open telemetry will not be used
+    #[arg(long, env = "TOPOS_OTLP_SERVICE_NAME")]
+    pub otlp_service_name: Option<String>,
 }
 
 impl Run {

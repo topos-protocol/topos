@@ -18,8 +18,6 @@ use tracing::{debug, info};
 #[derive(Debug)]
 pub struct TceConfiguration {
     pub local_key_seed: Option<Vec<u8>>,
-    pub jaeger_agent: String,
-    pub jaeger_service_name: String,
     pub tce_params: ReliableBroadcastParams,
     pub boot_peers: Vec<(PeerId, Multiaddr)>,
     pub api_addr: SocketAddr,

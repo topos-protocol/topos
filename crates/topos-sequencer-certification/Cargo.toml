@@ -23,6 +23,9 @@ tokio = { workspace = true, features = [
 ] }
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 tracing.workspace = true
+tracing-opentelemetry.workspace = true
+opentelemetry.workspace = true
+futures.workspace = true
 
 topos-sequencer-types = { package = "topos-sequencer-types", path = "../topos-sequencer-types" }
 topos-core = { workspace = true, features = ["uci"] }

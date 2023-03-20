@@ -6,7 +6,8 @@ use topos_sequencer_certification::CertificationWorker;
 use topos_sequencer_subnet_runtime_proxy::SubnetRuntimeProxyWorker;
 use topos_sequencer_tce_proxy::TceProxyWorker;
 use topos_sequencer_types::*;
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, info_span, warn, Instrument};
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 /// Top-level transducer sequencer app context & driver (alike)
 ///
@@ -69,18 +70,28 @@ impl AppContext {
         debug!("on_runtime_proxy_event : {:?}", &evt);
         // This will always be a runtime proxy event
         let event = Event::RuntimeProxyEvent(evt);
-        // TODO: error handling
-        let _ = self.certification_worker.eval(event);
-        //self.dkg_worker.eval(evt);
+        if let Err(e) = self.certification_worker.eval(event).await {
+            error!("Unable to evaluate subnet runtime proxy event {e}");
+        }
     }
 
     async fn on_certification_event(&mut self, evt: CertificationEvent) {
         debug!("on_certification_event : {:?}", &evt);
         match evt {
-            CertificationEvent::NewCertificate(cert) => {
-                self.tce_proxy_worker
-                    .send_command(TceProxyCommand::SubmitCertificate(Box::new(cert)))
-                    .expect("Submit Certificate to TCE");
+            CertificationEvent::NewCertificate { cert, ctx } => {
+                let span = info_span!("Sequencer app context");
+                span.set_parent(ctx);
+                if let Err(e) = self
+                    .tce_proxy_worker
+                    .send_command(TceProxyCommand::SubmitCertificate {
+                        cert: Box::new(cert),
+                        ctx: span.context(),
+                    })
+                    .instrument(span)
+                    .await
+                {
+                    error!("Unable to send tce proxy command {e}");
+                }
             }
         }
     }

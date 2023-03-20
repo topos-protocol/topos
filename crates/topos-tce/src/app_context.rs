@@ -24,8 +24,7 @@ use topos_tce_storage::events::StorageEvent;
 use topos_tce_storage::StorageClient;
 use topos_tce_synchronizer::{SynchronizerClient, SynchronizerEvent};
 use topos_telemetry::PropagationContext;
-use tracing::log::warn;
-use tracing::{debug, error, info, info_span, trace, Instrument};
+use tracing::{debug, error, info, info_span, trace, warn, Instrument};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 /// Top-level transducer main app context & driver (alike)
@@ -187,6 +186,7 @@ impl AppContext {
                 //Currently, for subnet starting from scratch there are no certificates in the database
                 // So for MissingHeadForSubnet error we will return some default dummy certificate
                 if let Err(RuntimeError::UnknownSubnet(subnet_id)) = result {
+                    warn!("Returning dummy certificate as head certificate, to be fixed...");
                     result = Ok((
                         0,
                         topos_core::uci::Certificate {

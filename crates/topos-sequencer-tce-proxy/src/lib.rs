@@ -17,7 +17,8 @@ use topos_core::{
     uci::{Certificate, SubnetId},
 };
 use topos_sequencer_types::*;
-use tracing::{error, info, warn};
+use tracing::{error, info, info_span, warn, Instrument};
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 const CERTIFICATE_OUTBOUND_CHANNEL_SIZE: usize = 100;
 const CERTIFICATE_INBOUND_CHANNEL_SIZE: usize = 100;
@@ -70,8 +71,8 @@ pub struct TceProxyConfig {
 /// 2) Submit the new certificate to the TCE
 pub struct TceProxyWorker {
     pub config: TceProxyConfig,
-    commands: mpsc::UnboundedSender<TceProxyCommand>,
-    events: mpsc::UnboundedReceiver<TceProxyEvent>,
+    commands: mpsc::Sender<TceProxyCommand>,
+    events: mpsc::Receiver<TceProxyEvent>,
 }
 
 enum TceClientCommand {
@@ -150,7 +151,7 @@ impl TceClient {
 pub struct TceClientBuilder {
     tce_endpoint: Option<String>,
     subnet_id: Option<SubnetId>,
-    tce_proxy_event_sender: Option<mpsc::UnboundedSender<TceProxyEvent>>,
+    tce_proxy_event_sender: Option<mpsc::Sender<TceProxyEvent>>,
 }
 
 impl TceClientBuilder {
@@ -166,7 +167,7 @@ impl TceClientBuilder {
 
     pub fn set_proxy_event_sender(
         mut self,
-        tce_proxy_event_sender: mpsc::UnboundedSender<TceProxyEvent>,
+        tce_proxy_event_sender: mpsc::Sender<TceProxyEvent>,
     ) -> Self {
         self.tce_proxy_event_sender = Some(tce_proxy_event_sender);
         self
@@ -301,7 +302,7 @@ impl TceClientBuilder {
                                 );
                                 // Send warning to restart TCE proxy
                                 if let Some(tce_proxy_event_sender) = tce_proxy_event_sender.clone() {
-                                    if let Err(e) = tce_proxy_event_sender.send(TceProxyEvent::WatchCertificatesChannelFailed) {
+                                    if let Err(e) = tce_proxy_event_sender.send(TceProxyEvent::WatchCertificatesChannelFailed).await {
                                           error!("Unable to send watch certificates channel failed signal: {e}");
                                     }
                                 }
@@ -455,8 +456,8 @@ async fn connect_to_tce_service_with_retry(
 
 impl TceProxyWorker {
     pub async fn new(config: TceProxyConfig) -> Result<(Self, Option<Certificate>), Error> {
-        let (command_sender, mut command_rcv) = mpsc::unbounded_channel::<TceProxyCommand>();
-        let (evt_sender, evt_rcv) = mpsc::unbounded_channel::<TceProxyEvent>();
+        let (command_sender, mut command_rcv) = mpsc::channel::<TceProxyCommand>(128);
+        let (evt_sender, evt_rcv) = mpsc::channel::<TceProxyEvent>(128);
 
         let (mut tce_client, mut receiving_certificate_stream) = TceClientBuilder::default()
             .set_subnet_id(config.subnet_id)
@@ -491,14 +492,15 @@ impl TceProxyWorker {
                     // process TCE proxy commands received from application
                     Some(cmd) = command_rcv.recv() => {
                         match cmd {
-                            TceProxyCommand::SubmitCertificate(cert) => {
-                                info!(
-                                    "Submitting new certificate to the TCE network: {:?}",
-                                    &cert
-                                );
-                                if let Err(e) = tce_client.send_certificate(*cert).await {
-                                    error!("Failure on the submission of the Certificate to the TCE client: {e}");
-                                }
+                            TceProxyCommand::SubmitCertificate{cert, ctx} => {
+                                let span = info_span!("Sequencer TCE Proxy");
+                                span.set_parent(ctx);
+                                async {
+                                    info!("Submitting new certificate to the TCE network: {}", &cert.id);
+                                    if let Err(e) = tce_client.send_certificate(*cert).await {
+                                        error!("Failure on the submission of the Certificate to the TCE client: {e}");
+                                    }
+                                }.instrument(span).await;
                             }
                             TceProxyCommand::Shutdown(sender) => {
                                 info!("Received TceProxyCommand::Shutdown command, closing tce client...");
@@ -513,7 +515,9 @@ impl TceProxyWorker {
                      // Process certificates received from the TCE node
                     Some((cert, target_stream_position)) = receiving_certificate_stream.next() => {
                         info!("Received certificate from TCE {:?}, target stream position {}", cert, target_stream_position.position);
-                        evt_sender.send(TceProxyEvent::NewDeliveredCerts(vec![(cert, target_stream_position.position)])).expect("send");
+                        if let Err(e) = evt_sender.send(TceProxyEvent::NewDeliveredCerts(vec![(cert, target_stream_position.position)])).await {
+                            error!("Unable to send NewDeliveredCerts event {e}");
+                        }
                     }
                 }
             }
@@ -535,8 +539,8 @@ impl TceProxyWorker {
     }
 
     /// Send commands to TCE
-    pub fn send_command(&self, cmd: TceProxyCommand) -> Result<(), String> {
-        match self.commands.send(cmd) {
+    pub async fn send_command(&self, cmd: TceProxyCommand) -> Result<(), String> {
+        match self.commands.send(cmd).await {
             Ok(_) => Ok(()),
             Err(e) => Err(e.to_string()),
         }
@@ -552,7 +556,7 @@ impl TceProxyWorker {
     pub async fn shutdown(&self) -> Result<(), String> {
         info!("Shutting down TCE proxy worker...");
         let (sender, receiver) = oneshot::channel();
-        match self.commands.send(TceProxyCommand::Shutdown(sender)) {
+        match self.commands.send(TceProxyCommand::Shutdown(sender)).await {
             Ok(_) => {}
             Err(e) => {
                 error!("Error sending shutdown signal to TCE worker {e}");

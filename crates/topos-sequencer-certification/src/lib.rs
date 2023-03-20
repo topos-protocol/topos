@@ -44,8 +44,8 @@ pub enum Error {
 #[derive(Debug)]
 pub struct CertificationWorker {
     certification: Arc<Mutex<Certification>>,
-    commands: mpsc::UnboundedSender<CertificationCommand>,
-    events: mpsc::UnboundedReceiver<CertificationEvent>,
+    commands: mpsc::Sender<CertificationCommand>,
+    events: mpsc::Receiver<CertificationEvent>,
 }
 
 impl CertificationWorker {
@@ -63,7 +63,7 @@ impl CertificationWorker {
         let mut b_aggr = w_aggr.lock().await;
         let commands = b_aggr.commands_channel.clone();
 
-        let (events_sender, events_rcv) = mpsc::unbounded_channel::<CertificationEvent>();
+        let (events_sender, events_rcv) = mpsc::channel::<CertificationEvent>(128);
         b_aggr.events_subscribers.push(events_sender);
 
         Ok(Self {
@@ -74,19 +74,16 @@ impl CertificationWorker {
     }
 
     /// Schedule command for execution
-    pub fn eval(&self, event: Event) -> Result<(), Error> {
+    pub async fn eval(&self, event: Event) -> Result<(), Error> {
         match event {
             Event::RuntimeProxyEvent(runtime_proxy_event) => match runtime_proxy_event {
                 SubnetRuntimeProxyEvent::BlockFinalized(block_info) => {
                     let cmd = CertificationCommand::AddFinalizedBlock(block_info);
-                    let _ = self.commands.send(cmd);
+                    if let Err(e) = self.commands.send(cmd).await {
+                        error!("Unable to send certification command {e}");
+                    };
                 }
                 SubnetRuntimeProxyEvent::NewEra(_) => (),
-            },
-            Event::CertificationEvent(certification_event) => match certification_event {
-                CertificationEvent::NewCertificate(_cert) => {
-                    unimplemented!();
-                }
             },
         }
         Ok(())
@@ -157,7 +154,7 @@ mod tests {
             number: 10_u64,
             ..Default::default()
         }));
-        match cert_worker.eval(event) {
+        match cert_worker.eval(event).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("Unable to evaluate certification event: {e:?}")

@@ -31,6 +31,7 @@ tonic = { workspace = true, features = ["transport"] }
 tracing-subscriber = { workspace = true, features = ["env-filter", "json", "ansi", "fmt"] }
 tracing.workspace = true
 uuid.workspace = true
+tracing-opentelemetry.workspace = true
 
 [dev-dependencies]
 topos-tce-transport = { path = "../topos-tce-transport" }

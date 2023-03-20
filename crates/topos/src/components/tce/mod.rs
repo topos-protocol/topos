@@ -20,6 +20,7 @@ use tower::Service;
 use tracing::{debug, error, info, trace};
 
 use crate::options::input_format::{InputFormat, Parser};
+use crate::tracing::setup_tracing;
 
 use self::commands::{TceCommand, TceCommands};
 
@@ -64,9 +65,12 @@ pub(crate) async fn handle_command(
         mut endpoint,
         subcommands,
     }: TceCommand,
+    verbose: u8,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match subcommands {
         Some(TceCommands::PushPeerList(cmd)) => {
+            setup_tracing(verbose, None, None)?;
+
             debug!("Start executing PushPeerList command");
             trace!("Building the gRPC client with {:?}", endpoint);
 
@@ -89,8 +93,6 @@ pub(crate) async fn handle_command(
             let config = TceConfiguration {
                 boot_peers: cmd.parse_boot_peers(),
                 local_key_seed: cmd.local_key_seed.map(|s| s.as_bytes().to_vec()),
-                jaeger_agent: cmd.jaeger_agent,
-                jaeger_service_name: cmd.jaeger_service_name,
                 tce_addr: cmd.tce_ext_host,
                 tce_local_port: cmd.tce_local_port,
                 tce_params: cmd.tce_params,
@@ -103,6 +105,9 @@ pub(crate) async fn handle_command(
                 network_bootstrap_timeout: Duration::from_secs(10),
                 version: env!("TOPOS_VERSION"),
             };
+
+            // Setup instrumentation if both otlp agent and otlp service name are provided as arguments
+            setup_tracing(verbose, cmd.otlp_agent, cmd.otlp_service_name)?;
 
             print_node_info(&config);
 
@@ -134,6 +139,8 @@ pub(crate) async fn handle_command(
         }
 
         Some(TceCommands::Keys(cmd)) => {
+            setup_tracing(verbose, None, None)?;
+
             if let Some(slice) = cmd.from_seed {
                 println!(
                     "{}",
@@ -147,6 +154,8 @@ pub(crate) async fn handle_command(
         }
 
         Some(TceCommands::Status(status)) => {
+            setup_tracing(verbose, None, None)?;
+
             debug!("Start executing Status command");
             trace!("Building the gRPC client with {:?}", endpoint);
             let endpoint = endpoint.take().unwrap();
@@ -176,7 +185,6 @@ pub fn print_node_info(config: &TceConfiguration) {
     }
 
     info!("API gRPC endpoint reachable at {}", config.api_addr);
-    info!("Jaeger Agent reached at {}", config.jaeger_agent);
     info!("Broadcast Parameters {:?}", config.tce_params);
 }
 
