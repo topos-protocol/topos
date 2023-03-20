@@ -69,6 +69,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ..
     }) = args.commands
     {
+        let resources = build_resources();
+
         global::set_text_map_propagator(TraceContextPropagator::new());
         let tracer = opentelemetry_otlp::new_pipeline()
             .tracing()
@@ -85,14 +87,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .with_max_attributes_per_span(16)
                     .with_max_events_per_span(16)
                     // resources will translated to tags in jaeger spans
-                    .with_resource(Resource::new(vec![
-                        KeyValue::new(
-                            "service.name",
-                            std::env::var("TCE_JAEGER_SERVICE_NAME")
-                                .expect("TCE_JAEGER_SERVICE_NAME must be defined"),
-                        ),
-                        KeyValue::new("service.version", env!("TOPOS_VERSION")),
-                    ])),
+                    .with_resource(Resource::new(resources)),
             )
             .install_batch(opentelemetry::runtime::Tokio)
             .unwrap();
@@ -132,6 +127,40 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         #[cfg(feature = "sequencer")]
         options::ToposCommand::Sequencer(cmd) => components::sequencer::handle_command(cmd).await,
     }
+}
+
+fn build_resources() -> Vec<KeyValue> {
+    let mut resources = Vec::new();
+
+    resources.push(KeyValue::new(
+        "service.name",
+        std::env::var("TCE_JAEGER_SERVICE_NAME").expect("TCE_JAEGER_SERVICE_NAME must be defined"),
+    ));
+
+    resources.push(KeyValue::new("service.version", env!("TOPOS_VERSION")));
+
+    let custom_resources: Vec<_> = std::env::var("TOPOS_OTLP_TAGS")
+        .unwrap_or_default()
+        .split(',')
+        // NOTE: limit to 10 tags to avoid exploit
+        .take(10)
+        .filter_map(|tag_raw| {
+            let mut v = tag_raw.splitn(2, '=');
+            match (v.next(), v.next()) {
+                (Some(key), Some(value)) if !key.trim().is_empty() && !value.trim().is_empty() => {
+                    Some(KeyValue::new(
+                        key.trim().to_string(),
+                        value.trim().to_string(),
+                    ))
+                }
+                _ => None,
+            }
+        })
+        .collect();
+
+    resources.extend(custom_resources);
+
+    resources
 }
 
 fn verbose_to_level(verbose: u8) -> Level {
