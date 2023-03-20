@@ -29,16 +29,12 @@ jobs:
           echo "UID=${uid}" >> $GITHUB_ENV
         shell: bash
 
-      - uses: actions/github-script@v6
+      - uses: convictional/trigger-workflow-and-wait@v1.6.1
         with:
-          github-token: ${{ secrets.ROBOT_TOPOSWARE_K8S_E2E_RW }}
-          script: |
-            await github.rest.actions.createWorkflowDispatch({
-              owner: 'toposware',
-              repo: 'k8s-e2e',
-              workflow_id: 'test.yml',
-              ref: 'main',
-              inputs: {
-                uid: '${{ env.UID }}'
-              },
-            })
+          owner: toposware
+          repo: k8s-e2e
+          github_token: ${{ secrets.ROBOT_TOPOSWARE_K8S_E2E_RW }}
+          workflow_file_name: test.yml
+          ref: main
+          wait_interval: 60
+          client_payload: '{ "uid": "${{ env.UID }}"}'
