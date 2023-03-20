@@ -40,12 +40,12 @@ pub struct Run {
 
     /// Socket of the opentelemetry agent endpoint
     /// If not provided open telemetry will not be used
-    #[arg(long, env = "TOPOS_OTLP_AGENT", global = true)]
+    #[arg(long, env = "TOPOS_OTLP_AGENT")]
     pub otlp_agent: Option<String>,
 
     /// Otlp service name
     /// If not provided open telemetry will not be used
-    #[arg(long, env = "TOPOS_OTLP_SERVICE_NAME", global = true)]
+    #[arg(long, env = "TOPOS_OTLP_SERVICE_NAME")]
     pub otlp_service_name: Option<String>,
 }
 
