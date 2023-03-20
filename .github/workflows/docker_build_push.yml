@@ -24,9 +24,9 @@ jobs:
     steps:
       - name: Set environment
         run: |
-          sha=${{ github.sha }}
-          uid="${sha:0:6}-${{ github.run_number }}"
-          echo "UID=${uid}" >> $GITHUB_ENV
+          # It's fine to assume a single tag. Our tagging strategy follows a 1:1 mapping of image:tag
+          tags=${{ needs.docker.outputs.tags }}
+          echo "docker_tag=${tags#*:}" >> $GITHUB_ENV
         shell: bash
 
       - uses: convictional/trigger-workflow-and-wait@v1.6.1
@@ -37,4 +37,4 @@ jobs:
           workflow_file_name: test.yml
           ref: main
           wait_interval: 60
-          client_payload: '{ "uid": "${{ env.UID }}"}'
+          client_payload: '{ "git_commit": "${{ github.sha }}", "docker_tag": "${{ env.docker_tag }}" }'
