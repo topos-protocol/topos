@@ -183,7 +183,7 @@ async fn fetch_certificates_for_subnets(storage: RocksDBStorage) {
 
     storage.persist(&other_certificate, None).await.unwrap();
     let mut expected_certificates =
-        create_certificate_chain(SOURCE_SUBNET_ID_1, TARGET_SUBNET_ID_1, 10);
+        create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], 10);
 
     for cert in &expected_certificates {
         storage.persist(cert, None).await.unwrap();
@@ -295,14 +295,14 @@ async fn pending_certificate_can_be_removed(storage: RocksDBStorage) {
 #[test(tokio::test)]
 async fn get_source_head_for_subnet(storage: RocksDBStorage) {
     let expected_certificates_for_source_subnet =
-        create_certificate_chain(SOURCE_SUBNET_ID_1, TARGET_SUBNET_ID_2, 10);
+        create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_2], 10);
 
     for cert in &expected_certificates_for_source_subnet {
         storage.persist(cert, None).await.unwrap();
     }
 
     let expected_certificates_for_source_subnet_a =
-        create_certificate_chain(TARGET_SUBNET_ID_1, TARGET_SUBNET_ID_2, 10);
+        create_certificate_chain(TARGET_SUBNET_ID_1, &[TARGET_SUBNET_ID_2], 10);
 
     for cert in &expected_certificates_for_source_subnet_a {
         storage.persist(cert, None).await.unwrap();

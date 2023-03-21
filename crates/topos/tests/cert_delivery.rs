@@ -1,9 +1,3 @@
-mod support {
-    pub mod certificate;
-    pub mod network;
-}
-
-use crate::support::{certificate::generate_cert, network::create_network};
 use futures::{future::join_all, StreamExt};
 use libp2p::PeerId;
 use rand::seq::IteratorRandom;
@@ -25,6 +19,7 @@ use topos_core::{
     },
     uci::{Certificate, SubnetId},
 };
+use topos_test_sdk::{certificates::create_certificate_chains, tce::create_network};
 use tracing::{debug, info};
 
 const NUMBER_OF_SUBNETS_PER_CLIENT: usize = 1;
@@ -76,7 +71,8 @@ async fn cert_delivery() {
         .collect();
 
     // Generate certificates with respect to parameters
-    let mut subnet_certificates = generate_cert(&all_subnets, number_of_certificates_per_subnet);
+    let mut subnet_certificates =
+        create_certificate_chains(all_subnets.as_ref(), number_of_certificates_per_subnet);
     debug!(
         "Generated certificates for distribution per subnet: {:#?}",
         &subnet_certificates

@@ -402,13 +402,13 @@ fn input_certificates() -> Vec<uci::Certificate> {
     let mut certificates = Vec::new();
     certificates.append(&mut create_certificate_chain(
         SOURCE_SUBNET_ID_1,
-        TARGET_SUBNET_ID_1,
+        &[TARGET_SUBNET_ID_1],
         SOURCE_SUBNET_ID_1_NUMBER_OF_PREFILLED_CERTIFICATES,
     ));
 
     certificates.append(&mut create_certificate_chain(
         SOURCE_SUBNET_ID_2,
-        TARGET_SUBNET_ID_1,
+        &[TARGET_SUBNET_ID_1],
         SOURCE_SUBNET_ID_2_NUMBER_OF_PREFILLED_CERTIFICATES,
     ));
 

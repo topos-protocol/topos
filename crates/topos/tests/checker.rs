@@ -1,11 +1,7 @@
-use crate::support::network::create_network;
 use assert_cmd::Command;
 use std::{thread, time::Duration};
 use topos_core::api::tce::v1::StatusRequest;
-
-mod support {
-    pub mod network;
-}
+use topos_test_sdk::tce::create_network;
 
 #[test]
 fn help_display() -> Result<(), Box<dyn std::error::Error>> {
