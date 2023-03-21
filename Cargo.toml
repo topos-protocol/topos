@@ -23,9 +23,9 @@ tokio-stream = { version = "0.1", default-features = false }
 tower = "0.4"
 
 # Blockchain
-ethereum-types = { version = "0.12.1"}
-secp256k1 = {version = "0.21.3", features = ["recovery"]}
-web3 = { version = "0.18", features = ["signing"]}
+ethereum-types = { version = "0.13.1"}
+secp256k1 = {version = "0.24.3", features = ["recovery"]}
+web3 = { git = "https://github.com/tomusdrw/rust-web3.git", branch = "dependabot/cargo/secp256k1-0.24", features = ["signing"]}
 
 # Log, Tracing & telemetry
 opentelemetry = { version = "0.18", features = ["rt-tokio", "metrics"] }
