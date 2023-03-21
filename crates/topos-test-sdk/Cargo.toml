@@ -15,13 +15,14 @@ topos-tce-synchronizer = { path = "../topos-tce-synchronizer/", optional = true 
 topos-tce-broadcast = { path = "../topos-tce-broadcast/", optional = true }
 topos-tce-transport = { path = "../topos-tce-transport/", optional = true }
 
-proc_macro_sdk = { path = "./proc_macro_sdk/" }
 futures.workspace = true
-tokio.workspace = true
-tracing.workspace = true
 libp2p.workspace = true
+proc_macro_sdk = { path = "./proc_macro_sdk/" }
+rand.workspace = true
 rstest.workspace = true
+tokio.workspace = true
 tonic = { workspace = true, optional = true }
+tracing.workspace = true
 
 [features]
 default = []
