@@ -54,6 +54,7 @@ async fn start_a_cluster() {
 }
 
 #[tokio::test]
+// FIXME: This test is flaky, it fails sometimes because of gRPC connection error (StreamClosed)
 async fn cert_delivery() {
     let subscriber = ::tracing_subscriber::FmtSubscriber::builder()
         .with_env_filter(::tracing_subscriber::EnvFilter::from_default_env())
