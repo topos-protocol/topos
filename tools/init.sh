@@ -42,7 +42,7 @@ case "$1" in
         ;;
 
    "peer")
-       if [[ ! -z ${LOCAL_TEST_NET+x} ]]; then
+       if [[ ${LOCAL_TEST_NET:-"false"} == "true" ]]; then
 
            until [ -f "$BOOT_PEERS_PATH" ]
            do
