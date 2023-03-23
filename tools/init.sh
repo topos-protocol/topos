@@ -59,7 +59,12 @@ case "$1" in
            done
 
            PEER=$($TOPOS_BIN tce keys --from-seed=$HOSTNAME)
-           cat <<< $($JQ --arg PEER $PEER '. += [$PEER]' $PEER_LIST_PATH) > $PEER_LIST_PATH
+
+           # Add $PEER only if it's not yet in the $PEER_LIST_PATH
+           if ! grep -q $PEER $PEER_LIST_PATH; then
+               $JQ --arg PEER $PEER '. += [$PEER]' $PEER_LIST_PATH > "${PEER_LIST_PATH}.tmp" \
+                && mv "${PEER_LIST_PATH}.tmp" $PEER_LIST_PATH
+           fi
 
            export TCE_LOCAL_KS=$HOSTNAME
            export TCE_EXT_HOST
@@ -70,7 +75,11 @@ case "$1" in
                sleep 1
            done
 
-           cat <<< $($JQ --arg NODE $NODE '.nodes += [$NODE]' $NODE_LIST_PATH) > $NODE_LIST_PATH
+           # Add $NODE only if it's not yet in the $NODE_LIST_PATH
+           if ! grep -q $NODE $NODE_LIST_PATH; then
+               $JQ --arg NODE $NODE '.nodes += [$NODE]' $NODE_LIST_PATH > "${NODE_LIST_PATH}.tmp" \
+                && mv "${NODE_LIST_PATH}.tmp" $NODE_LIST_PATH
+           fi
        fi
 
        exec "$TOPOS_BIN" "${@:2}"
