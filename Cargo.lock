@@ -5635,6 +5635,7 @@ version = "0.1.0"
 dependencies = [
  "bincode",
  "hex",
+ "opentelemetry",
  "rpassword",
  "serde",
  "tokio",
@@ -5707,6 +5708,7 @@ dependencies = [
  "env_logger 0.10.0",
  "fs_extra",
  "hex",
+ "opentelemetry",
  "rand 0.8.5",
  "rand_core 0.6.4",
  "rand_distr",
@@ -5725,6 +5727,7 @@ dependencies = [
  "topos-sequencer-types",
  "topos-test-sdk",
  "tracing",
+ "tracing-opentelemetry",
  "tracing-subscriber",
  "web3",
 ]
@@ -5741,6 +5744,7 @@ dependencies = [
  "futures",
  "hex",
  "hyper",
+ "opentelemetry",
  "rstest 0.16.0",
  "serde",
  "serde_json",

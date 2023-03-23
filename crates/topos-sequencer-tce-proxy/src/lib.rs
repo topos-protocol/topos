@@ -3,6 +3,7 @@
 //!
 
 use crate::Error::InvalidChannelError;
+use opentelemetry::trace::FutureExt;
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::StreamExt;
 use tonic::transport::channel;
@@ -17,7 +18,7 @@ use topos_core::{
     uci::{Certificate, SubnetId},
 };
 use topos_sequencer_types::*;
-use tracing::{error, info, info_span, warn, Instrument};
+use tracing::{error, info, info_span, warn, Instrument, Span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 const CERTIFICATE_OUTBOUND_CHANNEL_SIZE: usize = 100;
@@ -500,7 +501,10 @@ impl TceProxyWorker {
                                     if let Err(e) = tce_client.send_certificate(*cert).await {
                                         error!("Failure on the submission of the Certificate to the TCE client: {e}");
                                     }
-                                }.instrument(span).await;
+                                }
+                                .with_context(span.context())
+                                .instrument(span)
+                                .await;
                             }
                             TceProxyCommand::Shutdown(sender) => {
                                 info!("Received TceProxyCommand::Shutdown command, closing tce client...");
@@ -512,12 +516,24 @@ impl TceProxyWorker {
                             }
                         }
                     }
+
+
+
                      // Process certificates received from the TCE node
                     Some((cert, target_stream_position)) = receiving_certificate_stream.next() => {
-                        info!("Received certificate from TCE {:?}, target stream position {}", cert, target_stream_position.position);
-                        if let Err(e) = evt_sender.send(TceProxyEvent::NewDeliveredCerts(vec![(cert, target_stream_position.position)])).await {
-                            error!("Unable to send NewDeliveredCerts event {e}");
-                        }
+                        let span = info_span!("PushCertificate");
+                        async {
+                            info!("Received certificate from TCE {:?}, target stream position {}", cert, target_stream_position.position);
+                            if let Err(e) = evt_sender.send(TceProxyEvent::NewDeliveredCerts {
+                                certificates: vec![(cert, target_stream_position.position)],
+                                ctx: Span::current().context()}
+                            )
+                            .await {
+                                error!("Unable to send NewDeliveredCerts event {e}");
+                            }
+                        }.with_context(span.context())
+                        .instrument(span)
+                        .await;
                     }
                 }
             }

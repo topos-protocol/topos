@@ -10,7 +10,8 @@ use test_log::test;
 use tokio::sync::oneshot;
 use topos_core::uci::{Certificate, CertificateId};
 use topos_sequencer_types::SubnetId;
-use tracing::{error, info};
+use tracing::{error, info, Span};
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 use web3::contract::tokens::Tokenize;
 use web3::ethabi::Token;
 use web3::transports::Http;
@@ -584,10 +585,11 @@ async fn test_subnet_certificate_push_call(
 
     info!("Sending mock certificate to subnet smart contract...");
     if let Err(e) = runtime_proxy_worker.eval(
-        topos_sequencer_types::SubnetRuntimeProxyCommand::OnNewDeliveredCertificate((
-            mock_cert.clone(),
-            0,
-        )),
+        topos_sequencer_types::SubnetRuntimeProxyCommand::OnNewDeliveredCertificate {
+            certificate: mock_cert.clone(),
+            position: 0,
+            ctx: Span::current().context(),
+        },
     ) {
         error!("Failed to send OnNewDeliveredTxns command: {}", e);
         return Err(Box::from(e));
