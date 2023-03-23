@@ -1,9 +1,3 @@
-mod support {
-    pub mod certificate;
-    pub mod network;
-}
-
-use crate::support::certificate::generate_cert;
 use futures::{future::join_all, StreamExt};
 use libp2p::PeerId;
 use rand::seq::IteratorRandom;
@@ -20,12 +14,12 @@ use topos_core::{
         tce::v1::{
             watch_certificates_request::OpenStream,
             watch_certificates_response::{CertificatePushed, Event},
-            PushPeerListRequest, StatusRequest, SubmitCertificateRequest,
+            StatusRequest, SubmitCertificateRequest,
         },
     },
     uci::{Certificate, SubnetId},
 };
-use topos_test_sdk::tce::TceContext;
+use topos_test_sdk::{certificates::create_certificate_chains, tce::create_network};
 use tracing::{debug, info};
 
 const NUMBER_OF_SUBNETS_PER_CLIENT: usize = 1;
@@ -42,7 +36,7 @@ fn get_subset_of_subnets(subnets: &[SubnetId], subset_size: usize) -> Vec<Subnet
 
 #[test(tokio::test)]
 async fn start_a_cluster() {
-    let mut peers_context = create_network(10, 4).await;
+    let mut peers_context = create_network(4, 1).await;
 
     let mut status: Vec<bool> = Vec::new();
 
@@ -60,7 +54,6 @@ async fn start_a_cluster() {
 }
 
 #[tokio::test]
-#[ignore = "fix corner case in tce communication"]
 async fn cert_delivery() {
     let subscriber = ::tracing_subscriber::FmtSubscriber::builder()
         .with_env_filter(::tracing_subscriber::EnvFilter::from_default_env())
@@ -78,7 +71,8 @@ async fn cert_delivery() {
         .collect();
 
     // Generate certificates with respect to parameters
-    let mut subnet_certificates = generate_cert(&all_subnets, number_of_certificates_per_subnet);
+    let mut subnet_certificates =
+        create_certificate_chains(all_subnets.as_ref(), number_of_certificates_per_subnet);
     debug!(
         "Generated certificates for distribution per subnet: {:#?}",
         &subnet_certificates
@@ -289,59 +283,4 @@ async fn cert_delivery() {
     {
         panic!("Timeout waiting for command");
     }
-}
-
-pub fn sample_lower_bound(n_u: usize) -> usize {
-    let k: f32 = 2.;
-    (n_u as f32).log(k) as usize
-}
-
-async fn create_network(peer_number: usize, correct_sample: usize) -> HashMap<PeerId, TceContext> {
-    let g = |a, b: f32| ((a as f32) * b).ceil() as usize;
-
-    // List of peers (tce nodes) with their context
-    let mut peers_context =
-        support::network::start_peer_pool(peer_number as u8, correct_sample, g).await;
-    let all_peers: Vec<PeerId> = peers_context.keys().cloned().collect();
-
-    // Force TCE nodes to recreate subscriptions and subscribers
-    info!("Trigger the new network view");
-    for (peer_id, client) in peers_context.iter_mut() {
-        let _ = client
-            .console_grpc_client
-            .push_peer_list(PushPeerListRequest {
-                request_id: None,
-                peers: all_peers
-                    .iter()
-                    .filter_map(|key| {
-                        if key == peer_id {
-                            None
-                        } else {
-                            Some(key.to_string())
-                        }
-                    })
-                    .collect::<Vec<_>>(),
-            })
-            .await
-            .expect("Can't send PushPeerListRequest");
-    }
-
-    tokio::time::sleep(Duration::from_secs(2)).await;
-
-    // Waiting for new network view
-    let mut status: Vec<bool> = Vec::new();
-
-    for (_peer_id, client) in peers_context.iter_mut() {
-        let response = client
-            .console_grpc_client
-            .status(StatusRequest {})
-            .await
-            .expect("Can't get status");
-
-        status.push(response.into_inner().has_active_sample);
-    }
-
-    assert!(status.iter().all(|s| *s));
-
-    peers_context
 }

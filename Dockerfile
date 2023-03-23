@@ -16,7 +16,8 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
   cargo build --release --no-default-features --features=${FEATURES}
 
 FROM base AS test
-RUN cargo install cargo-nextest --locked
+RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
+  cargo install cargo-nextest --locked
 COPY . .
 # topos-sequencer integration tests require specific setup, so excluding them here. They are executed
 # with sequencer_tcc_test.yml CI setup

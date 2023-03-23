@@ -106,7 +106,7 @@ async fn runtime_can_dispatch_a_cert(
 #[timeout(Duration::from_secs(2))]
 #[test(tokio::test)]
 async fn can_catchup_with_old_certs(
-    #[with(SOURCE_SUBNET_ID_1, TARGET_SUBNET_ID_1, 15)]
+    #[with(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], 15)]
     #[from(create_certificate_chain)]
     certificates: Vec<Certificate>,
 ) {
@@ -202,7 +202,7 @@ async fn can_catchup_with_old_certs_with_position() {
     let addr = socket.local_addr().ok().unwrap();
 
     // launch data store
-    let certificates = create_certificate_chain(SOURCE_SUBNET_ID_1, TARGET_SUBNET_ID_1, 15);
+    let certificates = create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], 15);
 
     let (_, (storage, storage_client, _storage_stream)) = topos_test_sdk::storage::create_rocksdb(
         "can_catchup_with_old_certs_with_position",

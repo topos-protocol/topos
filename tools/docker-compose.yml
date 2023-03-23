@@ -126,5 +126,28 @@ services:
       peer:
         condition: service_healthy
 
+  verifier:
+    container_name: verifier
+    image: ghcr.io/toposware/topos-verifier:main
+    command: verifier tce assert-delivery
+    init: true
+    volumes:
+      - shared:/tmp/shared
+    build:
+      context: ../
+      tags:
+        - verifier
+      args:
+        - TOOLCHAIN_VERSION=stable
+        - GITHUB_TOKEN
+        - FEATURES=verifier
+    depends_on:
+      peer:
+        condition: service_healthy
+    environment:
+      - LOCAL_TEST_NET=true
+      - RUST_LOG=info,topos=debug
+      - TARGET_NODES_PATH=/tmp/shared/peer_nodes.json
+
 volumes:
   shared:

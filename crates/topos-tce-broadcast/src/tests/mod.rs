@@ -166,7 +166,7 @@ fn reach_delivery_threshold(double_echo: &mut DoubleEcho, cert: &Certificate) {
 }
 
 #[rstest]
-#[case(small_config())]
+#[case::small_config(small_config())]
 #[case(medium_config())]
 #[tokio::test]
 #[trace]
@@ -187,11 +187,15 @@ async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams)
     // Trigger Echo upon dispatching
     double_echo.handle_broadcast(dummy_cert.clone());
 
-    assert_eq!(ctx.event_receiver.len(), 2);
+    assert_eq!(ctx.event_receiver.len(), 3);
 
     assert!(matches!(
         ctx.event_receiver.try_recv(),
         Ok(TceEvents::Gossip { peers, .. }) if peers.len() == double_echo.gossip_peers().len()
+    ));
+    assert!(matches!(
+        ctx.event_receiver.try_recv(),
+        Ok(TceEvents::Broadcast { certificate_id }) if certificate_id == dummy_cert.id
     ));
     assert!(matches!(
             ctx.event_receiver.try_recv(),
@@ -225,7 +229,7 @@ async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams)
 }
 
 #[rstest]
-#[case(small_config())]
+#[case::small_config(small_config())]
 #[case(medium_config())]
 #[tokio::test]
 #[trace]
@@ -246,10 +250,14 @@ async fn trigger_ready_when_reached_enough_ready(#[case] params: TceParams) {
     // Trigger Echo upon dispatching
     double_echo.handle_broadcast(dummy_cert.clone());
 
-    assert_eq!(ctx.event_receiver.len(), 2);
+    assert_eq!(ctx.event_receiver.len(), 3);
     assert!(matches!(
         ctx.event_receiver.try_recv(),
         Ok(TceEvents::Gossip { .. })
+    ));
+    assert!(matches!(
+        ctx.event_receiver.try_recv(),
+        Ok(TceEvents::Broadcast { certificate_id }) if certificate_id == dummy_cert.id
     ));
     assert!(matches!(
         ctx.event_receiver.try_recv(),
@@ -268,7 +276,7 @@ async fn trigger_ready_when_reached_enough_ready(#[case] params: TceParams) {
 }
 
 #[rstest]
-#[case(small_config())]
+#[case::small_config(small_config())]
 #[case(medium_config())]
 #[tokio::test]
 #[trace]
@@ -289,10 +297,14 @@ async fn process_after_delivery_until_sending_ready(#[case] params: TceParams) {
     // Trigger Echo upon dispatching
     double_echo.handle_broadcast(dummy_cert.clone());
 
-    assert_eq!(ctx.event_receiver.len(), 2);
+    assert_eq!(ctx.event_receiver.len(), 3);
     assert!(matches!(
         ctx.event_receiver.try_recv(),
         Ok(TceEvents::Gossip { .. })
+    ));
+    assert!(matches!(
+        ctx.event_receiver.try_recv(),
+        Ok(TceEvents::Broadcast { certificate_id }) if certificate_id == dummy_cert.id
     ));
     assert!(matches!(
         ctx.event_receiver.try_recv(),
@@ -324,7 +336,7 @@ async fn process_after_delivery_until_sending_ready(#[case] params: TceParams) {
 }
 
 #[rstest]
-#[case(small_config())]
+#[case::small_config(small_config())]
 #[tokio::test]
 async fn buffering_certificate(#[case] params: TceParams) {
     let (double_echo, mut ctx) = create_context(params);

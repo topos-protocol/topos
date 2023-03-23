@@ -79,7 +79,7 @@ pub enum TceEvents {
     /// Emitted to get peers list, expected that Commands.ApplyPeers will come as reaction
     NeedPeers,
     /// (pb.Broadcast)
-    Broadcast { cert: Certificate },
+    Broadcast { certificate_id: CertificateId },
     /// After sampling is done we ask peers to participate in the protocol (and provide us echo feedback)
     EchoSubscribeReq { peers: Vec<PeerId> },
     /// After sampling is done we ask peers to participate in the protocol

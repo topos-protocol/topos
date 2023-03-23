@@ -1,4 +1,5 @@
 use futures::{Future, Stream};
+use rand::Rng;
 use rstest::fixture;
 use std::future::IntoFuture;
 use std::{
@@ -47,10 +48,13 @@ pub fn create_folder(folder_name: &str) -> PathBuf {
     let mut temp_dir =
         std::path::PathBuf::from_str(dir).expect("Unable to read CARGO_TARGET_TMPDIR");
     let time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+    let mut rng = rand::thread_rng();
+
     temp_dir.push(format!(
-        "./{}/data_{}/rocksdb",
+        "./{}/data_{}_{}/rocksdb",
         folder_name,
-        time.as_nanos()
+        time.as_nanos(),
+        rng.gen::<u64>()
     ));
 
     temp_dir

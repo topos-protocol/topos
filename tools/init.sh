@@ -41,7 +41,7 @@ case "$1" in
         exec "$TOPOS_BIN" "${@:2}"
         ;;
 
-   *)
+   "peer")
        if [[ ! -z ${LOCAL_TEST_NET+x} ]]; then
 
            until [ -f "$BOOT_PEERS_PATH" ]
@@ -73,7 +73,10 @@ case "$1" in
            cat <<< $($JQ --arg NODE $NODE '.nodes += [$NODE]' $NODE_LIST_PATH) > $NODE_LIST_PATH
        fi
 
-       exec "$TOPOS_BIN" "$@"
+       exec "$TOPOS_BIN" "${@:2}"
        ;;
 
+   *)
+       exec "$TOPOS_BIN" "$@"
+       ;;
 esac
