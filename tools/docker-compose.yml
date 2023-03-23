@@ -71,7 +71,7 @@ services:
 
   peer:
     image: ghcr.io/topos-network/topos:main
-    command: tce run
+    command: peer tce run
     init: true
     healthcheck:
       test: ./topos tce push-peer-list --endpoint http://localhost:1340 --format json /tmp/shared/peer_ids.json && ./topos tce status --endpoint http://localhost:1340
