@@ -126,21 +126,21 @@ services:
       peer:
         condition: service_healthy
 
-  verifier:
-    container_name: verifier
-    image: ghcr.io/toposware/topos-verifier:main
-    command: verifier tce assert-delivery
+  checker:
+    container_name: checker
+    image: ghcr.io/topos-network/topos:main
+    command: checker tce assert-delivery
     init: true
     volumes:
       - shared:/tmp/shared
     build:
       context: ../
       tags:
-        - verifier
+        - checker
       args:
         - TOOLCHAIN_VERSION=stable
         - GITHUB_TOKEN
-        - FEATURES=verifier
+        - FEATURES=checker
     depends_on:
       peer:
         condition: service_healthy
