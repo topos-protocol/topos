@@ -21,7 +21,11 @@ on:
       features:
         required: false
         type: string
-        default: tce,sequencer
+        default: tce,sequencer,checker
+      docker_tag:
+        required: false
+        type: string
+        default: ""
     outputs:
       tags:
         description: "Docker tags"
@@ -75,9 +79,9 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=ref,event=branch,suffix=${{ inputs.features == 'tce-direct,sequencer' && '-direct' || ''}}
-            type=ref,event=tag,suffix=${{ inputs.features == 'tce-direct,sequencer' && '-direct' || ''}}
-            type=ref,event=pr,suffix=${{ inputs.features == 'tce-direct,sequencer' && '-direct' || ''}}
+            type=ref,event=branch,suffix=${{ inputs.docker_tag != '' && format('-{0}', input.docker_tag) || '' }}
+            type=ref,event=tag,suffix=${{ inputs.docker_tag != '' && format('-{0}', input.docker_tag) || '' }}
+            type=ref,event=pr,suffix=${{ inputs.docker_tag != '' && format('-{0}', input.docker_tag) || '' }}
 
       - name: Push to GitHub Container Registry
         uses: docker/build-push-action@v3
