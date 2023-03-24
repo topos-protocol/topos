@@ -15,7 +15,16 @@ jobs:
     uses: ./.github/workflows/docker_utils.yml
     secrets: inherit
     with:
+      docker_tag: direct
       features: "tce-direct,sequencer"
+
+  checker:
+    uses: ./.github/workflows/docker_utils.yml
+    secrets: inherit
+    with:
+      docker_tag: checker
+      features: "checker"
+
 
   k8s_e2e:
     if: ${{ github.event_name == 'push' }}

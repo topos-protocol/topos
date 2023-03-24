@@ -47,7 +47,7 @@ services:
       context: ../
       args:
         - TOOLCHAIN_VERSION=stable
-        - FEATURES=tce
+        - FEATURES=tce,checker
     depends_on:
       - otel-collector
     ports:
@@ -73,6 +73,8 @@ services:
     image: ghcr.io/topos-network/topos:main
     command: peer tce run
     init: true
+    labels:
+      "autoheal": "true"
     healthcheck:
       test: ./topos tce push-peer-list --endpoint http://localhost:1340 --format json /tmp/shared/peer_ids.json && ./topos tce status --endpoint http://localhost:1340
       interval: 5s
@@ -84,6 +86,8 @@ services:
         - TOOLCHAIN_VERSION=stable
         - FEATURES=tce
     depends_on:
+      autoheal:
+        condition: service_started
       jaeger:
         condition: service_started
       boot:
@@ -135,8 +139,6 @@ services:
       - shared:/tmp/shared
     build:
       context: ../
-      tags:
-        - checker
       args:
         - TOOLCHAIN_VERSION=stable
         - GITHUB_TOKEN
@@ -148,6 +150,15 @@ services:
       - LOCAL_TEST_NET=true
       - RUST_LOG=info,topos=debug
       - TARGET_NODES_PATH=/tmp/shared/peer_nodes.json
+
+  autoheal:
+    container_name: autoheal
+    image: willfarrell/autoheal
+    volumes:
+      - '/var/run/docker.sock:/var/run/docker.sock'
+    environment:
+      - AUTOHEAL_INTERVAL=10
+      - CURL_TIMEOUT=30
 
 volumes:
   shared:
