@@ -114,5 +114,5 @@ pub enum ProtocolEvents {
     CertificateDelivered { certificate: Certificate },
 
     /// Stable Sample
-    StableSample,
+    StableSample(Vec<PeerId>),
 }

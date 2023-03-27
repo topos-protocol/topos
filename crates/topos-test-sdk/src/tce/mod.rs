@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::error::Error;
 use std::future::IntoFuture;
-use std::time::Duration;
 
 use futures::future::join_all;
 use futures::Stream;
@@ -19,12 +18,13 @@ use topos_core::api::tce::v1::{PushPeerListRequest, StatusRequest};
 use topos_core::uci::Certificate;
 use topos_core::uci::SubnetId;
 use topos_p2p::{error::P2PError, Client, Event, Runtime};
-use topos_tce::AppContext;
+use topos_tce::{events::Events, AppContext};
 use topos_tce_broadcast::{DoubleEchoCommand, SamplerCommand};
 use tracing::info;
 
 use crate::p2p::local_peer;
 use crate::storage::create_rocksdb;
+use crate::wait_for_event;
 
 use self::gatekeeper::create_gatekeeper;
 use self::p2p::{bootstrap_network, create_network_worker};
@@ -40,6 +40,7 @@ pub mod synchronizer;
 
 #[derive(Debug)]
 pub struct TceContext {
+    pub event_stream: mpsc::Receiver<Events>,
     pub peer_id: PeerId, // P2P ID
     pub api_entrypoint: String,
     pub command_sampler: mpsc::Sender<SamplerCommand>,
@@ -159,7 +160,7 @@ pub async fn start_node(
     let (synchronizer_client, synchronizer_stream, synchronizer_join_handle) =
         create_synchronizer(gatekeeper_client.clone(), network_client.clone()).await;
 
-    let app = AppContext::new(
+    let (app, event_stream) = AppContext::new(
         storage_client,
         tce_cli,
         network_client,
@@ -179,6 +180,7 @@ pub async fn start_node(
     ));
 
     TceContext {
+        event_stream,
         peer_id,
         api_entrypoint: api_context.entrypoint,
         command_sampler,
@@ -261,7 +263,14 @@ pub async fn create_network(
             .expect("Can't send PushPeerListRequest");
     }
 
-    tokio::time::sleep(Duration::from_secs(2)).await;
+    for (peer_id, client) in peers_context.iter_mut() {
+        wait_for_event!(
+            client.event_stream.recv(),
+            matches: Events::StableSample(_),
+            peer_id,
+            2000
+        );
+    }
 
     // Waiting for new network view
     let mut status: Vec<bool> = Vec::new();

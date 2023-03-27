@@ -27,6 +27,8 @@ use topos_telemetry::PropagationContext;
 use tracing::{debug, error, info, info_span, trace, warn, Instrument};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
+use crate::events::Events;
+
 /// Top-level transducer main app context & driver (alike)
 ///
 /// Implements <...Host> traits for network and Api, listens for protocol events in events
@@ -36,6 +38,7 @@ use tracing_opentelemetry::OpenTelemetrySpanExt;
 /// config+data as input and runs app returning data as output
 ///
 pub struct AppContext {
+    pub events: mpsc::Sender<Events>,
     pub tce_cli: ReliableBroadcastClient,
     pub network_client: NetworkClient,
     pub api_client: ApiClient,
@@ -61,16 +64,21 @@ impl AppContext {
         api_client: ApiClient,
         gatekeeper: GatekeeperClient,
         synchronizer: SynchronizerClient,
-    ) -> Self {
-        Self {
-            tce_cli,
-            network_client,
-            api_client,
-            pending_storage,
-            gatekeeper,
-            synchronizer,
-            buffered_messages: HashMap::new(),
-        }
+    ) -> (Self, mpsc::Receiver<Events>) {
+        let (events, receiver) = mpsc::channel(100);
+        (
+            Self {
+                events,
+                tce_cli,
+                network_client,
+                api_client,
+                pending_storage,
+                gatekeeper,
+                synchronizer,
+                buffered_messages: HashMap::new(),
+            },
+            receiver,
+        )
     }
 
     /// Main processing loop
@@ -252,6 +260,9 @@ impl AppContext {
             ProtocolEvents::StableSample(peers) => {
                 info!("Stable Sample detected");
                 self.api_client.set_active_sample(true).await;
+                if let Err(_) = self.events.send(Events::StableSample(peers)).await {
+                    error!("Unable to send StableSample event");
+                }
             }
 
             ProtocolEvents::Broadcast { certificate_id } => {
