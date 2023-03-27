@@ -60,7 +60,7 @@ case "$1" in
 
            PEER=$($TOPOS_BIN tce keys --from-seed=$HOSTNAME)
 
-           # Add $PEER only if it's not yet in the $PEER_LIST_PATH
+           # Acquire lock and add $PEER to ${PEER_LIST_PATH} only once
            (
                flock --exclusive 200
                cat <<< $($JQ --arg PEER $PEER '. += [$PEER]|unique' $PEER_LIST_PATH) > $PEER_LIST_PATH
@@ -76,7 +76,7 @@ case "$1" in
                sleep 1
            done
 
-           # Add $NODE only if it's not yet in the $NODE_LIST_PATH
+           # Acquire lock and add $NODE to ${NODE_LIST_PATH} only once
            (
                flock --exclusive 200
                cat <<< $($JQ --arg NODE $NODE '.nodes += [$NODE]|unique' $NODE_LIST_PATH) > $NODE_LIST_PATH
