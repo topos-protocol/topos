@@ -3,6 +3,7 @@ use topos_commands::CommandHandler;
 use topos_core::uci::{Certificate, SubnetId};
 use tracing::{debug, error, info};
 
+use crate::command::GetPendingCertificates;
 use crate::{
     command::{
         AddPendingCertificate, CertificateDelivered, CheckPendingCertificateExists,
@@ -67,6 +68,42 @@ where
             self.pending_certificates.remove(index);
         }
         Ok(pending_certificate_id)
+    }
+}
+
+/// Handle a GetPendingCertificates query
+///
+/// The GetPendingCertificates query will ask for pending certificate
+/// for list of subnets ids
+#[async_trait]
+impl<S> CommandHandler<GetPendingCertificates> for Connection<S>
+where
+    S: Storage,
+{
+    type Error = StorageError;
+
+    async fn handle(
+        &mut self,
+        GetPendingCertificates { subnet_ids }: GetPendingCertificates,
+    ) -> Result<Vec<Certificate>, StorageError> {
+        let pending_certificates = match self.storage.get_pending_certificates().await {
+            Ok(pending_certificates) => pending_certificates,
+            Err(e) => {
+                error!("Failure on the storage to get pending certificates: {e}");
+                return Err(e.into());
+            }
+        };
+
+        let subnet_ids = subnet_ids
+            .into_iter()
+            .collect::<std::collections::HashSet<SubnetId>>();
+        let pending_certificates: Vec<Certificate> = pending_certificates
+            .into_iter()
+            .map(|v| v.1)
+            .filter(|cert| subnet_ids.contains(&cert.source_subnet_id))
+            .collect();
+
+        Ok(pending_certificates)
     }
 }
 

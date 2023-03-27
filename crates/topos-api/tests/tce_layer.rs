@@ -1,6 +1,7 @@
 use async_stream::stream;
 use futures::{channel::oneshot, FutureExt};
 use futures::{Stream, StreamExt};
+use std::collections::HashMap;
 use std::pin::Pin;
 use std::time::Duration;
 use test_log::test;
@@ -12,7 +13,8 @@ use topos_api::shared::v1::{CertificateId, SubnetId};
 use topos_api::tce::v1::api_service_server::{ApiService, ApiServiceServer};
 use topos_api::tce::v1::watch_certificates_request::{Command, OpenStream};
 use topos_api::tce::v1::{
-    GetSourceHeadRequest, GetSourceHeadResponse, SourceStreamPosition, SubmitCertificateRequest,
+    GetLastPendingCertificatesRequest, GetLastPendingCertificatesResponse, GetSourceHeadRequest,
+    GetSourceHeadResponse, LastPendingCertificate, SourceStreamPosition, SubmitCertificateRequest,
     SubmitCertificateResponse, WatchCertificatesRequest, WatchCertificatesResponse,
 };
 use topos_api::uci::v1::Certificate;
@@ -56,6 +58,36 @@ async fn create_tce_layer() {
                     target_subnets: Vec::new(),
                     ..Default::default()
                 }),
+            }))
+        }
+
+        async fn get_last_pending_certificates(
+            &self,
+            request: Request<GetLastPendingCertificatesRequest>,
+        ) -> Result<Response<GetLastPendingCertificatesResponse>, Status> {
+            let request = request.into_inner();
+            let subnet_ids = request.subnet_ids;
+
+            let return_certificate_id: CertificateId = CERTIFICATE_ID_2.into();
+            let return_prev_certificate_id: CertificateId = CERTIFICATE_ID_1.into();
+
+            let mut map = HashMap::new();
+            for subnet_id in subnet_ids {
+                map.insert(
+                    subnet_id.to_string(),
+                    topos_api::tce::v1::LastPendingCertificate {
+                        value: Some(Certificate {
+                            source_subnet_id: subnet_id.into(),
+                            id: Some(return_certificate_id.clone()),
+                            prev_id: Some(return_prev_certificate_id.clone()),
+                            target_subnets: Vec::new(),
+                            ..Default::default()
+                        }),
+                    },
+                );
+            }
+            Ok(Response::new(GetLastPendingCertificatesResponse {
+                last_pending_certificate: map,
             }))
         }
 
@@ -148,9 +180,29 @@ async fn create_tce_layer() {
         certificate: Some(original_certificate.clone()),
         position: Some(SourceStreamPosition {
             subnet_id: Some(source_subnet_id.clone()),
-            certificate_id: original_certificate.id,
+            certificate_id: original_certificate.id.clone(),
             position: 0,
         }),
+    };
+    assert_eq!(response, expected_response);
+
+    // Test last pending certificate
+    let response = client
+        .get_last_pending_certificates(GetLastPendingCertificatesRequest {
+            subnet_ids: vec![source_subnet_id.clone()],
+        })
+        .await
+        .map(|r| r.into_inner())
+        .unwrap();
+    let mut expected_last_pending_certificate_ids = HashMap::new();
+    expected_last_pending_certificate_ids.insert(
+        source_subnet_id.to_string(),
+        LastPendingCertificate {
+            value: Some(original_certificate.clone()),
+        },
+    );
+    let expected_response = GetLastPendingCertificatesResponse {
+        last_pending_certificate: expected_last_pending_certificate_ids,
     };
     assert_eq!(response, expected_response);
 

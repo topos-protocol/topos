@@ -398,6 +398,21 @@ impl Runtime {
                     );
                 }
             }
+
+            InternalRuntimeCommand::GetLastPendingCertificates { subnet_ids, sender } => {
+                info!("Last pending certificate has been requested for subnet ids: {subnet_ids:?}");
+
+                if let Err(error) = self
+                    .api_event_sender
+                    .send(RuntimeEvent::GetLastPendingCertificates { subnet_ids, sender })
+                    .await
+                {
+                    error!(
+                        %error,
+                        "Can't request last pending certificates, receiver is dropped"
+                    );
+                }
+            }
         }
     }
 }

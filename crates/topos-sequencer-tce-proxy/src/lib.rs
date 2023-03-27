@@ -4,11 +4,12 @@
 
 use crate::Error::InvalidChannelError;
 use opentelemetry::trace::FutureExt;
+use std::collections::HashMap;
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::StreamExt;
 use tonic::transport::channel;
 use topos_core::api::checkpoints::{TargetCheckpoint, TargetStreamPosition};
-use topos_core::api::tce::v1::GetSourceHeadRequest;
+use topos_core::api::tce::v1::{GetLastPendingCertificatesRequest, GetSourceHeadRequest};
 use topos_core::{
     api::tce::v1::{
         api_service_client::ApiServiceClient, watch_certificates_request,
@@ -55,9 +56,13 @@ pub enum Error {
         subnet_id: SubnetId,
         details: String,
     },
-
     #[error("Certificate source head empty for subnet id {subnet_id}")]
     SourceHeadEmpty { subnet_id: SubnetId },
+    #[error("Unable to get last pending certificates for subnet ids {subnet_id}: {details}")]
+    UnableToGetLastPendingCertificates {
+        subnet_id: SubnetId,
+        details: String,
+    },
 }
 
 pub struct TceProxyConfig {
@@ -79,8 +84,13 @@ pub struct TceProxyWorker {
 enum TceClientCommand {
     // Get head certificate that was sent to the TCE node for this subnet
     GetSourceHead {
-        subnet_id: topos_core::uci::SubnetId,
+        subnet_id: SubnetId,
         sender: oneshot::Sender<Result<Certificate, Error>>,
+    },
+    // Get map of subnet id->last pending certificate
+    GetLastPendingCertificates {
+        subnet_ids: Vec<SubnetId>,
+        sender: oneshot::Sender<Result<HashMap<SubnetId, Option<Certificate>>, Error>>,
     },
     // Open the stream to the TCE node
     // Mark the position from which TCE node certificates should be retrieved
@@ -141,6 +151,23 @@ impl TceClient {
                 subnet_id: self.subnet_id,
                 sender,
             })
+            .await
+            .map_err(|_| InvalidChannelError)?;
+
+        receiver.await.map_err(|_| InvalidChannelError)?
+    }
+
+    pub async fn get_last_pending_certificates(
+        &mut self,
+        subnet_ids: Vec<SubnetId>,
+    ) -> Result<HashMap<SubnetId, Option<Certificate>>, Error> {
+        #[allow(clippy::type_complexity)]
+        let (sender, receiver): (
+            oneshot::Sender<Result<HashMap<SubnetId, Option<Certificate>>, Error>>,
+            oneshot::Receiver<Result<HashMap<SubnetId, Option<Certificate>>, Error>>,
+        ) = oneshot::channel::<Result<HashMap<SubnetId, Option<Certificate>>, Error>>();
+        self.command_sender
+            .send(TceClientCommand::GetLastPendingCertificates { subnet_ids, sender })
             .await
             .map_err(|_| InvalidChannelError)?;
 
@@ -405,6 +432,61 @@ impl TceClientBuilder {
                                     error!("Unable to pass result of the source head, channel failed");
                                 };
                             }
+                            Some(TceClientCommand::GetLastPendingCertificates { subnet_ids, sender }) => {
+                                        let result: Result<HashMap<SubnetId, Option<Certificate>>, Error> =
+                                            match tce_grpc_client
+                                                .get_last_pending_certificates(GetLastPendingCertificatesRequest {
+                                                    subnet_ids: subnet_ids.into_iter().map(Into::into).collect(),
+                                                })
+                                                .await
+                                                .map(|r| r.into_inner())
+                                            {
+                                                Ok(response) => {
+                                                    let result = response
+                                                        .last_pending_certificate
+                                                        .into_iter()
+                                                        .map(|(subnet_id, last_pending_certificate)| {
+                                                            let subnet_id: SubnetId = TryInto::<SubnetId>::try_into(
+                                                                hex::decode(&subnet_id[2..])
+                                                                    .map_err(|_| Error::InvalidSubnetId)?
+                                                                    .as_slice(),
+                                                            )
+                                                            .map_err(|_| Error::InvalidSubnetId)?;
+
+                                                            let certificate: Option<Certificate> =
+                                                                match last_pending_certificate.value {
+                                                                    Some(certificate) => Some(
+                                                                        TryInto::<topos_core::uci::Certificate>::try_into(
+                                                                            certificate,
+                                                                        )
+                                                                        .map_err(
+                                                                            |e| Error::UnableToGetLastPendingCertificates {
+                                                                                details: e.to_string(),
+                                                                                subnet_id,
+                                                                            },
+                                                                        )?,
+                                                                    ),
+                                                                    None => None,
+                                                                };
+
+                                                            Result::<(SubnetId, Option<Certificate>), Error>::Ok((
+                                                                subnet_id,
+                                                                certificate,
+                                                            ))
+                                                        })
+                                                        .collect::<Result<HashMap<SubnetId, Option<Certificate>>, Error>>()?;
+                                                    Ok(result)
+                                                }
+                                                Err(e) => Err(Error::UnableToGetLastPendingCertificates {
+                                                    subnet_id,
+                                                    details: e.to_string(),
+                                                }),
+                                            };
+
+                                        if sender.send(result).is_err() {
+                                            error!("Unable to pass result for the last pending certificates, channel failed");
+                                        };
+                                    }
                             None => {
                                 panic!("Unexpected termination of the TCE proxy service of the Sequencer");
                             }
@@ -469,19 +551,37 @@ impl TceProxyWorker {
 
         tce_client.open_stream(config.positions.clone()).await?;
 
-        // Retrieve source head from TCE node, so that
-        // we know from where to start creating certificates
-        let source_head_certificate = match tce_client.get_source_head().await {
-            Ok(certificate) => Some(certificate),
-            Err(Error::SourceHeadEmpty { subnet_id: _ }) => {
-                //This is also OK, TCE node does not have any data about certificates
-                //We should start certificate production from scratch
-                None
-            }
+        // Get pending certificates from the TCE node. Source head certificate
+        // is latest pending certificate for this subnet
+        let mut source_head_certificate: Option<Certificate> = match tce_client
+            .get_last_pending_certificates(vec![tce_client.subnet_id])
+            .await
+        {
+            Ok(mut pending_certificates) => pending_certificates
+                .remove(&tce_client.subnet_id)
+                .unwrap_or_default(),
             Err(e) => {
+                error!("Unable to retrieve latest pending certificate {e}");
                 return Err(e);
             }
         };
+
+        if source_head_certificate.is_none() {
+            // There are no pending certificates on the TCE
+            // Retrieve source head from TCE node (latest delivered certificate), so that
+            // we know from where to start creating certificates
+            source_head_certificate = match tce_client.get_source_head().await {
+                Ok(certificate) => Some(certificate),
+                Err(Error::SourceHeadEmpty { subnet_id: _ }) => {
+                    //This is also OK, TCE node does not have any data about certificates
+                    //We should start certificate production from scratch
+                    None
+                }
+                Err(e) => {
+                    return Err(e);
+                }
+            }
+        }
 
         tokio::spawn(async move {
             info!(

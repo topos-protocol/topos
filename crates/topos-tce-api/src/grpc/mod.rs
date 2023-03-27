@@ -8,10 +8,12 @@ use tokio::sync::{mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::{Request, Response, Status, Streaming};
 use topos_core::api::tce::v1::{
-    api_service_server::ApiService, GetSourceHeadRequest, GetSourceHeadResponse,
-    SubmitCertificateRequest, SubmitCertificateResponse, WatchCertificatesRequest,
-    WatchCertificatesResponse,
+    api_service_server::ApiService, GetLastPendingCertificatesRequest,
+    GetLastPendingCertificatesResponse, GetSourceHeadRequest, GetSourceHeadResponse,
+    LastPendingCertificate, SubmitCertificateRequest, SubmitCertificateResponse,
+    WatchCertificatesRequest, WatchCertificatesResponse,
 };
+use topos_core::uci::SubnetId;
 use tracing::{error, field, info, instrument, Instrument, Span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 use uuid::Uuid;
@@ -132,6 +134,8 @@ impl ApiService for TceGrpcService {
         }
     }
 
+    /// This RPC allows a client to get last delivered source certificate
+    /// for particular subnet
     async fn get_source_head(
         &self,
         request: Request<GetSourceHeadRequest>,
@@ -179,17 +183,80 @@ impl ApiService for TceGrpcService {
                             &subnet_id
                         )))
                     }
-                    Ok(Err(_)) => Err(Status::internal(
-                        "Can't get source head certificate position",
-                    )),
-                    Err(_) => Err(Status::internal(
-                        "Can't get source head certificate position",
-                    )),
+                    Ok(Err(e)) => Err(Status::internal(format!(
+                        "Can't get source head certificate position: {e}"
+                    ))),
+                    Err(e) => Err(Status::internal(format!(
+                        "Can't get source head certificate position: {e}"
+                    ))),
                 })
                 .await
         } else {
             Err(Status::invalid_argument("Certificate is malformed"))
         }
+    }
+
+    /// This RPC allows a client to get latest pending certificates for
+    /// requested subnets (by their subnet id)
+    ///
+    /// Returns a map of subnet_id -> last pending certificate
+    /// If there are no pending certificate for a subnet, returns None for that subnet id
+    async fn get_last_pending_certificates(
+        &self,
+        request: Request<GetLastPendingCertificatesRequest>,
+    ) -> Result<Response<GetLastPendingCertificatesResponse>, Status> {
+        let data = request.into_inner();
+
+        let subnet_ids = data.subnet_ids;
+
+        let (sender, receiver) = oneshot::channel::<
+            Result<std::collections::HashMap<String, Option<topos_core::uci::Certificate>>, _>,
+        >();
+
+        let subnet_ids: Vec<SubnetId> = subnet_ids
+            .into_iter()
+            .map(TryInto::<topos_core::uci::SubnetId>::try_into)
+            .map(|v| v.map_err(|e| Status::internal(format!("Invalid subnet id: {e}"))))
+            .collect::<Result<Vec<SubnetId>, _>>()?;
+
+        if self
+            .command_sender
+            .send(InternalRuntimeCommand::GetLastPendingCertificates { subnet_ids, sender })
+            .await
+            .is_err()
+        {
+            return Err(Status::internal(
+                "Can't get last pending certificates: sender dropped",
+            ));
+        }
+
+        receiver
+            .map(|value| match value {
+                Ok(Ok(map)) => Ok(Response::new(GetLastPendingCertificatesResponse {
+                    last_pending_certificate: map
+                        .into_iter()
+                        .map(|(subnet_id, cert)| {
+                            if let Some(cert) = cert {
+                                (
+                                    subnet_id,
+                                    LastPendingCertificate {
+                                        value: Some(cert.into()),
+                                    },
+                                )
+                            } else {
+                                (subnet_id, LastPendingCertificate { value: None })
+                            }
+                        })
+                        .collect(),
+                })),
+                Ok(Err(e)) => Err(Status::internal(format!(
+                    "Can't get last pending certificates: {e}"
+                ))),
+                Err(e) => Err(Status::internal(format!(
+                    "Can't get last pending certificates: {e}"
+                ))),
+            })
+            .await
     }
 
     ///Server streaming response type for the WatchCertificates method.

@@ -21,4 +21,14 @@ pub enum RuntimeEvent {
         subnet_id: SubnetId,
         sender: oneshot::Sender<Result<(u64, topos_core::uci::Certificate), RuntimeError>>,
     },
+
+    GetLastPendingCertificates {
+        subnet_ids: Vec<SubnetId>,
+        sender: oneshot::Sender<
+            Result<
+                std::collections::HashMap<String, Option<topos_core::uci::Certificate>>,
+                RuntimeError,
+            >,
+        >,
+    },
 }

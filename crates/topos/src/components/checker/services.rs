@@ -41,8 +41,7 @@ pub(crate) async fn check_delivery(
         let random_peer: Uri = peers
             .choose(&mut rand::thread_rng())
             .ok_or(vec![format!(
-                "Unable to select a random peer from the list: {:?}",
-                peers
+                "Unable to select a random peer from the list: {peers:?}"
             )])?
             .try_into()
             .map_err(|_| vec![format!("Unable to parse the peer address")])?;
@@ -126,12 +125,7 @@ pub(crate) async fn check_delivery(
 
         let mut client = ApiServiceClient::connect(random_peer.clone())
             .await
-            .map_err(|_| {
-                vec![format!(
-                    "Unable to connect to the TCE api on {}",
-                    random_peer
-                )]
-            })?;
+            .map_err(|_| vec![format!("Unable to connect to the TCE api on {random_peer}")])?;
 
         // submit a certificate to one node
         _ = client
@@ -141,8 +135,7 @@ pub(crate) async fn check_delivery(
             .await
             .map_err(|_| {
                 vec![format!(
-                    "Unable to submit the certificate to the TCE api on {}",
-                    random_peer
+                    "Unable to submit the certificate to the TCE api on {random_peer}"
                 )]
             })?;
 

@@ -294,29 +294,29 @@ async fn pending_certificate_can_be_removed(storage: RocksDBStorage) {
 #[rstest]
 #[test(tokio::test)]
 async fn get_source_head_for_subnet(storage: RocksDBStorage) {
-    let expected_certificates_for_source_subnet =
+    let expected_certificates_for_source_subnet_1 =
         create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_2], 10);
 
-    for cert in &expected_certificates_for_source_subnet {
+    for cert in &expected_certificates_for_source_subnet_1 {
         storage.persist(cert, None).await.unwrap();
     }
 
-    let expected_certificates_for_source_subnet_a =
-        create_certificate_chain(TARGET_SUBNET_ID_1, &[TARGET_SUBNET_ID_2], 10);
+    let expected_certificates_for_source_subnet_2 =
+        create_certificate_chain(SOURCE_SUBNET_ID_2, &[TARGET_SUBNET_ID_2], 10);
 
-    for cert in &expected_certificates_for_source_subnet_a {
+    for cert in &expected_certificates_for_source_subnet_2 {
         storage.persist(cert, None).await.unwrap();
     }
 
-    let last_certificate_subnet = storage
+    let last_certificate_source_subnet_1 = storage
         .get_source_heads(vec![SOURCE_SUBNET_ID_1])
         .await
         .unwrap()
         .last()
         .unwrap()
         .clone();
-    let last_certificate_subnet_a = storage
-        .get_source_heads(vec![TARGET_SUBNET_ID_1])
+    let last_certificate_source_subnet_2 = storage
+        .get_source_heads(vec![SOURCE_SUBNET_ID_2])
         .await
         .unwrap()
         .last()
@@ -324,18 +324,18 @@ async fn get_source_head_for_subnet(storage: RocksDBStorage) {
         .clone();
 
     assert_eq!(
-        expected_certificates_for_source_subnet.last().unwrap().id,
-        last_certificate_subnet.cert_id
+        expected_certificates_for_source_subnet_1.last().unwrap().id,
+        last_certificate_source_subnet_1.cert_id
     );
-    assert_eq!(9, last_certificate_subnet.position.0); //check position
+    assert_eq!(9, last_certificate_source_subnet_1.position.0); //check position
     assert_eq!(
-        expected_certificates_for_source_subnet_a.last().unwrap().id,
-        last_certificate_subnet_a.cert_id
+        expected_certificates_for_source_subnet_2.last().unwrap().id,
+        last_certificate_source_subnet_2.cert_id
     );
-    assert_eq!(9, last_certificate_subnet_a.position.0); //check position
+    assert_eq!(9, last_certificate_source_subnet_2.position.0); //check position
 
-    let other_certificate = Certificate::new(
-        expected_certificates_for_source_subnet.last().unwrap().id,
+    let new_certificate_source_subnet_1 = Certificate::new(
+        expected_certificates_for_source_subnet_1.last().unwrap().id,
         SOURCE_SUBNET_ID_1,
         Default::default(),
         Default::default(),
@@ -344,20 +344,26 @@ async fn get_source_head_for_subnet(storage: RocksDBStorage) {
         Vec::new(),
     )
     .unwrap();
-    storage.persist(&other_certificate, None).await.unwrap();
+    storage
+        .persist(&new_certificate_source_subnet_1, None)
+        .await
+        .unwrap();
 
-    let last_certificate_subnet = storage
+    let last_certificate_subnet_1 = storage
         .get_source_heads(vec![SOURCE_SUBNET_ID_1])
         .await
         .unwrap()
         .last()
         .unwrap()
         .clone();
-    assert_eq!(other_certificate.id, last_certificate_subnet.cert_id);
-    assert_eq!(10, last_certificate_subnet.position.0); //check position
+    assert_eq!(
+        new_certificate_source_subnet_1.id,
+        last_certificate_subnet_1.cert_id
+    );
+    assert_eq!(10, last_certificate_subnet_1.position.0); //check position
 
     let other_certificate_2 = Certificate::new(
-        other_certificate.id,
+        new_certificate_source_subnet_1.id,
         SOURCE_SUBNET_ID_1,
         Default::default(),
         Default::default(),
@@ -368,13 +374,71 @@ async fn get_source_head_for_subnet(storage: RocksDBStorage) {
     .unwrap();
     storage.persist(&other_certificate_2, None).await.unwrap();
 
-    let last_certificate_subnet = storage
+    let last_certificate_subnet_2 = storage
         .get_source_heads(vec![SOURCE_SUBNET_ID_1])
         .await
         .unwrap()
         .last()
         .unwrap()
         .clone();
-    assert_eq!(other_certificate_2.id, last_certificate_subnet.cert_id);
-    assert_eq!(11, last_certificate_subnet.position.0); //check position
+    assert_eq!(other_certificate_2.id, last_certificate_subnet_2.cert_id);
+    assert_eq!(11, last_certificate_subnet_2.position.0); //check position
+}
+
+#[rstest]
+#[test(tokio::test)]
+async fn get_pending_certificates(storage: RocksDBStorage) {
+    let mut expected_pending_certificates: Vec<(u64, Certificate)> = Vec::new();
+    let mut expected_pending_certificates_count: u64 = 0;
+
+    let certificates_for_source_subnet_1 =
+        create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_2], 15);
+    for cert in &certificates_for_source_subnet_1[0..10] {
+        storage.persist(cert, None).await.unwrap();
+    }
+    for cert in &certificates_for_source_subnet_1[10..] {
+        storage.add_pending_certificate(cert).await.unwrap();
+        expected_pending_certificates.push((expected_pending_certificates_count, cert.clone()));
+        expected_pending_certificates_count += 1;
+    }
+
+    let certificates_for_source_subnet_2 =
+        create_certificate_chain(SOURCE_SUBNET_ID_2, &[TARGET_SUBNET_ID_2], 15);
+    for cert in &certificates_for_source_subnet_2[0..10] {
+        storage.persist(cert, None).await.unwrap();
+    }
+    for cert in &certificates_for_source_subnet_2[10..] {
+        storage.add_pending_certificate(cert).await.unwrap();
+        expected_pending_certificates.push((expected_pending_certificates_count, cert.clone()));
+        expected_pending_certificates_count += 1;
+    }
+
+    let pending_certificates = storage.get_pending_certificates().await.unwrap();
+    assert_eq!(
+        expected_pending_certificates_count as usize,
+        pending_certificates.len()
+    );
+    assert_eq!(expected_pending_certificates, pending_certificates);
+
+    // Remove some pending certificates, check again
+    let cert_to_remove = expected_pending_certificates.remove(5);
+    storage
+        .remove_pending_certificate(cert_to_remove.0)
+        .await
+        .unwrap();
+
+    let cert_to_remove = expected_pending_certificates.remove(8);
+    storage
+        .remove_pending_certificate(cert_to_remove.0)
+        .await
+        .unwrap();
+
+    expected_pending_certificates_count -= 2;
+
+    let pending_certificates = storage.get_pending_certificates().await.unwrap();
+    assert_eq!(
+        expected_pending_certificates_count as usize,
+        pending_certificates.len()
+    );
+    assert_eq!(expected_pending_certificates, pending_certificates);
 }

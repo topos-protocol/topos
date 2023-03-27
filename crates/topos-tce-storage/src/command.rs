@@ -17,6 +17,7 @@ RegisterCommands!(
         CertificateDelivered,
         CheckPendingCertificateExists,
         GetCertificate,
+        GetPendingCertificates,
         GetSourceHead,
         FetchCertificates,
         RemovePendingCertificate,
@@ -41,6 +42,15 @@ pub struct RemovePendingCertificate {
 
 impl Command for RemovePendingCertificate {
     type Result = PendingCertificateId;
+}
+
+#[derive(Debug)]
+pub struct GetPendingCertificates {
+    pub(crate) subnet_ids: Vec<SubnetId>,
+}
+
+impl Command for GetPendingCertificates {
+    type Result = Vec<Certificate>;
 }
 
 #[derive(Debug)]

@@ -11,7 +11,7 @@ use tce_transport::{TceCommands, TceEvents};
 use tokio::spawn;
 use tokio::sync::{mpsc, oneshot};
 use topos_core::api::checkpoints::TargetStreamPosition;
-use topos_core::uci::{CertificateId, SubnetId};
+use topos_core::uci::{Certificate, CertificateId, SubnetId};
 use topos_p2p::{Client as NetworkClient, Event as NetEvent, RetryPolicy};
 use topos_tce_api::RuntimeEvent as ApiEvent;
 use topos_tce_api::{RuntimeClient as ApiClient, RuntimeError};
@@ -209,6 +209,42 @@ impl AppContext {
                 };
 
                 _ = sender.send(result);
+            }
+
+            ApiEvent::GetLastPendingCertificates { subnet_ids, sender } => {
+                let mut last_pending_certificates: HashMap<SubnetId, Option<Certificate>> =
+                    subnet_ids
+                        .iter()
+                        .map(|subnet_id| (*subnet_id, None))
+                        .collect::<HashMap<SubnetId, Option<Certificate>>>();
+
+                if let Ok(pending_certificates) = self
+                    .pending_storage
+                    .get_pending_certificates(subnet_ids.clone())
+                    .await
+                {
+                    // Iterate through pending certificates and determine last one for every subnet
+                    // Last certificate in the subnet should be one with the highest index
+                    for (_index, cert) in pending_certificates.into_iter().enumerate() {
+                        let subnet_id = cert.source_subnet_id;
+                        *last_pending_certificates.entry(subnet_id).or_insert(None) = Some(cert);
+                    }
+                }
+
+                let subnet_ids = subnet_ids
+                    .into_iter()
+                    .collect::<std::collections::HashSet<SubnetId>>();
+
+                let last_pending_certificates: HashMap<
+                    String,
+                    Option<topos_core::uci::Certificate>,
+                > = last_pending_certificates
+                    .into_iter()
+                    .filter(|(subnet_id, cert)| subnet_ids.contains(subnet_id))
+                    .map(|(subnet_id, cert)| (subnet_id.to_string(), cert))
+                    .collect();
+
+                _ = sender.send(Ok(last_pending_certificates));
             }
         }
     }

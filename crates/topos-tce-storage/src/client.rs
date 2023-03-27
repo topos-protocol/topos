@@ -1,6 +1,7 @@
 use tokio::sync::{mpsc, oneshot};
 use topos_core::uci::{Certificate, CertificateId, SubnetId, CERTIFICATE_ID_LENGTH};
 
+use crate::command::GetPendingCertificates;
 use crate::{
     command::{
         AddPendingCertificate, CertificateDelivered, CheckPendingCertificateExists,
@@ -67,6 +68,18 @@ impl StorageClient {
         }
         .send_to(&self.sender)
         .await
+    }
+
+    /// Fetch all pending certificates
+    ///
+    /// Return list of pending certificates
+    pub async fn get_pending_certificates(
+        &self,
+        subnet_ids: Vec<SubnetId>,
+    ) -> Result<Vec<Certificate>, StorageError> {
+        GetPendingCertificates { subnet_ids }
+            .send_to(&self.sender)
+            .await
     }
 
     /// Ask the storage to tag this certificate as delivered.
