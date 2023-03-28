@@ -1,13 +1,10 @@
 use dockertest::{
     Composition, DockerTest, Image, LogAction, LogOptions, LogPolicy, LogSource, PullPolicy, Source,
 };
-use fs_extra::dir::{copy, create_all, CopyOptions};
 use rstest::*;
 use secp256k1::SecretKey;
 use serial_test::serial;
 use std::collections::HashSet;
-use std::env;
-use std::path::PathBuf;
 use std::str::FromStr;
 use test_log::test;
 use tokio::sync::oneshot;
@@ -33,8 +30,8 @@ const SUBNET_TOKEN_DEPLOYER_JSON_DEFINITION: &str = "TokenDeployer.json";
 const SUBNET_CHAIN_ID: u64 = 100;
 const SUBNET_RPC_PORT: u32 = 8545;
 const TEST_SECRET_ETHEREUM_KEY: &str =
-    "5fb92d6e98884f76de468fa3f6278f8807c48bebc13595d45af5bdc4da702133";
-const TEST_ETHEREUM_ACCOUNT: &str = "0xf24FF3a9CF04c71Dbc94D0b566f7A27B94566cac";
+    "d7e2e00b43c12cf17239d4755ed744df6ca70a933fc7c8bbb7da1342a5ff2e38";
+const TEST_ETHEREUM_ACCOUNT: &str = "0x4AAb25B4fAd0Beaac466050f3A7142A502f4Cf0a";
 const POLYGON_EDGE_CONTAINER: &str = "ghcr.io/topos-network/polygon-edge";
 const POLYGON_EDGE_CONTAINER_TAG: &str = "develop";
 const SUBNET_STARTUP_DELAY: u64 = 5; // seconds left for subnet startup
@@ -281,78 +278,19 @@ fn spawn_subnet_node(
 ) -> Result<tokio::task::JoinHandle<()>, Box<dyn std::error::Error>> {
     let handle = tokio::task::spawn_blocking(move || {
         let source = Source::DockerHub;
-        let mut temp_dir = PathBuf::from_str(env!("CARGO_TARGET_TMPDIR"))
-            .expect("Unable to read CARGO_TARGET_TMPDIR");
-        temp_dir.push(format!(
-            "./topos-sequencer/data_{}_{}",
-            port,
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .expect("valid system time duration")
-                .as_millis()
-        ));
-        let mut test_chain_dir = temp_dir.clone();
-        let mut genesis_dir = temp_dir.clone();
-        test_chain_dir.push("./test-chain-1");
-        genesis_dir.push("./genesis");
-
-        info!("genesis_dir: {:?}", genesis_dir);
         let img = Image::with_repository(POLYGON_EDGE_CONTAINER)
             .source(Source::Local)
             .tag(POLYGON_EDGE_CONTAINER_TAG)
             .pull_policy(PullPolicy::IfNotPresent);
         let mut polygon_edge_node = Composition::with_image(img);
-        let current_dir: String = std::env::current_dir()
-            .expect("current_dir")
-            .to_str()
-            .unwrap()
-            .to_string();
 
-        // There is no option in dockertest to change running user, so all blockchain data files
-        // will be created with root privileges. So we copy keys and network config to the temp folder
-        // that should be removed manually after the test
-        let copy_options = CopyOptions {
-            overwrite: true,
-            copy_inside: true,
-            ..Default::default()
-        };
-
-        if let Err(err) = create_all(&temp_dir, false) {
-            error!("Unable to create temporary test data directory {err}");
-        };
-        if let Err(err) = copy(
-            current_dir.clone() + "/tests/artifacts/test-chain-1",
-            &test_chain_dir,
-            &copy_options,
-        ) {
-            error!("Unable to copy test chain directory {err}");
-        };
-        if let Err(err) = copy(
-            current_dir + "/tests/artifacts/genesis",
-            &genesis_dir,
-            &copy_options,
-        ) {
-            error!("Unable to copy genesis directory {err}");
-        };
-
-        // Define options
-        polygon_edge_node
-            .bind_mount(
-                test_chain_dir.into_os_string().to_string_lossy(),
-                "/data/test-chain-1",
-            )
-            .bind_mount(genesis_dir.into_os_string().to_string_lossy(), "/genesis")
-            .port_map(SUBNET_RPC_PORT, port);
+        // Define docker options
+        polygon_edge_node.port_map(SUBNET_RPC_PORT, port);
 
         let mut polygon_edge_node_docker = DockerTest::new().with_default_source(source);
+
         // Setup command for polygon edge binary
-        let cmd: Vec<String> = vec![
-            "server".to_string(),
-            "--data-dir".to_string(),
-            "/data/test-chain-1".to_string(),
-            "--chain".to_string(),
-            "/genesis/genesis.json".to_string(),
-        ];
+        let cmd: Vec<String> = vec!["standalone-test".to_string()];
 
         polygon_edge_node_docker.add_composition(
             polygon_edge_node
