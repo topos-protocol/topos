@@ -37,7 +37,8 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
   cargo clippy --all --tests
 
 FROM base AS audit
-RUN cargo install cargo-audit --locked
+RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
+  cargo install cargo-audit --locked
 COPY . .
 RUN cargo audit
 
