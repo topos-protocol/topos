@@ -63,7 +63,7 @@ case "$1" in
            # Acquire lock and add $PEER to ${PEER_LIST_PATH} only once
            (
                flock --exclusive -w 10 201 || exit 1
-               cat <<< $($JQ --arg PEER $PEER '. += [$PEER]|unique' $PEER_LIST_PATH) > $PEER_LIST_PATH
+               cat <<< $($JQ --arg PEER $PEER '. |= (. + [$PEER] | unique )' $PEER_LIST_PATH) > $PEER_LIST_PATH
 
            ) 201>"${PEER_LIST_PATH}.lock"
 
