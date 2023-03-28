@@ -59,7 +59,13 @@ case "$1" in
            done
 
            PEER=$($TOPOS_BIN tce keys --from-seed=$HOSTNAME)
-           cat <<< $($JQ --arg PEER $PEER '. += [$PEER]' $PEER_LIST_PATH) > $PEER_LIST_PATH
+
+           # Acquire lock and add $PEER to ${PEER_LIST_PATH} only once
+           (
+               flock --exclusive -w 10 201 || exit 1
+               cat <<< $($JQ --arg PEER $PEER '. |= (. + [$PEER] | unique )' $PEER_LIST_PATH) > $PEER_LIST_PATH
+
+           ) 201>"${PEER_LIST_PATH}.lock"
 
            export TCE_LOCAL_KS=$HOSTNAME
            export TCE_EXT_HOST
@@ -70,7 +76,12 @@ case "$1" in
                sleep 1
            done
 
-           cat <<< $($JQ --arg NODE $NODE '.nodes += [$NODE]' $NODE_LIST_PATH) > $NODE_LIST_PATH
+           # Acquire lock and add $NODE to ${NODE_LIST_PATH} only once
+           (
+               flock --exclusive -w 10 200 || exit 1
+               cat <<< $($JQ --arg NODE $NODE '.nodes |= (. + [$NODE] | unique)' $NODE_LIST_PATH) > $NODE_LIST_PATH
+
+           ) 200>"${NODE_LIST_PATH}.lock"
        fi
 
        exec "$TOPOS_BIN" "${@:2}"
