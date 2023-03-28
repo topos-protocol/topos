@@ -220,10 +220,7 @@ impl SubnetRuntimeProxy {
                 } => {
                     let span_subnet_runtime_proxy = info_span!("Subnet Runtime Proxy");
                     span_subnet_runtime_proxy.set_parent(ctx);
-                    let span_push_certificate = info_span!(
-                        parent: &span_subnet_runtime_proxy,
-                        "Subnet push certificate call"
-                    );
+
                     async {
                         info!(
                         "Processing certificate received from TCE, cert_id={}",
@@ -250,6 +247,8 @@ impl SubnetRuntimeProxy {
                                 return;
                             }
                         }
+
+                        let span_push_certificate = info_span!("Subnet push certificate call");
 
                         // Push the Certificate to the ToposCore contract on the target subnet
                         match SubnetRuntimeProxy::push_certificate(
