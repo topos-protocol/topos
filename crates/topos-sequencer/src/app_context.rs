@@ -113,7 +113,7 @@ impl AppContext {
                                 position: cert_position,
                                 ctx: Span::current().context(),
                             })
-                            .expect("Send cross transactions to the runtime");
+                            .expect("Propagate new delivered Certificate to the runtime");
                     }
                 });
             }
