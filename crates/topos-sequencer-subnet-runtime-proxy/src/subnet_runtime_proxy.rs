@@ -194,13 +194,13 @@ impl SubnetRuntimeProxy {
         runtime_proxy_config: &SubnetRuntimeProxyConfig,
         subnet_client: &mut SubnetClient,
         cert: &Certificate,
-        cert_position: u64,
+        position: u64,
     ) -> Result<String, Error> {
         debug!(
             "Pushing certificate with id {} to target subnet {}, tcc {}",
             cert.id, runtime_proxy_config.subnet_id, runtime_proxy_config.subnet_contract_address,
         );
-        let receipt = subnet_client.push_certificate(cert, cert_position).await?;
+        let receipt = subnet_client.push_certificate(cert, position).await?;
         debug!("Push certificate transaction receipt: {:?}", &receipt);
         Ok("0x".to_string() + &hex::encode(receipt.transaction_hash))
     }
@@ -215,13 +215,16 @@ impl SubnetRuntimeProxy {
                 // Process certificate retrieved from TCE node
                 SubnetRuntimeProxyCommand::OnNewDeliveredCertificate {
                     certificate,
-                    position: cert_position,
+                    position,
                     ctx,
                 } => {
-                    let span = info_span!("Subnet Runtime Proxy");
-                    span.set_parent(ctx);
-                    let ctx = span.context();
-                    _ = span.entered();
+                    let subnet_runtime_proxy_span = info_span!("Subnet Runtime Proxy");
+                    subnet_runtime_proxy_span.set_parent(ctx);
+                    let span_push_certificate = info_span!(
+                        parent: &subnet_runtime_proxy_span,
+                        "Subnet push certificate call"
+                    );
+                    _ = subnet_runtime_proxy_span.entered();
                     info!(
                         "Processing certificate received from TCE, cert_id={}",
                         &certificate.id
@@ -249,13 +252,11 @@ impl SubnetRuntimeProxy {
                     }
 
                     // Push the Certificate to the ToposCore contract on the target subnet
-                    let span_push_certificate = info_span!("Subnet push certificate call");
-                    span_push_certificate.set_parent(ctx);
                     match SubnetRuntimeProxy::push_certificate(
                         runtime_proxy_config,
                         subnet_client,
                         &certificate,
-                        cert_position,
+                        position,
                     )
                     .with_context(span_push_certificate.context())
                     .instrument(span_push_certificate)

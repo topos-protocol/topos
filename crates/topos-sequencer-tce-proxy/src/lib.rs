@@ -517,8 +517,6 @@ impl TceProxyWorker {
                         }
                     }
 
-
-
                      // Process certificates received from the TCE node
                     Some((cert, target_stream_position)) = receiving_certificate_stream.next() => {
                         let span = info_span!("PushCertificate");
@@ -531,7 +529,8 @@ impl TceProxyWorker {
                             .await {
                                 error!("Unable to send NewDeliveredCerts event {e}");
                             }
-                        }.with_context(span.context())
+                        }
+                        .with_context(span.context())
                         .instrument(span)
                         .await;
                     }
