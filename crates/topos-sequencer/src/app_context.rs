@@ -2,11 +2,12 @@
 //! Application logic glue
 //!
 use crate::SequencerConfiguration;
+use opentelemetry::trace::FutureExt;
 use topos_sequencer_certification::CertificationWorker;
 use topos_sequencer_subnet_runtime_proxy::SubnetRuntimeProxyWorker;
 use topos_sequencer_tce_proxy::TceProxyWorker;
 use topos_sequencer_types::*;
-use tracing::{debug, error, info, info_span, warn, Instrument};
+use tracing::{debug, error, info, info_span, warn, Instrument, Span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 /// Top-level transducer sequencer app context & driver (alike)
@@ -87,6 +88,7 @@ impl AppContext {
                         cert: Box::new(cert),
                         ctx: span.context(),
                     })
+                    .with_context(span.context())
                     .instrument(span)
                     .await
                 {
@@ -98,13 +100,22 @@ impl AppContext {
 
     async fn on_tce_proxy_event(&mut self, evt: TceProxyEvent) {
         match evt {
-            TceProxyEvent::NewDeliveredCerts(certs) => {
-                // New certificates acquired from TCE
-                for cert in certs {
-                    self.runtime_proxy_worker
-                        .eval(SubnetRuntimeProxyCommand::OnNewDeliveredCertificate(cert))
-                        .expect("Send cross transactions to the runtime");
-                }
+            TceProxyEvent::NewDeliveredCerts { certificates, ctx } => {
+                let span = info_span!("Sequencer app context");
+                span.set_parent(ctx);
+
+                span.in_scope(|| {
+                    // New certificates acquired from TCE
+                    for (cert, cert_position) in certificates {
+                        self.runtime_proxy_worker
+                            .eval(SubnetRuntimeProxyCommand::OnNewDeliveredCertificate {
+                                certificate: cert,
+                                position: cert_position,
+                                ctx: Span::current().context(),
+                            })
+                            .expect("Propagate new delivered Certificate to the runtime");
+                    }
+                });
             }
             TceProxyEvent::WatchCertificatesChannelFailed => {
                 warn!("Restarting tce proxy worker...");

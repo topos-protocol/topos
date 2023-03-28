@@ -2,6 +2,7 @@
 //!
 
 use crate::{Error, SubnetRuntimeProxyConfig};
+use opentelemetry::trace::FutureExt;
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -11,7 +12,8 @@ use topos_core::api::checkpoints::TargetStreamPosition;
 use topos_core::uci::{Certificate, SubnetId};
 use topos_sequencer_subnet_client::{self, SubnetClient};
 use topos_sequencer_types::{SubnetRuntimeProxyCommand, SubnetRuntimeProxyEvent};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info, info_span, warn, Instrument};
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 /// Arbitrary tick duration for fetching new finalized blocks
 const SUBNET_BLOCK_TIME: Duration = Duration::new(2, 0);
@@ -192,13 +194,13 @@ impl SubnetRuntimeProxy {
         runtime_proxy_config: &SubnetRuntimeProxyConfig,
         subnet_client: &mut SubnetClient,
         cert: &Certificate,
-        cert_position: u64,
+        position: u64,
     ) -> Result<String, Error> {
         debug!(
             "Pushing certificate with id {} to target subnet {}, tcc {}",
             cert.id, runtime_proxy_config.subnet_id, runtime_proxy_config.subnet_contract_address,
         );
-        let receipt = subnet_client.push_certificate(cert, cert_position).await?;
+        let receipt = subnet_client.push_certificate(cert, position).await?;
         debug!("Push certificate transaction receipt: {:?}", &receipt);
         Ok("0x".to_string() + &hex::encode(receipt.transaction_hash))
     }
@@ -211,55 +213,71 @@ impl SubnetRuntimeProxy {
         match mb_cmd {
             Some(cmd) => match cmd {
                 // Process certificate retrieved from TCE node
-                SubnetRuntimeProxyCommand::OnNewDeliveredCertificate((cert, cert_position)) => {
-                    info!(
+                SubnetRuntimeProxyCommand::OnNewDeliveredCertificate {
+                    certificate,
+                    position,
+                    ctx,
+                } => {
+                    let span_subnet_runtime_proxy = info_span!("Subnet Runtime Proxy");
+                    span_subnet_runtime_proxy.set_parent(ctx);
+
+                    async {
+                        info!(
                         "Processing certificate received from TCE, cert_id={}",
-                        &cert.id
-                    );
+                        &certificate.id
+                        );
 
-                    // Verify certificate signature
-                    // Well known subnet id is public key for certificate verification
-                    // Public key of secp256k1 is 33 bytes, we are keeping last 32 bytes as subnet id
-                    // Add manually first byte 0x02
-                    let public_key = cert.source_subnet_id.to_secp256k1_public_key();
+                        // Verify certificate signature
+                        // Well known subnet id is public key for certificate verification
+                        // Public key of secp256k1 is 33 bytes, we are keeping last 32 bytes as subnet id
+                        // Add manually first byte 0x02
+                        let public_key = certificate.source_subnet_id.to_secp256k1_public_key();
 
-                    // Verify signature of the certificate
-                    match topos_crypto::signatures::verify(
-                        &public_key,
-                        cert.get_payload().as_slice(),
-                        cert.signature.as_slice(),
-                    ) {
-                        Ok(()) => {
-                            info!("Certificate {} passed verification", cert.id)
+                        // Verify signature of the certificate
+                        match topos_crypto::signatures::verify(
+                            &public_key,
+                            certificate.get_payload().as_slice(),
+                            certificate.signature.as_slice(),
+                        ) {
+                            Ok(()) => {
+                                info!("Certificate {} passed verification", certificate.id)
+                            }
+                            Err(e) => {
+                                error!("Failed to verify certificate id {}: {e}", certificate.id);
+                                return;
+                            }
                         }
-                        Err(e) => {
-                            error!("Failed to verify certificate id {}: {e}", cert.id);
-                            return;
-                        }
-                    }
 
-                    // Push the Certificate to the ToposCore contract on the target subnet
-                    match SubnetRuntimeProxy::push_certificate(
-                        runtime_proxy_config,
-                        subnet_client,
-                        &cert,
-                        cert_position,
-                    )
-                    .await
-                    {
-                        Ok(tx_hash) => {
-                            debug!(
-                                "Successfully pushed the Certificate {} to target subnet with tx hash {}",
-                                &cert.id, &tx_hash
-                            );
-                        }
-                        Err(e) => {
-                            error!(
+                        let span_push_certificate = info_span!("Subnet push certificate call");
+
+                        // Push the Certificate to the ToposCore contract on the target subnet
+                        match SubnetRuntimeProxy::push_certificate(
+                            runtime_proxy_config,
+                            subnet_client,
+                            &certificate,
+                            position,
+                        )
+                            .with_context(span_push_certificate.context())
+                            .instrument(span_push_certificate)
+                            .await
+                        {
+                            Ok(tx_hash) => {
+                                debug!(
+                                    "Successfully pushed the Certificate {} to target subnet with tx hash {}",
+                                    &certificate.id, &tx_hash
+                                );
+                            }
+                            Err(e) => {
+                                error!(
                                 "Failed to push the Certificate {} to target subnet: {e}",
-                                &cert.id
-                            );
+                                &certificate.id
+                                );
+                            }
                         }
                     }
+                    .with_context(span_subnet_runtime_proxy.context())
+                    .instrument(span_subnet_runtime_proxy)
+                    .await
                 }
             },
             _ => {
