@@ -5,7 +5,6 @@ package topos.tce.v1;
 import "topos/shared/v1/checkpoints.proto";
 import "topos/shared/v1/subnet.proto";
 import "topos/shared/v1/uuid.proto";
-import "topos/shared/v1/certificate.proto";
 import "topos/tce/v1/synchronization.proto";
 import "topos/uci/v1/certification.proto";
 
