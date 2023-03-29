@@ -1,6 +1,7 @@
 name: Docker build and push
 
 env:
+  DEFAULT_FEATURES: tce,sequencer
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
   AWS_SHARED_CREDENTIALS_FILE: "${{ github.workspace }}/.aws/credentials"
@@ -21,11 +22,7 @@ on:
       features:
         required: false
         type: string
-        default: tce,sequencer,checker
-      docker_tag:
-        required: false
-        type: string
-        default: ""
+        default: ${{ env.DEFAULT_FEATURES }}
     outputs:
       tags:
         description: "Docker tags"
@@ -79,9 +76,9 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=ref,event=branch,suffix=${{ inputs.docker_tag != '' && format('-{0}', input.docker_tag) || '' }}
-            type=ref,event=tag,suffix=${{ inputs.docker_tag != '' && format('-{0}', input.docker_tag) || '' }}
-            type=ref,event=pr,suffix=${{ inputs.docker_tag != '' && format('-{0}', input.docker_tag) || '' }}
+            type=ref,event=branch,suffix=${{ inputs.features != env.DEFAULT_FEATURES && format('-{0}', input.features) || '' }}
+            type=ref,event=tag,suffix=${{ inputs.features != env.DEFAULT_FEATURES && format('-{0}', input.features) || '' }}
+            type=ref,event=pr,suffix=${{ inputs.features != env.DEFAULT_FEATURES && format('-{0}', input.features) || '' }}
 
       - name: Push to GitHub Container Registry
         uses: docker/build-push-action@v3
