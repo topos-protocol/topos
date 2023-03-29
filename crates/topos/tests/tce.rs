@@ -44,12 +44,14 @@ async fn do_not_push_empty_list() -> Result<(), Box<dyn std::error::Error>> {
     cmd.arg("tce")
         .arg("push-peer-list")
         .arg("1234")
-        .arg("--endpoint")
+        .arg("--node")
         .arg(format!("http://localhost:{port}"));
 
     let output = cmd.assert().failure();
 
-    insta::assert_json_snapshot!(serde_json::from_slice::<serde_json::Value>(&output.get_output().stdout).unwrap(), {".timestamp" => "[timestamp]"});
+    let out = serde_json::from_slice::<serde_json::Value>(&output.get_output().stdout);
+    println!("{:?}", out);
+    insta::assert_json_snapshot!(out.unwrap(), {".timestamp" => "[timestamp]"});
 
     Ok(())
 }

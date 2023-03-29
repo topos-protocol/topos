@@ -12,7 +12,7 @@ use tracing::{debug, error, info, trace};
 use uuid::Uuid;
 
 use crate::{
-    components::tce::{commands::PushPeerList, PeerList, TCEService},
+    components::tce::{commands::PushPeerList, parser::PeerList, TCEService},
     options::input_format::Parser,
 };
 
@@ -25,6 +25,7 @@ impl Service<PushPeerList> for TCEService {
         Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send + 'static>>;
 
     fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        // let client = setup_tce_grpc(&node).await;
         Poll::Ready(Ok(()))
     }
 
@@ -34,9 +35,10 @@ impl Service<PushPeerList> for TCEService {
             format,
             peers,
             force,
+            ..
         }: PushPeerList,
     ) -> Self::Future {
-        let client = self.client.clone();
+        let client = self.console_client.clone();
 
         async move {
             trace!("Building the peers from the input...");

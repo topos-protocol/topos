@@ -51,7 +51,6 @@ insta = { version = "1.21", features = ["json", "redactions"] }
 [features]
 default = ["tce", "sequencer", "checker", "network"]
 tce = ["topos-tce", "topos-tce-transport"]
-checker = []
 sequencer = ["topos-sequencer"]
 network = ["topos-certificate-spammer"]
 

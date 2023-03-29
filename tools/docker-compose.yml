@@ -47,7 +47,7 @@ services:
       context: ../
       args:
         - TOOLCHAIN_VERSION=stable
-        - FEATURES=tce,checker
+        - FEATURES=tce
     depends_on:
       - otel-collector
     ports:
@@ -130,10 +130,10 @@ services:
       peer:
         condition: service_healthy
 
-  checker:
-    container_name: checker
+  check:
+    container_name: check
     image: ghcr.io/topos-network/topos:main
-    command: checker tce assert-delivery
+    command: tce push-certificate
     init: true
     volumes:
       - shared:/tmp/shared
@@ -142,7 +142,7 @@ services:
       args:
         - TOOLCHAIN_VERSION=stable
         - GITHUB_TOKEN
-        - FEATURES=checker
+        - FEATURES=tce
     depends_on:
       peer:
         condition: service_healthy
