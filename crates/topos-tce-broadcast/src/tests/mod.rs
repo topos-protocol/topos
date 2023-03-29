@@ -380,13 +380,10 @@ async fn buffering_certificate(#[case] params: TceParams) {
 
     let mut received_gossip_commands: Vec<(HashSet<PeerId>, Certificate)> = Vec::new();
     let assertion = async {
-        loop {
-            while let Ok(event) = ctx.event_receiver.try_recv() {
-                if let ProtocolEvents::Gossip { peers, cert, .. } = event {
-                    received_gossip_commands.push((peers.into_iter().collect(), cert));
-                }
+        while let Ok(event) = ctx.event_receiver.recv().await {
+            if let ProtocolEvents::Gossip { peers, cert, .. } = event {
+                received_gossip_commands.push((peers.into_iter().collect(), cert));
             }
-            tokio::time::sleep(Duration::from_millis(10)).await;
         }
     };
 

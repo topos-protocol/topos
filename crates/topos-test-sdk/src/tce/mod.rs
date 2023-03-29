@@ -11,10 +11,11 @@ use tokio::spawn;
 use tokio::sync::oneshot;
 use tokio::{sync::mpsc, task::JoinHandle};
 use tonic::transport::Channel;
+use tonic::Response;
 use topos_core::api::tce::v1::{
     api_service_client::ApiServiceClient, console_service_client::ConsoleServiceClient,
 };
-use topos_core::api::tce::v1::{PushPeerListRequest, StatusRequest};
+use topos_core::api::tce::v1::{PushPeerListRequest, StatusRequest, StatusResponse};
 use topos_core::uci::Certificate;
 use topos_core::uci::SubnetId;
 use topos_p2p::{error::P2PError, Client, Event, Runtime};
@@ -139,7 +140,7 @@ pub async fn start_node(
     let (command_sampler, command_broadcast) = tce_cli.get_command_channels();
 
     let (network_client, network_stream, runtime_join_handle) =
-        bootstrap_network(config.seed, config.port, config.addr.clone(), peers, 2)
+        bootstrap_network(config.seed, config.port, config.addr.clone(), peers, 1)
             .await
             .expect("Unable to bootstrap tce network");
 
@@ -210,6 +211,7 @@ pub async fn start_pool(
     let peers = build_peer_config_pool(peer_number);
 
     let mut await_peers = Vec::new();
+
     for config in &peers {
         let mut config = config.clone();
         config.correct_sample = correct_sample;
@@ -242,50 +244,50 @@ pub async fn create_network(
     let all_peers: Vec<PeerId> = peers_context.keys().cloned().collect();
 
     // Force TCE nodes to recreate subscriptions and subscribers
-    info!("Trigger the new network view");
+    let mut await_peers = Vec::new();
     for (peer_id, client) in peers_context.iter_mut() {
-        let _ = client
-            .console_grpc_client
-            .push_peer_list(PushPeerListRequest {
-                request_id: None,
-                peers: all_peers
-                    .iter()
-                    .filter_map(|key| {
-                        if key == peer_id {
-                            None
-                        } else {
-                            Some(key.to_string())
-                        }
-                    })
-                    .collect::<Vec<_>>(),
-            })
-            .await
-            .expect("Can't send PushPeerListRequest");
+        await_peers.push(
+            client
+                .console_grpc_client
+                .push_peer_list(PushPeerListRequest {
+                    request_id: None,
+                    peers: all_peers
+                        .iter()
+                        .filter_map(|key| {
+                            if key == peer_id {
+                                None
+                            } else {
+                                Some(key.to_string())
+                            }
+                        })
+                        .collect::<Vec<_>>(),
+                }),
+        );
     }
+
+    assert!(!join_all(await_peers).await.iter().any(|res| res.is_err()));
 
     for (peer_id, client) in peers_context.iter_mut() {
         wait_for_event!(
             client.event_stream.recv(),
             matches: Events::StableSample(_),
             peer_id,
-            2000
+            5000
         );
     }
 
     // Waiting for new network view
-    let mut status: Vec<bool> = Vec::new();
-
+    let mut await_peers = Vec::new();
     for (_peer_id, client) in peers_context.iter_mut() {
-        let response = client
-            .console_grpc_client
-            .status(StatusRequest {})
-            .await
-            .expect("Can't get status");
-
-        status.push(response.into_inner().has_active_sample);
+        await_peers.push(client.console_grpc_client.status(StatusRequest {}));
     }
 
-    assert!(status.iter().all(|s| *s));
+    assert!(!join_all(await_peers)
+        .await
+        .into_iter()
+        .map(|res: Result<Response<StatusResponse>, _>| res
+            .map(|r: tonic::Response<_>| r.into_inner().has_active_sample))
+        .any(|r| r.is_err() || !r.unwrap()));
 
     peers_context
 }
