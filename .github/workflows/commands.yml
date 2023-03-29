@@ -1,0 +1,23 @@
+name: Run commands when comments added
+
+on:
+  issue_comment:
+    # types: [created]
+
+concurrency:
+  group: issue-commands-${{ github.event.issue.number }}
+
+jobs:
+  run_command:
+    # if: ${{ github.event.issue.pull_request }}
+    runs-on: ubuntu-latest
+    env:
+      COMMAND=${{ github.event.comment.body }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Run command
+        run: |
+          echo ${{ env.COMMAND }}
+        shell: bash

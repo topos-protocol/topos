@@ -78,6 +78,7 @@ jobs:
             type=ref,event=branch,suffix=${{ inputs.features == 'tce-direct,sequencer' && '-direct' || ''}}
             type=ref,event=tag,suffix=${{ inputs.features == 'tce-direct,sequencer' && '-direct' || ''}}
             type=ref,event=pr,suffix=${{ inputs.features == 'tce-direct,sequencer' && '-direct' || ''}}
+            type=ref,event=workflow_dispatch,suffix=${{ inputs.features == 'tce-direct,sequencer' && '-direct' || ''}}
 
       - name: Push to GitHub Container Registry
         uses: docker/build-push-action@v3

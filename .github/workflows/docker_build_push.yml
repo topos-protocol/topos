@@ -2,9 +2,10 @@ name: Docker_build_push
 
 on:
   push:
-    branches: [main, debug/**]
+    branches: [debug/**]
   pull_request:
     branches: [main]
+  workflow_call:
 
 jobs:
   docker:
