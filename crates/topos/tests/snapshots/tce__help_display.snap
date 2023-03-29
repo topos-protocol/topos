@@ -9,10 +9,8 @@ Usage: topos tce run [OPTIONS]
 Options:
       --boot-peers <BOOT_PEERS>
           Boot nodes to connect to, pairs of <PeerId> <Multiaddr>, space separated, quoted list like --boot-peers='a a1,b b1' [env: TCE_BOOT_PEERS=] [default: ]
-  -e, --endpoint <ENDPOINT>
-          [default: http://[::1]:1340]
   -v, --verbose...
-          
+          Defines the verbosity level
       --tce-ext-host <TCE_EXT_HOST>
           Advertised (externally visible) <host>, if empty this machine ip address(es) are used [env: TCE_EXT_HOST=] [default: /ip4/0.0.0.0]
       --tce-local-port <TCE_LOCAL_PORT>

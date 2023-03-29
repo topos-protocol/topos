@@ -6,24 +6,7 @@ use topos_test_sdk::tce::create_network;
 #[test]
 fn help_display() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin("topos")?;
-    cmd.arg("checker").arg("tce").arg("-h");
-
-    let output = cmd.assert().success();
-
-    let result: &str = std::str::from_utf8(&output.get_output().stdout)?;
-
-    insta::assert_snapshot!(result);
-
-    Ok(())
-}
-
-#[test]
-fn assert_delivery_help_display() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = Command::cargo_bin("topos")?;
-    cmd.arg("checker")
-        .arg("tce")
-        .arg("assert-delivery")
-        .arg("-h");
+    cmd.arg("tce").arg("push-certificate").arg("-h");
 
     let output = cmd.assert().success();
 
@@ -66,10 +49,10 @@ async fn assert_delivery() -> Result<(), Box<dyn std::error::Error>> {
         cmd.env("TOPOS_LOG_FORMAT", "json");
         cmd.env("RUST_LOG", "topos=debug");
 
-        cmd.arg("checker")
-            .arg("tce")
-            .arg("assert-delivery")
+        cmd.arg("tce")
+            .arg("push-certificates")
             .args(["-f", "plain"])
+            .arg("-n")
             .arg(nodes);
 
         cmd.assert().success();

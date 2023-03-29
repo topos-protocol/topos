@@ -1,10 +1,12 @@
+use std::net::SocketAddr;
+
 use clap::Args;
 
 use crate::options::input_format::InputFormat;
 
-#[derive(Args, Clone, Debug)]
-pub(crate) struct AssertDelivery {
-    #[arg(short, long="format", value_enum, default_value_t = InputFormat::Json)]
+#[derive(Args, Debug)]
+pub(crate) struct PushCertificate {
+    #[arg(short, long="format", value_enum, default_value_t = InputFormat::Plain)]
     pub(crate) format: InputFormat,
 
     /// Global timeout for the command
@@ -17,6 +19,6 @@ pub(crate) struct AssertDelivery {
 
     /// The node list to be used, can be a file path or a comma separated list of Uri. If
     /// not provided, stdin is listened.
-    #[arg(env = "TARGET_NODES_PATH")]
+    #[arg(short, long = "nodes", env = "TARGET_NODES_PATH")]
     pub(crate) nodes: Option<String>,
 }
