@@ -14,7 +14,7 @@ use topos_api::tce::v1::api_service_server::{ApiService, ApiServiceServer};
 use topos_api::tce::v1::watch_certificates_request::{Command, OpenStream};
 use topos_api::tce::v1::{
     GetLastPendingCertificatesRequest, GetLastPendingCertificatesResponse, GetSourceHeadRequest,
-    GetSourceHeadResponse, LastPendingCertificate, SourceStreamPosition, SubmitCertificateRequest,
+    GetSourceHeadResponse, OptionalCertificate, SourceStreamPosition, SubmitCertificateRequest,
     SubmitCertificateResponse, WatchCertificatesRequest, WatchCertificatesResponse,
 };
 use topos_api::uci::v1::Certificate;
@@ -75,7 +75,7 @@ async fn create_tce_layer() {
             for subnet_id in subnet_ids {
                 map.insert(
                     subnet_id.to_string(),
-                    topos_api::tce::v1::LastPendingCertificate {
+                    topos_api::tce::v1::OptionalCertificate {
                         value: Some(Certificate {
                             source_subnet_id: subnet_id.into(),
                             id: Some(return_certificate_id.clone()),
@@ -194,13 +194,15 @@ async fn create_tce_layer() {
         .await
         .map(|r| r.into_inner())
         .unwrap();
+
     let mut expected_last_pending_certificate_ids = HashMap::new();
     expected_last_pending_certificate_ids.insert(
         source_subnet_id.to_string(),
-        LastPendingCertificate {
+        OptionalCertificate {
             value: Some(original_certificate.clone()),
         },
     );
+
     let expected_response = GetLastPendingCertificatesResponse {
         last_pending_certificate: expected_last_pending_certificate_ids,
     };

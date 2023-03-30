@@ -162,10 +162,7 @@ impl TceClient {
         subnet_ids: Vec<SubnetId>,
     ) -> Result<HashMap<SubnetId, Option<Certificate>>, Error> {
         #[allow(clippy::type_complexity)]
-        let (sender, receiver): (
-            oneshot::Sender<Result<HashMap<SubnetId, Option<Certificate>>, Error>>,
-            oneshot::Receiver<Result<HashMap<SubnetId, Option<Certificate>>, Error>>,
-        ) = oneshot::channel::<Result<HashMap<SubnetId, Option<Certificate>>, Error>>();
+        let (sender, receiver) = oneshot::channel();
         self.command_sender
             .send(TceClientCommand::GetLastPendingCertificates { subnet_ids, sender })
             .await
@@ -433,60 +430,58 @@ impl TceClientBuilder {
                                 };
                             }
                             Some(TceClientCommand::GetLastPendingCertificates { subnet_ids, sender }) => {
-                                        let result: Result<HashMap<SubnetId, Option<Certificate>>, Error> =
-                                            match tce_grpc_client
-                                                .get_last_pending_certificates(GetLastPendingCertificatesRequest {
-                                                    subnet_ids: subnet_ids.into_iter().map(Into::into).collect(),
+                                let result =
+                                    match tce_grpc_client
+                                        .get_last_pending_certificates(GetLastPendingCertificatesRequest {
+                                            subnet_ids: subnet_ids.into_iter().map(Into::into).collect(),
+                                        })
+                                        .await
+                                        .map(|r| r.into_inner())
+                                    {
+                                        Ok(response) => {
+                                            let result = response
+                                                .last_pending_certificate
+                                                .into_iter()
+                                                .map(|(subnet_id, last_pending_certificate)| {
+                                                    let subnet_id: SubnetId = TryInto::<SubnetId>::try_into(
+                                                        hex::decode(&subnet_id[2..])
+                                                            .map_err(|_| Error::InvalidSubnetId)?
+                                                            .as_slice(),
+                                                    )
+                                                    .map_err(|_| Error::InvalidSubnetId)?;
+
+                                                    let certificate: Option<Certificate> =
+                                                        match last_pending_certificate.value {
+                                                            Some(certificate) => Some(
+                                                                Certificate::try_from(certificate)
+                                                                .map_err(
+                                                                    |e| Error::UnableToGetLastPendingCertificates {
+                                                                        details: e.to_string(),
+                                                                        subnet_id,
+                                                                    },
+                                                                )?,
+                                                            ),
+                                                            None => None,
+                                                        };
+
+                                                    Ok((
+                                                        subnet_id,
+                                                        certificate,
+                                                    ))
                                                 })
-                                                .await
-                                                .map(|r| r.into_inner())
-                                            {
-                                                Ok(response) => {
-                                                    let result = response
-                                                        .last_pending_certificate
-                                                        .into_iter()
-                                                        .map(|(subnet_id, last_pending_certificate)| {
-                                                            let subnet_id: SubnetId = TryInto::<SubnetId>::try_into(
-                                                                hex::decode(&subnet_id[2..])
-                                                                    .map_err(|_| Error::InvalidSubnetId)?
-                                                                    .as_slice(),
-                                                            )
-                                                            .map_err(|_| Error::InvalidSubnetId)?;
+                                                .collect::<Result<HashMap<SubnetId, Option<Certificate>>, Error>>()?;
+                                            Ok(result)
+                                        }
+                                        Err(e) => Err(Error::UnableToGetLastPendingCertificates {
+                                            subnet_id,
+                                            details: e.to_string(),
+                                        }),
+                                    };
 
-                                                            let certificate: Option<Certificate> =
-                                                                match last_pending_certificate.value {
-                                                                    Some(certificate) => Some(
-                                                                        TryInto::<topos_core::uci::Certificate>::try_into(
-                                                                            certificate,
-                                                                        )
-                                                                        .map_err(
-                                                                            |e| Error::UnableToGetLastPendingCertificates {
-                                                                                details: e.to_string(),
-                                                                                subnet_id,
-                                                                            },
-                                                                        )?,
-                                                                    ),
-                                                                    None => None,
-                                                                };
-
-                                                            Result::<(SubnetId, Option<Certificate>), Error>::Ok((
-                                                                subnet_id,
-                                                                certificate,
-                                                            ))
-                                                        })
-                                                        .collect::<Result<HashMap<SubnetId, Option<Certificate>>, Error>>()?;
-                                                    Ok(result)
-                                                }
-                                                Err(e) => Err(Error::UnableToGetLastPendingCertificates {
-                                                    subnet_id,
-                                                    details: e.to_string(),
-                                                }),
-                                            };
-
-                                        if sender.send(result).is_err() {
-                                            error!("Unable to pass result for the last pending certificates, channel failed");
-                                        };
-                                    }
+                                if sender.send(result).is_err() {
+                                    error!("Unable to pass result for the last pending certificates, channel failed");
+                                };
+                            }
                             None => {
                                 panic!("Unexpected termination of the TCE proxy service of the Sequencer");
                             }

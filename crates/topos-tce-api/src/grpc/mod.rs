@@ -10,7 +10,7 @@ use tonic::{Request, Response, Status, Streaming};
 use topos_core::api::tce::v1::{
     api_service_server::ApiService, GetLastPendingCertificatesRequest,
     GetLastPendingCertificatesResponse, GetSourceHeadRequest, GetSourceHeadResponse,
-    LastPendingCertificate, SubmitCertificateRequest, SubmitCertificateResponse,
+    OptionalCertificate, SubmitCertificateRequest, SubmitCertificateResponse,
     WatchCertificatesRequest, WatchCertificatesResponse,
 };
 use topos_core::uci::SubnetId;
@@ -196,11 +196,6 @@ impl ApiService for TceGrpcService {
         }
     }
 
-    /// This RPC allows a client to get latest pending certificates for
-    /// requested subnets (by their subnet id)
-    ///
-    /// Returns a map of subnet_id -> last pending certificate
-    /// If there are no pending certificate for a subnet, returns None for that subnet id
     async fn get_last_pending_certificates(
         &self,
         request: Request<GetLastPendingCertificatesRequest>,
@@ -209,15 +204,13 @@ impl ApiService for TceGrpcService {
 
         let subnet_ids = data.subnet_ids;
 
-        let (sender, receiver) = oneshot::channel::<
-            Result<std::collections::HashMap<String, Option<topos_core::uci::Certificate>>, _>,
-        >();
+        let (sender, receiver) = oneshot::channel();
 
         let subnet_ids: Vec<SubnetId> = subnet_ids
             .into_iter()
-            .map(TryInto::<topos_core::uci::SubnetId>::try_into)
+            .map(TryInto::try_into)
             .map(|v| v.map_err(|e| Status::internal(format!("Invalid subnet id: {e}"))))
-            .collect::<Result<Vec<SubnetId>, _>>()?;
+            .collect::<Result<_, _>>()?;
 
         if self
             .command_sender
@@ -236,16 +229,12 @@ impl ApiService for TceGrpcService {
                     last_pending_certificate: map
                         .into_iter()
                         .map(|(subnet_id, cert)| {
-                            if let Some(cert) = cert {
-                                (
-                                    subnet_id,
-                                    LastPendingCertificate {
-                                        value: Some(cert.into()),
-                                    },
-                                )
-                            } else {
-                                (subnet_id, LastPendingCertificate { value: None })
-                            }
+                            (
+                                subnet_id,
+                                OptionalCertificate {
+                                    value: cert.map(Into::into),
+                                },
+                            )
                         })
                         .collect(),
                 })),

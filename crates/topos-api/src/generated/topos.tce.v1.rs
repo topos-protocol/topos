@@ -108,7 +108,7 @@ pub struct GetLastPendingCertificatesRequest {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct LastPendingCertificate {
+pub struct OptionalCertificate {
     #[prost(message, optional, tag = "1")]
     pub value: ::core::option::Option<super::super::uci::v1::Certificate>,
 }
@@ -118,7 +118,7 @@ pub struct GetLastPendingCertificatesResponse {
     #[prost(map = "string, message", tag = "1")]
     pub last_pending_certificate: ::std::collections::HashMap<
         ::prost::alloc::string::String,
-        LastPendingCertificate,
+        OptionalCertificate,
     >,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -304,6 +304,11 @@ pub mod api_service_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
+        /// / This RPC allows a client to get latest pending certificates for
+        /// / requested subnets (by their subnet id)
+        /// /
+        /// / Returns a map of subnet_id -> last pending certificate
+        /// / If there are no pending certificate for a subnet, returns None for that subnet id
         pub async fn get_last_pending_certificates(
             &mut self,
             request: impl tonic::IntoRequest<super::GetLastPendingCertificatesRequest>,
@@ -368,6 +373,11 @@ pub mod api_service_server {
             &self,
             request: tonic::Request<super::GetSourceHeadRequest>,
         ) -> Result<tonic::Response<super::GetSourceHeadResponse>, tonic::Status>;
+        /// / This RPC allows a client to get latest pending certificates for
+        /// / requested subnets (by their subnet id)
+        /// /
+        /// / Returns a map of subnet_id -> last pending certificate
+        /// / If there are no pending certificate for a subnet, returns None for that subnet id
         async fn get_last_pending_certificates(
             &self,
             request: tonic::Request<super::GetLastPendingCertificatesRequest>,

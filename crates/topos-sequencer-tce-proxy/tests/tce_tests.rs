@@ -9,7 +9,7 @@ use topos_core::api::tce::v1::{
     watch_certificates_request, watch_certificates_response,
     watch_certificates_response::CertificatePushed, GetLastPendingCertificatesRequest,
     GetLastPendingCertificatesResponse, GetSourceHeadRequest, GetSourceHeadResponse,
-    LastPendingCertificate, SourceStreamPosition, SubmitCertificateRequest,
+    OptionalCertificate, SourceStreamPosition, SubmitCertificateRequest,
 };
 use topos_core::api::uci::v1::Certificate;
 use topos_core::uci::{self, SUBNET_ID_LENGTH};
@@ -258,10 +258,11 @@ async fn test_tce_get_last_pending_certificates(
 
     let last_pending_certificates = vec![(
         source_subnet_id.to_string(),
-        LastPendingCertificate { value: None },
+        OptionalCertificate { value: None },
     )]
     .into_iter()
-    .collect::<HashMap<String, LastPendingCertificate>>();
+    .collect::<HashMap<String, OptionalCertificate>>();
+
     let expected_response = GetLastPendingCertificatesResponse {
         last_pending_certificate: last_pending_certificates,
     };
@@ -337,12 +338,13 @@ async fn test_tce_get_last_pending_certificates(
 
     let last_pending_certificates = vec![(
         source_subnet_id.to_string(),
-        LastPendingCertificate {
+        OptionalCertificate {
             value: Some(test_certificate_2),
         },
     )]
     .into_iter()
-    .collect::<HashMap<String, LastPendingCertificate>>();
+    .collect::<HashMap<String, OptionalCertificate>>();
+
     let expected_response = GetLastPendingCertificatesResponse {
         last_pending_certificate: last_pending_certificates,
     };
