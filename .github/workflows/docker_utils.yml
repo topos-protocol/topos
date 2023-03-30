@@ -1,4 +1,4 @@
-name: Docker build and push
+name: template - docker
 
 env:
   DEFAULT_FEATURES: tce,sequencer
@@ -22,7 +22,7 @@ on:
       features:
         required: false
         type: string
-        default: ${{ env.DEFAULT_FEATURES }}
+        default: tce,sequencer
     outputs:
       tags:
         description: "Docker tags"
@@ -76,9 +76,9 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=ref,event=branch,suffix=${{ inputs.features != env.DEFAULT_FEATURES && format('-{0}', input.features) || '' }}
-            type=ref,event=tag,suffix=${{ inputs.features != env.DEFAULT_FEATURES && format('-{0}', input.features) || '' }}
-            type=ref,event=pr,suffix=${{ inputs.features != env.DEFAULT_FEATURES && format('-{0}', input.features) || '' }}
+            type=ref,event=branch,suffix=${{ inputs.features != env.DEFAULT_FEATURES && format('-{0}', inputs.features) || '' }}
+            type=ref,event=tag,suffix=${{ inputs.features != env.DEFAULT_FEATURES && format('-{0}', inputs.features) || '' }}
+            type=ref,event=pr,suffix=${{ inputs.features != env.DEFAULT_FEATURES && format('-{0}', inputs.features) || '' }}
 
       - name: Push to GitHub Container Registry
         uses: docker/build-push-action@v3
