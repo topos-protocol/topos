@@ -6,6 +6,8 @@ on:
       - opened
       - edited
       - synchronize
+      - labeled
+      - unlabeled
 
 jobs:
   title:
@@ -24,3 +26,28 @@ jobs:
         with:
           fetch-depth: 0
       - uses: wagoid/commitlint-github-action@v5
+
+  labels:
+    name: Verify PR labels
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify if PR has the "ok-to-merge" label
+        uses: actions/github-script@v6
+        id: my-script
+        with:
+          result-encoding: string
+          retries: 3
+          script: |
+            const labels = await github.rest.issues.listLabelsOnIssue({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+
+            for (const label of labels.data) {
+              if (label.name == 'ok-to-merge') {
+                return;
+              }
+            }
+
+            core.setFailed();
