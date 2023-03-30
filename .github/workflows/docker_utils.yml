@@ -1,4 +1,4 @@
-name: Docker build and push
+name: template - docker
 
 env:
   REGISTRY: ghcr.io
