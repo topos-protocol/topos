@@ -67,21 +67,12 @@ pub struct Authorities {
 }
 
 #[derive(Debug, Clone)]
-pub enum CertificationEvent {
-    /// Created Certificate ready to be threshold signed
-    NewCertificate { cert: Certificate, ctx: Context },
-}
-
-#[derive(Debug)]
-pub enum CertificationCommand {
-    /// Instruction update list of finalized blocks
-    AddFinalizedBlock(BlockInfo),
-}
-
-#[derive(Debug, Clone)]
 pub enum SubnetRuntimeProxyEvent {
-    /// New Finalized block
-    BlockFinalized(BlockInfo),
+    // New certificate is generated
+    NewCertificate {
+        cert: Box<Certificate>,
+        ctx: Context,
+    },
     /// New set of authorities in charge of the threshold signature
     NewEra(Vec<Authorities>),
 }

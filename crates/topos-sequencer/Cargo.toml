@@ -15,7 +15,6 @@ opentelemetry.workspace = true
 
 topos-crypto.workspace = true
 topos-core = { workspace = true, features = ["uci"] }
-topos-sequencer-certification = { package = "topos-sequencer-certification", path = "../topos-sequencer-certification" }
 topos-sequencer-subnet-runtime-proxy = { package = "topos-sequencer-subnet-runtime-proxy", path = "../topos-sequencer-subnet-runtime-proxy" }
 topos-sequencer-tce-proxy = { package = "topos-sequencer-tce-proxy", path = "../topos-sequencer-tce-proxy" }
 topos-sequencer-types = { package = "topos-sequencer-types", path = "../topos-sequencer-types" }

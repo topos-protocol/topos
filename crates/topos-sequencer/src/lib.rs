@@ -1,7 +1,6 @@
 use crate::app_context::AppContext;
 use std::io::ErrorKind;
 use std::io::ErrorKind::InvalidInput;
-use topos_sequencer_certification::CertificationWorker;
 use topos_sequencer_subnet_runtime_proxy::{SubnetRuntimeProxyConfig, SubnetRuntimeProxyWorker};
 use topos_sequencer_tce_proxy::{TceProxyConfig, TceProxyWorker};
 use topos_sequencer_types::SubnetId;
@@ -76,11 +75,13 @@ pub async fn run(config: SequencerConfiguration) -> Result<(), Box<dyn std::erro
     };
 
     // Instantiate subnet runtime proxy, handling interaction with subnet node
-    let subnet_runtime_proxy = match SubnetRuntimeProxyWorker::new(
+    let subnet_runtime_proxy_worker = match SubnetRuntimeProxyWorker::new(
         SubnetRuntimeProxyConfig {
             subnet_id,
             endpoint: config.subnet_jsonrpc_endpoint.clone(),
             subnet_contract_address: config.subnet_contract_address.clone(),
+            source_head_certificate_id: None, // Must be acquired later after TCE proxy is connected
+            verifier: config.verifier,
         },
         signing_key.clone(),
     )
@@ -94,7 +95,7 @@ pub async fn run(config: SequencerConfiguration) -> Result<(), Box<dyn std::erro
 
     // Get subnet checkpoints from subnet to pass them to the TCE node
     // It will retry using backoff algorithm, but if it fails (default max backoff elapsed time is 15 min) we can not proceed
-    let target_subnet_stream_positions = match subnet_runtime_proxy.get_checkpoints().await {
+    let target_subnet_stream_positions = match subnet_runtime_proxy_worker.get_checkpoints().await {
         Ok(checkpoints) => checkpoints,
         Err(e) => {
             panic!("Unable to get checkpoints from the subnet {e}");
@@ -125,20 +126,15 @@ pub async fn run(config: SequencerConfiguration) -> Result<(), Box<dyn std::erro
         }
     };
 
-    // Launch the certification worker for certificate production
-    let certification = CertificationWorker::new(
-        subnet_id,
-        source_head_certificate_id,
-        config.verifier,
-        signing_key,
-    )
-    .await?;
+    // Set source head certificate to know from where to
+    // start producing certificates
+    if let Err(e) = subnet_runtime_proxy_worker
+        .set_source_head_certificate_id(source_head_certificate_id)
+        .await
+    {
+        panic!("Unable to set source head certificate id: {e}");
+    }
 
-    let mut app_context = AppContext::new(
-        config,
-        certification,
-        subnet_runtime_proxy,
-        tce_proxy_worker,
-    );
+    let mut app_context = AppContext::new(config, subnet_runtime_proxy_worker, tce_proxy_worker);
     app_context.run().await
 }

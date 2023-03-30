@@ -13,6 +13,7 @@ use topos_sequencer_types::*;
 
 pub type Peer = String;
 
+pub mod certification;
 pub mod subnet_runtime_proxy;
 
 #[derive(Debug, Error)]
@@ -49,6 +50,24 @@ pub enum Error {
 
     #[error("Shutdown channel receive error {0}")]
     ShutdownSignalReceiveError(tokio::sync::oneshot::error::RecvError),
+
+    #[error("Invalid previous certificate id")]
+    InvalidPreviousCertificateId,
+
+    #[error("Ill formed subnet history")]
+    IllFormedSubnetHistory,
+
+    #[error("Unable to create certificate {0}")]
+    CertificateGenerationError(String),
+
+    #[error("Certificate signing error: {0}")]
+    CertificateSigningError(topos_core::uci::Error),
+
+    #[error("Unable to set source head certificate: {0}")]
+    SourceHeadCertChannelError(String),
+
+    #[error("Unable to send command: {0}")]
+    CommandEvalChannelError(String),
 }
 
 #[derive(Debug, Clone)]
@@ -56,14 +75,16 @@ pub struct SubnetRuntimeProxyConfig {
     pub subnet_id: SubnetId,
     pub endpoint: String,
     pub subnet_contract_address: String,
+    pub source_head_certificate_id: Option<CertificateId>,
+    pub verifier: u32,
 }
 
 /// Thread safe client to the protocol aggregate
 #[derive(Debug)]
 pub struct SubnetRuntimeProxyWorker {
     runtime_proxy: Arc<Mutex<SubnetRuntimeProxy>>,
-    commands: mpsc::UnboundedSender<SubnetRuntimeProxyCommand>,
-    events: mpsc::UnboundedReceiver<SubnetRuntimeProxyEvent>,
+    commands: mpsc::Sender<SubnetRuntimeProxyCommand>,
+    events: mpsc::Receiver<SubnetRuntimeProxyEvent>,
 }
 
 impl SubnetRuntimeProxyWorker {
@@ -75,7 +96,7 @@ impl SubnetRuntimeProxyWorker {
         signing_key: Vec<u8>,
     ) -> Result<Self, Error> {
         let runtime_proxy = SubnetRuntimeProxy::spawn_new(config, signing_key)?;
-        let (events_sender, events_rcv) = mpsc::unbounded_channel::<SubnetRuntimeProxyEvent>();
+        let (events_sender, events_rcv) = mpsc::channel::<SubnetRuntimeProxyEvent>(256);
         let commands;
         {
             let mut runtime_proxy = runtime_proxy.lock().await;
@@ -91,9 +112,11 @@ impl SubnetRuntimeProxyWorker {
     }
 
     /// Schedule command for execution
-    pub fn eval(&self, cmd: SubnetRuntimeProxyCommand) -> Result<(), Error> {
-        let _ = self.commands.send(cmd);
-        Ok(())
+    pub async fn eval(&self, cmd: SubnetRuntimeProxyCommand) -> Result<(), Error> {
+        self.commands
+            .send(cmd)
+            .await
+            .map_err(|e| Error::CommandEvalChannelError(e.to_string()))
     }
 
     /// Pollable (in select!) events' listener
@@ -115,6 +138,16 @@ impl SubnetRuntimeProxyWorker {
 
     pub async fn get_subnet_id(endpoint: &str, contract_address: &str) -> Result<SubnetId, Error> {
         SubnetRuntimeProxy::get_subnet_id(endpoint, contract_address).await
+    }
+
+    pub async fn set_source_head_certificate_id(
+        &self,
+        source_head_certificate_id: Option<CertificateId>,
+    ) -> Result<(), Error> {
+        let mut runtime_proxy = self.runtime_proxy.lock().await;
+        runtime_proxy
+            .set_source_head_certificate_id(source_head_certificate_id)
+            .await
     }
 }
 

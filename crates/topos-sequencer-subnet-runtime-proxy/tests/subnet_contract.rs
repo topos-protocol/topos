@@ -533,6 +533,8 @@ async fn test_create_runtime() -> Result<(), Box<dyn std::error::Error>> {
             subnet_id: SOURCE_SUBNET_ID_1,
             endpoint: format!("localhost:{SUBNET_RPC_PORT}"),
             subnet_contract_address: "0x0000000000000000000000000000000000000000".to_string(),
+            verifier: 0,
+            source_head_certificate_id: None,
         },
         test_private_key,
     )
@@ -562,6 +564,8 @@ async fn test_subnet_certificate_push_call(
             subnet_id: SOURCE_SUBNET_ID_1,
             endpoint: context.jsonrpc(),
             subnet_contract_address: subnet_smart_contract_address.clone(),
+            verifier: 0,
+            source_head_certificate_id: None,
         },
         test_private_key.clone(),
     )
@@ -584,13 +588,16 @@ async fn test_subnet_certificate_push_call(
         .expect("valid signature update");
 
     info!("Sending mock certificate to subnet smart contract...");
-    if let Err(e) = runtime_proxy_worker.eval(
-        topos_sequencer_types::SubnetRuntimeProxyCommand::OnNewDeliveredCertificate {
-            certificate: mock_cert.clone(),
-            position: 0,
-            ctx: Span::current().context(),
-        },
-    ) {
+    if let Err(e) = runtime_proxy_worker
+        .eval(
+            topos_sequencer_types::SubnetRuntimeProxyCommand::OnNewDeliveredCertificate {
+                certificate: mock_cert.clone(),
+                position: 0,
+                ctx: Span::current().context(),
+            },
+        )
+        .await
+    {
         error!("Failed to send OnNewDeliveredTxns command: {}", e);
         return Err(Box::from(e));
     }
