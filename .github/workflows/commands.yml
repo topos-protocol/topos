@@ -65,8 +65,6 @@ jobs:
               state: 'pending',
             })
 
-            console.log(check)
-
       - name: Run test
         run: |
           echo 'run test'
@@ -83,7 +81,7 @@ jobs:
         with:
           github-token: ${{ secrets.TOPOSWARE_CREATE_LABEL }}
           script: |
-            github.rest.issues.addLabels({
+            await github.rest.issues.addLabels({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
