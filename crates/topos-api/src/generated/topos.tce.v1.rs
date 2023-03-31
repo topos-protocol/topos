@@ -115,6 +115,8 @@ pub struct OptionalCertificate {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetLastPendingCertificatesResponse {
+    /// Bytes and array types (SubnetId) could not be key in the map type according to specifications,
+    /// so we use SubnetId hex encoded string with 0x prefix as key
     #[prost(map = "string, message", tag = "1")]
     pub last_pending_certificate: ::std::collections::HashMap<
         ::prost::alloc::string::String,

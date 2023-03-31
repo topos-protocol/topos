@@ -49,6 +49,8 @@ message OptionalCertificate {
 }
 
 message GetLastPendingCertificatesResponse {
+  // Bytes and array types (SubnetId) could not be key in the map type according to specifications,
+  // so we use SubnetId hex encoded string with 0x prefix as key
   map<string, OptionalCertificate> last_pending_certificate = 1;
 }
 

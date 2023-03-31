@@ -45,12 +45,10 @@ impl Command for RemovePendingCertificate {
 }
 
 #[derive(Debug)]
-pub struct GetPendingCertificates {
-    pub(crate) subnet_ids: Vec<SubnetId>,
-}
+pub struct GetPendingCertificates {}
 
 impl Command for GetPendingCertificates {
-    type Result = Vec<Certificate>;
+    type Result = Vec<(PendingCertificateId, Certificate)>;
 }
 
 #[derive(Debug)]

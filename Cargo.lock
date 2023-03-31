@@ -5560,6 +5560,7 @@ name = "topos-api"
 version = "0.1.0"
 dependencies = [
  "async-stream",
+ "base64 0.21.0",
  "env_logger 0.10.0",
  "ethereum-types",
  "futures",

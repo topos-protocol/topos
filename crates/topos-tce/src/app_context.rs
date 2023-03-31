@@ -211,38 +211,37 @@ impl AppContext {
                 _ = sender.send(result);
             }
 
-            ApiEvent::GetLastPendingCertificates { subnet_ids, sender } => {
-                let mut last_pending_certificates: HashMap<SubnetId, Option<Certificate>> =
+            ApiEvent::GetLastPendingCertificates {
+                mut subnet_ids,
+                sender,
+            } => {
+                let mut last_pending_certificates: HashMap<String, Option<Certificate>> =
                     subnet_ids
                         .iter()
-                        .map(|subnet_id| (*subnet_id, None))
-                        .collect::<HashMap<SubnetId, Option<Certificate>>>();
+                        .map(|subnet_id| (subnet_id.to_string(), None))
+                        .collect();
 
-                if let Ok(pending_certificates) = self
-                    .pending_storage
-                    .get_pending_certificates(subnet_ids.clone())
-                    .await
+                if let Ok(pending_certificates) =
+                    self.pending_storage.get_pending_certificates().await
                 {
                     // Iterate through pending certificates and determine last one for every subnet
                     // Last certificate in the subnet should be one with the highest index
-                    for (_index, cert) in pending_certificates.into_iter().enumerate() {
-                        let subnet_id = cert.source_subnet_id;
-                        *last_pending_certificates.entry(subnet_id).or_insert(None) = Some(cert);
+                    for (pending_certificate_id, cert) in pending_certificates.into_iter().rev() {
+                        if let Some(subnet_id) = subnet_ids.take(&cert.source_subnet_id) {
+                            *last_pending_certificates
+                                .entry(subnet_id.to_string())
+                                .or_insert(None) = Some(cert);
+                        }
+                        if subnet_ids.is_empty() {
+                            break;
+                        }
                     }
                 }
 
-                let subnet_ids = subnet_ids
-                    .into_iter()
-                    .collect::<std::collections::HashSet<SubnetId>>();
-
-                let last_pending_certificates: HashMap<
-                    String,
-                    Option<topos_core::uci::Certificate>,
-                > = last_pending_certificates
-                    .into_iter()
-                    .filter(|(subnet_id, cert)| subnet_ids.contains(subnet_id))
-                    .map(|(subnet_id, cert)| (subnet_id.to_string(), cert))
-                    .collect();
+                // Add None pending certificate for any other requested subnet_id
+                subnet_ids.iter().for_each(|subnet_id| {
+                    last_pending_certificates.insert(subnet_id.to_string(), None);
+                });
 
                 _ = sender.send(Ok(last_pending_certificates));
             }

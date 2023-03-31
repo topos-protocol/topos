@@ -257,7 +257,7 @@ async fn test_tce_get_last_pending_certificates(
         .expect("valid response");
 
     let last_pending_certificates = vec![(
-        source_subnet_id.to_string(),
+        "0x".to_string() + &hex::encode(source_subnet_id.value.as_slice()),
         OptionalCertificate { value: None },
     )]
     .into_iter()
@@ -337,7 +337,7 @@ async fn test_tce_get_last_pending_certificates(
         .expect("valid response");
 
     let last_pending_certificates = vec![(
-        source_subnet_id.to_string(),
+        "0x".to_string() + &hex::encode(source_subnet_id.value.as_slice()),
         OptionalCertificate {
             value: Some(test_certificate_2),
         },

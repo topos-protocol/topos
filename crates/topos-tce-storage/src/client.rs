@@ -75,11 +75,8 @@ impl StorageClient {
     /// Return list of pending certificates
     pub async fn get_pending_certificates(
         &self,
-        subnet_ids: Vec<SubnetId>,
-    ) -> Result<Vec<Certificate>, StorageError> {
-        GetPendingCertificates { subnet_ids }
-            .send_to(&self.sender)
-            .await
+    ) -> Result<Vec<(PendingCertificateId, Certificate)>, StorageError> {
+        GetPendingCertificates {}.send_to(&self.sender).await
     }
 
     /// Ask the storage to tag this certificate as delivered.

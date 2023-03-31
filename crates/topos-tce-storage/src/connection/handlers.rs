@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use std::cmp::Ordering;
 use topos_commands::CommandHandler;
 use topos_core::uci::{Certificate, SubnetId};
 use tracing::{debug, error, info};
@@ -82,26 +83,23 @@ where
 {
     type Error = StorageError;
 
+    /// Handle a GetPendingCertificates query
+    /// Return vector of tuples (PendingCertificateId, pending Certificate) sorted by PendingCertificateId
     async fn handle(
         &mut self,
-        GetPendingCertificates { subnet_ids }: GetPendingCertificates,
-    ) -> Result<Vec<Certificate>, StorageError> {
-        let pending_certificates = match self.storage.get_pending_certificates().await {
-            Ok(pending_certificates) => pending_certificates,
-            Err(e) => {
+        _: GetPendingCertificates,
+    ) -> Result<Vec<(PendingCertificateId, Certificate)>, StorageError> {
+        let mut pending_certificates =
+            self.storage.get_pending_certificates().await.map_err(|e| {
                 error!("Failure on the storage to get pending certificates: {e}");
-                return Err(e.into());
-            }
-        };
+                e
+            })?;
 
-        let subnet_ids = subnet_ids
-            .into_iter()
-            .collect::<std::collections::HashSet<SubnetId>>();
-        let pending_certificates: Vec<Certificate> = pending_certificates
-            .into_iter()
-            .map(|v| v.1)
-            .filter(|cert| subnet_ids.contains(&cert.source_subnet_id))
-            .collect();
+        pending_certificates.sort_by(|(pending_cert_id_a, _), (pending_cert_id_b, _)| {
+            pending_cert_id_a
+                .partial_cmp(pending_cert_id_b)
+                .unwrap_or(Ordering::Equal)
+        });
 
         Ok(pending_certificates)
     }
