@@ -22,6 +22,11 @@ on:
         required: false
         type: string
         default: tce,sequencer
+      tag:
+        required: false
+        type: string
+        default: develop
+
     outputs:
       tags:
         description: "Docker tags"
@@ -75,6 +80,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
+            type=raw,prefix=pr-,value=${{ inputs.tag }},suffix=${{ inputs.features == 'tce-direct,sequencer' && '-direct' || ''}}
             type=ref,event=branch,suffix=${{ inputs.features == 'tce-direct,sequencer' && '-direct' || ''}}
             type=ref,event=tag,suffix=${{ inputs.features == 'tce-direct,sequencer' && '-direct' || ''}}
             type=ref,event=pr,suffix=${{ inputs.features == 'tce-direct,sequencer' && '-direct' || ''}}

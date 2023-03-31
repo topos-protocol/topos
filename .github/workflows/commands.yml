@@ -65,10 +65,14 @@ jobs:
               state: 'pending',
             })
 
-      - name: Run test
-        run: |
-          echo 'run test'
-        shell: bash
+      - uses: convictional/trigger-workflow-and-wait@v1.6.1
+        with:
+          owner: toposware
+          repo: test-commands
+          github_token: ${{ secrets.TOPOSWARE_DISPATCH_WORKFLOW }}
+          workflow_file_name: docker_build_push.yml
+          ref: main
+          client_payload: '{ "git_commit": "${{ env.head }}", "docker_tag": "${{ github.event.issue.number }}" }'
 
   add_label:
     permissions:
@@ -90,6 +94,7 @@ jobs:
 
   checkout:
     needs: run_command
+    if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Checkout pull request
