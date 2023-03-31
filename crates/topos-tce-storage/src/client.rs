@@ -1,5 +1,5 @@
 use tokio::sync::{mpsc, oneshot};
-use topos_core::uci::{Certificate, CertificateId, SubnetId};
+use topos_core::uci::{Certificate, CertificateId, SubnetId, CERTIFICATE_ID_LENGTH};
 
 use crate::{
     command::{
@@ -112,7 +112,7 @@ impl StorageClient {
     ///
     /// TODO: Will be removed to use the queue of the connection
     pub async fn check_precedence(&self, cert: &Certificate) -> Result<(), StorageError> {
-        if cert.prev_id.as_array() == &[0u8; 32] {
+        if cert.prev_id.as_array() == &[0u8; CERTIFICATE_ID_LENGTH] {
             return Ok(());
         }
 

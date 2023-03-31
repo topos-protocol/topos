@@ -1,6 +1,6 @@
 use rstest::*;
 use std::time::Duration;
-use topos_core::uci::Certificate;
+use topos_core::uci::{Certificate, SUBNET_ID_LENGTH};
 use topos_test_sdk::constants::{PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID_2, TARGET_SUBNET_ID_1};
 
 use self::utils::StreamBuilder;
@@ -175,7 +175,7 @@ async fn receive_expected_certificate_from_zero() -> Result<(), Box<dyn std::err
                 positions: vec![topos_core::api::checkpoints::TargetStreamPosition {
                     position: index as u64,
                     certificate_id: Some(expected_certificate.id),
-                    target_subnet_id: [1u8; 32].into(),
+                    target_subnet_id: [1u8; SUBNET_ID_LENGTH].into(),
                     source_subnet_id: expected_certificate.source_subnet_id,
                 }],
             })

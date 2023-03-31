@@ -8,7 +8,7 @@ use std::collections::HashSet;
 use std::str::FromStr;
 use test_log::test;
 use tokio::sync::oneshot;
-use topos_core::uci::{Certificate, CertificateId};
+use topos_core::uci::{Certificate, CertificateId, SUBNET_ID_LENGTH};
 use topos_sequencer_types::SubnetId;
 use tracing::{error, info, Span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
@@ -572,7 +572,7 @@ async fn test_subnet_certificate_push_call(
 
     let mut mock_cert = Certificate {
         source_subnet_id: SubnetId::from_array(
-            TryInto::<[u8; 32]>::try_into(&source_subnet_id_1[1..33]).unwrap(),
+            TryInto::<[u8; SUBNET_ID_LENGTH]>::try_into(&source_subnet_id_1[1..33]).unwrap(),
         ),
         id: CERTIFICATE_ID_1,
         prev_id: PREV_CERTIFICATE_ID_1,

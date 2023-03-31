@@ -17,7 +17,7 @@ pub fn generate_certificate_ids(input: TokenStream) -> TokenStream {
     for i in range {
         let certificate_name = format_ident!("CERTIFICATE_ID_{}", i);
         quotes.push(quote! {
-            pub const #certificate_name: ::topos_core::uci::CertificateId = ::topos_core::uci::CertificateId::from_array([#i; 32]);
+            pub const #certificate_name: ::topos_core::uci::CertificateId = ::topos_core::uci::CertificateId::from_array([#i; ::topos_core::uci::CERTIFICATE_ID_LENGTH]);
         });
     }
 
@@ -43,7 +43,7 @@ fn generate_subnet_ids(subnet_type: &str, input: TokenStream) -> TokenStream {
     for (index, i) in range.enumerate() {
         let source_subnet_name = format_ident!("{}_SUBNET_ID_{}", subnet_type, index + 1);
         quotes.push(quote! {
-            pub const #source_subnet_name: ::topos_core::uci::SubnetId = ::topos_core::uci::SubnetId::from_array([#i; 32]);
+            pub const #source_subnet_name: ::topos_core::uci::SubnetId = ::topos_core::uci::SubnetId::from_array([#i; ::topos_core::uci::SUBNET_ID_LENGTH]);
         });
     }
 

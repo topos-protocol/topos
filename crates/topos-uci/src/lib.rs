@@ -16,6 +16,9 @@ mod certificate;
 mod certificate_id;
 mod subnet_id;
 
+pub const CERTIFICATE_ID_LENGTH: usize = 32;
+pub const SUBNET_ID_LENGTH: usize = 32;
+
 pub type StarkProof = Vec<u8>;
 pub type Frost = Vec<u8>;
 pub type Address = [u8; 20];

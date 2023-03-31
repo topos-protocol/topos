@@ -2,11 +2,11 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display};
 use std::hash::Hash;
 
-use crate::Error;
+use crate::{Error, CERTIFICATE_ID_LENGTH};
 
 #[derive(Serialize, Hash, Deserialize, Default, PartialEq, Eq, Clone, Copy)]
 pub struct CertificateId {
-    id: [u8; 32],
+    id: [u8; CERTIFICATE_ID_LENGTH],
 }
 
 impl Display for CertificateId {
@@ -33,8 +33,8 @@ impl PartialOrd for CertificateId {
     }
 }
 
-impl From<[u8; 32]> for CertificateId {
-    fn from(value: [u8; 32]) -> Self {
+impl From<[u8; CERTIFICATE_ID_LENGTH]> for CertificateId {
+    fn from(value: [u8; CERTIFICATE_ID_LENGTH]) -> Self {
         Self { id: value }
     }
 }
@@ -49,10 +49,10 @@ impl TryFrom<Vec<u8>> for CertificateId {
     type Error = Error;
 
     fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-        if value.len() != 32 {
+        if value.len() != CERTIFICATE_ID_LENGTH {
             return Err(Error::ValidationError);
         }
-        let mut id = [0; 32];
+        let mut id = [0; CERTIFICATE_ID_LENGTH];
 
         id.copy_from_slice(value.as_slice());
 
@@ -61,11 +61,11 @@ impl TryFrom<Vec<u8>> for CertificateId {
 }
 
 impl CertificateId {
-    pub const fn from_array(id: [u8; 32]) -> Self {
+    pub const fn from_array(id: [u8; CERTIFICATE_ID_LENGTH]) -> Self {
         Self { id }
     }
 
-    pub const fn as_array(&self) -> &[u8; 32] {
+    pub const fn as_array(&self) -> &[u8; CERTIFICATE_ID_LENGTH] {
         &self.id
     }
 }

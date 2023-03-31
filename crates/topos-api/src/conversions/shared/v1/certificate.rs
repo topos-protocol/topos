@@ -1,3 +1,5 @@
+use topos_uci::CERTIFICATE_ID_LENGTH;
+
 use super::v1::CertificateId;
 
 impl std::fmt::Display for CertificateId {
@@ -12,8 +14,8 @@ pub enum Error {
     ValidationError(CertificateId),
 }
 
-impl From<[u8; 32]> for CertificateId {
-    fn from(value: [u8; 32]) -> Self {
+impl From<[u8; CERTIFICATE_ID_LENGTH]> for CertificateId {
+    fn from(value: [u8; CERTIFICATE_ID_LENGTH]) -> Self {
         CertificateId {
             value: value.to_vec(),
         }
@@ -32,10 +34,10 @@ impl TryFrom<CertificateId> for topos_uci::CertificateId {
     type Error = Error;
 
     fn try_from(value: CertificateId) -> Result<Self, Self::Error> {
-        if value.value.len() != 32 {
+        if value.value.len() != CERTIFICATE_ID_LENGTH {
             return Err(Error::ValidationError(value));
         }
-        let mut id = [0; 32];
+        let mut id = [0; CERTIFICATE_ID_LENGTH];
 
         id.copy_from_slice(value.value.as_slice());
 
@@ -45,9 +47,9 @@ impl TryFrom<CertificateId> for topos_uci::CertificateId {
 
 impl PartialEq<CertificateId> for topos_uci::CertificateId {
     fn eq(&self, other: &CertificateId) -> bool {
-        if other.value.len() != 32 {
+        if other.value.len() != CERTIFICATE_ID_LENGTH {
             return false;
         }
-        self.as_array() == &other.value[..32]
+        self.as_array() == &other.value[..CERTIFICATE_ID_LENGTH]
     }
 }

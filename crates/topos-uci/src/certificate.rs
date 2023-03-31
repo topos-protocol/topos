@@ -66,7 +66,7 @@ impl Certificate {
         proof: Vec<u8>,
     ) -> Result<Certificate, Box<dyn std::error::Error>> {
         let mut cert = Certificate {
-            id: [0; 32].into(),
+            id: [0; CERTIFICATE_ID_LENGTH].into(),
             prev_id: prev.into(),
             source_subnet_id,
             state_root,
@@ -117,7 +117,7 @@ impl Certificate {
 
     // To get unique id, calculate certificate id of certificate object using keccak256,
     // excluding cert_id and signature fields
-    fn calculate_cert_id(certificate: &Certificate) -> Result<[u8; 32], Error> {
+    fn calculate_cert_id(certificate: &Certificate) -> Result<[u8; CERTIFICATE_ID_LENGTH], Error> {
         let mut buffer = Vec::new();
         buffer.extend_from_slice(certificate.prev_id.as_array().as_ref());
         buffer.extend_from_slice(certificate.source_subnet_id.as_array().as_ref());
@@ -136,8 +136,9 @@ impl Certificate {
 #[cfg(test)]
 mod tests {
     use super::*;
-    const PREV_CERTIFICATE_ID: CertificateId = CertificateId::from_array([1u8; 32]);
-    const TARGET_SUBNET_ID: SubnetId = SubnetId::from_array([3u8; 32]);
+    const PREV_CERTIFICATE_ID: CertificateId =
+        CertificateId::from_array([1u8; CERTIFICATE_ID_LENGTH]);
+    const TARGET_SUBNET_ID: SubnetId = SubnetId::from_array([3u8; SUBNET_ID_LENGTH]);
     const STATE_ROOT: StateRoot = [4u8; 32];
     const TX_ROOT_HASH: TxRootHash = [5u8; 32];
     const PRIVATE_TEST_KEY: &str =
@@ -146,11 +147,11 @@ mod tests {
     fn generate_dummy_cert(signing_key: &[u8]) -> Certificate {
         let public_key =
             topos_crypto::keys::derive_public_key(signing_key).expect("valid public key");
-        let source_subnet_it: [u8; 32] = public_key[1..33].try_into().unwrap();
+        let source_subnet_id: [u8; SUBNET_ID_LENGTH] = public_key[1..33].try_into().unwrap();
 
         Certificate::new(
             PREV_CERTIFICATE_ID,
-            source_subnet_it.into(),
+            source_subnet_id.into(),
             STATE_ROOT,
             TX_ROOT_HASH,
             &[TARGET_SUBNET_ID],

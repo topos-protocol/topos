@@ -4,7 +4,7 @@ use crate::subnet_contract::{
     create_topos_core_contract_from_json, parse_events_from_json, parse_events_from_log,
 };
 use topos_core::api::checkpoints::TargetStreamPosition;
-use topos_core::uci::SubnetId;
+use topos_core::uci::{SubnetId, CERTIFICATE_ID_LENGTH, SUBNET_ID_LENGTH};
 use topos_sequencer_types::{BlockInfo, Certificate};
 use tracing::{debug, error, info};
 use web3::ethabi::Token;
@@ -385,13 +385,15 @@ impl SubnetClient {
                     target_stream_positions.push(TargetStreamPosition {
                         target_subnet_id: *target_subnet_id,
                         certificate_id: Some(
-                            TryInto::<[u8; 32]>::try_into(certificate_id)
+                            TryInto::<[u8; CERTIFICATE_ID_LENGTH]>::try_into(certificate_id)
                                 .map_err(|_| Error::InvalidCheckpointsData)?
                                 .into(),
                         ),
-                        source_subnet_id: TryInto::<[u8; 32]>::try_into(source_subnet_id)
-                            .map_err(|_| Error::InvalidCheckpointsData)?
-                            .into(),
+                        source_subnet_id: TryInto::<[u8; SUBNET_ID_LENGTH]>::try_into(
+                            source_subnet_id,
+                        )
+                        .map_err(|_| Error::InvalidCheckpointsData)?
+                        .into(),
                         position,
                     });
                 } else {
