@@ -118,5 +118,5 @@ jobs:
               repo: context.repo.repo,
               context: 'e2e-tests',
               sha: '${{ env.head }}',
-              state: '${{ needs.run_command.result }}',
+              state: '${{ needs.run_command.result == 'success' && 'success' || 'failure' }}',
             })

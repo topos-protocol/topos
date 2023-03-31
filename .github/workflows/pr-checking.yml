@@ -33,7 +33,6 @@ jobs:
     steps:
       - name: Verify if PR has the "ok-to-merge" label
         uses: actions/github-script@v6
-        id: my-script
         with:
           result-encoding: string
           retries: 3
