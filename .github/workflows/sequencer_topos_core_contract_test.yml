@@ -27,7 +27,7 @@ jobs:
           - { name: Linux, os: ubuntu-latest, triple: x86_64-unknown-linux-gnu }
         version:
           - stable
-          - nightly-2022-12-18
+          - nightly
 
     name: ${{ matrix.version }} - Deploy smart contracts and test sequencer subnet interaction
     runs-on: ${{ matrix.target.os }}
