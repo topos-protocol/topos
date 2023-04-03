@@ -1,10 +1,15 @@
 use topos_uci::SUBNET_ID_LENGTH;
 
 use super::v1::SubnetId;
+use base64::Engine;
 
 impl std::fmt::Display for SubnetId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", hex::encode(&self.value))
+        write!(
+            f,
+            "{}",
+            base64::engine::general_purpose::STANDARD.encode(&self.value)
+        )
     }
 }
 

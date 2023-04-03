@@ -1,4 +1,6 @@
 use opentelemetry::Context;
+use std::collections::HashMap;
+use std::collections::HashSet;
 use tokio::sync::oneshot;
 use topos_core::uci::{Certificate, SubnetId};
 use topos_p2p::PeerId;
@@ -19,6 +21,11 @@ pub enum RuntimeEvent {
 
     GetSourceHead {
         subnet_id: SubnetId,
-        sender: oneshot::Sender<Result<(u64, topos_core::uci::Certificate), RuntimeError>>,
+        sender: oneshot::Sender<Result<(u64, Certificate), RuntimeError>>,
+    },
+
+    GetLastPendingCertificates {
+        subnet_ids: HashSet<SubnetId>,
+        sender: oneshot::Sender<Result<HashMap<SubnetId, Option<Certificate>>, RuntimeError>>,
     },
 }

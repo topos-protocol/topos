@@ -19,3 +19,8 @@ message Certificate {
   topos.shared.v1.StarkProof proof = 8;
   topos.shared.v1.Frost signature = 9;
 }
+
+
+message OptionalCertificate {
+  optional Certificate value = 1;
+}

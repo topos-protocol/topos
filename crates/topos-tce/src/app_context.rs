@@ -11,7 +11,7 @@ use tce_transport::{TceCommands, TceEvents};
 use tokio::spawn;
 use tokio::sync::{mpsc, oneshot};
 use topos_core::api::checkpoints::TargetStreamPosition;
-use topos_core::uci::{CertificateId, SubnetId};
+use topos_core::uci::{Certificate, CertificateId, SubnetId};
 use topos_p2p::{Client as NetworkClient, Event as NetEvent, RetryPolicy};
 use topos_tce_api::RuntimeEvent as ApiEvent;
 use topos_tce_api::{RuntimeClient as ApiClient, RuntimeError};
@@ -209,6 +209,40 @@ impl AppContext {
                 };
 
                 _ = sender.send(result);
+            }
+
+            ApiEvent::GetLastPendingCertificates {
+                mut subnet_ids,
+                sender,
+            } => {
+                let mut last_pending_certificates: HashMap<SubnetId, Option<Certificate>> =
+                    subnet_ids
+                        .iter()
+                        .map(|subnet_id| (*subnet_id, None))
+                        .collect();
+
+                if let Ok(pending_certificates) =
+                    self.pending_storage.get_pending_certificates().await
+                {
+                    // Iterate through pending certificates and determine last one for every subnet
+                    // Last certificate in the subnet should be one with the highest index
+                    for (pending_certificate_id, cert) in pending_certificates.into_iter().rev() {
+                        if let Some(subnet_id) = subnet_ids.take(&cert.source_subnet_id) {
+                            *last_pending_certificates.entry(subnet_id).or_insert(None) =
+                                Some(cert);
+                        }
+                        if subnet_ids.is_empty() {
+                            break;
+                        }
+                    }
+                }
+
+                // Add None pending certificate for any other requested subnet_id
+                subnet_ids.iter().for_each(|subnet_id| {
+                    last_pending_certificates.insert(*subnet_id, None);
+                });
+
+                _ = sender.send(Ok(last_pending_certificates));
             }
         }
     }

@@ -8,10 +8,18 @@ import "topos/shared/v1/uuid.proto";
 import "topos/tce/v1/synchronization.proto";
 import "topos/uci/v1/certification.proto";
 
+
 service APIService {
   rpc SubmitCertificate(SubmitCertificateRequest) returns (SubmitCertificateResponse);
 
   rpc GetSourceHead(GetSourceHeadRequest) returns (GetSourceHeadResponse);
+
+  /// This RPC allows a client to get latest pending certificates for
+  /// requested subnets (by their subnet id)
+  ///
+  /// Returns a map of subnet_id -> last pending certificate
+  /// If there are no pending certificate for a subnet, returns None for that subnet id
+  rpc GetLastPendingCertificates(GetLastPendingCertificatesRequest) returns (GetLastPendingCertificatesResponse);
 
   // This RPC allows a client to open a bidirectional stream with a TCE
   rpc WatchCertificates(stream WatchCertificatesRequest) returns (stream WatchCertificatesResponse);
@@ -30,6 +38,16 @@ message GetSourceHeadRequest {
 message GetSourceHeadResponse {
   topos.tce.v1.SourceStreamPosition position = 1;
   topos.uci.v1.Certificate certificate = 2;
+}
+
+message GetLastPendingCertificatesRequest {
+  repeated topos.shared.v1.SubnetId subnet_ids = 1;
+}
+
+message GetLastPendingCertificatesResponse {
+  // Bytes and array types (SubnetId) could not be key in the map type according to specifications,
+  // so we use SubnetId hex encoded string with 0x prefix as key
+  map<string, topos.uci.v1.OptionalCertificate> last_pending_certificate = 1;
 }
 
 message WatchCertificatesRequest {

@@ -70,7 +70,7 @@ where
     let deployment = web3::contract::Contract::deploy(web3_client.eth(), contract_abi.as_bytes())?
         .confirmations(1)
         .options(web3::contract::Options::with(|opt| {
-            opt.gas = Some(4_000_000.into());
+            opt.gas = Some(5_200_000.into());
         }));
 
     let deployment_result = if params.0.is_none() {
@@ -248,7 +248,7 @@ async fn deploy_contracts(
 
     // Set subnet id on topos core smart contract
     let options = web3::contract::Options {
-        gas: Some(4_000_000.into()),
+        gas: Some(5_200_000.into()),
         ..Default::default()
     };
     match topos_core_contract

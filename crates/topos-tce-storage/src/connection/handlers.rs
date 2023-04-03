@@ -1,8 +1,10 @@
 use async_trait::async_trait;
+use std::cmp::Ordering;
 use topos_commands::CommandHandler;
 use topos_core::uci::{Certificate, SubnetId};
 use tracing::{debug, error, info};
 
+use crate::command::GetPendingCertificates;
 use crate::{
     command::{
         AddPendingCertificate, CertificateDelivered, CheckPendingCertificateExists,
@@ -67,6 +69,39 @@ where
             self.pending_certificates.remove(index);
         }
         Ok(pending_certificate_id)
+    }
+}
+
+/// Handle a GetPendingCertificates query
+///
+/// The GetPendingCertificates query will ask for pending certificate
+/// for list of subnets ids
+#[async_trait]
+impl<S> CommandHandler<GetPendingCertificates> for Connection<S>
+where
+    S: Storage,
+{
+    type Error = StorageError;
+
+    /// Handle a GetPendingCertificates query
+    /// Return vector of tuples (PendingCertificateId, pending Certificate) sorted by PendingCertificateId
+    async fn handle(
+        &mut self,
+        _: GetPendingCertificates,
+    ) -> Result<Vec<(PendingCertificateId, Certificate)>, StorageError> {
+        let mut pending_certificates =
+            self.storage.get_pending_certificates().await.map_err(|e| {
+                error!("Failure on the storage to get pending certificates: {e}");
+                e
+            })?;
+
+        pending_certificates.sort_by(|(pending_cert_id_a, _), (pending_cert_id_b, _)| {
+            pending_cert_id_a
+                .partial_cmp(pending_cert_id_b)
+                .unwrap_or(Ordering::Equal)
+        });
+
+        Ok(pending_certificates)
     }
 }
 

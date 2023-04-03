@@ -102,6 +102,23 @@ pub struct GetSourceHeadResponse {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetLastPendingCertificatesRequest {
+    #[prost(message, repeated, tag = "1")]
+    pub subnet_ids: ::prost::alloc::vec::Vec<super::super::shared::v1::SubnetId>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetLastPendingCertificatesResponse {
+    /// Bytes and array types (SubnetId) could not be key in the map type according to specifications,
+    /// so we use SubnetId hex encoded string with 0x prefix as key
+    #[prost(map = "string, message", tag = "1")]
+    pub last_pending_certificate: ::std::collections::HashMap<
+        ::prost::alloc::string::String,
+        super::super::uci::v1::OptionalCertificate,
+    >,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct WatchCertificatesRequest {
     /// Provide a request_id to track response
     #[prost(message, optional, tag = "1")]
@@ -283,6 +300,33 @@ pub mod api_service_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
+        /// / This RPC allows a client to get latest pending certificates for
+        /// / requested subnets (by their subnet id)
+        /// /
+        /// / Returns a map of subnet_id -> last pending certificate
+        /// / If there are no pending certificate for a subnet, returns None for that subnet id
+        pub async fn get_last_pending_certificates(
+            &mut self,
+            request: impl tonic::IntoRequest<super::GetLastPendingCertificatesRequest>,
+        ) -> Result<
+            tonic::Response<super::GetLastPendingCertificatesResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/topos.tce.v1.APIService/GetLastPendingCertificates",
+            );
+            self.inner.unary(request.into_request(), path, codec).await
+        }
         /// This RPC allows a client to open a bidirectional stream with a TCE
         pub async fn watch_certificates(
             &mut self,
@@ -325,6 +369,18 @@ pub mod api_service_server {
             &self,
             request: tonic::Request<super::GetSourceHeadRequest>,
         ) -> Result<tonic::Response<super::GetSourceHeadResponse>, tonic::Status>;
+        /// / This RPC allows a client to get latest pending certificates for
+        /// / requested subnets (by their subnet id)
+        /// /
+        /// / Returns a map of subnet_id -> last pending certificate
+        /// / If there are no pending certificate for a subnet, returns None for that subnet id
+        async fn get_last_pending_certificates(
+            &self,
+            request: tonic::Request<super::GetLastPendingCertificatesRequest>,
+        ) -> Result<
+            tonic::Response<super::GetLastPendingCertificatesResponse>,
+            tonic::Status,
+        >;
         /// Server streaming response type for the WatchCertificates method.
         type WatchCertificatesStream: futures_core::Stream<
                 Item = Result<super::WatchCertificatesResponse, tonic::Status>,
@@ -465,6 +521,49 @@ pub mod api_service_server {
                     let fut = async move {
                         let inner = inner.0;
                         let method = GetSourceHeadSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/topos.tce.v1.APIService/GetLastPendingCertificates" => {
+                    #[allow(non_camel_case_types)]
+                    struct GetLastPendingCertificatesSvc<T: ApiService>(pub Arc<T>);
+                    impl<
+                        T: ApiService,
+                    > tonic::server::UnaryService<
+                        super::GetLastPendingCertificatesRequest,
+                    > for GetLastPendingCertificatesSvc<T> {
+                        type Response = super::GetLastPendingCertificatesResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<
+                                super::GetLastPendingCertificatesRequest,
+                            >,
+                        ) -> Self::Future {
+                            let inner = self.0.clone();
+                            let fut = async move {
+                                (*inner).get_last_pending_certificates(request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = GetLastPendingCertificatesSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

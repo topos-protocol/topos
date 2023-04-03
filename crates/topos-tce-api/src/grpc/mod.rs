@@ -1,3 +1,4 @@
+use base64::Engine;
 use futures::{FutureExt, Stream as FutureStream, StreamExt};
 use opentelemetry::{
     trace::{FutureExt as TraceFutureExt, TraceContextExt},
@@ -8,10 +9,13 @@ use tokio::sync::{mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::{Request, Response, Status, Streaming};
 use topos_core::api::tce::v1::{
-    api_service_server::ApiService, GetSourceHeadRequest, GetSourceHeadResponse,
+    api_service_server::ApiService, GetLastPendingCertificatesRequest,
+    GetLastPendingCertificatesResponse, GetSourceHeadRequest, GetSourceHeadResponse,
     SubmitCertificateRequest, SubmitCertificateResponse, WatchCertificatesRequest,
     WatchCertificatesResponse,
 };
+use topos_core::api::uci::v1::OptionalCertificate;
+use topos_core::uci::SubnetId;
 use tracing::{error, field, info, instrument, Instrument, Span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 use uuid::Uuid;
@@ -132,6 +136,8 @@ impl ApiService for TceGrpcService {
         }
     }
 
+    /// This RPC allows a client to get last delivered source certificate
+    /// for particular subnet
     async fn get_source_head(
         &self,
         request: Request<GetSourceHeadRequest>,
@@ -179,17 +185,70 @@ impl ApiService for TceGrpcService {
                             &subnet_id
                         )))
                     }
-                    Ok(Err(_)) => Err(Status::internal(
-                        "Can't get source head certificate position",
-                    )),
-                    Err(_) => Err(Status::internal(
-                        "Can't get source head certificate position",
-                    )),
+                    Ok(Err(e)) => Err(Status::internal(format!(
+                        "Can't get source head certificate position: {e}"
+                    ))),
+                    Err(e) => Err(Status::internal(format!(
+                        "Can't get source head certificate position: {e}"
+                    ))),
                 })
                 .await
         } else {
             Err(Status::invalid_argument("Certificate is malformed"))
         }
+    }
+
+    async fn get_last_pending_certificates(
+        &self,
+        request: Request<GetLastPendingCertificatesRequest>,
+    ) -> Result<Response<GetLastPendingCertificatesResponse>, Status> {
+        let data = request.into_inner();
+
+        let subnet_ids = data.subnet_ids;
+
+        let (sender, receiver) = oneshot::channel();
+
+        let subnet_ids: Vec<SubnetId> = subnet_ids
+            .into_iter()
+            .map(TryInto::try_into)
+            .map(|v| v.map_err(|e| Status::internal(format!("Invalid subnet id: {e}"))))
+            .collect::<Result<_, _>>()?;
+
+        if self
+            .command_sender
+            .send(InternalRuntimeCommand::GetLastPendingCertificates { subnet_ids, sender })
+            .await
+            .is_err()
+        {
+            return Err(Status::internal(
+                "Can't get last pending certificates: sender dropped",
+            ));
+        }
+
+        receiver
+            .map(|value| match value {
+                Ok(Ok(map)) => Ok(Response::new(GetLastPendingCertificatesResponse {
+                    last_pending_certificate: map
+                        .into_iter()
+                        .map(|(subnet_id, cert)| {
+                            (
+                                base64::engine::general_purpose::STANDARD
+                                    .encode(subnet_id.as_array()),
+                                OptionalCertificate {
+                                    value: cert.map(Into::into),
+                                },
+                            )
+                        })
+                        .collect(),
+                })),
+                Ok(Err(e)) => Err(Status::internal(format!(
+                    "Can't get last pending certificates: {e}"
+                ))),
+                Err(e) => Err(Status::internal(format!(
+                    "Can't get last pending certificates: {e}"
+                ))),
+            })
+            .await
     }
 
     ///Server streaming response type for the WatchCertificates method.

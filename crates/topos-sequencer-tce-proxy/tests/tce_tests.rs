@@ -1,3 +1,4 @@
+use base64::Engine;
 use futures::StreamExt;
 use rstest::*;
 use std::collections::HashMap;
@@ -7,10 +8,11 @@ use topos_core::api::shared::v1::{checkpoints::TargetCheckpoint, positions::Targ
 use topos_core::api::shared::v1::{CertificateId, StarkProof, SubnetId};
 use topos_core::api::tce::v1::{
     watch_certificates_request, watch_certificates_response,
-    watch_certificates_response::CertificatePushed, GetSourceHeadRequest, GetSourceHeadResponse,
+    watch_certificates_response::CertificatePushed, GetLastPendingCertificatesRequest,
+    GetLastPendingCertificatesResponse, GetSourceHeadRequest, GetSourceHeadResponse,
     SourceStreamPosition, SubmitCertificateRequest,
 };
-use topos_core::api::uci::v1::Certificate;
+use topos_core::api::uci::v1::{Certificate, OptionalCertificate};
 use topos_core::uci::{self, SUBNET_ID_LENGTH};
 use tracing::{debug, error, info};
 
@@ -223,6 +225,87 @@ async fn test_tce_get_source_head_certificate(
             certificate_id: expected_default_genesis_certificate.id,
             position: 0,
         }),
+    };
+    assert_eq!(response, expected_response);
+
+    info!("Shutting down TCE node client");
+    context.shutdown().await?;
+    Ok(())
+}
+
+#[rstest]
+#[test(tokio::test)]
+async fn test_tce_get_last_pending_certificates(
+    #[future] start_node: TceContext,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut context = start_node.await;
+
+    let source_subnet_id: SubnetId = SOURCE_SUBNET_ID_1.into();
+    let certificates = create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], 10);
+
+    // Test get last pending certificates for empty TCE history
+    // Reply should be empty
+    let response = context
+        .api_grpc_client
+        .get_last_pending_certificates(GetLastPendingCertificatesRequest {
+            subnet_ids: vec![source_subnet_id.clone()],
+        })
+        .await
+        .map(|r| r.into_inner())
+        .expect("valid response");
+
+    let last_pending_certificates = vec![(
+        base64::engine::general_purpose::STANDARD.encode(&source_subnet_id.value),
+        OptionalCertificate { value: None },
+    )]
+    .into_iter()
+    .collect::<HashMap<String, OptionalCertificate>>();
+
+    let expected_response = GetLastPendingCertificatesResponse {
+        last_pending_certificate: last_pending_certificates,
+    };
+    assert_eq!(response, expected_response);
+
+    for cert in &certificates {
+        match context
+            .api_grpc_client
+            .submit_certificate(SubmitCertificateRequest {
+                certificate: Some(cert.clone().into()),
+            })
+            .await
+            .map(|r| r.into_inner())
+        {
+            Ok(response) => {
+                debug!("Successfully submitted the Certificate {:?}", response);
+            }
+            Err(e) => {
+                error!("Unable to submit the certificate: {e:?}");
+                return Err(Box::from(e));
+            }
+        };
+    }
+
+    // Test get last pending certificate
+    let response = context
+        .api_grpc_client
+        .get_last_pending_certificates(GetLastPendingCertificatesRequest {
+            subnet_ids: vec![source_subnet_id.clone()],
+        })
+        .await
+        .map(|r| r.into_inner())
+        .expect("valid response");
+
+    let expected_last_pending_certificates = vec![(
+        base64::engine::general_purpose::STANDARD.encode(&source_subnet_id.value),
+        OptionalCertificate {
+            value: Some(certificates.iter().last().unwrap().clone().into()),
+        },
+    )]
+    .into_iter()
+    .collect::<HashMap<String, OptionalCertificate>>();
+
+    let expected_response = GetLastPendingCertificatesResponse {
+        last_pending_certificate: expected_last_pending_certificates,
     };
     assert_eq!(response, expected_response);
 

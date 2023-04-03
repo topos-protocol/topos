@@ -21,3 +21,9 @@ pub struct Certificate {
     #[prost(message, optional, tag = "9")]
     pub signature: ::core::option::Option<super::super::shared::v1::Frost>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct OptionalCertificate {
+    #[prost(message, optional, tag = "1")]
+    pub value: ::core::option::Option<Certificate>,
+}
