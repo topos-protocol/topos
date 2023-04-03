@@ -1,28 +1,20 @@
 ARG TOOLCHAIN_VERSION
-FROM ghcr.io/topos-network/rust_builder:bullseye-${TOOLCHAIN_VERSION} AS base
+FROM --platform=linux/amd64 ghcr.io/topos-network/rust_builder:bullseye-${TOOLCHAIN_VERSION} AS base
 
 ARG FEATURES
-# Rust cache
-ARG SCCACHE_S3_KEY_PREFIX
-ARG SCCACHE_BUCKET
-ARG SCCACHE_REGION
-ARG RUSTC_WRAPPER
 
 WORKDIR /usr/src/app
 
 FROM base AS build
 COPY . .
-RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
-  cargo build --release --no-default-features --features=${FEATURES}
+RUN cargo build --release --no-default-features --features=${FEATURES}
 
 FROM base AS test
-RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
-  cargo install cargo-nextest --locked
+RUN cargo install cargo-nextest --locked
 COPY . .
 # topos-sequencer integration tests require specific setup, so excluding them here. They are executed
 # with sequencer_tcc_test.yml CI setup
-RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
-  cargo nextest run --workspace --exclude topos-sequencer-subnet-runtime-proxy --config-file tools/config/nextest.toml && cargo test --doc --workspace
+RUN cargo nextest run --workspace --exclude topos-sequencer-subnet-runtime-proxy --config-file tools/config/nextest.toml && cargo test --doc --workspace
 
 FROM base AS fmt
 RUN rustup component add rustfmt
@@ -33,12 +25,10 @@ FROM base AS lint
 RUN rustup default 1.68.0
 RUN rustup component add clippy
 COPY . .
-RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
-  cargo clippy --all --tests
+RUN cargo clippy --all --tests
 
 FROM base AS audit
-RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
-  cargo install cargo-audit --locked
+RUN cargo install cargo-audit --locked
 COPY . .
 RUN cargo audit
 
