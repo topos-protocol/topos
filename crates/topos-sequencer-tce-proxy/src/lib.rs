@@ -3,6 +3,7 @@
 //!
 
 use crate::Error::InvalidChannelError;
+use base64::Engine;
 use opentelemetry::trace::FutureExt;
 use std::collections::HashMap;
 use tokio::sync::{mpsc, oneshot};
@@ -444,7 +445,7 @@ impl TceClientBuilder {
                                                 .into_iter()
                                                 .map(|(subnet_id, last_pending_certificate)| {
                                                     let subnet_id: SubnetId = TryInto::<SubnetId>::try_into(
-                                                        hex::decode(&subnet_id[2..])
+                                                        base64::engine::general_purpose::STANDARD.decode(subnet_id)
                                                             .map_err(|_| Error::InvalidSubnetId)?
                                                             .as_slice(),
                                                     )
