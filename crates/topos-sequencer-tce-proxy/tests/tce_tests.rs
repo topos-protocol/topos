@@ -11,7 +11,7 @@ use topos_core::api::tce::v1::{
     SourceStreamPosition, SubmitCertificateRequest,
 };
 use topos_core::api::uci::v1::Certificate;
-use topos_core::uci;
+use topos_core::uci::{self, SUBNET_ID_LENGTH};
 use tracing::{debug, error, info};
 
 use topos_test_sdk::{
@@ -73,7 +73,7 @@ async fn test_tce_watch_certificates(
     let mut context = start_node.await;
 
     let source_subnet_id: SubnetId = SubnetId {
-        value: [1u8; 32].to_vec(),
+        value: [1u8; SUBNET_ID_LENGTH].to_vec(),
     };
 
     //Outbound stream

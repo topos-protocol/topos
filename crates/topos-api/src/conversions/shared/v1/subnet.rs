@@ -1,3 +1,5 @@
+use topos_uci::SUBNET_ID_LENGTH;
+
 use super::v1::SubnetId;
 
 impl std::fmt::Display for SubnetId {
@@ -12,22 +14,22 @@ pub enum Error {
     ValidationError(SubnetId),
 }
 
-impl From<[u8; 32]> for SubnetId {
-    fn from(value: [u8; 32]) -> Self {
+impl From<[u8; SUBNET_ID_LENGTH]> for SubnetId {
+    fn from(value: [u8; SUBNET_ID_LENGTH]) -> Self {
         SubnetId {
             value: value.to_vec(),
         }
     }
 }
 
-impl TryFrom<SubnetId> for [u8; 32] {
+impl TryFrom<SubnetId> for [u8; SUBNET_ID_LENGTH] {
     type Error = Error;
 
     fn try_from(value: SubnetId) -> Result<Self, Self::Error> {
-        if value.value.len() != 32 {
+        if value.value.len() != SUBNET_ID_LENGTH {
             return Err(Error::ValidationError(value));
         }
-        let mut id = [0; 32];
+        let mut id = [0; SUBNET_ID_LENGTH];
 
         id.copy_from_slice(value.value.as_slice());
 
@@ -47,10 +49,10 @@ impl TryFrom<SubnetId> for topos_uci::SubnetId {
     type Error = Error;
 
     fn try_from(value: SubnetId) -> Result<Self, Self::Error> {
-        if value.value.len() != 32 {
+        if value.value.len() != SUBNET_ID_LENGTH {
             return Err(Error::ValidationError(value));
         }
-        let mut id = [0; 32];
+        let mut id = [0; SUBNET_ID_LENGTH];
 
         id.copy_from_slice(value.value.as_slice());
 

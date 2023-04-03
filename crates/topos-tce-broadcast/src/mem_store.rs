@@ -1,6 +1,6 @@
 use crate::{Errors, TceStore};
 use std::collections::{BTreeSet, HashMap};
-use topos_core::uci::{Certificate, CertificateId, SubnetId};
+use topos_core::uci::{Certificate, CertificateId, SubnetId, CERTIFICATE_ID_LENGTH};
 
 /// Store implementation in RAM good enough for functional tests
 /// Might need to split through a new layer of TCEState
@@ -32,9 +32,10 @@ impl TceMemStore {
             store.history.insert(*subnet, BTreeSet::new());
         }
         // Add the genesis
-        store
-            .all_certs
-            .insert(CertificateId::from_array([0u8; 32]), Default::default());
+        store.all_certs.insert(
+            CertificateId::from_array([0u8; CERTIFICATE_ID_LENGTH]),
+            Default::default(),
+        );
         store
     }
 }
@@ -94,7 +95,7 @@ impl TceStore for TceMemStore {
     }
 
     fn check_precedence(&self, cert: &Certificate) -> Result<(), Errors> {
-        if cert.prev_id.as_array() == &[0u8; 32] {
+        if cert.prev_id.as_array() == &[0u8; CERTIFICATE_ID_LENGTH] {
             return Ok(());
         }
         match self.cert_by_id(&cert.prev_id) {

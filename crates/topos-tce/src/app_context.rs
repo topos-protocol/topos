@@ -50,7 +50,8 @@ pub struct AppContext {
 impl AppContext {
     // Default previous certificate id for first certificate in the subnet
     //TODO Remove, it will be genesis certificate id retrieved from Topos Subnet
-    const DUMMY_INITIAL_CERTIFICATE_ID: CertificateId = CertificateId::from_array([0u8; 32]);
+    const DUMMY_INITIAL_CERTIFICATE_ID: CertificateId =
+        CertificateId::from_array([0u8; topos_core::uci::CERTIFICATE_ID_LENGTH]);
 
     /// Factory
     pub fn new(

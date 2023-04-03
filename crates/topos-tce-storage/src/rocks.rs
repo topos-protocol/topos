@@ -5,7 +5,7 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
-use topos_core::uci::{Certificate, CertificateId};
+use topos_core::uci::{Certificate, CertificateId, CERTIFICATE_ID_LENGTH};
 use tracing::warn;
 
 use crate::{
@@ -28,7 +28,7 @@ mod types;
 
 pub(crate) use types::*;
 
-const EMPTY_PREVIOUS_CERT_ID: [u8; 32] = [0u8; 32];
+const EMPTY_PREVIOUS_CERT_ID: [u8; CERTIFICATE_ID_LENGTH] = [0u8; CERTIFICATE_ID_LENGTH];
 
 #[derive(Debug)]
 pub struct RocksDBStorage {

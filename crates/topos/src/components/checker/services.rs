@@ -14,7 +14,7 @@ use topos_core::{
             StatusRequest, SubmitCertificateRequest,
         },
     },
-    uci::Certificate,
+    uci::{Certificate, CERTIFICATE_ID_LENGTH, SUBNET_ID_LENGTH},
 };
 use tracing::{debug, info, trace};
 
@@ -48,11 +48,11 @@ pub(crate) async fn check_delivery(
             .map_err(|_| vec![format!("Unable to parse the peer address")])?;
 
         let pushed_certificate = Certificate::new(
-            [0u8; 32],
-            [1u8; 32].into(),
+            [0u8; CERTIFICATE_ID_LENGTH],
+            [1u8; SUBNET_ID_LENGTH].into(),
             Default::default(),
             Default::default(),
-            &[[2u8; 32].into()],
+            &[[2u8; SUBNET_ID_LENGTH].into()],
             0,
             Default::default(),
         )
@@ -88,7 +88,7 @@ pub(crate) async fn check_delivery(
                 let in_stream = async_stream::stream! {
                     yield OpenStream {
                         target_checkpoint: Some(TargetCheckpoint {
-                            target_subnet_ids: vec![[2u8;32].into()],
+                            target_subnet_ids: vec![[2u8; SUBNET_ID_LENGTH].into()],
                             positions: vec![]
                         }),
                         source_checkpoint: None

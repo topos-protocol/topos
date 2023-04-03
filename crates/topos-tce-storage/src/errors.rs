@@ -1,6 +1,6 @@
 use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
-use topos_core::uci::{CertificateId, SubnetId};
+use topos_core::uci::{CertificateId, SubnetId, SUBNET_ID_LENGTH};
 
 use crate::command::StorageCommand;
 
@@ -36,7 +36,7 @@ pub enum InternalStorageError {
     ConcurrentDBBatchDetected,
 
     #[error("{0}: {1:?}")]
-    PositionError(#[source] PositionError, [u8; 32]),
+    PositionError(#[source] PositionError, [u8; SUBNET_ID_LENGTH]),
 
     #[error("InvalidSubnetId")]
     InvalidSubnetId,

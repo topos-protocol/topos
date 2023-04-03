@@ -17,7 +17,7 @@ use topos_core::{
             StatusRequest, SubmitCertificateRequest,
         },
     },
-    uci::{Certificate, SubnetId},
+    uci::{Certificate, SubnetId, SUBNET_ID_LENGTH},
 };
 use topos_test_sdk::{certificates::create_certificate_chains, tce::create_network};
 use tracing::{debug, info};
@@ -67,7 +67,7 @@ async fn cert_delivery() {
     let number_of_subnets = 3;
 
     let all_subnets: Vec<SubnetId> = (1..=number_of_subnets)
-        .map(|v| [v as u8; 32].into())
+        .map(|v| [v as u8; SUBNET_ID_LENGTH].into())
         .collect();
 
     // Generate certificates with respect to parameters
