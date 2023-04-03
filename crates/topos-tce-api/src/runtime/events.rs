@@ -21,11 +21,11 @@ pub enum RuntimeEvent {
 
     GetSourceHead {
         subnet_id: SubnetId,
-        sender: oneshot::Sender<Result<(u64, topos_core::uci::Certificate), RuntimeError>>,
+        sender: oneshot::Sender<Result<(u64, Certificate), RuntimeError>>,
     },
 
     GetLastPendingCertificates {
         subnet_ids: HashSet<SubnetId>,
-        sender: oneshot::Sender<Result<HashMap<String, Option<Certificate>>, RuntimeError>>,
+        sender: oneshot::Sender<Result<HashMap<SubnetId, Option<Certificate>>, RuntimeError>>,
     },
 }

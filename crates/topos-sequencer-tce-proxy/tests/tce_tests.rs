@@ -1,3 +1,4 @@
+use base64::Engine;
 use futures::StreamExt;
 use rstest::*;
 use std::collections::HashMap;
@@ -254,7 +255,7 @@ async fn test_tce_get_last_pending_certificates(
         .expect("valid response");
 
     let last_pending_certificates = vec![(
-        "0x".to_string() + &hex::encode(source_subnet_id.value.as_slice()),
+        base64::engine::general_purpose::STANDARD.encode(&source_subnet_id.value),
         OptionalCertificate { value: None },
     )]
     .into_iter()
@@ -295,7 +296,7 @@ async fn test_tce_get_last_pending_certificates(
         .expect("valid response");
 
     let expected_last_pending_certificates = vec![(
-        "0x".to_string() + &hex::encode(source_subnet_id.value.as_slice()),
+        base64::engine::general_purpose::STANDARD.encode(&source_subnet_id.value),
         OptionalCertificate {
             value: Some(certificates.iter().last().unwrap().clone().into()),
         },

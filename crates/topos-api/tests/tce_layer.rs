@@ -25,6 +25,7 @@ use topos_test_sdk::constants::*;
 #[test(tokio::test)]
 async fn create_tce_layer() {
     struct TceServer;
+    use base64::Engine;
 
     #[tonic::async_trait]
     impl ApiService for TceServer {
@@ -74,7 +75,7 @@ async fn create_tce_layer() {
             let mut map = HashMap::new();
             for subnet_id in subnet_ids {
                 map.insert(
-                    subnet_id.to_string(),
+                    base64::engine::general_purpose::STANDARD.encode(&subnet_id.value),
                     OptionalCertificate {
                         value: Some(Certificate {
                             source_subnet_id: subnet_id.into(),
@@ -197,7 +198,7 @@ async fn create_tce_layer() {
 
     let mut expected_last_pending_certificate_ids = HashMap::new();
     expected_last_pending_certificate_ids.insert(
-        source_subnet_id.to_string(),
+        base64::engine::general_purpose::STANDARD.encode(&source_subnet_id.value),
         OptionalCertificate {
             value: Some(original_certificate.clone()),
         },

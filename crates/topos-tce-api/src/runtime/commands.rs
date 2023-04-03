@@ -55,13 +55,13 @@ pub(crate) enum InternalRuntimeCommand {
 
     /// Get source head certificate by source subnet id
     GetSourceHead {
-        subnet_id: topos_core::uci::SubnetId,
+        subnet_id: SubnetId,
         sender: oneshot::Sender<Result<(u64, Certificate), RuntimeError>>,
     },
 
     /// Get source head certificate by source subnet id
     GetLastPendingCertificates {
-        subnet_ids: Vec<topos_core::uci::SubnetId>,
-        sender: oneshot::Sender<Result<HashMap<String, Option<Certificate>>, RuntimeError>>,
+        subnet_ids: Vec<SubnetId>,
+        sender: oneshot::Sender<Result<HashMap<SubnetId, Option<Certificate>>, RuntimeError>>,
     },
 }

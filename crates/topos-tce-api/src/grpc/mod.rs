@@ -1,3 +1,4 @@
+use base64::Engine;
 use futures::{FutureExt, Stream as FutureStream, StreamExt};
 use opentelemetry::{
     trace::{FutureExt as TraceFutureExt, TraceContextExt},
@@ -231,7 +232,8 @@ impl ApiService for TceGrpcService {
                         .into_iter()
                         .map(|(subnet_id, cert)| {
                             (
-                                subnet_id,
+                                base64::engine::general_purpose::STANDARD
+                                    .encode(subnet_id.as_array()),
                                 OptionalCertificate {
                                     value: cert.map(Into::into),
                                 },

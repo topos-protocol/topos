@@ -215,10 +215,10 @@ impl AppContext {
                 mut subnet_ids,
                 sender,
             } => {
-                let mut last_pending_certificates: HashMap<String, Option<Certificate>> =
+                let mut last_pending_certificates: HashMap<SubnetId, Option<Certificate>> =
                     subnet_ids
                         .iter()
-                        .map(|subnet_id| (subnet_id.to_string(), None))
+                        .map(|subnet_id| (*subnet_id, None))
                         .collect();
 
                 if let Ok(pending_certificates) =
@@ -228,9 +228,8 @@ impl AppContext {
                     // Last certificate in the subnet should be one with the highest index
                     for (pending_certificate_id, cert) in pending_certificates.into_iter().rev() {
                         if let Some(subnet_id) = subnet_ids.take(&cert.source_subnet_id) {
-                            *last_pending_certificates
-                                .entry(subnet_id.to_string())
-                                .or_insert(None) = Some(cert);
+                            *last_pending_certificates.entry(subnet_id).or_insert(None) =
+                                Some(cert);
                         }
                         if subnet_ids.is_empty() {
                             break;
@@ -240,7 +239,7 @@ impl AppContext {
 
                 // Add None pending certificate for any other requested subnet_id
                 subnet_ids.iter().for_each(|subnet_id| {
-                    last_pending_certificates.insert(subnet_id.to_string(), None);
+                    last_pending_certificates.insert(*subnet_id, None);
                 });
 
                 _ = sender.send(Ok(last_pending_certificates));

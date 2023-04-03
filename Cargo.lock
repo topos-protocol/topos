@@ -5739,6 +5739,7 @@ version = "0.1.0"
 dependencies = [
  "async-stream",
  "backoff",
+ "base64 0.21.0",
  "byteorder",
  "dockertest",
  "env_logger 0.10.0",
@@ -5825,6 +5826,7 @@ version = "0.1.0"
 dependencies = [
  "async-stream",
  "async-trait",
+ "base64 0.21.0",
  "bytes",
  "env_logger 0.10.0",
  "futures",
