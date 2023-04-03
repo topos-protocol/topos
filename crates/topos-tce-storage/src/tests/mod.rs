@@ -393,19 +393,22 @@ async fn get_pending_certificates(storage: RocksDBStorage) {
 
     let certificates_for_source_subnet_1 =
         create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_2], 15);
+    let certificates_for_source_subnet_2 =
+        create_certificate_chain(SOURCE_SUBNET_ID_2, &[TARGET_SUBNET_ID_2], 15);
+
+    // Persist the first 10 Cert of each Subnets
     for cert in &certificates_for_source_subnet_1[0..10] {
         storage.persist(cert, None).await.unwrap();
     }
+    for cert in &certificates_for_source_subnet_2[0..10] {
+        storage.persist(cert, None).await.unwrap();
+    }
+
+    // Add the last 5 cert of each Subnet as pending certificate
     for cert in &certificates_for_source_subnet_1[10..] {
         storage.add_pending_certificate(cert).await.unwrap();
         expected_pending_certificates.push((expected_pending_certificates_count, cert.clone()));
         expected_pending_certificates_count += 1;
-    }
-
-    let certificates_for_source_subnet_2 =
-        create_certificate_chain(SOURCE_SUBNET_ID_2, &[TARGET_SUBNET_ID_2], 15);
-    for cert in &certificates_for_source_subnet_2[0..10] {
-        storage.persist(cert, None).await.unwrap();
     }
     for cert in &certificates_for_source_subnet_2[10..] {
         storage.add_pending_certificate(cert).await.unwrap();

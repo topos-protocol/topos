@@ -44,14 +44,10 @@ message GetLastPendingCertificatesRequest {
   repeated topos.shared.v1.SubnetId subnet_ids = 1;
 }
 
-message OptionalCertificate {
-  optional topos.uci.v1.Certificate value = 1;
-}
-
 message GetLastPendingCertificatesResponse {
   // Bytes and array types (SubnetId) could not be key in the map type according to specifications,
   // so we use SubnetId hex encoded string with 0x prefix as key
-  map<string, OptionalCertificate> last_pending_certificate = 1;
+  map<string, topos.uci.v1.OptionalCertificate> last_pending_certificate = 1;
 }
 
 message WatchCertificatesRequest {

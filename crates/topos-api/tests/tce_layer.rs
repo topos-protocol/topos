@@ -14,10 +14,10 @@ use topos_api::tce::v1::api_service_server::{ApiService, ApiServiceServer};
 use topos_api::tce::v1::watch_certificates_request::{Command, OpenStream};
 use topos_api::tce::v1::{
     GetLastPendingCertificatesRequest, GetLastPendingCertificatesResponse, GetSourceHeadRequest,
-    GetSourceHeadResponse, OptionalCertificate, SourceStreamPosition, SubmitCertificateRequest,
+    GetSourceHeadResponse, SourceStreamPosition, SubmitCertificateRequest,
     SubmitCertificateResponse, WatchCertificatesRequest, WatchCertificatesResponse,
 };
-use topos_api::uci::v1::Certificate;
+use topos_api::uci::v1::{Certificate, OptionalCertificate};
 use uuid::Uuid;
 
 use topos_test_sdk::constants::*;
@@ -75,7 +75,7 @@ async fn create_tce_layer() {
             for subnet_id in subnet_ids {
                 map.insert(
                     subnet_id.to_string(),
-                    topos_api::tce::v1::OptionalCertificate {
+                    OptionalCertificate {
                         value: Some(Certificate {
                             source_subnet_id: subnet_id.into(),
                             id: Some(return_certificate_id.clone()),

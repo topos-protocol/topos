@@ -9,9 +9,9 @@ use topos_core::api::tce::v1::{
     watch_certificates_request, watch_certificates_response,
     watch_certificates_response::CertificatePushed, GetLastPendingCertificatesRequest,
     GetLastPendingCertificatesResponse, GetSourceHeadRequest, GetSourceHeadResponse,
-    OptionalCertificate, SourceStreamPosition, SubmitCertificateRequest,
+    SourceStreamPosition, SubmitCertificateRequest,
 };
-use topos_core::api::uci::v1::Certificate;
+use topos_core::api::uci::v1::{Certificate, OptionalCertificate};
 use topos_core::uci::{self, SUBNET_ID_LENGTH};
 use tracing::{debug, error, info};
 
@@ -240,10 +240,7 @@ async fn test_tce_get_last_pending_certificates(
     let mut context = start_node.await;
 
     let source_subnet_id: SubnetId = SOURCE_SUBNET_ID_1.into();
-    let target_subnet_id: SubnetId = TARGET_SUBNET_ID_1.into();
-    let prev_certificate_id: CertificateId = PREV_CERTIFICATE_ID.into();
-    let certificate_id_1: CertificateId = CERTIFICATE_ID_1.into();
-    let certificate_id_2: CertificateId = CERTIFICATE_ID_2.into();
+    let certificates = create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], 10);
 
     // Test get last pending certificates for empty TCE history
     // Reply should be empty
@@ -268,63 +265,24 @@ async fn test_tce_get_last_pending_certificates(
     };
     assert_eq!(response, expected_response);
 
-    let test_certificate = Certificate {
-        source_subnet_id: Some(source_subnet_id.clone()),
-        id: Some(certificate_id_1.clone()),
-        prev_id: Some(prev_certificate_id),
-        target_subnets: vec![target_subnet_id.clone()],
-        state_root: [0u8; 32].to_vec(),
-        tx_root_hash: [0u8; 32].to_vec(),
-        verifier: 0,
-        proof: Some(StarkProof { value: Vec::new() }),
-        signature: Some(Default::default()),
-    };
-
-    match context
-        .api_grpc_client
-        .submit_certificate(SubmitCertificateRequest {
-            certificate: Some(test_certificate.clone()),
-        })
-        .await
-        .map(|r| r.into_inner())
-    {
-        Ok(response) => {
-            debug!("Successfully submitted the Certificate {:?}", response);
-        }
-        Err(e) => {
-            error!("Unable to submit the certificate: {e:?}");
-            return Err(Box::from(e));
-        }
-    };
-
-    let test_certificate_2 = Certificate {
-        source_subnet_id: Some(source_subnet_id.clone()),
-        id: Some(certificate_id_2),
-        prev_id: Some(certificate_id_1),
-        target_subnets: vec![target_subnet_id],
-        state_root: [0u8; 32].to_vec(),
-        tx_root_hash: [0u8; 32].to_vec(),
-        verifier: 0,
-        proof: Some(StarkProof { value: Vec::new() }),
-        signature: Some(Default::default()),
-    };
-
-    match context
-        .api_grpc_client
-        .submit_certificate(SubmitCertificateRequest {
-            certificate: Some(test_certificate_2.clone()),
-        })
-        .await
-        .map(|r| r.into_inner())
-    {
-        Ok(response) => {
-            debug!("Successfully submitted the Certificate 2 {:?}", response);
-        }
-        Err(e) => {
-            error!("Unable to submit the certificate 2 : {e:?}");
-            return Err(Box::from(e));
-        }
-    };
+    for cert in &certificates {
+        match context
+            .api_grpc_client
+            .submit_certificate(SubmitCertificateRequest {
+                certificate: Some(cert.clone().into()),
+            })
+            .await
+            .map(|r| r.into_inner())
+        {
+            Ok(response) => {
+                debug!("Successfully submitted the Certificate {:?}", response);
+            }
+            Err(e) => {
+                error!("Unable to submit the certificate: {e:?}");
+                return Err(Box::from(e));
+            }
+        };
+    }
 
     // Test get last pending certificate
     let response = context
@@ -336,17 +294,17 @@ async fn test_tce_get_last_pending_certificates(
         .map(|r| r.into_inner())
         .expect("valid response");
 
-    let last_pending_certificates = vec![(
+    let expected_last_pending_certificates = vec![(
         "0x".to_string() + &hex::encode(source_subnet_id.value.as_slice()),
         OptionalCertificate {
-            value: Some(test_certificate_2),
+            value: Some(certificates.iter().last().unwrap().clone().into()),
         },
     )]
     .into_iter()
     .collect::<HashMap<String, OptionalCertificate>>();
 
     let expected_response = GetLastPendingCertificatesResponse {
-        last_pending_certificate: last_pending_certificates,
+        last_pending_certificate: expected_last_pending_certificates,
     };
     assert_eq!(response, expected_response);
 

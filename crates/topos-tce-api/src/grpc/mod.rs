@@ -10,9 +10,10 @@ use tonic::{Request, Response, Status, Streaming};
 use topos_core::api::tce::v1::{
     api_service_server::ApiService, GetLastPendingCertificatesRequest,
     GetLastPendingCertificatesResponse, GetSourceHeadRequest, GetSourceHeadResponse,
-    OptionalCertificate, SubmitCertificateRequest, SubmitCertificateResponse,
-    WatchCertificatesRequest, WatchCertificatesResponse,
+    SubmitCertificateRequest, SubmitCertificateResponse, WatchCertificatesRequest,
+    WatchCertificatesResponse,
 };
+use topos_core::api::uci::v1::OptionalCertificate;
 use topos_core::uci::SubnetId;
 use tracing::{error, field, info, instrument, Instrument, Span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
