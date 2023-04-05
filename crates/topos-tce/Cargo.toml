@@ -16,6 +16,11 @@ tokio.workspace = true
 topos-core.workspace = true
 tracing-subscriber = { workspace = true, default-features = false,  features = ["std", "env-filter", "fmt", "ansi"] }
 tracing.workspace = true
+opentelemetry.workspace = true
+tracing-attributes.workspace = true
+tracing-opentelemetry.workspace = true
+
+lazy_static = "1.4"
 
 tce_transport = { package = "topos-tce-transport", path = "../topos-tce-transport" }
 topos-p2p = { path = "../topos-p2p" }
@@ -26,11 +31,7 @@ topos-tce-storage = { package = "topos-tce-storage", path = "../topos-tce-storag
 topos-tce-synchronizer = { path = "../topos-tce-synchronizer" }
 topos-telemetry = { path = "../topos-telemetry" }
 
-# external dependencies
-lazy_static = "1.4"
-opentelemetry.workspace = true
-tracing-attributes.workspace = true
-tracing-opentelemetry.workspace = true
+
 
 [dev-dependencies]
 async-stream.workspace = true
