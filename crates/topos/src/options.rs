@@ -5,8 +5,12 @@ use crate::components::sequencer::commands::SequencerCommand;
 
 #[cfg(feature = "checker")]
 use crate::components::checker::commands::CheckerCommand;
+
 #[cfg(feature = "tce")]
 use crate::components::tce::commands::TceCommand;
+
+#[cfg(feature = "network")]
+use crate::components::network::commands::NetworkCommand;
 
 pub(crate) mod input_format;
 
@@ -33,4 +37,6 @@ pub(crate) enum ToposCommand {
     Sequencer(SequencerCommand),
     #[cfg(feature = "checker")]
     Checker(CheckerCommand),
+    #[cfg(feature = "network")]
+    Network(NetworkCommand),
 }

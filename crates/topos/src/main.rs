@@ -28,5 +28,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         options::ToposCommand::Checker(cmd) => {
             components::checker::handle_command(cmd, verbose).await
         }
+        #[cfg(feature = "network")]
+        options::ToposCommand::Network(cmd) => {
+            components::network::handle_command(cmd, verbose).await
+        }
     }
 }

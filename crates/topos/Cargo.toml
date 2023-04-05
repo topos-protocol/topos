@@ -9,6 +9,7 @@ topos-p2p = { path = "../topos-p2p" }
 topos-tce-transport = { path = "../topos-tce-transport", optional = true }
 topos-sequencer = { path = "../topos-sequencer", optional = true }
 topos-core = { workspace = true, features = ["api"] }
+topos-certificate-spammer = { path = "../topos-certificate-spammer", optional = true }
 
 async-stream.workspace = true
 async-trait.workspace = true
@@ -48,9 +49,10 @@ assert_cmd = "2.0.6"
 insta = { version = "1.21", features = ["json", "redactions"] }
 
 [features]
-default = ["tce", "sequencer", "checker"]
+default = ["tce", "sequencer", "checker", "network"]
 tce = ["topos-tce", "topos-tce-transport"]
 checker = []
 sequencer = ["topos-sequencer"]
+network = ["topos-certificate-spammer"]
 
 tce-direct = ["tce", "topos-tce-broadcast/direct"]

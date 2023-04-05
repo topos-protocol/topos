@@ -1,0 +1,32 @@
+---
+source: crates/topos/tests/network.rs
+expression: result
+---
+Run a test topos certificate spammer to send test certificates to the network
+
+Usage: topos network spam [OPTIONS]
+
+Options:
+      --target-node <TARGET_NODE>
+          The target node api endpoint [env: TARGET_NODE=]
+  -v, --verbose...
+          
+      --target-nodes-path <TARGET_NODES_PATH>
+          Path to file with list of target nodes [env: TARGET_NODES_PATH=]
+      --cert-per-batch <CERT_PER_BATCH>
+          The number of certificate emitted per batch [env: CERT_PER_BATCH=] [default: 1]
+      --batch-time-interval <BATCH_TIME_INTERVAL>
+          Time interval between batches in seconds [env: BATCH_TIME_INTERVAL=] [default: 1]
+      --nb-subnets <NB_SUBNETS>
+          The number of subnets that are emitter [default: 5]
+      --byzantine-threshold <BYZANTINE_THRESHOLD>
+          The threshold of byzantine among the subnets between 0. (all correct) and 1. (all byzantine) [default: 0]
+      --node-per-cert <NODE_PER_CERT>
+          The number of nodes to whom we emit the certificate to broadcast Ideally should work with one node to have the liveness property [default: 1]
+      --otlp-agent <OTLP_AGENT>
+          Socket of the opentelemetry agent endpoint If not provided open telemetry will not be used [env: TOPOS_OTLP_AGENT=]
+      --otlp-service-name <OTLP_SERVICE_NAME>
+          Otlp service name If not provided open telemetry will not be used [env: TOPOS_OTLP_SERVICE_NAME=]
+  -h, --help
+          Print help
+
