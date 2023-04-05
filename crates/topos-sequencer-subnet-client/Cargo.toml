@@ -17,4 +17,3 @@ tiny-keccak = "1.2"
 
 topos-sequencer-types = { package = "topos-sequencer-types", path = "../topos-sequencer-types" }
 topos-core = { workspace = true, features = ["uci"] }
-

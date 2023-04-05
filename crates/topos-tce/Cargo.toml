@@ -32,7 +32,6 @@ topos-tce-synchronizer = { path = "../topos-tce-synchronizer" }
 topos-telemetry = { path = "../topos-telemetry" }
 
 
-
 [dev-dependencies]
 async-stream.workspace = true
 async-trait.workspace = true

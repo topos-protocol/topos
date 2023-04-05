@@ -14,4 +14,3 @@ uuid = { workspace = true, features = ["v4", "serde"] }
 topos-core = { workspace = true, features = ["api"] }
 topos-p2p = { path = "../topos-p2p" }
 topos-tce-gatekeeper = { path = "../topos-tce-gatekeeper/" }
-
