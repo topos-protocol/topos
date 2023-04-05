@@ -31,7 +31,6 @@ topos-tce-storage = { package = "topos-tce-storage", path = "../topos-tce-storag
 topos-tce-synchronizer = { path = "../topos-tce-synchronizer" }
 topos-telemetry = { path = "../topos-telemetry" }
 
-
 [dev-dependencies]
 async-stream.workspace = true
 async-trait.workspace = true
@@ -45,7 +44,6 @@ tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 tracing.workspace = true
 test-log.workspace = true
 cucumber = "0.13.0"
-
 
 [features]
 default = []

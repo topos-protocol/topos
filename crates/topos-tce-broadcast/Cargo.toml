@@ -21,7 +21,6 @@ tce_transport = { package = "topos-tce-transport", path = "../topos-tce-transpor
 topos-core = { workspace = true, features = ["uci"] }
 topos-p2p = { path = "../topos-p2p/"}
 
-
 [dev-dependencies]
 test-log.workspace = true
 env_logger.workspace = true

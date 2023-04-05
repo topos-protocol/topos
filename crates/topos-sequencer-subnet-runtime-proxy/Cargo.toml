@@ -30,7 +30,6 @@ topos-sequencer-subnet-client = { package = "topos-sequencer-subnet-client", pat
 topos-sequencer-types = { package = "topos-sequencer-types", path = "../topos-sequencer-types" }
 topos-crypto = {package = "topos-crypto", path = "../topos-crypto"}
 
-
 [dev-dependencies]
 rstest.workspace = true
 serde_json.workspace = true

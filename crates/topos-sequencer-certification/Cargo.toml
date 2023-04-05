@@ -29,7 +29,6 @@ topos-sequencer-types = { package = "topos-sequencer-types", path = "../topos-se
 topos-core = { workspace = true, features = ["uci"] }
 topos-crypto.workspace = true
 
-
 [dev-dependencies]
 test-log.workspace = true
 env_logger.workspace = true
