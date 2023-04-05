@@ -1,7 +1,6 @@
 //! Protocol implementation guts.
 //!
-
-use crate::{Error, SubnetRuntimeProxyConfig};
+use crate::{certification::Certification, Error, SubnetRuntimeProxyConfig};
 use opentelemetry::trace::FutureExt;
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
@@ -9,21 +8,23 @@ use tokio::sync::Mutex;
 use tokio::sync::{mpsc, oneshot};
 use tokio::time::{self, Duration};
 use topos_core::api::checkpoints::TargetStreamPosition;
-use topos_core::uci::{Certificate, SubnetId};
+use topos_core::uci::{Certificate, CertificateId, SubnetId};
 use topos_sequencer_subnet_client::{self, SubnetClient};
 use topos_sequencer_types::{SubnetRuntimeProxyCommand, SubnetRuntimeProxyEvent};
-use tracing::{debug, error, info, info_span, warn, Instrument};
+use tracing::{debug, error, field, info, info_span, instrument, warn, Instrument, Span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 /// Arbitrary tick duration for fetching new finalized blocks
 const SUBNET_BLOCK_TIME: Duration = Duration::new(2, 0);
 
 pub struct SubnetRuntimeProxy {
-    pub commands_channel: mpsc::UnboundedSender<SubnetRuntimeProxyCommand>,
-    pub events_subscribers: Vec<mpsc::UnboundedSender<SubnetRuntimeProxyEvent>>,
+    pub commands_channel: mpsc::Sender<SubnetRuntimeProxyCommand>,
+    pub events_subscribers: Vec<mpsc::Sender<SubnetRuntimeProxyEvent>>,
     pub config: SubnetRuntimeProxyConfig,
+    pub certification: Arc<Mutex<Certification>>,
     command_task_shutdown: mpsc::Sender<oneshot::Sender<()>>,
     block_task_shutdown: mpsc::Sender<oneshot::Sender<()>>,
+    source_head_certificate_id_sender: Option<oneshot::Sender<Option<CertificateId>>>,
 }
 
 impl Debug for SubnetRuntimeProxy {
@@ -41,8 +42,7 @@ impl SubnetRuntimeProxy {
             "Spawning new runtime proxy, endpoint: {} ethereum contract address: {}, ",
             &config.endpoint, &config.subnet_contract_address
         );
-        let (command_sender, mut command_rcv) =
-            mpsc::unbounded_channel::<SubnetRuntimeProxyCommand>();
+        let (command_sender, mut command_rcv) = mpsc::channel::<SubnetRuntimeProxyCommand>(256);
         let ws_runtime_endpoint = format!("ws://{}/ws", &config.endpoint);
         let http_runtime_endpoint = format!("http://{}", &config.endpoint);
         let subnet_contract_address = Arc::new(config.subnet_contract_address.clone());
@@ -50,6 +50,15 @@ impl SubnetRuntimeProxy {
             mpsc::channel::<oneshot::Sender<()>>(1);
         let (block_task_shutdown_channel, mut block_task_shutdown) =
             mpsc::channel::<oneshot::Sender<()>>(1);
+        let (source_head_certificate_id_sender, source_head_certificate_id_received) =
+            oneshot::channel();
+
+        let certification = Certification::new(
+            &config.subnet_id,
+            None,
+            config.verifier,
+            signing_key.clone(),
+        )?;
 
         let runtime_proxy = Arc::new(Mutex::from(Self {
             commands_channel: command_sender,
@@ -57,6 +66,8 @@ impl SubnetRuntimeProxy {
             config: config.clone(),
             command_task_shutdown: command_task_shutdown_channel,
             block_task_shutdown: block_task_shutdown_channel,
+            certification: certification.clone(),
+            source_head_certificate_id_sender: Some(source_head_certificate_id_sender),
         }));
 
         // Runtime block task
@@ -64,6 +75,30 @@ impl SubnetRuntimeProxy {
             let runtime_proxy = runtime_proxy.clone();
             let subnet_contract_address = subnet_contract_address.clone();
             tokio::spawn(async move {
+                {
+                    // To start producing certificates, we need to know latest delivered or pending certificate id from TCE
+                    // It could be also genesis certificate (also retrievable from TCE)
+                    // Lock certification component and wait until we acquire first certificate id for this network
+                    let mut certification = certification.lock().await;
+                    if certification.last_certificate_id.is_none() {
+                        info!("Waiting for the source head certificate id to continue with certificate generation");
+                        // Wait for last_certificate_id retrieved on TCE component setup
+                        match source_head_certificate_id_received.await {
+                            Ok(last_certificate_id) => {
+                                info!(
+                                    "Source head certificate id received {:?}",
+                                    last_certificate_id.map(|id| id.to_string())
+                                );
+                                // Certificate generation is now ready to run
+                                certification.last_certificate_id = last_certificate_id;
+                            }
+                            Err(e) => {
+                                panic!("Failed to get source head certificate, unable to proceed with certificate generation: {e}")
+                            }
+                        }
+                    }
+                }
+
                 loop {
                     // Create subnet listener
                     let mut subnet_listener =
@@ -85,30 +120,32 @@ impl SubnetRuntimeProxy {
                     let shutdowned: Option<oneshot::Sender<()>> = loop {
                         tokio::select! {
                             _ = interval.tick() => {
+
                                 match subnet_listener
                                     .get_next_finalized_block(&subnet_contract_address)
                                     .await
                                 {
                                     Ok(block_info) => {
                                         let block_number = block_info.number;
-                                        match Self::send_new_block(
-                                            runtime_proxy.clone(),
-                                            SubnetRuntimeProxyEvent::BlockFinalized(block_info),
-                                        ).await {
-                                            Ok(()) => {
-                                                debug!(
-                                                    "Successfully fetched the finalized block {:?} from the subnet runtime",
-                                                    block_number
-                                                )
-                                            }
+                                        info!("Successfully fetched the finalized block {block_number} from the subnet runtime");
+
+                                        let mut certification = certification.lock().await;
+
+                                        // Update certificate block history
+                                        certification.append_blocks(vec![block_info]);
+
+                                        let new_certificates = match certification.generate_certificates().await {
+                                            Ok(certificates) => certificates,
                                             Err(e) => {
-                                                // TODO: Determine if task should end on some type of error
-                                                error!(
-                                                    "Failed to send new finalize block: {}",
-                                                    e
-                                                );
+                                                error!("Unable to generate certificates: {e}");
                                                 break None;
                                             }
+                                        };
+
+                                        debug!("Generated new certificates {new_certificates:?}");
+
+                                        for cert in new_certificates {
+                                            Self::send_new_certificate(runtime_proxy.clone(), cert).await
                                         }
                                     }
                                     Err(e) => {
@@ -180,13 +217,24 @@ impl SubnetRuntimeProxy {
         Ok(runtime_proxy)
     }
 
-    async fn send_new_block(
-        runtime_proxy: Arc<Mutex<SubnetRuntimeProxy>>,
-        evt: SubnetRuntimeProxyEvent,
-    ) -> Result<(), Error> {
-        let mut runtime_proxy = runtime_proxy.lock().await;
-        runtime_proxy.send_out_events(evt);
-        Ok(())
+    /// Dispatch newly generated certificate to TCE client
+    #[instrument(name = "NewCertificate", fields(certification = field::Empty, source_subnet_id = field::Empty, certificate_id = field::Empty))]
+    async fn send_new_certificate(
+        subnet_runtime_proxy: Arc<Mutex<SubnetRuntimeProxy>>,
+        cert: Certificate,
+    ) {
+        let mut runtime_proxy = subnet_runtime_proxy.lock().await;
+        Span::current().record("certificate_id", cert.id.to_string());
+        Span::current().record("source_subnet_id", cert.source_subnet_id.to_string());
+
+        runtime_proxy
+            .send_out_event(SubnetRuntimeProxyEvent::NewCertificate {
+                cert: Box::new(cert),
+                ctx: Span::current().context(),
+            })
+            .with_current_context()
+            .instrument(Span::current())
+            .await;
     }
 
     /// Send certificate to target subnet Topos Core contract for verification
@@ -286,11 +334,11 @@ impl SubnetRuntimeProxy {
         }
     }
 
-    fn send_out_events(&mut self, evt: SubnetRuntimeProxyEvent) {
+    async fn send_out_event(&mut self, evt: SubnetRuntimeProxyEvent) {
         for tx in &self.events_subscribers {
-            // FIXME: When error is returned it means that receiving side of the channel is closed
-            // Thus we better remove the sender from our subscribers
-            let _ = tx.send(evt.clone());
+            if let Err(e) = tx.send(evt.clone()).await {
+                error!("Unable to send subnet runtime proxy event: {e}");
+            }
         }
     }
 
@@ -314,6 +362,19 @@ impl SubnetRuntimeProxy {
             .await
             .map_err(Error::ShutdownSignalReceiveError)?;
         Ok(())
+    }
+
+    pub async fn set_source_head_certificate_id(
+        &mut self,
+        source_head_certificate_id: Option<CertificateId>,
+    ) -> Result<(), Error> {
+        self.source_head_certificate_id_sender
+            .take()
+            .ok_or(Error::SourceHeadCertChannelError(
+                "source head certificate id was previously set".to_string(),
+            ))?
+            .send(source_head_certificate_id)
+            .map_err(|_| Error::SourceHeadCertChannelError("channel error".to_string()))
     }
 
     pub async fn get_checkpoints(&self) -> Result<Vec<TargetStreamPosition>, Error> {

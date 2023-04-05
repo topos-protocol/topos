@@ -5462,33 +5462,9 @@ dependencies = [
  "tokio",
  "topos-core",
  "topos-crypto",
- "topos-sequencer-certification",
  "topos-sequencer-subnet-runtime-proxy",
  "topos-sequencer-tce-proxy",
  "topos-sequencer-types",
- "tracing",
- "tracing-opentelemetry",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "topos-sequencer-certification"
-version = "0.1.0"
-dependencies = [
- "byteorder",
- "env_logger 0.10.0",
- "hex",
- "opentelemetry",
- "rand 0.8.5",
- "rand_core 0.6.4",
- "serde",
- "test-log",
- "thiserror",
- "tokio",
- "topos-core",
- "topos-crypto",
- "topos-sequencer-types",
- "topos-test-sdk",
  "tracing",
  "tracing-opentelemetry",
  "tracing-subscriber",
