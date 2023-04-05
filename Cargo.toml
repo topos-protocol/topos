@@ -13,7 +13,6 @@ clap = { version = "4.0", features = ["derive", "env"] }
 rand = { version = "0.8", default-features = false }
 rand_core = { version = "0.6", default-features = false }
 rand_distr = { version = "0.4", default-features = false }
-once_cell = { version = "1.17", default-features = false }
 
 # Async & Tokio related
 async-stream = { version = "0.3", default-features = false }
