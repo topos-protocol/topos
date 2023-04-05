@@ -54,7 +54,10 @@ thiserror = { version = "1.0", default-features = false }
 uuid = { version = "1.1.2", default-features = false, features = ["v4"] }
 base64 = { version = "0.21.0"}
 
+# Network related
+backoff = { version = "0.4", features = ["tokio", "futures"] }
+
 # Tests
-rstest = { version = "0.16", default-features = false }
+rstest = { version = "0.17.0", default-features = false }
 test-log = { version = "0.2", features = ["trace"] }
 env_logger = { version = "0.10.0"} # Needed by test-log to print traces in tests

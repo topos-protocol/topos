@@ -8,7 +8,6 @@ byteorder.workspace = true
 futures.workspace = true
 rand.workspace = true
 rand_core.workspace = true
-rand_distr.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full"] }

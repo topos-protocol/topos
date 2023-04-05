@@ -29,8 +29,6 @@ topos-telemetry = { path = "../topos-telemetry" }
 # external dependencies
 lazy_static = "1.4"
 opentelemetry.workspace = true
-opentelemetry-otlp.workspace = true
-opentelemetry-jaeger.workspace = true
 tracing-attributes.workspace = true
 tracing-opentelemetry.workspace = true
 

@@ -14,7 +14,6 @@ async-stream.workspace = true
 async-trait.workspace = true
 clap.workspace = true
 futures.workspace = true
-opentelemetry-jaeger = "0.17.0"
 opentelemetry-otlp.workspace = true
 opentelemetry.workspace = true
 serde.workspace = true

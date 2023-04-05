@@ -8,7 +8,7 @@ topos-core = { workspace = true, features = ["uci", "api"] }
 topos-sequencer-types = { package = "topos-sequencer-types", path = "../topos-sequencer-types" }
 
 async-stream.workspace = true
-backoff = { version = "0.4", features = ["tokio"] }
+backoff.workspace = true
 byteorder.workspace = true
 futures.workspace = true
 hex.workspace = true
