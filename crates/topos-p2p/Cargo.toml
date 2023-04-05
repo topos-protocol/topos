@@ -12,7 +12,6 @@ thiserror.workspace = true
 tokio-stream.workspace = true
 tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true, features = ["attributes"] }
-tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 
 libp2p = { workspace = true, features = ["macros", "tcp", "dns", "tokio", "request-response", "identify", "mplex", "kad", "serde", "yamux"] }
 void = "1"
@@ -20,7 +19,7 @@ void = "1"
 [dev-dependencies]
 test-log.workspace = true
 env_logger.workspace = true
-rstest = "0.15"
-tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
+rstest.workspace = true
+tracing-subscriber.workspace = true
 
 topos-test-sdk = { path = "../topos-test-sdk/", features = ["tce"] }

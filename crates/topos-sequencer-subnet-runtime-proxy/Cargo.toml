@@ -5,11 +5,9 @@ edition = "2021"
 
 [dependencies]
 byteorder.workspace = true
-clap.workspace = true
 hex.workspace = true
 rand = { workspace = true, features = ["default"] }
 rand_core.workspace = true
-rand_distr.workspace = true
 serde = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 tokio = { workspace = true, features = [

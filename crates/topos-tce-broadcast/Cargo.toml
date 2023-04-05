@@ -8,21 +8,18 @@ byteorder.workspace = true
 futures.workspace = true
 rand.workspace = true
 rand_core.workspace = true
-rand_distr.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full"] }
 tokio-stream = { workspace = true, features = ["sync"] }
 tracing.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
+opentelemetry.workspace = true
+tracing-opentelemetry.workspace = true
 
 tce_transport = { package = "topos-tce-transport", path = "../topos-tce-transport"}
 topos-core = { workspace = true, features = ["uci"] }
 topos-p2p = { path = "../topos-p2p/"}
-
-opentelemetry.workspace = true
-tracing-opentelemetry.workspace = true
-
 
 [dev-dependencies]
 test-log.workspace = true
