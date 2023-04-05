@@ -11,7 +11,7 @@ pub struct Certification {
     /// Last known certificate id for subnet
     pub last_certificate_id: Option<CertificateId>,
     /// Latest BLOCK_HISTORY_LENGTH blocks kept in memory
-    pub finalized_blocks: std::collections::LinkedList<BlockInfo>,
+    pub finalized_blocks: LinkedList<BlockInfo>,
     /// Subnet id for which certificates are generated
     pub subnet_id: SubnetId,
     /// Type of verifier used
@@ -35,14 +35,13 @@ impl Certification {
         verifier: u32,
         signing_key: Vec<u8>,
     ) -> Result<Arc<Mutex<Certification>>, crate::Error> {
-        let me = Arc::new(Mutex::from(Self {
+        Ok(Arc::new(Mutex::from(Self {
             last_certificate_id: source_head_certificate_id,
             finalized_blocks: LinkedList::<BlockInfo>::new(),
             subnet_id: *subnet_id,
             verifier,
             signing_key,
-        }));
-        Ok(me)
+        })))
     }
 
     /// Generation of Certificates

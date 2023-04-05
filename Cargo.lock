@@ -423,15 +423,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b645a089122eccb6111b4f81cbc1a49f5900ac4666bb93ac027feaecf15607bf"
 
 [[package]]
-name = "beef"
-version = "0.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3a8241f3ebb85c056b509d4327ad0358fbbba6ffb340bf388f26350aeda225b1"
-dependencies = [
- "serde",
-]
-
-[[package]]
 name = "bincode"
 version = "1.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1529,22 +1520,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ethereum-tx-sign"
-version = "6.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b743b2f0121b22593f72e5717de1ca171aac92bf6e851b2877ce2e11f044dbc2"
-dependencies = [
- "bytes",
- "hex",
- "num-traits",
- "rlp",
- "secp256k1 0.24.3",
- "serde",
- "serde_derive",
- "tiny-keccak 2.0.2",
-]
-
-[[package]]
 name = "ethereum-types"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2327,12 +2302,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "integer-encoding"
-version = "3.0.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8bb03732005da905c88227371639bf1ad885cc712789c011c31c5fb3ab3ccf02"
-
-[[package]]
 name = "interceptor"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2450,36 +2419,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "jsonrpsee-types"
-version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3bcf76cd316f5d3ad48138085af1f45e2c58c98e02f0779783dbb034d43f7c86"
-dependencies = [
- "anyhow",
- "beef",
- "serde",
- "serde_json",
- "thiserror",
- "tracing",
-]
-
-[[package]]
 name = "keccak"
 version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3afef3b6eff9ce9d8ff9b3601125eec7f0c8cbac7abd14f355d053fa56c98768"
 dependencies = [
  "cpufeatures",
-]
-
-[[package]]
-name = "keccak-hash"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "82bc5d5ca345b067619615f62ac6f93e7daa67eb82d080bc380ed480708ec9e3"
-dependencies = [
- "primitive-types 0.11.1",
- "tiny-keccak 2.0.2",
 ]
 
 [[package]]
@@ -3410,22 +3355,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "opentelemetry-jaeger"
-version = "0.17.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e785d273968748578931e4dc3b4f5ec86b26e09d9e0d66b55adda7fce742f7a"
-dependencies = [
- "async-trait",
- "futures",
- "futures-executor",
- "once_cell",
- "opentelemetry",
- "opentelemetry-semantic-conventions",
- "thiserror",
- "thrift",
-]
-
-[[package]]
 name = "opentelemetry-otlp"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3455,15 +3384,6 @@ dependencies = [
  "prost",
  "tonic",
  "tonic-build",
-]
-
-[[package]]
-name = "opentelemetry-semantic-conventions"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b02e0230abb0ab6636d18e2ba8fa02903ea63772281340ccac18e0af3ec9eeb"
-dependencies = [
- "opentelemetry",
 ]
 
 [[package]]
@@ -3502,15 +3422,6 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-stream",
-]
-
-[[package]]
-name = "ordered-float"
-version = "1.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3305af35278dd29f46fcdd139e0b1fbfae2153f0e5928b39b035542dd31e37b7"
-dependencies = [
- "num-traits",
 ]
 
 [[package]]
@@ -4347,58 +4258,22 @@ dependencies = [
 ]
 
 [[package]]
-name = "rpassword"
-version = "7.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6678cf63ab3491898c0d021b493c94c9b221d91295294a2a5746eacbe5928322"
-dependencies = [
- "libc",
- "rtoolbox",
- "winapi",
-]
-
-[[package]]
 name = "rstest"
-version = "0.15.0"
+version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e9c9dc66cc29792b663ffb5269be669f1613664e69ad56441fdb895c2347b930"
+checksum = "de1bb486a691878cd320c2f0d319ba91eeaa2e894066d8b5f8f117c000e9d962"
 dependencies = [
  "futures",
  "futures-timer",
- "rstest_macros 0.14.0",
- "rustc_version",
-]
-
-[[package]]
-name = "rstest"
-version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b07f2d176c472198ec1e6551dc7da28f1c089652f66a7b722676c2238ebc0edf"
-dependencies = [
- "futures",
- "futures-timer",
- "rstest_macros 0.16.0",
+ "rstest_macros",
  "rustc_version",
 ]
 
 [[package]]
 name = "rstest_macros"
-version = "0.14.0"
+version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5015e68a0685a95ade3eee617ff7101ab6a3fc689203101ca16ebc16f2b89c66"
-dependencies = [
- "cfg-if",
- "proc-macro2",
- "quote",
- "rustc_version",
- "syn",
-]
-
-[[package]]
-name = "rstest_macros"
-version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7229b505ae0706e64f37ffc54a9c163e11022a6636d58fe1f3f52018257ff9f7"
+checksum = "290ca1a1c8ca7edb7c3283bd44dc35dd54fdec6253a3912e201ba1072018fca8"
 dependencies = [
  "cfg-if",
  "proc-macro2",
@@ -4432,16 +4307,6 @@ dependencies = [
  "nix",
  "thiserror",
  "tokio",
-]
-
-[[package]]
-name = "rtoolbox"
-version = "0.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "034e22c514f5c0cb8a10ff341b9b048b5ceb21591f31c8f44c43b960f9b3524a"
-dependencies = [
- "libc",
- "winapi",
 ]
 
 [[package]]
@@ -4688,29 +4553,11 @@ dependencies = [
 
 [[package]]
 name = "secp256k1"
-version = "0.24.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6b1629c9c557ef9b293568b338dddfc8208c98a18c59d722a9d53f859d9c9b62"
-dependencies = [
- "secp256k1-sys 0.6.1",
-]
-
-[[package]]
-name = "secp256k1"
 version = "0.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "25996b82292a7a57ed3508f052cfff8640d38d32018784acd714758b43da9c8f"
 dependencies = [
- "secp256k1-sys 0.8.1",
-]
-
-[[package]]
-name = "secp256k1-sys"
-version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "83080e2c2fc1006e625be82e5d1eb6a43b7fd9578b617fcc55814daf286bba4b"
-dependencies = [
- "cc",
+ "secp256k1-sys",
 ]
 
 [[package]]
@@ -5250,28 +5097,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "threadpool"
-version = "1.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d050e60b33d41c19108b32cea32164033a9013fe3b46cbd4457559bfbf77afaa"
-dependencies = [
- "num_cpus",
-]
-
-[[package]]
-name = "thrift"
-version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "09678c4cdbb4eed72e18b7c2af1329c69825ed16fcbac62d083fc3e2b0590ff0"
-dependencies = [
- "byteorder",
- "integer-encoding",
- "log",
- "ordered-float",
- "threadpool",
-]
-
-[[package]]
 name = "time"
 version = "0.3.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5528,7 +5353,6 @@ dependencies = [
  "insta",
  "libp2p",
  "opentelemetry",
- "opentelemetry-jaeger",
  "opentelemetry-otlp",
  "rand 0.8.5",
  "serde",
@@ -5600,12 +5424,10 @@ name = "topos-crypto"
 version = "0.1.0"
 dependencies = [
  "byteorder",
- "clap 4.1.4",
  "eth-keystore",
- "ethereum-tx-sign",
  "hex",
- "keccak-hash 0.10.0",
- "secp256k1 0.27.0",
+ "keccak-hash",
+ "secp256k1",
  "thiserror",
 ]
 
@@ -5618,7 +5440,7 @@ dependencies = [
  "env_logger 0.10.0",
  "futures",
  "libp2p",
- "rstest 0.15.0",
+ "rstest",
  "serde",
  "test-log",
  "thiserror",
@@ -5634,19 +5456,15 @@ dependencies = [
 name = "topos-sequencer"
 version = "0.1.0"
 dependencies = [
- "bincode",
  "hex",
  "opentelemetry",
- "rpassword",
  "serde",
  "tokio",
  "topos-core",
  "topos-crypto",
- "topos-p2p",
  "topos-sequencer-subnet-runtime-proxy",
  "topos-sequencer-tce-proxy",
  "topos-sequencer-types",
- "topos-tce-transport",
  "tracing",
  "tracing-opentelemetry",
  "tracing-subscriber",
@@ -5657,11 +5475,8 @@ name = "topos-sequencer-subnet-client"
 version = "0.1.0"
 dependencies = [
  "backoff",
- "ethereum-tx-sign",
  "hex",
- "jsonrpsee-types",
- "keccak-hash 0.9.0",
- "secp256k1 0.27.0",
+ "secp256k1",
  "serde_json",
  "thiserror",
  "tiny-keccak 1.5.0",
@@ -5669,7 +5484,6 @@ dependencies = [
  "topos-core",
  "topos-sequencer-types",
  "tracing",
- "tracing-subscriber",
  "web3",
 ]
 
@@ -5678,7 +5492,6 @@ name = "topos-sequencer-subnet-runtime-proxy"
 version = "0.1.0"
 dependencies = [
  "byteorder",
- "clap 4.1.4",
  "dockertest",
  "env_logger 0.10.0",
  "fs_extra",
@@ -5686,9 +5499,8 @@ dependencies = [
  "opentelemetry",
  "rand 0.8.5",
  "rand_core 0.6.4",
- "rand_distr",
- "rstest 0.16.0",
- "secp256k1 0.27.0",
+ "rstest",
+ "secp256k1",
  "serde",
  "serde_json",
  "serial_test",
@@ -5721,7 +5533,7 @@ dependencies = [
  "hex",
  "hyper",
  "opentelemetry",
- "rstest 0.16.0",
+ "rstest",
  "serde",
  "serde_json",
  "serial_test",
@@ -5769,8 +5581,6 @@ dependencies = [
  "lazy_static",
  "libp2p",
  "opentelemetry",
- "opentelemetry-jaeger",
- "opentelemetry-otlp",
  "rand 0.8.5",
  "rand_core 0.6.4",
  "rand_distr",
@@ -5811,7 +5621,7 @@ dependencies = [
  "opentelemetry",
  "pin-project",
  "prost",
- "rstest 0.16.0",
+ "rstest",
  "serde",
  "test-log",
  "thiserror",
@@ -5841,8 +5651,7 @@ dependencies = [
  "opentelemetry",
  "rand 0.8.5",
  "rand_core 0.6.4",
- "rand_distr",
- "rstest 0.16.0",
+ "rstest",
  "serde",
  "test-log",
  "thiserror",
@@ -5865,7 +5674,7 @@ dependencies = [
  "env_logger 0.10.0",
  "futures",
  "rand 0.8.5",
- "rstest 0.16.0",
+ "rstest",
  "test-log",
  "thiserror",
  "tokio",
@@ -5888,7 +5697,7 @@ dependencies = [
  "once_cell",
  "rand 0.8.5",
  "rocksdb",
- "rstest 0.16.0",
+ "rstest",
  "serde",
  "serde_derive",
  "test-log",
@@ -5947,7 +5756,7 @@ dependencies = [
  "libp2p",
  "proc_macro_sdk",
  "rand 0.8.5",
- "rstest 0.16.0",
+ "rstest",
  "tokio",
  "tonic",
  "topos-core",
@@ -6522,7 +6331,7 @@ dependencies = [
  "pin-project",
  "reqwest",
  "rlp",
- "secp256k1 0.27.0",
+ "secp256k1",
  "serde",
  "serde_json",
  "soketto",

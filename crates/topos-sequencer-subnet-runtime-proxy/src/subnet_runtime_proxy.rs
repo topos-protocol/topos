@@ -1,6 +1,6 @@
 //! Protocol implementation guts.
 //!
-use crate::{certification, Error, SubnetRuntimeProxyConfig};
+use crate::{certification::Certification, Error, SubnetRuntimeProxyConfig};
 use opentelemetry::trace::FutureExt;
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
@@ -21,7 +21,7 @@ pub struct SubnetRuntimeProxy {
     pub commands_channel: mpsc::Sender<SubnetRuntimeProxyCommand>,
     pub events_subscribers: Vec<mpsc::Sender<SubnetRuntimeProxyEvent>>,
     pub config: SubnetRuntimeProxyConfig,
-    pub certification: Arc<Mutex<crate::certification::Certification>>,
+    pub certification: Arc<Mutex<Certification>>,
     command_task_shutdown: mpsc::Sender<oneshot::Sender<()>>,
     block_task_shutdown: mpsc::Sender<oneshot::Sender<()>>,
     source_head_certificate_id_sender: Option<oneshot::Sender<Option<CertificateId>>>,
@@ -53,7 +53,7 @@ impl SubnetRuntimeProxy {
         let (source_head_certificate_id_sender, source_head_certificate_id_received) =
             oneshot::channel();
 
-        let certification = certification::Certification::new(
+        let certification = Certification::new(
             &config.subnet_id,
             None,
             config.verifier,
@@ -75,23 +75,26 @@ impl SubnetRuntimeProxy {
             let runtime_proxy = runtime_proxy.clone();
             let subnet_contract_address = subnet_contract_address.clone();
             tokio::spawn(async move {
-                // To start producing certificates, we need to know latest delivered or pending certificate from TCE
-                // It could be also genesis certificate (also retrievable from TCE)
-                // Wait until we acquire first certificate for this network
-                let last_certificate_id = certification.lock().await.last_certificate_id;
-                if last_certificate_id.is_none() {
-                    info!("Waiting for the source head certificate id to continue with certificate generation");
-                    match source_head_certificate_id_received.await {
-                        Ok(last_certificate_id) => {
-                            info!(
-                                "Source head certificate id received {:?}",
-                                last_certificate_id.map(|id| id.to_string())
-                            );
-                            let mut certification = certification.lock().await;
-                            certification.last_certificate_id = last_certificate_id;
-                        }
-                        Err(e) => {
-                            panic!("Failed to get source head certificate, unable to proceed with certificate generation: {e}")
+                {
+                    // To start producing certificates, we need to know latest delivered or pending certificate id from TCE
+                    // It could be also genesis certificate (also retrievable from TCE)
+                    // Lock certification component and wait until we acquire first certificate id for this network
+                    let mut certification = certification.lock().await;
+                    if certification.last_certificate_id.is_none() {
+                        info!("Waiting for the source head certificate id to continue with certificate generation");
+                        // Wait for last_certificate_id retrieved on TCE component setup
+                        match source_head_certificate_id_received.await {
+                            Ok(last_certificate_id) => {
+                                info!(
+                                    "Source head certificate id received {:?}",
+                                    last_certificate_id.map(|id| id.to_string())
+                                );
+                                // Certificate generation is now ready to run
+                                certification.last_certificate_id = last_certificate_id;
+                            }
+                            Err(e) => {
+                                panic!("Failed to get source head certificate, unable to proceed with certificate generation: {e}")
+                            }
                         }
                     }
                 }
