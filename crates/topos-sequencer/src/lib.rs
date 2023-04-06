@@ -24,10 +24,9 @@ pub async fn run(config: SequencerConfiguration) -> Result<(), Box<dyn std::erro
     let subnet_data_dir_path = config
         .subnet_data_dir_path
         .to_str()
-        .ok_or(std::io::Error::new(
-            ErrorKind::InvalidInput,
-            "Invalid subnet data dir path",
-        ))?
+        .ok_or_else(|| {
+            std::io::Error::new(ErrorKind::InvalidInput, "Invalid subnet data dir path")
+        })?
         .to_string();
 
     let key_file_path = topos_crypto::keystore::get_keystore_path(subnet_data_dir_path.as_str());

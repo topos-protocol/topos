@@ -132,72 +132,74 @@ impl Runtime {
                             };
                         }
                     }
-                    SwarmEvent::Behaviour(ComposedEvent::Kademlia(
-                        KademliaEvent::OutboundQueryProgressed {
-                            id,
-                            result:
-                                QueryResult::PutRecord(Err(PutRecordError::QuorumFailed {
-                                    key,
-                                    success,
-                                    quorum,
-                                })),
-                            stats,
-                            ..
-                        },
-                    )) if Some(id) == addr_query_id && publish_retry == 0 => {
-                        debug!("QuorumFailure on DHT addr publication: key: {key:?}, success: {success:?}, quorum: {quorum:?}, stats: {stats:?}");
-                        return Err(Box::new(P2PError::BootstrapError(
-                            "Unable to send the addr Record to DHT",
-                        )));
-                    }
+                    SwarmEvent::Behaviour(ComposedEvent::Kademlia(kademlia_event)) => {
+                        match *kademlia_event {
+                            KademliaEvent::OutboundQueryProgressed {
+                                id,
+                                result:
+                                    QueryResult::PutRecord(Err(PutRecordError::QuorumFailed {
+                                        key,
+                                        success,
+                                        quorum,
+                                    })),
+                                stats,
+                                ..
+                            } if Some(id) == addr_query_id && publish_retry == 0 => {
+                                debug!("QuorumFailure on DHT addr publication: key: {key:?}, success: {success:?}, quorum: {quorum:?}, stats: {stats:?}");
+                                return Err(Box::new(P2PError::BootstrapError(
+                                    "Unable to send the addr Record to DHT",
+                                )));
+                            }
 
-                    SwarmEvent::Behaviour(ComposedEvent::Kademlia(
-                        KademliaEvent::OutboundQueryProgressed {
-                            id,
-                            result: QueryResult::PutRecord(Err(PutRecordError::QuorumFailed { .. })),
-                            ..
-                        },
-                    )) if Some(id) == addr_query_id && publish_retry > 0 => {
-                        publish_retry -= 1;
-                        warn!("Failed to PutRecord in DHT, retry again, attempt number {publish_retry}");
-                        let key = Key::new(&self.local_peer_id.to_string());
-                        if let Ok(query_id_record) = self
-                            .swarm
-                            .behaviour_mut()
-                            .discovery
-                            .put_record(Record::new(key, self.addresses.to_vec()), Quorum::Majority)
-                        {
-                            addr_query_id = Some(query_id_record);
-                        } else {
-                            return Err(Box::new(P2PError::BootstrapError(
-                                "Unable to send the addr Record to DHT",
-                            )));
+                            KademliaEvent::OutboundQueryProgressed {
+                                id,
+                                result:
+                                    QueryResult::PutRecord(Err(PutRecordError::QuorumFailed { .. })),
+                                ..
+                            } if Some(id) == addr_query_id && publish_retry > 0 => {
+                                publish_retry -= 1;
+                                warn!("Failed to PutRecord in DHT, retry again, attempt number {publish_retry}");
+                                let key = Key::new(&self.local_peer_id.to_string());
+                                if let Ok(query_id_record) =
+                                    self.swarm.behaviour_mut().discovery.put_record(
+                                        Record::new(key, self.addresses.to_vec()),
+                                        Quorum::Majority,
+                                    )
+                                {
+                                    addr_query_id = Some(query_id_record);
+                                } else {
+                                    return Err(Box::new(P2PError::BootstrapError(
+                                        "Unable to send the addr Record to DHT",
+                                    )));
+                                }
+                            }
+                            KademliaEvent::OutboundQueryProgressed {
+                                id,
+                                result: QueryResult::PutRecord(Ok(_)),
+                                ..
+                            } if Some(id) == addr_query_id => {
+                                warn!(
+                                    "Bootstrap finished and MultiAddr published on DHT for {}",
+                                    self.local_peer_id
+                                );
+
+                                break;
+                            }
+                            KademliaEvent::OutboundQueryProgressed {
+                                result: QueryResult::Bootstrap(Ok(BootstrapOk { .. })),
+                                ..
+                            } => {}
+
+                            KademliaEvent::OutboundQueryProgressed { .. } => {}
+
+                            KademliaEvent::InboundRequest { .. } => {}
+                            KademliaEvent::RoutingUpdated { .. } => {}
+                            KademliaEvent::RoutablePeer { .. } => {}
+                            KademliaEvent::UnroutablePeer { .. } => {}
+
+                            event => warn!("Unhandle Kademlia event during Bootstrap: {event:?}"),
                         }
                     }
-                    SwarmEvent::Behaviour(ComposedEvent::Kademlia(
-                        KademliaEvent::OutboundQueryProgressed {
-                            id,
-                            result: QueryResult::PutRecord(Ok(_)),
-                            ..
-                        },
-                    )) if Some(id) == addr_query_id => {
-                        warn!(
-                            "Bootstrap finished and MultiAddr published on DHT for {}",
-                            self.local_peer_id
-                        );
-
-                        break;
-                    }
-                    SwarmEvent::Behaviour(ComposedEvent::Kademlia(
-                        KademliaEvent::OutboundQueryProgressed {
-                            result: QueryResult::Bootstrap(Ok(BootstrapOk { .. })),
-                            ..
-                        },
-                    )) => {}
-
-                    SwarmEvent::Behaviour(ComposedEvent::Kademlia(
-                        KademliaEvent::OutboundQueryProgressed { .. },
-                    )) => {}
 
                     // Handle protocol queries
                     SwarmEvent::Behaviour(ComposedEvent::Transmission(
@@ -233,18 +235,6 @@ impl Runtime {
                     SwarmEvent::Dialing(_) => {}
                     SwarmEvent::IncomingConnection { .. } => {}
 
-                    SwarmEvent::Behaviour(ComposedEvent::Kademlia(
-                        KademliaEvent::InboundRequest { .. },
-                    )) => {}
-                    SwarmEvent::Behaviour(ComposedEvent::Kademlia(
-                        KademliaEvent::RoutingUpdated { .. },
-                    )) => {}
-                    SwarmEvent::Behaviour(ComposedEvent::Kademlia(
-                        KademliaEvent::RoutablePeer { .. },
-                    )) => {}
-                    SwarmEvent::Behaviour(ComposedEvent::Kademlia(
-                        KademliaEvent::UnroutablePeer { .. },
-                    )) => {}
                     event => warn!("Unhandle event during Bootstrap: {event:?}"),
                 }
             }

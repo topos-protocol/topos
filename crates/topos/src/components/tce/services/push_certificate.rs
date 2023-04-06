@@ -53,9 +53,11 @@ pub(crate) async fn check_delivery(
 
         let random_peer: Uri = peers
             .choose(&mut rand::thread_rng())
-            .ok_or(vec![format!(
-                "Unable to select a random peer from the list: {peers:?}"
-            )])?
+            .ok_or_else(|| {
+                vec![format!(
+                    "Unable to select a random peer from the list: {peers:?}"
+                )]
+            })?
             .try_into()
             .map_err(|_| vec![format!("Unable to parse the peer address")])?;
 
