@@ -40,7 +40,6 @@ jobs:
           client_payload: '{ "git_commit": "${{ github.sha }}", "docker_tag": "${{ env.docker_tag }}" }'
 
   docker_e2e:
-    if: ${{ github.event_name == 'push' }}
     runs-on: ubuntu-latest
     needs: docker
     env:
@@ -55,7 +54,12 @@ jobs:
 
       - name: Setup image to match docker-compose file
         run: |
-          docker tag ${{ env.docker_tag }} ${{ env.EXPECTED_IMAGE_NAME }}
+          docker pull ghcr.io/${{ github.repository}}:${{ env.docker_tag }}
+          docker tag ghcr.io/${{ github.repository}}:${{ env.docker_tag }} ${{ env.EXPECTED_IMAGE_NAME }}
+
+      - name: Checkout
+        uses: actions/checkout@v3
+
       - name: Running TCE cluster 
         run: |
           docker compose -f tools/docker-compose.yml up -d peer
@@ -63,7 +67,9 @@ jobs:
       - name: Checking for healthy cluster
         uses: nick-fields/retry@v2.8.3
         with:
-          command: docker inspect --format "{{.State.Health.Status }}" $(docker compose -f tools/docker-compose.yml ps -q peer)|grep "^healthy$"
+          command: |
+            docker inspect --format "{{.State.Health.Status }}" $(docker compose -f tools/docker-compose.yml ps -q peer)|grep "^healthy$"
+            docker compose -f tools/docker-compose.yml ps
           retry_on: error
           max_attempts: 3
           retry_wait_seconds: 15
