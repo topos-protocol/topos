@@ -2,7 +2,7 @@
 
 ## How does it work?
 
-The Certificate spammer generates multiple Certificate per batch defined by `--cert-per-batch <number>`.
+The Topos Certificate Spammer generates multiple Certificate per batch defined by `--cert-per-batch <number>`.
 The time delay in seconds between batches is controlled by `--batch-time-interval`.
 
 The Certificates are dispatched to one node (using `--target-node <tce endpoint http address>`) or multiple nodes listed in the file given as
@@ -13,25 +13,25 @@ The dispatching of Certificate is done through the TCE service gRPC API.
 ## Commands
 
 ```
-# To compile
+# To compile from the root workspace directory
 cargo build --release
 
 # The extended list of commands
-cert-spammer -h
+topos network spam -h
 ```
 
 ## Example
 
 ```
 # Spam target node with certs
-cert-spammer --cert-per-batch 1000 --target-node http://[::1]:1340
+topos network spam --cert-per-batch 1000 --target-node http://[::1]:1340
 ```
 
 ```
 # Spam list of target nodes with certs
-cert-spammer --cert-per-batch 1000 --target-nodes-path example_target_nodes.json
+topos network spam --cert-per-batch 1000 --target-nodes-path example_target_nodes.json
 ```
-Alternatively environment variables could be used instead of command line arguments to configure cert spammer: `TARGET_NODE`, `TARGET_NODES_PATH`, `CERT_PER_BATCH`.
+Alternatively environment variables could be used instead of command line arguments to configure Topos Certificate Spammer: `TARGET_NODE`, `TARGET_NODES_PATH`, `CERT_PER_BATCH`.
 
 ### Format for the target list of TCE nodes
 
