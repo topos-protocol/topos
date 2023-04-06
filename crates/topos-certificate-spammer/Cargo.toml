@@ -15,8 +15,6 @@ tokio.workspace = true
 serde = { workspace = true, features = ["derive"] }
 tracing.workspace = true
 
-chrono = "0.4.22"
-zeroize = "1.5.7"
 toml = "0.5.9"
 
 topos-core.workspace = true
