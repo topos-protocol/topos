@@ -39,7 +39,7 @@ services:
     image: ghcr.io/topos-network/topos:main
     init: true
     healthcheck:
-      test: ./topos tce push-peer-list --endpoint http://localhost:1340 --format json /tmp/shared/peer_ids.json
+      test: ./topos tce push-peer-list --node http://localhost:1340 --format json /tmp/shared/peer_ids.json
       interval: 15s
     volumes:
       - shared:/tmp/shared
@@ -76,7 +76,7 @@ services:
     labels:
       "autoheal": "true"
     healthcheck:
-      test: ./topos tce push-peer-list --endpoint http://localhost:1340 --format json /tmp/shared/peer_ids.json && ./topos tce status --endpoint http://localhost:1340
+      test: ./topos tce push-peer-list --node http://localhost:1340 --format json /tmp/shared/peer_ids.json && ./topos tce status --node http://localhost:1340
       interval: 5s
     volumes:
       - shared:/tmp/shared
@@ -133,7 +133,7 @@ services:
   check:
     container_name: check
     image: ghcr.io/topos-network/topos:main
-    command: tce push-certificate
+    command: tce push-certificate -f json
     init: true
     volumes:
       - shared:/tmp/shared

@@ -20,16 +20,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         #[cfg(feature = "tce")]
         options::ToposCommand::Tce(cmd) => components::tce::handle_command(cmd).await,
         #[cfg(feature = "sequencer")]
-        options::ToposCommand::Sequencer(cmd) => {
-            components::sequencer::handle_command(cmd, verbose).await
-        }
-        #[cfg(feature = "checker")]
-        options::ToposCommand::Checker(cmd) => {
-            components::checker::handle_command(cmd, verbose).await
-        }
+        options::ToposCommand::Sequencer(cmd) => components::sequencer::handle_command(cmd).await,
         #[cfg(feature = "network")]
-        options::ToposCommand::Network(cmd) => {
-            components::network::handle_command(cmd, verbose).await
-        }
+        options::ToposCommand::Network(cmd) => components::network::handle_command(cmd).await,
     }
 }

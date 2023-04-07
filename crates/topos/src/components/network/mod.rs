@@ -8,8 +8,10 @@ use crate::tracing::setup_tracing;
 pub(crate) mod commands;
 
 pub(crate) async fn handle_command(
-    NetworkCommand { subcommands }: NetworkCommand,
-    verbose: u8,
+    NetworkCommand {
+        subcommands,
+        verbose,
+    }: NetworkCommand,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match subcommands {
         Some(NetworkCommands::Spam(cmd)) => {

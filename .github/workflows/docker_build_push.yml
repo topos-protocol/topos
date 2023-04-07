@@ -68,12 +68,12 @@ jobs:
         uses: nick-fields/retry@v2.8.3
         with:
           command: |
-            docker inspect --format "{{.State.Health.Status }}" $(docker compose -f tools/docker-compose.yml ps -q peer)|grep "^healthy$"
             docker compose -f tools/docker-compose.yml ps
+            docker inspect --format "{{.State.Health.Status }}" $(docker compose -f tools/docker-compose.yml ps -q peer)|grep "^healthy$"
           retry_on: error
-          max_attempts: 3
-          retry_wait_seconds: 15
-          timeout_minutes: 5
+          max_attempts: 4
+          retry_wait_seconds: 30
+          timeout_minutes: 10
 
       - name: Run the check
         run: |

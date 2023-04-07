@@ -152,8 +152,6 @@ pub(crate) async fn handle_command(
         }
 
         Some(TceCommands::Status(status)) => {
-            setup_tracing(verbose, None, None)?;
-
             debug!("Start executing Status command");
 
             let mut tce_service = TCEService::with_grpc_endpoint(&status.node_args.node);

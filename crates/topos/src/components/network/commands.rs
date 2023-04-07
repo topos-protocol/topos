@@ -6,6 +6,9 @@ pub(crate) use spam::Spam;
 
 #[derive(Args, Debug)]
 pub(crate) struct NetworkCommand {
+    #[clap(from_global)]
+    pub(crate) verbose: u8,
+
     #[clap(subcommand)]
     pub(crate) subcommands: Option<NetworkCommands>,
 }

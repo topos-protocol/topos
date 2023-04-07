@@ -10,7 +10,7 @@ Options:
       --target-node <TARGET_NODE>
           The target node api endpoint [env: TARGET_NODE=]
   -v, --verbose...
-          
+          Defines the verbosity level
       --target-nodes-path <TARGET_NODES_PATH>
           Path to file with list of target nodes [env: TARGET_NODES_PATH=]
       --cert-per-batch <CERT_PER_BATCH>
