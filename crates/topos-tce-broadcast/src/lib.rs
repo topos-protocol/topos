@@ -17,7 +17,7 @@ use tokio::sync::mpsc::Sender;
 use tokio::sync::{broadcast, mpsc, oneshot};
 
 use double_echo::DoubleEcho;
-use tce_transport::{ReliableBroadcastParams, TceEvents};
+use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
 
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
 use topos_p2p::PeerId;
@@ -124,7 +124,7 @@ impl ReliableBroadcastClient {
     pub fn new(
         config: ReliableBroadcastConfig,
         local_peer_id: String,
-    ) -> (Self, impl Stream<Item = Result<TceEvents, ()>>) {
+    ) -> (Self, impl Stream<Item = Result<ProtocolEvents, ()>>) {
         let (subscriptions_view_sender, subscriptions_view_receiver) =
             mpsc::channel::<SubscriptionsView>(2048);
         let (subscribers_update_sender, subscribers_update_receiver) =

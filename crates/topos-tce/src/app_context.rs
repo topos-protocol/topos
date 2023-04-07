@@ -7,7 +7,7 @@ use futures::{future::join_all, Stream, StreamExt};
 use opentelemetry::trace::{FutureExt as TraceFutureExt, TraceContextExt};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tce_transport::{TceCommands, TceEvents};
+use tce_transport::{ProtocolEvents, TceCommands};
 use tokio::spawn;
 use tokio::sync::{mpsc, oneshot};
 use topos_core::api::checkpoints::TargetStreamPosition;
@@ -27,6 +27,8 @@ use topos_telemetry::PropagationContext;
 use tracing::{debug, error, info, info_span, trace, warn, Instrument};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
+use crate::events::Events;
+
 /// Top-level transducer main app context & driver (alike)
 ///
 /// Implements <...Host> traits for network and Api, listens for protocol events in events
@@ -36,6 +38,7 @@ use tracing_opentelemetry::OpenTelemetrySpanExt;
 /// config+data as input and runs app returning data as output
 ///
 pub struct AppContext {
+    pub events: mpsc::Sender<Events>,
     pub tce_cli: ReliableBroadcastClient,
     pub network_client: NetworkClient,
     pub api_client: ApiClient,
@@ -61,23 +64,28 @@ impl AppContext {
         api_client: ApiClient,
         gatekeeper: GatekeeperClient,
         synchronizer: SynchronizerClient,
-    ) -> Self {
-        Self {
-            tce_cli,
-            network_client,
-            api_client,
-            pending_storage,
-            gatekeeper,
-            synchronizer,
-            buffered_messages: HashMap::new(),
-        }
+    ) -> (Self, mpsc::Receiver<Events>) {
+        let (events, receiver) = mpsc::channel(100);
+        (
+            Self {
+                events,
+                tce_cli,
+                network_client,
+                api_client,
+                pending_storage,
+                gatekeeper,
+                synchronizer,
+                buffered_messages: HashMap::new(),
+            },
+            receiver,
+        )
     }
 
     /// Main processing loop
     pub async fn run(
         mut self,
         mut network_stream: impl Stream<Item = NetEvent> + Unpin,
-        mut tce_stream: impl Stream<Item = Result<TceEvents, ()>> + Unpin,
+        mut tce_stream: impl Stream<Item = Result<ProtocolEvents, ()>> + Unpin,
         mut api_stream: impl Stream<Item = ApiEvent> + Unpin,
         mut storage_stream: impl Stream<Item = StorageEvent> + Unpin,
         mut synchronizer_stream: impl Stream<Item = SynchronizerEvent> + Unpin,
@@ -247,14 +255,17 @@ impl AppContext {
         }
     }
 
-    async fn on_protocol_event(&mut self, evt: TceEvents) {
+    async fn on_protocol_event(&mut self, evt: ProtocolEvents) {
         match evt {
-            TceEvents::StableSample => {
+            ProtocolEvents::StableSample(peers) => {
                 info!("Stable Sample detected");
                 self.api_client.set_active_sample(true).await;
+                if let Err(_) = self.events.send(Events::StableSample(peers)).await {
+                    error!("Unable to send StableSample event");
+                }
             }
 
-            TceEvents::Broadcast { certificate_id } => {
+            ProtocolEvents::Broadcast { certificate_id } => {
                 info!("Broadcasting certificate {}", certificate_id);
                 if let Some(messages) = self.buffered_messages.remove(&certificate_id) {
                     let sender = self.tce_cli.get_double_echo_channel();
@@ -265,7 +276,7 @@ impl AppContext {
                 }
             }
 
-            TceEvents::CertificateDelivered { certificate } => {
+            ProtocolEvents::CertificateDelivered { certificate } => {
                 info!("Certificate delivered {}", certificate.id);
                 if let Ok(positions) = self
                     .pending_storage
@@ -302,7 +313,7 @@ impl AppContext {
                 }
             }
 
-            TceEvents::EchoSubscribeReq { peers } => {
+            ProtocolEvents::EchoSubscribeReq { peers } => {
                 // Preparing echo subscribe message
                 let my_peer_id = self.network_client.local_peer_id;
                 let data: Vec<u8> = NetworkMessage::from(TceCommands::OnEchoSubscribeReq {
@@ -364,7 +375,7 @@ impl AppContext {
                     }
                 });
             }
-            TceEvents::ReadySubscribeReq { peers } => {
+            ProtocolEvents::ReadySubscribeReq { peers } => {
                 // Preparing ready subscribe message
                 let my_peer_id = self.network_client.local_peer_id;
                 let data: Vec<u8> = NetworkMessage::from(TceCommands::OnReadySubscribeReq {
@@ -434,7 +445,7 @@ impl AppContext {
                 });
             }
 
-            TceEvents::Gossip {
+            ProtocolEvents::Gossip {
                 peers, cert, ctx, ..
             } => {
                 let span = info_span!(
@@ -477,7 +488,7 @@ impl AppContext {
                 });
             }
 
-            TceEvents::Echo {
+            ProtocolEvents::Echo {
                 peers,
                 certificate_id,
                 ctx,
@@ -520,7 +531,7 @@ impl AppContext {
                 });
             }
 
-            TceEvents::Ready {
+            ProtocolEvents::Ready {
                 peers,
                 certificate_id,
                 ctx,

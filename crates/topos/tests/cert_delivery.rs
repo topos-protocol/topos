@@ -176,7 +176,6 @@ async fn cert_delivery() {
         client_tasks.push(client_task);
     }
 
-    tokio::time::sleep(Duration::from_secs(10)).await;
     // Broadcast multiple certificates from all subnets
     info!("Broadcasting certificates...");
     for (peer_id, client) in peers_context.iter_mut() {

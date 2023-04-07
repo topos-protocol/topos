@@ -6,7 +6,7 @@ use tokio::sync::{
     mpsc::{self, error::SendError},
     oneshot,
 };
-use tracing::debug;
+use tracing::{debug, warn};
 
 use crate::{
     behaviour::transmission::codec::TransmissionResponse,
@@ -66,7 +66,6 @@ impl Client {
     ) -> BoxFuture<'static, Result<R, CommandExecutionError>> {
         let data = data.into();
         let network = self.sender.clone();
-        let (sender, receiver) = oneshot::channel();
 
         let ttl = self.retry_ttl;
         Box::pin(async move {
@@ -97,14 +96,36 @@ impl Client {
                     break;
                 }
             }
-
-            Self::send_command_with_receiver(
-                &network,
-                Command::TransmissionReq { to, data, sender },
-                receiver,
-            )
-            .await
-            .map(|result| result.into())
+            let mut retry_count = match retry_policy {
+                RetryPolicy::NoRetry => 0,
+                RetryPolicy::N(n) => n,
+            };
+            loop {
+                let (sender, receiver) = oneshot::channel();
+                match Self::send_command_with_receiver(
+                    &network,
+                    Command::TransmissionReq {
+                        to,
+                        data: data.clone(),
+                        sender,
+                    },
+                    receiver,
+                )
+                .await
+                {
+                    Err(e) if retry_count == 0 => {
+                        return Err(e);
+                    }
+                    Err(e) => {
+                        retry_count -= 1;
+                        warn!("Retry query because of failure {e:?}");
+                        tokio::time::sleep(Duration::from_millis(ttl)).await;
+                    }
+                    Ok(res) => {
+                        return Ok(res.into());
+                    }
+                }
+            }
         })
     }
 

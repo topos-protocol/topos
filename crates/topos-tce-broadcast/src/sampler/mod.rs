@@ -5,7 +5,7 @@ mod sampling;
 pub type Peer = String;
 use std::{cmp::min, collections::HashSet};
 
-use tce_transport::{ReliableBroadcastParams, TceEvents};
+use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
 use tokio::sync::{broadcast, mpsc, oneshot};
 use topos_p2p::PeerId;
 use tracing::{debug, error, info, warn};
@@ -102,7 +102,7 @@ impl SubscriptionsView {
 pub struct Sampler {
     params: ReliableBroadcastParams,
     command_receiver: mpsc::Receiver<SamplerCommand>,
-    event_sender: broadcast::Sender<TceEvents>,
+    event_sender: broadcast::Sender<ProtocolEvents>,
     visible_peers: Vec<PeerId>,
 
     pending_subscriptions: SubscriptionsView,
@@ -118,7 +118,7 @@ impl Sampler {
     pub fn new(
         params: ReliableBroadcastParams,
         command_receiver: mpsc::Receiver<SamplerCommand>,
-        event_sender: broadcast::Sender<TceEvents>,
+        event_sender: broadcast::Sender<ProtocolEvents>,
         subscriptions_sender: mpsc::Sender<SubscriptionsView>,
         subscribers_update_sender: mpsc::Sender<SubscribersUpdate>,
         shutdown: mpsc::Receiver<oneshot::Sender<()>>,
@@ -140,7 +140,11 @@ impl Sampler {
 
     pub async fn run(mut self) {
         #[cfg(feature = "direct")]
-        if self.event_sender.send(TceEvents::StableSample).is_err() {
+        if self
+            .event_sender
+            .send(ProtocolEvents::StableSample)
+            .is_err()
+        {
             error!("Unable to notify the TCE runtime for the set of samples");
         }
         let shutdowned: Option<oneshot::Sender<()>> = loop {
@@ -207,7 +211,13 @@ impl Sampler {
                         Ok(_) => {
                             self.status = SampleProviderStatus::Stabilized;
                             info!("Successfully established the new set of samples");
-                            if self.event_sender.send(TceEvents::StableSample).is_err() {
+                            if self
+                                .event_sender
+                                .send(ProtocolEvents::StableSample(
+                                    self.subscriptions.get_subscriptions(),
+                                ))
+                                .is_err()
+                            {
                                 error!("Unable to notify the TCE runtime for the set of samples");
                             }
                         }
@@ -358,7 +368,7 @@ impl Sampler {
                     self.pending_subscriptions.echo.insert(*peer);
                 }
 
-                if let Err(error) = self.event_sender.send(TceEvents::EchoSubscribeReq {
+                if let Err(error) = self.event_sender.send(ProtocolEvents::EchoSubscribeReq {
                     peers: echo_candidates.value,
                 }) {
                     error!("Unable to send event {:?}", error);
@@ -387,7 +397,7 @@ impl Sampler {
                     self.pending_subscriptions.ready.insert(*peer);
                 }
 
-                if let Err(error) = self.event_sender.send(TceEvents::ReadySubscribeReq {
+                if let Err(error) = self.event_sender.send(ProtocolEvents::ReadySubscribeReq {
                     peers: ready_candidates.value,
                 }) {
                     error!("Unable to send event {:?}", error);
@@ -416,7 +426,7 @@ impl Sampler {
                     self.pending_subscriptions.delivery.insert(*peer);
                 }
 
-                if let Err(error) = self.event_sender.send(TceEvents::ReadySubscribeReq {
+                if let Err(error) = self.event_sender.send(ProtocolEvents::ReadySubscribeReq {
                     peers: delivery_candidates.value,
                 }) {
                     error!("Unable to send event {:?}", error);
@@ -504,15 +514,15 @@ mod tests {
         assert_eq!(event_receiver.len(), 3);
         assert!(matches!(
             event_receiver.try_recv(),
-            Ok(TceEvents::EchoSubscribeReq { peers }) if peers.len() == sampler.params.echo_sample_size
+            Ok(ProtocolEvents::EchoSubscribeReq { peers }) if peers.len() == sampler.params.echo_sample_size
         ));
         assert!(matches!(
             event_receiver.try_recv(),
-            Ok(TceEvents::ReadySubscribeReq { peers }) if peers.len() == sampler.params.ready_sample_size
+            Ok(ProtocolEvents::ReadySubscribeReq { peers }) if peers.len() == sampler.params.ready_sample_size
         ));
         assert!(matches!(
             event_receiver.try_recv(),
-            Ok(TceEvents::ReadySubscribeReq { peers }) if peers.len() == sampler.params.delivery_sample_size
+            Ok(ProtocolEvents::ReadySubscribeReq { peers }) if peers.len() == sampler.params.delivery_sample_size
         ));
         assert!(matches!(
             event_receiver.try_recv(),

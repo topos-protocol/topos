@@ -75,7 +75,7 @@ pub enum TceCommands {
 
 /// Protocol events
 #[derive(Clone, Debug)]
-pub enum TceEvents {
+pub enum ProtocolEvents {
     /// Emitted to get peers list, expected that Commands.ApplyPeers will come as reaction
     NeedPeers,
     /// (pb.Broadcast)
@@ -114,5 +114,5 @@ pub enum TceEvents {
     CertificateDelivered { certificate: Certificate },
 
     /// Stable Sample
-    StableSample,
+    StableSample(Vec<PeerId>),
 }

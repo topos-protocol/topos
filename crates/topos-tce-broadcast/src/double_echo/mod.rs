@@ -9,7 +9,7 @@ use std::{
     collections::{HashMap, HashSet, VecDeque},
     time,
 };
-use tce_transport::{ReliableBroadcastParams, TceEvents};
+use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
 use tokio::sync::{broadcast, mpsc, oneshot};
 use topos_core::uci::{Certificate, CertificateId};
 use topos_p2p::PeerId;
@@ -29,7 +29,7 @@ pub struct DoubleEcho {
     command_receiver: mpsc::Receiver<DoubleEchoCommand>,
     subscriptions_view_receiver: mpsc::Receiver<SubscriptionsView>,
     subscribers_update_receiver: mpsc::Receiver<SubscribersUpdate>,
-    event_sender: broadcast::Sender<TceEvents>,
+    event_sender: broadcast::Sender<ProtocolEvents>,
     store: Box<dyn TceStore + Send>,
     cert_candidate: HashMap<CertificateId, (Certificate, DeliveryState)>,
     pending_delivery: HashMap<CertificateId, (Certificate, Context)>,
@@ -53,7 +53,7 @@ impl DoubleEcho {
         command_receiver: mpsc::Receiver<DoubleEchoCommand>,
         subscriptions_view_receiver: mpsc::Receiver<SubscriptionsView>,
         subscribers_update_receiver: mpsc::Receiver<SubscribersUpdate>,
-        event_sender: broadcast::Sender<TceEvents>,
+        event_sender: broadcast::Sender<ProtocolEvents>,
         store: Box<dyn TceStore + Send>,
         shutdown: mpsc::Receiver<oneshot::Sender<()>>,
         local_peer_id: String,
@@ -236,7 +236,7 @@ impl DoubleEcho {
                         {
                             _ = self
                                 .event_sender
-                                .send(TceEvents::CertificateDelivered { certificate: cert });
+                                .send(ProtocolEvents::CertificateDelivered { certificate: cert });
                         }
                     });
                 }
@@ -310,7 +310,7 @@ impl DoubleEcho {
             cert.id, &gossip_peers
         );
 
-        let _ = self.event_sender.send(TceEvents::Gossip {
+        let _ = self.event_sender.send(ProtocolEvents::Gossip {
             peers: gossip_peers, // considered as the G-set for erdos-renyi
             cert: cert.clone(),
             ctx: Span::current().context(),
@@ -343,13 +343,13 @@ impl DoubleEcho {
                 self.cert_candidate
                     .insert(cert.id, (cert.clone(), delivery_state));
 
-                _ = self.event_sender.send(TceEvents::Broadcast {
+                _ = self.event_sender.send(ProtocolEvents::Broadcast {
                     certificate_id: cert.id,
                 });
             }
             None => {
                 error!("Ill-formed samples");
-                let _ = self.event_sender.send(TceEvents::Die);
+                let _ = self.event_sender.send(ProtocolEvents::Die);
                 return;
             }
         }
@@ -363,7 +363,7 @@ impl DoubleEcho {
             return;
         }
 
-        let _ = self.event_sender.send(TceEvents::Echo {
+        let _ = self.event_sender.send(ProtocolEvents::Echo {
             peers: echo_peers,
             certificate_id: cert.id,
             ctx: Span::current().context(),
@@ -403,7 +403,7 @@ impl DoubleEcho {
     pub(crate) fn state_change_follow_up(&mut self) {
         debug!("StateChangeFollowUp called");
         let mut state_modified = false;
-        let mut gen_evts = Vec::<TceEvents>::new();
+        let mut gen_evts = Vec::<ProtocolEvents>::new();
         // For all current Cert on processing
         for (certificate_id, (certificate, state_to_delivery)) in &mut self.cert_candidate {
             if !state_to_delivery.subscriptions.ready.is_empty()
@@ -413,7 +413,7 @@ impl DoubleEcho {
                 // Fanout the Ready messages to my subscribers
                 let readies = self.subscribers.ready.iter().cloned().collect::<Vec<_>>();
                 if !readies.is_empty() {
-                    gen_evts.push(TceEvents::Ready {
+                    gen_evts.push(ProtocolEvents::Ready {
                         peers: readies.clone(),
                         certificate_id: certificate.id,
                         ctx: state_to_delivery.ctx.clone(),
@@ -497,9 +497,11 @@ impl DoubleEcho {
                     self.pending_delivery.remove(&certificate_id);
                     debug!("📝 Accepted[{}]\t Delivery time: {:?}", &certificate_id, d);
 
-                    _ = self.event_sender.send(TceEvents::CertificateDelivered {
-                        certificate: certificate.clone(),
-                    });
+                    _ = self
+                        .event_sender
+                        .send(ProtocolEvents::CertificateDelivered {
+                            certificate: certificate.clone(),
+                        });
                 });
             }
         }
