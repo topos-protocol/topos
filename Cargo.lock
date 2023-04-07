@@ -5500,17 +5500,23 @@ version = "0.1.0"
 dependencies = [
  "clap 4.1.4",
  "futures",
+ "hex",
+ "opentelemetry 0.18.0",
  "rand 0.8.5",
  "rand_core 0.6.4",
  "rand_distr",
  "serde",
  "serde_json",
+ "thiserror",
+ "tiny-keccak 1.5.0",
  "tokio",
  "tokio-stream",
  "toml",
  "topos-core",
+ "topos-crypto",
  "topos-tce-proxy",
  "tracing",
+ "tracing-opentelemetry",
 ]
 
 [[package]]

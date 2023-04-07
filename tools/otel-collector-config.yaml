@@ -27,7 +27,7 @@ exporters:
       insecure: true
 
   logging:
-    loglevel: debug
+    loglevel: info
 
 service:
   extensions: [pprof, zpages, health_check]

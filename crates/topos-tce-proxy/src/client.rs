@@ -351,6 +351,7 @@ impl TceClientBuilder {
                                     }
                             }
                             Some(TceClientCommand::Shutdown) =>  {
+                                info!("Shutdown tce proxy command received...");
                                 inbound_shutdown_sender.send(()).expect("valid channel for shutting down task");
                                 break;
                             }

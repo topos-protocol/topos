@@ -278,39 +278,44 @@ impl AppContext {
 
             ProtocolEvents::CertificateDelivered { certificate } => {
                 info!("Certificate delivered {}", certificate.id);
-                if let Ok(positions) = self
+                match self
                     .pending_storage
                     .certificate_delivered(certificate.id)
                     .await
                 {
-                    let certificate_id = certificate.id;
-                    spawn(
-                        self.api_client.dispatch_certificate(
-                            certificate,
-                            positions
-                                .targets
-                                .into_iter()
-                                .map(|(subnet_id, ceritificate_target_stream_position)| {
-                                    (
-                                        subnet_id,
-                                        TargetStreamPosition {
-                                            target_subnet_id: ceritificate_target_stream_position
-                                                .target_subnet_id,
-                                            source_subnet_id: ceritificate_target_stream_position
-                                                .source_subnet_id,
-                                            position: ceritificate_target_stream_position
-                                                .position
-                                                .0,
-                                            certificate_id: Some(certificate_id),
-                                        },
-                                    )
-                                })
-                                .collect::<HashMap<SubnetId, TargetStreamPosition>>(),
-                        ),
-                    );
-                } else {
-                    error!("Invalid target stream positions for delivered certificate!");
-                }
+                    Ok(positions) => {
+                        let certificate_id = certificate.id;
+                        spawn(
+                            self.api_client.dispatch_certificate(
+                                certificate,
+                                positions
+                                    .targets
+                                    .into_iter()
+                                    .map(|(subnet_id, ceritificate_target_stream_position)| {
+                                        (
+                                            subnet_id,
+                                            TargetStreamPosition {
+                                                target_subnet_id:
+                                                    ceritificate_target_stream_position
+                                                        .target_subnet_id,
+                                                source_subnet_id:
+                                                    ceritificate_target_stream_position
+                                                        .source_subnet_id,
+                                                position: ceritificate_target_stream_position
+                                                    .position
+                                                    .0,
+                                                certificate_id: Some(certificate_id),
+                                            },
+                                        )
+                                    })
+                                    .collect::<HashMap<SubnetId, TargetStreamPosition>>(),
+                            ),
+                        );
+                    }
+                    Err(e) => {
+                        error!("Pending storage error while delivering certificate: {e}");
+                    }
+                };
             }
 
             ProtocolEvents::EchoSubscribeReq { peers } => {
