@@ -1,9 +1,5 @@
 * @topos-network/protocol
 
-# Github Actions
-
-/.github/workflows/ @topos-network/protocol @topos-network/tools
-
 # Crypto Internals
 
 /crates/topos-crypto/ @topos-network/protocol @topos-network/crypto @Nashtare
