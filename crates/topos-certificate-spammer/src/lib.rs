@@ -30,9 +30,9 @@ struct FileNodes {
     nodes: Vec<String>,
 }
 
-/// Represents connection from one subnet/topos-node to the TCE node
+/// Represents connection from one sequencer to a TCE node
 /// Multiple different subnets could be connected to the same TCE node address (represented with TargetNodeConnection with different SubnetId and created client)
-/// Multiple topos-nodes from the same subnet could be connected to the same TCE node address (so they would have same SubnetID, but different client instances)
+/// Multiple topos-sequencers from the same subnet could be connected to the same TCE node address (so they would have same SubnetID, but different client instances)
 #[allow(dead_code)]
 pub struct TargetNodeConnection {
     address: NodeApiAddress,
