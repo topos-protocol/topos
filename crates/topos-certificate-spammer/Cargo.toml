@@ -1,0 +1,21 @@
+[package]
+name = "topos-certificate-spammer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde_json.workspace = true
+clap.workspace = true
+tokio-stream.workspace = true
+rand_distr.workspace = true
+rand_core.workspace = true
+rand.workspace = true
+futures.workspace = true
+tokio.workspace = true
+serde = { workspace = true, features = ["derive"] }
+tracing.workspace = true
+
+toml = "0.5.9"
+
+topos-core.workspace = true
+topos-sequencer-tce-proxy = { path = "../topos-sequencer-tce-proxy"}
