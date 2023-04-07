@@ -22,6 +22,7 @@ topos is the unified command line interface to the <a href="https://docs.toposwa
 ![example workflow](https://github.com/topos-network/topos/actions/workflows/test.yml/badge.svg)
 ![example workflow](https://github.com/topos-network/topos/actions/workflows/format.yml/badge.svg)
 ![example workflow](https://github.com/topos-network/topos/actions/workflows/lint.yml/badge.svg)
+![MSRV](https://img.shields.io/badge/MSRV-1.64-blue?labelColor=1C2C2E&logo=Rust&style=flat-square)
 
 ## Getting Started
 
