@@ -142,7 +142,7 @@ impl Sampler {
         #[cfg(feature = "direct")]
         if self
             .event_sender
-            .send(ProtocolEvents::StableSample)
+            .send(ProtocolEvents::StableSample(vec![]))
             .is_err()
         {
             error!("Unable to notify the TCE runtime for the set of samples");

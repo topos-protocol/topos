@@ -1,10 +1,7 @@
 use futures::{future::join_all, StreamExt};
 use libp2p::PeerId;
 use rand::seq::IteratorRandom;
-use std::{
-    collections::{HashMap, HashSet},
-    time::Duration,
-};
+use std::collections::{HashMap, HashSet};
 use test_log::test;
 use tokio::spawn;
 use tokio::sync::mpsc;

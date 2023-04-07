@@ -77,5 +77,6 @@ jobs:
 
       - name: Run the check
         run: |
+          docker compose -f tools/docker-compose.yml ps
           docker compose -f tools/docker-compose.yml run --no-deps check
 

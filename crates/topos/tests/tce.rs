@@ -50,7 +50,7 @@ async fn do_not_push_empty_list() -> Result<(), Box<dyn std::error::Error>> {
     let output = cmd.assert().failure();
 
     let out = serde_json::from_slice::<serde_json::Value>(&output.get_output().stdout);
-    println!("{:?}", out);
+
     insta::assert_json_snapshot!(out.unwrap(), {".timestamp" => "[timestamp]"});
 
     Ok(())
