@@ -42,6 +42,7 @@ pub(crate) async fn check_delivery(
     timeout: u64,
 ) -> Result<Result<(), Vec<String>>, Elapsed> {
     tokio::time::timeout(Duration::from_secs(timeout), async move {
+        info!("peers: {:?}", peers);
         let peers: Vec<Uri> = format
             .parse(NodeList(peers))
             .map_err(|_| vec![format!("Unable to parse node list")])?

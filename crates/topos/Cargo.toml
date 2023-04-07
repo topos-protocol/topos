@@ -49,7 +49,7 @@ assert_cmd = "2.0.6"
 insta = { version = "1.21", features = ["json", "redactions"] }
 
 [features]
-default = ["tce", "sequencer", "checker", "network"]
+default = ["tce", "sequencer", "network"]
 tce = ["topos-tce", "topos-tce-transport"]
 sequencer = ["topos-sequencer"]
 network = ["topos-certificate-spammer"]
