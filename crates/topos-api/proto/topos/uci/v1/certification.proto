@@ -22,5 +22,5 @@ message Certificate {
 
 
 message OptionalCertificate {
-  optional Certificate value = 1;
+  Certificate value = 1;
 }
