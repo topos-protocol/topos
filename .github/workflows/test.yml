@@ -7,30 +7,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# env:
-#   CARGO_TERM_COLOR: always
-#   # Disable incremental compilation.
-#   #
-#   # Incremental compilation is useful as part of an edit-build-test-edit cycle,
-#   # as it lets the compiler avoid recompiling code that hasn't changed. However,
-#   # on CI, we're not making small edits; we're almost always building the entire
-#   # project from scratch. Thus, incremental compilation on CI actually
-#   # introduces *additional* overhead to support making future builds
-#   # faster...but no future builds will ever occur in any given CI environment.
-#   #
-#   # See https://matklad.github.io/2021/09/04/fast-rust-builds.html#ci-workflow
-#   # for details.
-#   CARGO_INCREMENTAL: 0
-#   # Allow more retries for network requests in cargo (downloading crates) and
-#   # rustup (installing toolchains). This should help to reduce flaky CI failures
-#   # from transient network timeouts or other issues.
-#   CARGO_NET_RETRY: 10
-#   RUSTUP_MAX_RETRIES: 10
-#   # Don't emit giant backtraces in the CI logs.
-#   RUST_BACKTRACE: short
-#   # RUSTFLAGS: -D warnings
-#   RUSTDOCFLAGS: -D warnings
-#
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   cert_delivery:
     runs-on: ubuntu-latest
@@ -40,44 +20,30 @@ jobs:
       matrix:
         value: ["first", "second", "third"]
     steps:
-      - run: echo "running ${{ matrix.value }} cert_delivery"
       - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1
+      - uses: ./.github/actions/install-rust
         with:
-          profile: minimal
-
-      - name: Set up cargo cache
-        uses: actions/cache@v3
-        continue-on-error: false
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
-
-      - name: Install cargo-nextest
-        uses: baptiste0928/cargo-install@v1
-        with:
-          crate: cargo-nextest
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v1
-        with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo nextest run --workspace cert_delivery
+          AWS_ACCESS_KEY_ID: ${{ secrets.ROBOT_AWS_ACCESS_KEY_ID}}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.ROBOT_AWS_SECRET_ACCESS_KEY}}
+      - run: cargo nextest run cert_delivery --locked --no-default-features -F tce
+        env:
+          RUST_LOG: topos=debug
 
   test:
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         version: [stable, nightly]
     name: ${{ matrix.version }} - Test
-    uses: ./.github/workflows/docker_utils.yml
-    secrets: inherit
-    with:
-      target: test
-      toolchain_version: ${{ matrix.version }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/install-rust
+        with:
+          toolchain: ${{ matrix.version }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.ROBOT_AWS_ACCESS_KEY_ID}}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.ROBOT_AWS_SECRET_ACCESS_KEY}}
+
+      - run: cargo nextest run --workspace --exclude topos-sequencer-subnet-runtime-proxy --config-file tools/config/nextest.toml && cargo test --doc --workspace
+        env:
+          RUST_LOG: topos=debug

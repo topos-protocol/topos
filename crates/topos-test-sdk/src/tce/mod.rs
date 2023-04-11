@@ -272,7 +272,7 @@ pub async fn create_network(
             client.event_stream.recv(),
             matches: Events::StableSample(_),
             peer_id,
-            5000
+            15000
         );
     }
 

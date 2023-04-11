@@ -24,7 +24,7 @@ fn help_display() -> Result<(), Box<dyn std::error::Error>> {
 
 #[tokio::test]
 async fn do_not_push_empty_list() -> Result<(), Box<dyn std::error::Error>> {
-    let socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
+    let socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port on host");
     let addr = socket.local_addr().unwrap();
     let port = addr.port();
 

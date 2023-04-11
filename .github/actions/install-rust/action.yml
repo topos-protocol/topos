@@ -1,0 +1,96 @@
+
+name: 'Install Rust toolchain'
+description: 'Install a rust toolchain and cache the crates index'
+
+inputs:
+  toolchain:
+    description: 'Default toolchain to install'
+    required: false
+    default: 'stable'
+  lockfiles:
+    description: 'Path glob for Cargo.lock files to use as cache keys'
+    required: false
+    default: '**/Cargo.lock'
+  tools:
+    description: 'Tools to install'
+    required: false
+    default: nextest,protoc
+  AWS_ACCESS_KEY_ID:
+    required: true
+  AWS_SECRET_ACCESS_KEY:
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Environment
+      shell: bash
+      run: |
+        rustup set profile minimal
+        rustup update "${{ inputs.toolchain }}" --no-self-update
+        rustup default "${{ inputs.toolchain }}"
+
+        echo CARGO_TERM_COLOR="always" >> "$GITHUB_ENV"
+
+        # Disable incremental compilation.
+        #
+        # Incremental compilation is useful as part of an edit-build-test-edit cycle,
+        # as it lets the compiler avoid recompiling code that hasn't changed. However,
+        # on CI, we're not making small edits; we're almost always building the entire
+        # project from scratch. Thus, incremental compilation on CI actually
+        # introduces *additional* overhead to support making future builds
+        # faster...but no future builds will ever occur in any given CI environment.
+        #
+        # See https://matklad.github.io/2021/09/04/fast-rust-builds.html#ci-workflow
+        # for details.
+        echo CARGO_INCREMENTAL=0 >> "$GITHUB_ENV"
+
+        # Allow more retries for network requests in cargo (downloading crates) and
+        # rustup (installing toolchains). This should help to reduce flaky CI failures
+        # from transient network timeouts or other issues.
+        cat >> "$GITHUB_ENV" <<EOF
+        CARGO_NET_RETRY=10
+        RUSTUP_MAX_RETRIES=10
+        EOF
+
+        # Don't emit giant backtraces in the CI logs.
+        echo RUST_BACKTRACE=short >> "$GITHUB_ENV"
+        echo RUSTFLAGS="-D warnings" >> "$GITHUB_ENV"
+        echo RUSTDOCFLAGS="-D warnings" >> "$GITHUB_ENV"
+
+        cat >> "$GITHUB_ENV" <<EOF
+        RUSTC_WRAPPER=sccache
+        CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
+        EOF
+
+        cat >> "$GITHUB_ENV" <<EOF
+        AWS_SHARED_CREDENTIALS_FILE=${{ github.workspace }}/.aws/credentials
+        SCCACHE_S3_KEY_PREFIX=topos
+        SCCACHE_BUCKET=cicd-devnet-1-sccache
+        SCCACHE_REGION=us-east-1
+        EOF
+
+    - name: Run sccache-cache
+      uses: mozilla-actions/sccache-action@v0.0.3
+
+    - name: Configure AWS credentials for cicd-devnet-1 account
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ inputs.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ inputs.AWS_SECRET_ACCESS_KEY }}
+        role-to-assume: arn:aws:iam::367397670706:role/CacheBucketAccessRole
+        role-session-name: RobotToposware-session
+        aws-region: us-east-1
+        role-skip-session-tagging: true
+        role-duration-seconds: 3600
+
+    - name: Add profile credentials to .aws/credentials
+      shell: bash
+      run: |
+        aws configure set aws_access_key_id ${{ env.AWS_ACCESS_KEY_ID }} --profile default
+        aws configure set aws_secret_access_key ${{ env.AWS_SECRET_ACCESS_KEY }} --profile default
+        aws configure set aws_session_token ${{ env.AWS_SESSION_TOKEN }} --profile default
+
+    - uses: taiki-e/install-action@v2
+      with:
+        tool: ${{ inputs.tools }}
