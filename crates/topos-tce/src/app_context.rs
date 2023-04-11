@@ -260,7 +260,7 @@ impl AppContext {
             ProtocolEvents::StableSample(peers) => {
                 info!("Stable Sample detected");
                 self.api_client.set_active_sample(true).await;
-                if let Err(_) = self.events.send(Events::StableSample(peers)).await {
+                if self.events.send(Events::StableSample(peers)).await.is_err() {
                     error!("Unable to send StableSample event");
                 }
             }

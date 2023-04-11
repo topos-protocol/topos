@@ -54,7 +54,7 @@ services:
       - "9090"
       - "1340:1340"
     environment:
-      - RUST_LOG=info,topos=debug
+      - RUST_LOG=error,topos=warn
       - TOOLCHAIN_VERSION=stable
       - RUST_BACKTRACE=full
       - TCE_DB_PATH=/tmp/default-db
@@ -99,7 +99,7 @@ services:
       replicas: 15
     environment:
       - LOCAL_TEST_NET=true
-      - RUST_LOG=info,topos=debug
+      - RUST_LOG=error,topos=warn
       - TCE_DB_PATH=/tmp/default-db
       - TCE_API_ADDR=0.0.0.0:1340
       - TOPOS_OTLP_SERVICE_NAME=tce-regular-node
@@ -157,7 +157,7 @@ services:
     volumes:
       - '/var/run/docker.sock:/var/run/docker.sock'
     environment:
-      - AUTOHEAL_INTERVAL=10
+      - AUTOHEAL_INTERVAL=30
       - CURL_TIMEOUT=30
 
 volumes:
