@@ -8,8 +8,8 @@ use std::collections::HashSet;
 use std::str::FromStr;
 use test_log::test;
 use tokio::sync::oneshot;
-use topos_core::uci::{Certificate, CertificateId, SUBNET_ID_LENGTH};
-use topos_sequencer_types::SubnetId;
+use topos_core::uci::{Certificate, CertificateId, SubnetId, SUBNET_ID_LENGTH};
+use topos_sequencer_subnet_runtime::proxy::SubnetRuntimeProxyCommand;
 use tracing::{error, info, Span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 use web3::contract::tokens::Tokenize;
@@ -20,7 +20,7 @@ use web3::types::{BlockNumber, Log, H160, U256};
 mod common;
 use crate::common::subnet_test_data::generate_test_private_key;
 use topos_core::api::checkpoints::TargetStreamPosition;
-use topos_sequencer_subnet_runtime_proxy::{SubnetRuntimeProxyConfig, SubnetRuntimeProxyWorker};
+use topos_sequencer_subnet_runtime::{SubnetRuntimeProxyConfig, SubnetRuntimeProxyWorker};
 
 use topos_test_sdk::constants::*;
 
@@ -539,8 +539,7 @@ async fn test_create_runtime() -> Result<(), Box<dyn std::error::Error>> {
         test_private_key,
     )
     .await?;
-    let runtime_proxy =
-        topos_sequencer_subnet_runtime_proxy::testing::get_runtime(&runtime_proxy_worker);
+    let runtime_proxy = topos_sequencer_subnet_runtime::testing::get_runtime(&runtime_proxy_worker);
     let runtime_proxy = runtime_proxy.lock().await;
     info!("New runtime proxy created:{:?}", &runtime_proxy);
     Ok(())
@@ -589,13 +588,11 @@ async fn test_subnet_certificate_push_call(
 
     info!("Sending mock certificate to subnet smart contract...");
     if let Err(e) = runtime_proxy_worker
-        .eval(
-            topos_sequencer_types::SubnetRuntimeProxyCommand::OnNewDeliveredCertificate {
-                certificate: mock_cert.clone(),
-                position: 0,
-                ctx: Span::current().context(),
-            },
-        )
+        .eval(SubnetRuntimeProxyCommand::OnNewDeliveredCertificate {
+            certificate: mock_cert.clone(),
+            position: 0,
+            ctx: Span::current().context(),
+        })
         .await
     {
         error!("Failed to send OnNewDeliveredTxns command: {}", e);

@@ -1,9 +1,9 @@
 use crate::app_context::AppContext;
 use std::io::ErrorKind;
 use std::io::ErrorKind::InvalidInput;
-use topos_sequencer_subnet_runtime_proxy::{SubnetRuntimeProxyConfig, SubnetRuntimeProxyWorker};
-use topos_sequencer_tce_proxy::{TceProxyConfig, TceProxyWorker};
-use topos_sequencer_types::SubnetId;
+use topos_core::uci::SubnetId;
+use topos_sequencer_subnet_runtime::{SubnetRuntimeProxyConfig, SubnetRuntimeProxyWorker};
+use topos_tce_proxy::{worker::TceProxyWorker, TceProxyConfig};
 use tracing::{debug, error, info};
 
 mod app_context;

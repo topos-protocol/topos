@@ -9,7 +9,7 @@ use tokio::sync::Mutex;
 use tokio::time::{self, Duration};
 use tokio_stream::StreamExt;
 use topos_core::uci::*;
-use topos_sequencer_tce_proxy::{TceClient, TceClientBuilder};
+use topos_tce_proxy::client::{TceClient, TceClientBuilder};
 use tracing::{debug, error, info};
 
 #[derive(Debug)]

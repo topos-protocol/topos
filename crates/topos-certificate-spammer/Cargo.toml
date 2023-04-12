@@ -18,4 +18,4 @@ tracing.workspace = true
 toml = "0.5.9"
 
 topos-core.workspace = true
-topos-sequencer-tce-proxy = { path = "../topos-sequencer-tce-proxy"}
+topos-tce-proxy = { path = "../topos-tce-proxy"}

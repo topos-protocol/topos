@@ -4,7 +4,7 @@ use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
-use topos_sequencer_types::{BlockInfo, SubnetEvent};
+use topos_sequencer_subnet_client::{BlockInfo, SubnetEvent};
 use tracing::error;
 
 pub struct Certification {

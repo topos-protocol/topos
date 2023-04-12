@@ -3,18 +3,20 @@
 //! Abstracted from actual transport implementation.
 //! Abstracted from actual storage implementation.
 //!
+use proxy::SubnetRuntimeProxy;
 use std::sync::Arc;
-use subnet_runtime_proxy::SubnetRuntimeProxy;
 use thiserror::Error;
 use tokio::sync::Mutex;
 use tokio::sync::{mpsc, oneshot};
 use topos_core::api::checkpoints::TargetStreamPosition;
-use topos_sequencer_types::*;
+use topos_core::uci::{CertificateId, SubnetId};
 
 pub type Peer = String;
 
 pub mod certification;
-pub mod subnet_runtime_proxy;
+pub mod proxy;
+
+use crate::proxy::{SubnetRuntimeProxyCommand, SubnetRuntimeProxyEvent};
 
 #[derive(Debug, Error)]
 pub enum Error {

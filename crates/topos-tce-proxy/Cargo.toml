@@ -1,11 +1,10 @@
 [package]
-name = "topos-sequencer-tce-proxy"
+name = "topos-tce-proxy"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 topos-core = { workspace = true, features = ["uci", "api"] }
-topos-sequencer-types = { package = "topos-sequencer-types", path = "../topos-sequencer-types" }
 
 async-stream.workspace = true
 backoff.workspace = true

@@ -9,11 +9,12 @@ serde_json.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 web3.workspace = true
+ethereum-types.workspace = true
 secp256k1.workspace = true
 tokio.workspace = true
 backoff.workspace = true
+serde = { workspace = true, features = ["derive"] }
 
 tiny-keccak = "1.2"
 
-topos-sequencer-types = { package = "topos-sequencer-types", path = "../topos-sequencer-types" }
 topos-core = { workspace = true, features = ["uci"] }
