@@ -1,7 +1,6 @@
 [test-groups]
 serial-integration = { max-threads = 1 }
 
-
 [[profile.default.overrides]]
 filter = 'package(topos-sequencer-tce-proxy)'
 test-group = 'serial-integration'

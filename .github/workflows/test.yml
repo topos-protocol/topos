@@ -12,11 +12,44 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
-  cert_delivery:
+  test_stable:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
+    name: stable - Test
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/install-rust
+        with:
+          AWS_ACCESS_KEY_ID: ${{ secrets.ROBOT_AWS_ACCESS_KEY_ID}}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.ROBOT_AWS_SECRET_ACCESS_KEY}}
+
+      - run: cargo nextest run --workspace --exclude topos-sequencer-subnet-runtime-proxy --config-file tools/config/nextest.toml && cargo test --doc --workspace
+        env:
+          RUST_LOG: topos=info
+
+  test_nightly:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    name: nightly - Test
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/install-rust
+        with:
+          toolchain: nightly
+          AWS_ACCESS_KEY_ID: ${{ secrets.ROBOT_AWS_ACCESS_KEY_ID}}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.ROBOT_AWS_SECRET_ACCESS_KEY}}
+
+      - run: cargo nextest run --workspace --exclude topos-sequencer-subnet-runtime-proxy --config-file tools/config/nextest.toml && cargo test --doc --workspace
+        env:
+          RUST_LOG: topos=info
+
+  cert_delivery:
+    runs-on: ubuntu-latest
+    needs: [test_stable]
+    strategy:
       fail-fast: true
-      max-parallel: 1
       matrix:
         value: ["first", "second", "third"]
     steps:
@@ -27,23 +60,6 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.ROBOT_AWS_SECRET_ACCESS_KEY}}
       - run: cargo nextest run cert_delivery --locked --no-default-features -F tce
         env:
-          RUST_LOG: topos=debug
+          RUST_LOG: topos=info
 
-  test:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        version: [stable, nightly]
-    name: ${{ matrix.version }} - Test
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/install-rust
-        with:
-          toolchain: ${{ matrix.version }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.ROBOT_AWS_ACCESS_KEY_ID}}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.ROBOT_AWS_SECRET_ACCESS_KEY}}
 
-      - run: cargo nextest run --workspace --exclude topos-sequencer-subnet-runtime-proxy --config-file tools/config/nextest.toml && cargo test --doc --workspace
-        env:
-          RUST_LOG: topos=debug
