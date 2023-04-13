@@ -2,8 +2,13 @@ use clap::Args;
 
 use crate::options::input_format::InputFormat;
 
+use super::NodeArgument;
+
 #[derive(Args, Debug)]
 pub(crate) struct PushPeerList {
+    #[command(flatten)]
+    pub(crate) node_args: NodeArgument,
+
     #[arg(short, long="format", value_enum, default_value_t = InputFormat::Plain)]
     pub(crate) format: InputFormat,
 

@@ -1,10 +1,7 @@
 use futures::{future::join_all, StreamExt};
 use libp2p::PeerId;
 use rand::seq::IteratorRandom;
-use std::{
-    collections::{HashMap, HashSet},
-    time::Duration,
-};
+use std::collections::{HashMap, HashSet};
 use test_log::test;
 use tokio::spawn;
 use tokio::sync::mpsc;
@@ -54,6 +51,7 @@ async fn start_a_cluster() {
 }
 
 #[tokio::test]
+// FIXME: This test is flaky, it fails sometimes because of gRPC connection error (StreamClosed)
 async fn cert_delivery() {
     let subscriber = ::tracing_subscriber::FmtSubscriber::builder()
         .with_env_filter(::tracing_subscriber::EnvFilter::from_default_env())
@@ -175,7 +173,6 @@ async fn cert_delivery() {
         client_tasks.push(client_task);
     }
 
-    tokio::time::sleep(Duration::from_secs(10)).await;
     // Broadcast multiple certificates from all subnets
     info!("Broadcasting certificates...");
     for (peer_id, client) in peers_context.iter_mut() {

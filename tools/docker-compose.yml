@@ -39,7 +39,7 @@ services:
     image: ghcr.io/topos-network/topos:main
     init: true
     healthcheck:
-      test: ./topos tce push-peer-list --endpoint http://localhost:1340 --format json /tmp/shared/peer_ids.json
+      test: ./topos tce push-peer-list --node http://localhost:1340 --format json /tmp/shared/peer_ids.json
       interval: 15s
     volumes:
       - shared:/tmp/shared
@@ -54,7 +54,7 @@ services:
       - "9090"
       - "1340:1340"
     environment:
-      - RUST_LOG=info,topos=debug
+      - RUST_LOG=error,topos=warn
       - TOOLCHAIN_VERSION=stable
       - RUST_BACKTRACE=full
       - TCE_DB_PATH=/tmp/default-db
@@ -73,8 +73,10 @@ services:
     image: ghcr.io/topos-network/topos:main
     command: peer tce run
     init: true
+    labels:
+      "autoheal": "true"
     healthcheck:
-      test: ./topos tce push-peer-list --endpoint http://localhost:1340 --format json /tmp/shared/peer_ids.json && ./topos tce status --endpoint http://localhost:1340
+      test: ./topos tce push-peer-list --node http://localhost:1340 --format json /tmp/shared/peer_ids.json && ./topos tce status --node http://localhost:1340
       interval: 5s
     volumes:
       - shared:/tmp/shared
@@ -84,6 +86,8 @@ services:
         - TOOLCHAIN_VERSION=stable
         - FEATURES=tce
     depends_on:
+      autoheal:
+        condition: service_started
       jaeger:
         condition: service_started
       boot:
@@ -95,7 +99,7 @@ services:
       replicas: 15
     environment:
       - LOCAL_TEST_NET=true
-      - RUST_LOG=info,topos=debug
+      - RUST_LOG=error,topos=warn
       - TCE_DB_PATH=/tmp/default-db
       - TCE_API_ADDR=0.0.0.0:1340
       - TOPOS_OTLP_SERVICE_NAME=tce-regular-node
@@ -126,21 +130,19 @@ services:
       peer:
         condition: service_healthy
 
-  verifier:
-    container_name: verifier
-    image: ghcr.io/toposware/topos-verifier:main
-    command: verifier tce assert-delivery
+  check:
+    container_name: check
+    image: ghcr.io/topos-network/topos:main
+    command: tce push-certificate -f json
     init: true
     volumes:
       - shared:/tmp/shared
     build:
       context: ../
-      tags:
-        - verifier
       args:
         - TOOLCHAIN_VERSION=stable
         - GITHUB_TOKEN
-        - FEATURES=verifier
+        - FEATURES=tce
     depends_on:
       peer:
         condition: service_healthy
@@ -148,6 +150,15 @@ services:
       - LOCAL_TEST_NET=true
       - RUST_LOG=info,topos=debug
       - TARGET_NODES_PATH=/tmp/shared/peer_nodes.json
+
+  autoheal:
+    container_name: autoheal
+    image: willfarrell/autoheal
+    volumes:
+      - '/var/run/docker.sock:/var/run/docker.sock'
+    environment:
+      - AUTOHEAL_INTERVAL=30
+      - CURL_TIMEOUT=30
 
 volumes:
   shared:

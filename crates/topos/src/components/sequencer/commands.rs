@@ -6,6 +6,9 @@ pub(crate) use run::Run;
 
 #[derive(Args, Debug)]
 pub(crate) struct SequencerCommand {
+    #[clap(from_global)]
+    pub(crate) verbose: u8,
+
     #[clap(subcommand)]
     pub(crate) subcommands: Option<SequencerCommands>,
 }

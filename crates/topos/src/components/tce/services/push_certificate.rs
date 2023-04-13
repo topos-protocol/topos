@@ -1,6 +1,18 @@
+use std::{
+    pin::Pin,
+    task::{Context, Poll},
+};
+
 use futures::{future::join_all, StreamExt};
+use futures::{Future, FutureExt};
 use rand::seq::SliceRandom;
+use serde::Deserialize;
 use std::time::Duration;
+use std::{
+    fs::File,
+    io::{self, Read},
+    path::Path,
+};
 use tokio::time::error::Elapsed;
 use tonic::transport::Uri;
 use topos_core::{
@@ -19,7 +31,7 @@ use topos_core::{
 use tracing::{debug, info, trace};
 
 use crate::{
-    components::checker::parser::NodeList,
+    components::tce::{commands::PushCertificate, TCEService},
     options::input_format::{InputFormat, Parser},
 };
 
@@ -30,6 +42,7 @@ pub(crate) async fn check_delivery(
     timeout: u64,
 ) -> Result<Result<(), Vec<String>>, Elapsed> {
     tokio::time::timeout(Duration::from_secs(timeout), async move {
+        info!("peers: {:?}", peers);
         let peers: Vec<Uri> = format
             .parse(NodeList(peers))
             .map_err(|_| vec![format!("Unable to parse node list")])?
@@ -166,4 +179,38 @@ pub(crate) async fn check_delivery(
         info!("Timeout reached: {:?}", error);
         error
     })
+}
+
+pub(crate) struct NodeList(pub(crate) Option<String>);
+
+#[derive(Deserialize)]
+struct FileNodes {
+    nodes: Vec<String>,
+}
+
+impl Parser<NodeList> for InputFormat {
+    type Result = Result<Vec<String>, io::Error>;
+
+    fn parse(&self, NodeList(input): NodeList) -> Self::Result {
+        let mut input_string = String::new();
+        _ = match input {
+            Some(path) if Path::new(&path).is_file() => {
+                File::open(path)?.read_to_string(&mut input_string)?
+            }
+            Some(string) => {
+                input_string = string;
+                0
+            }
+            None => io::stdin().read_to_string(&mut input_string)?,
+        };
+
+        match self {
+            InputFormat::Json => Ok(serde_json::from_str::<FileNodes>(&input_string)?.nodes),
+            InputFormat::Plain => Ok(input_string
+                .trim()
+                .split(&[',', '\n'])
+                .map(|s| s.trim().to_string())
+                .collect()),
+        }
+    }
 }

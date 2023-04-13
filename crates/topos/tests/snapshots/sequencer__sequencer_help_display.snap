@@ -10,7 +10,7 @@ Options:
       --subnet-id <SUBNET_ID>
           SubnetId of the local subnet node, hex encoded 32 bytes starting with 0x [env: TOPOS_LOCAL_SUBNET_ID=]
   -v, --verbose...
-          
+          Defines the verbosity level
       --subnet-jsonrpc-endpoint <SUBNET_JSONRPC_ENDPOINT>
           [env: SUBNET_JSONRPC_ENDPOINT=] [default: 127.0.0.1:8545]
       --subnet-contract-address <SUBNET_CONTRACT_ADDRESS>

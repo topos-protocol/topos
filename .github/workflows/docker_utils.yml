@@ -1,6 +1,7 @@
-name: Docker build and push
+name: template - docker
 
 env:
+  DEFAULT_FEATURES: tce,sequencer
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
   AWS_SHARED_CREDENTIALS_FILE: "${{ github.workspace }}/.aws/credentials"
@@ -75,9 +76,9 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=ref,event=branch,suffix=${{ inputs.features == 'tce-direct,sequencer' && '-direct' || ''}}
-            type=ref,event=tag,suffix=${{ inputs.features == 'tce-direct,sequencer' && '-direct' || ''}}
-            type=ref,event=pr,suffix=${{ inputs.features == 'tce-direct,sequencer' && '-direct' || ''}}
+            type=ref,event=branch,suffix=${{ inputs.features != env.DEFAULT_FEATURES && format('-{0}', inputs.features) || '' }}
+            type=ref,event=tag,suffix=${{ inputs.features != env.DEFAULT_FEATURES && format('-{0}', inputs.features) || '' }}
+            type=ref,event=pr,suffix=${{ inputs.features != env.DEFAULT_FEATURES && format('-{0}', inputs.features) || '' }}
 
       - name: Push to GitHub Container Registry
         uses: docker/build-push-action@v3

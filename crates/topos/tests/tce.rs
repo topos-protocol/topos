@@ -24,7 +24,7 @@ fn help_display() -> Result<(), Box<dyn std::error::Error>> {
 
 #[tokio::test]
 async fn do_not_push_empty_list() -> Result<(), Box<dyn std::error::Error>> {
-    let socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
+    let socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port on host");
     let addr = socket.local_addr().unwrap();
     let port = addr.port();
 
@@ -44,12 +44,14 @@ async fn do_not_push_empty_list() -> Result<(), Box<dyn std::error::Error>> {
     cmd.arg("tce")
         .arg("push-peer-list")
         .arg("1234")
-        .arg("--endpoint")
+        .arg("--node")
         .arg(format!("http://localhost:{port}"));
 
     let output = cmd.assert().failure();
 
-    insta::assert_json_snapshot!(serde_json::from_slice::<serde_json::Value>(&output.get_output().stdout).unwrap(), {".timestamp" => "[timestamp]"});
+    let out = serde_json::from_slice::<serde_json::Value>(&output.get_output().stdout);
+
+    insta::assert_json_snapshot!(out.unwrap(), {".timestamp" => "[timestamp]"});
 
     Ok(())
 }

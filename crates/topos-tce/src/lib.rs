@@ -15,6 +15,8 @@ use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
 use topos_tce_storage::{Connection, RocksDBStorage};
 use tracing::{debug, info};
 
+pub mod events;
+
 #[derive(Debug)]
 pub struct TceConfiguration {
     pub local_key_seed: Option<Vec<u8>>,
@@ -121,7 +123,7 @@ pub async fn run(
     debug!("gRPC api started");
 
     // setup transport-tce-storage-api connector
-    let app_context = AppContext::new(
+    let (app_context, _tce_stream) = AppContext::new(
         storage_client,
         tce_cli,
         network_client,

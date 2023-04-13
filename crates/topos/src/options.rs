@@ -3,9 +3,6 @@ use clap::{Parser, Subcommand};
 #[cfg(feature = "sequencer")]
 use crate::components::sequencer::commands::SequencerCommand;
 
-#[cfg(feature = "checker")]
-use crate::components::checker::commands::CheckerCommand;
-
 #[cfg(feature = "tce")]
 use crate::components::tce::commands::TceCommand;
 
@@ -17,6 +14,7 @@ pub(crate) mod input_format;
 #[derive(Parser, Debug)]
 #[clap(name = "topos", about = "Topos CLI")]
 pub(crate) struct Opt {
+    /// Defines the verbosity level
     #[arg(
         long,
         short = 'v',
@@ -35,8 +33,6 @@ pub(crate) enum ToposCommand {
     Tce(TceCommand),
     #[cfg(feature = "sequencer")]
     Sequencer(SequencerCommand),
-    #[cfg(feature = "checker")]
-    Checker(CheckerCommand),
     #[cfg(feature = "network")]
     Network(NetworkCommand),
 }

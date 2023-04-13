@@ -12,8 +12,10 @@ use tokio::{
     signal, spawn,
     sync::{mpsc, oneshot, Mutex},
 };
-use tonic::transport::Channel;
-use topos_core::api::tce::v1::console_service_client::ConsoleServiceClient;
+use tonic::transport::{Channel, Endpoint};
+use topos_core::api::tce::v1::{
+    api_service_client::ApiServiceClient, console_service_client::ConsoleServiceClient,
+};
 use topos_p2p::PeerId;
 use topos_tce::{StorageConfiguration, TceConfiguration};
 use tower::Service;
@@ -25,66 +27,67 @@ use crate::tracing::setup_tracing;
 use self::commands::{TceCommand, TceCommands};
 
 pub(crate) mod commands;
+pub(crate) mod parser;
 pub(crate) mod services;
 
 pub(crate) struct TCEService {
-    pub(crate) client: Arc<Mutex<ConsoleServiceClient<Channel>>>,
+    pub(crate) console_client: Arc<Mutex<ConsoleServiceClient<Channel>>>,
+    pub(crate) _api_client: Arc<Mutex<ApiServiceClient<Channel>>>,
 }
 
-pub(crate) struct PeerList(pub(crate) Option<String>);
-
-impl Parser<PeerList> for InputFormat {
-    type Result = Result<Vec<PeerId>, io::Error>;
-
-    fn parse(&self, PeerList(input): PeerList) -> Self::Result {
-        let mut input_string = String::new();
-        _ = match input {
-            Some(path) if Path::new(&path).is_file() => {
-                File::open(path)?.read_to_string(&mut input_string)?
-            }
-            Some(string) => {
-                input_string = string;
-                0
-            }
-            None => io::stdin().read_to_string(&mut input_string)?,
-        };
-
-        match self {
-            InputFormat::Json => Ok(serde_json::from_str::<Vec<PeerId>>(&input_string)?),
-            InputFormat::Plain => Ok(input_string
-                .trim()
-                .split(&[',', '\n'])
-                .filter_map(|s| PeerId::from_str(s.trim()).ok())
-                .collect()),
+impl TCEService {
+    pub(crate) fn with_grpc_endpoint(endpoint: &str) -> Self {
+        Self {
+            console_client: setup_console_tce_grpc(endpoint),
+            _api_client: setup_api_tce_grpc(endpoint),
         }
     }
 }
 
 pub(crate) async fn handle_command(
     TceCommand {
-        mut endpoint,
-        subcommands,
+        verbose,
+        mut subcommands,
     }: TceCommand,
-    verbose: u8,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    if let Some(TceCommands::Run(cmd)) = subcommands.as_mut() {
+        // Setup instrumentation if both otlp agent and otlp service name are provided as arguments
+        setup_tracing(verbose, cmd.otlp_agent.take(), cmd.otlp_service_name.take())?;
+    } else {
+        setup_tracing(verbose, None, None)?;
+    };
+
     match subcommands {
+        Some(TceCommands::PushCertificate(cmd)) => {
+            debug!("Start executing PushCertificate command");
+            match services::push_certificate::check_delivery(
+                cmd.timeout_broadcast,
+                cmd.format,
+                cmd.nodes,
+                cmd.timeout,
+            )
+            .await
+            .map_err(Box::<dyn std::error::Error>::from)
+            {
+                Err(_) => {
+                    error!("Check failed due to timeout");
+                    std::process::exit(1);
+                }
+                Ok(Err(errors)) => {
+                    error!("Check failed due to errors: {:?}", errors);
+                    std::process::exit(1);
+                }
+                _ => {
+                    info!("Check passed");
+                    Ok(())
+                }
+            }
+        }
         Some(TceCommands::PushPeerList(cmd)) => {
-            setup_tracing(verbose, None, None)?;
-
-            debug!("Start executing PushPeerList command");
-            trace!("Building the gRPC client with {:?}", endpoint);
-
-            let endpoint = endpoint.take().unwrap();
-            let client = setup_tce_grpc(&endpoint).await;
-
-            trace!("gRPC client successfully built");
-
-            let mut tce_service = TCEService {
-                client: client.clone(),
-            };
-
             debug!("Executing the PushPeerList on the TCE service");
-            tce_service.call(cmd).await?;
+            TCEService::with_grpc_endpoint(&cmd.node_args.node)
+                .call(cmd)
+                .await?;
 
             Ok(())
         }
@@ -105,9 +108,6 @@ pub(crate) async fn handle_command(
                 network_bootstrap_timeout: Duration::from_secs(10),
                 version: env!("TOPOS_VERSION"),
             };
-
-            // Setup instrumentation if both otlp agent and otlp service name are provided as arguments
-            setup_tracing(verbose, cmd.otlp_agent, cmd.otlp_service_name)?;
 
             print_node_info(&config);
 
@@ -139,8 +139,6 @@ pub(crate) async fn handle_command(
         }
 
         Some(TceCommands::Keys(cmd)) => {
-            setup_tracing(verbose, None, None)?;
-
             if let Some(slice) = cmd.from_seed {
                 println!(
                     "{}",
@@ -154,18 +152,9 @@ pub(crate) async fn handle_command(
         }
 
         Some(TceCommands::Status(status)) => {
-            setup_tracing(verbose, None, None)?;
-
             debug!("Start executing Status command");
-            trace!("Building the gRPC client with {:?}", endpoint);
-            let endpoint = endpoint.take().unwrap();
-            let client = setup_tce_grpc(&endpoint).await;
 
-            trace!("gRPC client successfully built");
-
-            let mut tce_service = TCEService {
-                client: client.clone(),
-            };
+            let mut tce_service = TCEService::with_grpc_endpoint(&status.node_args.node);
 
             debug!("Executing the Status on the TCE service");
             let exit_code = i32::from(!(tce_service.call(status).await?));
@@ -188,13 +177,24 @@ pub fn print_node_info(config: &TceConfiguration) {
     info!("Broadcast Parameters {:?}", config.tce_params);
 }
 
-async fn setup_tce_grpc(endpoint: &str) -> Arc<Mutex<ConsoleServiceClient<Channel>>> {
-    match ConsoleServiceClient::connect(endpoint.to_string()).await {
+fn setup_console_tce_grpc(endpoint: &str) -> Arc<Mutex<ConsoleServiceClient<Channel>>> {
+    match Endpoint::from_shared(endpoint.to_string()) {
+        Ok(endpoint) => Arc::new(Mutex::new(ConsoleServiceClient::new(
+            endpoint.connect_lazy(),
+        ))),
         Err(e) => {
             error!("Failure to setup the gRPC API endpoint on {endpoint}: {e}");
             std::process::exit(1);
         }
+    }
+}
 
-        Ok(client) => Arc::new(Mutex::new(client)),
+fn setup_api_tce_grpc(endpoint: &str) -> Arc<Mutex<ApiServiceClient<Channel>>> {
+    match Endpoint::from_shared(endpoint.to_string()) {
+        Ok(endpoint) => Arc::new(Mutex::new(ApiServiceClient::new(endpoint.connect_lazy()))),
+        Err(e) => {
+            error!("Failure to setup the gRPC API endpoint on {endpoint}: {e}");
+            std::process::exit(1);
+        }
     }
 }

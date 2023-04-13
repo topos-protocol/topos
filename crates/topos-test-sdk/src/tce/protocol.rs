@@ -1,14 +1,14 @@
 use futures::Stream;
 
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
-use topos_tce_transport::{ReliableBroadcastParams, TceEvents};
+use topos_tce_transport::{ProtocolEvents, ReliableBroadcastParams};
 
 pub fn create_reliable_broadcast_client(
     tce_params: ReliableBroadcastParams,
     peer_id: String,
 ) -> (
     ReliableBroadcastClient,
-    impl Stream<Item = Result<TceEvents, ()>> + Unpin,
+    impl Stream<Item = Result<ProtocolEvents, ()>> + Unpin,
 ) {
     let config = ReliableBroadcastConfig { tce_params };
 

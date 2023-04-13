@@ -65,7 +65,7 @@ struct TceParams {
 }
 
 struct Context {
-    event_receiver: Receiver<TceEvents>,
+    event_receiver: Receiver<ProtocolEvents>,
     subscribers_update_sender: Sender<SubscribersUpdate>,
     subscriptions_view_sender: Sender<SubscriptionsView>,
     cmd_sender: Sender<DoubleEchoCommand>,
@@ -191,15 +191,15 @@ async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams)
 
     assert!(matches!(
         ctx.event_receiver.try_recv(),
-        Ok(TceEvents::Gossip { peers, .. }) if peers.len() == double_echo.gossip_peers().len()
+        Ok(ProtocolEvents::Gossip { peers, .. }) if peers.len() == double_echo.gossip_peers().len()
     ));
     assert!(matches!(
         ctx.event_receiver.try_recv(),
-        Ok(TceEvents::Broadcast { certificate_id }) if certificate_id == dummy_cert.id
+        Ok(ProtocolEvents::Broadcast { certificate_id }) if certificate_id == dummy_cert.id
     ));
     assert!(matches!(
             ctx.event_receiver.try_recv(),
-            Ok(TceEvents::Echo { peers, .. }) if peers.len() == double_echo.subscribers.echo.len()));
+            Ok(ProtocolEvents::Echo { peers, .. }) if peers.len() == double_echo.subscribers.echo.len()));
 
     assert!(matches!(
         ctx.event_receiver.try_recv(),
@@ -214,7 +214,7 @@ async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams)
     assert_eq!(ctx.event_receiver.len(), 1);
     assert!(matches!(
         ctx.event_receiver.try_recv(),
-        Ok(TceEvents::Ready { peers, .. }) if peers.len() == double_echo.subscribers.ready.len()
+        Ok(ProtocolEvents::Ready { peers, .. }) if peers.len() == double_echo.subscribers.ready.len()
     ));
 
     // Trigger Delivery upon reaching the Delivery threshold
@@ -224,7 +224,7 @@ async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams)
     assert_eq!(ctx.event_receiver.len(), 1);
     assert!(matches!(
          ctx.event_receiver.try_recv(),
-        Ok(TceEvents::CertificateDelivered { certificate }) if certificate == dummy_cert
+        Ok(ProtocolEvents::CertificateDelivered { certificate }) if certificate == dummy_cert
     ));
 }
 
@@ -253,15 +253,15 @@ async fn trigger_ready_when_reached_enough_ready(#[case] params: TceParams) {
     assert_eq!(ctx.event_receiver.len(), 3);
     assert!(matches!(
         ctx.event_receiver.try_recv(),
-        Ok(TceEvents::Gossip { .. })
+        Ok(ProtocolEvents::Gossip { .. })
     ));
     assert!(matches!(
         ctx.event_receiver.try_recv(),
-        Ok(TceEvents::Broadcast { certificate_id }) if certificate_id == dummy_cert.id
+        Ok(ProtocolEvents::Broadcast { certificate_id }) if certificate_id == dummy_cert.id
     ));
     assert!(matches!(
         ctx.event_receiver.try_recv(),
-        Ok(TceEvents::Echo { .. })
+        Ok(ProtocolEvents::Echo { .. })
     ));
 
     // Trigger Ready upon reaching the Ready threshold
@@ -271,7 +271,7 @@ async fn trigger_ready_when_reached_enough_ready(#[case] params: TceParams) {
     assert_eq!(ctx.event_receiver.len(), 1);
     assert!(matches!(
         ctx.event_receiver.try_recv(),
-        Ok(TceEvents::Ready { peers, .. }) if peers.len() == double_echo.subscribers.ready.len()
+        Ok(ProtocolEvents::Ready { peers, .. }) if peers.len() == double_echo.subscribers.ready.len()
     ));
 }
 
@@ -300,15 +300,15 @@ async fn process_after_delivery_until_sending_ready(#[case] params: TceParams) {
     assert_eq!(ctx.event_receiver.len(), 3);
     assert!(matches!(
         ctx.event_receiver.try_recv(),
-        Ok(TceEvents::Gossip { .. })
+        Ok(ProtocolEvents::Gossip { .. })
     ));
     assert!(matches!(
         ctx.event_receiver.try_recv(),
-        Ok(TceEvents::Broadcast { certificate_id }) if certificate_id == dummy_cert.id
+        Ok(ProtocolEvents::Broadcast { certificate_id }) if certificate_id == dummy_cert.id
     ));
     assert!(matches!(
         ctx.event_receiver.try_recv(),
-        Ok(TceEvents::Echo { .. })
+        Ok(ProtocolEvents::Echo { .. })
     ));
 
     // Trigger Delivery upon reaching the Delivery threshold
@@ -321,7 +321,7 @@ async fn process_after_delivery_until_sending_ready(#[case] params: TceParams) {
 
     assert!(matches!(
          ctx.event_receiver.try_recv(),
-        Ok(TceEvents::CertificateDelivered { certificate }) if certificate == dummy_cert
+        Ok(ProtocolEvents::CertificateDelivered { certificate }) if certificate == dummy_cert
     ));
 
     // Trigger Ready upon reaching the Echo threshold
@@ -331,7 +331,7 @@ async fn process_after_delivery_until_sending_ready(#[case] params: TceParams) {
     assert_eq!(ctx.event_receiver.len(), 1);
     assert!(matches!(
         ctx.event_receiver.try_recv(),
-        Ok(TceEvents::Ready { peers, .. }) if peers.len() == double_echo.subscribers.ready.len()
+        Ok(ProtocolEvents::Ready { peers, .. }) if peers.len() == double_echo.subscribers.ready.len()
     ));
 }
 
@@ -380,13 +380,10 @@ async fn buffering_certificate(#[case] params: TceParams) {
 
     let mut received_gossip_commands: Vec<(HashSet<PeerId>, Certificate)> = Vec::new();
     let assertion = async {
-        loop {
-            while let Ok(event) = ctx.event_receiver.try_recv() {
-                if let TceEvents::Gossip { peers, cert, .. } = event {
-                    received_gossip_commands.push((peers.into_iter().collect(), cert));
-                }
+        while let Ok(event) = ctx.event_receiver.recv().await {
+            if let ProtocolEvents::Gossip { peers, cert, .. } = event {
+                received_gossip_commands.push((peers.into_iter().collect(), cert));
             }
-            tokio::time::sleep(Duration::from_millis(10)).await;
         }
     };
 

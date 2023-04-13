@@ -9,23 +9,7 @@ use support::network::{local_peers, start_node};
 use test_log::test;
 use tokio::time::sleep;
 use topos_p2p::RetryPolicy;
-
-macro_rules! wait_for_event {
-    ($node:ident, matches: $(|)? $( $pattern:pat_param )|+ $( if $guard: expr )? $(,)?) => {
-        let assertion = async {
-            while let Some(event) = $node.next_event().await {
-                if matches!(event, $( $pattern )|+ $( if $guard )?) {
-                    break;
-                }
-            }
-        };
-
-        if let Err(_) = tokio::time::timeout(std::time::Duration::from_millis(100), assertion).await
-        {
-            panic!("Timeout waiting for event");
-        }
-    };
-}
+use topos_test_sdk::wait_for_event;
 
 #[test(tokio::test)]
 async fn dialling_between_3_peers() {
@@ -89,13 +73,15 @@ async fn dialling_between_3_peers() {
     let other_nodes_peer_ids = nodes.iter().map(|node| node.peer_id).collect::<Vec<_>>();
 
     wait_for_event!(
-        first_node,
-        matches: topos_p2p::Event::PeerDisconnected { peer_id } if other_nodes_peer_ids.contains(&peer_id)
+        first_node.next_event(),
+        matches: topos_p2p::Event::PeerDisconnected { peer_id } if other_nodes_peer_ids.contains(&peer_id),
+        "First node should be disconnected from other nodes"
     );
 
     wait_for_event!(
-        first_node,
-        matches: topos_p2p::Event::PeerDisconnected { peer_id } if other_nodes_peer_ids.contains(&peer_id)
+        first_node.next_event(),
+        matches: topos_p2p::Event::PeerDisconnected { peer_id } if other_nodes_peer_ids.contains(&peer_id),
+        "First node should be disconnected from other nodes"
     );
 
     let iterator = nodes.iter_mut().skip(1);
@@ -111,8 +97,9 @@ async fn dialling_between_3_peers() {
         );
 
         wait_for_event!(
-            node,
-            matches: topos_p2p::Event::PeerDisconnected { peer_id } if peer_id == first_node_peer_id
+            node.next_event(),
+            matches: topos_p2p::Event::PeerDisconnected { peer_id } if peer_id == first_node_peer_id,
+            "Other nodes should be disconnected from first node"
         );
     }
 }

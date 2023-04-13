@@ -8,8 +8,10 @@ use crate::tracing::setup_tracing;
 pub(crate) mod commands;
 
 pub(crate) async fn handle_command(
-    SequencerCommand { subcommands }: SequencerCommand,
-    verbose: u8,
+    SequencerCommand {
+        verbose,
+        subcommands,
+    }: SequencerCommand,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match subcommands {
         Some(SequencerCommands::Run(cmd)) => {

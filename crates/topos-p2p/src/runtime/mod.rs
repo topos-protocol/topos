@@ -115,7 +115,9 @@ impl Runtime {
                         info!("Received peer_info, {event:?}");
                         // Validate peer_info here
                         self.handle(event).await;
-                        if self.peer_set.len() > self.config.minimum_cluster_size {
+                        if addr_query_id.is_none()
+                            && self.peer_set.len() >= self.config.minimum_cluster_size
+                        {
                             let key = Key::new(&self.local_peer_id.to_string());
                             addr_query_id = if let Ok(query_id_record) =
                                 self.swarm.behaviour_mut().discovery.put_record(

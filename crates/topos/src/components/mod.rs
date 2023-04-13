@@ -1,5 +1,3 @@
-#[cfg(feature = "checker")]
-pub(crate) mod checker;
 #[cfg(feature = "network")]
 pub(crate) mod network;
 #[cfg(feature = "sequencer")]

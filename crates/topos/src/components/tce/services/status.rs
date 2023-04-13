@@ -25,7 +25,7 @@ impl Service<Status> for TCEService {
     }
 
     fn call(&mut self, _: Status) -> Self::Future {
-        let client = self.client.clone();
+        let client = self.console_client.clone();
 
         async move {
             debug!("Sending the request to the TCE server...");
