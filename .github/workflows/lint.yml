@@ -27,20 +27,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Setup Rust toolchain
-        uses: actions-rs/toolchain@v1
+      - uses: ./.github/actions/install-rust
         with:
-          profile: minimal
-          toolchain: 1.64.0
-          override: true
-
-      - name: Enable caching
-        uses: Swatinem/rust-cache@v2
+          msrv: true
+          AWS_ACCESS_KEY_ID: ${{ secrets.ROBOT_AWS_ACCESS_KEY_ID}}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.ROBOT_AWS_SECRET_ACCESS_KEY}}
 
       - name: Cargo check
         uses: actions-rs/cargo@v1
         with:
           command: check
-
-
-

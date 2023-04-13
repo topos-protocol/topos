@@ -7,6 +7,10 @@ inputs:
     description: 'Default toolchain to install'
     required: false
     default: 'stable'
+  msrv:
+    description: 'Enable rust-toolchain version for msrv'
+    required: false
+    default: false
   lockfiles:
     description: 'Path glob for Cargo.lock files to use as cache keys'
     required: false
@@ -26,9 +30,14 @@ runs:
     - name: Environment
       shell: bash
       run: |
-        rustup set profile minimal
-        rustup update "${{ inputs.toolchain }}" --no-self-update
-        rustup default "${{ inputs.toolchain }}"
+        if ${{ inputs.msrv }}; then
+          rustup override unset
+          rustup show
+        else
+          rustup set profile minimal
+          rustup update "${{ inputs.toolchain }}" --no-self-update
+          rustup default "${{ inputs.toolchain }}"
+        fi
 
         echo CARGO_TERM_COLOR="always" >> "$GITHUB_ENV"
 
