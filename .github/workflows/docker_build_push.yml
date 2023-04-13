@@ -45,22 +45,22 @@ jobs:
       - name: Checking for healthy cluster
         uses: nick-fields/retry@v2.8.3
         with:
-          command: |
-            COUNT=$(docker inspect --format "{{.State.Health.Status }}" $(docker compose -f tools/docker-compose.yml ps -q peer)|grep "^healthy$"|wc -l)
-            echo "Number of Healthy containers: $COUNT"
-            if [[ $COUNT -eq 15 ]]; then
-              echo "All expected containers healthy"
-              exit 0
-            else
-              echo "Unhealthy containers"
-              docker compose -f tools/docker-compose.yml ps
-              exit 1
-            fi
-
           retry_on: error
           max_attempts: 4
           retry_wait_seconds: 30
           timeout_minutes: 10
+          on_retry_command: docker inspect --format "{{ .Id }} {{ .State.Health.Status }}" $(docker compose -f tools/docker-compose.yml ps -aq peer boot) | grep "healthy$" | cut -d ' ' -f 1 | xargs -I{} sh -c 'echo "\nLogs for => {}\n" && docker logs {}'
+          command: |
+            COUNT=$(docker inspect --format "{{.State.Health.Status }}" $(docker compose -f tools/docker-compose.yml ps -aq peer boot)|grep "^healthy$"|wc -l)
+            echo "Number of Healthy containers: $COUNT"
+            if [[ $COUNT -eq 16 ]]; then
+              echo "All expected containers healthy"
+              exit 0
+            else
+              echo "Unhealthy containers"
+              docker compose -f tools/docker-compose.yml ps -a peer boot
+              exit 1
+            fi
 
       - name: Run the check
         run: |
