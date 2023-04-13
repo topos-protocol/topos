@@ -38,8 +38,10 @@ services:
     command: boot tce run
     image: ghcr.io/topos-network/topos:main
     init: true
+    labels:
+      "autoheal": "true"
     healthcheck:
-      test: ./topos tce push-peer-list --node http://localhost:1340 --format json /tmp/shared/peer_ids.json
+      test: ./topos tce push-peer-list --node http://localhost:1340 --format json /tmp/shared/peer_ids.json && ./topos tce status --node http://localhost:1340
       interval: 15s
     volumes:
       - shared:/tmp/shared
