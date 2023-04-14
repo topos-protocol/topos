@@ -52,7 +52,7 @@ pub struct AppContext {
 
 impl AppContext {
     // Default previous certificate id for first certificate in the subnet
-    //TODO Remove, it will be genesis certificate id retrieved from Topos Subnet
+    // TODO: Remove, it will be genesis certificate id retrieved from Topos Subnet
     const DUMMY_INITIAL_CERTIFICATE_ID: CertificateId =
         CertificateId::from_array([0u8; topos_core::uci::CERTIFICATE_ID_LENGTH]);
 
@@ -195,8 +195,8 @@ impl AppContext {
                         e => RuntimeError::UnableToGetSourceHead(subnet_id, e.to_string()),
                     });
 
-                //TODO Initial genesis certificate eventually will be fetched from the topos subnet
-                //Currently, for subnet starting from scratch there are no certificates in the database
+                // TODO: Initial genesis certificate eventually will be fetched from the topos subnet
+                // Currently, for subnet starting from scratch there are no certificates in the database
                 // So for MissingHeadForSubnet error we will return some default dummy certificate
                 if let Err(RuntimeError::UnknownSubnet(subnet_id)) = result {
                     warn!("Returning dummy certificate as head certificate, to be fixed...");

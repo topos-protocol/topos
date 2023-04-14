@@ -30,7 +30,7 @@ pub async fn run(config: SequencerConfiguration) -> Result<(), Box<dyn std::erro
         .to_string();
 
     let key_file_path = topos_crypto::keystore::get_keystore_path(subnet_data_dir_path.as_str());
-    //TODO handle this key in more secure way (e.g. use SafeSecretKey)
+    //TODO: handle this key in more secure way (e.g. use SafeSecretKey)
     let signing_key: Vec<u8> =
         match topos_crypto::keystore::read_private_key_from_file(&key_file_path, None) {
             Ok(key) => key,

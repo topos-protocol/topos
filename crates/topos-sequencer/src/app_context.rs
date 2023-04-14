@@ -117,7 +117,7 @@ impl AppContext {
                     topos_sequencer_tce_proxy::TceProxyConfig {
                         subnet_id: config.subnet_id,
                         base_tce_api_url: config.base_tce_api_url.clone(),
-                        positions: Vec::new(), // TODO acquire from subnet
+                        positions: Vec::new(), // TODO: acquire from subnet
                     },
                 )
                 .await

@@ -59,7 +59,7 @@ impl RuntimeBuilder {
 
         let runtime = Runtime {
             sync_tasks: HashMap::new(),
-            // TODO remove unwrap
+            // TODO: remove unwrap
             storage: self.storage.take().unwrap(),
             active_streams: HashMap::new(),
             pending_streams: HashMap::new(),

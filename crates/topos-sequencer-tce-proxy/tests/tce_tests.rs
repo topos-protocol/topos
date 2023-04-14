@@ -215,7 +215,7 @@ async fn test_tce_get_source_head_certificate(
         .map(|r| r.into_inner())
         .unwrap();
 
-    // TODO currently only delivered certificates are counted as
+    // TODO: currently only delivered certificates are counted as
     // head source certificate, so default certificate is expected
     // Should be updated to count also pending certificates
     let expected_response = GetSourceHeadResponse {
