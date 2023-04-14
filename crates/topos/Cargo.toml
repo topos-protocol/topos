@@ -10,6 +10,7 @@ topos-tce-transport = { path = "../topos-tce-transport", optional = true }
 topos-sequencer = { path = "../topos-sequencer", optional = true }
 topos-core = { workspace = true, features = ["api"] }
 topos-certificate-spammer = { path = "../topos-certificate-spammer", optional = true }
+topos-tce-broadcast = { path = "../topos-tce-broadcast", optional = true }
 
 async-stream.workspace = true
 async-trait.workspace = true

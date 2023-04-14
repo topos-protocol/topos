@@ -17,24 +17,34 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v1
-
-      - uses: actions-rs/toolchain@v1
+      - uses: ./.github/actions/install-rust
         with:
-          toolchain: stable
-          override: true
+          components: llvm-tools-preview
+          tools: grcov,nextest,protoc
+          AWS_ACCESS_KEY_ID: ${{ secrets.ROBOT_AWS_ACCESS_KEY_ID}}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.ROBOT_AWS_SECRET_ACCESS_KEY}}
 
-      - uses: Swatinem/rust-cache@v1
-
-      - uses: actions-rs/install@v0.1
+      - name: Build
+        uses: actions-rs/cargo@v1
+        env:
+          RUSTFLAGS: '-Cinstrument-coverage'
+          RUSTDOCFLAGS: '-Cinstrument-coverage'
         with:
-          crate: cargo-tarpaulin
-          version: 0.24.0
-      - run: cargo tarpaulin --engine llvm --workspace --features tce,sequencer --release --exclude topos-sequencer-subnet-runtime-proxy
+          command: build
+          args: --all
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3.1.1
+      - name: Run tests
+        uses: actions-rs/cargo@v1
+        env:
+          RUSTFLAGS: '-Cinstrument-coverage'
+          RUSTDOCFLAGS: '-Cinstrument-coverage'
+          LLVM_PROFILE_FILE: 'codecov-instrumentation-%p-%m.profraw'
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: true
+          command: nextest
+          args: run --workspace --exclude topos-sequencer-subnet-runtime-proxy --config-file tools/config/nextest.toml
+
+      - name: Run grcov
+        run: grcov . --binary-path target/debug/ -s . -t lcov --branch --ignore-not-existing --ignore '../**' --ignore '/*' -o coverage.lcov
+
+      - name: Upload to codecov.io
+        uses: codecov/codecov-action@v3
