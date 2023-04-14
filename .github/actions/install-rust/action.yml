@@ -7,10 +7,18 @@ inputs:
     description: 'Default toolchain to install'
     required: false
     default: 'stable'
+  msrv:
+    description: 'Enable rust-toolchain version for msrv'
+    required: false
+    type: boolean
+    default: false
   lockfiles:
     description: 'Path glob for Cargo.lock files to use as cache keys'
     required: false
     default: '**/Cargo.lock'
+  components:
+    description: 'Components to install'
+    required: false
   tools:
     description: 'Tools to install'
     required: false
@@ -19,6 +27,11 @@ inputs:
     required: true
   AWS_SECRET_ACCESS_KEY:
     required: true
+  with_cache:
+    required: false
+    type: boolean
+    default: true
+
 
 runs:
   using: composite
@@ -26,9 +39,18 @@ runs:
     - name: Environment
       shell: bash
       run: |
-        rustup set profile minimal
-        rustup update "${{ inputs.toolchain }}" --no-self-update
-        rustup default "${{ inputs.toolchain }}"
+        if ${{ inputs.msrv }}; then
+          rustup override unset
+          rustup show
+        else
+          rustup set profile minimal
+          rustup update "${{ inputs.toolchain }}" --no-self-update
+          rustup override set "${{ inputs.toolchain }}"
+        fi
+
+        if [ ! -Z ${{ inputs.components }} ]; then
+          rustup component add $(echo ${{ inputs.components }}|sed 's/,//')
+        fi
 
         echo CARGO_TERM_COLOR="always" >> "$GITHUB_ENV"
 
@@ -71,10 +93,11 @@ runs:
         EOF
 
     - name: Run sccache-cache
+      if: ${{ inputs.with_cache == 'true' }}
       uses: mozilla-actions/sccache-action@v0.0.3
 
     - name: Configure AWS credentials for cicd-devnet-1 account
-      uses: aws-actions/configure-aws-credentials@v1
+      uses: aws-actions/configure-aws-credentials@v2
       with:
         aws-access-key-id: ${{ inputs.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ inputs.AWS_SECRET_ACCESS_KEY }}

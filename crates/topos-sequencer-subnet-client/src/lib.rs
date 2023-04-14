@@ -133,7 +133,7 @@ impl SubnetClientListener {
         &mut self,
         _subnet_contract: &str,
     ) -> Result<BlockInfo, Error> {
-        // TODO keep latest read block in storage not to lose history and sync previous blocks
+        // TODO: keep latest read block in storage not to lose history and sync previous blocks
         let sub = if self.block_subscription.is_none() {
             self.block_subscription = Some(
                 self.web3_client
@@ -243,7 +243,7 @@ pub async fn connect_to_subnet_listener_with_retry(
 // Subnet client for calling target network smart contract
 pub struct SubnetClient {
     pub eth_admin_address: H160,
-    //TODO use SafeSecretKey for secret key https://github.com/graphprotocol/solidity-bindgen/blob/master/solidity-bindgen/src/secrets.rs
+    // TODO:: use SafeSecretKey for secret key https://github.com/graphprotocol/solidity-bindgen/blob/master/solidity-bindgen/src/secrets.rs
     // or https://crates.io/crates/zeroize to prevent leaking secp256k1::SecretKey struct in stack or memory
     eth_admin_key: Option<secp256k1::SecretKey>,
     contract: web3::contract::Contract<Http>,

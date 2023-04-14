@@ -165,7 +165,7 @@ async fn request_response() {
     futures::future::join_all(vec![join_receive, join_send]).await;
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum TceCommands {
     /// Given peer sent EchoSubscribe request
     OnEchoSubscribeReq {

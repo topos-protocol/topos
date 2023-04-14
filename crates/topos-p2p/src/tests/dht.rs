@@ -52,7 +52,7 @@ async fn put_value_in_dht() {
 
     wait_for_event!(
         swarm,
-        matches: SwarmEvent::Behaviour(ComposedEvent::Kademlia(KademliaEvent::OutboundQueryProgressed { result: QueryResult::PutRecord(Ok(PutRecordOk { key })), .. } )) if key == input_key
+        matches: SwarmEvent::Behaviour(ComposedEvent::Kademlia(kademlia_event)) if matches!(&*kademlia_event, KademliaEvent::OutboundQueryProgressed { result: QueryResult::PutRecord(Ok(PutRecordOk { key: input_key })), .. })
     );
 
     join.abort();

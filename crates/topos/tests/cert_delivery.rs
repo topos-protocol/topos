@@ -84,7 +84,7 @@ async fn cert_delivery() {
             for target_subnet in &cert.target_subnets {
                 expected_certificates
                     .entry(*target_subnet)
-                    .or_insert(HashSet::new())
+                    .or_insert_with(HashSet::new)
                     .insert(cert.clone());
             }
         }
@@ -252,9 +252,9 @@ async fn cert_delivery() {
             debug!("Counting delivered certificate cert id: {:?}", cert.id);
             delivered_certificates
                 .entry(peer_id)
-                .or_insert(HashMap::new())
+                .or_insert_with(HashMap::new)
                 .entry(receiving_subnet_id)
-                .or_insert(HashSet::new())
+                .or_insert_with(HashSet::new)
                 .insert(cert);
         }
         info!("All incoming certificates received");

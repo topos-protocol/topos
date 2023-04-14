@@ -9,9 +9,9 @@ use crate::{error::CommandExecutionError, Event, Runtime};
 use super::EventHandler;
 
 #[async_trait::async_trait]
-impl EventHandler<KademliaEvent> for Runtime {
-    async fn handle(&mut self, event: KademliaEvent) {
-        match event {
+impl EventHandler<Box<KademliaEvent>> for Runtime {
+    async fn handle(&mut self, event: Box<KademliaEvent>) {
+        match *event {
             KademliaEvent::InboundRequest { request } => {
                 // warn!("InboundRequest {:?}", request);
             }

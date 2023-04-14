@@ -51,7 +51,7 @@ pub enum StorageError {
     InternalStorage(#[from] InternalStorageError),
 
     #[error("Unable to communicate with storage: {0}")]
-    CommunicationChannel(#[from] mpsc::error::SendError<StorageCommand>),
+    CommunicationChannel(Box<mpsc::error::SendError<StorageCommand>>),
 
     #[error("Unable to communicate with storage: closed")]
     CommunicationChannelClosed,
@@ -61,6 +61,12 @@ pub enum StorageError {
 
     #[error("Unable to execute shutdown on the storage service: {0}")]
     ShutdownCommunication(mpsc::error::SendError<oneshot::Sender<()>>),
+}
+
+impl From<mpsc::error::SendError<StorageCommand>> for StorageError {
+    fn from(err: mpsc::error::SendError<StorageCommand>) -> Self {
+        StorageError::CommunicationChannel(Box::new(err))
+    }
 }
 
 #[derive(Debug, Error)]

@@ -268,11 +268,7 @@ async fn pending_certificate_can_be_removed(storage: RocksDBStorage) {
 
     storage.remove_pending_certificate(1234).await.unwrap();
 
-    assert!(pending_column
-        .iter()
-        .unwrap()
-        .collect::<Vec<_>>()
-        .is_empty());
+    assert!(pending_column.iter().unwrap().next().is_none());
 
     let _ = storage.add_pending_certificate(&certificate).await.unwrap();
 
@@ -284,11 +280,7 @@ async fn pending_certificate_can_be_removed(storage: RocksDBStorage) {
         .await
         .unwrap();
 
-    assert!(!pending_column
-        .iter()
-        .unwrap()
-        .collect::<Vec<_>>()
-        .is_empty());
+    assert!(pending_column.iter().unwrap().next().is_some());
 }
 
 #[rstest]

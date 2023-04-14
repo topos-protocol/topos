@@ -244,7 +244,7 @@ impl Runtime {
                             .insert(stream_id);
                     }
 
-                    // TODO Refactor this using a better handle, FuturesUnordered + Killswitch
+                    // TODO: Refactor this using a better handle, FuturesUnordered + Killswitch
                     let task = spawn(async move {
                         info!("Sync task started for sequencer stream {}", stream_id);
                         let mut collector: Vec<(Certificate, FetchCertificatesPosition)> =
@@ -301,7 +301,7 @@ impl Runtime {
                                 "Sequencer sync task for {} is sending {}",
                                 stream_id, certificate.id
                             );
-                            // TODO catch error on send
+                            // TODO: catch error on send
                             if let FetchCertificatesPosition::Target(
                                 CertificateTargetStreamPosition {
                                     target_subnet_id,

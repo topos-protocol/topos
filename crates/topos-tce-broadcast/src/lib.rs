@@ -2,7 +2,6 @@
 //!
 //! Abstracted from actual transport implementation.
 //! Abstracted from actual storage implementation.
-//!
 
 use opentelemetry::Context;
 use sampler::SampleType;

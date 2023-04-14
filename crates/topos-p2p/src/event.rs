@@ -9,7 +9,7 @@ use crate::behaviour::transmission::codec::{TransmissionRequest, TransmissionRes
 
 #[derive(Debug)]
 pub enum ComposedEvent {
-    Kademlia(KademliaEvent),
+    Kademlia(Box<KademliaEvent>),
     Transmission(RequestResponseEvent<TransmissionRequest, TransmissionResponse>),
     #[allow(dead_code)]
     OutEvent(Event),
@@ -19,7 +19,7 @@ pub enum ComposedEvent {
 
 impl From<KademliaEvent> for ComposedEvent {
     fn from(event: KademliaEvent) -> Self {
-        ComposedEvent::Kademlia(event)
+        ComposedEvent::Kademlia(Box::new(event))
     }
 }
 

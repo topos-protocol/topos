@@ -1,0 +1,6 @@
+[alias]
+xclippy = [
+    "clippy", "--workspace", "--tests", "--all-targets", "--all-features", "--",
+    "-Wclippy::all",
+    "-Wclippy::disallowed-methods",
+]
