@@ -25,23 +25,17 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.ROBOT_AWS_SECRET_ACCESS_KEY}}
 
       - name: Build
-        uses: actions-rs/cargo@v1
         env:
           RUSTFLAGS: '-Cinstrument-coverage'
           RUSTDOCFLAGS: '-Cinstrument-coverage'
-        with:
-          command: build
-          args: --all
+        run: cargo build --all
 
       - name: Run tests
-        uses: actions-rs/cargo@v1
         env:
           RUSTFLAGS: '-Cinstrument-coverage'
           RUSTDOCFLAGS: '-Cinstrument-coverage'
           LLVM_PROFILE_FILE: 'codecov-instrumentation-%p-%m.profraw'
-        with:
-          command: nextest
-          args: run --workspace --exclude topos-sequencer-subnet-runtime-proxy --config-file tools/config/nextest.toml
+        run: cargo nextest run --workspace --exclude topos-sequencer-subnet-runtime-proxy --config-file tools/config/nextest.toml
 
       - name: Run grcov
         run: grcov . --binary-path target/debug/ -s . -t lcov --branch --ignore-not-existing --ignore '../**' --ignore '/*' -o coverage.lcov
