@@ -19,9 +19,8 @@ topos is the unified command line interface to the <a href="https://docs.toposwa
 <!-- **`topos` is the unified command line interface to the [Topos](https://docs.toposware.com/general-overview) network.** -->
 
 [![codecov](https://codecov.io/gh/topos-network/topos/branch/main/graph/badge.svg?token=FOH2B2GRL9&style=flat)](https://codecov.io/gh/topos-network/topos)
-![example workflow](https://github.com/topos-network/topos/actions/workflows/test.yml/badge.svg)
-![example workflow](https://github.com/topos-network/topos/actions/workflows/format.yml/badge.svg)
-![example workflow](https://github.com/topos-network/topos/actions/workflows/lint.yml/badge.svg)
+![Test workflow](https://github.com/topos-network/topos/actions/workflows/test.yml/badge.svg)
+![Quality workflow](https://github.com/topos-network/topos/actions/workflows/quality.yml/badge.svg)
 ![MSRV](https://img.shields.io/badge/MSRV-1.64-blue?labelColor=1C2C2E&logo=Rust&style=flat-square)
 
 ## Getting Started
