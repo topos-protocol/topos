@@ -15,25 +15,25 @@ use tracing::{error, info};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("tonic transport error")]
+    #[error("Tonic transport error")]
     TonicTransportError {
         #[from]
         source: tonic::transport::Error,
     },
-    #[error("tonic error")]
+    #[error("Tonic error")]
     TonicStatusError {
         #[from]
         source: tonic::Status,
     },
-    #[error("invalid channel error")]
+    #[error("Invalid channel error")]
     InvalidChannelError,
-    #[error("invalid tce endpoint error")]
+    #[error("Invalid tce endpoint error")]
     InvalidTceEndpoint,
-    #[error("invalid subnet id error")]
+    #[error("Invalid subnet id error")]
     InvalidSubnetId,
-    #[error("invalid certificate error")]
+    #[error("Invalid certificate error")]
     InvalidCertificate,
-    #[error("hex conversion error {source}")]
+    #[error("Hex conversion error {source}")]
     HexConversionError {
         #[from]
         source: hex::FromHexError,

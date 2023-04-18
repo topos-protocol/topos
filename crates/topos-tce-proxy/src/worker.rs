@@ -52,8 +52,8 @@ impl TceProxyWorker {
             source_last_pending_certificate = match tce_client.get_source_head().await {
                 Ok(certificate) => Some(certificate),
                 Err(Error::SourceHeadEmpty { subnet_id: _ }) => {
-                    //This is also OK, TCE node does not have any data about certificates
-                    //We should start certificate production from scratch
+                    // This is also OK, TCE node does not have any data about certificates
+                    // We should start certificate production from scratch
                     None
                 }
                 Err(e) => {
@@ -150,12 +150,9 @@ impl TceProxyWorker {
     pub async fn shutdown(&self) -> Result<(), String> {
         info!("Shutting down TCE proxy worker...");
         let (sender, receiver) = oneshot::channel();
-        match self.commands.send(TceProxyCommand::Shutdown(sender)).await {
-            Ok(_) => {}
-            Err(e) => {
-                error!("Error sending shutdown signal to TCE worker {e}");
-                return Err(e.to_string());
-            }
+        if let Err(e) = self.commands.send(TceProxyCommand::Shutdown(sender)).await {
+            error!("Error sending shutdown signal to TCE worker {e}");
+            return Err(e.to_string());
         };
         receiver.await.map_err(|e| e.to_string())
     }

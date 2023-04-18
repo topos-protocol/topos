@@ -25,7 +25,7 @@ pub struct Authorities {
 
 #[derive(Debug, Clone)]
 pub enum SubnetRuntimeProxyEvent {
-    // New certificate is generated
+    /// New certificate is generated
     NewCertificate {
         cert: Box<Certificate>,
         ctx: Context,
