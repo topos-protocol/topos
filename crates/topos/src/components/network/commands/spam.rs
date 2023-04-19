@@ -2,35 +2,68 @@ use clap::Args;
 use std::path::PathBuf;
 
 #[derive(Args, Debug)]
-#[command(about = "Run a test topos certificate spammer to send test certificates to the network")]
+#[command(
+    about = "Run a test topos certificate spammer to send test certificates to the network, generating randomly among \
+the `nb_subnets` subnets the batch of `cert_per_batch` certificates at every `batch-interval`"
+)]
 pub struct Spam {
-    /// The target node api endpoint
-    #[clap(long, env = "TARGET_NODE")]
-    pub target_node: Option<String>,
-    /// Path to file with list of target nodes
-    #[clap(long, env = "TARGET_NODES_PATH")]
+    /// The target node api endpoint.
+    /// Multiple nodes could be specified as comma separated list
+    /// e.g. `--target-nodes=http://[::1]:1340,http://[::1]:1341`
+    #[clap(
+        long,
+        env = "TOPOS_NETWORK_SPAMMER_TARGET_NODES",
+        value_delimiter = ','
+    )]
+    pub target_nodes: Option<Vec<String>>,
+    /// Path to json file with list of target nodes as alternative to `--target-nodes`
+    #[clap(long, env = "TOPOS_NETWORK_SPAMMER_TARGET_NODES_PATH")]
     pub target_nodes_path: Option<String>,
-    /// The number of certificate emitted per batch
-    #[clap(long, default_value_t = 1, env = "CERT_PER_BATCH")]
-    pub cert_per_batch: usize,
-    /// Time interval between batches in seconds
-    #[clap(long, default_value_t = 1, env = "BATCH_TIME_INTERVAL")]
-    pub batch_time_interval: u64,
-    /// The number of subnets that are emitter
-    #[clap(long, default_value_t = 5)]
-    pub nb_subnets: usize,
-    /// The threshold of byzantine among the subnets between 0. (all correct) and 1. (all byzantine)
-    #[clap(long, default_value_t = 0.)]
-    pub byzantine_threshold: f32,
-    /// The number of nodes to whom we emit the certificate to broadcast
-    /// Ideally should work with one node to have the liveness property
-    #[clap(long, default_value_t = 1)]
-    pub node_per_cert: usize,
-    /// Socket of the opentelemetry agent endpoint
+    /// Seed for generation of local private signing keys and corresponding subnet ids.
+    #[arg(
+        long,
+        env = "TOPOS_NETWORK_SPAMMER_LOCAL_KEY_SEED",
+        default_value = "1"
+    )]
+    pub local_key_seed: u64,
+    /// Certificates generated in one batch. Batch is generated every `batch-interval` milliseconds.
+    #[arg(
+        long,
+        env = "TOPOS_NETWORK_SPAMMER_CERT_PER_BATCH",
+        default_value = "1"
+    )]
+    pub cert_per_batch: u8,
+    /// Number of subnets to use for certificate generation. For every certificate subnet id will be picked randomly.
+    #[arg(
+        long,
+        env = "TOPOS_NETWORK_SPAMMER_NUMBER_OF_SUBNETS",
+        default_value = "1"
+    )]
+    pub nb_subnets: u8,
+    /// Number of batches to generate before finishing execution.
+    /// If not specified, batches will be generated indefinitely.
+    #[arg(long, env = "TOPOS_NETWORK_SPAMMER_NUMBER_OF_BATCHES")]
+    pub nb_batches: Option<u64>,
+    /// Time interval in milliseconds between generated batches of certificates
+    #[arg(
+        long,
+        env = "TOPOS_NETWORK_SPAMMER_BATCH_INTERVAL",
+        default_value = "2000"
+    )]
+    pub batch_interval: u64,
+    /// List of generated certificate target subnets. No target subnets by default.
+    /// For example `--target-subnets=0x3bc19e36ff1673910575b6727a974a9abd80c9a875d41ab3e2648dbfb9e4b518,0xa00d60b2b408c2a14c5d70cdd2c205db8985ef737a7e55ad20ea32cc9e7c417c`
+    #[arg(
+        long,
+        env = "TOPOS_NETWORK_SPAMMER_TARGET_SUBNETS",
+        value_delimiter = ','
+    )]
+    pub target_subnets: Option<Vec<String>>,
+    /// Socket of the opentelemetry agent endpoint.
     /// If not provided open telemetry will not be used
     #[arg(long, env = "TOPOS_OTLP_AGENT")]
     pub otlp_agent: Option<String>,
-    /// Otlp service name
+    /// Otlp service name.
     /// If not provided open telemetry will not be used
     #[arg(long, env = "TOPOS_OTLP_SERVICE_NAME")]
     pub otlp_service_name: Option<String>,

@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-serde_json.workspace = true
 clap.workspace = true
 tokio-stream.workspace = true
 rand_distr.workspace = true
@@ -13,9 +12,16 @@ rand.workspace = true
 futures.workspace = true
 tokio.workspace = true
 serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+hex.workspace = true
+thiserror.workspace = true
 tracing.workspace = true
+tracing-opentelemetry.workspace = true
+opentelemetry.workspace = true
+tiny-keccak.workspace = true
 
 toml = "0.5.9"
 
 topos-core.workspace = true
 topos-tce-proxy = { path = "../topos-tce-proxy"}
+topos-crypto = {path = "../topos-crypto"}
