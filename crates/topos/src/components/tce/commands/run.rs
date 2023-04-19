@@ -58,6 +58,9 @@ pub struct Run {
     /// If not provided open telemetry will not be used
     #[arg(long, env = "TOPOS_OTLP_SERVICE_NAME")]
     pub otlp_service_name: Option<String>,
+
+    #[arg(long, env = "TOPOS_MINIMUM_TCE_CLUSTER_SIZE")]
+    pub minimum_tce_cluster_size: Option<usize>,
 }
 
 impl Run {

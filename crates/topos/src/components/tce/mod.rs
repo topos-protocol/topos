@@ -16,7 +16,7 @@ use tonic::transport::{Channel, Endpoint};
 use topos_core::api::tce::v1::{
     api_service_client::ApiServiceClient, console_service_client::ConsoleServiceClient,
 };
-use topos_p2p::PeerId;
+use topos_p2p::{config::NetworkConfig, PeerId};
 use topos_tce::{StorageConfiguration, TceConfiguration};
 use tower::Service;
 use tracing::{debug, error, info, trace};
@@ -106,6 +106,9 @@ pub(crate) async fn handle_command(
                         .and_then(|path| PathBuf::from_str(path).ok()),
                 ),
                 network_bootstrap_timeout: Duration::from_secs(10),
+                minimum_cluster_size: cmd
+                    .minimum_tce_cluster_size
+                    .unwrap_or(NetworkConfig::MINIMUM_CLUSTER_SIZE),
                 version: env!("TOPOS_VERSION"),
             };
 

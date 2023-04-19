@@ -19,6 +19,7 @@ tracing.workspace = true
 tracing-opentelemetry.workspace = true
 opentelemetry.workspace = true
 tiny-keccak.workspace = true
+uuid.workspace = true
 
 toml = "0.5.9"
 

@@ -1,11 +1,62 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 
 use opentelemetry::{
     global,
     propagation::{Extractor, Injector},
+    trace::{SpanContext, TraceContextExt},
     Context,
 };
 use serde::{Deserialize, Serialize};
+use tonic::metadata::MetadataKey;
+use tracing_opentelemetry::OpenTelemetrySpanExt;
+
+pub struct TonicMetaInjector<'a>(pub &'a mut tonic::metadata::MetadataMap);
+pub struct TonicMetaExtractor<'a>(pub &'a tonic::metadata::MetadataMap);
+
+impl<'a> TonicMetaExtractor<'a> {
+    pub fn extract(&self) -> opentelemetry::Context {
+        global::get_text_map_propagator(|propagator| propagator.extract(self))
+    }
+}
+
+impl<'a> TonicMetaInjector<'a> {
+    pub fn inject(&mut self, context: &Context) {
+        global::get_text_map_propagator(|propagator| {
+            propagator.inject_context(context, self);
+        })
+    }
+}
+
+impl<'a> Injector for TonicMetaInjector<'a> {
+    /// Set a key and value in the MetadataMap.  Does nothing if the key or value are not valid inputs
+    fn set(&mut self, key: &str, value: String) {
+        if let Ok(key) = MetadataKey::from_str(key) {
+            if let Ok(val) = value.parse() {
+                self.0.insert(key, val);
+            } else {
+                tracing::warn!("Invalid value: {}", value);
+            }
+        } else {
+            tracing::warn!("Invalid key: {}", key);
+        }
+    }
+}
+
+impl<'a> Extractor for TonicMetaExtractor<'a> {
+    fn get(&self, key: &str) -> Option<&str> {
+        self.0.get(key).and_then(|v| v.to_str().ok())
+    }
+
+    fn keys(&self) -> Vec<&str> {
+        self.0
+            .keys()
+            .map(|k| match k {
+                tonic::metadata::KeyRef::Ascii(k) => k.as_str(),
+                tonic::metadata::KeyRef::Binary(k) => k.as_str(),
+            })
+            .collect()
+    }
+}
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct PropagationContext {
@@ -39,5 +90,26 @@ impl Extractor for PropagationContext {
 
     fn keys(&self) -> Vec<&str> {
         self.context.keys().map(|k| k.as_ref()).collect()
+    }
+}
+
+pub struct SpanToContext {}
+impl SpanToContext {
+    pub fn to_context(span: tracing::Span, ctx: &PropagationContext) -> SpanContext {
+        let parent = ctx.extract();
+        span.set_parent(parent);
+        //
+        // let trace_id = parent.span().span_context().trace_id();
+        // let span_id = parent.span().span_context().span_id();
+        // let span_cx = opentelemetry::trace::SpanContext::new(
+        //     trace_id,
+        //     span_id,
+        //     opentelemetry::trace::TraceFlags::SAMPLED,
+        //     true,
+        //     opentelemetry::trace::TraceState::default(),
+        // );
+        // span.add_link(span_cx);
+        // span.add_link(parent.span().span_context().clone());
+        span.context().span().span_context().clone()
     }
 }

@@ -80,7 +80,6 @@ impl
                     error!("OutgoingConnectionError {error:?}");
                 }
 
-                error!("Dial failure: {error:?}");
                 if let Some(peer_id) = peer_id {
                     if let Some(sender) = self.pending_dial.remove(&peer_id) {
                         if sender.send(Err(crate::error::P2PError::DialError)).is_err() {

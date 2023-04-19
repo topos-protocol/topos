@@ -3,7 +3,6 @@
 //! Abstracted from actual transport implementation.
 //! Abstracted from actual storage implementation.
 
-use opentelemetry::Context;
 use sampler::SampleType;
 use thiserror::Error;
 use tokio::spawn;
@@ -20,8 +19,8 @@ use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
 
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
 use topos_p2p::PeerId;
+use topos_tce_storage::StorageClient;
 use tracing::{debug, error, info, Span};
-use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 use crate::mem_store::TceMemStore;
 use crate::sampler::{Sampler, SubscribersUpdate, SubscriptionsView};
@@ -62,22 +61,27 @@ pub enum SamplerCommand {
 
 #[derive(Debug)]
 pub enum DoubleEchoCommand {
+    IsCertificateDelivered {
+        certificate_id: CertificateId,
+        sender: oneshot::Sender<bool>,
+    },
+
     GetSpanOfCert {
         certificate_id: CertificateId,
-        sender: oneshot::Sender<Result<Context, Errors>>,
+        sender: oneshot::Sender<Result<Span, Errors>>,
     },
 
     /// Received G-set message
     Deliver {
         from_peer: PeerId,
         certificate_id: CertificateId,
-        ctx: Context,
+        ctx: Span,
     },
 
     /// Entry point for new certificate to submit as initial sender
     Broadcast {
         cert: Certificate,
-        ctx: Context,
+        ctx: Span,
     },
 
     // Entry point to broadcast many Certificates
@@ -89,14 +93,14 @@ pub enum DoubleEchoCommand {
     Echo {
         from_peer: PeerId,
         certificate_id: CertificateId,
-        ctx: Context,
+        ctx: Span,
     },
 
     /// When ready reply received
     Ready {
         from_peer: PeerId,
         certificate_id: CertificateId,
-        ctx: Context,
+        ctx: Span,
     },
     DeliveredCerts {
         subnet_id: SubnetId,
@@ -123,6 +127,8 @@ impl ReliableBroadcastClient {
     pub fn new(
         config: ReliableBroadcastConfig,
         local_peer_id: String,
+        storage: StorageClient,
+        network_client: topos_p2p::Client,
     ) -> (Self, impl Stream<Item = Result<ProtocolEvents, ()>>) {
         let (subscriptions_view_sender, subscriptions_view_receiver) =
             mpsc::channel::<SubscriptionsView>(2048);
@@ -155,6 +161,8 @@ impl ReliableBroadcastClient {
             event_sender,
             #[allow(clippy::box_default)]
             Box::new(TceMemStore::default()),
+            storage,
+            network_client,
             double_echo_shutdown_receiver,
             local_peer_id,
         );
@@ -246,10 +254,7 @@ impl ReliableBroadcastClient {
     }
 
     /// delivered certificates for given target chain after the given certificate
-    pub async fn get_span_cert(
-        &self,
-        certificate_id: CertificateId,
-    ) -> Result<opentelemetry::Context, Errors> {
+    pub async fn get_span_cert(&self, certificate_id: CertificateId) -> Result<Span, Errors> {
         let (sender, receiver) = oneshot::channel();
 
         let broadcast_commands = self.broadcast_commands.clone();
@@ -301,7 +306,7 @@ impl ReliableBroadcastClient {
         if broadcast_commands
             .send(DoubleEchoCommand::Broadcast {
                 cert: certificate,
-                ctx: Span::current().context(),
+                ctx: Span::current(),
             })
             .await
             .is_err()
@@ -310,6 +315,28 @@ impl ReliableBroadcastClient {
         }
 
         Ok(())
+    }
+
+    pub async fn is_certificate_delivered_in_cache(
+        &self,
+        certificate_id: CertificateId,
+    ) -> Result<bool, Errors> {
+        let (sender, receiver) = oneshot::channel();
+
+        let broadcast_commands = self.broadcast_commands.clone();
+
+        if broadcast_commands
+            .send(DoubleEchoCommand::IsCertificateDelivered {
+                certificate_id,
+                sender,
+            })
+            .await
+            .is_err()
+        {
+            error!("Unable to send is_certificate_delivered command, Receiver was dropped");
+        }
+
+        receiver.await.map_err(Into::into)
     }
 
     pub async fn shutdown(&self) -> Result<(), Errors> {

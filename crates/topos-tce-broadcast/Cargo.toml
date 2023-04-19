@@ -21,6 +21,8 @@ opentelemetry-otlp.workspace = true
 tce_transport = { package = "topos-tce-transport", path = "../topos-tce-transport"}
 topos-core = { workspace = true, features = ["uci"] }
 topos-p2p = { path = "../topos-p2p/"}
+topos-tce-storage = { path = "../topos-tce-storage/" }
+topos-telemetry = { path = "../topos-telemetry/" }
 
 [dev-dependencies]
 test-log.workspace = true

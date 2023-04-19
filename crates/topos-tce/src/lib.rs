@@ -27,6 +27,7 @@ pub struct TceConfiguration {
     pub tce_local_port: u16,
     pub storage: StorageConfiguration,
     pub network_bootstrap_timeout: Duration,
+    pub minimum_cluster_size: usize,
     pub version: &'static str,
 }
 
@@ -59,6 +60,7 @@ pub async fn run(
     let (network_client, event_stream, unbootstrapped_runtime) = topos_p2p::network::builder()
         .peer_key(key)
         .listen_addr(addr)
+        .minimum_cluster_size(config.minimum_cluster_size)
         .exposed_addresses(external_addr)
         .known_peers(&config.boot_peers)
         .build()
@@ -80,15 +82,6 @@ pub async fn run(
     spawn(gatekeeper_runtime.into_future());
     debug!("Gatekeeper started");
 
-    debug!("Starting reliable broadcast");
-    let (tce_cli, tce_stream) = ReliableBroadcastClient::new(
-        ReliableBroadcastConfig {
-            tce_params: config.tce_params.clone(),
-        },
-        peer_id.to_string(),
-    );
-    debug!("Reliable broadcast started");
-
     debug!("Starting the Storage");
     let (storage, storage_client, storage_stream) =
         if let StorageConfiguration::RocksDB(Some(ref path)) = config.storage {
@@ -102,6 +95,17 @@ pub async fn run(
         };
     spawn(storage.into_future());
     debug!("Storage started");
+
+    debug!("Starting reliable broadcast");
+    let (tce_cli, tce_stream) = ReliableBroadcastClient::new(
+        ReliableBroadcastConfig {
+            tce_params: config.tce_params.clone(),
+        },
+        peer_id.to_string(),
+        storage_client.clone(),
+        network_client.clone(),
+    );
+    debug!("Reliable broadcast started");
 
     debug!("Starting the Synchronizer");
     let (synchronizer_client, synchronizer_runtime, synchronizer_stream) =

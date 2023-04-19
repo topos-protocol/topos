@@ -132,25 +132,27 @@ pub async fn start_node(
     config: NodeConfig,
     peers: &[NodeConfig],
 ) -> TceContext {
-    let (tce_cli, tce_stream) = create_reliable_broadcast_client(
-        create_reliable_broadcast_params(config.correct_sample, config.g),
-        config.keypair.public().to_peer_id().to_string(),
-    );
     let peer_id = config.keypair.public().to_peer_id();
-    let (command_sampler, command_broadcast) = tce_cli.get_command_channels();
+    let peer_id_str = peer_id.to_base58();
 
     let (network_client, network_stream, runtime_join_handle) =
         bootstrap_network(config.seed, config.port, config.addr.clone(), peers, 1)
             .await
             .expect("Unable to bootstrap tce network");
 
-    let peer_id_str = peer_id.to_base58();
-
     let (_, (storage, storage_client, storage_stream)) =
         create_rocksdb(&peer_id_str, certificates).await;
 
     let storage_join_handle = spawn(storage.into_future());
 
+    let (tce_cli, tce_stream) = create_reliable_broadcast_client(
+        create_reliable_broadcast_params(config.correct_sample, config.g),
+        config.keypair.public().to_peer_id().to_string(),
+        storage_client.clone(),
+        network_client.clone(),
+    );
+
+    let (command_sampler, command_broadcast) = tce_cli.get_command_channels();
     let api_storage_client = storage_client.clone();
 
     let (api_context, api_stream) =
