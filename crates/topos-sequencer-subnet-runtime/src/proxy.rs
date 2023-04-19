@@ -2,6 +2,8 @@
 //!
 use crate::{certification::Certification, Error, SubnetRuntimeProxyConfig};
 use opentelemetry::trace::FutureExt;
+use opentelemetry::Context;
+use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -10,12 +12,37 @@ use tokio::time::{self, Duration};
 use topos_core::api::checkpoints::TargetStreamPosition;
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
 use topos_sequencer_subnet_client::{self, SubnetClient};
-use topos_sequencer_types::{SubnetRuntimeProxyCommand, SubnetRuntimeProxyEvent};
 use tracing::{debug, error, field, info, info_span, instrument, warn, Instrument, Span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 /// Arbitrary tick duration for fetching new finalized blocks
 const SUBNET_BLOCK_TIME: Duration = Duration::new(2, 0);
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Authorities {
+    // TODO: proper dependencies to block type etc
+}
+
+#[derive(Debug, Clone)]
+pub enum SubnetRuntimeProxyEvent {
+    /// New certificate is generated
+    NewCertificate {
+        cert: Box<Certificate>,
+        ctx: Context,
+    },
+    /// New set of authorities in charge of the threshold signature
+    NewEra(Vec<Authorities>),
+}
+
+#[derive(Debug)]
+pub enum SubnetRuntimeProxyCommand {
+    /// Upon receiving a new delivered Certificate from the TCE
+    OnNewDeliveredCertificate {
+        certificate: Certificate,
+        position: u64,
+        ctx: Context,
+    },
+}
 
 pub struct SubnetRuntimeProxy {
     pub commands_channel: mpsc::Sender<SubnetRuntimeProxyCommand>,

@@ -1,6 +1,5 @@
-use crate::Error;
+use crate::{Error, SubnetEvent};
 use secp256k1::{PublicKey, SecretKey};
-use topos_sequencer_types::SubnetEvent;
 use web3::ethabi;
 use web3::ethabi::ParamType;
 use web3::types::H160;

@@ -3,9 +3,9 @@
 //!
 use crate::SequencerConfiguration;
 use opentelemetry::trace::FutureExt;
-use topos_sequencer_subnet_runtime_proxy::SubnetRuntimeProxyWorker;
-use topos_sequencer_tce_proxy::TceProxyWorker;
-use topos_sequencer_types::*;
+use topos_sequencer_subnet_runtime::proxy::{SubnetRuntimeProxyCommand, SubnetRuntimeProxyEvent};
+use topos_sequencer_subnet_runtime::SubnetRuntimeProxyWorker;
+use topos_tce_proxy::{worker::TceProxyWorker, TceProxyCommand, TceProxyEvent};
 use tracing::{debug, error, info, info_span, warn, Instrument, Span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
@@ -114,7 +114,7 @@ impl AppContext {
 
                 // TODO: Retrieve subnet checkpoint from where to start receiving certificates, again
                 let (tce_proxy_worker, _source_head_certificate_id) = match TceProxyWorker::new(
-                    topos_sequencer_tce_proxy::TceProxyConfig {
+                    topos_tce_proxy::TceProxyConfig {
                         subnet_id: config.subnet_id,
                         base_tce_api_url: config.base_tce_api_url.clone(),
                         positions: Vec::new(), // TODO: acquire from subnet

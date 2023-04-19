@@ -35,7 +35,7 @@ jobs:
           RUSTFLAGS: '-Cinstrument-coverage'
           RUSTDOCFLAGS: '-Cinstrument-coverage'
           LLVM_PROFILE_FILE: 'codecov-instrumentation-%p-%m.profraw'
-        run: cargo nextest run --workspace --exclude topos-sequencer-subnet-runtime-proxy --config-file tools/config/nextest.toml
+        run: cargo nextest run --workspace --exclude topos-sequencer-subnet-runtime --config-file tools/config/nextest.toml
 
       - name: Run grcov
         run: grcov . --binary-path target/debug/ -s . -t lcov --branch --ignore-not-existing --ignore '../**' --ignore '/*' -o coverage.lcov

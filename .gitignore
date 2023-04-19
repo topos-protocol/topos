@@ -59,4 +59,4 @@ terraform.rc
 # ~~~ END TERRAFORM
 
 # Subnet integration tests
-crates/topos-sequencer-subnet-runtime-proxy/tests/temp
+crates/topos-sequencer-subnet-runtime/tests/temp

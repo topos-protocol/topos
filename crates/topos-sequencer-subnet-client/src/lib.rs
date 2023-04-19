@@ -3,16 +3,69 @@ pub mod subnet_contract;
 use crate::subnet_contract::{
     create_topos_core_contract_from_json, parse_events_from_json, parse_events_from_log,
 };
+use serde::{Deserialize, Serialize};
 use topos_core::api::checkpoints::TargetStreamPosition;
-use topos_core::uci::{SubnetId, CERTIFICATE_ID_LENGTH, SUBNET_ID_LENGTH};
-use topos_sequencer_types::{BlockInfo, Certificate};
+pub use topos_core::uci::{
+    Address, Certificate, CertificateId, StateRoot, SubnetId, TxRootHash, CERTIFICATE_ID_LENGTH,
+    SUBNET_ID_LENGTH,
+};
 use tracing::{debug, error, info};
 use web3::ethabi::Token;
 use web3::futures::StreamExt;
 use web3::transports::{Http, WebSocket};
-use web3::types::{BlockId, BlockNumber, H160, U256, U64};
+use web3::types::{BlockId, H160, U256, U64};
 
 const PUSH_CERTIFICATE_GAS_LIMIT: u64 = 1000000;
+
+pub type BlockData = Vec<u8>;
+pub type BlockNumber = u64;
+pub type Hash = String;
+
+/// Event collected from the sending subnet
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum SubnetEvent {
+    TokenSent {
+        sender: Address,
+        source_subnet_id: SubnetId,
+        target_subnet_id: SubnetId,
+        receiver: Address,
+        symbol: String,
+        amount: ethereum_types::U256,
+    },
+    ContractCall {
+        source_subnet_id: SubnetId,
+        source_contract_addr: Address,
+        target_subnet_id: SubnetId,
+        target_contract_addr: Address,
+        payload: Vec<u8>,
+    },
+    ContractCallWithToken {
+        source_subnet_id: SubnetId,
+        source_contract_addr: Address,
+        target_subnet_id: SubnetId,
+        target_contract_addr: Address,
+        payload: Vec<u8>,
+        symbol: String,
+        amount: ethereum_types::U256,
+    },
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+pub struct BlockInfo {
+    // TODO: proper dependencies to block type etc
+    /// hash of the block.
+    pub hash: Hash,
+    /// hash of the parent block.
+    pub parent_hash: Hash,
+    /// block's number.
+    pub number: BlockNumber,
+    /// state root
+    pub state_root: StateRoot,
+    /// tx root hash
+    pub tx_root_hash: TxRootHash,
+    /// Subnet events collected in this block
+    pub events: Vec<SubnetEvent>,
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -165,7 +218,7 @@ impl SubnetClientListener {
             Some(number) => number.as_u64(),
             None => return Err(Error::InvalidBlockNumber),
         };
-        let block_number = BlockNumber::Number(U64::from(new_block_number));
+        let block_number = web3::types::BlockNumber::Number(U64::from(new_block_number));
 
         // Get next block
         let block = match self

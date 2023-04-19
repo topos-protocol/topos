@@ -1,88 +1,24 @@
-//!
-//! The module to handle incoming events from the friendly TCE node
-//!
-
-use crate::Error::InvalidChannelError;
+use crate::{Error, TceProxyEvent};
 use base64::Engine;
-use opentelemetry::trace::FutureExt;
 use std::collections::HashMap;
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::StreamExt;
-use tonic::transport::channel;
 use topos_core::api::checkpoints::{TargetCheckpoint, TargetStreamPosition};
 use topos_core::api::tce::v1::{GetLastPendingCertificatesRequest, GetSourceHeadRequest};
 use topos_core::{
     api::tce::v1::{
-        api_service_client::ApiServiceClient, watch_certificates_request,
-        watch_certificates_response, SubmitCertificateRequest, WatchCertificatesRequest,
-        WatchCertificatesResponse,
+        watch_certificates_request, watch_certificates_response, SubmitCertificateRequest,
+        WatchCertificatesRequest, WatchCertificatesResponse,
     },
     uci::{Certificate, SubnetId},
 };
-use topos_sequencer_types::*;
-use tracing::{error, info, info_span, warn, Instrument, Span};
-use tracing_opentelemetry::OpenTelemetrySpanExt;
+use tracing::{error, info, warn};
 
 const CERTIFICATE_OUTBOUND_CHANNEL_SIZE: usize = 100;
 const CERTIFICATE_INBOUND_CHANNEL_SIZE: usize = 100;
 const TCE_PROXY_COMMAND_CHANNEL_SIZE: usize = 100;
 
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("tonic transport error")]
-    TonicTransportError {
-        #[from]
-        source: tonic::transport::Error,
-    },
-    #[error("tonic error")]
-    TonicStatusError {
-        #[from]
-        source: tonic::Status,
-    },
-    #[error("invalid channel error")]
-    InvalidChannelError,
-    #[error("invalid tce endpoint error")]
-    InvalidTceEndpoint,
-    #[error("invalid subnet id error")]
-    InvalidSubnetId,
-    #[error("invalid certificate error")]
-    InvalidCertificate,
-    #[error("hex conversion error {source}")]
-    HexConversionError {
-        #[from]
-        source: hex::FromHexError,
-    },
-    #[error("Unable to get source head certificate for subnet id {subnet_id}: {details}")]
-    UnableToGetSourceHeadCertificate {
-        subnet_id: SubnetId,
-        details: String,
-    },
-    #[error("Certificate source head empty for subnet id {subnet_id}")]
-    SourceHeadEmpty { subnet_id: SubnetId },
-    #[error("Unable to get last pending certificates for subnet id {subnet_id}: {details}")]
-    UnableToGetLastPendingCertificates {
-        subnet_id: SubnetId,
-        details: String,
-    },
-}
-
-pub struct TceProxyConfig {
-    pub subnet_id: SubnetId,
-    pub base_tce_api_url: String,
-    pub positions: Vec<TargetStreamPosition>,
-}
-
-/// Proxy with the TCE
-///
-/// 1) Fetch the delivered certificates from the TCE
-/// 2) Submit the new certificate to the TCE
-pub struct TceProxyWorker {
-    pub config: TceProxyConfig,
-    commands: mpsc::Sender<TceProxyCommand>,
-    events: mpsc::Receiver<TceProxyEvent>,
-}
-
-enum TceClientCommand {
+pub(crate) enum TceClientCommand {
     // Get head certificate that was sent to the TCE node for this subnet
     GetSourceHead {
         subnet_id: SubnetId,
@@ -121,7 +57,7 @@ impl TceClient {
                 },
             })
             .await
-            .map_err(|_| InvalidChannelError)?;
+            .map_err(|_| Error::InvalidChannelError)?;
         Ok(())
     }
     pub async fn send_certificate(&mut self, cert: Certificate) -> Result<(), Error> {
@@ -130,14 +66,14 @@ impl TceClient {
                 cert: Box::new(cert),
             })
             .await
-            .map_err(|_| InvalidChannelError)?;
+            .map_err(|_| Error::InvalidChannelError)?;
         Ok(())
     }
     pub async fn close(&mut self) -> Result<(), Error> {
         self.command_sender
             .send(TceClientCommand::Shutdown)
             .await
-            .map_err(|_| InvalidChannelError)?;
+            .map_err(|_| Error::InvalidChannelError)?;
         Ok(())
     }
 
@@ -153,9 +89,9 @@ impl TceClient {
                 sender,
             })
             .await
-            .map_err(|_| InvalidChannelError)?;
+            .map_err(|_| Error::InvalidChannelError)?;
 
-        receiver.await.map_err(|_| InvalidChannelError)?
+        receiver.await.map_err(|_| Error::InvalidChannelError)?
     }
 
     pub async fn get_last_pending_certificates(
@@ -167,9 +103,17 @@ impl TceClient {
         self.command_sender
             .send(TceClientCommand::GetLastPendingCertificates { subnet_ids, sender })
             .await
-            .map_err(|_| InvalidChannelError)?;
+            .map_err(|_| Error::InvalidChannelError)?;
 
-        receiver.await.map_err(|_| InvalidChannelError)?
+        receiver.await.map_err(|_| Error::InvalidChannelError)?
+    }
+
+    pub fn get_subnet_id(&self) -> SubnetId {
+        self.subnet_id
+    }
+
+    pub fn get_tce_endpoint(&self) -> &str {
+        self.tce_endpoint.as_str()
     }
 }
 
@@ -219,7 +163,7 @@ impl TceClientBuilder {
             .clone();
         // Connect to tce node service using backoff strategy
         let mut tce_grpc_client =
-            match connect_to_tce_service_with_retry(tce_endpoint.clone()).await {
+            match crate::connect_to_tce_service_with_retry(tce_endpoint.clone()).await {
                 Ok(client) => {
                     info!("Connected to the TCE service at {}", &tce_endpoint);
                     client
@@ -505,175 +449,5 @@ impl TceClientBuilder {
             },
             tokio_stream::wrappers::ReceiverStream::new(inbound_certificate_receiver),
         ))
-    }
-}
-
-async fn connect_to_tce_service_with_retry(
-    endpoint: String,
-) -> Result<ApiServiceClient<tonic::transport::channel::Channel>, Error> {
-    info!(
-        "Connecting to the TCE at {} using backoff strategy...",
-        endpoint
-    );
-    let op = || async {
-        let channel = channel::Endpoint::from_shared(endpoint.clone())?
-            .connect()
-            .await
-            .map_err(|e| {
-                error!("Failed to connect to the TCE at {}: {e}", &endpoint);
-                e
-            })?;
-        Ok(ApiServiceClient::new(channel))
-    };
-    backoff::future::retry(backoff::ExponentialBackoff::default(), op)
-        .await
-        .map_err(|e| {
-            error!("Failed to connect to the TCE: {e}");
-            Error::TonicTransportError { source: e }
-        })
-}
-
-impl TceProxyWorker {
-    pub async fn new(config: TceProxyConfig) -> Result<(Self, Option<Certificate>), Error> {
-        let (command_sender, mut command_rcv) = mpsc::channel::<TceProxyCommand>(128);
-        let (evt_sender, evt_rcv) = mpsc::channel::<TceProxyEvent>(128);
-
-        let (mut tce_client, mut receiving_certificate_stream) = TceClientBuilder::default()
-            .set_subnet_id(config.subnet_id)
-            .set_tce_endpoint(&config.base_tce_api_url)
-            .set_proxy_event_sender(evt_sender.clone())
-            .build_and_launch()
-            .await?;
-
-        tce_client.open_stream(config.positions.clone()).await?;
-
-        // Get pending certificates from the TCE node. Source head certificate
-        // is latest pending certificate for this subnet
-        let mut source_last_pending_certificate: Option<Certificate> = match tce_client
-            .get_last_pending_certificates(vec![tce_client.subnet_id])
-            .await
-        {
-            Ok(mut pending_certificates) => pending_certificates
-                .remove(&tce_client.subnet_id)
-                .unwrap_or_default(),
-            Err(e) => {
-                error!("Unable to retrieve latest pending certificate {e}");
-                return Err(e);
-            }
-        };
-
-        if source_last_pending_certificate.is_none() {
-            // There are no pending certificates on the TCE
-            // Retrieve source head from TCE node (latest delivered certificate), so that
-            // we know from where to start creating certificates
-            source_last_pending_certificate = match tce_client.get_source_head().await {
-                Ok(certificate) => Some(certificate),
-                Err(Error::SourceHeadEmpty { subnet_id: _ }) => {
-                    //This is also OK, TCE node does not have any data about certificates
-                    //We should start certificate production from scratch
-                    None
-                }
-                Err(e) => {
-                    return Err(e);
-                }
-            }
-        }
-
-        tokio::spawn(async move {
-            info!(
-                "Starting the TCE proxy connected to the TCE at {}",
-                &tce_client.tce_endpoint
-            );
-            loop {
-                tokio::select! {
-                    // process TCE proxy commands received from application
-                    Some(cmd) = command_rcv.recv() => {
-                        match cmd {
-                            TceProxyCommand::SubmitCertificate{cert, ctx} => {
-                                let span = info_span!("Sequencer TCE Proxy");
-                                span.set_parent(ctx);
-                                async {
-                                    info!("Submitting new certificate to the TCE network: {}", &cert.id);
-                                    if let Err(e) = tce_client.send_certificate(*cert).await {
-                                        error!("Failure on the submission of the Certificate to the TCE client: {e}");
-                                    }
-                                }
-                                .with_context(span.context())
-                                .instrument(span)
-                                .await;
-                            }
-                            TceProxyCommand::Shutdown(sender) => {
-                                info!("Received TceProxyCommand::Shutdown command, closing tce client...");
-                                if let Err(e) = tce_client.close().await {
-                                    error!("Unable to shutdown the TCE client: {e}");
-                                }
-                                 _ = sender.send(());
-                                break;
-                            }
-                        }
-                    }
-
-                     // Process certificates received from the TCE node
-                    Some((cert, target_stream_position)) = receiving_certificate_stream.next() => {
-                        let span = info_span!("PushCertificate");
-                        async {
-                            info!("Received certificate from TCE {:?}, target stream position {}", cert, target_stream_position.position);
-                            if let Err(e) = evt_sender.send(TceProxyEvent::NewDeliveredCerts {
-                                certificates: vec![(cert, target_stream_position.position)],
-                                ctx: Span::current().context()}
-                            )
-                            .await {
-                                error!("Unable to send NewDeliveredCerts event {e}");
-                            }
-                        }
-                        .with_context(span.context())
-                        .instrument(span)
-                        .await;
-                    }
-                }
-            }
-            info!(
-                "Exiting the TCE proxy worker handle loop connected to the TCE at {}",
-                &tce_client.tce_endpoint
-            );
-        });
-
-        // Save channels and handles, return latest tce known certificate
-        Ok((
-            Self {
-                commands: command_sender,
-                events: evt_rcv,
-                config,
-            },
-            source_last_pending_certificate,
-        ))
-    }
-
-    /// Send commands to TCE
-    pub async fn send_command(&self, cmd: TceProxyCommand) -> Result<(), String> {
-        match self.commands.send(cmd).await {
-            Ok(_) => Ok(()),
-            Err(e) => Err(e.to_string()),
-        }
-    }
-
-    /// Pollable (in select!) event listener
-    pub async fn next_event(&mut self) -> Result<TceProxyEvent, String> {
-        let event = self.events.recv().await;
-        Ok(event.unwrap())
-    }
-
-    /// Shut down TCE proxy
-    pub async fn shutdown(&self) -> Result<(), String> {
-        info!("Shutting down TCE proxy worker...");
-        let (sender, receiver) = oneshot::channel();
-        match self.commands.send(TceProxyCommand::Shutdown(sender)).await {
-            Ok(_) => {}
-            Err(e) => {
-                error!("Error sending shutdown signal to TCE worker {e}");
-                return Err(e.to_string());
-            }
-        };
-        receiver.await.map_err(|e| e.to_string())
     }
 }

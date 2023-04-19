@@ -1,5 +1,5 @@
 [package]
-name = "topos-sequencer-subnet-runtime-proxy"
+name = "topos-sequencer-subnet-runtime"
 version = "0.1.0"
 edition = "2021"
 
@@ -27,7 +27,6 @@ opentelemetry.workspace = true
 
 topos-core = { workspace = true, features = ["uci"] }
 topos-sequencer-subnet-client = { package = "topos-sequencer-subnet-client", path = "../topos-sequencer-subnet-client" }
-topos-sequencer-types = { package = "topos-sequencer-types", path = "../topos-sequencer-types" }
 topos-crypto = {package = "topos-crypto", path = "../topos-crypto"}
 
 [dev-dependencies]
