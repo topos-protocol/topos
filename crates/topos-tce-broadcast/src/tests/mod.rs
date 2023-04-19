@@ -63,6 +63,20 @@ fn create_context(params: TceParams) -> (DoubleEcho, Context) {
     let (double_echo_shutdown_sender, double_echo_shutdown_receiver) =
         mpsc::channel::<oneshot::Sender<()>>(1);
 
+    let (sender, _) = mpsc::channel(CHANNEL_SIZE);
+    let (storage_sender, _) = mpsc::channel(CHANNEL_SIZE);
+    let (shutdown_sender_storage, _) = mpsc::channel(1);
+    let (shutdown_sender, _) = mpsc::channel(1);
+    let storage_client = topos_tce_storage::StorageClient {
+        sender: storage_sender,
+        shutdown_channel: shutdown_sender_storage,
+    };
+    let network_client = topos_p2p::Client {
+        retry_ttl: 10,
+        local_peer_id: topos_test_sdk::p2p::local_peer(1).0.public().to_peer_id(),
+        sender,
+        shutdown_channel: shutdown_sender,
+    };
     let mut double_echo = DoubleEcho::new(
         params.broadcast_params,
         cmd_receiver,
@@ -70,6 +84,8 @@ fn create_context(params: TceParams) -> (DoubleEcho, Context) {
         subscribers_update_receiver,
         event_sender,
         Box::<TceMemStore>::default(),
+        storage_client,
+        network_client,
         double_echo_shutdown_receiver,
         String::new(),
     );
@@ -349,7 +365,7 @@ async fn buffering_certificate(#[case] params: TceParams) {
     ctx.cmd_sender
         .send(DoubleEchoCommand::Broadcast {
             cert: le_cert.clone(),
-            ctx: Span::current().context(),
+            ctx: Span::current(),
         })
         .await
         .expect("Cannot send broadcast command");

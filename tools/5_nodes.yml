@@ -1,0 +1,183 @@
+version: "3.3"
+services:
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: jaeger
+    restart: always
+    ports:
+      - "16686:16686"
+      - "14250:14250"
+      - "16685:16685"
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib-dev:latest
+    restart: always
+    command: [ "--config=/etc/otel-collector-config.yaml" ]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "1888:1888" # pprof extension
+      - "8888:8888" # Prometheus metrics exposed by the collector
+      - "8889:8889" # Prometheus exporter metrics
+      - "13133:13133" # health_check extension
+      - "4317:4317" # OTLP gRPC receiver
+      - "55679:55679" # zpages extension
+    depends_on:
+      - jaeger
+
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus:latest
+    restart: always
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+
+  boot:
+    container_name: boot
+    command: boot tce run
+    image: ghcr.io/topos-network/topos:main
+    init: true
+    labels:
+      "autoheal": "true"
+    healthcheck:
+      test: ./topos tce push-peer-list --node http://localhost:1340 --format json /tmp/shared/peer_ids.json && ./topos tce status --node http://localhost:1340
+      interval: 15s
+    volumes:
+      - shared:/tmp/shared
+    build:
+      context: ../
+      args:
+        - TOOLCHAIN_VERSION=stable
+        - FEATURES=tce,network
+    depends_on:
+      - otel-collector
+    ports:
+      - "9090"
+      - "1340:1340"
+    environment:
+      - RUST_LOG=warn,topos=warn,topos_tce_broadcast::double_echo=debug
+      - TOOLCHAIN_VERSION=stable
+      - RUST_BACKTRACE=full
+      - TCE_DB_PATH=/tmp/default-db
+      - TCE_API_ADDR=0.0.0.0:1340
+      - TCE_LOCAL_KS=1 # 12D3KooWRhFCXBhmsMnur3up3vJsDoqWh4c39PKXgSWwzAzDHNLn
+      - TOPOS_OTLP_SERVICE_NAME=simon-tce-boot-node
+      # - TOPOS_OTLP_AGENT=https://grpc.otel-collector.telemetry.devnet-1.toposware.com
+      - TOPOS_OTLP_AGENT=http://otel-collector:4317
+      - TCE_ECHO_SAMPLE_SIZE=4
+      - TCE_READY_SAMPLE_SIZE=4
+      - TCE_DELIVERY_SAMPLE_SIZE=4
+      - TCE_ECHO_THRESHOLD=4
+      - TCE_READY_THRESHOLD=2
+      - TCE_DELIVERY_THRESHOLD=3
+      - TOPOS_MINIMUM_TCE_CLUSTER_SIZE=2
+
+  peer:
+    image: ghcr.io/topos-network/topos:main
+    command: peer tce run
+    init: true
+    labels:
+      "autoheal": "true"
+    healthcheck:
+      test: ./topos tce push-peer-list --node http://localhost:1340 --format json /tmp/shared/peer_ids.json && ./topos tce status --node http://localhost:1340
+      interval: 5s
+    volumes:
+      - shared:/tmp/shared
+    build:
+      context: ../
+      args:
+        - TOOLCHAIN_VERSION=stable
+        - FEATURES=tce
+    depends_on:
+      autoheal:
+        condition: service_started
+      jaeger:
+        condition: service_started
+      boot:
+        condition: service_started
+      otel-collector:
+        condition: service_started
+    ports:
+      - "9090"
+      - "1340"
+    deploy:
+      replicas: 4
+    environment:
+      - LOCAL_TEST_NET=true
+      - RUST_LOG=warn,topos=warn,topos_tce_broadcast::double_echo=debug
+      - TCE_DB_PATH=/tmp/default-db
+      - TCE_API_ADDR=0.0.0.0:1340
+      - TOPOS_OTLP_SERVICE_NAME=simon-tce-peer-node
+      # - TOPOS_OTLP_AGENT=https://grpc.otel-collector.telemetry.devnet-1.toposware.com
+      - TOPOS_OTLP_AGENT=http://otel-collector:4317
+      - TCE_ECHO_SAMPLE_SIZE=4
+      - TCE_READY_SAMPLE_SIZE=4
+      - TCE_DELIVERY_SAMPLE_SIZE=4
+      - TCE_ECHO_THRESHOLD=4
+      - TCE_READY_THRESHOLD=2
+      - TCE_DELIVERY_THRESHOLD=3
+      - TOPOS_MINIMUM_TCE_CLUSTER_SIZE=2
+
+  cert-spammer:
+    container_name: spam
+    image: ghcr.io/topos-network/topos:main
+    # image: ghcr.io/topos-network/topos:pr-217-network
+    profiles:
+      - spammer
+    init: true
+    command: network spam
+    build:
+      context: ../
+      args:
+        - TOOLCHAIN_VERSION=stable
+        - FEATURES=network
+    volumes:
+      - shared:/tmp/shared
+    environment:
+      - RUST_LOG=info
+      - CERT_PER_BATCH=1
+      - BATCH_TIME_INTERVAL=5
+      - TARGET_NODES_PATH=/tmp/shared/peer_nodes.json
+    depends_on:
+      jaeger:
+        condition: service_started
+      peer:
+        condition: service_healthy
+
+  check:
+    container_name: check
+    image: ghcr.io/topos-network/topos:main
+    command: tce push-certificate -f json
+    profiles:
+      - CI
+      - check
+    init: true
+    volumes:
+      - shared:/tmp/shared
+    build:
+      context: ../
+      args:
+        - TOOLCHAIN_VERSION=stable
+        - GITHUB_TOKEN
+        - FEATURES=tce
+    depends_on:
+      peer:
+        condition: service_healthy
+    environment:
+      - LOCAL_TEST_NET=true
+      - RUST_LOG=info,topos=debug
+      - TARGET_NODES_PATH=/tmp/shared/peer_nodes.json
+
+  autoheal:
+    container_name: autoheal
+    image: willfarrell/autoheal
+    volumes:
+      - '/var/run/docker.sock:/var/run/docker.sock'
+    environment:
+      - AUTOHEAL_INTERVAL=30
+      - CURL_TIMEOUT=30
+
+volumes:
+  shared:

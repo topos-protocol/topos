@@ -1,15 +1,10 @@
 use topos_uci::CERTIFICATE_ID_LENGTH;
 
 use super::v1::CertificateId;
-use base64::Engine;
 
 impl std::fmt::Display for CertificateId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            base64::engine::general_purpose::STANDARD.encode(&self.value)
-        )
+        write!(f, "0x{}", hex::encode(&self.value))
     }
 }
 

@@ -5,4 +5,8 @@ edition = "2021"
 
 [dependencies]
 opentelemetry.workspace = true
+tracing-opentelemetry.workspace = true
+tracing.workspace = true
+tonic.workspace = true
+
 serde = { workspace = true, features = ["derive", "std"] }

@@ -1,8 +1,5 @@
 use futures::{stream::FuturesUnordered, StreamExt};
-use opentelemetry::{
-    trace::{FutureExt, TraceContextExt},
-    Context,
-};
+use opentelemetry::trace::FutureExt;
 use std::{
     collections::{hash_map::Entry, HashMap, HashSet},
     future,
@@ -336,13 +333,9 @@ impl Runtime {
                 sender,
                 ctx,
             } => {
-                let span = info_span!("TCE API Runtime",);
-                span.set_parent(ctx);
+                let span = info_span!(parent: &ctx, "TCE API Runtime",);
 
                 async move {
-                    tracing::warn!(span_span_id = ?Span::current().context().span().span_context().span_id());
-                    tracing::warn!(cx_span_id = ?Context::current().span().span_context().span_id());
-
                     info!(
                         "A certificate has been submitted to the TCE {}",
                         certificate.id
@@ -352,7 +345,7 @@ impl Runtime {
                         .send(RuntimeEvent::CertificateSubmitted {
                             certificate,
                             sender,
-                            ctx: Span::current().context(),
+                            ctx: Span::current(),
                         })
                         .with_current_context()
                         .instrument(Span::current())

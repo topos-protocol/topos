@@ -19,7 +19,7 @@ void = "1"
 [dev-dependencies]
 test-log.workspace = true
 env_logger.workspace = true
-rstest.workspace = true
+rstest = { workspace = true, features = ["async-timeout"] }
 tracing-subscriber.workspace = true
 
 topos-test-sdk = { path = "../topos-test-sdk/", features = ["tce"] }

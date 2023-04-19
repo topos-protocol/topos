@@ -29,10 +29,11 @@ uuid.workspace = true
 rand.workspace = true
 reqwest.workspace = true
 thiserror.workspace = true
-opentelemetry-otlp.workspace = true
+opentelemetry-otlp = { workspace = true, features = ["grpc-tonic"] }
 tracing-log = { version = "0.1.3", features = ["env_logger"] }
 tar = "0.4.38"
 flate2 ="1.0.26"
+url = "2.3.1"
 
 [dev-dependencies]
 topos-tce-broadcast = { path = "../topos-tce-broadcast" }

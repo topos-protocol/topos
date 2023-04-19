@@ -1,7 +1,12 @@
 use self::commands::{NetworkCommand, NetworkCommands};
-use tokio::{signal, spawn};
+use opentelemetry::global;
+use tokio::{
+    signal, spawn,
+    sync::{mpsc, oneshot},
+};
 use topos_certificate_spammer::CertificateSpammerConfig;
 use tracing::{error, info};
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 use crate::tracing::setup_tracing;
 
@@ -29,20 +34,41 @@ pub(crate) async fn handle_command(
             // Setup instrumentation if both otlp agent and otlp service name
             // are provided as arguments
             // We may want to use instrumentation in e2e tests
-            setup_tracing(verbose, cmd.otlp_agent, cmd.otlp_service_name)?;
+            let basic_controller = setup_tracing(verbose, cmd.otlp_agent, cmd.otlp_service_name)?;
 
-            spawn(async move {
-                if let Err(error) = topos_certificate_spammer::run(config).await {
-                    error!("Unable to execute network spam command due to: {error}");
-                    std::process::exit(1);
-                } else {
-                    std::process::exit(0);
+            let (shutdown_sender, shutdown_receiver) = mpsc::channel::<oneshot::Sender<()>>(1);
+            let mut runtime = spawn(topos_certificate_spammer::run(config, shutdown_receiver));
+
+            loop {
+                tokio::select! {
+                    _ = tokio::signal::ctrl_c() => {
+                        info!("Received ctrl_c, shutting down application...");
+
+                        let (shutdown_finished_sender, shutdown_finished_receiver) = oneshot::channel::<()>();
+                        if let Err(e) = shutdown_sender.send(shutdown_finished_sender).await {
+                            error!("Error sending shutdown signal to Spammer application: {e}");
+                        }
+                        if let Err(e) = shutdown_finished_receiver.await {
+                            error!("Error with shutdown receiver: {e}");
+                        }
+                        info!("Shutdown procedure finished, exiting...");
+                    }
+                    result = &mut runtime =>{
+                        global::shutdown_tracer_provider();
+                        if let Some(basic_controller) = basic_controller {
+                            if let Err(e) = basic_controller.stop(&tracing::Span::current().context()) {
+                                error!("Error stopping tracing: {e}");
+                            }
+                        }
+
+                        if let Err(ref error) = result {
+                            error!("Unable to execute network spam command due to: {error}");
+                            std::process::exit(1);
+                        }
+                        break;
+                    }
                 }
-            });
-
-            signal::ctrl_c()
-                .await
-                .expect("failed to listen for signals");
+            }
 
             Ok(())
         }

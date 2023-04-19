@@ -1,8 +1,10 @@
 use crate::{Error, TceProxyEvent};
 use base64::Engine;
+use opentelemetry::trace::FutureExt;
 use std::collections::HashMap;
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::StreamExt;
+use tonic::IntoRequest;
 use topos_core::api::checkpoints::{TargetCheckpoint, TargetStreamPosition};
 use topos_core::api::tce::v1::{GetLastPendingCertificatesRequest, GetSourceHeadRequest};
 use topos_core::{
@@ -12,7 +14,8 @@ use topos_core::{
     },
     uci::{Certificate, SubnetId},
 };
-use tracing::{error, info, warn};
+use tracing::{error, info, info_span, warn, Instrument};
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 const CERTIFICATE_OUTBOUND_CHANNEL_SIZE: usize = 100;
 const CERTIFICATE_INBOUND_CHANNEL_SIZE: usize = 100;
@@ -37,6 +40,7 @@ pub(crate) enum TceClientCommand {
     // Send generated certificate to the TCE node
     SendCertificate {
         cert: Box<Certificate>,
+        span: tracing::Span,
     },
     Shutdown,
 }
@@ -64,7 +68,10 @@ impl TceClient {
         self.command_sender
             .send(TceClientCommand::SendCertificate {
                 cert: Box::new(cert),
+                span: tracing::Span::current(),
             })
+            .with_current_context()
+            .in_current_span()
             .await
             .map_err(|_| Error::InvalidChannelError)?;
         Ok(())
@@ -303,6 +310,7 @@ impl TceClientBuilder {
             .as_ref()
             .ok_or(Error::InvalidTceEndpoint)?
             .clone();
+
         tokio::spawn(async move {
             info!(
                 "Entering tce proxy command loop for stream {}",
@@ -312,13 +320,25 @@ impl TceClientBuilder {
                 tokio::select! {
                    command = tce_command_receiver.recv() => {
                         match command {
-                           Some(TceClientCommand::SendCertificate {cert}) =>  {
+                           Some(TceClientCommand::SendCertificate {cert, span}) =>  {
                                 let cert_id = cert.id;
                                 let previous_cert_id = cert.prev_id;
-                                match tce_grpc_client
-                                .submit_certificate(SubmitCertificateRequest {
+                                info!("Parent metadata {:?}", span.metadata());
+                                let span = info_span!(parent: &span, "SendCertificate", %cert_id, %previous_cert_id, %tce_endpoint);
+                                let context = span.context();
+
+                                let mut request = SubmitCertificateRequest {
                                     certificate: Some(topos_core::api::uci::v1::Certificate::from(*cert)),
-                                })
+                                }.into_request();
+
+                                let mut span_context = topos_telemetry::TonicMetaInjector(request.metadata_mut());
+
+                                span_context.inject(&context);
+
+                                match tce_grpc_client
+                                    .submit_certificate(request)
+                                    .with_context(context)
+                                    .instrument(span)
                                 .await
                                 .map(|r| r.into_inner()) {
                                     Ok(_response)=> {
@@ -429,7 +449,8 @@ impl TceClientBuilder {
                                 };
                             }
                             None => {
-                                panic!("Unexpected termination of the TCE proxy service of the Sequencer");
+                                error!("Unexpected termination of the TCE proxy service of the Sequencer");
+                                break;
                             }
                         }
                     }

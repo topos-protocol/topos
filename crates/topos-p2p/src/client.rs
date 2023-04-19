@@ -19,7 +19,7 @@ pub struct Client {
     pub retry_ttl: u64,
     pub local_peer_id: PeerId,
     pub sender: mpsc::Sender<Command>,
-    pub(crate) shutdown_channel: mpsc::Sender<oneshot::Sender<()>>,
+    pub shutdown_channel: mpsc::Sender<oneshot::Sender<()>>,
 }
 
 impl Client {

@@ -14,8 +14,8 @@ use crate::{
 
 #[derive(Debug, Clone)]
 pub struct StorageClient {
-    sender: mpsc::Sender<StorageCommand>,
-    pub(crate) shutdown_channel: mpsc::Sender<oneshot::Sender<()>>,
+    pub sender: mpsc::Sender<StorageCommand>,
+    pub shutdown_channel: mpsc::Sender<oneshot::Sender<()>>,
 }
 
 impl StorageClient {

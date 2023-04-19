@@ -6,13 +6,15 @@ use topos_tce_transport::{ProtocolEvents, ReliableBroadcastParams};
 pub fn create_reliable_broadcast_client(
     tce_params: ReliableBroadcastParams,
     peer_id: String,
+    storage: topos_tce_storage::StorageClient,
+    network: topos_p2p::Client,
 ) -> (
     ReliableBroadcastClient,
     impl Stream<Item = Result<ProtocolEvents, ()>> + Unpin,
 ) {
     let config = ReliableBroadcastConfig { tce_params };
 
-    ReliableBroadcastClient::new(config, peer_id)
+    ReliableBroadcastClient::new(config, peer_id, storage, network)
 }
 
 pub fn create_reliable_broadcast_params<F>(correct_sample: usize, g: F) -> ReliableBroadcastParams
