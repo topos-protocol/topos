@@ -9,6 +9,9 @@ use crate::components::tce::commands::TceCommand;
 #[cfg(feature = "network")]
 use crate::components::network::commands::NetworkCommand;
 
+#[cfg(feature = "setup")]
+use crate::components::setup::commands::SetupCommand;
+
 pub(crate) mod input_format;
 
 #[derive(Parser, Debug)]
@@ -35,4 +38,6 @@ pub(crate) enum ToposCommand {
     Sequencer(SequencerCommand),
     #[cfg(feature = "network")]
     Network(NetworkCommand),
+    #[cfg(feature = "setup")]
+    Setup(SetupCommand),
 }

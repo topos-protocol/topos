@@ -29,6 +29,8 @@ tracing-opentelemetry.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter", "json", "ansi", "fmt"] }
 uuid.workspace = true
 rand.workspace = true
+reqwest.workspace = true
+thiserror.workspace = true
 
 [dev-dependencies]
 topos-tce-broadcast = { path = "../topos-tce-broadcast" }
@@ -49,10 +51,13 @@ libp2p = { workspace = true, features = ["identify"] }
 assert_cmd = "2.0.6"
 insta = { version = "1.21", features = ["json", "redactions"] }
 
+
+
 [features]
-default = ["tce", "sequencer", "network"]
+default = ["tce", "sequencer", "network", "setup"]
 tce = ["topos-tce", "topos-tce-transport"]
 sequencer = ["topos-sequencer"]
 network = ["topos-certificate-spammer"]
+setup = []
 
 tce-direct = ["tce", "topos-tce-broadcast/direct"]
