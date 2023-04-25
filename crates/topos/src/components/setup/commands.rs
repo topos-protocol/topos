@@ -4,6 +4,7 @@ mod subnet;
 
 pub(crate) use subnet::Subnet;
 
+/// Topos CLI subcommand used for setup of various Topos related components (e.g. installation of Polygon Edge binary)
 #[derive(Args, Debug)]
 pub(crate) struct SetupCommand {
     #[clap(from_global)]

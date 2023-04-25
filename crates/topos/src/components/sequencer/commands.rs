@@ -4,6 +4,7 @@ mod run;
 
 pub(crate) use run::Run;
 
+/// Topos CLI subcommand used to execute sequencer component
 #[derive(Args, Debug)]
 pub(crate) struct SequencerCommand {
     #[clap(from_global)]

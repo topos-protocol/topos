@@ -12,6 +12,9 @@ use crate::components::network::commands::NetworkCommand;
 #[cfg(feature = "setup")]
 use crate::components::setup::commands::SetupCommand;
 
+#[cfg(feature = "subnet")]
+use crate::components::subnet::commands::SubnetCommand;
+
 pub(crate) mod input_format;
 
 #[derive(Parser, Debug)]
@@ -40,4 +43,6 @@ pub(crate) enum ToposCommand {
     Network(NetworkCommand),
     #[cfg(feature = "setup")]
     Setup(SetupCommand),
+    #[cfg(feature = "subnet")]
+    Subnet(SubnetCommand),
 }
