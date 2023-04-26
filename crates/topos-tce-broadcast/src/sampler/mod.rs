@@ -1,5 +1,4 @@
 mod cyclerng;
-mod sampling;
 
 // Move to transport crate
 pub type Peer = String;
@@ -11,8 +10,6 @@ use topos_p2p::PeerId;
 use tracing::{debug, error, info, warn};
 
 use crate::SamplerCommand;
-
-use self::sampling::sample_reduce_from;
 
 #[derive(Debug, Default)]
 pub struct ThresholdConfig {
@@ -77,8 +74,6 @@ pub enum SubscribersUpdate {
 // Maybe structure for keeping track of different counters
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct SubscriptionsView {
-    // pub nodes: HashSet<PeerId>,
-
     // All have the same peers (whole network) initially
     pub echo: HashSet<PeerId>,
     pub ready: HashSet<PeerId>,
@@ -94,14 +89,10 @@ impl SubscriptionsView {
         self.echo.is_empty() && self.ready.is_empty() && self.delivery.is_empty()
     }
 
+    /// Initial subscriptions of the node, which is the whole network
     pub fn get_subscriptions(&self) -> Vec<PeerId> {
         self.echo
             .iter()
-            // .chain(self.ready.iter())
-            // .chain(self.delivery.iter())
-            // .cloned()
-            // .collect::<HashSet<_>>()
-            // .into_iter()
             .collect()
     }
 }
@@ -363,9 +354,9 @@ impl Sampler {
         self.pending_subscriptions.echo.clear();
 
         debug!(
-                "Start the reset of the the Echo Sample currently composed by: {:?}",
-                &self.visible_peers
-            );
+            "Start the reset of the the Echo Sample currently composed by: {:?}",
+            &self.visible_peers
+        );
 
         for peer in &self.visible_peers.value {
             info!("Adding the Peer {peer} to the pending Echo Subscriptions");
@@ -373,7 +364,7 @@ impl Sampler {
         }
 
         if let Err(error) = self.event_sender.send(ProtocolEvents::EchoSubscribeReq {
-            peers: echo_candidates.value,
+            peers: &self.visible_peers.value,
         }) {
             error!("Unable to send event {:?}", error);
         }
@@ -384,28 +375,20 @@ impl Sampler {
     fn reset_ready_subscription_sample(&mut self) {
         self.pending_subscriptions.ready.clear();
 
-        let ready_sizer = |len| min(len, self.params.ready_sample_size);
-        match sample_reduce_from(&self.visible_peers, ready_sizer) {
-            Ok(ready_candidates) => {
-                debug!(
-                    "Start the reset of the the Ready Sample currently composed by: {:?}",
-                    ready_candidates
-                );
+        debug!(
+            "Start the reset of the the Ready Sample currently composed by: {:?}",
+            &self.visible_peers
+        );
 
-                for peer in &ready_candidates.value {
-                    info!("Adding the Peer {peer} to the pending Ready Subscriptions");
-                    self.pending_subscriptions.ready.insert(*peer);
-                }
+        for peer in &self.visible_peers.value {
+            info!("Adding the Peer {peer} to the pending Ready Subscriptions");
+            self.pending_subscriptions.ready.insert(*peer);
+        }
 
-                if let Err(error) = self.event_sender.send(ProtocolEvents::ReadySubscribeReq {
-                    peers: ready_candidates.value,
-                }) {
-                    error!("Unable to send event {:?}", error);
-                }
-            }
-            Err(e) => {
-                error!("Failed to create the sample for the Ready Subscriptions: {e:?}");
-            }
+        if let Err(error) = self.event_sender.send(ProtocolEvents::ReadySubscribeReq {
+            peers: &self.visible_peers.value,
+        }) {
+            error!("Unable to send event {:?}", error);
         }
     }
 
@@ -413,28 +396,20 @@ impl Sampler {
     fn reset_delivery_subscription_sample(&mut self) {
         self.pending_subscriptions.delivery.clear();
 
-        let delivery_sizer = |len| min(len, self.params.delivery_sample_size);
-        match sample_reduce_from(&self.visible_peers, delivery_sizer) {
-            Ok(delivery_candidates) => {
-                info!(
-                    "Start the reset of the the Delivery Sample currently composed by: {:?}",
-                    delivery_candidates
-                );
+        info!(
+            "Start the reset of the the Delivery Sample currently composed by: {:?}",
+            &self.visible_peers
+        );
 
-                for peer in &delivery_candidates.value {
-                    info!("Adding the Peer {peer} to the pending Delivery Subscriptions");
-                    self.pending_subscriptions.delivery.insert(*peer);
-                }
+        for peer in &self.visible_peers.value {
+            info!("Adding the Peer {peer} to the pending Delivery Subscriptions");
+            self.pending_subscriptions.delivery.insert(*peer);
+        }
 
-                if let Err(error) = self.event_sender.send(ProtocolEvents::ReadySubscribeReq {
-                    peers: delivery_candidates.value,
-                }) {
-                    error!("Unable to send event {:?}", error);
-                }
-            }
-            Err(e) => {
-                error!("Failed to create the sample for the Delivery Subscriptions: {e:?}");
-            }
+        if let Err(error) = self.event_sender.send(ProtocolEvents::ReadySubscribeReq {
+            peers: &self.visible_peers.value,
+        }) {
+            error!("Unable to send event {:?}", error);
         }
     }
 }
