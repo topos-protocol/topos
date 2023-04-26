@@ -71,8 +71,15 @@ pub enum SubscribersUpdate {
     RemoveReadySubscribers(HashSet<PeerId>),
 }
 
+// Same set, merge
+// Need to seperate echo and ready (echo removes it from echo set, ready removes it from ready set)
+// HashSet is all participants, once I receive echo | ready | delivery, I remove it to get to the threshold
+// Maybe structure for keeping track of different counters
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct SubscriptionsView {
+    // pub nodes: HashSet<PeerId>,
+
+    // All have the same peers (whole network) initially
     pub echo: HashSet<PeerId>,
     pub ready: HashSet<PeerId>,
     pub delivery: HashSet<PeerId>,
@@ -90,11 +97,11 @@ impl SubscriptionsView {
     pub fn get_subscriptions(&self) -> Vec<PeerId> {
         self.echo
             .iter()
-            .chain(self.ready.iter())
-            .chain(self.delivery.iter())
-            .cloned()
-            .collect::<HashSet<_>>()
-            .into_iter()
+            // .chain(self.ready.iter())
+            // .chain(self.delivery.iter())
+            // .cloned()
+            // .collect::<HashSet<_>>()
+            // .into_iter()
             .collect()
     }
 }
@@ -355,30 +362,23 @@ impl Sampler {
     fn reset_echo_subscription_sample(&mut self) {
         self.pending_subscriptions.echo.clear();
 
-        let echo_sizer = |len| min(len, self.params.echo_sample_size);
-        match sample_reduce_from(&self.visible_peers, echo_sizer) {
-            Ok(echo_candidates) => {
-                debug!(
-                    "Start the reset of the the Echo Sample currently composed by: {:?}",
-                    echo_candidates
-                );
+        debug!(
+                "Start the reset of the the Echo Sample currently composed by: {:?}",
+                &self.visible_peers
+            );
 
-                for peer in &echo_candidates.value {
-                    info!("Adding the Peer {peer} to the pending Echo Subscriptions");
-                    self.pending_subscriptions.echo.insert(*peer);
-                }
+        for peer in &self.visible_peers.value {
+            info!("Adding the Peer {peer} to the pending Echo Subscriptions");
+            self.pending_subscriptions.echo.insert(*peer);
+        }
 
-                if let Err(error) = self.event_sender.send(ProtocolEvents::EchoSubscribeReq {
-                    peers: echo_candidates.value,
-                }) {
-                    error!("Unable to send event {:?}", error);
-                }
-            }
-            Err(e) => {
-                error!("Failed to create the sample for the Echo Subscriptions: {e:?}");
-            }
+        if let Err(error) = self.event_sender.send(ProtocolEvents::EchoSubscribeReq {
+            peers: echo_candidates.value,
+        }) {
+            error!("Unable to send event {:?}", error);
         }
     }
+
 
     /// subscription ready sampling
     fn reset_ready_subscription_sample(&mut self) {

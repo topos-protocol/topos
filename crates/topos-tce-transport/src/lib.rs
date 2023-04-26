@@ -14,12 +14,12 @@ pub struct ReliableBroadcastParams {
     /// Echo threshold
     #[arg(long, default_value_t = 1, env = "TCE_ECHO_THRESHOLD")]
     pub echo_threshold: usize,
+    /// Ready threshold
+    #[arg(long, default_value_t = 1, env = "TCE_READY_THRESHOLD")]
+    pub ready_threshold: usize,
     /// Delivery threshold
     #[arg(long, default_value_t = 1, env = "TCE_DELIVERY_THRESHOLD")]
     pub delivery_threshold: usize,
-    /// Delivery sample size
-    #[arg(long, default_value_t = 1, env = "TCE_DELIVERY_SAMPLE_SIZE")]
-    pub delivery_sample_size: usize,
 }
 
 /// Protocol commands
