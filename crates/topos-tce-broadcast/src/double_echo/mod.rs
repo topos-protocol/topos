@@ -434,34 +434,12 @@ impl DoubleEcho {
                 state_modified = true;
             }
 
-            let echo_missing = self
-                .params
-                .echo_sample_size
-                .checked_sub(state_to_delivery.subscriptions.echo.len())
-                .map(|consumed| self.params.echo_threshold.saturating_sub(consumed))
-                .unwrap_or(0);
-            let ready_missing = self
-                .params
-                .ready_sample_size
-                .checked_sub(state_to_delivery.subscriptions.ready.len())
-                .map(|consumed| self.params.ready_threshold.saturating_sub(consumed))
-                .unwrap_or(0);
             let delivery_missing = self
                 .params
                 .delivery_sample_size
                 .checked_sub(state_to_delivery.subscriptions.delivery.len())
                 .map(|consumed| self.params.delivery_threshold.saturating_sub(consumed))
                 .unwrap_or(0);
-
-            debug!(
-                "Waiting for {echo_missing} Echo from the E-Sample: {:?}",
-                state_to_delivery.subscriptions.echo
-            );
-
-            debug!(
-                "Waiting for {ready_missing} Ready from the R-Sample: {:?}",
-                state_to_delivery.subscriptions.ready
-            );
 
             debug!(
                 "Waiting for {delivery_missing} Ready from the D-Sample: {:?}",
