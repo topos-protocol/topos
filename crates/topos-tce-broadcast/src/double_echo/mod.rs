@@ -507,34 +507,3 @@ impl DoubleEcho {
         Ok(())
     }
 }
-
-// state checkers
-fn is_ok_to_deliver(params: &ReliableBroadcastParams, state: &DeliveryState) -> bool {
-    match params
-        .delivery_sample_size
-        .checked_sub(state.subscriptions.delivery.len())
-    {
-        Some(consumed) => consumed >= params.delivery_threshold,
-        None => false,
-    }
-}
-
-fn is_e_ready(params: &ReliableBroadcastParams, state: &DeliveryState) -> bool {
-    match params
-        .echo_sample_size
-        .checked_sub(state.subscriptions.echo.len())
-    {
-        Some(consumed) => consumed >= params.echo_threshold,
-        None => false,
-    }
-}
-
-fn is_r_ready(params: &ReliableBroadcastParams, state: &DeliveryState) -> bool {
-    match params
-        .ready_sample_size
-        .checked_sub(state.subscriptions.ready.len())
-    {
-        Some(consumed) => consumed >= params.ready_threshold,
-        None => false,
-    }
-}
