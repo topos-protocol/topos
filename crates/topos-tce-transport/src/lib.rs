@@ -15,15 +15,15 @@ pub struct ReliableBroadcastParams {
     #[arg(long, default_value_t = 1, env = "TCE_ECHO_THRESHOLD")]
     pub echo_threshold: usize,
     /// Echo sample size
-    #[allow(deprecated)]
+    #[deprecated]
     #[arg(long, default_value_t = 1, env = "TCE_ECHO_SAMPLE_SIZE")]
     pub echo_sample_size: usize,
     /// Ready threshold
-    #[allow(deprecated)]
+    #[deprecated]
     #[arg(long, default_value_t = 1, env = "TCE_READY_THRESHOLD")]
     pub ready_threshold: usize,
     /// Ready sample size
-    #[allow(deprecated)]
+    #[deprecated]
     #[arg(long, default_value_t = 1, env = "TCE_READY_SAMPLE_SIZE")]
     pub ready_sample_size: usize,
     /// Delivery threshold
