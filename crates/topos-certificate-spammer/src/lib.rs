@@ -1,58 +1,30 @@
 //! Utility to spam dummy certificates
 
-use opentelemetry::trace::FutureExt;
+use rand::Rng;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
-use tokio::sync::{mpsc, oneshot, Mutex};
+use tokio::sync::Mutex;
 use tokio::time::{self, Duration};
 use tokio_stream::StreamExt;
 use topos_core::uci::*;
 use topos_tce_proxy::client::{TceClient, TceClientBuilder};
-use tracing::{debug, error, field, info, instrument, Instrument, Span};
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("target nodes are not specified")]
-    TargetNodesNotSpecified,
-    #[error("error reading target nodes json file:{0}")]
-    ErrorReadingTargetNodesJsonFile(String),
-    #[error("error parsing target nodes json file:{0}")]
-    InvalidTargetNodesJsonFile(String),
-    #[error("invalid subnet id error: {0}")]
-    InvalidSubnetId(String),
-    #[error("hex conversion error {0}")]
-    HexConversionError(hex::FromHexError),
-    #[error("invalid signing key: {0}")]
-    InvalidSigningKey(String),
-    #[error("Tce node connection error {0}")]
-    TCENodeConnectionError(topos_tce_proxy::Error),
-    #[error("Certificate signing error: {0}")]
-    CertificateSigningError(topos_core::uci::Error),
-}
+use tracing::{debug, error, info};
 
 #[derive(Debug)]
-pub struct CertificateSpammerConfig {
-    pub target_nodes: Option<Vec<String>>,
+pub struct CertificateSpammerConfiguration {
+    pub target_node: Option<String>,
     pub target_nodes_path: Option<String>,
-    pub local_key_seed: u64,
-    pub cert_per_batch: u8,
-    pub nb_subnets: u8,
-    pub nb_batches: Option<u64>,
-    pub batch_interval: u64,
-    pub target_subnets: Option<Vec<String>>,
-}
-
-fn generate_random_32b_array() -> [u8; 32] {
-    (0..32)
-        .map(|_| rand::random::<u8>())
-        .collect::<Vec<u8>>()
-        .try_into()
-        .expect("Valid 32 byte array")
+    pub cert_per_batch: usize,
+    pub batch_time_interval: u64,
+    pub nb_subnets: usize,
+    pub byzantine_threshold: f32,
+    pub node_per_cert: usize,
 }
 
 type NodeApiAddress = String;
+
 #[derive(Deserialize)]
 struct FileNodes {
     nodes: Vec<String>,
@@ -61,67 +33,61 @@ struct FileNodes {
 /// Represents connection from one sequencer to a TCE node
 /// Multiple different subnets could be connected to the same TCE node address (represented with TargetNodeConnection with different SubnetId and created client)
 /// Multiple topos-sequencers from the same subnet could be connected to the same TCE node address (so they would have same SubnetID, but different client instances)
-struct TargetNodeConnection {
+#[allow(dead_code)]
+pub struct TargetNodeConnection {
     address: NodeApiAddress,
-    client: Arc<Mutex<TceClient>>,
-    shutdown: mpsc::Sender<oneshot::Sender<()>>,
-    source_subnet: SourceSubnet,
-}
-
-#[derive(Debug, Clone)]
-pub struct SourceSubnet {
-    signing_key: [u8; 32],
     source_subnet_id: SubnetId,
-    last_certificate_id: CertificateId,
+    client: Arc<Mutex<TceClient>>,
 }
 
-impl TargetNodeConnection {
-    pub async fn shutdown(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        let (sender, receiver) = oneshot::channel();
-        self.shutdown.send(sender).await?;
-        receiver.await?;
+/// Generate vector of pairs - certificate and matching tce node where this certificate should be sent
+pub fn gen_cert<'a>(
+    nb_cert: usize,
+    nonce_state: &mut HashMap<SubnetId, CertificateId>,
+    target_node_connections: &'a Vec<TargetNodeConnection>,
+) -> Vec<(&'a TargetNodeConnection, Certificate)> {
+    let mut rng = rand::thread_rng();
+    debug!("Generating {} certificates...", nb_cert);
+    (0..nb_cert)
+        .map(|_| {
+            let selected_target_node_connection =
+                &target_node_connections[rng.gen_range(0..target_node_connections.len())];
+            let last_cert_id = nonce_state
+                .get_mut(&selected_target_node_connection.source_subnet_id)
+                .unwrap();
+            let gen_cert = Certificate::new(
+                *last_cert_id,
+                selected_target_node_connection.source_subnet_id,
+                Default::default(),
+                [5u8; 32],
+                &[[0u8; 32].into(); 1],
+                0,
+                Vec::new(),
+            )
+            .expect("Valid certificate");
+            *last_cert_id = gen_cert.id;
 
-        self.client.lock().await.close().await?;
-        Ok(())
-    }
+            (selected_target_node_connection, gen_cert)
+        })
+        .collect()
 }
 
-/// Generate test certificate
-pub fn generate_test_certificate(
-    source_subnet: &mut SourceSubnet,
-    target_subnet_ids: &[SubnetId],
-) -> Result<Certificate, Box<dyn std::error::Error>> {
-    let mut new_cert = Certificate::new(
-        source_subnet.last_certificate_id,
-        source_subnet.source_subnet_id,
-        generate_random_32b_array(),
-        generate_random_32b_array(),
-        target_subnet_ids,
-        0,
-        Vec::new(),
-    )?;
-    new_cert
-        .update_signature(&source_subnet.signing_key)
-        .map_err(Error::CertificateSigningError)?;
-
-    source_subnet.last_certificate_id = new_cert.id;
-    Ok(new_cert)
-}
-
-async fn open_target_node_connection(
-    nodes: &[String],
-    source_subnet: &SourceSubnet,
-) -> Result<Vec<TargetNodeConnection>, Error> {
-    let mut target_node_connections: Vec<TargetNodeConnection> = Vec::new();
-    for tce_address in nodes {
+async fn generate_target_node_connections(
+    target_node_addresses: Vec<String>,
+    subnets: Vec<SubnetId>,
+) -> Result<Vec<TargetNodeConnection>, Box<dyn std::error::Error>> {
+    let mut target_nodes: Vec<TargetNodeConnection> = Vec::new();
+    for (tce_address, subnet_id) in
+        std::iter::zip(target_node_addresses, subnets).collect::<Vec<(String, SubnetId)>>()
+    {
         info!(
-            "Opening client for tce service {}, source subnet id: {}",
-            &tce_address, &source_subnet.source_subnet_id
+            "Opening client for tce service {}, subnet id: {:?}",
+            &tce_address, &subnet_id
         );
 
         let (tce_client, mut receiving_certificate_stream) = match TceClientBuilder::default()
-            .set_subnet_id(source_subnet.source_subnet_id)
-            .set_tce_endpoint(tce_address)
+            .set_subnet_id(subnet_id)
+            .set_tce_endpoint(&tce_address)
             .build_and_launch()
             .await
         {
@@ -131,7 +97,7 @@ async fn open_target_node_connection(
                     "Unable to create TCE client for node {}, error details: {}",
                     &tce_address, e
                 );
-                return Err(Error::TCENodeConnectionError(e));
+                panic!("Unable to create TCE client");
             }
         };
 
@@ -142,241 +108,124 @@ async fn open_target_node_connection(
                     "Unable to connect to node {}, error details: {}",
                     &tce_address, e
                 );
-                return Err(Error::TCENodeConnectionError(e));
+                panic!("Unable to connect to TCE node");
             }
         }
 
-        let (shutdown_channel, mut shutdown_receiver) = mpsc::channel::<oneshot::Sender<()>>(1);
-
         {
-            let source_subnet_id = source_subnet.source_subnet_id;
+            let subnet_id = subnet_id;
             let tce_address = tce_address.clone();
             tokio::spawn(async move {
                 loop {
                     // process certificates received from the TCE node
                     tokio::select! {
                          Some((cert, position)) = receiving_certificate_stream.next() => {
-                            info!("Delivered certificate from tce address: {} for subnet id: {} cert id {}, position {:?}",
-                                &tce_address, &source_subnet_id, &cert.id, position);
-                         },
-                         Some(sender) = shutdown_receiver.recv() => {
-                            info!("Finishing watch certificates task...");
-                            _ = sender.send(());
-                            // Finish this task listener
-                            break;
-                         }
+                            info!("Delivered certificate from tce address: {} for subnet id: {} cert id {}, position {:?}", &tce_address, &subnet_id, &cert.id, position);
+                       }
                     }
                 }
             });
         }
 
-        target_node_connections.push(TargetNodeConnection {
-            address: tce_address.clone(),
+        target_nodes.push(TargetNodeConnection {
+            address: tce_address,
+            source_subnet_id: subnet_id,
             client: Arc::new(Mutex::new(tce_client)),
-            shutdown: shutdown_channel,
-            source_subnet: source_subnet.clone(),
         });
     }
-    Ok(target_node_connections)
-}
-
-async fn close_target_node_connections(
-    target_node_connections: HashMap<SubnetId, Vec<TargetNodeConnection>>,
-) {
-    for mut target_node in target_node_connections
-        .into_iter()
-        .flat_map(|(_, connections)| connections)
-        .collect::<Vec<TargetNodeConnection>>()
-    {
-        if let Err(e) = target_node.shutdown().await {
-            error!("Error shutting down connection {e}");
-        }
-    }
+    Ok(target_nodes)
 }
 
 /// Submit the certificate to the TCE node
 fn submit_cert_to_tce(node: &TargetNodeConnection, cert: Certificate) {
     let client = node.client.clone();
     tokio::spawn(async move {
-        let mut tce_client = client.lock().await;
-        send_new_certificate(&mut tce_client, cert).await;
-    });
-}
-
-#[instrument(name = "NewTestCertificate", skip(tce_client), fields(certification = field::Empty, source_subnet_id = field::Empty, certificate_id = field::Empty))]
-async fn send_new_certificate(tce_client: &mut TceClient, cert: Certificate) {
-    Span::current().record("certificate_id", cert.id.to_string());
-    Span::current().record("source_subnet_id", cert.source_subnet_id.to_string());
-    if let Err(e) = tce_client
-        .send_certificate(cert)
-        .with_current_context()
-        .instrument(Span::current())
-        .await
-    {
-        error!(
-            "failed to pass certificate to tce client, error details: {}",
-            e
-        );
-    }
-}
-
-async fn dispatch(cert: Certificate, target_node: &TargetNodeConnection) {
-    info!(
-        "Sending cert id={:?} prev_cert_id= {:?} subnet_id={:?} to tce node {}",
-        &cert.id, &cert.prev_id, &cert.source_subnet_id, target_node.address
-    );
-    submit_cert_to_tce(target_node, cert);
-}
-
-pub fn generate_source_subnets(
-    local_key_seed: u64,
-    number_of_subnets: u8,
-) -> Result<Vec<SourceSubnet>, Error> {
-    let mut subnets = Vec::new();
-
-    let mut signing_key = [0u8; 32];
-    let (_, right) = signing_key.split_at_mut(24);
-    right.copy_from_slice(local_key_seed.to_be_bytes().as_slice());
-    for _ in 0..number_of_subnets {
-        signing_key = tiny_keccak::keccak256(&signing_key);
-
-        // Subnet id of the source subnet which will be used for every generated certificate
-        let source_subnet_id: SubnetId = topos_crypto::keys::derive_public_key(&signing_key)
-            .map_err(|e| Error::InvalidSigningKey(e.to_string()))?
-            .as_slice()[1..33]
-            .try_into()
-            .map_err(|_| Error::InvalidSubnetId("Unable to parse subnet id".to_string()))?;
-
-        subnets.push(SourceSubnet {
-            signing_key,
-            source_subnet_id,
-            last_certificate_id: Default::default(),
-        });
-    }
-
-    Ok(subnets)
-}
-
-pub async fn run(args: CertificateSpammerConfig) -> Result<(), Error> {
-    info!(
-        "Starting topos certificate spammer with the following arguments: {:#?}",
-        args
-    );
-
-    // Is list of nodes is specified in the command line use them otherwise use
-    // config file provided nodes
-    let target_nodes = if let Some(nodes) = args.target_nodes {
-        nodes
-    } else if let Some(target_nodes_path) = args.target_nodes_path {
-        let json_str = std::fs::read_to_string(target_nodes_path)
-            .map_err(|e| Error::ErrorReadingTargetNodesJsonFile(e.to_string()))?;
-
-        let json: FileNodes = serde_json::from_str(&json_str)
-            .map_err(|e| Error::InvalidTargetNodesJsonFile(e.to_string()))?;
-        json.nodes
-    } else {
-        return Err(Error::TargetNodesNotSpecified);
-    };
-
-    // Generate keys for all required subnets (`nb_subnets`)
-    let mut source_subnets = generate_source_subnets(args.local_key_seed, args.nb_subnets)?;
-    info!("Generated source subnets: {source_subnets:#?}");
-
-    // Target subnets (randomly assigned to every generated certificate)
-    let target_subnet_ids: Vec<SubnetId> = args
-        .target_subnets
-        .iter()
-        .flat_map(|id| {
-            id.iter().map(|id| {
-                let id =
-                    hex::decode(&id[2..]).map_err(|e| Error::InvalidSubnetId(e.to_string()))?;
-                TryInto::<[u8; 32]>::try_into(id.as_slice())
-                    .map_err(|e| Error::InvalidSubnetId(e.to_string()))
-            })
-        })
-        .map(|id| id.map(SubnetId::from_array))
-        .collect::<Result<_, _>>()?;
-
-    let mut target_node_connections: HashMap<SubnetId, Vec<TargetNodeConnection>> = HashMap::new();
-
-    // For every source subnet, open connection to every target node, so we will have
-    // nb_subnets * len(target_nodes) connections
-    for source_subnet in &source_subnets {
-        let connections_for_source_subnet =
-            open_target_node_connection(target_nodes.as_slice(), source_subnet).await?;
-        target_node_connections.insert(
-            source_subnet.source_subnet_id,
-            connections_for_source_subnet,
-        );
-    }
-
-    target_node_connections.iter().flat_map(|(_, connections)| connections).for_each(|connection| {
-        info!(
-            "Certificate spammer target nodes address: {}, source_subnet_id: {}, target subnet ids {:?}",
-            connection.address, connection.source_subnet.source_subnet_id, target_subnet_ids
-        );
-    });
-
-    let mut batch_interval = time::interval(Duration::from_millis(args.batch_interval));
-    let mut batch_number: u64 = 0;
-
-    loop {
-        batch_interval.tick().await;
-        // Starting batch, generate cert_per_batch certificates
-        batch_number += 1;
-        info!("Starting batch {batch_number}");
-
-        let mut batch: Vec<Certificate> = Vec::new(); // Certificates for this batch
-        for b in 0..args.cert_per_batch {
-            // Randomize source subnet id
-            let source_subnet =
-                &mut source_subnets[rand::random::<usize>() % args.nb_subnets as usize];
-            // Randomize number of target subnets if target subnet list cli argument is provided
-            let target_subnets: Vec<SubnetId> = if target_subnet_ids.is_empty() {
-                // Empty list of target subnets in certificate
-                Vec::new()
-            } else {
-                // Generate random list in size of 0..len(target_subnet_ids) as target subnets
-                let number_of_target_subnets =
-                    rand::random::<usize>() % (target_subnet_ids.len() + 1);
-                let mut target_subnets = Vec::new();
-                for _ in 0..number_of_target_subnets {
-                    target_subnets
-                        .push(target_subnet_ids[rand::random::<usize>() % target_subnet_ids.len()]);
-                }
-                target_subnets
-            };
-
-            let new_cert = match generate_test_certificate(source_subnet, target_subnets.as_slice())
-            {
-                Ok(cert) => cert,
-                Err(e) => {
-                    error!("Unable to generate certificate: {e}");
-                    continue;
-                }
-            };
-            debug!(
-                "New cert number {b} in batch {batch_number} generated: {:?}",
-                new_cert
+        let mut client = client.lock().await;
+        if let Err(e) = client.send_certificate(cert).await {
+            error!(
+                "failed to pass certificate to tce client, error details: {}",
+                e
             );
-            batch.push(new_cert);
         }
+    });
+}
 
-        // Dispatch certs in this batch
-        for cert in batch {
-            // Randomly choose target tce node for every certificate from related source_subnet_id connection list
-            let target_node_connection = &target_node_connections[&cert.source_subnet_id]
-                [rand::random::<usize>() % target_nodes.len()];
-            dispatch(cert, target_node_connection).await;
-        }
+pub async fn dispatch(cert_bunch: Vec<(&TargetNodeConnection, Certificate)>) {
+    for (target_node, cert) in cert_bunch {
+        info!(
+            "Sending cert id={:?} prev_cert_id= {:?} subnet_id={:?} to tce node {}",
+            cert.id, cert.prev_id, cert.source_subnet_id, target_node.address
+        );
+        submit_cert_to_tce(target_node, cert);
+    }
+}
 
-        if let Some(nb_batches) = args.nb_batches {
-            if batch_number >= nb_batches {
-                info!("Generated {nb_batches}, finishing certificate spammer...");
-                close_target_node_connections(target_node_connections).await;
-                info!("Cert spammer finished");
-                return Ok(());
+pub async fn run(
+    config: CertificateSpammerConfiguration,
+) -> Result<(), Box<dyn std::error::Error>> {
+    info!(
+        "Starting certificate spammer with configuration: {:?}",
+        config
+    );
+
+    let mut target_node_addresses: Vec<String> = Vec::new();
+    if let Some(target_node) = config.target_node {
+        target_node_addresses.push(target_node);
+    }
+
+    if let Some(target_nodes_path) = config.target_nodes_path {
+        if target_nodes_path.ends_with(".json") {
+            let json_str =
+                std::fs::read_to_string(target_nodes_path).expect("Unable to read json file");
+            let json: FileNodes =
+                serde_json::from_str(&json_str).expect("JSON was not well-formatted");
+            for tce_node_address in json.nodes {
+                target_node_addresses.push(tce_node_address);
             }
+        } else if target_nodes_path.ends_with(".toml") {
+            let toml_str =
+                std::fs::read_to_string(target_nodes_path).expect("Unable to read toml file");
+            let toml_nodes: FileNodes =
+                toml::from_str(&toml_str).expect("TOML is not well formatted");
+            for toml_node_address in toml_nodes.nodes {
+                target_node_addresses.push(toml_node_address);
+            }
+        } else {
+            panic!("Invalid target node list argument, should be `.json` or `.toml` file");
         }
+    }
+
+    let subnets: Vec<SubnetId> = (1..=target_node_addresses.len())
+        .map(|v| [v as u8; 32].into())
+        .collect();
+
+    let target_node_connections =
+        generate_target_node_connections(target_node_addresses, subnets).await?;
+
+    for target_node_connection in &target_node_connections {
+        info!(
+            "Certificate spammer target nodes address: {}, source_subnet_id: {:?}",
+            target_node_connection.address, target_node_connection.source_subnet_id
+        );
+    }
+
+    let mut nonce_state: HashMap<SubnetId, CertificateId> = HashMap::new();
+
+    // Initialize the genesis of all subnets
+    info!("Initializing genesis on all subnets...");
+    for target_node_connection in &target_node_connections {
+        nonce_state.insert(target_node_connection.source_subnet_id, [0u8; 32].into());
+    }
+
+    let mut interval = time::interval(Duration::from_secs(config.batch_time_interval));
+    loop {
+        interval.tick().await;
+        let cert_bunch = gen_cert(
+            config.cert_per_batch,
+            &mut nonce_state,
+            &target_node_connections,
+        );
+        // Dispatch every generated certificate to belonging TCE node (we assume every subnet is connected to one tce node)
+        dispatch(cert_bunch).await;
     }
 }

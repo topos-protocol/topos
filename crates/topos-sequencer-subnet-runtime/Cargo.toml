@@ -37,7 +37,7 @@ test-log.workspace = true
 env_logger.workspace = true
 secp256k1.workspace = true
 serial_test.workspace = true
-tiny-keccak.workspace = true
+tiny-keccak = "1.2"
 dockertest = "0.3.1"
 fs_extra = "1.3"
 

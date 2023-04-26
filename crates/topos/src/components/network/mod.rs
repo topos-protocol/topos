@@ -1,6 +1,6 @@
 use self::commands::{NetworkCommand, NetworkCommands};
 use tokio::{signal, spawn};
-use topos_certificate_spammer::CertificateSpammerConfig;
+use topos_certificate_spammer::CertificateSpammerConfiguration;
 use tracing::{error, info};
 
 use crate::tracing::setup_tracing;
@@ -15,15 +15,14 @@ pub(crate) async fn handle_command(
 ) -> Result<(), Box<dyn std::error::Error>> {
     match subcommands {
         Some(NetworkCommands::Spam(cmd)) => {
-            let config = CertificateSpammerConfig {
-                target_nodes: cmd.target_nodes,
+            let config = CertificateSpammerConfiguration {
+                target_node: cmd.target_node,
                 target_nodes_path: cmd.target_nodes_path,
-                local_key_seed: cmd.local_key_seed,
                 cert_per_batch: cmd.cert_per_batch,
+                batch_time_interval: cmd.batch_time_interval,
                 nb_subnets: cmd.nb_subnets,
-                nb_batches: cmd.nb_batches,
-                batch_interval: cmd.batch_interval,
-                target_subnets: cmd.target_subnets,
+                byzantine_threshold: cmd.byzantine_threshold,
+                node_per_cert: cmd.node_per_cert,
             };
 
             // Setup instrumentation if both otlp agent and otlp service name
@@ -33,10 +32,7 @@ pub(crate) async fn handle_command(
 
             spawn(async move {
                 if let Err(error) = topos_certificate_spammer::run(config).await {
-                    error!("Unable to execute network spam command due to: {error}");
-                    std::process::exit(1);
-                } else {
-                    std::process::exit(0);
+                    panic!("Unable to execute network spam command due to : {error:?}");
                 }
             });
 
