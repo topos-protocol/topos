@@ -29,16 +29,10 @@ Options:
           gRPC API Addr [env: TCE_API_ADDR=] [default: [::1]:1340]
       --echo-threshold <ECHO_THRESHOLD>
           Echo threshold [env: TCE_ECHO_THRESHOLD=] [default: 1]
-      --echo-sample-size <ECHO_SAMPLE_SIZE>
-          Echo sample size [env: TCE_ECHO_SAMPLE_SIZE=] [default: 1]
       --ready-threshold <READY_THRESHOLD>
           Ready threshold [env: TCE_READY_THRESHOLD=] [default: 1]
-      --ready-sample-size <READY_SAMPLE_SIZE>
-          Ready sample size [env: TCE_READY_SAMPLE_SIZE=] [default: 1]
       --delivery-threshold <DELIVERY_THRESHOLD>
           Delivery threshold [env: TCE_DELIVERY_THRESHOLD=] [default: 1]
-      --delivery-sample-size <DELIVERY_SAMPLE_SIZE>
-          Delivery sample size [env: TCE_DELIVERY_SAMPLE_SIZE=] [default: 1]
       --otlp-agent <OTLP_AGENT>
           Socket of the opentelemetry agent endpoint If not provided open telemetry will not be used [env: TOPOS_OTLP_AGENT=]
       --otlp-service-name <OTLP_SERVICE_NAME>

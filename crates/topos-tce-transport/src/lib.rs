@@ -7,28 +7,18 @@ use topos_core::uci::{Certificate, CertificateId};
 use topos_p2p::PeerId;
 use topos_telemetry::PropagationContext;
 
-/// Protocol parameters of the TCE
 #[derive(Args, Default, Clone, Debug)]
 #[command(name = "Parameters of the reliable broadcast")]
 pub struct ReliableBroadcastParams {
     /// Echo threshold
     #[arg(long, default_value_t = 1, env = "TCE_ECHO_THRESHOLD")]
     pub echo_threshold: usize,
-    /// Echo sample size
-    #[arg(long, default_value_t = 1, env = "TCE_ECHO_SAMPLE_SIZE")]
-    pub echo_sample_size: usize,
     /// Ready threshold
     #[arg(long, default_value_t = 1, env = "TCE_READY_THRESHOLD")]
     pub ready_threshold: usize,
-    /// Ready sample size
-    #[arg(long, default_value_t = 1, env = "TCE_READY_SAMPLE_SIZE")]
-    pub ready_sample_size: usize,
     /// Delivery threshold
     #[arg(long, default_value_t = 1, env = "TCE_DELIVERY_THRESHOLD")]
     pub delivery_threshold: usize,
-    /// Delivery sample size
-    #[arg(long, default_value_t = 1, env = "TCE_DELIVERY_SAMPLE_SIZE")]
-    pub delivery_sample_size: usize,
 }
 
 /// Protocol commands

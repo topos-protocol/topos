@@ -53,14 +53,14 @@ async fn start_a_cluster() {
 #[tokio::test]
 // FIXME: This test is flaky, it fails sometimes because of gRPC connection error (StreamClosed)
 async fn cert_delivery() {
-    let subscriber = ::tracing_subscriber::FmtSubscriber::builder()
-        .with_env_filter(::tracing_subscriber::EnvFilter::from_default_env())
+    let subscriber = tracing_subscriber::FmtSubscriber::builder()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .with_test_writer()
         .finish();
-    let _ = ::tracing::subscriber::set_global_default(subscriber);
+    let _ = tracing::subscriber::set_global_default(subscriber);
 
     let peer_number = 15;
-    let correct_sample = 5;
+    let correct_sample = 14;
     let number_of_certificates_per_subnet = 2;
     let number_of_subnets = 3;
 

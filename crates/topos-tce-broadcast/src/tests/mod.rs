@@ -2,7 +2,6 @@ use crate::double_echo::*;
 use crate::mem_store::TceMemStore;
 use crate::sampler::SubscribersUpdate;
 use crate::*;
-use rand::seq::IteratorRandom;
 use rstest::*;
 use std::collections::HashSet;
 use std::usize;
@@ -21,15 +20,10 @@ const WAIT_EVENT_TIMEOUT: Duration = Duration::from_secs(1);
 fn small_config() -> TceParams {
     TceParams {
         nb_peers: 10,
-        echo_subscribers_sample_size: 3,
-        ready_subscribers_sample_size: 3,
         broadcast_params: ReliableBroadcastParams {
             echo_threshold: 8,
-            echo_sample_size: 10,
             ready_threshold: 5,
-            ready_sample_size: 10,
             delivery_threshold: 8,
-            delivery_sample_size: 10,
         },
     }
 }
@@ -38,29 +32,17 @@ fn small_config() -> TceParams {
 fn medium_config() -> TceParams {
     TceParams {
         nb_peers: 50,
-        echo_subscribers_sample_size: 5,
-        ready_subscribers_sample_size: 5,
         broadcast_params: ReliableBroadcastParams {
-            echo_threshold: 8,
-            echo_sample_size: 20,
-            ready_threshold: 5,
-            ready_sample_size: 20,
-            delivery_threshold: 8,
-            delivery_sample_size: 20,
+            echo_threshold: 33,
+            ready_threshold: 16,
+            delivery_threshold: 32,
         },
     }
-}
-
-fn get_sample(peers: &[PeerId], sample_size: usize) -> HashSet<PeerId> {
-    let mut rng = rand::thread_rng();
-    HashSet::from_iter(peers.iter().cloned().choose_multiple(&mut rng, sample_size))
 }
 
 #[derive(Debug)]
 struct TceParams {
     nb_peers: usize,
-    echo_subscribers_sample_size: usize,
-    ready_subscribers_sample_size: usize,
     broadcast_params: ReliableBroadcastParams,
 }
 
@@ -82,7 +64,7 @@ fn create_context(params: TceParams) -> (DoubleEcho, Context) {
         mpsc::channel::<oneshot::Sender<()>>(1);
 
     let mut double_echo = DoubleEcho::new(
-        params.broadcast_params.clone(),
+        params.broadcast_params,
         cmd_receiver,
         subscriptions_view_receiver,
         subscribers_update_receiver,
@@ -93,23 +75,23 @@ fn create_context(params: TceParams) -> (DoubleEcho, Context) {
     );
 
     // List of peers
-    let mut peers = Vec::new();
+    let mut peers = HashSet::new();
     for i in 0..params.nb_peers {
         let peer = topos_p2p::utils::local_key_pair(Some(i as u8))
             .public()
             .to_peer_id();
-        peers.push(peer);
+        peers.insert(peer);
     }
 
     // Subscriptions
-    double_echo.subscriptions.echo = get_sample(&peers, params.broadcast_params.echo_sample_size);
-    double_echo.subscriptions.ready = get_sample(&peers, params.broadcast_params.ready_sample_size);
-    double_echo.subscriptions.delivery =
-        get_sample(&peers, params.broadcast_params.delivery_sample_size);
+    double_echo.subscriptions.echo = peers.clone();
+    double_echo.subscriptions.ready = peers.clone();
+    double_echo.subscriptions.delivery = peers.clone();
+    double_echo.subscriptions.network_size = params.nb_peers;
 
     // Subscribers
-    double_echo.subscribers.echo = get_sample(&peers, params.echo_subscribers_sample_size);
-    double_echo.subscribers.ready = get_sample(&peers, params.ready_subscribers_sample_size);
+    double_echo.subscribers.echo = peers.clone();
+    double_echo.subscribers.ready = peers;
 
     (
         double_echo,
@@ -320,7 +302,7 @@ async fn process_after_delivery_until_sending_ready(#[case] params: TceParams) {
     double_echo.state_change_follow_up();
 
     assert!(matches!(
-         ctx.event_receiver.try_recv(),
+        ctx.event_receiver.try_recv(),
         Ok(ProtocolEvents::CertificateDelivered { certificate }) if certificate == dummy_cert
     ));
 

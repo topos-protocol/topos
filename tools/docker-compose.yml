@@ -64,9 +64,6 @@ services:
       - TCE_LOCAL_KS=1 # 12D3KooWRhFCXBhmsMnur3up3vJsDoqWh4c39PKXgSWwzAzDHNLn
       - TOPOS_OTLP_SERVICE_NAME=tce-boot-node
       - TOPOS_OTLP_AGENT=http://otel-collector:4317
-      - TCE_ECHO_SAMPLE_SIZE=6
-      - TCE_READY_SAMPLE_SIZE=6
-      - TCE_DELIVERY_SAMPLE_SIZE=6
       - TCE_ECHO_THRESHOLD=2
       - TCE_READY_THRESHOLD=2
       - TCE_DELIVERY_THRESHOLD=2
@@ -108,9 +105,6 @@ services:
       - TOPOS_OTLP_AGENT=http://otel-collector:4317
       # Boot peers are injected by init.sh
       # - TCE_BOOT_PEERS=12D3KooWRhFCXBhmsMnur3up3vJsDoqWh4c39PKXgSWwzAzDHNLn /dns4/boot/tcp/9090
-      - TCE_ECHO_SAMPLE_SIZE=6
-      - TCE_READY_SAMPLE_SIZE=6
-      - TCE_DELIVERY_SAMPLE_SIZE=6
       - TCE_ECHO_THRESHOLD=2
       - TCE_READY_THRESHOLD=2
       - TCE_DELIVERY_THRESHOLD=2
