@@ -33,7 +33,7 @@ pub(crate) async fn handle_command(
                 } else {
                     info!(
                         "Starting installation of Polygon Edge binary to target path: {}",
-                        &cmd.path
+                        &cmd.path.display()
                     );
                     if let Err(e) = subnet::installer::install_polygon_edge(cmd).await {
                         error!("Error installing Polygon Edge: {e}");

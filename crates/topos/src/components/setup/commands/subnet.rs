@@ -6,8 +6,8 @@ use std::path::PathBuf;
 pub struct Subnet {
     /// Installation directory path for Polygon Edge binary.
     /// If not provided, Polygon Edge binary will be installed to the current directory
-    #[clap(long, env = "TOPOS_SETUP_SUBNET_PATH", default_value = ".")]
-    pub path: String,
+    #[clap(long, env = "TOPOS_SETUP_POLYGON_EDGE_DIR", default_value = ".")]
+    pub path: PathBuf,
     /// Polygon Edge release version. If not provided, latest release version will be installed
     #[arg(long, env = "TOPOS_SETUP_SUBNET_RELEASE")]
     pub release: Option<String>,

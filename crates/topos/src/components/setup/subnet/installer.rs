@@ -4,7 +4,7 @@ use serde_json::Value;
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use tokio::{signal, spawn};
 use tracing::{error, info};
@@ -32,17 +32,16 @@ fn determine_binary_release_name() -> String {
 }
 
 /// Download Polygon Edge binary from repository to requested target directory
-async fn download_binary(file_name: &str, uri: &str, target_directory: &str) -> Result<(), Error> {
+async fn download_binary(file_name: &str, uri: &str, target_directory: &Path) -> Result<(), Error> {
     info!(
         "Downloading binary `{}` to target directory: {}",
-        file_name, target_directory
+        file_name,
+        target_directory.display()
     );
 
     let response = reqwest::get(uri).await.map_err(Error::Http)?;
-
-    let download_file_name = (target_directory.to_string() + "/" + file_name).replace("\\\\", "\\");
-    let download_file_path = Path::new(&download_file_name);
-    let mut target_file = match File::create(download_file_path) {
+    let download_file_path = target_directory.join(Path::new(file_name));
+    let mut target_file = match File::create(&download_file_path) {
         Err(e) => {
             error!("Unable to create file: {e}");
             return Err(Error::File(e));
@@ -57,7 +56,7 @@ async fn download_binary(file_name: &str, uri: &str, target_directory: &str) -> 
     // Set execution rights
     if let Err(e) = std::process::Command::new("chmod")
         .arg("u+x")
-        .arg(download_file_name)
+        .arg(download_file_path)
         .output()
     {
         error!("Unable to set execution rights for downloaded file: {e}");

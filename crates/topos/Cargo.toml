@@ -51,8 +51,6 @@ libp2p = { workspace = true, features = ["identify"] }
 assert_cmd = "2.0.6"
 insta = { version = "1.21", features = ["json", "redactions"] }
 
-
-
 [features]
 default = ["tce", "sequencer", "network", "setup"]
 tce = ["topos-tce", "topos-tce-transport"]
