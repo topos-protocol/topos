@@ -21,7 +21,7 @@ pub(crate) struct NodeArgument {
     pub(crate) node: String,
 }
 
-/// Topos CLI subcommand used to execute TCE related functionality
+/// Topos CLI subcommand for the TCE related functionalities
 #[derive(Args, Debug)]
 pub(crate) struct TceCommand {
     #[clap(from_global)]

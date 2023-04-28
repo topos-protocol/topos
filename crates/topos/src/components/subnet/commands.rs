@@ -4,7 +4,7 @@ mod subnet;
 
 pub(crate) use subnet::Run;
 
-/// Topos CLI subcommand used to utilize subnet (Polygon Edge) related functionality
+/// Topos CLI subcommand for the Polygon Edge related functionalities
 #[derive(Args, Debug)]
 pub(crate) struct SubnetCommand {
     #[clap(from_global)]

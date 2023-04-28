@@ -21,11 +21,12 @@ pub(crate) async fn handle_command(
 
             let binary_name =
                 "polygon-edge-".to_string() + std::env::consts::ARCH + "-" + std::env::consts::OS;
-            let polygon_edge_path = cmd.path.to_string() + "/" + &binary_name;
+            let polygon_edge_path = cmd.path.join(&binary_name);
 
             info!(
                 "Running binary {} with arguments:{:?}",
-                polygon_edge_path, cmd.polygon_edge_arguments
+                polygon_edge_path.display(),
+                cmd.polygon_edge_arguments
             );
 
             spawn(async move {
@@ -37,10 +38,14 @@ pub(crate) async fn handle_command(
                     .stdin(Stdio::inherit())
                     .spawn()
                 {
-                    Ok(command) => {
-                        if let Some(pid) = command.id() {
-                            info!("Child process with pid {pid} successfully started");
+                    Ok(mut child) => {
+                        if let Some(pid) = child.id() {
+                            info!("Polygon Edge child process with pid {pid} successfully started");
                         }
+                        if let Err(e) = child.wait().await {
+                            info!("Polygon Edge child process finished with error: {e}");
+                        }
+                        std::process::exit(0);
                     }
                     Err(e) => {
                         error!("Error executing Polygon Edge: {e}");
