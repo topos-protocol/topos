@@ -4,5 +4,7 @@ pub(crate) mod network;
 pub(crate) mod sequencer;
 #[cfg(feature = "setup")]
 pub(crate) mod setup;
+#[cfg(feature = "subnet")]
+pub(crate) mod subnet;
 #[cfg(feature = "tce")]
 pub(crate) mod tce;

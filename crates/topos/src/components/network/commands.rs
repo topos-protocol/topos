@@ -4,6 +4,7 @@ mod spam;
 
 pub(crate) use spam::Spam;
 
+/// Topos CLI subcommand for network related functionalities (e.g., running the certificate spammer)
 #[derive(Args, Debug)]
 pub(crate) struct NetworkCommand {
     #[clap(from_global)]
