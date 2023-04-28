@@ -12,7 +12,7 @@ pub(crate) fn create_topos_core_contract_from_json<T: web3::Transport>(
     let contract = web3::contract::Contract::from_json(
         web3.eth(),
         contract_address_h160,
-        include_bytes!("../abi/ToposCore.json"),
+        include_bytes!("../abi/IToposCore.json"),
     )
     .map_err(|e| Error::EthAbiError { source: e })?;
     Ok(contract)
@@ -20,7 +20,7 @@ pub(crate) fn create_topos_core_contract_from_json<T: web3::Transport>(
 
 pub(crate) fn parse_events_from_json() -> Result<Vec<web3::ethabi::Event>, Error> {
     let mut result = Vec::new();
-    let contract_bytes = include_bytes!("../abi/ToposCore.json");
+    let contract_bytes = include_bytes!("../abi/IToposCore.json");
     let reader = std::io::Cursor::new(contract_bytes);
     let contract = web3::ethabi::Contract::load(reader)?;
     for event in contract.events() {

@@ -26,6 +26,8 @@ use topos_test_sdk::constants::*;
 
 const SUBNET_TCC_JSON_DEFINITION: &str = "topos-core/ToposCore.sol/ToposCore.json";
 const SUBNET_TCC_PROXY_JSON_DEFINITION: &str = "topos-core/ToposCoreProxy.sol/ToposCoreProxy.json";
+const SUBNET_TC_MESSAGING_JSON_DEFINITION: &str =
+    "topos-core/ToposMessaging.sol/ToposMessaging.json";
 const SUBNET_ITCC_JSON_DEFINITION: &str = "interfaces/IToposCore.sol/IToposCore.json";
 const SUBNET_TOKEN_DEPLOYER_JSON_DEFINITION: &str =
     "topos-core/TokenDeployer.sol/TokenDeployer.json";
@@ -159,6 +161,7 @@ async fn deploy_contracts(
     info!("Deploying subnet smart contract...");
     let eth_private_key = secp256k1::SecretKey::from_str(TEST_SECRET_ETHEREUM_KEY)?;
 
+    // Deploy TokenDeployer contract
     info!("Getting Token deployer definition...");
     // Deploy subnet smart contract (currently topos core contract)
     let token_deployer_contract_file_path = match std::env::var(
@@ -171,7 +174,6 @@ async fn deploy_contracts(
             String::from(SUBNET_TOKEN_DEPLOYER_JSON_DEFINITION)
         }
     };
-
     let token_deployer_contract = deploy_contract::<u8, u8, u8>(
         &token_deployer_contract_file_path,
         web3_client,
@@ -180,6 +182,7 @@ async fn deploy_contracts(
     )
     .await?;
 
+    // Deploy ToposCore contract
     info!("Getting Topos Core Contract definition...");
     // Deploy subnet smart contract (currently topos core contract)
     let tcc_contract_file_path = match std::env::var(TOPOS_SMART_CONTRACTS_BUILD_PATH_VAR) {
@@ -194,14 +197,11 @@ async fn deploy_contracts(
         &tcc_contract_file_path,
         web3_client,
         &eth_private_key,
-        (
-            Some(token_deployer_contract.address()),
-            Option::<u8>::None,
-            Option::<u8>::None,
-        ),
+        (Option::<u8>::None, Option::<u8>::None, Option::<u8>::None),
     )
     .await?;
 
+    // Deploy ToposCoreProxy contract
     info!("Getting Topos Core Proxy Contract definition...");
     // Deploy subnet smart contract proxy
     let tcc_proxy_contract_file_path = match std::env::var(TOPOS_SMART_CONTRACTS_BUILD_PATH_VAR) {
@@ -212,21 +212,43 @@ async fn deploy_contracts(
             String::from(SUBNET_TCC_PROXY_JSON_DEFINITION)
         }
     };
-
-    // Encode params for topos core contract proxy
     let admin_account: Token = Token::Array(vec![Token::Address(H160::from_slice(
         hex::decode(&TEST_ETHEREUM_ACCOUNT[2..]).unwrap().as_slice(),
     ))]);
     let new_admin_threshold: Token = Token::Uint(U256::from(1));
-    let encoded_params = web3::ethabi::encode(&[admin_account, new_admin_threshold]);
-
-    let topos_core_contract_proxy = deploy_contract(
+    let topos_core_proxy_encoded_params =
+        web3::ethabi::encode(&[admin_account, new_admin_threshold]);
+    let topos_core_proxy_contract = deploy_contract(
         &tcc_proxy_contract_file_path,
         web3_client,
         &eth_private_key,
         (
             Some(topos_core_contract.address()),
-            Some(encoded_params),
+            Some(topos_core_proxy_encoded_params),
+            Option::<u8>::None,
+        ),
+    )
+    .await?;
+
+    // Deploy ToposMessaging contract
+    info!("Getting Topos Messaging Contract definition...");
+    // Deploy subnet topos messaging protocol
+    let tc_messaging_contract_file_path = match std::env::var(TOPOS_SMART_CONTRACTS_BUILD_PATH_VAR)
+    {
+        Ok(path) => path + "/" + SUBNET_TC_MESSAGING_JSON_DEFINITION,
+        Err(_e) => {
+            error!("Error reading contract build path from `{TOPOS_SMART_CONTRACTS_BUILD_PATH_VAR}` environment variable, using current folder {}",
+                     std::env::current_dir().unwrap().display());
+            String::from(SUBNET_TC_MESSAGING_JSON_DEFINITION)
+        }
+    };
+    let _topos_messaging_contract = deploy_contract(
+        &tc_messaging_contract_file_path,
+        web3_client,
+        &eth_private_key,
+        (
+            Some(token_deployer_contract.address()),
+            Some(topos_core_proxy_contract.address()),
             Option::<u8>::None,
         ),
     )
@@ -243,7 +265,7 @@ async fn deploy_contracts(
     };
     let topos_core_contract = get_contract_interface(
         tcc_interface_file_path.as_str(),
-        topos_core_contract_proxy.address(),
+        topos_core_proxy_contract.address(),
         web3_client,
     )?;
 
