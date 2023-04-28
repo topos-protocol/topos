@@ -63,12 +63,12 @@ jobs:
 
       - name: Acquire built smart contracts
         run: |
-          mkdir contracts
+          mkdir -p contracts/topos-core/ToposCore.sol contracts/topos-core/ToposCoreProxy.sol contracts/interfaces/IToposCore.sol contracts/topos-core/TokenDeployer.sol 
           docker create --name dummy ${{ env.REGISTRY }}/${{ env.TOPOS_SMART_CONTRACTS_IMAGE_NAME }}:${{ env.TOPOS_SMART_CONTRACTS_IMAGE_TAG }}
-          docker cp dummy:/usr/src/app/brownie/build/contracts/TokenDeployer.json ./contracts/
-          docker cp dummy:/usr/src/app/brownie/build/contracts/ToposCore.json ./contracts/
-          docker cp dummy:/usr/src/app/brownie/build/contracts/ToposCoreProxy.json ./contracts/
-          docker cp dummy:/usr/src/app/brownie/build/contracts/IToposCore.json ./contracts/
+          docker cp dummy:/usr/src/app/artifacts/contracts/topos-core/ToposCore.sol/ToposCore.json ./contracts/topos-core/ToposCore.sol/
+          docker cp dummy:/usr/src/app/artifacts/contracts/topos-core/ToposCoreProxy.sol/ToposCoreProxy.json ./contracts/topos-core/ToposCoreProxy.sol/
+          docker cp dummy:/usr/src/app/artifacts/contracts/interfaces/IToposCore.sol/IToposCore.json ./contracts/interfaces/IToposCore.sol/
+          docker cp dummy:/usr/src/app/artifacts/contracts/topos-core/TokenDeployer.sol/TokenDeployer.json ./contracts/topos-core/TokenDeployer.sol/
           docker rm -f dummy
 
       - name: Run all workspace tests

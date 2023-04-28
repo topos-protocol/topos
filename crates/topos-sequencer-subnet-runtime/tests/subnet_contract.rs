@@ -24,10 +24,11 @@ use topos_sequencer_subnet_runtime::{SubnetRuntimeProxyConfig, SubnetRuntimeProx
 
 use topos_test_sdk::constants::*;
 
-const SUBNET_TCC_JSON_DEFINITION: &str = "ToposCore.json";
-const SUBNET_TCC_PROXY_JSON_DEFINITION: &str = "ToposCoreProxy.json";
-const SUBNET_ITCC_JSON_DEFINITION: &str = "IToposCore.json";
-const SUBNET_TOKEN_DEPLOYER_JSON_DEFINITION: &str = "TokenDeployer.json";
+const SUBNET_TCC_JSON_DEFINITION: &str = "topos-core/ToposCore.sol/ToposCore.json";
+const SUBNET_TCC_PROXY_JSON_DEFINITION: &str = "topos-core/ToposCoreProxy.sol/ToposCoreProxy.json";
+const SUBNET_ITCC_JSON_DEFINITION: &str = "interfaces/IToposCore.sol/IToposCore.json";
+const SUBNET_TOKEN_DEPLOYER_JSON_DEFINITION: &str =
+    "topos-core/TokenDeployer.sol/TokenDeployer.json";
 const SUBNET_CHAIN_ID: u64 = 100;
 const SUBNET_RPC_PORT: u32 = 8545;
 const TEST_SECRET_ETHEREUM_KEY: &str =

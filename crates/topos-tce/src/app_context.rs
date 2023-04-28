@@ -291,17 +291,17 @@ impl AppContext {
                                 positions
                                     .targets
                                     .into_iter()
-                                    .map(|(subnet_id, ceritificate_target_stream_position)| {
+                                    .map(|(subnet_id, certificate_target_stream_position)| {
                                         (
                                             subnet_id,
                                             TargetStreamPosition {
                                                 target_subnet_id:
-                                                    ceritificate_target_stream_position
+                                                    certificate_target_stream_position
                                                         .target_subnet_id,
                                                 source_subnet_id:
-                                                    ceritificate_target_stream_position
+                                                    certificate_target_stream_position
                                                         .source_subnet_id,
-                                                position: ceritificate_target_stream_position
+                                                position: certificate_target_stream_position
                                                     .position
                                                     .0,
                                                 certificate_id: Some(certificate_id),

@@ -23,5 +23,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         options::ToposCommand::Sequencer(cmd) => components::sequencer::handle_command(cmd).await,
         #[cfg(feature = "network")]
         options::ToposCommand::Network(cmd) => components::network::handle_command(cmd).await,
+        #[cfg(feature = "setup")]
+        options::ToposCommand::Setup(cmd) => components::setup::handle_command(cmd).await,
     }
 }
