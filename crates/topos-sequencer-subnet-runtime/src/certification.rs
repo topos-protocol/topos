@@ -56,7 +56,7 @@ impl Certification {
             let mut target_subnets: Vec<SubnetId> = Vec::new();
             for event in &block_info.events {
                 match event {
-                    SubnetEvent::TokenSent {
+                    SubnetEvent::CrossSubnetMessageSent {
                         target_subnet_id, ..
                     } => {
                         target_subnets.push(*target_subnet_id);
