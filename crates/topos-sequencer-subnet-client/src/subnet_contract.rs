@@ -48,50 +48,22 @@ pub(crate) fn parse_events_from_log(
     for log in &logs {
         if let Some(event) = get_event_type_from_log(events, log) {
             match event.name.as_str() {
-                "TokenSent" => {
-                    // Parse TokenSent event
-                    let sender = ethabi::decode(
-                        vec![event.inputs[0].kind.clone()].as_slice(),
-                        &log.topics[1].0,
-                    )?;
+                "CrossSubnetMessageSent" => {
+                    // Parse CrossSubnetMessageSent event
                     let event_arguments = web3::ethabi::decode(
                         &event
                             .inputs
                             .iter()
-                            .skip(1)
                             .map(|i| i.kind.clone())
                             .collect::<Vec<ParamType>>(),
                         &log.data.0,
                     )?;
-                    let send_token_event = SubnetEvent::TokenSent {
-                        sender: if let ethabi::Token::Address(address) = sender[0] {
-                            address.into()
-                        } else {
-                            return Err(Error::InvalidArgument {
-                                message: "invalid sender address".to_string(),
-                            });
-                        },
-                        source_subnet_id: if let ethabi::Token::FixedBytes(bytes) =
+                    let cross_subnet_message_event = SubnetEvent::CrossSubnetMessageSent {
+                        target_subnet_id: if let ethabi::Token::FixedBytes(bytes) =
                             &event_arguments[0]
                         {
                             match bytes.as_slice().try_into() {
-                                Ok(sender) => sender,
-                                Err(_) => {
-                                    return Err(Error::InvalidArgument {
-                                        message: "invalid source subnet id".to_string(),
-                                    });
-                                }
-                            }
-                        } else {
-                            return Err(Error::InvalidArgument {
-                                message: "invalid source subnet id".to_string(),
-                            });
-                        },
-                        target_subnet_id: if let ethabi::Token::FixedBytes(bytes) =
-                            &event_arguments[1]
-                        {
-                            match bytes.as_slice().try_into() {
-                                Ok(sender) => sender,
+                                Ok(target_subnet_id) => target_subnet_id,
                                 Err(_) => {
                                     return Err(Error::InvalidArgument {
                                         message: "invalid target subnet id".to_string(),
@@ -103,29 +75,8 @@ pub(crate) fn parse_events_from_log(
                                 message: "invalid target subnet id".to_string(),
                             });
                         },
-                        receiver: if let ethabi::Token::Address(address) = event_arguments[2] {
-                            address.into()
-                        } else {
-                            return Err(Error::InvalidArgument {
-                                message: "invalid receiver address".to_string(),
-                            });
-                        },
-                        symbol: if let ethabi::Token::String(symbol) = &event_arguments[3] {
-                            symbol.clone()
-                        } else {
-                            return Err(Error::InvalidArgument {
-                                message: "invalid symbol".to_string(),
-                            });
-                        },
-                        amount: if let web3::ethabi::Token::Uint(value) = event_arguments[4] {
-                            value
-                        } else {
-                            return Err(Error::InvalidArgument {
-                                message: "invalid amount event argument".to_string(),
-                            });
-                        },
                     };
-                    result.push(send_token_event);
+                    result.push(cross_subnet_message_event);
                 }
                 "ContractCall" => {
                     // Parse ContractCall event
