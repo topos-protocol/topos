@@ -48,8 +48,8 @@ runs:
           rustup override set "${{ inputs.toolchain }}"
         fi
 
-        if [ ! -Z ${{ inputs.components }} ]; then
-          rustup component add $(echo ${{ inputs.components }}|sed 's/,//')
+        if [ ! -z "${{ inputs.components }}" ]; then
+          rustup component add $(echo ${{ inputs.components }}|sed 's/,/ /')
         fi
 
         echo CARGO_TERM_COLOR="always" >> "$GITHUB_ENV"
