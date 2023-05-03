@@ -13,7 +13,9 @@ WORKDIR /usr/src/app
 FROM base AS build
 COPY . .
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
-  cargo build --release --no-default-features --features=${FEATURES}
+    --mount=type=cache,id=sccache,target=/root/.cache/sccache \
+  cargo build --release --no-default-features --features=${FEATURES} \
+  && sccache --show-stats
 
 FROM debian:bullseye-slim AS topos
 
