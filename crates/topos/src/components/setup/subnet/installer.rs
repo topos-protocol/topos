@@ -1,4 +1,5 @@
 use crate::components::setup::commands::Subnet;
+use flate2::read::GzDecoder;
 use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashSet;
@@ -6,6 +7,7 @@ use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
+use tar::Archive;
 use tokio::{signal, spawn};
 use tracing::{error, info};
 
@@ -25,10 +27,35 @@ pub enum Error {
     File(std::io::Error),
 }
 
+fn map_arch(arch: &str) -> &str {
+    match arch {
+        "x86" => "x86",
+        "x86_64" => "amd64",
+        "aarch64" => "arm64",
+        _ => "unknown",
+    }
+}
+
+fn map_os(arch: &str) -> &str {
+    match arch {
+        "linux" => "linux",
+        "macos" => "darwin",
+        "windows" => "windows",
+        _ => "unknown",
+    }
+}
+
 /// Calculate expected polygon edge binary name for this platform
 /// By convention it is in the format `polygon-edge-<cpu architecture>-<operating system>`
-fn determine_binary_release_name() -> String {
-    "polygon-edge-".to_string() + std::env::consts::ARCH + "-" + std::env::consts::OS
+fn determine_binary_release_name(release: &PolygonEdgeRelease) -> String {
+    "polygon-edge".to_string()
+        + "_"
+        + &release.version[1..]
+        + "_"
+        + map_os(std::env::consts::OS)
+        + "_"
+        + map_arch(std::env::consts::ARCH)
+        + ".tar.gz"
 }
 
 /// Download Polygon Edge binary from repository to requested target directory
@@ -41,30 +68,35 @@ async fn download_binary(file_name: &str, uri: &str, target_directory: &Path) ->
 
     let response = reqwest::get(uri).await.map_err(Error::Http)?;
     let download_file_path = target_directory.join(Path::new(file_name));
-    let mut target_file = match File::create(&download_file_path) {
-        Err(e) => {
-            error!("Unable to create file: {e}");
-            return Err(Error::File(e));
-        }
-        Ok(file) => file,
-    };
-
-    target_file
-        .write_all(response.bytes().await.map_err(Error::Http)?.as_ref())
-        .map_err(Error::File)?;
-
-    // Set execution rights
-    if let Err(e) = std::process::Command::new("chmod")
-        .arg("u+x")
-        .arg(download_file_path)
-        .output()
     {
-        error!("Unable to set execution rights for downloaded file: {e}");
+        //Download file
+        let mut target_archive_file = match File::create(&download_file_path) {
+            Err(e) => {
+                error!("Unable to create file: {e}");
+                return Err(Error::File(e));
+            }
+            Ok(file) => file,
+        };
+
+        target_archive_file
+            .write_all(response.bytes().await.map_err(Error::Http)?.as_ref())
+            .map_err(Error::File)?;
     }
+
+    {
+        // Decompress archive
+        let archive_file = File::open(&download_file_path).map_err(Error::File)?;
+        let mut archive = Archive::new(GzDecoder::new(archive_file));
+        archive.unpack(target_directory).map_err(Error::File)?;
+    }
+
+    // Remove downloaded archive
+    std::fs::remove_file(&download_file_path).map_err(Error::File)?;
 
     Ok(())
 }
 
+#[derive(Debug)]
 struct PolygonEdgeRelease {
     version: String,
     binary: String,
@@ -142,8 +174,8 @@ async fn get_release(
     version: &Option<String>,
 ) -> Result<PolygonEdgeRelease, Error> {
     let releases = get_available_releases(repository).await?;
-    let expected_binary = determine_binary_release_name();
     for release in releases {
+        let expected_binary = determine_binary_release_name(&release);
         if let Some(version) = version {
             if &release.version == version && release.binary == expected_binary {
                 return Ok(release);
