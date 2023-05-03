@@ -37,6 +37,19 @@
     "anonymous": false,
     "inputs": [
       {
+        "indexed": false,
+        "internalType": "SubnetId",
+        "name": "targetSubnetId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "CrossSubnetMessageSent",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
         "indexed": true,
         "internalType": "address",
         "name": "implementation",
@@ -114,6 +127,19 @@
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "SubnetId",
+        "name": "targetSubnetId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "emitCrossSubnetMessage",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {

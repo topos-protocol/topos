@@ -24,13 +24,8 @@ pub type Hash = String;
 /// Event collected from the sending subnet
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SubnetEvent {
-    TokenSent {
-        sender: Address,
-        source_subnet_id: SubnetId,
+    CrossSubnetMessageSent {
         target_subnet_id: SubnetId,
-        receiver: Address,
-        symbol: String,
-        amount: ethereum_types::U256,
     },
     ContractCall {
         source_subnet_id: SubnetId,
