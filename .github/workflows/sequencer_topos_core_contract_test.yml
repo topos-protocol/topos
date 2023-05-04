@@ -15,7 +15,7 @@ env:
   REGISTRY: ghcr.io
   POLYGON_SUBNET_IMAGE_NAME: topos-network/polygon-edge
   POLYGON_SUBNET_IMAGE_TAG: develop
-  TOPOS_SMART_CONTRACTS_IMAGE_NAME: toposware/topos-smart-contracts
+  TOPOS_SMART_CONTRACTS_IMAGE_NAME: topos-network/topos-smart-contracts
   TOPOS_SMART_CONTRACTS_IMAGE_TAG: main
 
 jobs:

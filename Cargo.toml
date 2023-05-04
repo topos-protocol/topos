@@ -30,6 +30,7 @@ tiny-keccak = {version = "1.5"}
 
 # Log, Tracing & telemetry
 opentelemetry = { version = "0.18", features = ["rt-tokio", "metrics"] }
+opentelemetry-otlp = { version = " 0.11", features = ["tonic", "metrics", "tls", "tls-roots"] }
 tracing = { version = "0.1", default-features = false }
 tracing-attributes = "0.1"
 tracing-opentelemetry = "0.18"
