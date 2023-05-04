@@ -507,34 +507,24 @@ async fn test_subnet_node_get_block_info(
 ) -> Result<(), Box<dyn std::error::Error>> {
     //Context with subnet
     let context = context_running_subnet_node.await;
-    let eth_private_key = hex::decode(TEST_SECRET_ETHEREUM_KEY)?;
-    let _eth_address =
-        topos_sequencer_subnet_client::subnet_contract::derive_eth_address(&eth_private_key)?;
     match topos_sequencer_subnet_client::SubnetClientListener::new(
         &context.jsonrpc_ws(),
         &("0x".to_string() + &hex::encode(context.subnet_contract.address())),
     )
     .await
     {
-        Ok(mut subnet_client) => {
-            match subnet_client
-                .get_next_finalized_block(
-                    &("0x".to_string() + &hex::encode(context.subnet_contract.address())),
-                )
-                .await
-            {
-                Ok(block_info) => {
-                    info!(
-                        "Block info successfully retrieved for block {}",
-                        block_info.number
-                    );
-                    assert!(block_info.number > 0 && block_info.number < 100);
-                }
-                Err(e) => {
-                    panic!("Error getting next finalized block {e}");
-                }
+        Ok(mut subnet_client) => match subnet_client.get_next_finalized_block().await {
+            Ok(block_info) => {
+                info!(
+                    "Block info successfully retrieved for block {}",
+                    block_info.number
+                );
+                assert!(block_info.number == 0);
             }
-        }
+            Err(e) => {
+                panic!("Error getting next finalized block: {e}");
+            }
+        },
         Err(e) => {
             panic!("Unable to get block info, error {e}");
         }
