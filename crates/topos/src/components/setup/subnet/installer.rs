@@ -70,13 +70,10 @@ async fn download_binary(file_name: &str, uri: &str, target_directory: &Path) ->
     let download_file_path = target_directory.join(Path::new(file_name));
     {
         //Download file
-        let mut target_archive_file = match File::create(&download_file_path) {
-            Err(e) => {
-                error!("Unable to create file: {e}");
-                return Err(Error::File(e));
-            }
-            Ok(file) => file,
-        };
+        let mut target_archive_file = File::create(&download_file_path).map_err(|error| {
+            error!("Unable to create file: {error}");
+            Error::File(error)
+        })?;
 
         target_archive_file
             .write_all(response.bytes().await.map_err(Error::Http)?.as_ref())
