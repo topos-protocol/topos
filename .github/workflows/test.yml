@@ -61,5 +61,3 @@ jobs:
       - run: cargo nextest run cert_delivery --locked --no-default-features -F tce
         env:
           RUST_LOG: topos=info
-
-
