@@ -32,13 +32,14 @@ topos-crypto = {package = "topos-crypto", path = "../topos-crypto"}
 [dev-dependencies]
 rstest.workspace = true
 serde_json.workspace = true
-web3.workspace = true
 test-log.workspace = true
 env_logger.workspace = true
 secp256k1.workspace = true
 serial_test.workspace = true
 tiny-keccak.workspace = true
+ethers.workspace = true
 dockertest = "0.3.1"
 fs_extra = "1.3"
+
 
 topos-test-sdk = { path = "../topos-test-sdk/" }
