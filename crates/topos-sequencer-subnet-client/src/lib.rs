@@ -1,19 +1,26 @@
 pub mod subnet_contract;
 
-use crate::subnet_contract::{
-    create_topos_core_contract_from_json, parse_events_from_json, parse_events_from_log,
+use crate::subnet_contract::{create_topos_core_contract_from_json, get_block_events};
+use ethers::abi::ethabi::ethereum_types::{H160, U256};
+use ethers::core::k256::ecdsa::SigningKey;
+use ethers::prelude::Wallet;
+use ethers::types::TransactionReceipt;
+use ethers::{
+    abi::Token,
+    middleware::SignerMiddleware,
+    providers::{Http, Provider, ProviderError, Ws, WsClientError},
+    signers::{LocalWallet, Signer, WalletError},
 };
+use ethers_providers::Middleware;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use std::time::Duration;
 use topos_core::api::checkpoints::TargetStreamPosition;
 pub use topos_core::uci::{
     Address, Certificate, CertificateId, StateRoot, SubnetId, TxRootHash, CERTIFICATE_ID_LENGTH,
     SUBNET_ID_LENGTH,
 };
-use tracing::{debug, error, info};
-use web3::ethabi::Token;
-use web3::futures::StreamExt;
-use web3::transports::{Http, WebSocket};
-use web3::types::{BlockId, H160, U256, U64};
+use tracing::{error, info};
 
 const PUSH_CERTIFICATE_GAS_LIMIT: u64 = 1000000;
 
@@ -41,19 +48,18 @@ pub enum SubnetEvent {
         target_contract_addr: Address,
         payload: Vec<u8>,
         symbol: String,
-        amount: ethereum_types::U256,
+        amount: U256,
     },
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct BlockInfo {
-    // TODO: proper dependencies to block type etc
     /// hash of the block.
     pub hash: Hash,
     /// hash of the parent block.
     pub parent_hash: Hash,
     /// block's number.
-    pub number: BlockNumber,
+    pub number: u64,
     /// state root
     pub state_root: StateRoot,
     /// tx root hash
@@ -66,8 +72,8 @@ pub struct BlockInfo {
 pub enum Error {
     #[error("new finalized block not available")]
     BlockNotAvailable,
-    #[error("invalid block number")]
-    InvalidBlockNumber,
+    #[error("invalid block number: {0}")]
+    InvalidBlockNumber(u64),
     #[error("data not available")]
     DataNotAvailable,
     #[error("failed mutable cast")]
@@ -79,54 +85,26 @@ pub enum Error {
     },
     #[error("json parse error")]
     JsonParseError,
-    #[error("hex data decoding error: {source}")]
-    HexDecodingError {
-        #[from]
-        source: hex::FromHexError,
-    },
-    #[error("ethereum abi error: {source}")]
-    EthAbiError {
-        #[from]
-        source: web3::ethabi::Error,
-    },
-    #[error("ethereum contract error: {source}")]
-    EthContractError {
-        #[from]
-        source: web3::contract::Error,
-    },
+    #[error("invalid url: {0}")]
+    InvalidUrl(String),
+    #[error("hex data decoding error: {0}")]
+    HexDecodingError(rustc_hex::FromHexError),
+    #[error("ethers provider error: {0}")]
+    EthersProviderError(ProviderError),
+    #[error("ethereum contract error: {0}")]
+    ContractError(String),
+    #[error("ethereum event error: {0}")]
+    EventError(String),
     #[error("invalid argument: {message}")]
     InvalidArgument { message: String },
-    #[error("failed to parse integer value from string: {source}")]
-    IntParseError {
-        #[from]
-        source: std::num::ParseIntError,
-    },
-    #[error("failed to convert slice: {source}")]
-    SliceConversionError {
-        #[from]
-        source: std::array::TryFromSliceError,
-    },
-    #[error("failed to parse int value from string: {source}")]
-    FromStrRadixError {
-        #[from]
-        source: web3::ethabi::ethereum_types::FromStrRadixErr,
-    },
-    #[error("error constructing key: {source}")]
-    KeyDerivationError {
-        #[from]
-        source: secp256k1::Error,
-    },
-    #[error("invalid secret key")]
-    InvalidKey,
+    #[error("wallet error: {0}")]
+    WalletError(WalletError),
+    #[error("invalid secret key: {0}")]
+    InvalidKey(String),
     #[error("error with signing ethereum transaction")]
     EthereumTxSignError,
-    #[error("web3 error: {source}")]
-    Web3Error {
-        #[from]
-        source: web3::Error,
-    },
-    #[error("invalid web3 subscription")]
-    InvalidWeb3Subscription,
+    #[error("web socket client error: {0}")]
+    WsClientError(WsClientError),
     #[error("input output error: {source}")]
     InputOutputError {
         #[from]
@@ -136,20 +114,13 @@ pub enum Error {
     InvalidCertificateId,
     #[error("invalid checkpoints data")]
     InvalidCheckpointsData,
-    #[error("invalid subnet id")]
-    InvalidSubnetId,
 }
 
 // Subnet client for listening events from subnet node
 pub struct SubnetClientListener {
-    web3_client: web3::Web3<web3::transports::WebSocket>,
     latest_block: Option<u64>,
-    block_subscription: Option<
-        web3::api::SubscriptionStream<web3::transports::WebSocket, web3::types::BlockHeader>,
-    >,
-    #[allow(dead_code)]
-    contract: web3::contract::Contract<WebSocket>,
-    events: Vec<web3::ethabi::Event>,
+    contract: subnet_contract::IToposCore<Provider<Ws>>,
+    provider: Arc<Provider<Ws>>,
 }
 
 impl SubnetClientListener {
@@ -159,101 +130,53 @@ impl SubnetClientListener {
             "Connecting to subnet node at endpoint: {}",
             ws_subnet_endpoint
         );
-        let transport = web3::transports::WebSocket::new(ws_subnet_endpoint).await?;
-        let web3 = web3::Web3::new(transport);
+        let ws = Provider::<Ws>::connect(ws_subnet_endpoint)
+            .await
+            .map_err(Error::EthersProviderError)?;
+        let provider = Arc::new(ws);
 
         // Initialize Topos Core Contract from json abi
-        let contract = create_topos_core_contract_from_json(&web3, contract_address)?;
-        // List of events that this contract could create
-        let events = parse_events_from_json()?;
+        let contract = create_topos_core_contract_from_json(contract_address, provider.clone())?;
 
         Ok(SubnetClientListener {
-            web3_client: web3,
             latest_block: None,
-            block_subscription: None,
             contract,
-            events,
+            provider,
         })
     }
 
     /// Subscribe and listen to runtime finalized blocks
-    pub async fn get_next_finalized_block(
-        &mut self,
-        _subnet_contract: &str,
-    ) -> Result<BlockInfo, Error> {
-        // TODO: keep latest read block in storage not to lose history and sync previous blocks
-        let sub = if self.block_subscription.is_none() {
-            self.block_subscription = Some(
-                self.web3_client
-                    .eth_subscribe()
-                    .subscribe_new_heads()
-                    .await?,
-            );
-            self.block_subscription
-                .as_mut()
-                .ok_or(Error::InvalidWeb3Subscription)?
+    pub async fn get_next_finalized_block(&mut self) -> Result<BlockInfo, Error> {
+        let next_block_number = if let Some(block_number) = self.latest_block {
+            block_number + 1
         } else {
-            self.block_subscription
-                .as_mut()
-                .ok_or(Error::InvalidWeb3Subscription)?
+            0
         };
+        let block = self
+            .provider
+            .get_block(next_block_number)
+            .await
+            .map_err(Error::EthersProviderError)?
+            .ok_or(Error::InvalidBlockNumber(next_block_number))?;
 
-        let block_header = match sub.next().await {
-            Some(value) => match value {
-                Ok(block_header) => block_header,
-                Err(err) => {
-                    return Err(Error::Web3Error { source: err });
-                }
-            },
-            None => return Err(Error::BlockNotAvailable),
-        };
-        debug!("Read block header of block {:?}", block_header.number);
-
-        let new_block_number: u64 = match block_header.number {
-            Some(number) => number.as_u64(),
-            None => return Err(Error::InvalidBlockNumber),
-        };
-        let block_number = web3::types::BlockNumber::Number(U64::from(new_block_number));
-
-        // Get next block
-        let block = match self
-            .web3_client
-            .eth()
-            .block(BlockId::Number(block_number))
-            .await?
-        {
-            Some(block) => {
-                self.latest_block = Some(new_block_number + 1);
-                block
-            }
-            None => return Err(Error::BlockNotAvailable),
-        };
-
-        // Parse events
-        let signatures = self
-            .events
-            .iter()
-            .map(|e| e.signature())
-            .collect::<Vec<web3::types::H256>>();
-        let filter = web3::types::FilterBuilder::default()
-            .from_block(block_number)
-            .address(vec![self.contract.address()])
-            .topics(Some(signatures), None, None, None)
-            .build();
-        let logs = self.web3_client.eth().logs(filter).await?;
-        let events = match parse_events_from_log(&self.events, logs) {
-            Ok(events) => events,
-            Err(e) => {
-                error!("Error parsing events from log: {}", e);
-                return Err(e);
-            }
-        };
-
+        let block_number = block
+            .number
+            .ok_or(Error::InvalidBlockNumber(next_block_number))?;
+        let events: Vec<SubnetEvent> = get_block_events(&self.contract, block_number)
+            .await
+            .map_err(|e| {
+                error!(
+                    "Unable to parse events from block {}, error: {}",
+                    block_number,
+                    e.to_string()
+                );
+                e
+            })?;
         // Make block info result from all collected info
         let block_info = BlockInfo {
             hash: block.hash.unwrap_or_default().to_string(),
             parent_hash: block.parent_hash.to_string(),
-            number: new_block_number,
+            number: block_number.to_owned().as_u64(),
             state_root: block.state_root.0,
             tx_root_hash: block.transactions_root.0,
             events,
@@ -291,13 +214,13 @@ pub async fn connect_to_subnet_listener_with_retry(
 // Subnet client for calling target network smart contract
 pub struct SubnetClient {
     pub eth_admin_address: H160,
-    // TODO:: use SafeSecretKey for secret key https://github.com/graphprotocol/solidity-bindgen/blob/master/solidity-bindgen/src/secrets.rs
-    // or https://crates.io/crates/zeroize to prevent leaking secp256k1::SecretKey struct in stack or memory
-    eth_admin_key: Option<secp256k1::SecretKey>,
-    contract: web3::contract::Contract<Http>,
+    contract: subnet_contract::IToposCore<SignerMiddleware<Provider<Http>, Wallet<SigningKey>>>,
 }
 
 impl SubnetClient {
+    /// Polling interval for event filters and pending transactions
+    pub const NODE_POLLING_INTERVAL: Duration = Duration::from_millis(2000u64);
+
     /// Initialize a new Subnet client
     pub async fn new(
         http_subnet_endpoint: &str,
@@ -308,15 +231,29 @@ impl SubnetClient {
             "Connecting to subnet node at endpoint: {}",
             http_subnet_endpoint
         );
-        let transport = web3::transports::Http::new(http_subnet_endpoint)?;
-        let web3 = web3::Web3::new(transport);
 
-        let eth_admin_key = match eth_admin_secret_key.as_ref() {
-            Some(eth_admin_secret_key) => {
-                Some(secp256k1::SecretKey::from_slice(eth_admin_secret_key)?)
-            }
-            None => None,
+        let http = Provider::<Http>::try_from(http_subnet_endpoint)
+            .map_err(|e| Error::InvalidUrl(e.to_string()))?
+            .interval(SubnetClient::NODE_POLLING_INTERVAL);
+
+        let wallet: LocalWallet = if let Some(eth_admin_secret_key) = &eth_admin_secret_key {
+            hex::encode(eth_admin_secret_key)
+                .parse()
+                .map_err(Error::WalletError)?
+        } else {
+            // Dummy key, can not sign transactions
+            hex::encode([0u8; 32]).parse().map_err(Error::WalletError)?
         };
+        let chain_id = http
+            .get_chainid()
+            .await
+            .map_err(Error::EthersProviderError)?;
+        let client = Arc::new(SignerMiddleware::new(
+            http,
+            wallet.clone().with_chain_id(chain_id.as_u64()),
+        ));
+        // Initialize Topos Core Contract from json abi
+        let contract = create_topos_core_contract_from_json(contract_address, client)?;
 
         let eth_admin_address = if let Some(eth_admin_secret_key) = eth_admin_secret_key {
             match subnet_contract::derive_eth_address(&eth_admin_secret_key) {
@@ -330,12 +267,8 @@ impl SubnetClient {
             Default::default()
         };
 
-        // Initialize Topos Core Contract from json abi
-        let contract = create_topos_core_contract_from_json(&web3, contract_address)?;
-
         Ok(SubnetClient {
             eth_admin_address,
-            eth_admin_key,
             contract,
         })
     }
@@ -344,7 +277,7 @@ impl SubnetClient {
         &self,
         cert: &Certificate,
         cert_position: u64,
-    ) -> Result<web3::types::TransactionReceipt, Error> {
+    ) -> Result<Option<TransactionReceipt>, Error> {
         let prev_cert_id: Token = Token::FixedBytes(cert.prev_id.as_array().to_vec());
         let source_subnet_id: Token = Token::FixedBytes(cert.source_subnet_id.into());
         let state_root: Token = Token::FixedBytes(cert.state_root.to_vec());
@@ -359,8 +292,8 @@ impl SubnetClient {
         let cert_id: Token = Token::FixedBytes(cert.id.as_array().to_vec());
         let stark_proof: Token = Token::Bytes(cert.proof.clone());
         let signature: Token = Token::Bytes(cert.signature.clone());
-        let cert_position: Token = Token::Uint(U256::from(cert_position));
-        let encoded_params = web3::ethabi::encode(&[
+        let cert_position = U256::from(cert_position);
+        let encoded_cert_bytes = ethers::abi::encode(&[
             prev_cert_id,
             source_subnet_id,
             state_root,
@@ -372,22 +305,23 @@ impl SubnetClient {
             signature,
         ]);
 
-        let eth_admin_key = &self.eth_admin_key.ok_or(Error::InvalidKey)?;
-        let wrapped_key = web3::signing::SecretKeyRef::new(eth_admin_key);
-        let options = web3::contract::Options {
-            gas: Some(PUSH_CERTIFICATE_GAS_LIMIT.into()),
-            ..Default::default()
-        };
-        self.contract
-            .signed_call_with_confirmations(
-                "pushCertificate",
-                (encoded_params, cert_position),
-                options,
-                1_usize,
-                wrapped_key,
-            )
+        let tx = self
+            .contract
+            .push_certificate(encoded_cert_bytes.into(), cert_position)
+            .gas(PUSH_CERTIFICATE_GAS_LIMIT)
+            .legacy(); // Polygon Edge only supports legacy transactions
+
+        let receipt = tx
+            .send()
             .await
-            .map_err(|e| Error::Web3Error { source: e })
+            .map_err(|e| {
+                error!("Unable to push certificate: {e}");
+                Error::ContractError(e.to_string())
+            })?
+            .await
+            .map_err(Error::EthersProviderError)?;
+
+        Ok(receipt)
     }
 
     /// Ask subnet for latest pushed certificates, for every source subnet
@@ -397,58 +331,27 @@ impl SubnetClient {
         target_subnet_id: &topos_core::uci::SubnetId,
     ) -> Result<Vec<TargetStreamPosition>, Error> {
         let op = || async {
-            let mut target_stream_positions = Vec::new();
+            let mut target_stream_positions: Vec<TargetStreamPosition> = Vec::new();
+            let stream_positions = self.contract.get_checkpoints().call().await.map_err(|e| {
+                error!("Unable to get checkpoints: {e}");
+                Error::ContractError(e.to_string())
+            })?;
 
-            let data: Vec<Token> = self
-                .contract
-                .query(
-                    "getCheckpoints",
-                    (),
-                    None,
-                    web3::contract::Options::default(),
-                    None,
-                )
-                .await
-                .map_err(|e| {
-                    error!("Error retrieving checkpoints from smart contract: {e}");
-                    Error::EthContractError { source: e }
-                })?;
-
-            for token in data {
-                if let Token::Tuple(stream_position) = token {
-                    let certificate_id = stream_position[0]
-                        .clone()
-                        .into_fixed_bytes()
-                        .ok_or(Error::InvalidCheckpointsData)?;
-                    let position = stream_position[1]
-                        .clone()
-                        .into_uint()
-                        .ok_or(Error::InvalidCheckpointsData)?
-                        .as_u64();
-                    let source_subnet_id = stream_position[2]
-                        .clone()
-                        .into_fixed_bytes()
-                        .ok_or(Error::InvalidCheckpointsData)?;
-
-                    target_stream_positions.push(TargetStreamPosition {
-                        target_subnet_id: *target_subnet_id,
-                        certificate_id: Some(
-                            TryInto::<[u8; CERTIFICATE_ID_LENGTH]>::try_into(certificate_id)
-                                .map_err(|_| Error::InvalidCheckpointsData)?
-                                .into(),
-                        ),
-                        source_subnet_id: TryInto::<[u8; SUBNET_ID_LENGTH]>::try_into(
-                            source_subnet_id,
-                        )
-                        .map_err(|_| Error::InvalidCheckpointsData)?
-                        .into(),
-                        position,
-                    });
-                } else {
-                    return Err(new_subnet_client_proxy_backoff_err(
-                        Error::InvalidCheckpointsData,
-                    ));
-                }
+            for position in stream_positions {
+                target_stream_positions.push(TargetStreamPosition {
+                    target_subnet_id: *target_subnet_id,
+                    certificate_id: Some(
+                        TryInto::<[u8; CERTIFICATE_ID_LENGTH]>::try_into(position.cert_id)
+                            .map_err(|_| Error::InvalidCheckpointsData)?
+                            .into(),
+                    ),
+                    source_subnet_id: TryInto::<[u8; SUBNET_ID_LENGTH]>::try_into(
+                        position.source_subnet_id,
+                    )
+                    .map_err(|_| Error::InvalidCheckpointsData)?
+                    .into(),
+                    position: position.position.as_u64(),
+                });
             }
 
             Ok(target_stream_positions)
@@ -460,29 +363,16 @@ impl SubnetClient {
     /// Ask subnet for its subnet id
     pub async fn get_subnet_id(&self) -> Result<SubnetId, Error> {
         let op = || async {
-            let data: Token = self
+            let subnet_id = self
                 .contract
-                .query(
-                    "networkSubnetId",
-                    (),
-                    None,
-                    web3::contract::Options::default(),
-                    None,
-                )
+                .network_subnet_id()
+                .call()
                 .await
                 .map_err(|e| {
-                    error!("Error retrieving subnet id from smart contract: {e}");
-                    Error::EthContractError { source: e }
+                    error!("Unable to query network subnet id: {e}");
+                    Error::ContractError(e.to_string())
                 })?;
-
-            let subnet_id = data
-                .into_fixed_bytes()
-                .ok_or(Error::InvalidSubnetId)?
-                .as_slice()
-                .try_into()
-                .map_err(|_| Error::InvalidSubnetId)?;
-
-            Ok(subnet_id)
+            Ok(SubnetId::from_array(subnet_id))
         };
 
         backoff::future::retry(backoff::ExponentialBackoff::default(), op).await

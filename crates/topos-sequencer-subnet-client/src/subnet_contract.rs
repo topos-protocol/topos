@@ -1,257 +1,43 @@
 use crate::{Error, SubnetEvent};
-use secp256k1::{PublicKey, SecretKey};
-use web3::ethabi;
-use web3::ethabi::ParamType;
-use web3::types::H160;
+use ethers::abi::ethabi::ethereum_types::{H160, U64};
+use ethers::prelude::LocalWallet;
+use ethers::{
+    prelude::abigen,
+    providers::{Middleware, Provider, Ws},
+    signers::Signer,
+};
+use std::sync::Arc;
 
-pub(crate) fn create_topos_core_contract_from_json<T: web3::Transport>(
-    web3: &web3::Web3<T>,
+abigen!(IToposCore, "abi/IToposCore.json");
+
+pub(crate) fn create_topos_core_contract_from_json<T: Middleware>(
     contract_address: &str,
-) -> Result<web3::contract::Contract<T>, Error> {
-    let contract_address_h160: H160 = H160::from_slice(&hex::decode(&contract_address[2..42])?);
-    let contract = web3::contract::Contract::from_json(
-        web3.eth(),
-        contract_address_h160,
-        include_bytes!("../abi/IToposCore.json"),
-    )
-    .map_err(|e| Error::EthAbiError { source: e })?;
+    client: Arc<T>,
+) -> Result<IToposCore<T>, Error> {
+    let address: ethers::types::Address =
+        contract_address.parse().map_err(Error::HexDecodingError)?;
+    let contract = IToposCore::new(address, client);
     Ok(contract)
 }
 
-pub(crate) fn parse_events_from_json() -> Result<Vec<web3::ethabi::Event>, Error> {
-    let mut result = Vec::new();
-    let contract_bytes = include_bytes!("../abi/IToposCore.json");
-    let reader = std::io::Cursor::new(contract_bytes);
-    let contract = web3::ethabi::Contract::load(reader)?;
-    for event in contract.events() {
-        result.push(event.clone());
-    }
-
-    Ok(result)
-}
-
-fn get_event_type_from_log<'a>(
-    events: &'a [web3::ethabi::Event],
-    log: &web3::types::Log,
-) -> Option<&'a web3::ethabi::Event> {
-    events
-        .iter()
-        .find(|&event| event.signature() == log.topics[0])
-}
-
-pub(crate) fn parse_events_from_log(
-    events: &[web3::ethabi::Event],
-    logs: Vec<web3::types::Log>,
-) -> Result<Vec<SubnetEvent>, Error> {
+pub(crate) async fn get_block_events(
+    contract: &IToposCore<Provider<Ws>>,
+    block_number: U64,
+) -> Result<Vec<crate::SubnetEvent>, Error> {
+    let events = contract.events().from_block(block_number);
+    let topos_core_events = events
+        .query()
+        .await
+        .map_err(|e| Error::ContractError(e.to_string()))?;
     let mut result = Vec::new();
 
-    for log in &logs {
-        if let Some(event) = get_event_type_from_log(events, log) {
-            match event.name.as_str() {
-                "CrossSubnetMessageSent" => {
-                    // Parse CrossSubnetMessageSent event
-                    let event_arguments = web3::ethabi::decode(
-                        &event
-                            .inputs
-                            .iter()
-                            .map(|i| i.kind.clone())
-                            .collect::<Vec<ParamType>>(),
-                        &log.data.0,
-                    )?;
-                    let cross_subnet_message_event = SubnetEvent::CrossSubnetMessageSent {
-                        target_subnet_id: if let ethabi::Token::FixedBytes(bytes) =
-                            &event_arguments[0]
-                        {
-                            match bytes.as_slice().try_into() {
-                                Ok(target_subnet_id) => target_subnet_id,
-                                Err(_) => {
-                                    return Err(Error::InvalidArgument {
-                                        message: "invalid target subnet id".to_string(),
-                                    });
-                                }
-                            }
-                        } else {
-                            return Err(Error::InvalidArgument {
-                                message: "invalid target subnet id".to_string(),
-                            });
-                        },
-                    };
-                    result.push(cross_subnet_message_event);
-                }
-                "ContractCall" => {
-                    // Parse ContractCall event
-                    let _payload_hash = ethabi::decode(
-                        vec![event.inputs[0].kind.clone()].as_slice(),
-                        &log.topics[1].0,
-                    )?;
-                    let event_arguments = ethabi::decode(
-                        &event
-                            .inputs
-                            .iter()
-                            .filter(|ep| ep.name != "payloadHash")
-                            .map(|i| i.kind.clone())
-                            .collect::<Vec<ParamType>>(),
-                        &log.data.0,
-                    )?;
-                    let contact_call = SubnetEvent::ContractCall {
-                        source_subnet_id: if let ethabi::Token::FixedBytes(bytes) =
-                            &event_arguments[0]
-                        {
-                            match bytes.as_slice().try_into() {
-                                Ok(sender) => sender,
-                                Err(_) => {
-                                    return Err(Error::InvalidArgument {
-                                        message: "invalid source subnet id".to_string(),
-                                    });
-                                }
-                            }
-                        } else {
-                            return Err(Error::InvalidArgument {
-                                message: "invalid source subnet id".to_string(),
-                            });
-                        },
-                        source_contract_addr: if let ethabi::Token::Address(address) =
-                            event_arguments[1]
-                        {
-                            address.into()
-                        } else {
-                            return Err(Error::InvalidArgument {
-                                message: "invalid source contract address".to_string(),
-                            });
-                        },
-                        target_subnet_id: if let ethabi::Token::FixedBytes(bytes) =
-                            &event_arguments[2]
-                        {
-                            match bytes.as_slice().try_into() {
-                                Ok(sender) => sender,
-                                Err(_) => {
-                                    return Err(Error::InvalidArgument {
-                                        message: "invalid target subnet id".to_string(),
-                                    });
-                                }
-                            }
-                        } else {
-                            return Err(Error::InvalidArgument {
-                                message: "invalid target subnet id".to_string(),
-                            });
-                        },
-                        target_contract_addr: if let ethabi::Token::Address(address) =
-                            event_arguments[3]
-                        {
-                            address.into()
-                        } else {
-                            return Err(Error::InvalidArgument {
-                                message: "invalid target contract address".to_string(),
-                            });
-                        },
-                        payload: if let ethabi::Token::Bytes(bytes) = &event_arguments[4] {
-                            bytes.to_vec()
-                        } else {
-                            return Err(Error::InvalidArgument {
-                                message: "invalid payload".to_string(),
-                            });
-                        },
-                    };
-
-                    result.push(contact_call);
-                }
-                "ContractCallWithToken" => {
-                    // Parse ContractCallWithToken event
-                    let _payload_hash = ethabi::decode(
-                        vec![event.inputs[0].kind.clone()].as_slice(),
-                        &log.topics[1].0,
-                    )?;
-                    let event_arguments = ethabi::decode(
-                        &event
-                            .inputs
-                            .iter()
-                            .filter(|ep| ep.name != "payloadHash")
-                            .map(|i| i.kind.clone())
-                            .collect::<Vec<ParamType>>(),
-                        &log.data.0,
-                    )?;
-                    let contact_call = SubnetEvent::ContractCallWithToken {
-                        source_subnet_id: if let ethabi::Token::FixedBytes(bytes) =
-                            &event_arguments[0]
-                        {
-                            match bytes.as_slice().try_into() {
-                                Ok(sender) => sender,
-                                Err(_) => {
-                                    return Err(Error::InvalidArgument {
-                                        message: "invalid source subnet id".to_string(),
-                                    });
-                                }
-                            }
-                        } else {
-                            return Err(Error::InvalidArgument {
-                                message: "invalid source subnet id".to_string(),
-                            });
-                        },
-                        source_contract_addr: if let ethabi::Token::Address(address) =
-                            event_arguments[1]
-                        {
-                            address.into()
-                        } else {
-                            return Err(Error::InvalidArgument {
-                                message: "invalid source contract address".to_string(),
-                            });
-                        },
-                        target_subnet_id: if let ethabi::Token::FixedBytes(bytes) =
-                            &event_arguments[2]
-                        {
-                            match bytes.as_slice().try_into() {
-                                Ok(sender) => sender,
-                                Err(_) => {
-                                    return Err(Error::InvalidArgument {
-                                        message: "invalid target subnet id".to_string(),
-                                    });
-                                }
-                            }
-                        } else {
-                            return Err(Error::InvalidArgument {
-                                message: "invalid target subnet id".to_string(),
-                            });
-                        },
-                        target_contract_addr: if let ethabi::Token::Address(address) =
-                            event_arguments[3]
-                        {
-                            address.into()
-                        } else {
-                            return Err(Error::InvalidArgument {
-                                message: "invalid target contract address".to_string(),
-                            });
-                        },
-                        payload: if let ethabi::Token::Bytes(bytes) = &event_arguments[4] {
-                            bytes.to_vec()
-                        } else {
-                            return Err(Error::InvalidArgument {
-                                message: "invalid payload".to_string(),
-                            });
-                        },
-                        symbol: if let ethabi::Token::String(symbol) = &event_arguments[5] {
-                            symbol.clone()
-                        } else {
-                            return Err(Error::InvalidArgument {
-                                message: "invalid symbol".to_string(),
-                            });
-                        },
-                        amount: if let web3::ethabi::Token::Uint(value) = event_arguments[6] {
-                            value
-                        } else {
-                            return Err(Error::InvalidArgument {
-                                message: "invalid amount event argument".to_string(),
-                            });
-                        },
-                    };
-                    result.push(contact_call);
-                }
-                _ => {
-                    // Event not recognised, ignore it
-                }
-            }
+    for event in topos_core_events {
+        if let IToposCoreEvents::CrossSubnetMessageSentFilter(f) = event {
+            result.push(SubnetEvent::CrossSubnetMessageSent {
+                target_subnet_id: f.target_subnet_id.into(),
+            })
         } else {
-            // Event not recognised, ignore it
-            continue;
+            // Ignored for now other events UpgradedFilter, CertStoredFilter
         }
     }
 
@@ -259,12 +45,8 @@ pub(crate) fn parse_events_from_log(
 }
 
 pub fn derive_eth_address(secret_key: &[u8]) -> Result<H160, crate::Error> {
-    let eth_public_key: Vec<u8> = PublicKey::from_secret_key(
-        &secp256k1::Secp256k1::new(),
-        &SecretKey::from_slice(secret_key)?,
-    )
-    .serialize_uncompressed()[1..]
-        .to_vec();
-    let keccak = tiny_keccak::keccak256(&eth_public_key);
-    Ok(H160::from_slice(&keccak[12..]))
+    let signer = hex::encode(secret_key)
+        .parse::<LocalWallet>()
+        .map_err(|e| Error::InvalidKey(e.to_string()))?;
+    Ok(signer.address())
 }

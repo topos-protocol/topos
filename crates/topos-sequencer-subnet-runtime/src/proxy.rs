@@ -149,7 +149,7 @@ impl SubnetRuntimeProxy {
                             _ = interval.tick() => {
 
                                 match subnet_listener
-                                    .get_next_finalized_block(&subnet_contract_address)
+                                    .get_next_finalized_block()
                                     .await
                                 {
                                     Ok(block_info) => {
@@ -270,14 +270,16 @@ impl SubnetRuntimeProxy {
         subnet_client: &mut SubnetClient,
         cert: &Certificate,
         position: u64,
-    ) -> Result<String, Error> {
+    ) -> Result<Option<String>, Error> {
         debug!(
             "Pushing certificate with id {} to target subnet {}, tcc {}",
             cert.id, runtime_proxy_config.subnet_id, runtime_proxy_config.subnet_contract_address,
         );
         let receipt = subnet_client.push_certificate(cert, position).await?;
         debug!("Push certificate transaction receipt: {:?}", &receipt);
-        Ok("0x".to_string() + &hex::encode(receipt.transaction_hash))
+        let tx_hash =
+            receipt.map(|tx_receipt| "0x".to_string() + &hex::encode(tx_receipt.transaction_hash));
+        Ok(tx_hash)
     }
 
     async fn on_command(
@@ -338,7 +340,7 @@ impl SubnetRuntimeProxy {
                         {
                             Ok(tx_hash) => {
                                 debug!(
-                                    "Successfully pushed the Certificate {} to target subnet with tx hash {}",
+                                    "Successfully pushed the Certificate {} to target subnet with tx hash {:?}",
                                     &certificate.id, &tx_hash
                                 );
                             }

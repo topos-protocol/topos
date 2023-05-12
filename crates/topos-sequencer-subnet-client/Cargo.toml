@@ -8,12 +8,15 @@ hex.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
-web3.workspace = true
-ethereum-types.workspace = true
-secp256k1.workspace = true
 tokio.workspace = true
 backoff.workspace = true
 serde = { workspace = true, features = ["derive"] }
 tiny-keccak.workspace = true
+ethers.workspace = true
+ethers-providers = { version = "2.0.4", features = ["ws"] }
+rustc-hex = "2.1.0"
 
-topos-core = { workspace = true, features = ["uci"] }
+topos-core = { workspace = true, features = ["uci", "api"] }
+
+[build-dependencies]
+ethers.workspace = true

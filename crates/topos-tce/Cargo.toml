@@ -3,7 +3,7 @@ name = "topos-tce"
 description = "TCE Node Service"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.64"
+rust-version = "1.65"
 
 [dependencies]
 async-trait.workspace = true
