@@ -12,6 +12,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Install protoc
+        run: sudo apt update && sudo apt install -y protobuf-compiler
+
       - uses: actions/setup-node@v3
         with:
           node-version: 16
@@ -22,6 +25,10 @@ jobs:
 
       - name: Install grpc-tool globally
         run: npm install -g grpc-tools
+
+      - name: Install npm packages
+        working-directory: ./crates/topos-api/proto
+        run: npm ci
 
       - name: Generate client stubs
         working-directory: ./crates/topos-api/proto
@@ -37,6 +44,20 @@ jobs:
           grpc_tools_node_protoc --js_out=import_style=commonjs,binary:./generated --grpc_out=grpc_js:./generated topos/tce/v1/api.proto &&
           grpc_tools_node_protoc --js_out=import_style=commonjs,binary:./generated --grpc_out=grpc_js:./generated topos/tce/v1/console.proto &&
           grpc_tools_node_protoc --js_out=import_style=commonjs,binary:./generated --grpc_out=grpc_js:./generated topos/tce/v1/synchronization.proto
+
+      - name: Generate TypeScript typings
+        working-directory: ./crates/topos-api/proto
+        run: >
+          protoc --plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts --ts_out=grpc_js:./generated topos/shared/v1/certificate.proto &&
+          protoc --plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts --ts_out=grpc_js:./generated topos/shared/v1/checkpoints.proto &&
+          protoc --plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts --ts_out=grpc_js:./generated topos/shared/v1/frost.proto &&
+          protoc --plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts --ts_out=grpc_js:./generated topos/shared/v1/stark_proof.proto &&
+          protoc --plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts --ts_out=grpc_js:./generated topos/shared/v1/subnet.proto &&
+          protoc --plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts --ts_out=grpc_js:./generated topos/shared/v1/uuid.proto &&
+          protoc --plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts --ts_out=grpc_js:./generated topos/uci/v1/certification.proto &&
+          protoc --plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts --ts_out=grpc_js:./generated topos/tce/v1/api.proto &&
+          protoc --plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts --ts_out=grpc_js:./generated topos/tce/v1/console.proto &&
+          protoc --plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts --ts_out=grpc_js:./generated topos/tce/v1/synchronization.proto
 
       - name: Publish npm package
         working-directory: ./crates/topos-api/proto
