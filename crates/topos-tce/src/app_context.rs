@@ -822,9 +822,9 @@ impl AppContext {
                                     }
                                     let command_sender = span.in_scope(||{
 
-                                    // We have received Ready echo message, we are responding with OnDoubleEchoOk
-                                    info!(
-                                        sender = from.to_string(),
+                                        // We have received Ready echo message, we are responding with OnDoubleEchoOk
+                                        info!(
+                                            sender = from.to_string(),
                                             "peer_id {} on_net_event TceCommands::OnReady from peer {} cert id: {}",
                                             &self.network_client.local_peer_id, &from_peer, &certificate_id
                                         );
@@ -837,7 +837,7 @@ impl AppContext {
                                         }),
                                         channel,
                                     ));
-                                    command_sender
+                                    let res = command_sender
                                         .send(DoubleEchoCommand::Ready {
                                             from_peer,
                                             certificate_id,
@@ -845,8 +845,11 @@ impl AppContext {
                                         })
                                         .with_context(context)
                                         .instrument(span)
-                                        .await
-                                        .expect("Receive the Ready");
+                                        .await;
+
+                                    if let Err(e) = res {
+                                        error!("Error sending Ready to double echo channel: {}", e);
+                                    }
                                 } else if self
                                     .pending_storage
                                     .get_certificate(certificate_id)
