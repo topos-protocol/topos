@@ -174,7 +174,6 @@ impl SubnetClientListener {
             .await
             .map_err(Error::EthersProviderError)?
             .ok_or(Error::InvalidBlockNumber(next_block_number))?;
-
         let block_number = block
             .number
             .ok_or(Error::InvalidBlockNumber(next_block_number))?;

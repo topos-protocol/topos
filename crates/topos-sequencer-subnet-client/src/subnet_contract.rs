@@ -7,6 +7,7 @@ use ethers::{
     signers::Signer,
 };
 use std::sync::Arc;
+use tracing::info;
 
 abigen!(IToposCore, "abi/IToposCore.json");
 
@@ -33,6 +34,7 @@ pub(crate) async fn get_block_events(
 
     for event in topos_core_events {
         if let IToposCoreEvents::CrossSubnetMessageSentFilter(f) = event {
+            info!("Received CrossSubnetMessageSentFilter event: {f:?}");
             result.push(SubnetEvent::CrossSubnetMessageSent {
                 target_subnet_id: f.target_subnet_id.into(),
             })
