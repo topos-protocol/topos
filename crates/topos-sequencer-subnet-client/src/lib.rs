@@ -71,7 +71,7 @@ pub struct BlockInfo {
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("new finalized block not available")]
-    BlockNotAvailable,
+    BlockNotAvailable(u64),
     #[error("invalid block number: {0}")]
     InvalidBlockNumber(u64),
     #[error("data not available")]
@@ -138,8 +138,15 @@ impl SubnetClientListener {
         // Initialize Topos Core Contract from json abi
         let contract = create_topos_core_contract_from_json(contract_address, provider.clone())?;
 
+        // TODO Implementation of history and appropriate synchronization
+        // So far, start receiving blocks from current one
+        let block_number = provider
+            .get_block_number()
+            .await
+            .map_err(Error::EthersProviderError)?;
+
         Ok(SubnetClientListener {
-            latest_block: None,
+            latest_block: Some(block_number.as_u64() - 1),
             contract,
             provider,
         })
@@ -152,6 +159,15 @@ impl SubnetClientListener {
         } else {
             0
         };
+        let latest_block_number = self
+            .provider
+            .get_block_number()
+            .await
+            .map_err(Error::EthersProviderError)?;
+        if latest_block_number.as_u64() < next_block_number {
+            return Err(Error::BlockNotAvailable(next_block_number));
+        }
+
         let block = self
             .provider
             .get_block(next_block_number)
@@ -182,6 +198,7 @@ impl SubnetClientListener {
             events,
         };
         info!("Fetched new finalized block: {:?}", block_info.number);
+        self.latest_block = Some(block_number.as_u64());
         Ok(block_info)
     }
 }
