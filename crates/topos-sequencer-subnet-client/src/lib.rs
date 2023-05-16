@@ -257,8 +257,11 @@ impl SubnetClient {
                 .parse()
                 .map_err(Error::WalletError)?
         } else {
-            // Dummy key, can not sign transactions
-            hex::encode([0u8; 32]).parse().map_err(Error::WalletError)?
+            // Dummy random key, can not sign transactions
+            // Could not be zero key
+            "bbb92d6e98884f76de468fa3f6278f8807c48bebc13595d45af5bdc4da7021aa"
+                .parse()
+                .map_err(Error::WalletError)?
         };
         let chain_id = http
             .get_chainid()
