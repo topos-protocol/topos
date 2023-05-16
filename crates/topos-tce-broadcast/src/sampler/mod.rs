@@ -1,9 +1,8 @@
 mod cyclerng;
-mod sampling;
 
 // Move to transport crate
 pub type Peer = String;
-use std::{cmp::min, collections::HashSet};
+use std::collections::HashSet;
 
 use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
 use tokio::sync::{broadcast, mpsc, oneshot};
@@ -11,8 +10,6 @@ use topos_p2p::PeerId;
 use tracing::{debug, error, info, warn};
 
 use crate::SamplerCommand;
-
-use self::sampling::sample_reduce_from;
 
 #[derive(Debug, Default)]
 pub struct ThresholdConfig {
@@ -29,6 +26,7 @@ pub enum SampleProviderStatus {
     Stabilized,
 }
 
+// These are all the same in the new, deterministic view (Subscriptions == Subscribers)
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 pub enum SampleType {
     /// Inbound: FROM external peer TO me
@@ -71,11 +69,16 @@ pub enum SubscribersUpdate {
     RemoveReadySubscribers(HashSet<PeerId>),
 }
 
+// Need to separate echo and ready (echo removes it from echo set, ready removes it from ready and delivery set)
+// TODO: HashSet is all participants, once I receive echo | ready | delivery, I remove it to get to the threshold
+// Maybe structure for keeping track of different counters
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct SubscriptionsView {
+    // All have the same peers (whole network) initially
     pub echo: HashSet<PeerId>,
     pub ready: HashSet<PeerId>,
     pub delivery: HashSet<PeerId>,
+    pub network_size: usize,
 }
 
 impl SubscriptionsView {
@@ -87,6 +90,7 @@ impl SubscriptionsView {
         self.echo.is_empty() && self.ready.is_empty() && self.delivery.is_empty()
     }
 
+    /// Current view of subscriptions of the node, which is the whole network
     pub fn get_subscriptions(&self) -> Vec<PeerId> {
         self.echo
             .iter()
@@ -100,6 +104,7 @@ impl SubscriptionsView {
 }
 
 pub struct Sampler {
+    #[allow(dead_code)]
     params: ReliableBroadcastParams,
     command_receiver: mpsc::Receiver<SamplerCommand>,
     event_sender: broadcast::Sender<ProtocolEvents>,
@@ -107,7 +112,9 @@ pub struct Sampler {
 
     pending_subscriptions: SubscriptionsView,
     subscriptions: SubscriptionsView,
-    subscribers: SubscribersView, // View of the peers that are following me. Kept for purpose of sending RemoveSubscriber to DoubleEcho
+    // View of the peers that are following me.
+    // Kept for purpose of sending RemoveSubscriber to DoubleEcho
+    subscribers: SubscribersView,
     subscriptions_sender: mpsc::Sender<SubscriptionsView>,
     subscribers_update_sender: mpsc::Sender<SubscribersUpdate>,
     status: SampleProviderStatus,
@@ -188,6 +195,7 @@ impl Sampler {
 
 impl Sampler {
     async fn peers_changed(&mut self, peers: Vec<PeerId>) {
+        // peers contains all peers in the network
         self.visible_peers = peers;
         self.reset_samples().await;
     }
@@ -247,6 +255,7 @@ impl Sampler {
         peer: PeerId,
     ) -> Result<bool, ()> {
         info!("Successful handshake with the Peer {peer} for the sample {sample_type:?}",);
+
         let inserted = match sample_type {
             SampleType::EchoSubscription => {
                 if self.pending_subscriptions.echo.remove(&peer) {
@@ -298,6 +307,14 @@ impl Sampler {
         Ok(inserted)
     }
 
+    /// Triggered every time the list of peers in the network changes
+    ///
+    /// The topos TCE network is a deterministic network, which means each node is connected to
+    /// all the other nodes in the network.
+    ///
+    /// The word samples might be outdated in this regard, it refers to the older version
+    /// of the protocol where a node would sample a list of nodes to communicate with. Now it has
+    /// to be connected to all the other nodes.
     async fn reset_samples(&mut self) {
         self.status = SampleProviderStatus::BuildingNewView;
 
@@ -330,6 +347,9 @@ impl Sampler {
 
         self.subscribers.ready = ready_peers_to_keep;
 
+        self.subscriptions.network_size = self.visible_peers.len();
+        self.pending_subscriptions.network_size = self.visible_peers.len();
+
         // Generate remove ready subscriber event
         if let Err(error) = self
             .subscribers_update_sender
@@ -355,28 +375,17 @@ impl Sampler {
     fn reset_echo_subscription_sample(&mut self) {
         self.pending_subscriptions.echo.clear();
 
-        let echo_sizer = |len| min(len, self.params.echo_sample_size);
-        match sample_reduce_from(&self.visible_peers, echo_sizer) {
-            Ok(echo_candidates) => {
-                debug!(
-                    "Start the reset of the the Echo Sample currently composed by: {:?}",
-                    echo_candidates
-                );
+        debug!(
+            "Start the reset of the the Echo Sample currently composed by: {:?}",
+            &self.visible_peers
+        );
 
-                for peer in &echo_candidates.value {
-                    info!("Adding the Peer {peer} to the pending Echo Subscriptions");
-                    self.pending_subscriptions.echo.insert(*peer);
-                }
+        self.pending_subscriptions.echo = self.visible_peers.iter().copied().collect();
 
-                if let Err(error) = self.event_sender.send(ProtocolEvents::EchoSubscribeReq {
-                    peers: echo_candidates.value,
-                }) {
-                    error!("Unable to send event {:?}", error);
-                }
-            }
-            Err(e) => {
-                error!("Failed to create the sample for the Echo Subscriptions: {e:?}");
-            }
+        if let Err(error) = self.event_sender.send(ProtocolEvents::EchoSubscribeReq {
+            peers: self.visible_peers.clone(),
+        }) {
+            error!("Unable to send event {:?}", error);
         }
     }
 
@@ -384,28 +393,17 @@ impl Sampler {
     fn reset_ready_subscription_sample(&mut self) {
         self.pending_subscriptions.ready.clear();
 
-        let ready_sizer = |len| min(len, self.params.ready_sample_size);
-        match sample_reduce_from(&self.visible_peers, ready_sizer) {
-            Ok(ready_candidates) => {
-                debug!(
-                    "Start the reset of the the Ready Sample currently composed by: {:?}",
-                    ready_candidates
-                );
+        debug!(
+            "Start the reset of the the Ready Sample currently composed by: {:?}",
+            &self.visible_peers
+        );
 
-                for peer in &ready_candidates.value {
-                    info!("Adding the Peer {peer} to the pending Ready Subscriptions");
-                    self.pending_subscriptions.ready.insert(*peer);
-                }
+        self.pending_subscriptions.ready = self.visible_peers.iter().copied().collect();
 
-                if let Err(error) = self.event_sender.send(ProtocolEvents::ReadySubscribeReq {
-                    peers: ready_candidates.value,
-                }) {
-                    error!("Unable to send event {:?}", error);
-                }
-            }
-            Err(e) => {
-                error!("Failed to create the sample for the Ready Subscriptions: {e:?}");
-            }
+        if let Err(error) = self.event_sender.send(ProtocolEvents::ReadySubscribeReq {
+            peers: self.visible_peers.clone(),
+        }) {
+            error!("Unable to send event {:?}", error);
         }
     }
 
@@ -413,28 +411,17 @@ impl Sampler {
     fn reset_delivery_subscription_sample(&mut self) {
         self.pending_subscriptions.delivery.clear();
 
-        let delivery_sizer = |len| min(len, self.params.delivery_sample_size);
-        match sample_reduce_from(&self.visible_peers, delivery_sizer) {
-            Ok(delivery_candidates) => {
-                info!(
-                    "Start the reset of the the Delivery Sample currently composed by: {:?}",
-                    delivery_candidates
-                );
+        info!(
+            "Start the reset of the the Delivery Sample currently composed by: {:?}",
+            &self.visible_peers
+        );
 
-                for peer in &delivery_candidates.value {
-                    info!("Adding the Peer {peer} to the pending Delivery Subscriptions");
-                    self.pending_subscriptions.delivery.insert(*peer);
-                }
+        self.pending_subscriptions.delivery = self.visible_peers.iter().copied().collect();
 
-                if let Err(error) = self.event_sender.send(ProtocolEvents::ReadySubscribeReq {
-                    peers: delivery_candidates.value,
-                }) {
-                    error!("Unable to send event {:?}", error);
-                }
-            }
-            Err(e) => {
-                error!("Failed to create the sample for the Delivery Subscriptions: {e:?}");
-            }
+        if let Err(error) = self.event_sender.send(ProtocolEvents::ReadySubscribeReq {
+            peers: self.visible_peers.clone(),
+        }) {
+            error!("Unable to send event {:?}", error);
         }
     }
 }
@@ -475,19 +462,15 @@ mod tests {
         let (subscribers_update_sender, _) = mpsc::channel(10);
 
         let nb_peers = 100;
-        let sample_size = 10;
         let g = |a, b| ((a as f32) * b) as usize;
 
         let (_sampler_shutdown_sender, sampler_shutdown_receiver) =
             mpsc::channel::<oneshot::Sender<()>>(1);
         let mut sampler = Sampler::new(
             ReliableBroadcastParams {
-                echo_threshold: g(sample_size, 0.5),
-                echo_sample_size: sample_size,
-                ready_threshold: g(sample_size, 0.5),
-                ready_sample_size: sample_size,
-                delivery_threshold: g(sample_size, 0.5),
-                delivery_sample_size: sample_size,
+                echo_threshold: g(nb_peers, 0.5),
+                ready_threshold: g(nb_peers, 0.5),
+                delivery_threshold: g(nb_peers, 0.5),
             },
             cmd_receiver,
             event_sender,
@@ -514,15 +497,15 @@ mod tests {
         assert_eq!(event_receiver.len(), 3);
         assert!(matches!(
             event_receiver.try_recv(),
-            Ok(ProtocolEvents::EchoSubscribeReq { peers }) if peers.len() == sampler.params.echo_sample_size
+            Ok(ProtocolEvents::EchoSubscribeReq { peers }) if peers.len() == nb_peers as usize
         ));
         assert!(matches!(
             event_receiver.try_recv(),
-            Ok(ProtocolEvents::ReadySubscribeReq { peers }) if peers.len() == sampler.params.ready_sample_size
+            Ok(ProtocolEvents::ReadySubscribeReq { peers }) if peers.len() == nb_peers as usize
         ));
         assert!(matches!(
             event_receiver.try_recv(),
-            Ok(ProtocolEvents::ReadySubscribeReq { peers }) if peers.len() == sampler.params.delivery_sample_size
+            Ok(ProtocolEvents::ReadySubscribeReq { peers }) if peers.len() == nb_peers as usize
         ));
         assert!(matches!(
             event_receiver.try_recv(),
@@ -546,19 +529,14 @@ mod tests {
         let (subscribers_update_sender, _) = mpsc::channel(10);
 
         let nb_peers = 100;
-        let subscription_sample_size = 10;
-        let subscriber_sample_size = 8;
         let g = |a, b| ((a as f32) * b) as usize;
         let (_sampler_shutdown_sender, sampler_shutdown_receiver) =
             mpsc::channel::<oneshot::Sender<()>>(1);
         let mut sampler = Sampler::new(
             ReliableBroadcastParams {
-                echo_threshold: g(subscription_sample_size, 0.5),
-                echo_sample_size: subscription_sample_size,
-                ready_threshold: g(subscription_sample_size, 0.5),
-                ready_sample_size: subscription_sample_size,
-                delivery_threshold: g(subscription_sample_size, 0.5),
-                delivery_sample_size: subscription_sample_size,
+                echo_threshold: g(nb_peers, 0.5),
+                ready_threshold: g(nb_peers, 0.5),
+                delivery_threshold: g(nb_peers, 0.5),
             },
             cmd_receiver,
             event_sender,
@@ -575,7 +553,7 @@ mod tests {
             peers.push(peer);
         }
 
-        let mut subscribers_view = get_subscriber_view(&peers, subscriber_sample_size);
+        let mut subscribers_view = get_subscriber_view(&peers, nb_peers as usize);
         sampler.subscribers = subscribers_view.clone();
 
         // Change the peer pool
@@ -633,17 +611,13 @@ mod tests {
 
         let g = |a, b| ((a as f32) * b) as usize;
         let nb_peers = 100;
-        let subscription_sample_size = 10;
         let (_sampler_shutdown_sender, sampler_shutdown_receiver) =
             mpsc::channel::<oneshot::Sender<()>>(1);
         let mut sampler = Sampler::new(
             ReliableBroadcastParams {
-                echo_threshold: g(subscription_sample_size, 0.5),
-                echo_sample_size: subscription_sample_size,
-                ready_threshold: g(subscription_sample_size, 0.5),
-                ready_sample_size: subscription_sample_size,
-                delivery_threshold: g(subscription_sample_size, 0.5),
-                delivery_sample_size: subscription_sample_size,
+                echo_threshold: g(nb_peers, 0.5),
+                ready_threshold: g(nb_peers, 0.5),
+                delivery_threshold: g(nb_peers, 0.5),
             },
             cmd_receiver,
             event_sender,
@@ -739,18 +713,15 @@ mod tests {
 
         let g = |a, b| ((a as f32) * b) as usize;
         let nb_peers = 100;
-        let subscription_sample_size = 10;
-        let subscribers_sample_size = 10;
+        let sample_size = 40;
+
         let (_sampler_shutdown_sender, sampler_shutdown_receiver) =
             mpsc::channel::<oneshot::Sender<()>>(1);
         let mut sampler = Sampler::new(
             ReliableBroadcastParams {
-                echo_threshold: g(subscription_sample_size, 0.5),
-                echo_sample_size: subscription_sample_size,
-                ready_threshold: g(subscription_sample_size, 0.5),
-                ready_sample_size: subscription_sample_size,
-                delivery_threshold: g(subscription_sample_size, 0.5),
-                delivery_sample_size: subscription_sample_size,
+                echo_threshold: g(nb_peers, 0.5),
+                ready_threshold: g(nb_peers, 0.5),
+                delivery_threshold: g(nb_peers, 0.5),
             },
             cmd_receiver,
             event_sender,
@@ -769,7 +740,7 @@ mod tests {
 
         sampler.peers_changed(peers.clone()).await;
 
-        let initial_subscribers_view = get_subscriber_view(&peers, subscribers_sample_size);
+        let initial_subscribers_view = get_subscriber_view(&peers, sample_size);
         for p in initial_subscribers_view.echo.clone() {
             sampler
                 .handle_peer_confirmation(SampleType::EchoSubscriber, p)
@@ -812,7 +783,7 @@ mod tests {
         sampler.peers_changed(new_peers.clone()).await;
 
         // Add some more subscribers
-        let additional_subscribers_view = get_subscriber_view(&new_peers, subscribers_sample_size);
+        let additional_subscribers_view = get_subscriber_view(&new_peers, sample_size);
         for p in additional_subscribers_view.echo.clone() {
             sampler
                 .handle_peer_confirmation(SampleType::EchoSubscriber, p)

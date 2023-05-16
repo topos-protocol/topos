@@ -20,9 +20,6 @@ where
     F: Fn(usize, f32) -> usize,
 {
     let mut params = ReliableBroadcastParams {
-        ready_sample_size: correct_sample,
-        echo_sample_size: correct_sample,
-        delivery_sample_size: correct_sample,
         ..Default::default()
     };
 
@@ -30,9 +27,9 @@ where
     let r_ratio: f32 = 0.5;
     let d_ratio: f32 = 0.5;
 
-    params.echo_threshold = g(params.echo_sample_size, e_ratio);
-    params.ready_threshold = g(params.ready_sample_size, r_ratio);
-    params.delivery_threshold = g(params.delivery_sample_size, d_ratio);
+    params.echo_threshold = g(correct_sample, e_ratio);
+    params.ready_threshold = g(correct_sample, r_ratio);
+    params.delivery_threshold = g(correct_sample, d_ratio);
 
     params
 }

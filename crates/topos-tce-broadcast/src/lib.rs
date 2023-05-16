@@ -64,7 +64,7 @@ pub enum SamplerCommand {
 pub enum DoubleEchoCommand {
     GetSpanOfCert {
         certificate_id: CertificateId,
-        sender: oneshot::Sender<Result<opentelemetry::Context, Errors>>,
+        sender: oneshot::Sender<Result<Context, Errors>>,
     },
 
     /// Received G-set message

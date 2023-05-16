@@ -33,7 +33,7 @@ pub struct DoubleEcho {
     store: Box<dyn TceStore + Send>,
     cert_candidate: HashMap<CertificateId, (Certificate, DeliveryState)>,
     pending_delivery: HashMap<CertificateId, (Certificate, Context)>,
-    span_tracker: HashMap<CertificateId, opentelemetry::Context>,
+    span_tracker: HashMap<CertificateId, Context>,
     all_known_certs: Vec<Certificate>,
     delivery_time: HashMap<CertificateId, (time::SystemTime, time::Duration)>,
     pub(crate) subscriptions: SubscriptionsView, // My subscriptions for echo, ready and delivery feedback
@@ -407,8 +407,15 @@ impl DoubleEcho {
         // For all current Cert on processing
         for (certificate_id, (certificate, state_to_delivery)) in &mut self.cert_candidate {
             if !state_to_delivery.subscriptions.ready.is_empty()
-                && (is_e_ready(&self.params, state_to_delivery)
-                    || is_r_ready(&self.params, state_to_delivery))
+                && (is_e_ready(
+                    &self.params,
+                    self.subscriptions.network_size,
+                    state_to_delivery,
+                ) || is_r_ready(
+                    &self.params,
+                    self.subscriptions.network_size,
+                    state_to_delivery,
+                ))
             {
                 // Fanout the Ready messages to my subscribers
                 let readies = self.subscribers.ready.iter().cloned().collect::<Vec<_>>();
@@ -420,11 +427,16 @@ impl DoubleEcho {
                     });
                 }
                 state_to_delivery.subscriptions.ready.clear();
+                state_to_delivery.subscriptions.echo.clear();
                 state_modified = true;
             }
 
             if !state_to_delivery.subscriptions.delivery.is_empty()
-                && is_ok_to_deliver(&self.params, state_to_delivery)
+                && is_ok_to_deliver(
+                    &self.params,
+                    self.subscriptions.network_size,
+                    state_to_delivery,
+                )
             {
                 state_to_delivery.subscriptions.delivery.clear();
                 self.pending_delivery.insert(
@@ -435,20 +447,20 @@ impl DoubleEcho {
             }
 
             let echo_missing = self
-                .params
-                .echo_sample_size
+                .subscriptions
+                .network_size
                 .checked_sub(state_to_delivery.subscriptions.echo.len())
                 .map(|consumed| self.params.echo_threshold.saturating_sub(consumed))
                 .unwrap_or(0);
             let ready_missing = self
-                .params
-                .ready_sample_size
+                .subscriptions
+                .network_size
                 .checked_sub(state_to_delivery.subscriptions.ready.len())
                 .map(|consumed| self.params.ready_threshold.saturating_sub(consumed))
                 .unwrap_or(0);
             let delivery_missing = self
-                .params
-                .delivery_sample_size
+                .subscriptions
+                .network_size
                 .checked_sub(state_to_delivery.subscriptions.delivery.len())
                 .map(|consumed| self.params.delivery_threshold.saturating_sub(consumed))
                 .unwrap_or(0);
@@ -531,31 +543,34 @@ impl DoubleEcho {
 }
 
 // state checkers
-fn is_ok_to_deliver(params: &ReliableBroadcastParams, state: &DeliveryState) -> bool {
-    match params
-        .delivery_sample_size
-        .checked_sub(state.subscriptions.delivery.len())
-    {
+fn is_ok_to_deliver(
+    params: &ReliableBroadcastParams,
+    network_size: usize,
+    state: &DeliveryState,
+) -> bool {
+    match network_size.checked_sub(state.subscriptions.delivery.len()) {
         Some(consumed) => consumed >= params.delivery_threshold,
         None => false,
     }
 }
 
-fn is_e_ready(params: &ReliableBroadcastParams, state: &DeliveryState) -> bool {
-    match params
-        .echo_sample_size
-        .checked_sub(state.subscriptions.echo.len())
-    {
+fn is_e_ready(
+    params: &ReliableBroadcastParams,
+    network_size: usize,
+    state: &DeliveryState,
+) -> bool {
+    match network_size.checked_sub(state.subscriptions.echo.len()) {
         Some(consumed) => consumed >= params.echo_threshold,
         None => false,
     }
 }
 
-fn is_r_ready(params: &ReliableBroadcastParams, state: &DeliveryState) -> bool {
-    match params
-        .ready_sample_size
-        .checked_sub(state.subscriptions.ready.len())
-    {
+fn is_r_ready(
+    params: &ReliableBroadcastParams,
+    network_size: usize,
+    state: &DeliveryState,
+) -> bool {
+    match network_size.checked_sub(state.subscriptions.ready.len()) {
         Some(consumed) => consumed >= params.ready_threshold,
         None => false,
     }

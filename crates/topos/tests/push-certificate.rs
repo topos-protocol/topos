@@ -20,7 +20,7 @@ fn help_display() -> Result<(), Box<dyn std::error::Error>> {
 #[test_log::test(tokio::test)]
 // FIXME: This test is flaky, it fails sometimes because of sample failure
 async fn assert_delivery() -> Result<(), Box<dyn std::error::Error>> {
-    let mut peers_context = create_network(10, 4).await;
+    let mut peers_context = create_network(10, 9).await;
 
     let mut status: Vec<bool> = Vec::new();
 

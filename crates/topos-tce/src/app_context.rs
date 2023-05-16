@@ -326,7 +326,7 @@ impl AppContext {
                 })
                 .into();
                 let command_sender = self.tce_cli.get_sampler_channel();
-                // Sending echo subscribe message to send to a number of remote peers
+                // Sending echo subscribe message to all remote peers
                 let future_pool = peers
                     .iter()
                     .map(|peer_id| {
