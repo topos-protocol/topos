@@ -175,6 +175,9 @@ impl SubnetRuntimeProxy {
                                             Self::send_new_certificate(runtime_proxy.clone(), cert).await
                                         }
                                     }
+                                    Err(topos_sequencer_subnet_client::Error::BlockNotAvailable(block_number)) => {
+                                        error!("New block {block_number} not yet available, trying again soon");
+                                    }
                                     Err(e) => {
                                         // TODO: Determine if task should end on some type of error
                                         error!("Failed to fetch the new finalized block: {e}");

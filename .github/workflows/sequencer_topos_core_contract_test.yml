@@ -59,18 +59,6 @@ jobs:
       - name: Pull images
         run: |
           docker pull ${{ env.REGISTRY }}/${{ env.POLYGON_SUBNET_IMAGE_NAME }}:${{ env.POLYGON_SUBNET_IMAGE_TAG }}
-          docker pull ${{ env.REGISTRY }}/${{ env.TOPOS_SMART_CONTRACTS_IMAGE_NAME }}:${{ env.TOPOS_SMART_CONTRACTS_IMAGE_TAG }}
-
-      - name: Acquire built smart contracts
-        run: |
-          mkdir -p contracts/topos-core/ToposCore.sol contracts/topos-core/ToposCoreProxy.sol contracts/interfaces/IToposCore.sol contracts/topos-core/TokenDeployer.sol contracts/topos-core/ToposMessaging.sol/
-          docker create --name dummy ${{ env.REGISTRY }}/${{ env.TOPOS_SMART_CONTRACTS_IMAGE_NAME }}:${{ env.TOPOS_SMART_CONTRACTS_IMAGE_TAG }}
-          docker cp dummy:/usr/src/app/artifacts/contracts/topos-core/ToposCore.sol/ToposCore.json ./contracts/topos-core/ToposCore.sol/
-          docker cp dummy:/usr/src/app/artifacts/contracts/topos-core/ToposCoreProxy.sol/ToposCoreProxy.json ./contracts/topos-core/ToposCoreProxy.sol/
-          docker cp dummy:/usr/src/app/artifacts/contracts/interfaces/IToposCore.sol/IToposCore.json ./contracts/interfaces/IToposCore.sol/
-          docker cp dummy:/usr/src/app/artifacts/contracts/topos-core/TokenDeployer.sol/TokenDeployer.json ./contracts/topos-core/TokenDeployer.sol/
-          docker cp dummy:/usr/src/app/artifacts/contracts/topos-core/ToposMessaging.sol/ToposMessaging.json ./contracts/topos-core/ToposMessaging.sol/
-          docker rm -f dummy
 
       - name: Run all workspace tests
         run: |
