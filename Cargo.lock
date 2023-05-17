@@ -6758,6 +6758,7 @@ dependencies = [
  "futures",
  "insta",
  "libp2p",
+ "once_cell",
  "opentelemetry",
  "opentelemetry-otlp",
  "rand 0.8.5",

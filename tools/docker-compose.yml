@@ -1,5 +1,6 @@
 version: "3.3"
 services:
+
   boot:
     container_name: boot
     command: boot tce run
@@ -17,8 +18,9 @@ services:
       args:
         - TOOLCHAIN_VERSION=stable
         - FEATURES=tce,network
-    # depends_on:
-    #   - otel-collector
+    depends_on:
+      autoheal:
+        condition: service_started
     ports:
       - "9090"
       - "1340:1340"
@@ -31,8 +33,7 @@ services:
       - TCE_LOCAL_KS=1 # 12D3KooWRhFCXBhmsMnur3up3vJsDoqWh4c39PKXgSWwzAzDHNLn
       - TOPOS_OTLP_SERVICE_NAME=simon-tce-node
       - TOPOS_OTLP_AGENT=https://grpc.otel-collector.telemetry.devnet-1.toposware.com
-      - TOPOS_OTLP_TAGS=run_id=simon-local-0005,number_of_peer_nodes=15,cert_per_batch=75,node_kind=boot
-      # - TOPOS_OTLP_AGENT=http://otel-collector:4317
+      - TOPOS_OTLP_TAGS=run_id=simon-local-0006,number_of_peer_nodes=15,cert_per_batch=75,node_kind=boot
       - TCE_ECHO_SAMPLE_SIZE=14
       - TCE_READY_SAMPLE_SIZE=14
       - TCE_DELIVERY_SAMPLE_SIZE=14
@@ -40,6 +41,11 @@ services:
       - TCE_READY_THRESHOLD=6
       - TCE_DELIVERY_THRESHOLD=10
       - TOPOS_MINIMUM_TCE_CLUSTER_SIZE=7
+      - OTLP_BATCH_SCHEDULED_DELAY=100
+      - OTLP_BATCH_MAX_CONCURRENT_EXPORTS=1000
+      - OTLP_BATCH_MAX_EXPORTER_BATCH_SIZE=10000
+      - OTLP_BATCH_EXPORT_TIMEOUT=100000
+      - OTLP_BATCH_MAX_QUEUE_SIZE=10000
 
   peer:
     image: ghcr.io/topos-network/topos:main
@@ -58,14 +64,10 @@ services:
         - TOOLCHAIN_VERSION=stable
         - FEATURES=tce
     depends_on:
-      # autoheal:
-      #   condition: service_started
-      # jaeger:
-      #   condition: service_started
+      autoheal:
+        condition: service_started
       boot:
         condition: service_started
-      # otel-collector:
-      #   condition: service_started
     ports:
       - "9090"
       - "1340"
@@ -78,8 +80,7 @@ services:
       - TCE_API_ADDR=0.0.0.0:1340
       - TOPOS_OTLP_SERVICE_NAME=simon-tce-node
       - TOPOS_OTLP_AGENT=https://grpc.otel-collector.telemetry.devnet-1.toposware.com
-      - TOPOS_OTLP_TAGS=run_id=simon-local-0005,number_of_peer_nodes=15,cert_per_batch=75,node_kind=peer
-      # - TOPOS_OTLP_AGENT=http://otel-collector:4317
+      - TOPOS_OTLP_TAGS=run_id=simon-local-0006,number_of_peer_nodes=15,cert_per_batch=75,node_kind=peer
       - TCE_ECHO_SAMPLE_SIZE=14
       - TCE_READY_SAMPLE_SIZE=14
       - TCE_DELIVERY_SAMPLE_SIZE=14
@@ -87,6 +88,11 @@ services:
       - TCE_READY_THRESHOLD=6
       - TCE_DELIVERY_THRESHOLD=10
       - TOPOS_MINIMUM_TCE_CLUSTER_SIZE=7
+      - OTLP_BATCH_SCHEDULED_DELAY=100
+      - OTLP_BATCH_MAX_CONCURRENT_EXPORTS=1000
+      - OTLP_BATCH_MAX_EXPORTER_BATCH_SIZE=10000
+      - OTLP_BATCH_EXPORT_TIMEOUT=100000
+      - OTLP_BATCH_MAX_QUEUE_SIZE=10000
 
   spammer:
     container_name: spam
@@ -106,12 +112,16 @@ services:
       - TOPOS_NETWORK_SPAMMER_BATCH_INTERVAL=4000
       - TOPOS_NETWORK_SPAMMER_TARGET_NODES_PATH=/tmp/shared/peer_nodes.json
       - TOPOS_NETWORK_SPAMMER_NUMBER_OF_SUBNETS=1
-      # - TOPOS_NETWORK_SPAMMER_NUMBER_OF_BATCHES=1
       - TOPOS_OTLP_SERVICE_NAME=simon-spammer
       - TOPOS_OTLP_AGENT=https://grpc.otel-collector.telemetry.devnet-1.toposware.com
+      - OTLP_BATCH_SCHEDULED_DELAY=100
+      - OTLP_BATCH_MAX_CONCURRENT_EXPORTS=1000
+      - OTLP_BATCH_MAX_EXPORTER_BATCH_SIZE=10000
+      - OTLP_BATCH_EXPORT_TIMEOUT=100000
+      - OTLP_BATCH_MAX_QUEUE_SIZE=10000
     depends_on:
-      # jaeger:
-      #   condition: service_started
+      boot:
+        condition: service_healthy
       peer:
         condition: service_healthy
 
@@ -132,6 +142,8 @@ services:
         - GITHUB_TOKEN
         - FEATURES=tce
     depends_on:
+      boot:
+        condition: service_healthy
       peer:
         condition: service_healthy
     environment:
@@ -139,14 +151,14 @@ services:
       - RUST_LOG=info,topos=debug
       - TARGET_NODES_PATH=/tmp/shared/peer_nodes.json
 
-  # autoheal:
-  #   container_name: autoheal
-  #   image: willfarrell/autoheal
-  #   volumes:
-  #     - '/var/run/docker.sock:/var/run/docker.sock'
-  #   environment:
-  #     - AUTOHEAL_INTERVAL=30
-  #     - CURL_TIMEOUT=30
+  autoheal:
+    container_name: autoheal
+    image: willfarrell/autoheal
+    volumes:
+      - '/var/run/docker.sock:/var/run/docker.sock'
+    environment:
+      - AUTOHEAL_INTERVAL=30
+      - CURL_TIMEOUT=30
 
 volumes:
   shared:

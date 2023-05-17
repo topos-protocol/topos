@@ -46,14 +46,12 @@ pub enum TceCommands {
     OnGossip {
         cert: Certificate,
         ctx: PropagationContext,
-        // root_ctx: PropagationContext,
     },
     /// When echo reply received
     OnEcho {
         from_peer: PeerId,
         certificate_id: CertificateId,
         ctx: PropagationContext,
-        // root_ctx: PropagationContext,
     },
     /// When ready reply received
     OnReady {
@@ -105,14 +103,12 @@ pub enum ProtocolEvents {
         peers: Vec<PeerId>,
         cert: Certificate,
         ctx: Span,
-        // root_ctx: PropagationContext,
     },
     /// Indicates that 'echo' message broadcasting is required
     Echo {
         peers: Vec<PeerId>,
         certificate_id: CertificateId,
         ctx: Span,
-        // root_ctx: PropagationContext,
     },
     /// Indicates that 'ready' message broadcasting is required
     Ready {
