@@ -82,7 +82,6 @@ impl TceGrpcService {
 
 #[tonic::async_trait]
 impl ApiService for TceGrpcService {
-    // #[instrument(name = "CertificateSubmitted", skip(self, request), fields(otel.kind = "producer", peer_id = self.local_peer_id, certificate_id = field::Empty))]
     async fn submit_certificate(
         &self,
         request: Request<SubmitCertificateRequest>,

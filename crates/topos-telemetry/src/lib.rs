@@ -3,12 +3,10 @@ use std::{collections::HashMap, str::FromStr};
 use opentelemetry::{
     global,
     propagation::{Extractor, Injector},
-    trace::{SpanContext, TraceContextExt},
     Context,
 };
 use serde::{Deserialize, Serialize};
 use tonic::metadata::MetadataKey;
-use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 pub struct TonicMetaInjector<'a>(pub &'a mut tonic::metadata::MetadataMap);
 pub struct TonicMetaExtractor<'a>(pub &'a tonic::metadata::MetadataMap);
@@ -90,26 +88,5 @@ impl Extractor for PropagationContext {
 
     fn keys(&self) -> Vec<&str> {
         self.context.keys().map(|k| k.as_ref()).collect()
-    }
-}
-
-pub struct SpanToContext {}
-impl SpanToContext {
-    pub fn to_context(span: tracing::Span, ctx: &PropagationContext) -> SpanContext {
-        let parent = ctx.extract();
-        span.set_parent(parent);
-        //
-        // let trace_id = parent.span().span_context().trace_id();
-        // let span_id = parent.span().span_context().span_id();
-        // let span_cx = opentelemetry::trace::SpanContext::new(
-        //     trace_id,
-        //     span_id,
-        //     opentelemetry::trace::TraceFlags::SAMPLED,
-        //     true,
-        //     opentelemetry::trace::TraceState::default(),
-        // );
-        // span.add_link(span_cx);
-        // span.add_link(parent.span().span_context().clone());
-        span.context().span().span_context().clone()
     }
 }

@@ -52,7 +52,6 @@ pub struct DoubleEcho {
 
     local_peer_id: String,
 
-    // root_span_tracker: HashMap<CertificateId, Span>,
     buffered_messages: HashMap<CertificateId, Vec<DoubleEchoCommand>>,
 }
 
@@ -91,7 +90,6 @@ impl DoubleEcho {
             buffer: VecDeque::new(),
             shutdown,
             local_peer_id,
-            // root_span_tracker: Default::default(),
             buffered_messages: Default::default(),
         }
     }
@@ -184,7 +182,6 @@ impl DoubleEcho {
                                                     info!("DEBUG::Receive ECHO without root");
                                                     info_span!("RECV Inbound Echo", peer = self.local_peer_id, certificate_id = certificate_id.to_string())
                                                 };
-                                                span.follows_from(ctx);
 
                                                 let _enter = span.enter();
                                                 debug!("Handling DoubleEchoCommand::Echo from_peer: {} cert_id: {}", &from_peer, certificate_id);
@@ -222,7 +219,6 @@ impl DoubleEcho {
                                                 } else {
                                                     info_span!("RECV Inbound Ready", peer = self.local_peer_id, certificate_id = certificate_id.to_string())
                                                 };
-                                                span.follows_from(ctx);
 
                                                 let _enter = span.enter();
                                                 debug!("Handling DoubleEchoCommand::Ready from_peer: {} cert_id: {}", &from_peer, &certificate_id);
@@ -333,7 +329,7 @@ impl DoubleEcho {
                                 DoubleEchoCommand::Echo {
                                     from_peer,
                                     certificate_id,
-                                    ctx,
+                                    ..
                                 } => {
                                     let span = if let Some(root) =
                                         self.span_tracker.get(&certificate_id)
@@ -351,7 +347,6 @@ impl DoubleEcho {
                                             certificate_id = certificate_id.to_string()
                                         )
                                     };
-                                    span.follows_from(ctx);
 
                                     let _enter = span.enter();
                                     self.handle_echo(from_peer, &certificate_id);
@@ -359,7 +354,7 @@ impl DoubleEcho {
                                 DoubleEchoCommand::Ready {
                                     from_peer,
                                     certificate_id,
-                                    ctx,
+                                    ..
                                 } => {
                                     let span = if let Some(root) =
                                         self.span_tracker.get(&certificate_id)
@@ -377,7 +372,6 @@ impl DoubleEcho {
                                             certificate_id = certificate_id.to_string()
                                         )
                                     };
-                                    span.follows_from(ctx);
 
                                     let _enter = span.enter();
                                     self.handle_ready(from_peer, &certificate_id);
@@ -480,12 +474,6 @@ impl DoubleEcho {
             cert.id, &gossip_peers
         );
 
-        // let root_ctx = self
-        //     .root_span_tracker
-        //     .get(&cert.id)
-        //     .cloned()
-        //     .expect("Unable to find root span for the certificate");
-
         let span = self
             .span_tracker
             .get(&cert.id)
@@ -555,7 +543,6 @@ impl DoubleEcho {
             peers: echo_peers,
             certificate_id: cert.id,
             ctx,
-            // root_ctx,
         });
     }
 

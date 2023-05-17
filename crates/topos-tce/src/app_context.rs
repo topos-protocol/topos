@@ -47,10 +47,6 @@ pub struct AppContext {
     pub pending_storage: StorageClient,
     pub gatekeeper: GatekeeperClient,
     pub synchronizer: SynchronizerClient,
-    // TODO: hack to buffer messages until certificate is gossiped, need to be moved to the future
-    // dedicated task
-    // pub(crate) buffered_messages: Arc<Mutex<HashMap<CertificateId, Vec<DoubleEchoCommand>>>>,
-    // pub(crate) span_tracker: HashMap<CertificateId, Span>,
 }
 
 impl AppContext {
@@ -78,8 +74,6 @@ impl AppContext {
                 pending_storage,
                 gatekeeper,
                 synchronizer,
-                // buffered_messages: Arc::new(Mutex::new(HashMap::new())),
-                // span_tracker: HashMap::new(),
             },
             receiver,
         )
@@ -269,37 +263,8 @@ impl AppContext {
 
             ProtocolEvents::Broadcast { certificate_id } => {
                 info!("Broadcasting certificate {}", certificate_id);
-                // if let Some(messages) = self
-                //     .buffered_messages
-                //     .lock()
-                //     .unwrap()
-                //     .remove(&certificate_id)
-                // {
-                //     for message in messages {
-                //         debug!("Sending message {:?}", message);
-                //         let sender = self.tce_cli.get_double_echo_channel();
-                //         spawn(async move {
-                //             let _ = sender.send(message).await;
-                //         });
-                //     }
-                // }
             }
 
-            // ProtocolEvents::UnableToBufferCertificate { certificate_id } => {
-            //     error!(
-            //         "Unable to buffer certificate {}, broadcast failed",
-            //         certificate_id
-            //     );
-            //     self.span_tracker.remove(&certificate_id);
-            // }
-            // ProtocolEvents::BroadcastFailed { certificate_id } => {
-            //     error!("BroadcastFailed for certificate {}", certificate_id);
-            //     self.span_tracker.remove(&certificate_id);
-            // }
-            // ProtocolEvents::AlreadyDelivered { certificate_id } => {
-            //     error!("Certificate {} is already delivered", certificate_id);
-            //     self.span_tracker.remove(&certificate_id);
-            // }
             ProtocolEvents::CertificateDelivered { certificate } => {
                 warn!("Certificate delivered {}", certificate.id);
                 let storage = self.pending_storage.clone();
@@ -476,12 +441,7 @@ impl AppContext {
                 });
             }
 
-            ProtocolEvents::Gossip {
-                peers,
-                cert,
-                ctx,
-                // root_ctx,
-            } => {
+            ProtocolEvents::Gossip { peers, cert, ctx } => {
                 let span = info_span!(
                     parent: &ctx,
                     "SEND Outbound Gossip",
@@ -493,7 +453,6 @@ impl AppContext {
                 let data: Vec<u8> = NetworkMessage::from(TceCommands::OnGossip {
                     cert,
                     ctx: PropagationContext::inject(&span.context()),
-                    // root_ctx,
                 })
                 .into();
 
@@ -528,7 +487,6 @@ impl AppContext {
                 peers,
                 certificate_id,
                 ctx,
-                // root_ctx,
             } => {
                 let span = info_span!(
                     parent: &ctx,
@@ -542,7 +500,6 @@ impl AppContext {
                     from_peer: self.network_client.local_peer_id,
                     certificate_id,
                     ctx: PropagationContext::inject(&span.context()),
-                    // root_ctx,
                 })
                 .into();
 
@@ -720,7 +677,6 @@ impl AppContext {
                                 from_peer,
                                 certificate_id,
                                 ctx,
-                                ..
                             } => {
                                 let span = warn_span!(
                                     "RECV Outbound Echo",
@@ -730,39 +686,6 @@ impl AppContext {
                                 );
                                 let context = ctx.extract();
                                 span.add_link(context.span().span_context().clone());
-
-                                // let context = ctx.extract();
-                                //
-                                // context.span().add_event(
-                                //     "RECV Outbound Echo",
-                                //     vec![
-                                //         KeyValue::new(
-                                //             "peer_id",
-                                //             self.network_client.local_peer_id.to_string(),
-                                //         ),
-                                //         KeyValue::new("otel.kind", "consumer"),
-                                //         KeyValue::new("sender", from.to_string()),
-                                //     ],
-                                // );
-
-                                // let span = if let Ok(root) =
-                                //     self.tce_cli.get_span_cert(certificate_id).await
-                                // {
-                                //     info_span!(
-                                //         parent: &root,
-                                //         "RECV Inbound Echo",
-                                //         peer_id = self.network_client.local_peer_id.to_string(),
-                                //         "otel.kind" = "consumer",
-                                //         sender = from.to_string()
-                                //     )
-                                // } else {
-                                //     info_span!(
-                                //         "RECV Inbound Echo",
-                                //         peer_id = self.network_client.local_peer_id.to_string(),
-                                //         "otel.kind" = "consumer",
-                                //         sender = from.to_string()
-                                //     )
-                                // };
 
                                 _ = self
                                     .network_client
@@ -799,35 +722,6 @@ impl AppContext {
                                 let context = ctx.extract();
                                 span.add_link(context.span().span_context().clone());
 
-                                //
-                                //
-                                // let context = ctx.extract();
-                                //
-                                // context.span().add_event(
-                                //     "RECV Outbound Ready",
-                                //     vec![KeyValue::new(
-                                //         "peer_id",
-                                //         self.network_client.local_peer_id.to_string(),
-                                //     )],
-                                // );
-                                // let span = if let Ok(root) =
-                                //     self.tce_cli.get_span_cert(certificate_id).await
-                                // {
-                                //     info_span!(
-                                //         parent: &root,
-                                //         "RECV Inbound Ready",
-                                //         peer_id = self.network_client.local_peer_id.to_string(),
-                                //         "otel.kind" = "consumer",
-                                //         sender = from.to_string()
-                                //     )
-                                // } else {
-                                //     info_span!(
-                                //         "RECV Inbound Ready",
-                                //         peer_id = self.network_client.local_peer_id.to_string(),
-                                //         "otel.kind" = "consumer",
-                                //         sender = from.to_string()
-                                //     )
-                                // };
                                 _ = self
                                     .network_client
                                     .respond_to_request(
