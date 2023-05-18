@@ -36,12 +36,14 @@ const POLYGON_EDGE_CONTAINER: &str = "ghcr.io/topos-network/polygon-edge";
 const POLYGON_EDGE_CONTAINER_TAG: &str = "develop";
 const SUBNET_STARTUP_DELAY: u64 = 5; // seconds left for subnet startup
 const TEST_SUBNET_ID: &str = "6464646464646464646464646464646464646464646464646464646464646464";
+const ZERO_ADDRESS: &str = "0000000000000000000000000000000000000000";
 
 const PREV_CERTIFICATE_ID_1: CertificateId = CERTIFICATE_ID_4;
 const PREV_CERTIFICATE_ID_2: CertificateId = CERTIFICATE_ID_5;
 const CERTIFICATE_ID_1: CertificateId = CERTIFICATE_ID_6;
 const CERTIFICATE_ID_2: CertificateId = CERTIFICATE_ID_7;
 const CERTIFICATE_ID_3: CertificateId = CERTIFICATE_ID_8;
+const DEFAULT_GAS: u64 = 5_000_000;
 
 //TODO I haven't find a way to parametrize version, macro accepts strictly string literal
 abigen!(TokenDeployerContract, "npm:@topos-network/topos-smart-contracts@1.0.1/artifacts/contracts/topos-core/TokenDeployer.sol/TokenDeployer.json");
@@ -180,7 +182,7 @@ async fn deploy_contracts(
     // Deploying contracts
     info!("Deploying TokenDeployer contract...");
     let token_deployer_contract = TokenDeployerContract::deploy(client.clone(), ())?
-        .gas(5000000)
+        .gas(DEFAULT_GAS)
         .chain_id(chain_id.as_u64())
         .legacy()
         .send()
@@ -192,7 +194,7 @@ async fn deploy_contracts(
 
     info!("Deploying ToposCore contract...");
     let topos_core_contract = ToposCoreContract::deploy(client.clone(), ())?
-        .gas(5000000)
+        .gas(DEFAULT_GAS)
         .chain_id(chain_id.as_u64())
         .legacy()
         .send()
@@ -213,7 +215,7 @@ async fn deploy_contracts(
         client.clone(),
         (topos_core_contact_address, topos_core_proxy_encoded_params),
     )?
-    .gas(5000000)
+    .gas(DEFAULT_GAS)
     .chain_id(chain_id.as_u64())
     .legacy()
     .send()
@@ -231,7 +233,7 @@ async fn deploy_contracts(
             topos_core_proxy_contract.address(),
         ),
     )?
-    .gas(5000000)
+    .gas(DEFAULT_GAS)
     .chain_id(chain_id.as_u64())
     .legacy()
     .send()
@@ -254,7 +256,7 @@ async fn deploy_contracts(
     if let Err(e) = i_topos_core
         .set_network_subnet_id(SOURCE_SUBNET_ID_1.as_array().to_owned())
         .legacy()
-        .gas(5000000)
+        .gas(DEFAULT_GAS)
         .send()
         .await
         .map_err(|e| {
@@ -298,8 +300,7 @@ async fn deploy_test_token(
     let token_name: Token = Token::String("Test Token".to_string());
     let token_symbol: Token = Token::String("TKX".to_string());
     let token_mint_cap: Token = Token::Uint(U256::from(100_000_000));
-    let token_address_zero: Token =
-        Token::Address("0000000000000000000000000000000000000000".parse()?);
+    let token_address_zero: Token = Token::Address(ZERO_ADDRESS.parse()?);
     let token_daily_mint_limit: Token = Token::Uint(U256::from(100));
     let token_initial_supply: Token = Token::Uint(U256::from(10_000_000));
     let token_encoded_params: ethers::types::Bytes = ethers::abi::encode(&[
@@ -318,7 +319,7 @@ async fn deploy_test_token(
     if let Err(e) = i_topos_messaging
         .deploy_token(token_encoded_params)
         .legacy()
-        .gas(5000000)
+        .gas(DEFAULT_GAS)
         .send()
         .await
         .map_err(|e| {
@@ -757,7 +758,7 @@ async fn test_subnet_send_token_processing(
     if let Err(e) = i_erc20
         .approve(context.i_topos_messaging.address(), U256::from(10))
         .legacy()
-        .gas(400000)
+        .gas(DEFAULT_GAS)
         .send()
         .await?
         .await
@@ -776,7 +777,7 @@ async fn test_subnet_send_token_processing(
             U256::from(2),
         )
         .legacy()
-        .gas(5_000_000)
+        .gas(DEFAULT_GAS)
         .send()
         .await?
         .await
