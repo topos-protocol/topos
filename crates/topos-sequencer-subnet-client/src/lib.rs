@@ -7,6 +7,7 @@ use ethers::prelude::Wallet;
 use ethers::types::TransactionReceipt;
 use ethers::{
     abi::Token,
+    core::rand::thread_rng,
     middleware::SignerMiddleware,
     providers::{Http, Provider, ProviderError, Ws, WsClientError},
     signers::{LocalWallet, Signer, WalletError},
@@ -174,7 +175,6 @@ impl SubnetClientListener {
             .await
             .map_err(Error::EthersProviderError)?
             .ok_or(Error::InvalidBlockNumber(next_block_number))?;
-
         let block_number = block
             .number
             .ok_or(Error::InvalidBlockNumber(next_block_number))?;
@@ -258,8 +258,8 @@ impl SubnetClient {
                 .parse()
                 .map_err(Error::WalletError)?
         } else {
-            // Dummy key, can not sign transactions
-            hex::encode([0u8; 32]).parse().map_err(Error::WalletError)?
+            // Dummy random key, will not be used to sign transactions
+            LocalWallet::new(&mut thread_rng())
         };
         let chain_id = http
             .get_chainid()
