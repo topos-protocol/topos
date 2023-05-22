@@ -92,10 +92,6 @@ runs:
         SCCACHE_REGION=us-east-1
         EOF
 
-    - name: Run sccache-cache
-      if: ${{ inputs.with_cache == 'true' }}
-      uses: mozilla-actions/sccache-action@v0.0.3
-
     - name: Configure AWS credentials for cicd-devnet-1 account
       uses: aws-actions/configure-aws-credentials@v2
       with:
@@ -113,6 +109,10 @@ runs:
         aws configure set aws_access_key_id ${{ env.AWS_ACCESS_KEY_ID }} --profile default
         aws configure set aws_secret_access_key ${{ env.AWS_SECRET_ACCESS_KEY }} --profile default
         aws configure set aws_session_token ${{ env.AWS_SESSION_TOKEN }} --profile default
+
+    - name: Run sccache-cache
+      if: ${{ inputs.with_cache == 'true' }}
+      uses: mozilla-actions/sccache-action@v0.0.3
 
     - uses: taiki-e/install-action@v2
       with:
