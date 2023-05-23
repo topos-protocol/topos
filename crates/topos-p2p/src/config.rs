@@ -12,7 +12,7 @@ impl Default for NetworkConfig {
         Self {
             publish_retry: 10,
             minimum_cluster_size: 5,
-            client_retry_ttl: 200,
+            client_retry_ttl: 2000,
             discovery: Default::default(),
         }
     }
