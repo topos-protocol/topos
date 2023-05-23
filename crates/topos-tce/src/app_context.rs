@@ -339,7 +339,7 @@ impl AppContext {
                             .send_request::<_, NetworkMessage>(
                                 peer_id,
                                 data.clone(),
-                                RetryPolicy::N(3),
+                                RetryPolicy::N(20),
                             )
                             .map(move |result| (peer_id, result))
                     })
@@ -400,7 +400,7 @@ impl AppContext {
                             .send_request::<_, NetworkMessage>(
                                 peer_id,
                                 data.clone(),
-                                RetryPolicy::N(3),
+                                RetryPolicy::N(20),
                             )
                             .map(move |result| (peer_id, result))
                     })
@@ -478,7 +478,7 @@ impl AppContext {
                             .send_request::<_, NetworkMessage>(
                                 *peer_id,
                                 data.clone(),
-                                RetryPolicy::N(3),
+                                RetryPolicy::N(20),
                             )
                             .instrument(span.clone())
                             .with_context(span.context())
@@ -521,7 +521,7 @@ impl AppContext {
                             .send_request::<_, NetworkMessage>(
                                 *peer_id,
                                 data.clone(),
-                                RetryPolicy::N(3),
+                                RetryPolicy::N(20),
                             )
                             .instrument(span.clone())
                             .with_context(span.context())
@@ -563,7 +563,7 @@ impl AppContext {
                             .send_request::<_, NetworkMessage>(
                                 *peer_id,
                                 data.clone(),
-                                RetryPolicy::N(3),
+                                RetryPolicy::N(20),
                             )
                             .instrument(span.clone())
                             .with_context(span.context())
