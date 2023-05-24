@@ -1,8 +1,14 @@
 name: gRPC client stubs generation
 
 on:
-  release:
-    types: [published]
+  push:
+    branches: [main]
+    paths:
+      - "**.proto"
+  pull_request:
+    branches: [main]
+    paths:
+      - "**.proto"
 
 jobs:
   js-grpc:
@@ -50,7 +56,12 @@ jobs:
         run: >
           protoc --plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts --ts_out=grpc_js:./generated -I . $(find ./topos -name '*.proto')
 
+      - name: Check if npm package version has been updated
+        id: check
+        uses: EndBug/version-check@v2
+
       - name: Publish npm package
+        if: steps.check.outputs.changed == 'true' && ${{ github.event_name == 'push' }} && ${{ github.ref == 'refs/heads/main' }}
         working-directory: ./crates/topos-api/proto
         run: npm publish --access public
         env:
