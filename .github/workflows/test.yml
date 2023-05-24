@@ -24,7 +24,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.ROBOT_AWS_ACCESS_KEY_ID}}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.ROBOT_AWS_SECRET_ACCESS_KEY}}
 
-      - run: cargo nextest run --workspace --exclude topos-sequencer-subnet-runtime --config-file tools/config/nextest.toml && cargo test --doc --workspace
+      - run: cargo nextest run --workspace --exclude topos-sequencer-subnet-runtime && cargo test --doc --workspace
         env:
           RUST_LOG: topos=info
 
@@ -41,7 +41,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.ROBOT_AWS_ACCESS_KEY_ID}}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.ROBOT_AWS_SECRET_ACCESS_KEY}}
 
-      - run: cargo nextest run --workspace --exclude topos-sequencer-subnet-runtime --config-file tools/config/nextest.toml && cargo test --doc --workspace
+      - run: cargo nextest run --workspace --exclude topos-sequencer-subnet-runtime && cargo test --doc --workspace
         env:
           RUST_LOG: topos=info
 
