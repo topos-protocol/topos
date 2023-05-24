@@ -1,4 +1,4 @@
-name: JS gRPC client stubs generation
+name: gRPC client stubs generation
 
 on:
   release:
@@ -6,7 +6,7 @@ on:
 
 jobs:
   js-grpc:
-    name: JS gRPC client stubs generation
+    name: JavaScript gRPC client stubs generation
     runs-on: ubuntu-latest
 
     steps:
@@ -48,16 +48,7 @@ jobs:
       - name: Generate TypeScript typings
         working-directory: ./crates/topos-api/proto
         run: >
-          protoc --plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts --ts_out=grpc_js:./generated topos/shared/v1/certificate.proto &&
-          protoc --plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts --ts_out=grpc_js:./generated topos/shared/v1/checkpoints.proto &&
-          protoc --plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts --ts_out=grpc_js:./generated topos/shared/v1/frost.proto &&
-          protoc --plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts --ts_out=grpc_js:./generated topos/shared/v1/stark_proof.proto &&
-          protoc --plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts --ts_out=grpc_js:./generated topos/shared/v1/subnet.proto &&
-          protoc --plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts --ts_out=grpc_js:./generated topos/shared/v1/uuid.proto &&
-          protoc --plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts --ts_out=grpc_js:./generated topos/uci/v1/certification.proto &&
-          protoc --plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts --ts_out=grpc_js:./generated topos/tce/v1/api.proto &&
-          protoc --plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts --ts_out=grpc_js:./generated topos/tce/v1/console.proto &&
-          protoc --plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts --ts_out=grpc_js:./generated topos/tce/v1/synchronization.proto
+          protoc --plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts --ts_out=grpc_js:./generated -I . $(find ./topos -name '*.proto')
 
       - name: Publish npm package
         working-directory: ./crates/topos-api/proto
