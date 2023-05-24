@@ -58,8 +58,9 @@ jobs:
 
       - name: Check if npm package version has been updated
         id: check
-        working-directory: ./crates/topos-api/proto
         uses: EndBug/version-check@v2
+        with:
+          file-name: ./crates/topos-api/proto/package.json
 
       - name: Publish npm package
         if: steps.check.outputs.changed == 'true' && ${{ github.event_name == 'push' }} && ${{ github.ref == 'refs/heads/main' }}
