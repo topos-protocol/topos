@@ -61,9 +61,18 @@ jobs:
         uses: EndBug/version-check@v2
         with:
           file-name: ./crates/topos-api/proto/package.json
+          file-url: https://unpkg.com/@topos-network/topos-grpc-client-stub@latest/package.json
+          static-checking: localIsNew
+
+      - name: Check coverage tolerance
+        if: steps.check.outputs.changed == 'false'
+        uses: actions/github-script@v3
+        with:
+          script: |
+            core.setFailed('Protobuf files were updated but npm package version was not bumped!')
 
       - name: Publish npm package
-        if: steps.check.outputs.changed == 'true' && ${{ github.event_name == 'push' }} && ${{ github.ref == 'refs/heads/main' }}
+        if: steps.check.outputs.changed == 'true' && github.event_name == 'push'
         working-directory: ./crates/topos-api/proto
         run: npm publish --access public
         env:
