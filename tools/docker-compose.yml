@@ -33,7 +33,7 @@ services:
       - TCE_LOCAL_KS=1 # 12D3KooWRhFCXBhmsMnur3up3vJsDoqWh4c39PKXgSWwzAzDHNLn
       - TOPOS_OTLP_SERVICE_NAME=simon-tce-node
       - TOPOS_OTLP_AGENT=https://grpc.otel-collector.telemetry.devnet-1.toposware.com
-      - TOPOS_OTLP_TAGS=run_id=simon-local-0006,number_of_peer_nodes=15,cert_per_batch=75,node_kind=boot
+      - TOPOS_OTLP_TAGS=run_id=simon-local-0007,number_of_peer_nodes=15,cert_per_batch=75,node_kind=boot
       - TCE_ECHO_SAMPLE_SIZE=14
       - TCE_READY_SAMPLE_SIZE=14
       - TCE_DELIVERY_SAMPLE_SIZE=14
@@ -80,7 +80,7 @@ services:
       - TCE_API_ADDR=0.0.0.0:1340
       - TOPOS_OTLP_SERVICE_NAME=simon-tce-node
       - TOPOS_OTLP_AGENT=https://grpc.otel-collector.telemetry.devnet-1.toposware.com
-      - TOPOS_OTLP_TAGS=run_id=simon-local-0006,number_of_peer_nodes=15,cert_per_batch=75,node_kind=peer
+      - TOPOS_OTLP_TAGS=run_id=simon-local-0007,number_of_peer_nodes=15,cert_per_batch=75,node_kind=peer
       - TCE_ECHO_SAMPLE_SIZE=14
       - TCE_READY_SAMPLE_SIZE=14
       - TCE_DELIVERY_SAMPLE_SIZE=14
