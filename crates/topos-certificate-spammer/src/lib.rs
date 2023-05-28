@@ -206,23 +206,17 @@ async fn close_target_node_connections(
 }
 
 /// Submit the certificate to the TCE node
-fn submit_cert_to_tce(node: &TargetNodeConnection, cert: Certificate) {
+async fn submit_cert_to_tce(node: &TargetNodeConnection, cert: Certificate) {
     let client = node.client.clone();
     let span = Span::current();
     span.record("certificate_id", cert.id.to_string());
     span.record("source_subnet_id", cert.source_subnet_id.to_string());
 
-    tokio::spawn(
-        async move {
-            let mut tce_client = client.lock().await;
-            send_new_certificate(&mut tce_client, cert)
-                .instrument(Span::current())
-                .with_current_context()
-                .await;
-        }
+    let mut tce_client = client.lock().await;
+    send_new_certificate(&mut tce_client, cert)
         .with_context(span.context())
-        .instrument(span),
-    );
+        .instrument(span)
+        .await
 }
 
 async fn send_new_certificate(tce_client: &mut TceClient, cert: Certificate) {
@@ -244,7 +238,7 @@ async fn dispatch(cert: Certificate, target_node: &TargetNodeConnection) {
         "Sending cert id={:?} prev_cert_id= {:?} subnet_id={:?} to tce node {}",
         &cert.id, &cert.prev_id, &cert.source_subnet_id, target_node.address
     );
-    submit_cert_to_tce(target_node, cert);
+    submit_cert_to_tce(target_node, cert).await
 }
 
 pub fn generate_source_subnets(

@@ -1,5 +1,6 @@
 use crate::{Error, TceProxyEvent};
 use base64::Engine;
+use futures::stream::FuturesUnordered;
 use opentelemetry::trace::FutureExt;
 use std::collections::HashMap;
 use tokio::sync::{mpsc, oneshot};
@@ -14,7 +15,7 @@ use topos_core::{
     },
     uci::{Certificate, SubnetId},
 };
-use tracing::{error, info, info_span, warn, Instrument};
+use tracing::{error, info, info_span, warn, Instrument, Span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 const CERTIFICATE_OUTBOUND_CHANNEL_SIZE: usize = 100;
@@ -313,14 +314,23 @@ impl TceClientBuilder {
             .clone();
 
         tokio::spawn(async move {
+            let mut certificate_to_send = FuturesUnordered::new();
             info!(
                 "Entering tce proxy command loop for stream {}",
                 &tce_endpoint
             );
             loop {
                 tokio::select! {
+                    Some(_) = certificate_to_send.next() => {
+                        continue;
+                    }
                     Some(sender) = shutdown.recv() => {
                         info!("Shutdown tce proxy command received...");
+                        if !certificate_to_send.is_empty() {
+                            info!("Waiting for all certificates to be sent...");
+                            while certificate_to_send.next().await.is_some() {}
+                        }
+
                         inbound_shutdown_sender.send(()).expect("valid channel for shutting down task");
 
                         sender.send(()).expect("valid channel for shutting down task");
@@ -342,19 +352,25 @@ impl TceClientBuilder {
 
                                 span_context.inject(&context);
 
-                                match tce_grpc_client
-                                    .submit_certificate(request)
-                                    .with_context(context)
-                                    .instrument(span)
-                                .await
-                                .map(|r| r.into_inner()) {
-                                    Ok(_response)=> {
-                                        info!("Successfully sent the Certificate {} (previous: {}) to the TCE at {}", &cert_id, &previous_cert_id, &tce_endpoint);
-                                    }
-                                    Err(e) => {
-                                        error!("Failed to submit the Certificate to the TCE at {}: {e}", &tce_endpoint);
+                                let tce_endpoint = tce_endpoint.clone();
+                                let mut tce_grpc_client = tce_grpc_client.clone();
+                                certificate_to_send.push(async move {
+                                    match tce_grpc_client
+                                        .submit_certificate(request)
+                                        .with_current_context()
+                                        .instrument(Span::current())
+                                        .await
+                                        .map(|r| r.into_inner()) {
+                                            Ok(_response)=> {
+                                                info!("Successfully sent the Certificate {} (previous: {}) to the TCE at {}", &cert_id, &previous_cert_id, &tce_endpoint);
+                                            }
+                                            Err(e) => {
+                                                error!("Failed to submit the Certificate to the TCE at {}: {e}", &tce_endpoint);
+                                            }
                                     }
                                 }
+                                .with_context(context)
+                                .instrument(span));
                             }
                             Some(TceClientCommand::OpenStream {target_checkpoint}) =>  {
                                 // Send command to TCE to open stream with my subnet id
