@@ -79,15 +79,7 @@ pub enum DoubleEchoCommand {
     },
 
     /// Entry point for new certificate to submit as initial sender
-    Broadcast {
-        cert: Certificate,
-        ctx: Span,
-    },
-
-    // Entry point to broadcast many Certificates
-    BroadcastMany {
-        certificates: Vec<Certificate>,
-    },
+    Broadcast { cert: Certificate, ctx: Span },
 
     /// When echo reply received
     Echo {
@@ -124,7 +116,7 @@ impl ReliableBroadcastClient {
     /// New client instances to the same aggregate can be cloned from the returned one.
     /// Aggregate is spawned as new task.
     // #[instrument(name = "ReliableBroadcastClient", skip_all)]
-    pub fn new(
+    pub async fn new(
         config: ReliableBroadcastConfig,
         local_peer_id: String,
         storage: StorageClient,
@@ -153,6 +145,12 @@ impl ReliableBroadcastClient {
         let (double_echo_shutdown_channel, double_echo_shutdown_receiver) =
             mpsc::channel::<oneshot::Sender<()>>(1);
 
+        let last_pending_certificate = storage
+            .next_pending_certificate(None)
+            .await
+            .map(|(id, _)| id)
+            .unwrap_or(0);
+
         let double_echo = DoubleEcho::new(
             config.tce_params,
             command_receiver,
@@ -165,6 +163,7 @@ impl ReliableBroadcastClient {
             network_client,
             double_echo_shutdown_receiver,
             local_peer_id,
+            last_pending_certificate,
         );
 
         spawn(sampler.run());

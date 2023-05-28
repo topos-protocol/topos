@@ -4,7 +4,7 @@ use topos_commands::CommandHandler;
 use topos_core::uci::{Certificate, SubnetId};
 use tracing::{debug, error, info};
 
-use crate::command::GetPendingCertificates;
+use crate::command::{GetNextPendingCertificate, GetPendingCertificates};
 use crate::{
     command::{
         AddPendingCertificate, CertificateDelivered, CheckPendingCertificateExists,
@@ -72,6 +72,26 @@ where
     }
 }
 
+/// Handle a GetNextPendingCertificate query
+#[async_trait]
+impl<S> CommandHandler<GetNextPendingCertificate> for Connection<S>
+where
+    S: Storage,
+{
+    type Error = StorageError;
+
+    async fn handle(
+        &mut self,
+        GetNextPendingCertificate { starting_at }: GetNextPendingCertificate,
+    ) -> Result<(PendingCertificateId, Certificate), StorageError> {
+        let pending_certificate = self
+            .storage
+            .get_next_pending_certificate(starting_at)
+            .await?;
+
+        Ok(pending_certificate)
+    }
+}
 /// Handle a GetPendingCertificates query
 ///
 /// The GetPendingCertificates query will ask for pending certificate
@@ -89,11 +109,7 @@ where
         &mut self,
         _: GetPendingCertificates,
     ) -> Result<Vec<(PendingCertificateId, Certificate)>, StorageError> {
-        let mut pending_certificates =
-            self.storage.get_pending_certificates().await.map_err(|e| {
-                error!("Failure on the storage to get pending certificates: {e}");
-                e
-            })?;
+        let mut pending_certificates = self.storage.get_pending_certificates().await?;
 
         pending_certificates.sort_by(|(pending_cert_id_a, _), (pending_cert_id_b, _)| {
             pending_cert_id_a

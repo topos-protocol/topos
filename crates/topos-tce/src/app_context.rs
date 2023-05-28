@@ -311,10 +311,9 @@ impl AppContext {
             ProtocolEvents::EchoSubscribeReq { peers } => {
                 // Preparing echo subscribe message
                 let my_peer_id = self.network_client.local_peer_id;
-                let data: Vec<u8> = NetworkMessage::from(TceCommands::OnEchoSubscribeReq {
+                let data = NetworkMessage::from(TceCommands::OnEchoSubscribeReq {
                     from_peer: self.network_client.local_peer_id,
-                })
-                .into();
+                });
                 let command_sender = self.tce_cli.get_sampler_channel();
 
                 // Sending echo subscribe message to all remote peers
@@ -374,10 +373,9 @@ impl AppContext {
             ProtocolEvents::ReadySubscribeReq { peers } => {
                 // Preparing ready subscribe message
                 let my_peer_id = self.network_client.local_peer_id;
-                let data: Vec<u8> = NetworkMessage::from(TceCommands::OnReadySubscribeReq {
+                let data = NetworkMessage::from(TceCommands::OnReadySubscribeReq {
                     from_peer: self.network_client.local_peer_id,
-                })
-                .into();
+                });
                 let command_sender = self.tce_cli.get_sampler_channel();
                 // Sending ready subscribe message to send to a number of remote peers
                 let future_pool: FuturesUnordered<_> = peers
@@ -450,11 +448,10 @@ impl AppContext {
                 );
                 let cert_id = cert.id;
 
-                let data: Vec<u8> = NetworkMessage::from(TceCommands::OnGossip {
+                let data = NetworkMessage::from(TceCommands::OnGossip {
                     cert,
                     ctx: PropagationContext::inject(&span.context()),
-                })
-                .into();
+                });
 
                 let future_pool: FuturesUnordered<_> = peers
                     .iter()
@@ -496,12 +493,11 @@ impl AppContext {
                 );
                 let my_peer_id = self.network_client.local_peer_id;
                 // Send echo message
-                let data: Vec<u8> = NetworkMessage::from(TceCommands::OnEcho {
+                let data = NetworkMessage::from(TceCommands::OnEcho {
                     from_peer: self.network_client.local_peer_id,
                     certificate_id,
                     ctx: PropagationContext::inject(&span.context()),
-                })
-                .into();
+                });
 
                 let future_pool: FuturesUnordered<_> = peers
                     .iter()
@@ -539,12 +535,11 @@ impl AppContext {
                     "otel.kind" = "producer",
                 );
                 let my_peer_id = self.network_client.local_peer_id;
-                let data: Vec<u8> = NetworkMessage::from(TceCommands::OnReady {
+                let data = NetworkMessage::from(TceCommands::OnReady {
                     from_peer: self.network_client.local_peer_id,
                     certificate_id,
                     ctx: PropagationContext::inject(&span.context()),
-                })
-                .into();
+                });
 
                 let future_pool: FuturesUnordered<_> = peers
                     .iter()

@@ -178,7 +178,7 @@ impl Runtime {
                                 result: QueryResult::PutRecord(Ok(_)),
                                 ..
                             } if Some(id) == addr_query_id => {
-                                warn!(
+                                info!(
                                     "Bootstrap finished and MultiAddr published on DHT for {}",
                                     self.local_peer_id
                                 );
@@ -213,7 +213,7 @@ impl Runtime {
                                 },
                         },
                     )) => {
-                        info!("Received a protocol message from {peer}: id: {request_id}, {request:?}");
+                        warn!("Received a protocol message from {peer}: id: {request_id}, {request:?}");
                         if self
                             .swarm
                             .behaviour_mut()
@@ -231,16 +231,23 @@ impl Runtime {
                     }
 
                     SwarmEvent::ConnectionEstablished { .. } => {}
-
                     SwarmEvent::Dialing(_) => {}
                     SwarmEvent::IncomingConnection { .. } => {}
+                    SwarmEvent::NewListenAddr { .. } => {}
 
+                    SwarmEvent::IncomingConnectionError {
+                        local_addr,
+                        send_back_addr,
+                        error,
+                    } => {
+                        warn!("IncomingConnectionError: local_addr: {local_addr:?}, send_back_addr: {send_back_addr:?}, error: {error:?}");
+                    }
                     event => warn!("Unhandle event during Bootstrap: {event:?}"),
                 }
             }
         }
 
-        warn!("Network bootstrap finished");
+        info!("Network bootstrap finished");
 
         Ok(self)
     }

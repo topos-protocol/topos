@@ -151,6 +151,7 @@ pub(crate) fn setup_tracing(
 
         let exporter = opentelemetry_otlp::new_exporter()
             .tonic()
+            .with_env()
             .with_endpoint(otlp_agent);
 
         let batch_processor_config = BatchConfig::default()

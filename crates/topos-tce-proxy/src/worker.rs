@@ -20,12 +20,14 @@ impl TceProxyWorker {
     pub async fn new(config: TceProxyConfig) -> Result<(Self, Option<Certificate>), Error> {
         let (command_sender, mut command_rcv) = mpsc::channel::<TceProxyCommand>(128);
         let (evt_sender, evt_rcv) = mpsc::channel::<TceProxyEvent>(128);
+        let (tce_client_shutdown_channel, shutdown_receiver) =
+            mpsc::channel::<oneshot::Sender<()>>(1);
 
         let (mut tce_client, mut receiving_certificate_stream) = TceClientBuilder::default()
             .set_subnet_id(config.subnet_id)
             .set_tce_endpoint(&config.base_tce_api_url)
             .set_proxy_event_sender(evt_sender.clone())
-            .build_and_launch()
+            .build_and_launch(shutdown_receiver)
             .await?;
 
         tce_client.open_stream(config.positions.clone()).await?;
@@ -87,9 +89,10 @@ impl TceProxyWorker {
                             }
                             TceProxyCommand::Shutdown(sender) => {
                                 info!("Received TceProxyCommand::Shutdown command, closing tce client...");
-                                if let Err(e) = tce_client.close().await {
-                                    error!("Unable to shutdown the TCE client: {e}");
-                                }
+                                let (killer, waiter) = oneshot::channel::<()>();
+                                tce_client_shutdown_channel.send(killer).await.unwrap();
+                                waiter.await.unwrap();
+
                                  _ = sender.send(());
                                 break;
                             }

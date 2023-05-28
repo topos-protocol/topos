@@ -1,7 +1,7 @@
 use tokio::sync::{mpsc, oneshot};
 use topos_core::uci::{Certificate, CertificateId, SubnetId, CERTIFICATE_ID_LENGTH};
 
-use crate::command::GetPendingCertificates;
+use crate::command::{GetNextPendingCertificate, GetPendingCertificates};
 use crate::{
     command::{
         AddPendingCertificate, CertificateDelivered, CheckPendingCertificateExists,
@@ -46,6 +46,14 @@ impl StorageClient {
             .await
     }
 
+    pub async fn next_pending_certificate(
+        &self,
+        starting_at: Option<usize>,
+    ) -> Result<(PendingCertificateId, Certificate), StorageError> {
+        GetNextPendingCertificate { starting_at }
+            .send_to(&self.sender)
+            .await
+    }
     /// Ask the storage to add a new pending certificate
     ///
     /// The storage will not check if the certificate is already existing.

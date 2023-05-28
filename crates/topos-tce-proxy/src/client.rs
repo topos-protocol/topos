@@ -152,6 +152,7 @@ impl TceClientBuilder {
 
     pub async fn build_and_launch(
         self,
+        mut shutdown: mpsc::Receiver<oneshot::Sender<()>>,
     ) -> Result<
         (
             TceClient,
@@ -318,12 +319,18 @@ impl TceClientBuilder {
             );
             loop {
                 tokio::select! {
-                   command = tce_command_receiver.recv() => {
+                    Some(sender) = shutdown.recv() => {
+                        info!("Shutdown tce proxy command received...");
+                        inbound_shutdown_sender.send(()).expect("valid channel for shutting down task");
+
+                        sender.send(()).expect("valid channel for shutting down task");
+                        break;
+                    }
+                    command = tce_command_receiver.recv() => {
                         match command {
                            Some(TceClientCommand::SendCertificate {cert, span}) =>  {
                                 let cert_id = cert.id;
                                 let previous_cert_id = cert.prev_id;
-                                info!("Parent metadata {:?}", span.metadata());
                                 let span = info_span!(parent: &span, "SendCertificate", %cert_id, %previous_cert_id, %tce_endpoint);
                                 let context = span.context();
 

@@ -150,7 +150,8 @@ pub async fn start_node(
         config.keypair.public().to_peer_id().to_string(),
         storage_client.clone(),
         network_client.clone(),
-    );
+    )
+    .await;
 
     let (command_sampler, command_broadcast) = tce_cli.get_command_channels();
     let api_storage_client = storage_client.clone();

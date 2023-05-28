@@ -1,12 +1,15 @@
-use std::{sync::Arc, time::Duration};
+use std::time::Duration;
 
 use futures::future::BoxFuture;
-use libp2p::{request_response::ResponseChannel, PeerId};
+use libp2p::{
+    request_response::{OutboundFailure, ResponseChannel},
+    PeerId,
+};
 use tokio::sync::{
     mpsc::{self, error::SendError},
     oneshot,
 };
-use tracing::{debug, warn};
+use tracing::{debug, info, warn};
 
 use crate::{
     behaviour::transmission::codec::TransmissionResponse,
@@ -58,7 +61,7 @@ impl Client {
         Self::send_command_with_receiver(&self.sender, command, receiver).await
     }
 
-    pub fn send_request<T: Into<Vec<u8>>, R: From<Vec<u8>>>(
+    pub fn send_request<T: std::fmt::Debug + Into<Vec<u8>>, R: From<Vec<u8>>>(
         &self,
         to: PeerId,
         data: T,
@@ -76,7 +79,7 @@ impl Client {
 
             loop {
                 let (addr_sender, addr_receiver) = oneshot::channel();
-                if let Err(e) = Self::send_command_with_receiver(
+                match Self::send_command_with_receiver(
                     &network,
                     Command::Discover {
                         to,
@@ -86,14 +89,13 @@ impl Client {
                 )
                 .await
                 {
-                    if retry_count == 0 {
-                        break;
+                    Err(e) if retry_count == 0 => break,
+                    Err(e) => {
+                        retry_count -= 1;
+                        debug!("Retry query because of failure {e:?} during discovery phase");
+                        tokio::time::sleep(Duration::from_millis(ttl)).await;
                     }
-                    retry_count -= 1;
-                    debug!("Retry query because of failure {e:?}");
-                    tokio::time::sleep(Duration::from_millis(ttl)).await;
-                } else {
-                    break;
+                    Ok(_) => break,
                 }
             }
             let mut retry_count = match retry_policy {
@@ -114,11 +116,20 @@ impl Client {
                 .await
                 {
                     Err(e) if retry_count == 0 => {
+                        warn!("Fail query because of error {e:?}");
                         return Err(e);
                     }
                     Err(e) => {
                         retry_count -= 1;
-                        warn!("Retry query because of failure {e:?}");
+                        // Note: Currently UnsupportedProtocols is returned when the peer is not able to handle the request
+                        if !matches!(
+                            e,
+                            CommandExecutionError::RequestOutbandFailure(
+                                OutboundFailure::UnsupportedProtocols
+                            )
+                        ) {
+                            info!("Retry query because of failure {e:?}");
+                        }
                         tokio::time::sleep(Duration::from_millis(ttl)).await;
                     }
                     Ok(res) => {

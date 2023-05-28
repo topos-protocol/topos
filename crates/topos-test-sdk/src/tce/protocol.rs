@@ -3,7 +3,7 @@ use futures::Stream;
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
 use topos_tce_transport::{ProtocolEvents, ReliableBroadcastParams};
 
-pub fn create_reliable_broadcast_client(
+pub async fn create_reliable_broadcast_client(
     tce_params: ReliableBroadcastParams,
     peer_id: String,
     storage: topos_tce_storage::StorageClient,
@@ -14,7 +14,7 @@ pub fn create_reliable_broadcast_client(
 ) {
     let config = ReliableBroadcastConfig { tce_params };
 
-    ReliableBroadcastClient::new(config, peer_id, storage, network)
+    ReliableBroadcastClient::new(config, peer_id, storage, network).await
 }
 
 pub fn create_reliable_broadcast_params<F>(correct_sample: usize, g: F) -> ReliableBroadcastParams

@@ -2,41 +2,39 @@ receivers:
   otlp:
     protocols:
       grpc:
+        endpoint: 0.0.0.0:4317
+  hostmetrics:
+    collection_interval: 1m
+    scrapers:
+      load:
+      memory:
 
 processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 50
+    spike_limit_percentage: 30
   batch:
+    timeout: 1s
 
 extensions:
   health_check:
-  pprof:
-    endpoint: :1888
-  zpages:
-    endpoint: :55679
 
 exporters:
-  prometheus:
-    endpoint: 0.0.0.0:8889
-    const_labels:
-      label1: value1
-    resource_to_telemetry_conversion:
-      enabled: true
-
-  jaeger:
-    endpoint: jaeger:14250
-    tls:
-      insecure: true
+  otlp/elastic:
+    apm_server_url: "http://localhost:8220"
 
   logging:
     loglevel: info
 
 service:
-  extensions: [pprof, zpages, health_check]
+  extensions: [health_check]
   pipelines:
     traces:
-      receivers: [otlp]
-      processors: [batch]
-      exporters: [jaeger, logging]
-    metrics:
-      receivers: [otlp]
-      processors: [batch]
-      exporters: [prometheus]
+      receivers:
+        - otlp
+      processors:
+        - batch
+      exporters:
+        - logging
+        - otlp/elastic

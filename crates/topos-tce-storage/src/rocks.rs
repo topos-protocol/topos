@@ -345,6 +345,16 @@ impl Storage for RocksDBStorage {
     ) -> Result<Vec<(u64, Certificate)>, InternalStorageError> {
         Ok(self.pending_certificates.iter()?.collect())
     }
+    async fn get_next_pending_certificate(
+        &self,
+        starting_at: Option<usize>,
+    ) -> Result<(PendingCertificateId, Certificate), InternalStorageError> {
+        Ok(self
+            .pending_certificates
+            .iter()?
+            .nth(starting_at.map(|v| v + 1).unwrap_or(0))
+            .ok_or(InternalStorageError::NoPendingCertificates)?)
+    }
 
     async fn remove_pending_certificate(&self, index: u64) -> Result<(), InternalStorageError> {
         self.pending_certificates.delete(&index)

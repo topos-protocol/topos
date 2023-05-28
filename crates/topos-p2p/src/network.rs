@@ -24,7 +24,7 @@ use libp2p::{
 use std::{
     borrow::Cow,
     collections::{HashMap, HashSet},
-    sync::Arc,
+    sync::{atomic::AtomicU64, Arc},
     time::Duration,
 };
 use tokio::sync::{mpsc, oneshot};
@@ -148,11 +148,14 @@ impl<'a> NetworkBuilder<'a> {
             dns_tcp.or_transport(tcp)
         };
 
+        let mut mplex_config = mplex::MplexConfig::new();
+        mplex_config.set_max_num_streams(1024);
+        mplex_config.set_max_buffer_size(64);
         let transport = transport
             .upgrade(upgrade::Version::V1)
             .authenticate(noise::NoiseConfig::xx(noise_keys).into_authenticated())
             // .multiplex(yamux::YamuxConfig::default())
-            .multiplex(mplex::MplexConfig::new())
+            .multiplex(mplex_config)
             .timeout(TWO_HOURS)
             .boxed();
 

@@ -14,7 +14,7 @@ use tokio::sync::{broadcast, mpsc, oneshot};
 use topos_core::uci::{Certificate, CertificateId};
 use topos_p2p::Client as NetworkClient;
 use topos_p2p::PeerId;
-use topos_tce_storage::StorageClient;
+use topos_tce_storage::{PendingCertificateId, StorageClient};
 use tracing::{
     debug, error, info, info_span, instrument, trace, warn, warn_span, Instrument, Span,
 };
@@ -29,6 +29,7 @@ pub struct DeliveryState {
 }
 
 pub struct DoubleEcho {
+    last_pending_certificate: PendingCertificateId,
     pub(crate) params: ReliableBroadcastParams,
     command_receiver: mpsc::Receiver<DoubleEchoCommand>,
     subscriptions_view_receiver: mpsc::Receiver<SubscriptionsView>,
@@ -47,7 +48,7 @@ pub struct DoubleEcho {
     delivery_time: HashMap<CertificateId, (time::SystemTime, time::Duration)>,
     pub(crate) subscriptions: SubscriptionsView, // My subscriptions for echo, ready and delivery feedback
     pub(crate) subscribers: SubscribersView,     // Echo and ready subscribers that are following me
-    buffer: VecDeque<(Certificate, Span)>,
+    buffer: VecDeque<Certificate>,
     pub(crate) shutdown: mpsc::Receiver<oneshot::Sender<()>>,
 
     local_peer_id: String,
@@ -70,8 +71,10 @@ impl DoubleEcho {
         network_client: NetworkClient,
         shutdown: mpsc::Receiver<oneshot::Sender<()>>,
         local_peer_id: String,
+        last_pending_certificate: PendingCertificateId,
     ) -> Self {
         Self {
+            last_pending_certificate,
             params,
             command_receiver,
             subscriptions_view_receiver,
@@ -119,29 +122,30 @@ impl DoubleEcho {
                             let _ = sender.send(Ok(value));
                         }
 
-                        DoubleEchoCommand::BroadcastMany { certificates } if self.buffer.is_empty() => {
-                            debug!("DoubleEchoCommand::BroadcastMany cert ids: {:?}",
-                                certificates.iter().map(|cert| &cert.id).collect::<Vec<&CertificateId>>());
-
-                            self.buffer = certificates.into_iter().map(|c| (c, Span::current())).collect();
-                        }
-
-                        DoubleEchoCommand::Broadcast { cert, ctx} => {
-                            if self.storage.pending_certificate_exists(cert.id).await.is_err() {
+                        DoubleEchoCommand::Broadcast { cert, ctx } => {
+                            if self.storage.pending_certificate_exists(cert.id).await.is_err() &&
+                                self.storage.get_certificate(cert.id).await.is_err()
+                            {
                                 let span = warn_span!("Broadcast", peer_id = self.local_peer_id, certificate_id = cert.id.to_string());
+                                span.in_scope(|| {
+                                    info!("Broadcast registered for {} {:?} {:?}", cert.id, ctx, cert.id);
+                                    self.span_tracker.insert(cert.id, span.clone());
+                                });
                                 span.add_link(ctx.context().span().span_context().clone());
-                                _ = self
+                                let maybe_pending = self
                                     .storage
                                     .add_pending_certificate(cert.clone())
-                                    .await
-                                    .instrument(span.clone());
+                                    .instrument(span.clone())
+                                    .await;
 
                                 span.in_scope(||{
                                     info!("Certificate {} added to pending storage", cert.id);
                                     debug!("DoubleEchoCommand::Broadcast certificate_id: {}", cert.id);
                                     if self.buffer.len() < Self::MAX_BUFFER_SIZE {
-                                        self.span_tracker.insert(cert.id, span.clone());
-                                        self.buffer.push_back((cert, Span::current()));
+                                        self.buffer.push_back(cert);
+                                        if let Ok(pending) = maybe_pending {
+                                            self.last_pending_certificate = pending;
+                                        }
                                     } else {
                                         error!("Double echo buffer is full for certificate {}", cert.id);
                                         self.event_sender.send(ProtocolEvents::UnableToBufferCertificate {
@@ -309,82 +313,97 @@ impl DoubleEcho {
 
             // Broadcast next certificate
             if has_subscriptions {
-                if let Some((cert, ctx)) = self.buffer.pop_front() {
-                    let span = info_span!(
-                        parent: &ctx,
-                        "DoubleEcho start dispatching",
-                        certificate_id = cert.id.to_string(),
-                        peer_id = self.local_peer_id,
-                        "otel.kind" = "producer"
-                    );
-                    let _span = span.entered();
+                if let Some(cert) = self.buffer.pop_front() {
+                    if let Some(ctx) = self.span_tracker.get(&cert.id) {
+                        let span = info_span!(
+                            parent: ctx,
+                            "DoubleEcho start dispatching",
+                            certificate_id = cert.id.to_string(),
+                            peer_id = self.local_peer_id,
+                            "otel.kind" = "producer"
+                        );
+                        let _span = span.entered();
 
-                    let cert_id = cert.id;
-                    #[cfg(not(feature = "direct"))]
-                    self.handle_broadcast(cert);
+                        let cert_id = cert.id;
+                        #[cfg(not(feature = "direct"))]
+                        self.handle_broadcast(cert);
 
-                    if let Some(messages) = self.buffered_messages.remove(&cert_id) {
-                        for message in messages {
-                            match message {
-                                DoubleEchoCommand::Echo {
-                                    from_peer,
-                                    certificate_id,
-                                    ..
-                                } => {
-                                    let span = if let Some(root) =
-                                        self.span_tracker.get(&certificate_id)
-                                    {
-                                        info_span!(
-                                            parent: root,
-                                            "RECV Inbound Echo (Buffered)",
-                                            peer = self.local_peer_id,
-                                            certificate_id = certificate_id.to_string()
-                                        )
-                                    } else {
-                                        info_span!(
-                                            "RECV Inbound Echo (Buffered)",
-                                            peer = self.local_peer_id,
-                                            certificate_id = certificate_id.to_string()
-                                        )
-                                    };
+                        if let Some(messages) = self.buffered_messages.remove(&cert_id) {
+                            for message in messages {
+                                match message {
+                                    DoubleEchoCommand::Echo {
+                                        from_peer,
+                                        certificate_id,
+                                        ..
+                                    } => {
+                                        let span = if let Some(root) =
+                                            self.span_tracker.get(&certificate_id)
+                                        {
+                                            info_span!(
+                                                parent: root,
+                                                "RECV Inbound Echo (Buffered)",
+                                                peer = self.local_peer_id,
+                                                certificate_id = certificate_id.to_string()
+                                            )
+                                        } else {
+                                            info_span!(
+                                                "RECV Inbound Echo (Buffered)",
+                                                peer = self.local_peer_id,
+                                                certificate_id = certificate_id.to_string()
+                                            )
+                                        };
 
-                                    let _enter = span.enter();
-                                    self.handle_echo(from_peer, &certificate_id);
+                                        let _enter = span.enter();
+                                        self.handle_echo(from_peer, &certificate_id);
+                                    }
+                                    DoubleEchoCommand::Ready {
+                                        from_peer,
+                                        certificate_id,
+                                        ..
+                                    } => {
+                                        let span = if let Some(root) =
+                                            self.span_tracker.get(&certificate_id)
+                                        {
+                                            info_span!(
+                                                parent: root,
+                                                "RECV Inbound Ready (Buffered)",
+                                                peer = self.local_peer_id,
+                                                certificate_id = certificate_id.to_string()
+                                            )
+                                        } else {
+                                            info_span!(
+                                                "RECV Inbound Ready (Buffered)",
+                                                peer = self.local_peer_id,
+                                                certificate_id = certificate_id.to_string()
+                                            )
+                                        };
+
+                                        let _enter = span.enter();
+                                        self.handle_ready(from_peer, &certificate_id);
+                                    }
+                                    _ => {}
                                 }
-                                DoubleEchoCommand::Ready {
-                                    from_peer,
-                                    certificate_id,
-                                    ..
-                                } => {
-                                    let span = if let Some(root) =
-                                        self.span_tracker.get(&certificate_id)
-                                    {
-                                        info_span!(
-                                            parent: root,
-                                            "RECV Inbound Ready (Buffered)",
-                                            peer = self.local_peer_id,
-                                            certificate_id = certificate_id.to_string()
-                                        )
-                                    } else {
-                                        info_span!(
-                                            "RECV Inbound Ready (Buffered)",
-                                            peer = self.local_peer_id,
-                                            certificate_id = certificate_id.to_string()
-                                        )
-                                    };
-
-                                    let _enter = span.enter();
-                                    self.handle_ready(from_peer, &certificate_id);
-                                }
-                                _ => {}
                             }
                         }
+                        #[cfg(feature = "direct")]
+                        {
+                            _ = self
+                                .event_sender
+                                .send(ProtocolEvents::CertificateDelivered { certificate: cert });
+                        }
+                    } else {
+                        warn!(
+                            "No span found for certificate id: {} {:?}",
+                            cert.id, cert.id
+                        );
                     }
-                    #[cfg(feature = "direct")]
+                    if let Ok((pending, certificate)) = self
+                        .storage
+                        .next_pending_certificate(Some(self.last_pending_certificate as usize))
+                        .await
                     {
-                        _ = self
-                            .event_sender
-                            .send(ProtocolEvents::CertificateDelivered { certificate: cert });
+                        self.last_pending_certificate = pending;
+                        self.buffer.push_back(certificate);
                     }
                 }
             }

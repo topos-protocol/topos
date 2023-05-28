@@ -130,6 +130,7 @@ impl<S: Storage> IntoFuture for Connection<S> {
                             FetchCertificates,
                             GetCertificate,
                             GetPendingCertificates,
+                            GetNextPendingCertificate,
                             GetSourceHead,
                             RemovePendingCertificate,
                             TargetedBy

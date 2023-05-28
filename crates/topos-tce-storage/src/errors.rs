@@ -43,6 +43,9 @@ pub enum InternalStorageError {
 
     #[error("Missing head certificate for source subnet id {0}")]
     MissingHeadForSubnet(SubnetId),
+
+    #[error("No pending certificates")]
+    NoPendingCertificates,
 }
 
 #[derive(Debug, Error)]

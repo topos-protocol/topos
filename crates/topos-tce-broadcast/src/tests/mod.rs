@@ -88,6 +88,7 @@ fn create_context(params: TceParams) -> (DoubleEcho, Context) {
         network_client,
         double_echo_shutdown_receiver,
         String::new(),
+        0,
     );
 
     // List of peers

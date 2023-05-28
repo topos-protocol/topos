@@ -82,7 +82,6 @@ impl TargetNodeConnection {
         self.shutdown.send(sender).await?;
         receiver.await?;
 
-        self.client.lock().await.close().await?;
         Ok(())
     }
 }
@@ -120,10 +119,13 @@ async fn open_target_node_connection(
             &tce_address, &source_subnet.source_subnet_id
         );
 
+        let (tce_client_shutdown_channel, shutdown_receiver) =
+            mpsc::channel::<oneshot::Sender<()>>(1);
+
         let (tce_client, mut receiving_certificate_stream) = match TceClientBuilder::default()
             .set_subnet_id(source_subnet.source_subnet_id)
             .set_tce_endpoint(tce_address)
-            .build_and_launch()
+            .build_and_launch(shutdown_receiver)
             .await
         {
             Ok(value) => value,
@@ -153,7 +155,6 @@ async fn open_target_node_connection(
         {
             let source_subnet_id = source_subnet.source_subnet_id;
             let tce_address = tce_address.clone();
-            let client = client.clone();
             tokio::spawn(async move {
                 loop {
                     // process certificates received from the TCE node
@@ -163,7 +164,12 @@ async fn open_target_node_connection(
                                 &tce_address, &source_subnet_id, &cert.id, position);
                          },
                          Some(sender) = shutdown_receiver.recv() => {
-                             client.lock().await.close().await.unwrap();
+                            info!("Shutting down client for tce address: {} for subnet id: {}",
+                                &tce_address, &source_subnet_id);
+
+                            let (killer, waiter) = oneshot::channel::<()>();
+                            tce_client_shutdown_channel.send(killer).await.unwrap();
+                            waiter.await.unwrap();
 
                             info!("Finishing watch certificates task...");
                             _ = sender.send(());

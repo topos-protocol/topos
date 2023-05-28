@@ -13,7 +13,7 @@ use topos_p2p::utils::local_key_pair_from_slice;
 use topos_p2p::{utils::local_key_pair, Multiaddr, PeerId};
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
 use topos_tce_storage::{Connection, RocksDBStorage};
-use tracing::{debug, info};
+use tracing::{debug, warn};
 
 pub mod events;
 
@@ -49,7 +49,7 @@ pub async fn run(
 
     let peer_id = key.public().to_peer_id();
 
-    info!("I am {}", peer_id);
+    warn!("I am {}", peer_id);
     tracing::Span::current().record("peer_id", &peer_id.to_string());
 
     let external_addr: Multiaddr =
@@ -104,7 +104,8 @@ pub async fn run(
         peer_id.to_string(),
         storage_client.clone(),
         network_client.clone(),
-    );
+    )
+    .await;
     debug!("Reliable broadcast started");
 
     debug!("Starting the Synchronizer");

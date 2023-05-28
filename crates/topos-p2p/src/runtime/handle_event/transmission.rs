@@ -36,7 +36,7 @@ impl EventHandler<RequestResponseEvent<TransmissionRequest, TransmissionResponse
                         request_id,
                         response,
                     },
-                ..
+                peer,
             } => {
                 if let Some(sender) = self.pending_requests.remove(&request_id) {
                     if sender.send(Ok(response.0)).is_err() {
@@ -55,7 +55,7 @@ impl EventHandler<RequestResponseEvent<TransmissionRequest, TransmissionResponse
                         warn!("Could not send RequestFailure for request {request_id} because initiator is dropped");
                     }
                 } else {
-                    warn!("Received an OutboundRequest failure for an unknown request {request_id} from {peer}")
+                    warn!("Received an OutboundRequest failure for an unknown request {request_id} from {peer} because of {:?}", error)
                 }
             }
 
@@ -73,7 +73,7 @@ impl EventHandler<RequestResponseEvent<TransmissionRequest, TransmissionResponse
                         warn!("Could not send RequestFailure for request {request_id} because initiator is dropped");
                     }
                 } else {
-                    warn!("Received an InboundRequest failure for an unknown request {request_id} from {peer}");
+                    warn!("Received an InboundRequest failure for an unknown request {request_id} from {peer} because the connection was closed");
                 }
             }
             RequestResponseEvent::InboundFailure {

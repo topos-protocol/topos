@@ -104,7 +104,9 @@ impl Runtime {
                     let query_id = behaviour.discovery.get_record(Key::new(&to.to_string()));
 
                     debug!("Created a get_record query {query_id:?} for discovering {to}");
-                    self.pending_record_requests.insert(query_id, sender);
+                    if let Some(id) = self.pending_record_requests.insert(query_id, sender) {
+                        warn!("Discover request {id:?} was overwritten by {query_id:?}");
+                    }
                 } else {
                     _ = sender.send(Ok(addr));
                 }
@@ -117,7 +119,11 @@ impl Runtime {
                     .transmission
                     .send_request(&to, TransmissionRequest(data));
 
-                self.pending_requests.insert(request_id, sender);
+                info!("Created a transmission request {request_id:?} for {to}");
+
+                if let Some(id) = self.pending_requests.insert(request_id, sender) {
+                    warn!("Transmission request {id:?} was overwritten by {request_id:?}",);
+                }
             }
 
             Command::TransmissionResponse { data, channel } => {

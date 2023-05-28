@@ -24,28 +24,12 @@ services:
     ports:
       - "9090"
       - "1340:1340"
+    env_file:
+      - env/base.env
+      - env/node.env
+      - env/telemetry.env
     environment:
-      - RUST_LOG=warn
-      - TOOLCHAIN_VERSION=stable
-      - RUST_BACKTRACE=full
-      - TCE_DB_PATH=/tmp/default-db
-      - TCE_API_ADDR=0.0.0.0:1340
       - TCE_LOCAL_KS=1 # 12D3KooWRhFCXBhmsMnur3up3vJsDoqWh4c39PKXgSWwzAzDHNLn
-      - TOPOS_OTLP_SERVICE_NAME=simon-tce-node
-      - TOPOS_OTLP_AGENT=https://grpc.otel-collector.telemetry.devnet-1.toposware.com
-      - TOPOS_OTLP_TAGS=run_id=simon-local-0007,number_of_peer_nodes=15,cert_per_batch=75,node_kind=boot
-      - TCE_ECHO_SAMPLE_SIZE=14
-      - TCE_READY_SAMPLE_SIZE=14
-      - TCE_DELIVERY_SAMPLE_SIZE=14
-      - TCE_ECHO_THRESHOLD=11
-      - TCE_READY_THRESHOLD=6
-      - TCE_DELIVERY_THRESHOLD=10
-      - TOPOS_MINIMUM_TCE_CLUSTER_SIZE=7
-      - OTLP_BATCH_SCHEDULED_DELAY=100
-      - OTLP_BATCH_MAX_CONCURRENT_EXPORTS=1000
-      - OTLP_BATCH_MAX_EXPORTER_BATCH_SIZE=10000
-      - OTLP_BATCH_EXPORT_TIMEOUT=100000
-      - OTLP_BATCH_MAX_QUEUE_SIZE=10000
 
   peer:
     image: ghcr.io/topos-network/topos:main
@@ -73,26 +57,10 @@ services:
       - "1340"
     deploy:
       replicas: 14
-    environment:
-      - LOCAL_TEST_NET=true
-      - RUST_LOG=warn
-      - TCE_DB_PATH=/tmp/default-db
-      - TCE_API_ADDR=0.0.0.0:1340
-      - TOPOS_OTLP_SERVICE_NAME=simon-tce-node
-      - TOPOS_OTLP_AGENT=https://grpc.otel-collector.telemetry.devnet-1.toposware.com
-      - TOPOS_OTLP_TAGS=run_id=simon-local-0007,number_of_peer_nodes=15,cert_per_batch=75,node_kind=peer
-      - TCE_ECHO_SAMPLE_SIZE=14
-      - TCE_READY_SAMPLE_SIZE=14
-      - TCE_DELIVERY_SAMPLE_SIZE=14
-      - TCE_ECHO_THRESHOLD=11
-      - TCE_READY_THRESHOLD=6
-      - TCE_DELIVERY_THRESHOLD=10
-      - TOPOS_MINIMUM_TCE_CLUSTER_SIZE=7
-      - OTLP_BATCH_SCHEDULED_DELAY=100
-      - OTLP_BATCH_MAX_CONCURRENT_EXPORTS=1000
-      - OTLP_BATCH_MAX_EXPORTER_BATCH_SIZE=10000
-      - OTLP_BATCH_EXPORT_TIMEOUT=100000
-      - OTLP_BATCH_MAX_QUEUE_SIZE=10000
+    env_file:
+      - env/base.env
+      - env/node.env
+      - env/telemetry.env
 
   spammer:
     container_name: spam
@@ -106,19 +74,10 @@ services:
         - FEATURES=network
     volumes:
       - shared:/tmp/shared
-    environment:
-      - RUST_LOG=info
-      - TOPOS_NETWORK_SPAMMER_CERT_PER_BATCH=75
-      - TOPOS_NETWORK_SPAMMER_BATCH_INTERVAL=4000
-      - TOPOS_NETWORK_SPAMMER_TARGET_NODES_PATH=/tmp/shared/peer_nodes.json
-      - TOPOS_NETWORK_SPAMMER_NUMBER_OF_SUBNETS=1
-      - TOPOS_OTLP_SERVICE_NAME=simon-spammer
-      - TOPOS_OTLP_AGENT=https://grpc.otel-collector.telemetry.devnet-1.toposware.com
-      - OTLP_BATCH_SCHEDULED_DELAY=100
-      - OTLP_BATCH_MAX_CONCURRENT_EXPORTS=1000
-      - OTLP_BATCH_MAX_EXPORTER_BATCH_SIZE=10000
-      - OTLP_BATCH_EXPORT_TIMEOUT=100000
-      - OTLP_BATCH_MAX_QUEUE_SIZE=10000
+    env_file:
+      - env/base.env
+      - env/telemetry.env
+      - env/spammer.env
     depends_on:
       boot:
         condition: service_healthy
