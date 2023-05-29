@@ -46,12 +46,12 @@ const CERTIFICATE_ID_3: CertificateId = CERTIFICATE_ID_8;
 const DEFAULT_GAS: u64 = 5_000_000;
 
 //TODO I haven't find a way to parametrize version, macro accepts strictly string literal
-abigen!(TokenDeployerContract, "npm:@topos-network/topos-smart-contracts@1.0.1/artifacts/contracts/topos-core/TokenDeployer.sol/TokenDeployer.json");
-abigen!(ToposCoreContract, "npm:@topos-network/topos-smart-contracts@1.0.1/artifacts/contracts/topos-core/ToposCore.sol/ToposCore.json");
-abigen!(ToposCoreProxyContract, "npm:@topos-network/topos-smart-contracts@1.0.1/artifacts/contracts/topos-core/ToposCoreProxy.sol/ToposCoreProxy.json");
-abigen!(ToposMessagingContract, "npm:@topos-network/topos-smart-contracts@1.0.1/artifacts/contracts/topos-core/ToposMessaging.sol/ToposMessaging.json");
-abigen!(IToposCore, "npm:@topos-network/topos-smart-contracts@1.0.1/artifacts/contracts/interfaces/IToposCore.sol/IToposCore.json");
-abigen!(IToposMessaging, "npm:@topos-network/topos-smart-contracts@1.0.1/artifacts/contracts/interfaces/IToposMessaging.sol/IToposMessaging.json");
+abigen!(TokenDeployerContract, "npm:@topos-network/topos-smart-contracts@latest/artifacts/contracts/topos-core/TokenDeployer.sol/TokenDeployer.json");
+abigen!(ToposCoreContract, "npm:@topos-network/topos-smart-contracts@latest/artifacts/contracts/topos-core/ToposCore.sol/ToposCore.json");
+abigen!(ToposCoreProxyContract, "npm:@topos-network/topos-smart-contracts@latest/artifacts/contracts/topos-core/ToposCoreProxy.sol/ToposCoreProxy.json");
+abigen!(ToposMessagingContract, "npm:@topos-network/topos-smart-contracts@latest/artifacts/contracts/topos-core/ToposMessaging.sol/ToposMessaging.json");
+abigen!(IToposCore, "npm:@topos-network/topos-smart-contracts@latest/artifacts/contracts/interfaces/IToposCore.sol/IToposCore.json");
+abigen!(IToposMessaging, "npm:@topos-network/topos-smart-contracts@latest/artifacts/contracts/interfaces/IToposMessaging.sol/IToposMessaging.json");
 abigen!(
     IERC20,
     r"[
