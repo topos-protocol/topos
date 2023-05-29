@@ -3,7 +3,7 @@ use dockertest::{
     Composition, DockerTest, Image, LogAction, LogOptions, LogPolicy, LogSource, PullPolicy, Source,
 };
 use ethers::{
-    abi::{ethabi::ethereum_types::U256, Address, Token},
+    abi::{ethabi::ethereum_types::U256, Address},
     contract::abigen,
     core::k256::ecdsa::SigningKey,
     core::types::Filter,
@@ -170,6 +170,8 @@ async fn deploy_contracts(
     deploy_key: &str,
     endpoint: &str,
 ) -> Result<(IToposCoreClient, IToposMessagingClient), Box<dyn std::error::Error>> {
+    use ethers::abi::Token;
+
     let wallet: LocalWallet = deploy_key.parse()?;
     let http_provider =
         Provider::<Http>::try_from(endpoint)?.interval(std::time::Duration::from_millis(20u64));
@@ -285,6 +287,8 @@ async fn deploy_test_token(
     endpoint: &str,
     topos_messaging_address: Address,
 ) -> Result<IERC20Client, Box<dyn std::error::Error>> {
+    use ethers::abi::Token;
+
     let wallet: LocalWallet = deploy_key.parse()?;
     let http_provider =
         Provider::<Http>::try_from(endpoint)?.interval(std::time::Duration::from_millis(20u64));
