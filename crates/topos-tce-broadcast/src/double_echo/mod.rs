@@ -404,6 +404,8 @@ impl DoubleEcho {
                     {
                         self.last_pending_certificate = pending;
                         self.buffer.push_back(certificate);
+                    } else {
+                        warn!("No more certificate to broadcast");
                     }
                 }
             }

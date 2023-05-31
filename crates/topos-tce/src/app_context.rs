@@ -301,6 +301,9 @@ impl AppContext {
                                 )
                                 .await;
                         }
+                        Err(StorageError::InternalStorage(
+                            InternalStorageError::CertificateNotFound(_),
+                        )) => {}
                         Err(e) => {
                             error!("Pending storage error while delivering certificate: {e}");
                         }

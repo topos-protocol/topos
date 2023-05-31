@@ -199,6 +199,7 @@ async fn close_target_node_connections(
         .flat_map(|(_, connections)| connections)
         .collect::<Vec<TargetNodeConnection>>()
     {
+        info!("Closing connection to target node {}", target_node.address);
         if let Err(e) = target_node.shutdown().await {
             error!("Error shutting down connection {e}");
         }
