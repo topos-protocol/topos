@@ -148,17 +148,17 @@ impl<'a> NetworkBuilder<'a> {
             dns_tcp.or_transport(tcp)
         };
 
-        // let mut multiplex_config = mplex::MplexConfig::new();
-        // mplex_config.set_max_num_streams(1024);
-        // mplex_config.set_max_buffer_size(64);
+        let mut multiplex_config = libp2p::mplex::MplexConfig::new();
+        multiplex_config.set_max_num_streams(8192);
+        multiplex_config.set_max_buffer_size(1024 * 1024 * 16);
 
-        let mut multiplex_config = libp2p::yamux::YamuxConfig::default();
-        multiplex_config.set_window_update_mode(libp2p::yamux::WindowUpdateMode::on_read());
-        multiplex_config.set_max_buffer_size(self.config.yamux_max_buffer_size);
-
-        if let Some(yamux_window_size) = self.config.yamux_window_size {
-            multiplex_config.set_receive_window_size(yamux_window_size);
-        }
+        // let mut multiplex_config = libp2p::yamux::YamuxConfig::default();
+        // multiplex_config.set_window_update_mode(libp2p::yamux::WindowUpdateMode::on_read());
+        // multiplex_config.set_max_buffer_size(self.config.yamux_max_buffer_size);
+        //
+        // if let Some(yamux_window_size) = self.config.yamux_window_size {
+        //     multiplex_config.set_receive_window_size(yamux_window_size);
+        // }
 
         let transport = transport
             .upgrade(upgrade::Version::V1)

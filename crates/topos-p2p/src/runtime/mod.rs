@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    cmp::min,
+    collections::{HashMap, HashSet, VecDeque},
+};
 
 use crate::{
     behaviour::{
@@ -9,7 +12,7 @@ use crate::{
         },
     },
     config::NetworkConfig,
-    error::P2PError,
+    error::{CommandExecutionError, P2PError},
     event::ComposedEvent,
     runtime::handle_event::EventHandler,
     Behaviour, Command, Event, NotReadyMessage,
