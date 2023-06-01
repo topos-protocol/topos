@@ -17,7 +17,7 @@ use topos_core::api::tce::v1::{
 use topos_core::api::uci::v1::OptionalCertificate;
 use topos_core::uci::SubnetId;
 use topos_telemetry::TonicMetaExtractor;
-use tracing::{debug, error, field, info, warn_span, Instrument, Span};
+use tracing::{debug, error, field, info, info_span, Instrument, Span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 use uuid::Uuid;
 
@@ -90,7 +90,7 @@ impl ApiService for TceGrpcService {
         let ctx = TonicMetaExtractor(request.metadata());
         let context = ctx.extract();
         debug!("submit_certificate context: {:?}", context);
-        let span = warn_span!(
+        let span = info_span!(
             "CertificateSubmitted",
             peer_id = self.local_peer_id,
             certificate_id = field::Empty

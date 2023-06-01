@@ -19,8 +19,7 @@ TCE_EXT_HOST="/dns4/$HOSTNAME"
 case "$1" in
 
     "boot")
-        BOOT_PEER_ID=$($TOPOS_BIN tce keys --from-seed=$TCE_LOCAL_KS)
-
+        BOOT_PEER_ID=$($TOPOS_BIN tce keys --from-seed=$HOSTNAME)
 
         echo "Generating boot_peers file..."
         $JQ -n --arg PEER $BOOT_PEER_ID --arg ADDR $TCE_EXT_HOST '[$PEER + " " + $ADDR + "/tcp/9090"]' > $BOOT_PEERS_PATH
@@ -30,12 +29,15 @@ case "$1" in
         $JQ -n --arg PEER $BOOT_PEER_ID '[$PEER]' > $PEER_LIST_PATH
         echo "Peer list file have been successfully generated"
 
+        cat $PEER_LIST_PATH
+
         echo "Generating node list file..."
         $JQ -n --arg NODE $NODE '{"nodes": [$NODE]}' > $NODE_LIST_PATH
         echo "Peer nodes list have been successfully generated"
 
         echo "Starting boot node..."
 
+        export TCE_LOCAL_KS=$HOSTNAME
         export TCE_EXT_HOST
 
         exec "$TOPOS_BIN" "${@:2}"
@@ -82,6 +84,8 @@ case "$1" in
                cat <<< $($JQ --arg NODE $NODE '.nodes |= (. + [$NODE] | unique)' $NODE_LIST_PATH) > $NODE_LIST_PATH
 
            ) 200>"${NODE_LIST_PATH}.lock"
+
+           cat $PEER_LIST_PATH
        fi
 
        exec "$TOPOS_BIN" "${@:2}"

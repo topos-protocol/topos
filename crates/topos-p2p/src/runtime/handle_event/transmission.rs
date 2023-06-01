@@ -1,5 +1,5 @@
 use libp2p::request_response::{InboundFailure, RequestResponseEvent, RequestResponseMessage};
-use tracing::{error, warn};
+use tracing::{error, info, warn};
 
 use crate::{
     behaviour::transmission::codec::{TransmissionRequest, TransmissionResponse},
@@ -60,28 +60,31 @@ impl EventHandler<RequestResponseEvent<TransmissionRequest, TransmissionResponse
             }
 
             RequestResponseEvent::ResponseSent { .. } => {}
-            RequestResponseEvent::InboundFailure {
-                peer,
-                request_id,
-                error: InboundFailure::ConnectionClosed,
-            } => {
-                if let Some(sender) = self.pending_requests.remove(&request_id) {
-                    if sender
-                        .send(Err(CommandExecutionError::ConnectionClosed))
-                        .is_err()
-                    {
-                        warn!("Could not send RequestFailure for request {request_id} because initiator is dropped");
-                    }
-                } else {
-                    warn!("Received an InboundRequest failure for an unknown request {request_id} from {peer} because the connection was closed");
-                }
-            }
+            // RequestResponseEvent::InboundFailure {
+            //     peer,
+            //     request_id,
+            //     error: InboundFailure::ConnectionClosed,
+            // } => {
+            //     if let Some(sender) = self.pending_requests.remove(&request_id) {
+            //         if sender
+            //             .send(Err(CommandExecutionError::ConnectionClosed))
+            //             .is_err()
+            //         {
+            //             warn!("Could not send RequestFailure for request {request_id} because initiator is dropped");
+            //         }
+            //     } else {
+            //         info!("Received an InboundRequest failure for an unknown request {request_id} from {peer} because the connection was closed");
+            //     }
+            // }
             RequestResponseEvent::InboundFailure {
                 peer,
                 request_id,
                 error,
             } => {
-                warn!("Received an InboundRequest failure for an unknown request {request_id} from {peer}: {:?}", error);
+                warn!(
+                    "Received an InboundRequest failure for request {request_id} from {peer}: {:?}",
+                    error
+                );
             }
         }
     }

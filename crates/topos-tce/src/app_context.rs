@@ -26,7 +26,7 @@ use topos_tce_storage::events::StorageEvent;
 use topos_tce_storage::StorageClient;
 use topos_tce_synchronizer::{SynchronizerClient, SynchronizerEvent};
 use topos_telemetry::PropagationContext;
-use tracing::{debug, error, info, info_span, trace, warn, warn_span, Instrument};
+use tracing::{debug, error, info, info_span, trace, warn, Instrument};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 use crate::events::Events;
@@ -314,9 +314,7 @@ impl AppContext {
             ProtocolEvents::EchoSubscribeReq { peers } => {
                 // Preparing echo subscribe message
                 let my_peer_id = self.network_client.local_peer_id;
-                let data = NetworkMessage::from(TceCommands::OnEchoSubscribeReq {
-                    from_peer: self.network_client.local_peer_id,
-                });
+                let data = NetworkMessage::from(TceCommands::OnEchoSubscribeReq {});
                 let command_sender = self.tce_cli.get_sampler_channel();
 
                 // Sending echo subscribe message to all remote peers
@@ -347,14 +345,12 @@ impl AppContext {
                         match result {
                             Ok(message) => match message {
                                 // Remote peer has replied us that he is accepting us as echo subscriber
-                                NetworkMessage::Cmd(TceCommands::OnEchoSubscribeOk {
-                                    from_peer,
-                                }) => {
+                                NetworkMessage::Cmd(TceCommands::OnEchoSubscribeOk {}) => {
                                     debug!("Receive response to EchoSubscribe",);
                                     let (sender, receiver) = oneshot::channel();
                                     let _ = command_sender
                                         .send(SamplerCommand::ConfirmPeer {
-                                            peer: from_peer,
+                                            peer: peer_id,
                                             sample_type: SampleType::EchoSubscription,
                                             sender,
                                         })
@@ -376,9 +372,7 @@ impl AppContext {
             ProtocolEvents::ReadySubscribeReq { peers } => {
                 // Preparing ready subscribe message
                 let my_peer_id = self.network_client.local_peer_id;
-                let data = NetworkMessage::from(TceCommands::OnReadySubscribeReq {
-                    from_peer: self.network_client.local_peer_id,
-                });
+                let data = NetworkMessage::from(TceCommands::OnReadySubscribeReq {});
                 let command_sender = self.tce_cli.get_sampler_channel();
                 // Sending ready subscribe message to send to a number of remote peers
                 let future_pool: FuturesUnordered<_> = peers
@@ -407,14 +401,12 @@ impl AppContext {
                         match result {
                             Ok(message) => match message {
                                 // Remote peer has replied us that he is accepting us as ready subscriber
-                                NetworkMessage::Cmd(TceCommands::OnReadySubscribeOk {
-                                    from_peer,
-                                }) => {
+                                NetworkMessage::Cmd(TceCommands::OnReadySubscribeOk {}) => {
                                     debug!("Receive response to ReadySubscribe");
                                     let (sender_ready, receiver_ready) = oneshot::channel();
                                     let _ = command_sender
                                         .send(SamplerCommand::ConfirmPeer {
-                                            peer: from_peer,
+                                            peer: peer_id,
                                             sample_type: SampleType::ReadySubscription,
                                             sender: sender_ready,
                                         })
@@ -422,7 +414,7 @@ impl AppContext {
                                     let (sender_delivery, receiver_delivery) = oneshot::channel();
                                     let _ = command_sender
                                         .send(SamplerCommand::ConfirmPeer {
-                                            peer: from_peer,
+                                            peer: peer_id,
                                             sample_type: SampleType::DeliverySubscription,
                                             sender: sender_delivery,
                                         })
@@ -497,7 +489,6 @@ impl AppContext {
                 let my_peer_id = self.network_client.local_peer_id;
                 // Send echo message
                 let data = NetworkMessage::from(TceCommands::OnEcho {
-                    from_peer: self.network_client.local_peer_id,
                     certificate_id,
                     ctx: PropagationContext::inject(&span.context()),
                 });
@@ -539,7 +530,6 @@ impl AppContext {
                 );
                 let my_peer_id = self.network_client.local_peer_id;
                 let data = NetworkMessage::from(TceCommands::OnReady {
-                    from_peer: self.network_client.local_peer_id,
                     certificate_id,
                     ctx: PropagationContext::inject(&span.context()),
                 });
@@ -597,46 +587,37 @@ impl AppContext {
                     NetworkMessage::Cmd(cmd) => {
                         match cmd {
                             // We received echo subscription request from external peer
-                            TceCommands::OnEchoSubscribeReq { from_peer } => {
+                            TceCommands::OnEchoSubscribeReq {} => {
                                 debug!(
                                     sender = from.to_string(),
                                     "on_net_event peer {} TceCommands::OnEchoSubscribeReq from_peer: {}",
-                                    &self.network_client.local_peer_id, &from_peer
+                                    &self.network_client.local_peer_id, &from
                                 );
-                                self.tce_cli
-                                    .add_confirmed_peer_to_sample(
-                                        SampleType::EchoSubscriber,
-                                        from_peer,
-                                    )
-                                    .await;
 
                                 // We are responding that we are accepting echo subscriber
                                 spawn(self.network_client.respond_to_request(
-                                    NetworkMessage::from(TceCommands::OnEchoSubscribeOk {
-                                        from_peer: my_peer,
-                                    }),
+                                    NetworkMessage::from(TceCommands::OnEchoSubscribeOk {}),
                                     channel,
                                 ));
+
+                                self.tce_cli
+                                    .add_confirmed_peer_to_sample(SampleType::EchoSubscriber, from)
+                                    .await;
                             }
 
                             // We received ready subscription request from external peer
-                            TceCommands::OnReadySubscribeReq { from_peer } => {
+                            TceCommands::OnReadySubscribeReq {} => {
                                 debug!(
                                     sender = from.to_string(),
                                     "peer_id {} on_net_event TceCommands::OnReadySubscribeReq from_peer: {}",
-                                    &self.network_client.local_peer_id, &from_peer,
+                                    &self.network_client.local_peer_id, &from
                                 );
                                 self.tce_cli
-                                    .add_confirmed_peer_to_sample(
-                                        SampleType::ReadySubscriber,
-                                        from_peer,
-                                    )
+                                    .add_confirmed_peer_to_sample(SampleType::ReadySubscriber, from)
                                     .await;
                                 // We are responding that we are accepting ready subscriber
                                 spawn(self.network_client.respond_to_request(
-                                    NetworkMessage::from(TceCommands::OnReadySubscribeOk {
-                                        from_peer: my_peer,
-                                    }),
+                                    NetworkMessage::from(TceCommands::OnReadySubscribeOk {}),
                                     channel,
                                 ));
                             }
@@ -647,7 +628,7 @@ impl AppContext {
                                 // root_ctx,
                             } => {
                                 // let network_span_ctx = SpanToContext::to_context(
-                                let span = warn_span!(
+                                let span = info_span!(
                                     "RECV Outbound Gossip",
                                     peer_id = self.network_client.local_peer_id.to_string(),
                                     "otel.kind" = "consumer",
@@ -664,19 +645,16 @@ impl AppContext {
                                 _ = self
                                     .network_client
                                     .respond_to_request(
-                                        NetworkMessage::from(TceCommands::OnDoubleEchoOk {
-                                            from_peer: my_peer,
-                                        }),
+                                        NetworkMessage::from(TceCommands::OnDoubleEchoOk {}),
                                         channel,
                                     )
                                     .await;
                             }
                             TceCommands::OnEcho {
-                                from_peer,
                                 certificate_id,
                                 ctx,
                             } => {
-                                let span = warn_span!(
+                                let span = info_span!(
                                     "RECV Outbound Echo",
                                     peer_id = self.network_client.local_peer_id.to_string(),
                                     "otel.kind" = "consumer",
@@ -688,16 +666,15 @@ impl AppContext {
                                 _ = self
                                     .network_client
                                     .respond_to_request(
-                                        NetworkMessage::from(TceCommands::OnDoubleEchoOk {
-                                            from_peer: my_peer,
-                                        }),
+                                        NetworkMessage::from(TceCommands::OnDoubleEchoOk {}),
                                         channel,
                                     )
                                     .await;
+
                                 self.tce_cli
                                     .get_double_echo_channel()
                                     .send(DoubleEchoCommand::Echo {
-                                        from_peer,
+                                        from_peer: from,
                                         certificate_id,
                                         ctx: span.clone(),
                                     })
@@ -707,11 +684,10 @@ impl AppContext {
                                     .expect("Receive the Echo");
                             }
                             TceCommands::OnReady {
-                                from_peer,
                                 certificate_id,
                                 ctx,
                             } => {
-                                let span = warn_span!(
+                                let span = info_span!(
                                     "RECV Outbound Ready",
                                     peer_id = self.network_client.local_peer_id.to_string(),
                                     "otel.kind" = "consumer",
@@ -723,16 +699,15 @@ impl AppContext {
                                 _ = self
                                     .network_client
                                     .respond_to_request(
-                                        NetworkMessage::from(TceCommands::OnDoubleEchoOk {
-                                            from_peer: my_peer,
-                                        }),
+                                        NetworkMessage::from(TceCommands::OnDoubleEchoOk {}),
                                         channel,
                                     )
                                     .await;
+
                                 self.tce_cli
                                     .get_double_echo_channel()
                                     .send(DoubleEchoCommand::Ready {
-                                        from_peer,
+                                        from_peer: from,
                                         certificate_id,
                                         ctx: span.clone(),
                                     })

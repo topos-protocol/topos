@@ -164,6 +164,10 @@ impl ReliableBroadcastClient {
             double_echo_shutdown_receiver,
             local_peer_id,
             last_pending_certificate,
+            std::env::var("TOPOS_BROADCAST_MAX_BUFFER_SIZE")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(DoubleEcho::MAX_BUFFER_SIZE),
         );
 
         spawn(sampler.run());

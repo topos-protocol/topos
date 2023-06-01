@@ -16,7 +16,7 @@ use libp2p::{
     dns::TokioDnsConfig,
     identity::Keypair,
     kad::store::MemoryStore,
-    mplex, noise,
+    noise,
     swarm::{keep_alive, SwarmBuilder},
     tcp::{tokio::Transport, Config},
     Multiaddr, PeerId, Transport as TransportTrait,
@@ -148,14 +148,23 @@ impl<'a> NetworkBuilder<'a> {
             dns_tcp.or_transport(tcp)
         };
 
-        let mut mplex_config = mplex::MplexConfig::new();
-        mplex_config.set_max_num_streams(1024);
-        mplex_config.set_max_buffer_size(64);
+        // let mut multiplex_config = mplex::MplexConfig::new();
+        // mplex_config.set_max_num_streams(1024);
+        // mplex_config.set_max_buffer_size(64);
+
+        let mut multiplex_config = libp2p::yamux::YamuxConfig::default();
+        multiplex_config.set_window_update_mode(libp2p::yamux::WindowUpdateMode::on_read());
+        multiplex_config.set_max_buffer_size(self.config.yamux_max_buffer_size);
+
+        if let Some(yamux_window_size) = self.config.yamux_window_size {
+            multiplex_config.set_receive_window_size(yamux_window_size);
+        }
+
         let transport = transport
             .upgrade(upgrade::Version::V1)
             .authenticate(noise::NoiseConfig::xx(noise_keys).into_authenticated())
             // .multiplex(yamux::YamuxConfig::default())
-            .multiplex(mplex_config)
+            .multiplex(multiplex_config)
             .timeout(TWO_HOURS)
             .boxed();
 

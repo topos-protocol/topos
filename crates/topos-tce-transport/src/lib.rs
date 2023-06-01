@@ -33,13 +33,13 @@ pub enum TceCommands {
     /// We got updated list of visible peers to work with, let protocol do the sampling
     OnVisiblePeersChanged { peers: Vec<PeerId> },
     /// Given peer sent EchoSubscribe request
-    OnEchoSubscribeReq { from_peer: PeerId },
+    OnEchoSubscribeReq {},
     /// Given peer sent ReadySubscribe request
-    OnReadySubscribeReq { from_peer: PeerId },
+    OnReadySubscribeReq {},
     /// Given peer replied ok to the EchoSubscribe request
-    OnEchoSubscribeOk { from_peer: PeerId },
+    OnEchoSubscribeOk {},
     /// Given peer replied ok to the ReadySubscribe request
-    OnReadySubscribeOk { from_peer: PeerId },
+    OnReadySubscribeOk {},
     /// Upon new certificate to start delivery
     OnStartDelivery { cert: Certificate },
     /// Received G-set message
@@ -49,18 +49,16 @@ pub enum TceCommands {
     },
     /// When echo reply received
     OnEcho {
-        from_peer: PeerId,
         certificate_id: CertificateId,
         ctx: PropagationContext,
     },
     /// When ready reply received
     OnReady {
-        from_peer: PeerId,
         certificate_id: CertificateId,
         ctx: PropagationContext,
     },
     /// Given peer replied ok to the double echo request
-    OnDoubleEchoOk { from_peer: PeerId },
+    OnDoubleEchoOk {},
 }
 
 /// Protocol events

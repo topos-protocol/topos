@@ -89,7 +89,13 @@ impl Client {
                 )
                 .await
                 {
-                    Err(e) if retry_count == 0 => break,
+                    Err(e) if retry_count == 0 => {
+                        warn!(
+                            "Fail to send discovery query to {} because of error {e:?}",
+                            to
+                        );
+                        return Err(e);
+                    }
                     Err(e) => {
                         retry_count -= 1;
                         debug!("Retry query because of failure {e:?} during discovery phase");
@@ -116,7 +122,7 @@ impl Client {
                 .await
                 {
                     Err(e) if retry_count == 0 => {
-                        warn!("Fail query because of error {e:?}");
+                        warn!("Fail to send query to {} because of error {e:?}", to);
                         return Err(e);
                     }
                     Err(e) => {

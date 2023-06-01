@@ -54,6 +54,7 @@ pub struct DoubleEcho {
     local_peer_id: String,
 
     buffered_messages: HashMap<CertificateId, Vec<DoubleEchoCommand>>,
+    max_buffer_size: usize,
 }
 
 impl DoubleEcho {
@@ -72,6 +73,7 @@ impl DoubleEcho {
         shutdown: mpsc::Receiver<oneshot::Sender<()>>,
         local_peer_id: String,
         last_pending_certificate: PendingCertificateId,
+        max_buffer_size: usize,
     ) -> Self {
         Self {
             last_pending_certificate,
@@ -94,6 +96,7 @@ impl DoubleEcho {
             shutdown,
             local_peer_id,
             buffered_messages: Default::default(),
+            max_buffer_size,
         }
     }
 
@@ -141,7 +144,7 @@ impl DoubleEcho {
                                 span.in_scope(||{
                                     info!("Certificate {} added to pending storage", cert.id);
                                     debug!("DoubleEchoCommand::Broadcast certificate_id: {}", cert.id);
-                                    if self.buffer.len() < Self::MAX_BUFFER_SIZE {
+                                    if self.buffer.len() < self.max_buffer_size {
                                         self.buffer.push_back(cert);
                                         if let Ok(pending) = maybe_pending {
                                             self.last_pending_certificate = pending;
@@ -392,7 +395,7 @@ impl DoubleEcho {
                                 .send(ProtocolEvents::CertificateDelivered { certificate: cert });
                         }
                     } else {
-                        warn!(
+                        info!(
                             "No span found for certificate id: {} {:?}",
                             cert.id, cert.id
                         );
@@ -405,7 +408,7 @@ impl DoubleEcho {
                         self.last_pending_certificate = pending;
                         self.buffer.push_back(certificate);
                     } else {
-                        warn!("No more certificate to broadcast");
+                        info!("No more certificate to broadcast");
                     }
                 }
             }

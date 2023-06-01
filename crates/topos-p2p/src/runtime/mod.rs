@@ -213,21 +213,20 @@ impl Runtime {
                                 },
                         },
                     )) => {
-                        warn!("Received a protocol message from {peer}: id: {request_id}, {request:?}");
-                        if self
-                            .swarm
-                            .behaviour_mut()
-                            .transmission
-                            .send_response(
-                                channel,
-                                TransmissionResponse(
-                                    bincode::serialize(&NotReadyMessage {}).unwrap(),
-                                ),
-                            )
-                            .is_err()
-                        {
-                            error!("Unable to send NotReadyMessage as response to {request_id}");
-                        }
+                        // if self
+                        //     .swarm
+                        //     .behaviour_mut()
+                        //     .transmission
+                        //     .send_response(
+                        //         channel,
+                        //         TransmissionResponse(
+                        //             bincode::serialize(&NotReadyMessage {}).unwrap(),
+                        //         ),
+                        //     )
+                        //     .is_err()
+                        // {
+                        //     error!("Unable to send NotReadyMessage as response to {request_id}");
+                        // }
                     }
 
                     SwarmEvent::ConnectionEstablished { .. } => {}
@@ -247,7 +246,7 @@ impl Runtime {
             }
         }
 
-        info!("Network bootstrap finished");
+        warn!("Network bootstrap finished");
 
         Ok(self)
     }
