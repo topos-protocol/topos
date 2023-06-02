@@ -1,4 +1,6 @@
-use libp2p::request_response::{InboundFailure, RequestResponseEvent, RequestResponseMessage};
+use libp2p::request_response::{
+    Event as RequestResponseEvent, InboundFailure, Message as RequestResponseMessage,
+};
 use tracing::{error, info, warn};
 
 use crate::{

@@ -23,6 +23,10 @@ pub use runtime::Runtime;
 
 pub mod network;
 
+pub const TOPOS_GOSSIP: &str = "topos_gossip";
+pub const TOPOS_ECHO: &str = "topos_echo";
+pub const TOPOS_READY: &str = "topos_ready";
+
 pub mod utils {
     use libp2p::identity;
 
@@ -33,10 +37,7 @@ pub mod utils {
             Some(seed) => {
                 let mut bytes = [0u8; 32];
                 bytes[0] = seed;
-                let secret_key = identity::ed25519::SecretKey::from_bytes(&mut bytes).expect(
-                    "this returns `Err` only if the length is wrong; the length is correct; qed",
-                );
-                identity::Keypair::Ed25519(secret_key.into())
+                identity::Keypair::ed25519_from_bytes(bytes).expect("Invalid keypair")
             }
             None => identity::Keypair::generate_ed25519(),
         }
@@ -51,8 +52,6 @@ pub mod utils {
             bytes.clone_from_slice(&slice[..32]);
         }
 
-        let secret_key = identity::ed25519::SecretKey::from_bytes(&mut bytes)
-            .expect("this returns `Err` only if the length is wrong; the length is correct; qed");
-        identity::Keypair::Ed25519(secret_key.into())
+        identity::Keypair::ed25519_from_bytes(bytes).expect("Invalid keypair")
     }
 }

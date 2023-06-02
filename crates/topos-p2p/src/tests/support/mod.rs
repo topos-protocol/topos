@@ -1,7 +1,7 @@
 use std::net::UdpSocket;
 
 use libp2p::{
-    identity::{ed25519::SecretKey, Keypair},
+    identity::{self, ed25519::SecretKey, Keypair},
     Multiaddr, PeerId,
 };
 use rstest::fixture;
@@ -33,9 +33,8 @@ pub async fn dummy_peer() -> (Client, PeerAddr) {
 pub fn keypair_from_byte(seed: u8) -> Keypair {
     let mut bytes = [0u8; 32];
     bytes[0] = seed;
-    let secret_key = SecretKey::from_bytes(&mut bytes)
-        .expect("this returns `Err` only if the length is wrong but len is fixed in this context");
-    Keypair::Ed25519(secret_key.into())
+
+    identity::Keypair::ed25519_from_bytes(bytes).expect("Invalid keypair")
 }
 
 pub fn local_peer(peer_index: u8) -> (Keypair, Multiaddr) {

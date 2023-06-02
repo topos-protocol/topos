@@ -3,6 +3,8 @@
 //! Abstracted from actual transport implementation.
 //! Abstracted from actual storage implementation.
 
+use std::collections::HashSet;
+
 use sampler::SampleType;
 use thiserror::Error;
 use tokio::spawn;
@@ -23,7 +25,7 @@ use topos_tce_storage::StorageClient;
 use tracing::{debug, error, info, Span};
 
 use crate::mem_store::TceMemStore;
-use crate::sampler::{Sampler, SubscribersUpdate, SubscriptionsView};
+use crate::sampler::SubscriptionsView;
 use crate::tce_store::TceStore;
 pub use topos_core::uci;
 
@@ -79,7 +81,11 @@ pub enum DoubleEchoCommand {
     },
 
     /// Entry point for new certificate to submit as initial sender
-    Broadcast { cert: Certificate, ctx: Span },
+    Broadcast {
+        origin: bool,
+        cert: Certificate,
+        ctx: Span,
+    },
 
     /// When echo reply received
     Echo {
@@ -105,9 +111,11 @@ pub enum DoubleEchoCommand {
 #[derive(Clone, Debug)]
 pub struct ReliableBroadcastClient {
     broadcast_commands: mpsc::Sender<DoubleEchoCommand>,
-    sampling_commands: mpsc::Sender<SamplerCommand>,
+    // sampling_commands: mpsc::Sender<SamplerCommand>,
+    pub(crate) subscriptions_view_sender: mpsc::Sender<SubscriptionsView>,
+    // subscribers_update_sender: mpsc::Sender<SubscribersUpdate>,
     pub(crate) double_echo_shutdown_channel: mpsc::Sender<oneshot::Sender<()>>,
-    pub(crate) sampler_shutdown_channel: mpsc::Sender<oneshot::Sender<()>>,
+    // pub(crate) sampler_shutdown_channel: mpsc::Sender<oneshot::Sender<()>>,
 }
 
 impl ReliableBroadcastClient {
@@ -124,22 +132,22 @@ impl ReliableBroadcastClient {
     ) -> (Self, impl Stream<Item = Result<ProtocolEvents, ()>>) {
         let (subscriptions_view_sender, subscriptions_view_receiver) =
             mpsc::channel::<SubscriptionsView>(2048);
-        let (subscribers_update_sender, subscribers_update_receiver) =
-            mpsc::channel::<SubscribersUpdate>(2048);
-        let (sampler_command_sender, command_receiver) = mpsc::channel(2048);
+        // let (subscribers_update_sender, subscribers_update_receiver) =
+        //     mpsc::channel::<SubscribersUpdate>(2048);
+        // let (sampler_command_sender, command_receiver) = mpsc::channel(2048);
         let (event_sender, event_receiver) = broadcast::channel(2048);
 
-        let (sampler_shutdown_channel, sampler_shutdown_receiver) =
-            mpsc::channel::<oneshot::Sender<()>>(1);
+        // let (sampler_shutdown_channel, sampler_shutdown_receiver) =
+        //     mpsc::channel::<oneshot::Sender<()>>(1);
 
-        let sampler = Sampler::new(
-            config.tce_params.clone(),
-            command_receiver,
-            event_sender.clone(),
-            subscriptions_view_sender,
-            subscribers_update_sender,
-            sampler_shutdown_receiver,
-        );
+        // let sampler = Sampler::new(
+        //     config.tce_params.clone(),
+        //     command_receiver,
+        //     event_sender.clone(),
+        //     subscriptions_view_sender,
+        //     subscribers_update_sender,
+        //     sampler_shutdown_receiver,
+        // );
 
         let (broadcast_commands, command_receiver) = mpsc::channel(2048);
         let (double_echo_shutdown_channel, double_echo_shutdown_receiver) =
@@ -155,7 +163,7 @@ impl ReliableBroadcastClient {
             config.tce_params,
             command_receiver,
             subscriptions_view_receiver,
-            subscribers_update_receiver,
+            // subscribers_update_receiver,
             event_sender,
             #[allow(clippy::box_default)]
             Box::new(TceMemStore::default()),
@@ -170,63 +178,72 @@ impl ReliableBroadcastClient {
                 .unwrap_or(DoubleEcho::MAX_BUFFER_SIZE),
         );
 
-        spawn(sampler.run());
+        // spawn(sampler.run());
         spawn(double_echo.run());
 
         (
             Self {
                 broadcast_commands,
-                sampling_commands: sampler_command_sender,
+                subscriptions_view_sender,
+                // subscribers_update_sender,
+                // sampling_commands: sampler_command_sender,
                 double_echo_shutdown_channel,
-                sampler_shutdown_channel,
+                // sampler_shutdown_channel,
             },
             BroadcastStream::new(event_receiver).map_err(|_| ()),
         )
     }
 
-    pub fn peer_changed(
-        &self,
-        peers: Vec<PeerId>,
-    ) -> impl Future<Output = Result<(), ()>> + 'static + Send {
-        let command_channel = self.get_sampler_channel();
-        async move {
-            if command_channel
-                .send(SamplerCommand::PeersChanged { peers })
-                .await
-                .is_err()
-            {
-                error!("Unable to send peer changed to sampler");
-            }
-            Ok(())
-        }
-    }
-
-    pub async fn force_resample(&self) {
-        _ = self
-            .get_sampler_channel()
-            .send(SamplerCommand::ForceResample)
-            .await;
-    }
-
-    pub async fn add_confirmed_peer_to_sample(&self, sample_type: SampleType, peer: PeerId) {
-        let (sender, receiver) = oneshot::channel();
-
-        if self
-            .sampling_commands
-            .send(SamplerCommand::ConfirmPeer {
-                peer,
-                sample_type,
-                sender,
+    pub async fn peer_changed(&self, peers: Vec<PeerId>) -> Result<(), ()> {
+        let set = peers.into_iter().collect::<HashSet<_>>();
+        self.subscriptions_view_sender
+            .send(SubscriptionsView {
+                echo: set.clone(),
+                ready: set.clone(),
+                delivery: set.clone(),
+                network_size: set.len(),
             })
             .await
-            .is_err()
-        {
-            error!("Unable to send confirmation to sample");
-        }
+            .map_err(|_| ())
+        // let command_channel = self.get_double_echo_channel();
+        // async move {
+        //     if command_channel
+        //         .send(SamplerCommand::PeersChanged { peers })
+        //         .await
+        //         .is_err()
+        //     {
+        //         error!("Unable to send peer changed to sampler");
+        //     }
+        //     Ok(())
+        // }
+    }
 
-        if receiver.await.is_err() {
-            error!("Unable to receive add_confirmed_peer_to_sample response, Sender was dropped");
-        }
+    // pub async fn force_resample(&self) {
+    //     _ = self
+    //         .get_sampler_channel()
+    //         .send(SamplerCommand::ForceResample)
+    //         .await;
+    // }
+
+    pub async fn add_confirmed_peer_to_sample(&self, _sample_type: SampleType, _peer: PeerId) {
+        // let (sender, receiver) = oneshot::channel();
+        //
+        // if self
+        //     .sampling_commands
+        //     .send(SamplerCommand::ConfirmPeer {
+        //         peer,
+        //         sample_type,
+        //         sender,
+        //     })
+        //     .await
+        //     .is_err()
+        // {
+        //     error!("Unable to send confirmation to sample");
+        // }
+        //
+        // if receiver.await.is_err() {
+        //     error!("Unable to receive add_confirmed_peer_to_sample response, Sender was dropped");
+        // }
     }
 
     /// delivered certificates for given target chain after the given certificate
@@ -286,29 +303,34 @@ impl ReliableBroadcastClient {
             .map(|mut v| v.iter_mut().map(|c| c.id).collect())
     }
 
-    pub fn get_sampler_channel(&self) -> Sender<SamplerCommand> {
-        self.sampling_commands.clone()
-    }
+    // pub fn get_sampler_channel(&self) -> Sender<SamplerCommand> {
+    //     self.sampling_commands.clone()
+    // }
 
     pub fn get_double_echo_channel(&self) -> Sender<DoubleEchoCommand> {
         self.broadcast_commands.clone()
     }
 
-    pub fn get_command_channels(&self) -> (Sender<SamplerCommand>, Sender<DoubleEchoCommand>) {
-        (
-            self.sampling_commands.clone(),
-            self.broadcast_commands.clone(),
-        )
-    }
+    // pub fn get_command_channels(&self) -> (Sender<SamplerCommand>, Sender<DoubleEchoCommand>) {
+    //     (
+    //         self.sampling_commands.clone(),
+    //         self.broadcast_commands.clone(),
+    //     )
+    // }
 
     /// Use to broadcast new certificate to the TCE network
-    pub async fn broadcast_new_certificate(&self, certificate: Certificate) -> Result<(), ()> {
+    pub async fn broadcast_new_certificate(
+        &self,
+        certificate: Certificate,
+        origin: bool,
+    ) -> Result<(), ()> {
         let broadcast_commands = self.broadcast_commands.clone();
 
         info!("Send certificate to be broadcast");
         if broadcast_commands
             .send(DoubleEchoCommand::Broadcast {
                 cert: certificate,
+                origin,
                 ctx: Span::current(),
             })
             .await
@@ -351,12 +373,13 @@ impl ReliableBroadcastClient {
             .map_err(Errors::ShutdownCommunication)?;
         double_echo_receiver.await?;
 
-        let (sampler_sender, sampler_receiver) = oneshot::channel();
-        self.sampler_shutdown_channel
-            .send(sampler_sender)
-            .await
-            .map_err(Errors::ShutdownCommunication)?;
-        Ok(sampler_receiver.await?)
+        // let (sampler_sender, sampler_receiver) = oneshot::channel();
+        // self.sampler_shutdown_channel
+        //     .send(sampler_sender)
+        //     .await
+        //     .map_err(Errors::ShutdownCommunication)?;
+        // Ok(sampler_receiver.await?)
+        Ok(())
     }
 }
 

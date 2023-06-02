@@ -61,6 +61,17 @@ impl Client {
         Self::send_command_with_receiver(&self.sender, command, receiver).await
     }
 
+    pub fn publish<T: std::fmt::Debug + Into<Vec<u8>>>(
+        &self,
+        topic: &'static str,
+        data: T,
+    ) -> BoxFuture<'static, Result<(), SendError<Command>>> {
+        let data = data.into();
+        let network = self.sender.clone();
+
+        Box::pin(async move { network.send(Command::Gossip { topic, data }).await })
+    }
+
     pub fn send_request<T: std::fmt::Debug + Into<Vec<u8>>, R: From<Vec<u8>>>(
         &self,
         to: PeerId,

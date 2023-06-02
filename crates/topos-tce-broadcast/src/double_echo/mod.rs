@@ -1,9 +1,6 @@
 use crate::sampler::SubscribersView;
 use crate::Errors;
-use crate::{
-    sampler::SampleType, tce_store::TceStore, DoubleEchoCommand, SubscribersUpdate,
-    SubscriptionsView,
-};
+use crate::{sampler::SampleType, tce_store::TceStore, DoubleEchoCommand, SubscriptionsView};
 use opentelemetry::trace::TraceContextExt;
 use std::{
     collections::{HashMap, HashSet, VecDeque},
@@ -33,7 +30,7 @@ pub struct DoubleEcho {
     pub(crate) params: ReliableBroadcastParams,
     command_receiver: mpsc::Receiver<DoubleEchoCommand>,
     subscriptions_view_receiver: mpsc::Receiver<SubscriptionsView>,
-    subscribers_update_receiver: mpsc::Receiver<SubscribersUpdate>,
+    // subscribers_update_receiver: mpsc::Receiver<SubscribersUpdate>,
     event_sender: broadcast::Sender<ProtocolEvents>,
     store: Box<dyn TceStore + Send>,
     storage: StorageClient,
@@ -47,8 +44,9 @@ pub struct DoubleEcho {
     all_known_certs: Vec<Certificate>,
     delivery_time: HashMap<CertificateId, (time::SystemTime, time::Duration)>,
     pub(crate) subscriptions: SubscriptionsView, // My subscriptions for echo, ready and delivery feedback
-    pub(crate) subscribers: SubscribersView,     // Echo and ready subscribers that are following me
-    buffer: VecDeque<Certificate>,
+    #[allow(dead_code)]
+    pub(crate) subscribers: SubscribersView, // Echo and ready subscribers that are following me
+    buffer: VecDeque<(bool, Certificate)>,
     pub(crate) shutdown: mpsc::Receiver<oneshot::Sender<()>>,
 
     local_peer_id: String,
@@ -65,7 +63,7 @@ impl DoubleEcho {
         params: ReliableBroadcastParams,
         command_receiver: mpsc::Receiver<DoubleEchoCommand>,
         subscriptions_view_receiver: mpsc::Receiver<SubscriptionsView>,
-        subscribers_update_receiver: mpsc::Receiver<SubscribersUpdate>,
+        // subscribers_update_receiver: mpsc::Receiver<SubscribersUpdate>,
         event_sender: broadcast::Sender<ProtocolEvents>,
         store: Box<dyn TceStore + Send>,
         storage: StorageClient,
@@ -80,7 +78,7 @@ impl DoubleEcho {
             params,
             command_receiver,
             subscriptions_view_receiver,
-            subscribers_update_receiver,
+            // subscribers_update_receiver,
             event_sender,
             store,
             storage,
@@ -125,13 +123,13 @@ impl DoubleEcho {
                             let _ = sender.send(Ok(value));
                         }
 
-                        DoubleEchoCommand::Broadcast { cert, ctx } => {
+                        DoubleEchoCommand::Broadcast { origin, cert, ctx } => {
                             if self.storage.pending_certificate_exists(cert.id).await.is_err() &&
                                 self.storage.get_certificate(cert.id).await.is_err()
                             {
                                 let span = warn_span!("Broadcast", peer_id = self.local_peer_id, certificate_id = cert.id.to_string());
                                 span.in_scope(|| {
-                                    info!("Broadcast registered for {} {:?} {:?}", cert.id, ctx, cert.id);
+                                    warn!("Broadcast registered for {}", cert.id);
                                     self.span_tracker.insert(cert.id, span.clone());
                                 });
                                 span.add_link(ctx.context().span().span_context().clone());
@@ -145,7 +143,7 @@ impl DoubleEcho {
                                     info!("Certificate {} added to pending storage", cert.id);
                                     debug!("DoubleEchoCommand::Broadcast certificate_id: {}", cert.id);
                                     if self.buffer.len() < self.max_buffer_size {
-                                        self.buffer.push_back(cert);
+                                        self.buffer.push_back((origin, cert));
                                         if let Ok(pending) = maybe_pending {
                                             self.last_pending_certificate = pending;
                                         }
@@ -277,31 +275,31 @@ impl DoubleEcho {
                     self.subscriptions = new_subscriptions_view;
                 }
 
-                Some(new_subscribers_update) = self.subscribers_update_receiver.recv() => {
-                    info!( peer_id = self.local_peer_id,"Accepting new Subscribers: {:?}", &new_subscribers_update);
-                    match new_subscribers_update {
-                        SubscribersUpdate::NewEchoSubscriber(peer) => {
-                            self.subscribers.echo.insert(peer);
-                        }
-                        SubscribersUpdate::NewReadySubscriber(peer) => {
-                            self.subscribers.ready.insert(peer);
-                        }
-                        SubscribersUpdate::RemoveEchoSubscriber(peer) => {
-                            self.subscribers.echo.remove(&peer);
-                        }
-                        SubscribersUpdate::RemoveEchoSubscribers(peers) => {
-                            self.subscribers.echo = self.subscribers.echo.drain().filter(|v| !peers.contains(v)).collect();
-                        }
-                        SubscribersUpdate::RemoveReadySubscriber(peer) => {
-                            self.subscribers.ready.remove(&peer);
-
-                        }
-                        SubscribersUpdate::RemoveReadySubscribers(peers) => {
-                            self.subscribers.ready = self.subscribers.ready.drain().filter(|v| !peers.contains(v)).collect();
-                        }
-                    }
-                    debug!("Subscribers are now: {:?}", self.subscribers);
-                }
+                // Some(new_subscribers_update) = self.subscribers_update_receiver.recv() => {
+                //     info!( peer_id = self.local_peer_id,"Accepting new Subscribers: {:?}", &new_subscribers_update);
+                //     match new_subscribers_update {
+                //         SubscribersUpdate::NewEchoSubscriber(peer) => {
+                //             self.subscribers.echo.insert(peer);
+                //         }
+                //         SubscribersUpdate::NewReadySubscriber(peer) => {
+                //             self.subscribers.ready.insert(peer);
+                //         }
+                //         SubscribersUpdate::RemoveEchoSubscriber(peer) => {
+                //             self.subscribers.echo.remove(&peer);
+                //         }
+                //         SubscribersUpdate::RemoveEchoSubscribers(peers) => {
+                //             self.subscribers.echo = self.subscribers.echo.drain().filter(|v| !peers.contains(v)).collect();
+                //         }
+                //         SubscribersUpdate::RemoveReadySubscriber(peer) => {
+                //             self.subscribers.ready.remove(&peer);
+                //
+                //         }
+                //         SubscribersUpdate::RemoveReadySubscribers(peers) => {
+                //             self.subscribers.ready = self.subscribers.ready.drain().filter(|v| !peers.contains(v)).collect();
+                //         }
+                //     }
+                //     debug!("Subscribers are now: {:?}", self.subscribers);
+                // }
                 else => {
                     debug!("Break the tokio loop for the double echo");
                     break None;
@@ -316,7 +314,7 @@ impl DoubleEcho {
 
             // Broadcast next certificate
             if has_subscriptions {
-                if let Some(cert) = self.buffer.pop_front() {
+                if let Some((origin, cert)) = self.buffer.pop_front() {
                     if let Some(ctx) = self.span_tracker.get(&cert.id) {
                         let span = info_span!(
                             parent: ctx,
@@ -329,7 +327,7 @@ impl DoubleEcho {
 
                         let cert_id = cert.id;
                         #[cfg(not(feature = "direct"))]
-                        self.handle_broadcast(cert);
+                        self.handle_broadcast(cert, origin);
 
                         if let Some(messages) = self.buffered_messages.remove(&cert_id) {
                             for message in messages {
@@ -406,7 +404,7 @@ impl DoubleEcho {
                         .await
                     {
                         self.last_pending_certificate = pending;
-                        self.buffer.push_back(certificate);
+                        self.buffer.push_back((true, certificate));
                     } else {
                         info!("No more certificate to broadcast");
                     }
@@ -447,21 +445,21 @@ impl DoubleEcho {
     }
 
     #[cfg_attr(feature = "direct", allow(dead_code))]
-    pub(crate) fn handle_broadcast(&mut self, cert: Certificate) {
+    pub(crate) fn handle_broadcast(&mut self, cert: Certificate, origin: bool) {
         info!("🙌 Starting broadcasting the Certificate {}", &cert.id);
 
-        self.dispatch(cert);
+        self.dispatch(cert, origin);
     }
 
     pub(crate) fn handle_deliver(&mut self, cert: Certificate) {
-        self.dispatch(cert)
+        self.dispatch(cert, false)
     }
 
     /// Called to process potentially new certificate:
     /// - either submitted from API ( [tce_transport::TceCommands::Broadcast] command)
     /// - or received through the gossip (first step of protocol exchange)
     #[instrument(skip_all)]
-    pub(crate) fn dispatch(&mut self, cert: Certificate) {
+    pub(crate) fn dispatch(&mut self, cert: Certificate, origin: bool) {
         if self.cert_pre_broadcast_check(&cert).is_err() {
             error!("Failure on the pre-check for the Certificate {}", &cert.id);
             self.event_sender
@@ -492,11 +490,11 @@ impl DoubleEcho {
         }
 
         // Gossip the certificate to all my peers
-        let gossip_peers = self.gossip_peers();
-        info!(
-            "Gossiping the Certificate {} to the Gossip peers: {:?}",
-            cert.id, &gossip_peers
-        );
+        // let gossip_peers = self.gossip_peers();
+        // info!(
+        //     "Gossiping the Certificate {} to the Gossip peers: {:?}",
+        //     cert.id, &gossip_peers
+        // );
 
         let span = self
             .span_tracker
@@ -504,11 +502,13 @@ impl DoubleEcho {
             .cloned()
             .unwrap_or_else(Span::current);
 
-        let _ = self.event_sender.send(ProtocolEvents::Gossip {
-            peers: gossip_peers, // considered as the G-set for erdos-renyi
-            cert: cert.clone(),
-            ctx: span,
-        });
+        if origin {
+            let _ = self.event_sender.send(ProtocolEvents::Gossip {
+                // peers: gossip_peers, // considered as the G-set for erdos-renyi
+                cert: cert.clone(),
+                ctx: span,
+            });
+        }
 
         // Trigger event of new certificate candidate for delivery
         self.start_broadcast(cert);
@@ -516,6 +516,7 @@ impl DoubleEcho {
 
     /// Make gossip peer list from echo and ready
     /// subscribers that listen to me
+    #[allow(dead_code)]
     pub(crate) fn gossip_peers(&self) -> Vec<PeerId> {
         self.subscriptions
             .get_subscriptions()
@@ -551,11 +552,11 @@ impl DoubleEcho {
         self.delivery_time
             .insert(cert.id, (time::SystemTime::now(), Default::default()));
         // Send Echo to the echo sample
-        let echo_peers = self.subscribers.echo.iter().cloned().collect::<Vec<_>>();
-        if echo_peers.is_empty() {
-            warn!("The sample of Echo Subscribers is empty");
-            return;
-        }
+        // let echo_peers = self.subscribers.echo.iter().cloned().collect::<Vec<_>>();
+        // if echo_peers.is_empty() {
+        //     warn!("The sample of Echo Subscribers is empty");
+        //     return;
+        // }
 
         let ctx = self
             .span_tracker
@@ -564,7 +565,7 @@ impl DoubleEcho {
             .unwrap_or_else(Span::current);
 
         let _ = self.event_sender.send(ProtocolEvents::Echo {
-            peers: echo_peers,
+            // peers: echo_peers,
             certificate_id: cert.id,
             ctx,
         });
@@ -618,14 +619,14 @@ impl DoubleEcho {
                 ))
             {
                 // Fanout the Ready messages to my subscribers
-                let readies = self.subscribers.ready.iter().cloned().collect::<Vec<_>>();
-                if !readies.is_empty() {
-                    gen_evts.push(ProtocolEvents::Ready {
-                        peers: readies.clone(),
-                        certificate_id: certificate.id,
-                        ctx: state_to_delivery.ctx.clone(),
-                    });
-                }
+                // let readies = self.subscribers.ready.iter().cloned().collect::<Vec<_>>();
+                // if !readies.is_empty() {
+                gen_evts.push(ProtocolEvents::Ready {
+                    // peers: readies.clone(),
+                    certificate_id: certificate.id,
+                    ctx: state_to_delivery.ctx.clone(),
+                });
+                // }
                 state_to_delivery.subscriptions.ready.clear();
                 state_to_delivery.subscriptions.echo.clear();
                 state_modified = true;

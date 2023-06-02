@@ -98,19 +98,19 @@ pub enum ProtocolEvents {
     },
     /// Indicates that 'gossip' message broadcasting is required
     Gossip {
-        peers: Vec<PeerId>,
+        // peers: Vec<PeerId>,
         cert: Certificate,
         ctx: Span,
     },
     /// Indicates that 'echo' message broadcasting is required
     Echo {
-        peers: Vec<PeerId>,
+        // peers: Vec<PeerId>,
         certificate_id: CertificateId,
         ctx: Span,
     },
     /// Indicates that 'ready' message broadcasting is required
     Ready {
-        peers: Vec<PeerId>,
+        // peers: Vec<PeerId>,
         certificate_id: CertificateId,
         ctx: Span,
     },

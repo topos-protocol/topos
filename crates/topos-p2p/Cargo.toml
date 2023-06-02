@@ -13,7 +13,7 @@ tokio-stream.workspace = true
 tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true, features = ["attributes"] }
 
-libp2p = { workspace = true, features = ["macros", "tcp", "dns", "tokio", "request-response", "identify", "mplex", "kad", "serde", "yamux"] }
+libp2p = { workspace = true, features = ["macros", "gossipsub", "tcp", "dns", "tokio", "request-response", "identify", "mplex", "kad", "serde", "yamux"] }
 void = "1"
 
 [dev-dependencies]

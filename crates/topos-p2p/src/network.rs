@@ -9,11 +9,13 @@ use crate::{
         COMMAND_STREAM_BUFFER, DISCOVERY_PROTOCOL, EVENT_STREAM_BUFFER, TRANSMISSION_PROTOCOL,
     },
     error::P2PError,
+    TOPOS_ECHO, TOPOS_GOSSIP, TOPOS_READY,
 };
 use futures::Stream;
 use libp2p::{
     core::upgrade,
     dns::TokioDnsConfig,
+    gossipsub::{self, MessageAuthenticity, MessageId},
     identity::Keypair,
     kad::store::MemoryStore,
     noise,
@@ -23,7 +25,8 @@ use libp2p::{
 };
 use std::{
     borrow::Cow,
-    collections::{HashMap, HashSet},
+    collections::{hash_map::DefaultHasher, HashMap, HashSet},
+    hash::{Hash, Hasher},
     sync::{atomic::AtomicU64, Arc},
     time::Duration,
 };
@@ -114,12 +117,35 @@ impl<'a> NetworkBuilder<'a> {
         let peer_key = self.peer_key.ok_or(P2PError::MissingPeerKey)?;
         let peer_id = peer_key.public().to_peer_id();
 
-        let noise_keys = noise::Keypair::<noise::X25519Spec>::new().into_authentic(&peer_key)?;
+        // let noise_keys = noise::Keypair::<noise::>::new().into_authentic(&peer_key)?;
 
         let (command_sender, command_receiver) = mpsc::channel(COMMAND_STREAM_BUFFER);
         let (event_sender, event_receiver) = mpsc::channel(EVENT_STREAM_BUFFER);
 
+        let gossipsub = gossipsub::ConfigBuilder::default()
+            .mesh_n(8)
+            .mesh_n_low(4)
+            .mesh_n_high(12)
+            .gossip_lazy(8)
+            .max_transmit_size(2 * 1024 * 1024)
+            .validation_mode(gossipsub::ValidationMode::Strict)
+            // .message_id_fn(|message| {
+            //     let mut hasher = DefaultHasher::new();
+            //     message.data.hash(&mut hasher);
+            //     MessageId::from(hasher.finish().to_string())
+            // })
+            .mesh_outbound_min(3)
+            .build()
+            .unwrap();
+
+        let gossipsub = gossipsub::Behaviour::new(
+            MessageAuthenticity::Signed(peer_key.clone()),
+            gossipsub, //     gossipsub_config.build().unwrap(),
+        )
+        .unwrap();
+
         let behaviour = Behaviour {
+            gossipsub,
             peer_info: PeerInfoBehaviour::new(
                 self.transmission_protocol.unwrap_or(TRANSMISSION_PROTOCOL),
                 &peer_key,
@@ -147,14 +173,14 @@ impl<'a> NetworkBuilder<'a> {
             let tcp = Transport::new(Config::default().nodelay(true));
             dns_tcp.or_transport(tcp)
         };
+        //
+        // let mut multiplex_config = libp2p::mplex::MplexConfig::new();
+        // multiplex_config.set_max_num_streams(8192);
+        // multiplex_config.set_max_buffer_size(1024 * 1024 * 16);
 
-        let mut multiplex_config = libp2p::mplex::MplexConfig::new();
-        multiplex_config.set_max_num_streams(8192);
+        let mut multiplex_config = libp2p::yamux::Config::default();
+        multiplex_config.set_window_update_mode(libp2p::yamux::WindowUpdateMode::on_read());
         multiplex_config.set_max_buffer_size(1024 * 1024 * 16);
-
-        // let mut multiplex_config = libp2p::yamux::YamuxConfig::default();
-        // multiplex_config.set_window_update_mode(libp2p::yamux::WindowUpdateMode::on_read());
-        // multiplex_config.set_max_buffer_size(self.config.yamux_max_buffer_size);
         //
         // if let Some(yamux_window_size) = self.config.yamux_window_size {
         //     multiplex_config.set_receive_window_size(yamux_window_size);
@@ -162,7 +188,7 @@ impl<'a> NetworkBuilder<'a> {
 
         let transport = transport
             .upgrade(upgrade::Version::V1)
-            .authenticate(noise::NoiseConfig::xx(noise_keys).into_authenticated())
+            .authenticate(noise::Config::new(&peer_key)?)
             // .multiplex(yamux::YamuxConfig::default())
             .multiplex(multiplex_config)
             .timeout(TWO_HOURS)

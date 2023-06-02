@@ -41,7 +41,7 @@ prost = {version = "0.11"}
 tonic = { version = "0.9", default-features = false }
 
 # P2P related
-libp2p = { version = "0.50", default-features = false, features = ["noise"]}
+libp2p = { version = "0.51", default-features = false, features = ["noise"]}
 
 # Serialization & Deserialization
 bincode = { version = "1.3", default-features = false }

@@ -27,6 +27,7 @@ impl EventHandler<Box<IdentifyEvent>> for Runtime {
                     self.swarm
                         .behaviour()
                         .discovery
+                        .inner
                         .protocol_names()
                         .contains(&Cow::Borrowed(p.as_bytes()))
                 })
@@ -40,6 +41,7 @@ impl EventHandler<Box<IdentifyEvent>> for Runtime {
                     self.swarm
                         .behaviour_mut()
                         .discovery
+                        .inner
                         .add_address(&peer_id, addr);
                 }
             }

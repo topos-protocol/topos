@@ -1,7 +1,8 @@
 use libp2p::{
+    gossipsub::{self, Event as GossipsubEvent},
     identify,
     kad::KademliaEvent,
-    request_response::{RequestResponseEvent, ResponseChannel},
+    request_response::{Event as RequestResponseEvent, ResponseChannel},
     PeerId,
 };
 
@@ -14,12 +15,19 @@ pub enum ComposedEvent {
     #[allow(dead_code)]
     OutEvent(Event),
     PeerInfo(Box<identify::Event>),
+    Gossipsub(Box<GossipsubEvent>),
     Void,
 }
 
 impl From<KademliaEvent> for ComposedEvent {
     fn from(event: KademliaEvent) -> Self {
         ComposedEvent::Kademlia(Box::new(event))
+    }
+}
+
+impl From<GossipsubEvent> for ComposedEvent {
+    fn from(event: GossipsubEvent) -> Self {
+        ComposedEvent::Gossipsub(Box::new(event))
     }
 }
 
@@ -48,6 +56,10 @@ pub enum Event {
     },
     PeersChanged {
         new_peers: Vec<PeerId>,
+    },
+    Gossip {
+        from: PeerId,
+        data: Vec<u8>,
     },
     TransmissionOnReq {
         from: PeerId,

@@ -3,7 +3,6 @@ use opentelemetry::runtime;
 use opentelemetry::sdk::metrics::controllers::BasicController;
 use opentelemetry::sdk::trace::{BatchConfig, BatchSpanProcessor, SpanLimits};
 use opentelemetry::sdk::{
-    export::metrics::aggregation::cumulative_temporality_selector,
     metrics::selectors,
     propagation::TraceContextPropagator,
     trace::{self, RandomIdGenerator, Sampler},

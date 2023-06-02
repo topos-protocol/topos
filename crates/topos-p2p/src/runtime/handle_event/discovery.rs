@@ -64,6 +64,7 @@ impl EventHandler<Box<KademliaEvent>> for Runtime {
                                     self.swarm
                                         .behaviour_mut()
                                         .discovery
+                                        .inner
                                         .add_address(&peer_id, addr.clone());
 
                                     if sender.send(Ok(vec![addr.clone()])).is_err() {

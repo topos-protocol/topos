@@ -25,7 +25,8 @@ pub fn local_peer(peer_index: u8) -> (Keypair, Port, Multiaddr) {
 pub fn keypair_from_seed(seed: u8) -> Keypair {
     let mut bytes = [0u8; 32];
     bytes[0] = seed;
-    let secret_key = identity::ed25519::SecretKey::from_bytes(&mut bytes)
-        .expect("this returns `Err` only if the length is wrong; the length is correct; qed");
-    identity::Keypair::Ed25519(secret_key.into())
+    // let secret_key = identity::ed25519::SecretKey::try_from_bytes(&mut bytes)
+    //     .expect("this returns `Err` only if the length is wrong; the length is correct; qed");
+
+    identity::Keypair::ed25519_from_bytes(bytes).expect("Invalid keypair")
 }

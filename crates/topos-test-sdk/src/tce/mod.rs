@@ -20,7 +20,6 @@ use topos_core::uci::Certificate;
 use topos_core::uci::SubnetId;
 use topos_p2p::{error::P2PError, Client, Event, Runtime};
 use topos_tce::{events::Events, AppContext};
-use topos_tce_broadcast::{DoubleEchoCommand, SamplerCommand};
 use tracing::info;
 
 use crate::p2p::local_peer;
@@ -44,8 +43,8 @@ pub struct TceContext {
     pub event_stream: mpsc::Receiver<Events>,
     pub peer_id: PeerId, // P2P ID
     pub api_entrypoint: String,
-    pub command_sampler: mpsc::Sender<SamplerCommand>,
-    pub command_broadcast: mpsc::Sender<DoubleEchoCommand>,
+    // pub command_sampler: mpsc::Sender<SamplerCommand>,
+    // pub command_broadcast: mpsc::Sender<DoubleEchoCommand>,
     pub api_grpc_client: ApiServiceClient<Channel>, // GRPC Client for this peer (tce node)
     pub console_grpc_client: ConsoleServiceClient<Channel>, // Console TCE GRPC Client for this peer (tce node)
     pub runtime_join_handle: JoinHandle<Result<(), ()>>,
@@ -153,7 +152,7 @@ pub async fn start_node(
     )
     .await;
 
-    let (command_sampler, command_broadcast) = tce_cli.get_command_channels();
+    // let (command_sampler, command_broadcast) = tce_cli.get_command_channels();
     let api_storage_client = storage_client.clone();
 
     let (api_context, api_stream) =
@@ -187,8 +186,8 @@ pub async fn start_node(
         event_stream,
         peer_id,
         api_entrypoint: api_context.entrypoint,
-        command_sampler,
-        command_broadcast,
+        // command_sampler,
+        // command_broadcast,
         api_grpc_client: api_context.api_client,
         console_grpc_client: api_context.console_client,
         runtime_join_handle,

@@ -37,6 +37,9 @@ case "$1" in
 
         echo "Starting boot node..."
 
+        echo "BOOT_PEER_ID: $BOOT_PEER_ID"
+        echo "TCE_LOCAL_KS: $HOSTNAME"
+
         export TCE_LOCAL_KS=$HOSTNAME
         export TCE_EXT_HOST
 
@@ -86,6 +89,10 @@ case "$1" in
            ) 200>"${NODE_LIST_PATH}.lock"
 
            cat $PEER_LIST_PATH
+
+           echo "PEER_ID: $PEER"
+           echo "TCE_LOCAL_KS: $HOSTNAME"
+
        fi
 
        exec "$TOPOS_BIN" "${@:2}"

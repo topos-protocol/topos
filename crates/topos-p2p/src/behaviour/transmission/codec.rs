@@ -4,7 +4,7 @@ use super::protocol::TransmissionProtocol;
 use futures::{AsyncRead, AsyncWrite, AsyncWriteExt};
 use libp2p::{
     core::upgrade::{read_length_prefixed, write_length_prefixed},
-    request_response::RequestResponseCodec,
+    request_response::Codec,
 };
 
 #[derive(Clone)]
@@ -17,7 +17,7 @@ pub struct TransmissionRequest(pub(crate) Vec<u8>);
 pub struct TransmissionResponse(pub(crate) Vec<u8>);
 
 #[async_trait::async_trait]
-impl RequestResponseCodec for TransmissionCodec {
+impl Codec for TransmissionCodec {
     type Protocol = TransmissionProtocol;
     type Request = TransmissionRequest;
     type Response = TransmissionResponse;
