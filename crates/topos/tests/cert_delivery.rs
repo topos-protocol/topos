@@ -6,7 +6,7 @@ use test_log::test;
 use tokio::spawn;
 use tokio::sync::mpsc;
 use topos_core::{
-    api::{
+    api::grpc::{
         shared::v1::checkpoints::TargetCheckpoint,
         tce::v1::{
             watch_certificates_request::OpenStream,

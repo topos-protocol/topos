@@ -4,15 +4,15 @@ use rstest::*;
 use std::collections::HashMap;
 use test_log::test;
 use tokio::time::Duration;
-use topos_core::api::shared::v1::{checkpoints::TargetCheckpoint, positions::TargetStreamPosition};
-use topos_core::api::shared::v1::{CertificateId, StarkProof, SubnetId};
-use topos_core::api::tce::v1::{
+use topos_core::api::grpc::shared::v1::{checkpoints::TargetCheckpoint, positions::TargetStreamPosition};
+use topos_core::api::grpc::shared::v1::{CertificateId, StarkProof, SubnetId};
+use topos_core::api::grpc::tce::v1::{
     watch_certificates_request, watch_certificates_response,
     watch_certificates_response::CertificatePushed, GetLastPendingCertificatesRequest,
     GetLastPendingCertificatesResponse, GetSourceHeadRequest, GetSourceHeadResponse,
     SourceStreamPosition, SubmitCertificateRequest,
 };
-use topos_core::api::uci::v1::{Certificate, OptionalCertificate};
+use topos_core::api::grpc::uci::v1::{Certificate, OptionalCertificate};
 use topos_core::uci::{self, SUBNET_ID_LENGTH};
 use tracing::{debug, error, info};
 

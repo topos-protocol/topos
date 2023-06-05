@@ -6,9 +6,9 @@ pub mod worker;
 
 use opentelemetry::Context;
 use tonic::transport::channel;
-use topos_core::api::checkpoints::TargetStreamPosition;
+use topos_core::api::grpc::checkpoints::TargetStreamPosition;
 use topos_core::{
-    api::tce::v1::api_service_client::ApiServiceClient,
+    api::grpc::tce::v1::api_service_client::ApiServiceClient,
     uci::{Certificate, SubnetId},
 };
 use tracing::{error, info};

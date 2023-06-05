@@ -8,10 +8,10 @@ use tokio::{spawn, sync::oneshot};
 use tokio_stream::StreamExt;
 use tonic::transport::channel;
 use tonic::transport::Uri;
-use topos_core::api::shared::v1::checkpoints::TargetCheckpoint;
-use topos_core::api::shared::v1::positions::TargetStreamPosition;
+use topos_core::api::grpc::shared::v1::checkpoints::TargetCheckpoint;
+use topos_core::api::grpc::shared::v1::positions::TargetStreamPosition;
 use topos_core::{
-    api::tce::v1::{
+    api::grpc::tce::v1::{
         api_service_client::ApiServiceClient,
         watch_certificates_request::OpenStream,
         watch_certificates_response::{CertificatePushed, Event},
@@ -84,7 +84,7 @@ async fn runtime_can_dispatch_a_cert(
     let mut target_positions = std::collections::HashMap::new();
     target_positions.insert(
         TARGET_SUBNET_ID_1,
-        topos_core::api::checkpoints::TargetStreamPosition {
+        topos_core::api::grpc::checkpoints::TargetStreamPosition {
             position: 0,
             source_subnet_id: SOURCE_SUBNET_ID_1,
             target_subnet_id: TARGET_SUBNET_ID_1,
@@ -163,7 +163,7 @@ async fn can_catchup_with_old_certs(
     let mut target_positions = std::collections::HashMap::new();
     target_positions.insert(
         TARGET_SUBNET_ID_1,
-        topos_core::api::checkpoints::TargetStreamPosition {
+        topos_core::api::grpc::checkpoints::TargetStreamPosition {
             position: certificates.len() as u64,
             source_subnet_id: SOURCE_SUBNET_ID_1,
             target_subnet_id: TARGET_SUBNET_ID_1,
@@ -283,7 +283,7 @@ async fn can_catchup_with_old_certs_with_position() {
     let mut target_positions = std::collections::HashMap::new();
     target_positions.insert(
         TARGET_SUBNET_ID_1,
-        topos_core::api::checkpoints::TargetStreamPosition {
+        topos_core::api::grpc::checkpoints::TargetStreamPosition {
             position: certificates.len() as u64,
             source_subnet_id: SOURCE_SUBNET_ID_1,
             target_subnet_id: TARGET_SUBNET_ID_1,

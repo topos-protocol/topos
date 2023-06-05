@@ -16,7 +16,7 @@ use ethers_providers::Middleware;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;
-use topos_core::api::checkpoints::TargetStreamPosition;
+use topos_core::api::grpc::checkpoints::TargetStreamPosition;
 pub use topos_core::uci::{
     Address, Certificate, CertificateId, StateRoot, SubnetId, TxRootHash, CERTIFICATE_ID_LENGTH,
     SUBNET_ID_LENGTH,

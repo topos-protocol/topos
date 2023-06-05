@@ -6,7 +6,7 @@ use futures::Stream;
 use rstest::*;
 use tonic::transport::{channel, Channel};
 
-use topos_core::api::tce::v1::{
+use topos_core::api::grpc::tce::v1::{
     api_service_client::ApiServiceClient, console_service_client::ConsoleServiceClient,
 };
 use topos_tce_api::RuntimeClient;

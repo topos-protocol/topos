@@ -5,7 +5,7 @@ use tokio::{
     sync::{mpsc, oneshot, RwLock},
 };
 use tokio_stream::wrappers::ReceiverStream;
-use topos_core::api::tce::v1::StatusResponse;
+use topos_core::api::grpc::tce::v1::StatusResponse;
 use topos_tce_storage::StorageClient;
 
 use crate::{grpc::builder::ServerBuilder, Runtime, RuntimeClient, RuntimeEvent};

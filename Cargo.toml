@@ -40,6 +40,11 @@ tracing-subscriber = { version = "0.3", default-features = false }
 prost = {version = "0.11"}
 tonic = { version = "0.8", default-features = false }
 
+# GraphQL server
+axum = "0.6"
+async-graphql = "5"
+async-graphql-axum = "5"
+
 # P2P related
 libp2p = { version = "0.50", default-features = false, features = ["noise"]}
 

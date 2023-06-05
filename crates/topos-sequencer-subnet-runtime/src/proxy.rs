@@ -9,7 +9,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::sync::{mpsc, oneshot};
 use tokio::time::{self, Duration};
-use topos_core::api::checkpoints::TargetStreamPosition;
+use topos_core::api::grpc::checkpoints::TargetStreamPosition;
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
 use topos_sequencer_subnet_client::{self, SubnetClient};
 use tracing::{debug, error, field, info, info_span, instrument, warn, Instrument, Span};

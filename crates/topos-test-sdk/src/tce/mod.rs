@@ -12,10 +12,10 @@ use tokio::sync::oneshot;
 use tokio::{sync::mpsc, task::JoinHandle};
 use tonic::transport::Channel;
 use tonic::Response;
-use topos_core::api::tce::v1::{
+use topos_core::api::grpc::tce::v1::{
     api_service_client::ApiServiceClient, console_service_client::ConsoleServiceClient,
 };
-use topos_core::api::tce::v1::{PushPeerListRequest, StatusRequest, StatusResponse};
+use topos_core::api::grpc::tce::v1::{PushPeerListRequest, StatusRequest, StatusResponse};
 use topos_core::uci::Certificate;
 use topos_core::uci::SubnetId;
 use topos_p2p::{error::P2PError, Client, Event, Runtime};

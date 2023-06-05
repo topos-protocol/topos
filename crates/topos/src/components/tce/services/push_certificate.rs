@@ -16,7 +16,7 @@ use std::{
 use tokio::time::error::Elapsed;
 use tonic::transport::Uri;
 use topos_core::{
-    api::{
+    api::grpc::{
         shared::v1::checkpoints::TargetCheckpoint,
         tce::v1::{
             api_service_client::ApiServiceClient,

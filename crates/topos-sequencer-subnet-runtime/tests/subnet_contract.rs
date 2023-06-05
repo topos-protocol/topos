@@ -24,7 +24,7 @@ use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 mod common;
 use crate::common::subnet_test_data::generate_test_private_key;
-use ::topos_core::api::checkpoints::TargetStreamPosition;
+use ::topos_core::api::grpc::checkpoints::TargetStreamPosition;
 use topos_sequencer_subnet_runtime::{SubnetRuntimeProxyConfig, SubnetRuntimeProxyWorker};
 
 use topos_test_sdk::constants::*;
@@ -552,7 +552,7 @@ async fn test_subnet_certificate_get_checkpoints_call(
     #[future]
     context_running_subnet_node: Context,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    use topos_core::api::checkpoints;
+    use topos_core::api::grpc::checkpoints;
     let context = context_running_subnet_node.await;
     let subnet_smart_contract_address =
         "0x".to_string() + &hex::encode(context.i_topos_core.address());

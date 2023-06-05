@@ -13,7 +13,7 @@ use tokio::{
     sync::{mpsc, oneshot, Mutex},
 };
 use tonic::transport::{Channel, Endpoint};
-use topos_core::api::tce::v1::{
+use topos_core::api::grpc::tce::v1::{
     api_service_client::ApiServiceClient, console_service_client::ConsoleServiceClient,
 };
 use topos_p2p::PeerId;

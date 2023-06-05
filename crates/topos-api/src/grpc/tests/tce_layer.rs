@@ -7,17 +7,17 @@ use std::time::Duration;
 use test_log::test;
 use tokio::sync::mpsc;
 use tonic::{transport::Server, Request, Response, Status, Streaming};
-use topos_api::shared;
-use topos_api::shared::v1::checkpoints::TargetCheckpoint;
-use topos_api::shared::v1::{CertificateId, SubnetId};
-use topos_api::tce::v1::api_service_server::{ApiService, ApiServiceServer};
-use topos_api::tce::v1::watch_certificates_request::{Command, OpenStream};
-use topos_api::tce::v1::{
+use topos_api::grpc::shared;
+use topos_api::grpc::shared::v1::checkpoints::TargetCheckpoint;
+use topos_api::grpc::shared::v1::{CertificateId, SubnetId};
+use topos_api::grpc::tce::v1::api_service_server::{ApiService, ApiServiceServer};
+use topos_api::grpc::tce::v1::watch_certificates_request::{Command, OpenStream};
+use topos_api::grpc::tce::v1::{
     GetLastPendingCertificatesRequest, GetLastPendingCertificatesResponse, GetSourceHeadRequest,
     GetSourceHeadResponse, SourceStreamPosition, SubmitCertificateRequest,
     SubmitCertificateResponse, WatchCertificatesRequest, WatchCertificatesResponse,
 };
-use topos_api::uci::v1::{Certificate, OptionalCertificate};
+use topos_api::grpc::uci::v1::{Certificate, OptionalCertificate};
 use uuid::Uuid;
 
 use topos_test_sdk::constants::*;
@@ -142,7 +142,7 @@ async fn create_tce_layer() {
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     let mut client =
-        topos_api::tce::v1::api_service_client::ApiServiceClient::connect("http://127.0.0.1:1340")
+        topos_api::grpc::tce::v1::api_service_client::ApiServiceClient::connect("http://127.0.0.1:1340")
             .await
             .unwrap();
 

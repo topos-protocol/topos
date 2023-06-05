@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use tce_transport::{ProtocolEvents, TceCommands};
 use tokio::spawn;
 use tokio::sync::{mpsc, oneshot};
-use topos_core::api::checkpoints::TargetStreamPosition;
+use topos_core::api::grpc::checkpoints::TargetStreamPosition;
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
 use topos_p2p::{Client as NetworkClient, Event as NetEvent, RetryPolicy};
 use topos_tce_api::RuntimeEvent as ApiEvent;

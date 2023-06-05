@@ -1,10 +1,10 @@
 use tonic::Status;
-use topos_core::api::checkpoints::{TargetCheckpoint, TargetStreamPosition};
-use topos_core::api::tce::v1::watch_certificates_request::Command;
-use topos_core::api::tce::v1::watch_certificates_request::OpenStream as GrpcOpenStream;
-use topos_core::api::tce::v1::watch_certificates_response::CertificatePushed as GrpcCertificatePushed;
-use topos_core::api::tce::v1::watch_certificates_response::Event;
-use topos_core::api::tce::v1::watch_certificates_response::StreamOpened as GrpcStreamOpened;
+use topos_core::api::grpc::checkpoints::{TargetCheckpoint, TargetStreamPosition};
+use topos_core::api::grpc::tce::v1::watch_certificates_request::Command;
+use topos_core::api::grpc::tce::v1::watch_certificates_request::OpenStream as GrpcOpenStream;
+use topos_core::api::grpc::tce::v1::watch_certificates_response::CertificatePushed as GrpcCertificatePushed;
+use topos_core::api::grpc::tce::v1::watch_certificates_response::Event;
+use topos_core::api::grpc::tce::v1::watch_certificates_response::StreamOpened as GrpcStreamOpened;
 use topos_core::uci::{Certificate, SubnetId};
 
 pub enum InboundMessage {

@@ -8,7 +8,7 @@ use std::sync::Arc;
 use thiserror::Error;
 use tokio::sync::Mutex;
 use tokio::sync::{mpsc, oneshot};
-use topos_core::api::checkpoints::TargetStreamPosition;
+use topos_core::api::grpc::checkpoints::TargetStreamPosition;
 use topos_core::uci::{CertificateId, SubnetId};
 
 pub type Peer = String;

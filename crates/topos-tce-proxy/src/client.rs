@@ -3,10 +3,10 @@ use base64::Engine;
 use std::collections::HashMap;
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::StreamExt;
-use topos_core::api::checkpoints::{TargetCheckpoint, TargetStreamPosition};
-use topos_core::api::tce::v1::{GetLastPendingCertificatesRequest, GetSourceHeadRequest};
+use topos_core::api::grpc::checkpoints::{TargetCheckpoint, TargetStreamPosition};
+use topos_core::api::grpc::tce::v1::{GetLastPendingCertificatesRequest, GetSourceHeadRequest};
 use topos_core::{
-    api::tce::v1::{
+    api::grpc::tce::v1::{
         watch_certificates_request, watch_certificates_response, SubmitCertificateRequest,
         WatchCertificatesRequest, WatchCertificatesResponse,
     },
@@ -317,7 +317,7 @@ impl TceClientBuilder {
                                 let previous_cert_id = cert.prev_id;
                                 match tce_grpc_client
                                 .submit_certificate(SubmitCertificateRequest {
-                                    certificate: Some(topos_core::api::uci::v1::Certificate::from(*cert)),
+                                    certificate: Some(topos_core::api::grpc::uci::v1::Certificate::from(*cert)),
                                 })
                                 .await
                                 .map(|r| r.into_inner()) {

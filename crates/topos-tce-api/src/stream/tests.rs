@@ -11,10 +11,10 @@ use crate::tests::encode;
 use crate::wait_for_command;
 use test_log::test;
 use tokio::spawn;
-use topos_core::api::shared::v1::checkpoints::TargetCheckpoint;
-use topos_core::api::shared::v1::positions::TargetStreamPosition;
-use topos_core::api::tce::v1::watch_certificates_request::OpenStream as GrpcOpenStream;
-use topos_core::api::tce::v1::WatchCertificatesRequest;
+use topos_core::api::grpc::shared::v1::checkpoints::TargetCheckpoint;
+use topos_core::api::grpc::shared::v1::positions::TargetStreamPosition;
+use topos_core::api::grpc::tce::v1::watch_certificates_request::OpenStream as GrpcOpenStream;
+use topos_core::api::grpc::tce::v1::WatchCertificatesRequest;
 
 mod utils;
 
@@ -172,7 +172,7 @@ async fn receive_expected_certificate_from_zero() -> Result<(), Box<dyn std::err
             .command_sender
             .send(crate::stream::StreamCommand::PushCertificate {
                 certificate: expected_certificate.clone(),
-                positions: vec![topos_core::api::checkpoints::TargetStreamPosition {
+                positions: vec![topos_core::api::grpc::checkpoints::TargetStreamPosition {
                     position: index as u64,
                     certificate_id: Some(expected_certificate.id),
                     target_subnet_id: [1u8; SUBNET_ID_LENGTH].into(),
