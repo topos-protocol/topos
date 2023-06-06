@@ -84,6 +84,7 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           context: .
+          platforms: linux/amd64,linux/arm64
           # push only images targeting topos (e.g.: exclude test, lint, etc.)
           push: ${{ inputs.target == 'topos' }}
           target: ${{ inputs.target }}
