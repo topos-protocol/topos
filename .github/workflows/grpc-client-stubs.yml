@@ -1,16 +1,25 @@
-name: JS gRPC client stubs generation
+name: gRPC client stubs generation
 
 on:
-  release:
-    types: [published]
+  push:
+    branches: [main]
+    paths:
+      - "**.proto"
+  pull_request:
+    branches: [main]
+    paths:
+      - "**.proto"
 
 jobs:
   js-grpc:
-    name: JS gRPC client stubs generation
+    name: JavaScript gRPC client stubs generation
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v3
+
+      - name: Install protoc
+        run: sudo apt update && sudo apt install -y protobuf-compiler
 
       - uses: actions/setup-node@v3
         with:
@@ -22,6 +31,10 @@ jobs:
 
       - name: Install grpc-tool globally
         run: npm install -g grpc-tools
+
+      - name: Install npm packages
+        working-directory: ./crates/topos-api/proto
+        run: npm ci
 
       - name: Generate client stubs
         working-directory: ./crates/topos-api/proto
@@ -38,7 +51,28 @@ jobs:
           grpc_tools_node_protoc --js_out=import_style=commonjs,binary:./generated --grpc_out=grpc_js:./generated topos/tce/v1/console.proto &&
           grpc_tools_node_protoc --js_out=import_style=commonjs,binary:./generated --grpc_out=grpc_js:./generated topos/tce/v1/synchronization.proto
 
+      - name: Generate TypeScript typings
+        working-directory: ./crates/topos-api/proto
+        run: >
+          protoc --plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts --ts_out=grpc_js:./generated -I . $(find ./topos -name '*.proto')
+
+      - name: Check if npm package version has been updated
+        id: check
+        uses: EndBug/version-check@v2
+        with:
+          file-name: ./crates/topos-api/proto/package.json
+          file-url: https://unpkg.com/@topos-network/topos-grpc-client-stub@latest/package.json
+          static-checking: localIsNew
+
+      - name: Check coverage tolerance
+        if: steps.check.outputs.changed == 'false'
+        uses: actions/github-script@v3
+        with:
+          script: |
+            core.setFailed('Protobuf files were updated but npm package version was not bumped!')
+
       - name: Publish npm package
+        if: steps.check.outputs.changed == 'true' && github.event_name == 'push'
         working-directory: ./crates/topos-api/proto
         run: npm publish --access public
         env:

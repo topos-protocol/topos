@@ -14,7 +14,7 @@ message CheckpointRequest {
   oneof request_type {
     // This type of request will ask for heads of subnets
     Heads heads = 2;
-    // This type of request will ask for the same position for every subnets
+    // This type of request will ask for the same position for every subnet
     SamePosition same_position = 3;
     // This type of request will ask for the zero position for every subnets
     Zero zero = 4;

@@ -1,6 +1,6 @@
 {
   "name": "@topos-network/topos-grpc-client-stub",
-  "version": "0.1.0-rc2",
+  "version": "0.1.1",
   "description": "JavaScript gRPC client stub for topos-api",
   "files": [
     "generated"
@@ -22,5 +22,8 @@
   "bugs": {
     "url": "https://github.com/topos-network/topos/issues"
   },
-  "homepage": "https://github.com/topos-network/topos#readme"
+  "homepage": "https://github.com/topos-network/topos#readme",
+  "devDependencies": {
+    "grpc_tools_node_protoc_ts": "^5.3.3"
+  }
 }

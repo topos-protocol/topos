@@ -60,3 +60,6 @@ terraform.rc
 
 # Subnet integration tests
 crates/topos-sequencer-subnet-runtime/tests/temp
+
+# Node modules
+**/node_modules
