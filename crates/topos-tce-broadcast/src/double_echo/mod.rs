@@ -2,6 +2,7 @@ use crate::sampler::SubscribersView;
 use crate::Errors;
 use crate::{sampler::SampleType, tce_store::TceStore, DoubleEchoCommand, SubscriptionsView};
 use opentelemetry::trace::TraceContextExt;
+use std::time::Duration;
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     time,
@@ -102,8 +103,56 @@ impl DoubleEcho {
         info!("DoubleEcho started");
         let shutdowned: Option<oneshot::Sender<()>> = loop {
             tokio::select! {
+                _ = tokio::time::sleep(Duration::from_secs(60 * 5)) => {
+                    warn!("Checking delivery states");
+                    if !self.cert_candidate.is_empty() {
+                        warn!("Still waiting for some certificates to be delivered");
+
+                        for (id, (_, state)) in &self.cert_candidate {
+
+                            let echo_missing = self
+                                .subscriptions
+                                .network_size
+                                .checked_sub(state.subscriptions.echo.len())
+                                .map(|consumed| self.params.echo_threshold.saturating_sub(consumed))
+                                .unwrap_or(0);
+                            let ready_missing = self
+                                .subscriptions
+                                .network_size
+                                .checked_sub(state.subscriptions.ready.len())
+                                .map(|consumed| self.params.ready_threshold.saturating_sub(consumed))
+                                .unwrap_or(0);
+                            let delivery_missing = self
+                                .subscriptions
+                                .network_size
+                                .checked_sub(state.subscriptions.delivery.len())
+                                .map(|consumed| self.params.delivery_threshold.saturating_sub(consumed))
+                                .unwrap_or(0);
+
+                            if echo_missing > 0 {
+                                warn!("{id} Waiting for {echo_missing} Echo from the E-Sample");
+                                warn!("{id} Waiting for Echo Sample: {:?}", state.subscriptions.echo);
+                            }
+
+                            if ready_missing > 0 {
+                                warn!("{id} Waiting for {ready_missing} Ready from the R-Sample");
+                                warn!("{id} Ready Sample: {:?}", state.subscriptions.ready);
+                            }
+
+                            if delivery_missing > 0 {
+                                warn!("{id} Waiting for {delivery_missing} Ready from the D-Sample");
+                                warn!(
+                                    "{id} Delivery Sample: {:?}",
+                                    state.subscriptions.delivery
+                                );
+                            }
+                        }
+                    } else {
+                        warn!("No pending certificates to deliver");
+                    }
+                },
                 shutdown = self.shutdown.recv() => {
-                        debug!("Double echo shutdown signal received {:?}", shutdown);
+                        warn!("Double echo shutdown signal received {:?}", shutdown);
                         break shutdown;
                 },
                 Some(command) = self.command_receiver.recv() => {
@@ -301,7 +350,7 @@ impl DoubleEcho {
                 //     debug!("Subscribers are now: {:?}", self.subscribers);
                 // }
                 else => {
-                    debug!("Break the tokio loop for the double echo");
+                    warn!("Break the tokio loop for the double echo");
                     break None;
                 }
             };
@@ -393,7 +442,7 @@ impl DoubleEcho {
                                 .send(ProtocolEvents::CertificateDelivered { certificate: cert });
                         }
                     } else {
-                        info!(
+                        warn!(
                             "No span found for certificate id: {} {:?}",
                             cert.id, cert.id
                         );
