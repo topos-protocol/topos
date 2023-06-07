@@ -8,6 +8,7 @@ use std::{
     time,
 };
 use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
+use tokio::spawn;
 use tokio::sync::{broadcast, mpsc, oneshot};
 use topos_core::uci::{Certificate, CertificateId};
 use topos_p2p::Client as NetworkClient;
@@ -101,56 +102,65 @@ impl DoubleEcho {
 
     pub(crate) async fn run(mut self) {
         info!("DoubleEcho started");
+
+        let (check_sender, mut check_receiver) = oneshot::channel();
+
+        spawn(async move {
+            tokio::time::sleep(Duration::from_secs(60 * 5)).await;
+
+            check_sender.send(()).unwrap();
+        });
+
         let shutdowned: Option<oneshot::Sender<()>> = loop {
-            tokio::select! {
-                _ = tokio::time::sleep(Duration::from_secs(60 * 5)) => {
-                    warn!("Checking delivery states");
-                    if !self.cert_candidate.is_empty() {
-                        warn!("Still waiting for some certificates to be delivered");
+            if check_receiver.try_recv().is_ok() {
+                warn!("Checking delivery states");
+                if !self.cert_candidate.is_empty() {
+                    warn!("Still waiting for some certificates to be delivered");
 
-                        for (id, (_, state)) in &self.cert_candidate {
+                    for (id, (_, state)) in &self.cert_candidate {
+                        warn!("Still waiting for {}: {:?}", id, state.subscriptions);
+                        let echo_missing = self
+                            .subscriptions
+                            .network_size
+                            .checked_sub(state.subscriptions.echo.len())
+                            .map(|consumed| self.params.echo_threshold.saturating_sub(consumed))
+                            .unwrap_or(0);
+                        let ready_missing = self
+                            .subscriptions
+                            .network_size
+                            .checked_sub(state.subscriptions.ready.len())
+                            .map(|consumed| self.params.ready_threshold.saturating_sub(consumed))
+                            .unwrap_or(0);
+                        let delivery_missing = self
+                            .subscriptions
+                            .network_size
+                            .checked_sub(state.subscriptions.delivery.len())
+                            .map(|consumed| self.params.delivery_threshold.saturating_sub(consumed))
+                            .unwrap_or(0);
 
-                            let echo_missing = self
-                                .subscriptions
-                                .network_size
-                                .checked_sub(state.subscriptions.echo.len())
-                                .map(|consumed| self.params.echo_threshold.saturating_sub(consumed))
-                                .unwrap_or(0);
-                            let ready_missing = self
-                                .subscriptions
-                                .network_size
-                                .checked_sub(state.subscriptions.ready.len())
-                                .map(|consumed| self.params.ready_threshold.saturating_sub(consumed))
-                                .unwrap_or(0);
-                            let delivery_missing = self
-                                .subscriptions
-                                .network_size
-                                .checked_sub(state.subscriptions.delivery.len())
-                                .map(|consumed| self.params.delivery_threshold.saturating_sub(consumed))
-                                .unwrap_or(0);
-
-                            if echo_missing > 0 {
-                                warn!("{id} Waiting for {echo_missing} Echo from the E-Sample");
-                                warn!("{id} Waiting for Echo Sample: {:?}", state.subscriptions.echo);
-                            }
-
-                            if ready_missing > 0 {
-                                warn!("{id} Waiting for {ready_missing} Ready from the R-Sample");
-                                warn!("{id} Ready Sample: {:?}", state.subscriptions.ready);
-                            }
-
-                            if delivery_missing > 0 {
-                                warn!("{id} Waiting for {delivery_missing} Ready from the D-Sample");
-                                warn!(
-                                    "{id} Delivery Sample: {:?}",
-                                    state.subscriptions.delivery
-                                );
-                            }
+                        if echo_missing > 0 {
+                            warn!("{id} Waiting for {echo_missing} Echo from the E-Sample");
+                            warn!(
+                                "{id} Waiting for Echo Sample: {:?}",
+                                state.subscriptions.echo
+                            );
                         }
-                    } else {
-                        warn!("No pending certificates to deliver");
+
+                        if ready_missing > 0 {
+                            warn!("{id} Waiting for {ready_missing} Ready from the R-Sample");
+                            warn!("{id} Ready Sample: {:?}", state.subscriptions.ready);
+                        }
+
+                        if delivery_missing > 0 {
+                            warn!("{id} Waiting for {delivery_missing} Ready from the D-Sample");
+                            warn!("{id} Delivery Sample: {:?}", state.subscriptions.delivery);
+                        }
                     }
-                },
+                }
+            }
+
+            tokio::select! {
+
                 shutdown = self.shutdown.recv() => {
                         warn!("Double echo shutdown signal received {:?}", shutdown);
                         break shutdown;
@@ -405,6 +415,7 @@ impl DoubleEcho {
 
                                         let _enter = span.enter();
                                         self.handle_echo(from_peer, &certificate_id);
+                                        self.state_change_follow_up();
                                     }
                                     DoubleEchoCommand::Ready {
                                         from_peer,
@@ -430,6 +441,8 @@ impl DoubleEcho {
 
                                         let _enter = span.enter();
                                         self.handle_ready(from_peer, &certificate_id);
+
+                                        self.state_change_follow_up();
                                     }
                                     _ => {}
                                 }
@@ -552,6 +565,7 @@ impl DoubleEcho {
             .unwrap_or_else(Span::current);
 
         if origin {
+            warn!("📣 Gossipping the Certificate {}", &cert.id);
             let _ = self.event_sender.send(ProtocolEvents::Gossip {
                 // peers: gossip_peers, // considered as the G-set for erdos-renyi
                 cert: cert.clone(),

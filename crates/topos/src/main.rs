@@ -27,5 +27,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         options::ToposCommand::Setup(cmd) => components::setup::handle_command(cmd).await,
         #[cfg(feature = "subnet")]
         options::ToposCommand::Subnet(cmd) => components::subnet::handle_command(cmd).await,
+        options::ToposCommand::Doctor => components::doctor::handle_doctor().await,
     }
 }

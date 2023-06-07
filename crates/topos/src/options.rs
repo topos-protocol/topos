@@ -45,4 +45,5 @@ pub(crate) enum ToposCommand {
     Setup(SetupCommand),
     #[cfg(feature = "subnet")]
     Subnet(SubnetCommand),
+    Doctor,
 }

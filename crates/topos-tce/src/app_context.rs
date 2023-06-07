@@ -613,14 +613,24 @@ impl AppContext {
                             let parent = ctx.extract();
                             span.add_link(parent.span().span_context().clone());
 
-                            // &ctx,
-                            // );
+                            let channel = self.tce_cli.get_double_echo_channel();
 
-                            _ = self
-                                .tce_cli
-                                .broadcast_new_certificate(cert.clone(), false)
-                                .await;
+                            spawn(async move {
+                                info!("Send certificate to be broadcast");
+                                if channel
+                                    .send(DoubleEchoCommand::Broadcast {
+                                        cert,
+                                        origin: false,
+                                        ctx: span,
+                                    })
+                                    .await
+                                    .is_err()
+                                {
+                                    error!("Unable to send broadcast_new_certificate command, Receiver was dropped");
+                                }
+                            });
                         }
+
                         TceCommands::OnEcho {
                             certificate_id,
                             ctx,
@@ -634,17 +644,21 @@ impl AppContext {
                             let context = ctx.extract();
                             span.add_link(context.span().span_context().clone());
 
-                            self.tce_cli
-                                .get_double_echo_channel()
-                                .send(DoubleEchoCommand::Echo {
-                                    from_peer: from,
-                                    certificate_id,
-                                    ctx: span.clone(),
-                                })
-                                .with_context(span.context().clone())
-                                .instrument(span)
-                                .await
-                                .expect("Receive the Echo");
+                            let channel = self.tce_cli.get_double_echo_channel();
+                            spawn(async move {
+                                if let Err(e) = channel
+                                    .send(DoubleEchoCommand::Echo {
+                                        from_peer: from,
+                                        certificate_id,
+                                        ctx: span.clone(),
+                                    })
+                                    .with_context(span.context().clone())
+                                    .instrument(span)
+                                    .await
+                                {
+                                    error!("Unable to send Echo, {:?}", e);
+                                }
+                            });
                         }
                         TceCommands::OnReady {
                             certificate_id,
@@ -659,17 +673,21 @@ impl AppContext {
                             let context = ctx.extract();
                             span.add_link(context.span().span_context().clone());
 
-                            self.tce_cli
-                                .get_double_echo_channel()
-                                .send(DoubleEchoCommand::Ready {
-                                    from_peer: from,
-                                    certificate_id,
-                                    ctx: span.clone(),
-                                })
-                                .with_context(context)
-                                .instrument(span)
-                                .await
-                                .expect("Receive the Ready");
+                            let channel = self.tce_cli.get_double_echo_channel();
+                            spawn(async move {
+                                if let Err(e) = channel
+                                    .send(DoubleEchoCommand::Ready {
+                                        from_peer: from,
+                                        certificate_id,
+                                        ctx: span.clone(),
+                                    })
+                                    .with_context(context)
+                                    .instrument(span)
+                                    .await
+                                {
+                                    error!("Unable to send Ready {:?}", e);
+                                }
+                            });
                         }
                         _ => {}
                     }
