@@ -1,5 +1,5 @@
 ARG TOOLCHAIN_VERSION
-FROM ghcr.io/topos-network/rust_builder:bullseye-${TOOLCHAIN_VERSION} AS base
+FROM --platform=$BUILDPLATFORM ghcr.io/topos-network/rust_builder:bullseye-${TOOLCHAIN_VERSION} AS base
 
 ARG FEATURES
 # Rust cache
