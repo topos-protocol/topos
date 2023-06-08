@@ -152,7 +152,6 @@ pub async fn start_node(
     )
     .await;
 
-    // let (command_sampler, command_broadcast) = tce_cli.get_command_channels();
     let api_storage_client = storage_client.clone();
 
     let (api_context, api_stream) =
@@ -186,8 +185,6 @@ pub async fn start_node(
         event_stream,
         peer_id,
         api_entrypoint: api_context.entrypoint,
-        // command_sampler,
-        // command_broadcast,
         api_grpc_client: api_context.api_client,
         console_grpc_client: api_context.console_client,
         runtime_join_handle,

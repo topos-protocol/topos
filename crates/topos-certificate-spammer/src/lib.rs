@@ -423,6 +423,8 @@ pub async fn run(
             if let Some(nb_batches) = args.nb_batches {
                 if batch_number >= nb_batches {
                     info!("Generated {nb_batches}, finishing certificate spammer...");
+
+                    tokio::time::sleep(Duration::from_secs(5)).await;
                     close_target_node_connections(target_node_connections).await;
                     info!("Cert spammer finished");
                     break None;

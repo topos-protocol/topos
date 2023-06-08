@@ -148,33 +148,7 @@ impl
                 }
             }
 
-            SwarmEvent::Dialing(peer_id) => {
-                // info!("Dial {:?} from {:?}", peer_id, *self.swarm.local_peer_id());
-                // let behaviour = self.swarm.behaviour_mut();
-                // let key = kbucket::Key::from(peer_id);
-                // let mut peer_addrs = if let Some(kbucket) = behaviour.discovery.kbucket(&key) {
-                //     kbucket.iter().for_each(f)
-                //     let addrs = entry.value().iter().cloned().collect::<Vec<_>>();
-                //     debug_assert!(!addrs.is_empty(), "Empty peer addresses in routing table.");
-                //     addrs
-                // } else {
-                //     Vec::new()
-                // };
-                //
-                // // We add to that a temporary list of addresses from the ongoing queries.
-                // for query in self.queries.iter() {
-                //     if let Some(addrs) = query.inner.addresses.get(&peer_id) {
-                //         peer_addrs.extend(addrs.iter().cloned())
-                //     }
-                // }
-                // let kad_addr = behaviour.discovery.addresses_of_peer(&peer_id);
-                // let addr = behaviour.transmission.addresses_of_peer(&peer_id);
-                //
-                // debug!(
-                //     "Checking if we know {peer_id} -> KAD {:?}, Transmission {:?}",
-                //     kad_addr, addr
-                // );
-            }
+            SwarmEvent::Dialing(peer_id) => {}
 
             SwarmEvent::Behaviour(event) => {
                 self.handle(event).await;

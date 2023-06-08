@@ -46,7 +46,7 @@ pub mod checkpoint_request {
         /// This type of request will ask for heads of subnets
         #[prost(message, tag = "2")]
         Heads(Heads),
-        /// This type of request will ask for the same position for every subnets
+        /// This type of request will ask for the same position for every subnet
         #[prost(message, tag = "3")]
         SamePosition(SamePosition),
         /// This type of request will ask for the zero position for every subnets

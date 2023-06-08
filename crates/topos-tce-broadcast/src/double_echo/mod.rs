@@ -2,13 +2,11 @@ use crate::sampler::SubscribersView;
 use crate::Errors;
 use crate::{sampler::SampleType, tce_store::TceStore, DoubleEchoCommand, SubscriptionsView};
 use opentelemetry::trace::TraceContextExt;
-use std::time::Duration;
 use std::{
-    collections::{HashMap, HashSet, VecDeque},
+    collections::{HashMap, VecDeque},
     time,
 };
 use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
-use tokio::spawn;
 use tokio::sync::{broadcast, mpsc, oneshot};
 use topos_core::uci::{Certificate, CertificateId};
 use topos_p2p::Client as NetworkClient;
@@ -32,7 +30,6 @@ pub struct DoubleEcho {
     pub(crate) params: ReliableBroadcastParams,
     command_receiver: mpsc::Receiver<DoubleEchoCommand>,
     subscriptions_view_receiver: mpsc::Receiver<SubscriptionsView>,
-    // subscribers_update_receiver: mpsc::Receiver<SubscribersUpdate>,
     event_sender: broadcast::Sender<ProtocolEvents>,
     store: Box<dyn TceStore + Send>,
     storage: StorageClient,
@@ -65,7 +62,6 @@ impl DoubleEcho {
         params: ReliableBroadcastParams,
         command_receiver: mpsc::Receiver<DoubleEchoCommand>,
         subscriptions_view_receiver: mpsc::Receiver<SubscriptionsView>,
-        // subscribers_update_receiver: mpsc::Receiver<SubscribersUpdate>,
         event_sender: broadcast::Sender<ProtocolEvents>,
         store: Box<dyn TceStore + Send>,
         storage: StorageClient,
@@ -80,7 +76,6 @@ impl DoubleEcho {
             params,
             command_receiver,
             subscriptions_view_receiver,
-            // subscribers_update_receiver,
             event_sender,
             store,
             storage,
@@ -103,64 +98,8 @@ impl DoubleEcho {
     pub(crate) async fn run(mut self) {
         info!("DoubleEcho started");
 
-        let (check_sender, mut check_receiver) = oneshot::channel();
-
-        spawn(async move {
-            tokio::time::sleep(Duration::from_secs(60 * 5)).await;
-
-            check_sender.send(()).unwrap();
-        });
-
         let shutdowned: Option<oneshot::Sender<()>> = loop {
-            if check_receiver.try_recv().is_ok() {
-                warn!("Checking delivery states");
-                if !self.cert_candidate.is_empty() {
-                    warn!("Still waiting for some certificates to be delivered");
-
-                    for (id, (_, state)) in &self.cert_candidate {
-                        warn!("Still waiting for {}: {:?}", id, state.subscriptions);
-                        let echo_missing = self
-                            .subscriptions
-                            .network_size
-                            .checked_sub(state.subscriptions.echo.len())
-                            .map(|consumed| self.params.echo_threshold.saturating_sub(consumed))
-                            .unwrap_or(0);
-                        let ready_missing = self
-                            .subscriptions
-                            .network_size
-                            .checked_sub(state.subscriptions.ready.len())
-                            .map(|consumed| self.params.ready_threshold.saturating_sub(consumed))
-                            .unwrap_or(0);
-                        let delivery_missing = self
-                            .subscriptions
-                            .network_size
-                            .checked_sub(state.subscriptions.delivery.len())
-                            .map(|consumed| self.params.delivery_threshold.saturating_sub(consumed))
-                            .unwrap_or(0);
-
-                        if echo_missing > 0 {
-                            warn!("{id} Waiting for {echo_missing} Echo from the E-Sample");
-                            warn!(
-                                "{id} Waiting for Echo Sample: {:?}",
-                                state.subscriptions.echo
-                            );
-                        }
-
-                        if ready_missing > 0 {
-                            warn!("{id} Waiting for {ready_missing} Ready from the R-Sample");
-                            warn!("{id} Ready Sample: {:?}", state.subscriptions.ready);
-                        }
-
-                        if delivery_missing > 0 {
-                            warn!("{id} Waiting for {delivery_missing} Ready from the D-Sample");
-                            warn!("{id} Delivery Sample: {:?}", state.subscriptions.delivery);
-                        }
-                    }
-                }
-            }
-
             tokio::select! {
-
                 shutdown = self.shutdown.recv() => {
                         warn!("Double echo shutdown signal received {:?}", shutdown);
                         break shutdown;
@@ -334,31 +273,6 @@ impl DoubleEcho {
                     self.subscriptions = new_subscriptions_view;
                 }
 
-                // Some(new_subscribers_update) = self.subscribers_update_receiver.recv() => {
-                //     info!( peer_id = self.local_peer_id,"Accepting new Subscribers: {:?}", &new_subscribers_update);
-                //     match new_subscribers_update {
-                //         SubscribersUpdate::NewEchoSubscriber(peer) => {
-                //             self.subscribers.echo.insert(peer);
-                //         }
-                //         SubscribersUpdate::NewReadySubscriber(peer) => {
-                //             self.subscribers.ready.insert(peer);
-                //         }
-                //         SubscribersUpdate::RemoveEchoSubscriber(peer) => {
-                //             self.subscribers.echo.remove(&peer);
-                //         }
-                //         SubscribersUpdate::RemoveEchoSubscribers(peers) => {
-                //             self.subscribers.echo = self.subscribers.echo.drain().filter(|v| !peers.contains(v)).collect();
-                //         }
-                //         SubscribersUpdate::RemoveReadySubscriber(peer) => {
-                //             self.subscribers.ready.remove(&peer);
-                //
-                //         }
-                //         SubscribersUpdate::RemoveReadySubscribers(peers) => {
-                //             self.subscribers.ready = self.subscribers.ready.drain().filter(|v| !peers.contains(v)).collect();
-                //         }
-                //     }
-                //     debug!("Subscribers are now: {:?}", self.subscribers);
-                // }
                 else => {
                     warn!("Break the tokio loop for the double echo");
                     break None;
@@ -551,13 +465,6 @@ impl DoubleEcho {
             return;
         }
 
-        // Gossip the certificate to all my peers
-        // let gossip_peers = self.gossip_peers();
-        // info!(
-        //     "Gossiping the Certificate {} to the Gossip peers: {:?}",
-        //     cert.id, &gossip_peers
-        // );
-
         let span = self
             .span_tracker
             .get(&cert.id)
@@ -575,19 +482,6 @@ impl DoubleEcho {
 
         // Trigger event of new certificate candidate for delivery
         self.start_broadcast(cert);
-    }
-
-    /// Make gossip peer list from echo and ready
-    /// subscribers that listen to me
-    #[allow(dead_code)]
-    pub(crate) fn gossip_peers(&self) -> Vec<PeerId> {
-        self.subscriptions
-            .get_subscriptions()
-            .into_iter()
-            .chain(self.subscribers.get_subscribers().into_iter())
-            .collect::<HashSet<_>>() //Filter duplicates
-            .into_iter()
-            .collect()
     }
 
     fn start_broadcast(&mut self, cert: Certificate) {
@@ -614,12 +508,6 @@ impl DoubleEcho {
         self.all_known_certs.push(cert.clone());
         self.delivery_time
             .insert(cert.id, (time::SystemTime::now(), Default::default()));
-        // Send Echo to the echo sample
-        // let echo_peers = self.subscribers.echo.iter().cloned().collect::<Vec<_>>();
-        // if echo_peers.is_empty() {
-        //     warn!("The sample of Echo Subscribers is empty");
-        //     return;
-        // }
 
         let ctx = self
             .span_tracker
@@ -682,14 +570,10 @@ impl DoubleEcho {
                 ))
             {
                 // Fanout the Ready messages to my subscribers
-                // let readies = self.subscribers.ready.iter().cloned().collect::<Vec<_>>();
-                // if !readies.is_empty() {
                 gen_evts.push(ProtocolEvents::Ready {
-                    // peers: readies.clone(),
                     certificate_id: certificate.id,
                     ctx: state_to_delivery.ctx.clone(),
                 });
-                // }
                 state_to_delivery.subscriptions.ready.clear();
                 state_to_delivery.subscriptions.echo.clear();
                 state_modified = true;

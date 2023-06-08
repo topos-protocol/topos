@@ -223,22 +223,7 @@ impl Runtime {
                                     channel,
                                 },
                         },
-                    )) => {
-                        // if self
-                        //     .swarm
-                        //     .behaviour_mut()
-                        //     .transmission
-                        //     .send_response(
-                        //         channel,
-                        //         TransmissionResponse(
-                        //             bincode::serialize(&NotReadyMessage {}).unwrap(),
-                        //         ),
-                        //     )
-                        //     .is_err()
-                        // {
-                        //     error!("Unable to send NotReadyMessage as response to {request_id}");
-                        // }
-                    }
+                    )) => {}
 
                     SwarmEvent::ConnectionEstablished { .. } => {}
                     SwarmEvent::Dialing(_) => {}

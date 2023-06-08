@@ -46,7 +46,6 @@ struct TceParams {
 
 struct Context {
     event_receiver: Receiver<ProtocolEvents>,
-    // subscribers_update_sender: Sender<SubscribersUpdate>,
     subscriptions_view_sender: Sender<SubscriptionsView>,
     cmd_sender: Sender<DoubleEchoCommand>,
     double_echo_shutdown_sender: Sender<oneshot::Sender<()>>,
@@ -343,20 +342,6 @@ async fn buffering_certificate(#[case] params: TceParams) {
 
     spawn(double_echo.run());
 
-    // Add subscribers
-    // for &peer in subscribers.echo.iter() {
-    //     ctx.subscribers_update_sender
-    //         .send(SubscribersUpdate::NewEchoSubscriber(peer))
-    //         .await
-    //         .expect("Added new subscriber");
-    // }
-    // for &peer in subscribers.ready.iter() {
-    //     ctx.subscribers_update_sender
-    //         .send(SubscribersUpdate::NewReadySubscriber(peer))
-    //         .await
-    //         .expect("Added new subscriber");
-    // }
-
     // Wait to receive subscribers
     tokio::time::sleep(WAIT_EVENT_TIMEOUT).await;
 
@@ -387,15 +372,6 @@ async fn buffering_certificate(#[case] params: TceParams) {
 
     let _ = tokio::time::timeout(Duration::from_secs(1), assertion).await;
 
-    // // Check if gossip Event is sent to all peers
-    // let all_gossip_peers = subscriptions
-    //     .get_subscriptions()
-    //     .into_iter()
-    //     .chain(subscribers.get_subscribers().into_iter())
-    //     .collect::<HashSet<_>>()
-    //     .into_iter()
-    //     .collect();
-    //
     assert_eq!(received_gossip_commands.len(), 1);
     assert_eq!(received_gossip_commands[0].id, le_cert.id);
 

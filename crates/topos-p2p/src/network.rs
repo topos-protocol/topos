@@ -123,26 +123,14 @@ impl<'a> NetworkBuilder<'a> {
         let (event_sender, event_receiver) = mpsc::channel(EVENT_STREAM_BUFFER);
 
         let gossipsub = gossipsub::ConfigBuilder::default()
-            // .mesh_n(4)
-            // .mesh_n_low(3)
-            // .mesh_n_high(6)
-            // .gossip_lazy(4)
             .max_transmit_size(2 * 1024 * 1024)
             .validation_mode(gossipsub::ValidationMode::Strict)
-            // .message_id_fn(|message| {
-            //     let mut hasher = DefaultHasher::new();
-            //     message.data.hash(&mut hasher);
-            //     MessageId::from(hasher.finish().to_string())
-            // })
-            // .mesh_outbound_min(2)
             .build()
             .unwrap();
 
-        let gossipsub = gossipsub::Behaviour::new(
-            MessageAuthenticity::Signed(peer_key.clone()),
-            gossipsub, //     gossipsub_config.build().unwrap(),
-        )
-        .unwrap();
+        let gossipsub =
+            gossipsub::Behaviour::new(MessageAuthenticity::Signed(peer_key.clone()), gossipsub)
+                .unwrap();
 
         let behaviour = Behaviour {
             gossipsub,
@@ -173,23 +161,14 @@ impl<'a> NetworkBuilder<'a> {
             let tcp = Transport::new(Config::default().nodelay(true));
             dns_tcp.or_transport(tcp)
         };
-        //
-        // let mut multiplex_config = libp2p::mplex::MplexConfig::new();
-        // multiplex_config.set_max_num_streams(8192);
-        // multiplex_config.set_max_buffer_size(1024 * 1024 * 16);
 
         let mut multiplex_config = libp2p::yamux::Config::default();
         multiplex_config.set_window_update_mode(libp2p::yamux::WindowUpdateMode::on_read());
         multiplex_config.set_max_buffer_size(1024 * 1024 * 16);
-        //
-        // if let Some(yamux_window_size) = self.config.yamux_window_size {
-        //     multiplex_config.set_receive_window_size(yamux_window_size);
-        // }
 
         let transport = transport
             .upgrade(upgrade::Version::V1)
             .authenticate(noise::Config::new(&peer_key)?)
-            // .multiplex(yamux::YamuxConfig::default())
             .multiplex(multiplex_config)
             .timeout(TWO_HOURS)
             .boxed();
