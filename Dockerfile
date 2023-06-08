@@ -10,15 +10,14 @@ ARG RUSTC_WRAPPER
 
 WORKDIR /usr/src/app
 
-FROM base AS build
+FROM --platform=$BUILDPLATFORM base AS build
 COPY . .
-ENV RUSTFLAGS="-C target-feature=-crt-static"
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     --mount=type=cache,id=sccache,target=/root/.cache/sccache \
   cargo build --release --no-default-features --features=${FEATURES} \
   && sccache --show-stats
 
-FROM debian:bullseye-slim AS topos
+FROM --platform=$BUILDPLATFORM debian:bullseye-slim AS topos
 
 ENV TCE_PORT=9090
 ENV USER=topos
