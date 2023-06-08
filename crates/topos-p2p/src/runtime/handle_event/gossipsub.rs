@@ -1,7 +1,10 @@
 use libp2p::gossipsub::{Event as GossipsubEvent, Message};
-use tracing::info;
+use tracing::{error, info};
 
-use crate::{Event, Runtime};
+use crate::{
+    Event, Runtime, MESSAGE_RECEIVED_ON_ECHO, MESSAGE_RECEIVED_ON_GOSSIP,
+    MESSAGE_RECEIVED_ON_READY, TOPOS_ECHO, TOPOS_GOSSIP, TOPOS_READY,
+};
 
 use super::EventHandler;
 
@@ -25,6 +28,21 @@ impl EventHandler<Box<GossipsubEvent>> for Runtime {
                         "Received message {:?} from {:?} on topic {:?}",
                         message_id, source, topic
                     );
+                    match topic.as_str() {
+                        TOPOS_GOSSIP => {
+                            MESSAGE_RECEIVED_ON_GOSSIP.inc();
+                        }
+                        TOPOS_ECHO => {
+                            MESSAGE_RECEIVED_ON_ECHO.inc();
+                        }
+                        TOPOS_READY => {
+                            MESSAGE_RECEIVED_ON_READY.inc();
+                        }
+                        _ => {
+                            error!("Received message on unknown topic {:?}", topic);
+                        }
+                    }
+
                     if let Err(e) = self
                         .event_sender
                         .try_send(Event::Gossip { from: source, data })

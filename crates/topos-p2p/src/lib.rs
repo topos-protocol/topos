@@ -21,6 +21,26 @@ pub use libp2p::Multiaddr;
 pub use libp2p::PeerId;
 pub use runtime::Runtime;
 
+use prometheus::{self, Encoder, IntCounter, TextEncoder};
+
+use lazy_static::lazy_static;
+use prometheus::register_int_counter;
+
+lazy_static! {
+    static ref MESSAGE_RECEIVED_ON_GOSSIP: IntCounter =
+        register_int_counter!("gossip_message_count", "Number of gossip message received.")
+            .unwrap();
+    static ref MESSAGE_RECEIVED_ON_ECHO: IntCounter =
+        register_int_counter!("echo_message_count", "Number of echo message received.").unwrap();
+    static ref MESSAGE_RECEIVED_ON_READY: IntCounter =
+        register_int_counter!("ready_message_count", "Number of ready message received.").unwrap();
+    static ref MESSAGE_SENT_ON_GOSSIP: IntCounter = register_int_counter!(
+        "gossip_message_sent_count",
+        "Number of gossip message sent."
+    )
+    .unwrap();
+}
+
 pub mod network;
 
 pub const TOPOS_GOSSIP: &str = "topos_gossip";

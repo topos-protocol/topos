@@ -26,6 +26,28 @@ use topos_telemetry::PropagationContext;
 use tracing::{debug, error, info, info_span, trace, warn, Instrument};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
+use prometheus::{self, IntCounter};
+
+use lazy_static::lazy_static;
+use prometheus::register_int_counter;
+
+lazy_static! {
+    static ref CERTIFICATE_RECEIVED: IntCounter =
+        register_int_counter!("certificate_received", "Number of certificate received.").unwrap();
+    static ref CERTIFICATE_RECEIVED_FROM_GOSSIP: IntCounter = register_int_counter!(
+        "certificate_received_from_gossip",
+        "Number of certificate received from gossip."
+    )
+    .unwrap();
+    static ref CERTIFICATE_RECEIVED_FROM_API: IntCounter = register_int_counter!(
+        "certificate_received_from_api",
+        "Number of certificate received from api."
+    )
+    .unwrap();
+    static ref CERTIFICATE_DELIVERED: IntCounter =
+        register_int_counter!("certificate_delivered", "Number of certificate delivered.").unwrap();
+}
+
 use crate::events::Events;
 
 /// Top-level transducer main app context & driver (alike)
@@ -143,6 +165,8 @@ impl AppContext {
                     .instrument(span)
                     .await;
 
+                CERTIFICATE_RECEIVED.inc();
+                CERTIFICATE_RECEIVED_FROM_API.inc();
                 _ = sender.send(Ok(()));
             }
 
@@ -266,6 +290,7 @@ impl AppContext {
 
             ProtocolEvents::CertificateDelivered { certificate } => {
                 warn!("Certificate delivered {}", certificate.id);
+                CERTIFICATE_DELIVERED.inc();
                 let storage = self.pending_storage.clone();
                 let api_client = self.api_client.clone();
 
@@ -453,6 +478,9 @@ impl AppContext {
                     .await
                 {
                     error!("Unable to send Gossip due to error: {e}");
+                } else {
+                    CERTIFICATE_RECEIVED.inc();
+                    CERTIFICATE_RECEIVED_FROM_GOSSIP.inc();
                 }
                 //
                 // let future_pool: FuturesUnordered<_> = peers

@@ -123,10 +123,10 @@ impl<'a> NetworkBuilder<'a> {
         let (event_sender, event_receiver) = mpsc::channel(EVENT_STREAM_BUFFER);
 
         let gossipsub = gossipsub::ConfigBuilder::default()
-            .mesh_n(4)
-            .mesh_n_low(3)
-            .mesh_n_high(6)
-            .gossip_lazy(4)
+            // .mesh_n(4)
+            // .mesh_n_low(3)
+            // .mesh_n_high(6)
+            // .gossip_lazy(4)
             .max_transmit_size(2 * 1024 * 1024)
             .validation_mode(gossipsub::ValidationMode::Strict)
             // .message_id_fn(|message| {
@@ -134,7 +134,7 @@ impl<'a> NetworkBuilder<'a> {
             //     message.data.hash(&mut hasher);
             //     MessageId::from(hasher.finish().to_string())
             // })
-            .mesh_outbound_min(2)
+            // .mesh_outbound_min(2)
             .build()
             .unwrap();
 

@@ -3,7 +3,7 @@ use std::collections::hash_map::Entry;
 use crate::{
     behaviour::transmission::codec::{TransmissionRequest, TransmissionResponse},
     error::P2PError,
-    Command, Runtime,
+    Command, Runtime, MESSAGE_SENT_ON_GOSSIP,
 };
 use libp2p::{
     gossipsub::IdentTopic,
@@ -144,7 +144,10 @@ impl Runtime {
                     .gossipsub
                     .publish(IdentTopic::new(topic), data)
                 {
-                    Ok(message_id) => info!("Published message {message_id:?} to {topic}"),
+                    Ok(message_id) => {
+                        info!("Published message {message_id:?} to {topic}");
+                        MESSAGE_SENT_ON_GOSSIP.inc();
+                    }
                     Err(err) => error!("Failed to publish message to {topic}: {err}"),
                 }
             }
