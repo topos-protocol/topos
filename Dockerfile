@@ -12,6 +12,7 @@ WORKDIR /usr/src/app
 
 FROM base AS build
 COPY . .
+ENV RUSTFLAGS="-C target-feature=-crt-static"
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     --mount=type=cache,id=sccache,target=/root/.cache/sccache \
   cargo build --release --no-default-features --features=${FEATURES} \
