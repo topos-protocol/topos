@@ -58,7 +58,7 @@ pub struct GetNextPendingCertificate {
 }
 
 impl Command for GetNextPendingCertificate {
-    type Result = (PendingCertificateId, Certificate);
+    type Result = Option<(PendingCertificateId, Certificate)>;
 }
 
 #[derive(Debug)]

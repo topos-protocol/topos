@@ -49,7 +49,7 @@ impl StorageClient {
     pub async fn next_pending_certificate(
         &self,
         starting_at: Option<usize>,
-    ) -> Result<(PendingCertificateId, Certificate), StorageError> {
+    ) -> Result<Option<(PendingCertificateId, Certificate)>, StorageError> {
         GetNextPendingCertificate { starting_at }
             .send_to(&self.sender)
             .await

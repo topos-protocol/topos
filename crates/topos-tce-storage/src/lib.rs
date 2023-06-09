@@ -175,7 +175,7 @@ pub trait Storage: Sync + Send + 'static {
     async fn get_next_pending_certificate(
         &self,
         starting_at: Option<usize>,
-    ) -> Result<(PendingCertificateId, Certificate), InternalStorageError>;
+    ) -> Result<Option<(PendingCertificateId, Certificate)>, InternalStorageError>;
 
     /// Remove a certificate from pending pool
     async fn remove_pending_certificate(

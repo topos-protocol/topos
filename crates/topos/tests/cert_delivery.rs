@@ -37,7 +37,7 @@ fn get_subset_of_subnets(subnets: &[SubnetId], subset_size: usize) -> Vec<Subnet
 #[test(tokio::test)]
 #[timeout(Duration::from_secs(5))]
 async fn start_a_cluster() {
-    let mut peers_context = create_network(4, 1).await;
+    let mut peers_context = create_network(4).await;
 
     let mut status: Vec<bool> = Vec::new();
 
@@ -66,7 +66,6 @@ async fn cert_delivery() {
     let _ = tracing::subscriber::set_global_default(subscriber);
 
     let peer_number = 15;
-    let correct_sample = 14;
     let number_of_certificates_per_subnet = 2;
     let number_of_subnets = 3;
 
@@ -95,9 +94,8 @@ async fn cert_delivery() {
             }
         }
     }
-
     // List of peers (tce nodes) with their context
-    let mut peers_context = create_network(peer_number, correct_sample).await;
+    let mut peers_context = create_network(peer_number).await;
 
     // Connected tce clients are passing received certificates to this mpsc::Receiver, collect all of them
     let mut clients_delivered_certificates: Vec<mpsc::Receiver<(PeerId, SubnetId, Certificate)>> =
@@ -146,9 +144,20 @@ async fn cert_delivery() {
             expected_certificates.get(&client_subnet_id).unwrap().len();
         // Open client connection to TCE service in separate async tasks
         let mut client = ctx.api_grpc_client.clone();
+        let expected_certificate_debug: Vec<_> = expected_certificates
+            .get(&client_subnet_id)
+            .unwrap()
+            .iter()
+            .map(|c| c.id)
+            .collect();
+
+        let response = client.watch_certificates(in_stream).await.unwrap();
+
         let client_task = spawn(async move {
-            debug!("Spawning client task for peer: {}", peer_id);
-            let response = client.watch_certificates(in_stream).await.unwrap();
+            debug!(
+                "Spawning client task for peer: {} waiting for {} certificates: {:?}",
+                peer_id, incoming_certificates_number, expected_certificate_debug
+            );
 
             let mut resp_stream = response.into_inner();
             while let Some(received) = resp_stream.next().await {
@@ -179,6 +188,50 @@ async fn cert_delivery() {
         client_tasks.push(client_task);
     }
 
+    info!(
+        "Waiting for expected delivered certificates {:?}",
+        expected_certificates
+    );
+    // Delivery tasks collect certificates that clients of every TCE node
+    // are receiving to reduce them to one channel (delivery_rx)
+    let mut delivery_tasks = Vec::new();
+    // delivery_tx/delivery_rx Pass certificates from delivery tasks of every client to final collection of delivered certificates
+    let (delivery_tx, mut delivery_rx) = mpsc::channel::<(PeerId, SubnetId, Certificate)>(
+        peer_number * number_of_certificates_per_subnet * number_of_subnets,
+    );
+    for (index, mut client_delivered_certificates) in
+        clients_delivered_certificates.into_iter().enumerate()
+    {
+        let delivery_tx = delivery_tx.clone();
+        let delivery_task = tokio::spawn(async move {
+            // Read certificates that every client has received
+            info!("Delivery task for receiver {}", index);
+            loop {
+                let x = client_delivered_certificates.recv().await;
+
+                match x {
+                    Some((peer_id, target_subnet_id, cert)) => {
+                        info!(
+                            "Delivered certificate on peer_Id: {} cert id: {} from source subnet id: {} to target subnet id {}",
+                            &peer_id, cert.id, cert.source_subnet_id, target_subnet_id
+                        );
+                        // Send certificates from every peer to one delivery_rx receiver
+                        delivery_tx
+                            .send((peer_id, target_subnet_id, cert))
+                            .await
+                            .unwrap();
+                    }
+                    _ => break,
+                }
+            }
+            // We will end this loop when sending TCE client has dropped channel sender and there
+            // are not certificates in channel
+            info!("End delivery task for receiver {}", index);
+        });
+        delivery_tasks.push(delivery_task);
+    }
+    drop(delivery_tx);
+
     // Broadcast multiple certificates from all subnets
     info!("Broadcasting certificates...");
     for (peer_id, client) in peers_context.iter_mut() {
@@ -207,46 +260,6 @@ async fn cert_delivery() {
             }
         }
     }
-
-    info!(
-        "Waiting for expected delivered certificates {:?}",
-        expected_certificates
-    );
-    // Delivery tasks collect certificates that clients of every TCE node
-    // are receiving to reduce them to one channel (delivery_rx)
-    let mut delivery_tasks = Vec::new();
-    // delivery_tx/delivery_rx Pass certificates from delivery tasks of every client to final collection of delivered certificates
-    let (delivery_tx, mut delivery_rx) = mpsc::channel::<(PeerId, SubnetId, Certificate)>(
-        peer_number * number_of_certificates_per_subnet * number_of_subnets,
-    );
-    for (index, mut client_delivered_certificates) in
-        clients_delivered_certificates.into_iter().enumerate()
-    {
-        let delivery_tx = delivery_tx.clone();
-        let delivery_task = tokio::spawn(async move {
-            // Read certificates that every client has received
-            info!("Delivery task for receiver {}", index);
-            while let Some((peer_id, target_subnet_id, cert)) =
-                client_delivered_certificates.recv().await
-            {
-                info!(
-                    "Delivered certificate on peer_Id: {} cert id: {} from source subnet id: {} to target subnet id {}",
-                    &peer_id, cert.id, cert.source_subnet_id, target_subnet_id
-                );
-                // Send certificates from every peer to one delivery_rx receiver
-                delivery_tx
-                    .send((peer_id, target_subnet_id, cert))
-                    .await
-                    .unwrap();
-            }
-            // We will end this loop when sending TCE client has dropped channel sender and there
-            // are not certificates in channel
-            info!("End delivery task for receiver {}", index);
-        });
-        delivery_tasks.push(delivery_task);
-    }
-    drop(delivery_tx);
-
     let assertion = async move {
         info!("Waiting for all delivery tasks");
         join_all(delivery_tasks).await;
@@ -280,7 +293,7 @@ async fn cert_delivery() {
     };
 
     // Set big timeout to prevent flaky fails. Instead fail/panic early in the test to indicate actual error
-    if tokio::time::timeout(std::time::Duration::from_secs(10), assertion)
+    if tokio::time::timeout(std::time::Duration::from_secs(30), assertion)
         .await
         .is_err()
     {

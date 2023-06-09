@@ -70,9 +70,6 @@ pub enum ProtocolEvents {
     AlreadyDelivered {
         certificate_id: CertificateId,
     },
-    UnableToBufferCertificate {
-        certificate_id: CertificateId,
-    },
     /// Emitted to get peers list, expected that Commands.ApplyPeers will come as reaction
     NeedPeers,
     /// (pb.Broadcast)
@@ -98,19 +95,16 @@ pub enum ProtocolEvents {
     },
     /// Indicates that 'gossip' message broadcasting is required
     Gossip {
-        // peers: Vec<PeerId>,
         cert: Certificate,
         ctx: Span,
     },
     /// Indicates that 'echo' message broadcasting is required
     Echo {
-        // peers: Vec<PeerId>,
         certificate_id: CertificateId,
         ctx: Span,
     },
     /// Indicates that 'ready' message broadcasting is required
     Ready {
-        // peers: Vec<PeerId>,
         certificate_id: CertificateId,
         ctx: Span,
     },

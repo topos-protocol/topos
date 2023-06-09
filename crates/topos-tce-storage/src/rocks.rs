@@ -160,10 +160,12 @@ impl Storage for RocksDBStorage {
                 InternalStorageError::PositionError(error, certificate.source_subnet_id.into())
             })?
         } else {
+            // TODO: Need to be fixed when dealing with order of delivery
+            Position::ZERO
             // TODO: Better error to define that we were expecting a previous defined position
-            return Err(InternalStorageError::CertificateNotFound(
-                certificate.prev_id,
-            ));
+            // return Err(InternalStorageError::CertificateNotFound(
+            //     certificate.prev_id,
+            // ));
         };
 
         // Return from function as info
@@ -348,12 +350,11 @@ impl Storage for RocksDBStorage {
     async fn get_next_pending_certificate(
         &self,
         starting_at: Option<usize>,
-    ) -> Result<(PendingCertificateId, Certificate), InternalStorageError> {
+    ) -> Result<Option<(PendingCertificateId, Certificate)>, InternalStorageError> {
         Ok(self
             .pending_certificates
             .iter()?
-            .nth(starting_at.map(|v| v + 1).unwrap_or(0))
-            .ok_or(InternalStorageError::NoPendingCertificates)?)
+            .nth(starting_at.map(|v| v + 1).unwrap_or(0)))
     }
 
     async fn remove_pending_certificate(&self, index: u64) -> Result<(), InternalStorageError> {

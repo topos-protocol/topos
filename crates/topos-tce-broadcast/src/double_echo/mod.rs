@@ -141,11 +141,6 @@ impl DoubleEcho {
                                         if let Ok(pending) = maybe_pending {
                                             self.last_pending_certificate = pending;
                                         }
-                                    } else {
-                                        error!("Double echo buffer is full for certificate {}", cert.id);
-                                        self.event_sender.send(ProtocolEvents::UnableToBufferCertificate {
-                                            certificate_id: cert.id,
-                                        }).unwrap();
                                     }
                                 });
                             }
@@ -372,7 +367,7 @@ impl DoubleEcho {
                             cert.id, cert.id
                         );
                     }
-                    if let Ok((pending, certificate)) = self
+                    if let Ok(Some((pending, certificate))) = self
                         .storage
                         .next_pending_certificate(Some(self.last_pending_certificate as usize))
                         .await

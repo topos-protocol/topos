@@ -26,7 +26,7 @@ tower = "0.4"
 ethereum-types = { version = "0.13.1"}
 secp256k1 = {version = "0.27", features = ["recovery"]}
 tiny-keccak = {version = "1.5"}
-ethers = {version = "2.0.4", features = ["legacy", "abigen"]}
+ethers = {version = "2.0.4", features = ["legacy", "abigen-online"]}
 
 # Log, Tracing & telemetry
 opentelemetry = { version = "0.19", features = ["rt-tokio", "metrics"] }

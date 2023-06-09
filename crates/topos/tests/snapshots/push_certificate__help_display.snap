@@ -10,9 +10,9 @@ Options:
   -v, --verbose...
           Defines the verbosity level
   -t, --timeout <TIMEOUT>
-          Global timeout for the command [default: 10]
+          Global timeout for the command [default: 60]
       --timeout-broadcast <TIMEOUT_BROADCAST>
-          Seconds to wait before asserting the broadcast [default: 2]
+          Seconds to wait before asserting the broadcast [default: 30]
   -n, --nodes <NODES>
           The node list to be used, can be a file path or a comma separated list of Uri. If not provided, stdin is listened [env: TARGET_NODES_PATH=]
   -h, --help

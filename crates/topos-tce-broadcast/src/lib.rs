@@ -136,6 +136,7 @@ impl ReliableBroadcastClient {
         let last_pending_certificate = storage
             .next_pending_certificate(None)
             .await
+            .unwrap_or(None)
             .map(|(id, _)| id)
             .unwrap_or(0);
 

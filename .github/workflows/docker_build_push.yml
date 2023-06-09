@@ -52,14 +52,15 @@ jobs:
         uses: nick-fields/retry@v2.8.3
         with:
           retry_on: error
-          max_attempts: 4
-          retry_wait_seconds: 30
+          max_attempts: 5
+          retry_wait_seconds: 40
           timeout_minutes: 10
           on_retry_command: docker inspect --format "{{ .Id }} {{ .State.Health.Status }}" $(docker compose -f tools/docker-compose.yml ps -aq peer boot) | grep "healthy$" | cut -d ' ' -f 1 | xargs -I{} sh -c 'echo "\nLogs for => {}\n" && docker logs {}'
           command: |
+            EXPECTED=$(docker compose -f tools/docker-compose.yml ps -aq  peer boot|wc -l)
             COUNT=$(docker inspect --format "{{.State.Health.Status }}" $(docker compose -f tools/docker-compose.yml ps -aq peer boot)|grep "^healthy$"|wc -l)
             echo "Number of Healthy containers: $COUNT"
-            if [[ $COUNT -eq 16 ]]; then
+            if [[ $COUNT -eq $EXPECTED ]]; then
               echo "All expected containers healthy"
               exit 0
             else

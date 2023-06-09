@@ -83,7 +83,7 @@ where
     async fn handle(
         &mut self,
         GetNextPendingCertificate { starting_at }: GetNextPendingCertificate,
-    ) -> Result<(PendingCertificateId, Certificate), StorageError> {
+    ) -> Result<Option<(PendingCertificateId, Certificate)>, StorageError> {
         let pending_certificate = self
             .storage
             .get_next_pending_certificate(starting_at)

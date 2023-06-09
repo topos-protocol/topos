@@ -43,8 +43,6 @@ pub struct TceContext {
     pub event_stream: mpsc::Receiver<Events>,
     pub peer_id: PeerId, // P2P ID
     pub api_entrypoint: String,
-    // pub command_sampler: mpsc::Sender<SamplerCommand>,
-    // pub command_broadcast: mpsc::Sender<DoubleEchoCommand>,
     pub api_grpc_client: ApiServiceClient<Channel>, // GRPC Client for this peer (tce node)
     pub console_grpc_client: ConsoleServiceClient<Channel>, // Console TCE GRPC Client for this peer (tce node)
     pub runtime_join_handle: JoinHandle<Result<(), ()>>,
@@ -78,8 +76,6 @@ pub struct NodeConfig {
     pub port: u16,
     pub keypair: Keypair,
     pub addr: Multiaddr,
-    pub g: fn(usize, f32) -> usize,
-    pub correct_sample: usize,
 }
 
 impl Default for NodeConfig {
@@ -91,15 +87,12 @@ impl Default for NodeConfig {
 impl NodeConfig {
     pub fn from_seed(seed: u8) -> Self {
         let (keypair, port, addr) = local_peer(seed);
-        let g = |a, b: f32| ((a as f32) * b).ceil() as usize;
 
         Self {
             seed,
             port,
             keypair,
             addr,
-            g,
-            correct_sample: 2,
         }
     }
 
@@ -145,7 +138,7 @@ pub async fn start_node(
     let storage_join_handle = spawn(storage.into_future());
 
     let (tce_cli, tce_stream) = create_reliable_broadcast_client(
-        create_reliable_broadcast_params(config.correct_sample, config.g),
+        create_reliable_broadcast_params(peers.len()),
         config.keypair.public().to_peer_id().to_string(),
         storage_client.clone(),
         network_client.clone(),
@@ -201,23 +194,15 @@ fn build_peer_config_pool(peer_number: u8) -> Vec<NodeConfig> {
     (1..=peer_number).map(NodeConfig::from_seed).collect()
 }
 
-pub async fn start_pool(
-    peer_number: u8,
-    correct_sample: usize,
-    g: fn(usize, f32) -> usize,
-) -> HashMap<PeerId, TceContext> {
+pub async fn start_pool(peer_number: u8) -> HashMap<PeerId, TceContext> {
     let mut clients = HashMap::new();
     let peers = build_peer_config_pool(peer_number);
 
     let mut await_peers = Vec::new();
 
     for config in &peers {
-        let mut config = config.clone();
-        config.correct_sample = correct_sample;
-        config.g = g;
-
         let fut = async {
-            let client = start_node(vec![], config, &peers).await;
+            let client = start_node(vec![], config.clone(), &peers).await;
 
             (client.peer_id, client)
         };
@@ -232,14 +217,9 @@ pub async fn start_pool(
     clients
 }
 
-pub async fn create_network(
-    peer_number: usize,
-    correct_sample: usize,
-) -> HashMap<PeerId, TceContext> {
-    let g = |a, b: f32| ((a as f32) * b).ceil() as usize;
-
+pub async fn create_network(peer_number: usize) -> HashMap<PeerId, TceContext> {
     // List of peers (tce nodes) with their context
-    let mut peers_context = start_pool(peer_number as u8, correct_sample, g).await;
+    let mut peers_context = start_pool(peer_number as u8).await;
     let all_peers: Vec<PeerId> = peers_context.keys().cloned().collect();
 
     // Force TCE nodes to recreate subscriptions and subscribers
