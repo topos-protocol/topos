@@ -62,6 +62,5 @@ jobs:
 
       - name: Run all workspace tests
         run: |
-          export TOPOS_SMART_CONTRACTS_BUILD_PATH=`pwd`/contracts
           cd crates/topos-sequencer-subnet-runtime
           cargo test -- --nocapture

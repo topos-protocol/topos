@@ -3,7 +3,7 @@ use dockertest::{
     Composition, DockerTest, Image, LogAction, LogOptions, LogPolicy, LogSource, PullPolicy, Source,
 };
 use ethers::{
-    abi::{ethabi::ethereum_types::U256, Address, Token},
+    abi::{ethabi::ethereum_types::U256, Address},
     contract::abigen,
     core::k256::ecdsa::SigningKey,
     core::types::Filter,
@@ -46,12 +46,12 @@ const CERTIFICATE_ID_3: CertificateId = CERTIFICATE_ID_8;
 const DEFAULT_GAS: u64 = 5_000_000;
 
 //TODO I haven't find a way to parametrize version, macro accepts strictly string literal
-abigen!(TokenDeployerContract, "npm:@topos-network/topos-smart-contracts@1.0.1/artifacts/contracts/topos-core/TokenDeployer.sol/TokenDeployer.json");
-abigen!(ToposCoreContract, "npm:@topos-network/topos-smart-contracts@1.0.1/artifacts/contracts/topos-core/ToposCore.sol/ToposCore.json");
-abigen!(ToposCoreProxyContract, "npm:@topos-network/topos-smart-contracts@1.0.1/artifacts/contracts/topos-core/ToposCoreProxy.sol/ToposCoreProxy.json");
-abigen!(ToposMessagingContract, "npm:@topos-network/topos-smart-contracts@1.0.1/artifacts/contracts/topos-core/ToposMessaging.sol/ToposMessaging.json");
-abigen!(IToposCore, "npm:@topos-network/topos-smart-contracts@1.0.1/artifacts/contracts/interfaces/IToposCore.sol/IToposCore.json");
-abigen!(IToposMessaging, "npm:@topos-network/topos-smart-contracts@1.0.1/artifacts/contracts/interfaces/IToposMessaging.sol/IToposMessaging.json");
+abigen!(TokenDeployerContract, "npm:@topos-network/topos-smart-contracts@latest/artifacts/contracts/topos-core/TokenDeployer.sol/TokenDeployer.json");
+abigen!(ToposCoreContract, "npm:@topos-network/topos-smart-contracts@latest/artifacts/contracts/topos-core/ToposCore.sol/ToposCore.json");
+abigen!(ToposCoreProxyContract, "npm:@topos-network/topos-smart-contracts@latest/artifacts/contracts/topos-core/ToposCoreProxy.sol/ToposCoreProxy.json");
+abigen!(ToposMessagingContract, "npm:@topos-network/topos-smart-contracts@latest/artifacts/contracts/topos-core/ToposMessaging.sol/ToposMessaging.json");
+abigen!(IToposCore, "npm:@topos-network/topos-smart-contracts@latest/artifacts/contracts/interfaces/IToposCore.sol/IToposCore.json");
+abigen!(IToposMessaging, "npm:@topos-network/topos-smart-contracts@latest/artifacts/contracts/interfaces/IToposMessaging.sol/IToposMessaging.json");
 abigen!(
     IERC20,
     r"[
@@ -170,6 +170,8 @@ async fn deploy_contracts(
     deploy_key: &str,
     endpoint: &str,
 ) -> Result<(IToposCoreClient, IToposMessagingClient), Box<dyn std::error::Error>> {
+    use ethers::abi::Token;
+
     let wallet: LocalWallet = deploy_key.parse()?;
     let http_provider =
         Provider::<Http>::try_from(endpoint)?.interval(std::time::Duration::from_millis(20u64));
@@ -285,6 +287,8 @@ async fn deploy_test_token(
     endpoint: &str,
     topos_messaging_address: Address,
 ) -> Result<IERC20Client, Box<dyn std::error::Error>> {
+    use ethers::abi::Token;
+
     let wallet: LocalWallet = deploy_key.parse()?;
     let http_provider =
         Provider::<Http>::try_from(endpoint)?.interval(std::time::Duration::from_millis(20u64));
