@@ -52,7 +52,6 @@ struct Context {
 }
 
 fn create_context(params: TceParams) -> (DoubleEcho, Context) {
-    // let (subscribers_update_sender, subscribers_update_receiver) = mpsc::channel(CHANNEL_SIZE);
     let (subscriptions_view_sender, subscriptions_view_receiver) = mpsc::channel(CHANNEL_SIZE);
 
     let (cmd_sender, cmd_receiver) = mpsc::channel(CHANNEL_SIZE);
@@ -102,10 +101,6 @@ fn create_context(params: TceParams) -> (DoubleEcho, Context) {
     double_echo.subscriptions.ready = peers.clone();
     double_echo.subscriptions.delivery = peers.clone();
     double_echo.subscriptions.network_size = params.nb_peers;
-
-    // Subscribers
-    double_echo.subscribers.echo = peers.clone();
-    double_echo.subscribers.ready = peers;
 
     (
         double_echo,
@@ -348,7 +343,7 @@ async fn buffering_certificate(#[case] params: TceParams) {
     let le_cert = Certificate::default();
     ctx.cmd_sender
         .send(DoubleEchoCommand::Broadcast {
-            origin: true,
+            need_gossip: true,
             cert: le_cert.clone(),
             ctx: Span::current(),
         })

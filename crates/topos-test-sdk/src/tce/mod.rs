@@ -269,7 +269,7 @@ pub async fn create_network(
     for (peer_id, client) in peers_context.iter_mut() {
         wait_for_event!(
             client.event_stream.recv(),
-            matches: Events::StableSample(_),
+            matches: Events::StableSample,
             peer_id,
             15000
         );

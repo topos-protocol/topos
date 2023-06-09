@@ -1,4 +1,3 @@
-use crate::sampler::SubscribersView;
 use crate::Errors;
 use crate::{sampler::SampleType, tce_store::TceStore, DoubleEchoCommand, SubscriptionsView};
 use opentelemetry::trace::TraceContextExt;
@@ -43,8 +42,6 @@ pub struct DoubleEcho {
     all_known_certs: Vec<Certificate>,
     delivery_time: HashMap<CertificateId, (time::SystemTime, time::Duration)>,
     pub(crate) subscriptions: SubscriptionsView, // My subscriptions for echo, ready and delivery feedback
-    #[allow(dead_code)]
-    pub(crate) subscribers: SubscribersView, // Echo and ready subscribers that are following me
     buffer: VecDeque<(bool, Certificate)>,
     pub(crate) shutdown: mpsc::Receiver<oneshot::Sender<()>>,
 
@@ -86,7 +83,6 @@ impl DoubleEcho {
             all_known_certs: Default::default(),
             delivery_time: Default::default(),
             subscriptions: SubscriptionsView::default(),
-            subscribers: SubscribersView::default(),
             buffer: VecDeque::new(),
             shutdown,
             local_peer_id,
@@ -121,7 +117,7 @@ impl DoubleEcho {
                             let _ = sender.send(Ok(value));
                         }
 
-                        DoubleEchoCommand::Broadcast { origin, cert, ctx } => {
+                        DoubleEchoCommand::Broadcast { need_gossip, cert, ctx } => {
                             if self.storage.pending_certificate_exists(cert.id).await.is_err() &&
                                 self.storage.get_certificate(cert.id).await.is_err()
                             {
@@ -141,7 +137,7 @@ impl DoubleEcho {
                                     info!("Certificate {} added to pending storage", cert.id);
                                     debug!("DoubleEchoCommand::Broadcast certificate_id: {}", cert.id);
                                     if self.buffer.len() < self.max_buffer_size {
-                                        self.buffer.push_back((origin, cert));
+                                        self.buffer.push_back((need_gossip, cert));
                                         if let Ok(pending) = maybe_pending {
                                             self.last_pending_certificate = pending;
                                         }
@@ -287,7 +283,9 @@ impl DoubleEcho {
 
             // Broadcast next certificate
             if has_subscriptions {
-                if let Some((origin, cert)) = self.buffer.pop_front() {
+                // TODO: Remove the unused_variables attribute when the feature direct is removed
+                #[allow(unused_variables)]
+                if let Some((need_gossip, cert)) = self.buffer.pop_front() {
                     if let Some(ctx) = self.span_tracker.get(&cert.id) {
                         let span = info_span!(
                             parent: ctx,
@@ -299,8 +297,14 @@ impl DoubleEcho {
                         let _span = span.entered();
 
                         let cert_id = cert.id;
+                        #[cfg(feature = "direct")]
+                        {
+                            _ = self
+                                .event_sender
+                                .send(ProtocolEvents::CertificateDelivered { certificate: cert });
+                        }
                         #[cfg(not(feature = "direct"))]
-                        self.handle_broadcast(cert, origin);
+                        self.handle_broadcast(cert, need_gossip);
 
                         if let Some(messages) = self.buffered_messages.remove(&cert_id) {
                             for message in messages {
@@ -361,12 +365,6 @@ impl DoubleEcho {
                                     _ => {}
                                 }
                             }
-                        }
-                        #[cfg(feature = "direct")]
-                        {
-                            _ = self
-                                .event_sender
-                                .send(ProtocolEvents::CertificateDelivered { certificate: cert });
                         }
                     } else {
                         warn!(

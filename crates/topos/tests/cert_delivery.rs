@@ -1,7 +1,9 @@
 use futures::{future::join_all, StreamExt};
 use libp2p::PeerId;
 use rand::seq::IteratorRandom;
+use rstest::*;
 use std::collections::{HashMap, HashSet};
+use std::time::Duration;
 use test_log::test;
 use tokio::spawn;
 use tokio::sync::mpsc;
@@ -31,7 +33,9 @@ fn get_subset_of_subnets(subnets: &[SubnetId], subset_size: usize) -> Vec<Subnet
     )
 }
 
+#[rstest]
 #[test(tokio::test)]
+#[timeout(Duration::from_secs(5))]
 async fn start_a_cluster() {
     let mut peers_context = create_network(4, 1).await;
 
@@ -50,7 +54,9 @@ async fn start_a_cluster() {
     assert!(status.iter().all(|s| *s));
 }
 
+#[rstest]
 #[tokio::test]
+#[timeout(Duration::from_secs(60))]
 // FIXME: This test is flaky, it fails sometimes because of gRPC connection error (StreamClosed)
 async fn cert_delivery() {
     let subscriber = tracing_subscriber::FmtSubscriber::builder()

@@ -83,12 +83,13 @@ async fn test_tce_watch_certificates(
     let in_stream = async_stream::stream! {
         yield watch_certificates_request::OpenStream {
             target_checkpoint: Some(TargetCheckpoint {
-                target_subnet_ids: vec![ subnet_id_instream.into() ],
+                target_subnet_ids: vec![ subnet_id_instream ],
                 positions: Vec::new()
             }),
             source_checkpoint: None
         }.into()
     };
+
     let response = context
         .api_grpc_client
         .watch_certificates(in_stream)

@@ -54,6 +54,7 @@ futures.workspace = true
 libp2p = { workspace = true, features = ["identify"] }
 assert_cmd = "2.0.6"
 insta = { version = "1.21", features = ["json", "redactions"] }
+rstest = { workspace = true, features = ["async-timeout"] }
 
 [features]
 default = ["tce", "sequencer", "network", "setup", "subnet"]

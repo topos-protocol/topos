@@ -82,7 +82,7 @@ pub enum DoubleEchoCommand {
 
     /// Entry point for new certificate to submit as initial sender
     Broadcast {
-        origin: bool,
+        need_gossip: bool,
         cert: Certificate,
         ctx: Span,
     },
@@ -255,7 +255,7 @@ impl ReliableBroadcastClient {
         if broadcast_commands
             .send(DoubleEchoCommand::Broadcast {
                 cert: certificate,
-                origin,
+                need_gossip: origin,
                 ctx: Span::current(),
             })
             .await

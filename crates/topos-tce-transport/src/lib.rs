@@ -123,5 +123,5 @@ pub enum ProtocolEvents {
     },
 
     /// Stable Sample
-    StableSample(Vec<PeerId>),
+    StableSample,
 }

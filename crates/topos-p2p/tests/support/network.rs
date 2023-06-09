@@ -5,10 +5,6 @@ use topos_p2p::{network, Client};
 
 pub use topos_test_sdk::p2p::local_peer;
 
-pub fn local_peers(count: u8) -> Vec<(Keypair, u16, Multiaddr)> {
-    (0..count).map(local_peer).collect()
-}
-
 pub async fn start_node(
     (peer_key, _, peer_addr): (Keypair, u16, Multiaddr),
     known_peers: Vec<(PeerId, Multiaddr)>,
@@ -30,7 +26,6 @@ pub async fn start_node(
 
     TestNodeContext {
         peer_id,
-        peer_addr,
         client,
         stream: Box::new(event_stream),
     }
@@ -38,7 +33,6 @@ pub async fn start_node(
 
 pub struct TestNodeContext {
     pub(crate) peer_id: PeerId,
-    pub(crate) peer_addr: Multiaddr,
     pub(crate) client: Client,
     stream: Box<dyn Stream<Item = topos_p2p::Event> + Unpin + Send>,
 }

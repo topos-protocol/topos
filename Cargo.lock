@@ -6969,6 +6969,7 @@ dependencies = [
  "opentelemetry-otlp",
  "rand 0.8.5",
  "reqwest",
+ "rstest",
  "serde",
  "serde_json",
  "tar",
