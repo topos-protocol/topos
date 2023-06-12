@@ -171,6 +171,12 @@ pub trait Storage: Sync + Send + 'static {
         &self,
     ) -> Result<Vec<(PendingCertificateId, Certificate)>, InternalStorageError>;
 
+    /// Returns the next Certificate that are not delivered yet
+    async fn get_next_pending_certificate(
+        &self,
+        starting_at: Option<usize>,
+    ) -> Result<Option<(PendingCertificateId, Certificate)>, InternalStorageError>;
+
     /// Remove a certificate from pending pool
     async fn remove_pending_certificate(
         &self,

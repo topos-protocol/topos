@@ -55,6 +55,11 @@ pub enum Command {
         data: Vec<u8>,
         channel: ResponseChannel<TransmissionResponse>,
     },
+
+    Gossip {
+        topic: &'static str,
+        data: Vec<u8>,
+    },
 }
 
 impl Display for Command {
@@ -65,6 +70,7 @@ impl Display for Command {
             Command::ConnectedPeers { .. } => write!(f, "ConnectedPeers"),
             Command::Disconnect { .. } => write!(f, "Disconnect"),
             Command::TransmissionReq { to, .. } => write!(f, "TransmissionReq(to: {to})"),
+            Command::Gossip { .. } => write!(f, "GossipMessage"),
             Command::Discover { to, .. } => write!(f, "Discover(to: {to})"),
             Command::TransmissionResponse { .. } => write!(f, "TransmissionResponse"),
         }

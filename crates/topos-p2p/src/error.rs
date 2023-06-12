@@ -1,6 +1,8 @@
 use std::io;
 
-use libp2p::{noise::NoiseError, request_response::OutboundFailure, PeerId, TransportError};
+use libp2p::{
+    noise::Error as NoiseError, request_response::OutboundFailure, PeerId, TransportError,
+};
 use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
 

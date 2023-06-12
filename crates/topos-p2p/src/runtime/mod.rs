@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    cmp::min,
+    collections::{HashMap, HashSet, VecDeque},
+};
 
 use crate::{
     behaviour::{
@@ -9,18 +12,19 @@ use crate::{
         },
     },
     config::NetworkConfig,
-    error::P2PError,
+    error::{CommandExecutionError, P2PError},
     event::ComposedEvent,
     runtime::handle_event::EventHandler,
-    Behaviour, Command, Event, NotReadyMessage,
+    Behaviour, Command, Event, NotReadyMessage, TOPOS_ECHO, TOPOS_GOSSIP, TOPOS_READY,
 };
 use libp2p::{
     core::transport::ListenerId,
+    gossipsub,
     kad::{
-        kbucket, record::Key, BootstrapOk, KademliaEvent, PutRecordError, QueryId, QueryResult,
-        Quorum, Record,
+        record::Key, BootstrapOk, KademliaEvent, PutRecordError, QueryId, QueryResult, Quorum,
+        Record,
     },
-    request_response::{RequestResponseEvent, RequestResponseMessage},
+    request_response::{Event as RequestResponseEvent, Message as RequestResponseMessage},
     swarm::{NetworkBehaviour, SwarmEvent},
     Multiaddr, PeerId, Swarm,
 };
@@ -100,7 +104,14 @@ impl Runtime {
 
             // We were able to send the DHT query, starting the bootstrap
             // We may want to remove the bootstrap at some point
-            if self.swarm.behaviour_mut().discovery.bootstrap().is_err() {
+            if self
+                .swarm
+                .behaviour_mut()
+                .discovery
+                .inner
+                .bootstrap()
+                .is_err()
+            {
                 return Err(Box::new(P2PError::BootstrapError(
                     "Unable to start kademlia bootstrap",
                 )));
@@ -120,7 +131,7 @@ impl Runtime {
                         {
                             let key = Key::new(&self.local_peer_id.to_string());
                             addr_query_id = if let Ok(query_id_record) =
-                                self.swarm.behaviour_mut().discovery.put_record(
+                                self.swarm.behaviour_mut().discovery.inner.put_record(
                                     Record::new(key, self.addresses.to_vec()),
                                     Quorum::Majority,
                                 ) {
@@ -161,7 +172,7 @@ impl Runtime {
                                 warn!("Failed to PutRecord in DHT, retry again, attempt number {publish_retry}");
                                 let key = Key::new(&self.local_peer_id.to_string());
                                 if let Ok(query_id_record) =
-                                    self.swarm.behaviour_mut().discovery.put_record(
+                                    self.swarm.behaviour_mut().discovery.inner.put_record(
                                         Record::new(key, self.addresses.to_vec()),
                                         Quorum::Majority,
                                     )
@@ -178,7 +189,7 @@ impl Runtime {
                                 result: QueryResult::PutRecord(Ok(_)),
                                 ..
                             } if Some(id) == addr_query_id => {
-                                warn!(
+                                info!(
                                     "Bootstrap finished and MultiAddr published on DHT for {}",
                                     self.local_peer_id
                                 );
@@ -212,35 +223,41 @@ impl Runtime {
                                     channel,
                                 },
                         },
-                    )) => {
-                        info!("Received a protocol message from {peer}: id: {request_id}, {request:?}");
-                        if self
-                            .swarm
-                            .behaviour_mut()
-                            .transmission
-                            .send_response(
-                                channel,
-                                TransmissionResponse(
-                                    bincode::serialize(&NotReadyMessage {}).unwrap(),
-                                ),
-                            )
-                            .is_err()
-                        {
-                            error!("Unable to send NotReadyMessage as response to {request_id}");
-                        }
-                    }
+                    )) => {}
 
                     SwarmEvent::ConnectionEstablished { .. } => {}
-
                     SwarmEvent::Dialing(_) => {}
                     SwarmEvent::IncomingConnection { .. } => {}
+                    SwarmEvent::NewListenAddr { .. } => {}
+                    SwarmEvent::Behaviour(ComposedEvent::Gossipsub(_)) => {}
 
+                    SwarmEvent::IncomingConnectionError {
+                        local_addr,
+                        send_back_addr,
+                        error,
+                    } => {
+                        warn!("IncomingConnectionError: local_addr: {local_addr:?}, send_back_addr: {send_back_addr:?}, error: {error:?}");
+                    }
                     event => warn!("Unhandle event during Bootstrap: {event:?}"),
                 }
             }
         }
 
         warn!("Network bootstrap finished");
+
+        let gossipsub = &mut self.swarm.behaviour_mut().gossipsub;
+
+        gossipsub
+            .subscribe(&gossipsub::IdentTopic::new(TOPOS_GOSSIP))
+            .unwrap();
+
+        gossipsub
+            .subscribe(&gossipsub::IdentTopic::new(TOPOS_ECHO))
+            .unwrap();
+
+        gossipsub
+            .subscribe(&gossipsub::IdentTopic::new(TOPOS_READY))
+            .unwrap();
 
         Ok(self)
     }

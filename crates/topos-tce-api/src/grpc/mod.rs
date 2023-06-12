@@ -16,7 +16,8 @@ use topos_core::api::tce::v1::{
 };
 use topos_core::api::uci::v1::OptionalCertificate;
 use topos_core::uci::SubnetId;
-use tracing::{error, field, info, instrument, Instrument, Span};
+use topos_telemetry::TonicMetaExtractor;
+use tracing::{debug, error, field, info, info_span, Instrument, Span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 use uuid::Uuid;
 
@@ -81,59 +82,74 @@ impl TceGrpcService {
 
 #[tonic::async_trait]
 impl ApiService for TceGrpcService {
-    #[instrument(name = "CertificateSubmitted", skip(self, request), fields(peer_id = self.local_peer_id, certificate_id = field::Empty))]
     async fn submit_certificate(
         &self,
         request: Request<SubmitCertificateRequest>,
     ) -> Result<Response<SubmitCertificateResponse>, Status> {
-        tracing::trace!(span_span_id = ?Span::current().context().span().span_context().span_id(), "pre_run");
-        tracing::trace!(cx_span_id = ?Context::current().span().span_context().span_id(), "pre_run");
+        debug!("submit_certificate metadata: {:?}", request.metadata());
+        let ctx = TonicMetaExtractor(request.metadata());
+        let context = ctx.extract();
+        debug!("submit_certificate context: {:?}", context);
+        let span = info_span!(
+            "CertificateSubmitted",
+            peer_id = self.local_peer_id,
+            certificate_id = field::Empty
+        );
 
-        let data = request.into_inner();
-        if let Some(certificate) = data.certificate {
-            if let Some(ref id) = certificate.id {
-                Span::current().record("certificate_id", id.to_string());
+        span.add_link(context.span().span_context().clone());
 
-                let (sender, receiver) = oneshot::channel();
-                let certificate = match certificate.try_into() {
-                    Ok(c) => c,
-                    Err(e) => {
-                        error!("Invalid certificate: {e:?}");
-                        return Err(Status::invalid_argument(
-                            "Can't submit certificate: invalid certificate",
-                        ));
+        async {
+            tracing::trace!(span_span_id = ?Span::current().context().span().span_context().span_id(), "pre_run");
+            tracing::trace!(cx_span_id = ?Context::current().span().span_context().span_id(), "pre_run");
+
+            let data = request.into_inner();
+            if let Some(certificate) = data.certificate {
+                if let Some(ref id) = certificate.id {
+                    Span::current().record("certificate_id", id.to_string());
+
+                    let (sender, receiver) = oneshot::channel();
+                    let certificate = match certificate.try_into() {
+                        Ok(c) => c,
+                        Err(e) => {
+                            error!("Invalid certificate: {e:?}");
+                            return Err(Status::invalid_argument(
+                                "Can't submit certificate: invalid certificate",
+                            ));
+                        }
+                    };
+
+                    if self
+                        .command_sender
+                        .send(InternalRuntimeCommand::CertificateSubmitted {
+                            certificate: Box::new(certificate),
+                            sender,
+                            ctx: Span::current(),
+                        })
+                        .with_current_context()
+                        .instrument(Span::current())
+                        .await
+                        .is_err()
+                    {
+                        return Err(Status::internal("Can't submit certificate: sender dropped"));
                     }
-                };
 
-                if self
-                    .command_sender
-                    .send(InternalRuntimeCommand::CertificateSubmitted {
-                        certificate: Box::new(certificate),
-                        sender,
-                        ctx: Span::current().context(),
-                    })
-                    .with_current_context()
-                    .instrument(Span::current())
-                    .await
-                    .is_err()
-                {
-                    return Err(Status::internal("Can't submit certificate: sender dropped"));
+                    receiver
+                        .map(|value| match value {
+                            Ok(Ok(_)) => Ok(Response::new(SubmitCertificateResponse {})),
+                            Ok(Err(_)) => Err(Status::internal("Can't submit certificate")),
+                            Err(_) => Err(Status::internal("Can't submit certificate")),
+                        })
+                        .await
+                } else {
+                    error!("No certificate id provided");
+                    Err(Status::invalid_argument("Certificate is malformed"))
                 }
-
-                receiver
-                    .map(|value| match value {
-                        Ok(Ok(_)) => Ok(Response::new(SubmitCertificateResponse {})),
-                        Ok(Err(_)) => Err(Status::internal("Can't submit certificate")),
-                        Err(_) => Err(Status::internal("Can't submit certificate")),
-                    })
-                    .await
             } else {
-                error!("No certificate id provided");
                 Err(Status::invalid_argument("Certificate is malformed"))
             }
-        } else {
-            Err(Status::invalid_argument("Certificate is malformed"))
         }
+        .instrument(span)
+        .await
     }
 
     /// This RPC allows a client to get last delivered source certificate
@@ -221,7 +237,7 @@ impl ApiService for TceGrpcService {
             .is_err()
         {
             return Err(Status::internal(
-                "Can't get last pending certificates: sender dropped",
+                "Can't get last pending certificates: sender dropped into channel",
             ));
         }
 

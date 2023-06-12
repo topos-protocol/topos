@@ -18,6 +18,7 @@ RegisterCommands!(
         CheckPendingCertificateExists,
         GetCertificate,
         GetPendingCertificates,
+        GetNextPendingCertificate,
         GetSourceHead,
         FetchCertificates,
         RemovePendingCertificate,
@@ -49,6 +50,15 @@ pub struct GetPendingCertificates {}
 
 impl Command for GetPendingCertificates {
     type Result = Vec<(PendingCertificateId, Certificate)>;
+}
+
+#[derive(Debug)]
+pub struct GetNextPendingCertificate {
+    pub(crate) starting_at: Option<usize>,
+}
+
+impl Command for GetNextPendingCertificate {
+    type Result = Option<(PendingCertificateId, Certificate)>;
 }
 
 #[derive(Debug)]

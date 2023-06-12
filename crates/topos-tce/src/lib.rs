@@ -7,13 +7,14 @@ use std::time::Duration;
 
 pub use app_context::AppContext;
 use opentelemetry::global;
+use prometheus::{self, Encoder, TextEncoder};
 use tce_transport::ReliableBroadcastParams;
 use tokio::{spawn, sync::mpsc, sync::oneshot};
 use topos_p2p::utils::local_key_pair_from_slice;
 use topos_p2p::{utils::local_key_pair, Multiaddr, PeerId};
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
 use topos_tce_storage::{Connection, RocksDBStorage};
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 pub mod events;
 
@@ -27,6 +28,7 @@ pub struct TceConfiguration {
     pub tce_local_port: u16,
     pub storage: StorageConfiguration,
     pub network_bootstrap_timeout: Duration,
+    pub minimum_cluster_size: usize,
     pub version: &'static str,
 }
 
@@ -48,7 +50,7 @@ pub async fn run(
 
     let peer_id = key.public().to_peer_id();
 
-    info!("I am {}", peer_id);
+    warn!("I am {}", peer_id);
     tracing::Span::current().record("peer_id", &peer_id.to_string());
 
     let external_addr: Multiaddr =
@@ -56,9 +58,38 @@ pub async fn run(
 
     let addr: Multiaddr = format!("/ip4/0.0.0.0/tcp/{}", config.tce_local_port).parse()?;
 
+    use axum::{routing::get, Router};
+    let app = Router::new()
+        .route(
+            "/metrics",
+            get(|| async move {
+                let mut buffer = Vec::new();
+                let encoder = TextEncoder::new();
+
+                // Gather the metrics.
+                let metric_families = prometheus::gather();
+                // Encode them to send.
+                encoder.encode(&metric_families, &mut buffer).unwrap();
+
+                String::from_utf8(buffer.clone()).unwrap()
+            }),
+        )
+        .route("/", get(|| async move { "Hello World" }));
+
+    spawn(async move {
+        let metrics_addr = SocketAddr::from(([0, 0, 0, 0], 3000));
+
+        info!("Starting metrics server on {}", metrics_addr);
+        axum::Server::bind(&metrics_addr)
+            .serve(app.into_make_service())
+            .await
+            .unwrap();
+    });
+
     let (network_client, event_stream, unbootstrapped_runtime) = topos_p2p::network::builder()
         .peer_key(key)
         .listen_addr(addr)
+        .minimum_cluster_size(config.minimum_cluster_size)
         .exposed_addresses(external_addr)
         .known_peers(&config.boot_peers)
         .build()
@@ -80,15 +111,6 @@ pub async fn run(
     spawn(gatekeeper_runtime.into_future());
     debug!("Gatekeeper started");
 
-    debug!("Starting reliable broadcast");
-    let (tce_cli, tce_stream) = ReliableBroadcastClient::new(
-        ReliableBroadcastConfig {
-            tce_params: config.tce_params.clone(),
-        },
-        peer_id.to_string(),
-    );
-    debug!("Reliable broadcast started");
-
     debug!("Starting the Storage");
     let (storage, storage_client, storage_stream) =
         if let StorageConfiguration::RocksDB(Some(ref path)) = config.storage {
@@ -102,6 +124,18 @@ pub async fn run(
         };
     spawn(storage.into_future());
     debug!("Storage started");
+
+    debug!("Starting reliable broadcast");
+    let (tce_cli, tce_stream) = ReliableBroadcastClient::new(
+        ReliableBroadcastConfig {
+            tce_params: config.tce_params.clone(),
+        },
+        peer_id.to_string(),
+        storage_client.clone(),
+        network_client.clone(),
+    )
+    .await;
+    debug!("Reliable broadcast started");
 
     debug!("Starting the Synchronizer");
     let (synchronizer_client, synchronizer_runtime, synchronizer_stream) =

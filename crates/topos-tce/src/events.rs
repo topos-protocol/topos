@@ -1,5 +1,4 @@
-use topos_p2p::PeerId;
-
+#[derive(Debug)]
 pub enum Events {
-    StableSample(Vec<PeerId>),
+    StableSample,
 }

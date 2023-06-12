@@ -28,7 +28,7 @@ type CreateStreamResult = (
 pub fn create_stream(stream_id: Uuid) -> CreateStreamResult {
     let (tx, body) = Body::channel();
     let mut codec = ProstCodec::<WatchCertificatesResponse, WatchCertificatesRequest>::default();
-    let stream = Streaming::new_request(codec.decoder(), body, None)
+    let stream = Streaming::new_request(codec.decoder(), body, None, None)
         .map(move |message| TceGrpcService::parse_stream(message, stream_id))
         .boxed();
 

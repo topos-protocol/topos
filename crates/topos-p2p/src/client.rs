@@ -1,12 +1,15 @@
-use std::{sync::Arc, time::Duration};
+use std::time::Duration;
 
 use futures::future::BoxFuture;
-use libp2p::{request_response::ResponseChannel, PeerId};
+use libp2p::{
+    request_response::{OutboundFailure, ResponseChannel},
+    PeerId,
+};
 use tokio::sync::{
     mpsc::{self, error::SendError},
     oneshot,
 };
-use tracing::{debug, warn};
+use tracing::{debug, info, warn};
 
 use crate::{
     behaviour::transmission::codec::TransmissionResponse,
@@ -19,28 +22,13 @@ pub struct Client {
     pub retry_ttl: u64,
     pub local_peer_id: PeerId,
     pub sender: mpsc::Sender<Command>,
-    pub(crate) shutdown_channel: mpsc::Sender<oneshot::Sender<()>>,
+    pub shutdown_channel: mpsc::Sender<oneshot::Sender<()>>,
 }
 
 impl Client {
     pub async fn start_listening(&self, peer_addr: libp2p::Multiaddr) -> Result<(), P2PError> {
         let (sender, receiver) = oneshot::channel();
         let command = Command::StartListening { peer_addr, sender };
-
-        Self::send_command_with_receiver(&self.sender, command, receiver).await
-    }
-
-    pub async fn dial(
-        &self,
-        peer_id: PeerId,
-        peer_addr: libp2p::Multiaddr,
-    ) -> Result<(), P2PError> {
-        let (sender, receiver) = oneshot::channel();
-        let command = Command::Dial {
-            peer_id,
-            peer_addr,
-            sender,
-        };
 
         Self::send_command_with_receiver(&self.sender, command, receiver).await
     }
@@ -58,7 +46,18 @@ impl Client {
         Self::send_command_with_receiver(&self.sender, command, receiver).await
     }
 
-    pub fn send_request<T: Into<Vec<u8>>, R: From<Vec<u8>>>(
+    pub fn publish<T: std::fmt::Debug + Into<Vec<u8>>>(
+        &self,
+        topic: &'static str,
+        data: T,
+    ) -> BoxFuture<'static, Result<(), SendError<Command>>> {
+        let data = data.into();
+        let network = self.sender.clone();
+
+        Box::pin(async move { network.send(Command::Gossip { topic, data }).await })
+    }
+
+    pub fn send_request<T: std::fmt::Debug + Into<Vec<u8>>, R: From<Vec<u8>>>(
         &self,
         to: PeerId,
         data: T,
@@ -76,7 +75,7 @@ impl Client {
 
             loop {
                 let (addr_sender, addr_receiver) = oneshot::channel();
-                if let Err(e) = Self::send_command_with_receiver(
+                match Self::send_command_with_receiver(
                     &network,
                     Command::Discover {
                         to,
@@ -86,14 +85,19 @@ impl Client {
                 )
                 .await
                 {
-                    if retry_count == 0 {
-                        break;
+                    Err(e) if retry_count == 0 => {
+                        warn!(
+                            "Fail to send discovery query to {} because of error {e:?}",
+                            to
+                        );
+                        return Err(e);
                     }
-                    retry_count -= 1;
-                    debug!("Retry query because of failure {e:?}");
-                    tokio::time::sleep(Duration::from_millis(ttl)).await;
-                } else {
-                    break;
+                    Err(e) => {
+                        retry_count -= 1;
+                        debug!("Retry query because of failure {e:?} during discovery phase");
+                        tokio::time::sleep(Duration::from_millis(ttl)).await;
+                    }
+                    Ok(_) => break,
                 }
             }
             let mut retry_count = match retry_policy {
@@ -114,11 +118,20 @@ impl Client {
                 .await
                 {
                     Err(e) if retry_count == 0 => {
+                        warn!("Fail to send query to {} because of error {e:?}", to);
                         return Err(e);
                     }
                     Err(e) => {
                         retry_count -= 1;
-                        warn!("Retry query because of failure {e:?}");
+                        // Note: Currently UnsupportedProtocols is returned when the peer is not able to handle the request
+                        if !matches!(
+                            e,
+                            CommandExecutionError::RequestOutbandFailure(
+                                OutboundFailure::UnsupportedProtocols
+                            )
+                        ) {
+                            info!("Retry query because of failure {e:?}");
+                        }
                         tokio::time::sleep(Duration::from_millis(ttl)).await;
                     }
                     Ok(res) => {

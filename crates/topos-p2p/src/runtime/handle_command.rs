@@ -3,15 +3,15 @@ use std::collections::hash_map::Entry;
 use crate::{
     behaviour::transmission::codec::{TransmissionRequest, TransmissionResponse},
     error::P2PError,
-    Command, Runtime,
+    Command, Runtime, MESSAGE_SENT_ON_GOSSIP,
 };
 use libp2p::{
+    gossipsub::IdentTopic,
     kad::{record::Key, Quorum},
     swarm::NetworkBehaviour,
     PeerId,
 };
-use tracing::{debug, info, warn};
-
+use tracing::{debug, error, info, warn};
 impl Runtime {
     pub(crate) async fn handle_command(&mut self, command: Command) {
         match command {
@@ -96,15 +96,20 @@ impl Runtime {
 
             Command::Discover { to, sender } => {
                 let behaviour = self.swarm.behaviour_mut();
-                let addr = behaviour.discovery.addresses_of_peer(&to);
+                let addr = behaviour.discovery.get_addresses_of_peer(&to);
 
                 info!("Checking if we know {to} -> KAD {:?}", addr);
                 if addr.is_empty() {
                     info!("We don't know {to}, fetching its Multiaddr from DHT");
-                    let query_id = behaviour.discovery.get_record(Key::new(&to.to_string()));
+                    let query_id = behaviour
+                        .discovery
+                        .inner
+                        .get_record(Key::new(&to.to_string()));
 
                     debug!("Created a get_record query {query_id:?} for discovering {to}");
-                    self.pending_record_requests.insert(query_id, sender);
+                    if let Some(id) = self.pending_record_requests.insert(query_id, sender) {
+                        warn!("Discover request {id:?} was overwritten by {query_id:?}");
+                    }
                 } else {
                     _ = sender.send(Ok(addr));
                 }
@@ -117,7 +122,11 @@ impl Runtime {
                     .transmission
                     .send_request(&to, TransmissionRequest(data));
 
-                self.pending_requests.insert(request_id, sender);
+                info!("Created a transmission request {request_id:?} for {to}");
+
+                if let Some(id) = self.pending_requests.insert(request_id, sender) {
+                    warn!("Transmission request {id:?} was overwritten by {request_id:?}",);
+                }
             }
 
             Command::TransmissionResponse { data, channel } => {
@@ -126,6 +135,21 @@ impl Runtime {
                     .behaviour_mut()
                     .transmission
                     .send_response(channel, TransmissionResponse(data));
+            }
+
+            Command::Gossip { topic, data } => {
+                match self
+                    .swarm
+                    .behaviour_mut()
+                    .gossipsub
+                    .publish(IdentTopic::new(topic), data)
+                {
+                    Ok(message_id) => {
+                        info!("Published message {message_id:?} to {topic}");
+                        MESSAGE_SENT_ON_GOSSIP.inc();
+                    }
+                    Err(err) => error!("Failed to publish message to {topic}: {err}"),
+                }
             }
         }
     }

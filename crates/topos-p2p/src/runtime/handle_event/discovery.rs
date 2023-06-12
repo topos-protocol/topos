@@ -64,6 +64,7 @@ impl EventHandler<Box<KademliaEvent>> for Runtime {
                                     self.swarm
                                         .behaviour_mut()
                                         .discovery
+                                        .inner
                                         .add_address(&peer_id, addr.clone());
 
                                     if sender.send(Ok(vec![addr.clone()])).is_err() {
@@ -92,7 +93,7 @@ impl EventHandler<Box<KademliaEvent>> for Runtime {
                             warn!("Could not notify Record query ({id:?}) response because initiator is dropped");
                         }
                     }
-                    error!("GetRecordError query_id: {id:?}, error: {error:?}")
+                    warn!("GetRecordError query_id: {id:?}, error: {error:?}");
                 }
             },
 

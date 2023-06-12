@@ -1,15 +1,16 @@
 use std::io;
 
 use libp2p::{
-    core::either::EitherError,
+    core::either,
     multiaddr::Protocol,
-    swarm::{ConnectionHandlerUpgrErr, NetworkBehaviour, SwarmEvent},
+    swarm::{derive_prelude::Either, ConnectionHandlerUpgrErr, NetworkBehaviour, SwarmEvent},
 };
 use tracing::{debug, error, info, warn};
 
 use crate::{event::ComposedEvent, Event, Runtime};
 
 mod discovery;
+mod gossipsub;
 mod peer_info;
 mod transmission;
 
@@ -34,6 +35,7 @@ impl EventHandler<ComposedEvent> for Runtime {
             ComposedEvent::Kademlia(event) => self.handle(event).await,
             ComposedEvent::PeerInfo(event) => self.handle(event).await,
             ComposedEvent::Transmission(event) => self.handle(event).await,
+            ComposedEvent::Gossipsub(event) => self.handle(event).await,
             ComposedEvent::OutEvent(event) => self.handle(event).await,
             ComposedEvent::Void => (),
         }
@@ -45,8 +47,11 @@ impl
     EventHandler<
         SwarmEvent<
             ComposedEvent,
-            EitherError<
-                EitherError<EitherError<io::Error, io::Error>, ConnectionHandlerUpgrErr<io::Error>>,
+            Either<
+                Either<
+                    Either<Either<io::Error, io::Error>, ConnectionHandlerUpgrErr<io::Error>>,
+                    void::Void,
+                >,
                 void::Void,
             >,
         >,
@@ -56,8 +61,11 @@ impl
         &mut self,
         event: SwarmEvent<
             ComposedEvent,
-            EitherError<
-                EitherError<EitherError<io::Error, io::Error>, ConnectionHandlerUpgrErr<io::Error>>,
+            Either<
+                Either<
+                    Either<Either<io::Error, io::Error>, ConnectionHandlerUpgrErr<io::Error>>,
+                    void::Void,
+                >,
                 void::Void,
             >,
         >,
@@ -80,7 +88,6 @@ impl
                     error!("OutgoingConnectionError {error:?}");
                 }
 
-                error!("Dial failure: {error:?}");
                 if let Some(peer_id) = peer_id {
                     if let Some(sender) = self.pending_dial.remove(&peer_id) {
                         if sender.send(Err(crate::error::P2PError::DialError)).is_err() {
@@ -141,17 +148,7 @@ impl
                 }
             }
 
-            SwarmEvent::Dialing(peer_id) => {
-                info!("Dial {:?} from {:?}", peer_id, *self.swarm.local_peer_id());
-                let behaviour = self.swarm.behaviour_mut();
-                let kad_addr = behaviour.discovery.addresses_of_peer(&peer_id);
-                let addr = behaviour.transmission.addresses_of_peer(&peer_id);
-
-                debug!(
-                    "Checking if we know {peer_id} -> KAD {:?}, Transmission {:?}",
-                    kad_addr, addr
-                );
-            }
+            SwarmEvent::Dialing(peer_id) => {}
 
             SwarmEvent::Behaviour(event) => {
                 self.handle(event).await;

@@ -3,33 +3,29 @@ use futures::Stream;
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
 use topos_tce_transport::{ProtocolEvents, ReliableBroadcastParams};
 
-pub fn create_reliable_broadcast_client(
+pub async fn create_reliable_broadcast_client(
     tce_params: ReliableBroadcastParams,
     peer_id: String,
+    storage: topos_tce_storage::StorageClient,
+    network: topos_p2p::Client,
 ) -> (
     ReliableBroadcastClient,
     impl Stream<Item = Result<ProtocolEvents, ()>> + Unpin,
 ) {
     let config = ReliableBroadcastConfig { tce_params };
 
-    ReliableBroadcastClient::new(config, peer_id)
+    ReliableBroadcastClient::new(config, peer_id, storage, network).await
 }
 
-pub fn create_reliable_broadcast_params<F>(correct_sample: usize, g: F) -> ReliableBroadcastParams
-where
-    F: Fn(usize, f32) -> usize,
-{
+pub fn create_reliable_broadcast_params(number_of_nodes: usize) -> ReliableBroadcastParams {
     let mut params = ReliableBroadcastParams {
         ..Default::default()
     };
+    let f = (number_of_nodes.saturating_sub(1)) / 3;
 
-    let e_ratio: f32 = 0.5;
-    let r_ratio: f32 = 0.5;
-    let d_ratio: f32 = 0.5;
-
-    params.echo_threshold = g(correct_sample, e_ratio);
-    params.ready_threshold = g(correct_sample, r_ratio);
-    params.delivery_threshold = g(correct_sample, d_ratio);
+    params.echo_threshold = 1 + ((number_of_nodes.saturating_add(f)) / 2);
+    params.ready_threshold = 1 + f;
+    params.delivery_threshold = 2 * f + 1;
 
     params
 }

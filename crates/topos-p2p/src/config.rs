@@ -5,17 +5,27 @@ pub struct NetworkConfig {
     pub minimum_cluster_size: usize,
     pub client_retry_ttl: u64,
     pub discovery: DiscoveryConfig,
+    pub yamux_max_buffer_size: usize,
+    pub yamux_window_size: Option<u32>,
 }
 
 impl Default for NetworkConfig {
     fn default() -> Self {
         Self {
-            publish_retry: 10,
-            minimum_cluster_size: 5,
-            client_retry_ttl: 200,
+            publish_retry: Self::PUBLISH_RETRY,
+            minimum_cluster_size: Self::MINIMUM_CLUSTER_SIZE,
+            client_retry_ttl: Self::CLIENT_RETRY_TTL,
             discovery: Default::default(),
+            yamux_max_buffer_size: usize::MAX,
+            yamux_window_size: None,
         }
     }
+}
+
+impl NetworkConfig {
+    pub const MINIMUM_CLUSTER_SIZE: usize = 5;
+    pub const PUBLISH_RETRY: usize = 10;
+    pub const CLIENT_RETRY_TTL: u64 = 200;
 }
 
 pub struct DiscoveryConfig {

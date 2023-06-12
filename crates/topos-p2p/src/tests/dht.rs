@@ -38,10 +38,12 @@ async fn put_value_in_dht() {
     let mut runtime = runtime.bootstrap().await.unwrap();
 
     let kad = &mut runtime.swarm.behaviour_mut().discovery;
-    kad.add_address(&peer_1.keypair.public().to_peer_id(), peer_1.addr);
+    kad.inner
+        .add_address(&peer_1.keypair.public().to_peer_id(), peer_1.addr);
 
     let input_key = Key::new(&runtime.local_peer_id.to_string());
     _ = kad
+        .inner
         .put_record(
             Record::new(input_key.clone(), runtime.addresses.to_vec()),
             libp2p::kad::Quorum::One,

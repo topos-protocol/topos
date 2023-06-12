@@ -1,6 +1,5 @@
 use crate::double_echo::*;
 use crate::mem_store::TceMemStore;
-use crate::sampler::SubscribersUpdate;
 use crate::*;
 use rstest::*;
 use std::collections::HashSet;
@@ -9,7 +8,6 @@ use tce_transport::ReliableBroadcastParams;
 use tokio::sync::broadcast::error::TryRecvError;
 use tokio::sync::broadcast::Receiver;
 use tokio::time::Duration;
-use topos_p2p::PeerId;
 
 use topos_test_sdk::constants::*;
 
@@ -48,14 +46,12 @@ struct TceParams {
 
 struct Context {
     event_receiver: Receiver<ProtocolEvents>,
-    subscribers_update_sender: Sender<SubscribersUpdate>,
     subscriptions_view_sender: Sender<SubscriptionsView>,
     cmd_sender: Sender<DoubleEchoCommand>,
     double_echo_shutdown_sender: Sender<oneshot::Sender<()>>,
 }
 
 fn create_context(params: TceParams) -> (DoubleEcho, Context) {
-    let (subscribers_update_sender, subscribers_update_receiver) = mpsc::channel(CHANNEL_SIZE);
     let (subscriptions_view_sender, subscriptions_view_receiver) = mpsc::channel(CHANNEL_SIZE);
 
     let (cmd_sender, cmd_receiver) = mpsc::channel(CHANNEL_SIZE);
@@ -63,15 +59,32 @@ fn create_context(params: TceParams) -> (DoubleEcho, Context) {
     let (double_echo_shutdown_sender, double_echo_shutdown_receiver) =
         mpsc::channel::<oneshot::Sender<()>>(1);
 
+    let (sender, _) = mpsc::channel(CHANNEL_SIZE);
+    let (storage_sender, _) = mpsc::channel(CHANNEL_SIZE);
+    let (shutdown_sender_storage, _) = mpsc::channel(1);
+    let (shutdown_sender, _) = mpsc::channel(1);
+    let storage_client = topos_tce_storage::StorageClient {
+        sender: storage_sender,
+        shutdown_channel: shutdown_sender_storage,
+    };
+    let network_client = topos_p2p::Client {
+        retry_ttl: 10,
+        local_peer_id: topos_test_sdk::p2p::local_peer(1).0.public().to_peer_id(),
+        sender,
+        shutdown_channel: shutdown_sender,
+    };
     let mut double_echo = DoubleEcho::new(
         params.broadcast_params,
         cmd_receiver,
         subscriptions_view_receiver,
-        subscribers_update_receiver,
         event_sender,
         Box::<TceMemStore>::default(),
+        storage_client,
+        network_client,
         double_echo_shutdown_receiver,
         String::new(),
+        0,
+        1024,
     );
 
     // List of peers
@@ -89,15 +102,11 @@ fn create_context(params: TceParams) -> (DoubleEcho, Context) {
     double_echo.subscriptions.delivery = peers.clone();
     double_echo.subscriptions.network_size = params.nb_peers;
 
-    // Subscribers
-    double_echo.subscribers.echo = peers.clone();
-    double_echo.subscribers.ready = peers;
-
     (
         double_echo,
         Context {
             event_receiver,
-            subscribers_update_sender,
+            // subscribers_update_sender,
             subscriptions_view_sender,
             cmd_sender,
             double_echo_shutdown_sender,
@@ -167,21 +176,22 @@ async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams)
     .expect("Dummy certificate");
 
     // Trigger Echo upon dispatching
-    double_echo.handle_broadcast(dummy_cert.clone());
+    double_echo.handle_broadcast(dummy_cert.clone(), true);
 
     assert_eq!(ctx.event_receiver.len(), 3);
 
     assert!(matches!(
         ctx.event_receiver.try_recv(),
-        Ok(ProtocolEvents::Gossip { peers, .. }) if peers.len() == double_echo.gossip_peers().len()
+        Ok(ProtocolEvents::Gossip { .. })
     ));
     assert!(matches!(
         ctx.event_receiver.try_recv(),
         Ok(ProtocolEvents::Broadcast { certificate_id }) if certificate_id == dummy_cert.id
     ));
     assert!(matches!(
-            ctx.event_receiver.try_recv(),
-            Ok(ProtocolEvents::Echo { peers, .. }) if peers.len() == double_echo.subscribers.echo.len()));
+        ctx.event_receiver.try_recv(),
+        Ok(ProtocolEvents::Echo { .. })
+    ));
 
     assert!(matches!(
         ctx.event_receiver.try_recv(),
@@ -196,7 +206,7 @@ async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams)
     assert_eq!(ctx.event_receiver.len(), 1);
     assert!(matches!(
         ctx.event_receiver.try_recv(),
-        Ok(ProtocolEvents::Ready { peers, .. }) if peers.len() == double_echo.subscribers.ready.len()
+        Ok(ProtocolEvents::Ready { .. })
     ));
 
     // Trigger Delivery upon reaching the Delivery threshold
@@ -230,7 +240,7 @@ async fn trigger_ready_when_reached_enough_ready(#[case] params: TceParams) {
     .expect("Dummy certificate");
 
     // Trigger Echo upon dispatching
-    double_echo.handle_broadcast(dummy_cert.clone());
+    double_echo.handle_broadcast(dummy_cert.clone(), true);
 
     assert_eq!(ctx.event_receiver.len(), 3);
     assert!(matches!(
@@ -253,7 +263,7 @@ async fn trigger_ready_when_reached_enough_ready(#[case] params: TceParams) {
     assert_eq!(ctx.event_receiver.len(), 1);
     assert!(matches!(
         ctx.event_receiver.try_recv(),
-        Ok(ProtocolEvents::Ready { peers, .. }) if peers.len() == double_echo.subscribers.ready.len()
+        Ok(ProtocolEvents::Ready { .. })
     ));
 }
 
@@ -277,7 +287,7 @@ async fn process_after_delivery_until_sending_ready(#[case] params: TceParams) {
     .expect("Dummy certificate");
 
     // Trigger Echo upon dispatching
-    double_echo.handle_broadcast(dummy_cert.clone());
+    double_echo.handle_broadcast(dummy_cert.clone(), true);
 
     assert_eq!(ctx.event_receiver.len(), 3);
     assert!(matches!(
@@ -313,7 +323,7 @@ async fn process_after_delivery_until_sending_ready(#[case] params: TceParams) {
     assert_eq!(ctx.event_receiver.len(), 1);
     assert!(matches!(
         ctx.event_receiver.try_recv(),
-        Ok(ProtocolEvents::Ready { peers, .. }) if peers.len() == double_echo.subscribers.ready.len()
+        Ok(ProtocolEvents::Ready { .. })
     ));
 }
 
@@ -323,24 +333,9 @@ async fn process_after_delivery_until_sending_ready(#[case] params: TceParams) {
 async fn buffering_certificate(#[case] params: TceParams) {
     let (double_echo, mut ctx) = create_context(params);
 
-    let subscribers = double_echo.subscribers.clone();
     let subscriptions = double_echo.subscriptions.clone();
 
     spawn(double_echo.run());
-
-    // Add subscribers
-    for &peer in subscribers.echo.iter() {
-        ctx.subscribers_update_sender
-            .send(SubscribersUpdate::NewEchoSubscriber(peer))
-            .await
-            .expect("Added new subscriber");
-    }
-    for &peer in subscribers.ready.iter() {
-        ctx.subscribers_update_sender
-            .send(SubscribersUpdate::NewReadySubscriber(peer))
-            .await
-            .expect("Added new subscriber");
-    }
 
     // Wait to receive subscribers
     tokio::time::sleep(WAIT_EVENT_TIMEOUT).await;
@@ -348,8 +343,9 @@ async fn buffering_certificate(#[case] params: TceParams) {
     let le_cert = Certificate::default();
     ctx.cmd_sender
         .send(DoubleEchoCommand::Broadcast {
+            need_gossip: true,
             cert: le_cert.clone(),
-            ctx: Span::current().context(),
+            ctx: Span::current(),
         })
         .await
         .expect("Cannot send broadcast command");
@@ -360,29 +356,19 @@ async fn buffering_certificate(#[case] params: TceParams) {
         .await
         .expect("Cannot send expected view");
 
-    let mut received_gossip_commands: Vec<(HashSet<PeerId>, Certificate)> = Vec::new();
+    let mut received_gossip_commands: Vec<Certificate> = Vec::new();
     let assertion = async {
         while let Ok(event) = ctx.event_receiver.recv().await {
-            if let ProtocolEvents::Gossip { peers, cert, .. } = event {
-                received_gossip_commands.push((peers.into_iter().collect(), cert));
+            if let ProtocolEvents::Gossip { cert, .. } = event {
+                received_gossip_commands.push(cert);
             }
         }
     };
 
     let _ = tokio::time::timeout(Duration::from_secs(1), assertion).await;
 
-    // Check if gossip Event is sent to all peers
-    let all_gossip_peers = subscriptions
-        .get_subscriptions()
-        .into_iter()
-        .chain(subscribers.get_subscribers().into_iter())
-        .collect::<HashSet<_>>()
-        .into_iter()
-        .collect();
-
     assert_eq!(received_gossip_commands.len(), 1);
-    assert_eq!(received_gossip_commands[0].0, all_gossip_peers);
-    assert_eq!(received_gossip_commands[0].1.id, le_cert.id);
+    assert_eq!(received_gossip_commands[0].id, le_cert.id);
 
     // Test shutdown
     info!("Waiting for double echo to shutdown...");

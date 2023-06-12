@@ -21,7 +21,31 @@ pub use libp2p::Multiaddr;
 pub use libp2p::PeerId;
 pub use runtime::Runtime;
 
+use prometheus::{self, Encoder, IntCounter, TextEncoder};
+
+use lazy_static::lazy_static;
+use prometheus::register_int_counter;
+
+lazy_static! {
+    static ref MESSAGE_RECEIVED_ON_GOSSIP: IntCounter =
+        register_int_counter!("gossip_message_count", "Number of gossip message received.")
+            .unwrap();
+    static ref MESSAGE_RECEIVED_ON_ECHO: IntCounter =
+        register_int_counter!("echo_message_count", "Number of echo message received.").unwrap();
+    static ref MESSAGE_RECEIVED_ON_READY: IntCounter =
+        register_int_counter!("ready_message_count", "Number of ready message received.").unwrap();
+    static ref MESSAGE_SENT_ON_GOSSIP: IntCounter = register_int_counter!(
+        "gossip_message_sent_count",
+        "Number of gossip message sent."
+    )
+    .unwrap();
+}
+
 pub mod network;
+
+pub const TOPOS_GOSSIP: &str = "topos_gossip";
+pub const TOPOS_ECHO: &str = "topos_echo";
+pub const TOPOS_READY: &str = "topos_ready";
 
 pub mod utils {
     use libp2p::identity;
@@ -33,10 +57,7 @@ pub mod utils {
             Some(seed) => {
                 let mut bytes = [0u8; 32];
                 bytes[0] = seed;
-                let secret_key = identity::ed25519::SecretKey::from_bytes(&mut bytes).expect(
-                    "this returns `Err` only if the length is wrong; the length is correct; qed",
-                );
-                identity::Keypair::Ed25519(secret_key.into())
+                identity::Keypair::ed25519_from_bytes(bytes).expect("Invalid keypair")
             }
             None => identity::Keypair::generate_ed25519(),
         }
@@ -51,8 +72,6 @@ pub mod utils {
             bytes.clone_from_slice(&slice[..32]);
         }
 
-        let secret_key = identity::ed25519::SecretKey::from_bytes(&mut bytes)
-            .expect("this returns `Err` only if the length is wrong; the length is correct; qed");
-        identity::Keypair::Ed25519(secret_key.into())
+        identity::Keypair::ed25519_from_bytes(bytes).expect("Invalid keypair")
     }
 }

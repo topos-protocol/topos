@@ -1,11 +1,11 @@
 //! implementation of Topos Network Transport
 //!
 use clap::Args;
-use opentelemetry::Context;
 use serde::{Deserialize, Serialize};
 use topos_core::uci::{Certificate, CertificateId};
 use topos_p2p::PeerId;
 use topos_telemetry::PropagationContext;
+use tracing::Span;
 
 #[derive(Args, Default, Clone, Debug)]
 #[command(name = "Parameters of the reliable broadcast")]
@@ -33,13 +33,13 @@ pub enum TceCommands {
     /// We got updated list of visible peers to work with, let protocol do the sampling
     OnVisiblePeersChanged { peers: Vec<PeerId> },
     /// Given peer sent EchoSubscribe request
-    OnEchoSubscribeReq { from_peer: PeerId },
+    OnEchoSubscribeReq {},
     /// Given peer sent ReadySubscribe request
-    OnReadySubscribeReq { from_peer: PeerId },
+    OnReadySubscribeReq {},
     /// Given peer replied ok to the EchoSubscribe request
-    OnEchoSubscribeOk { from_peer: PeerId },
+    OnEchoSubscribeOk {},
     /// Given peer replied ok to the ReadySubscribe request
-    OnReadySubscribeOk { from_peer: PeerId },
+    OnReadySubscribeOk {},
     /// Upon new certificate to start delivery
     OnStartDelivery { cert: Certificate },
     /// Received G-set message
@@ -49,60 +49,73 @@ pub enum TceCommands {
     },
     /// When echo reply received
     OnEcho {
-        from_peer: PeerId,
         certificate_id: CertificateId,
         ctx: PropagationContext,
     },
     /// When ready reply received
     OnReady {
-        from_peer: PeerId,
         certificate_id: CertificateId,
         ctx: PropagationContext,
     },
     /// Given peer replied ok to the double echo request
-    OnDoubleEchoOk { from_peer: PeerId },
+    OnDoubleEchoOk {},
 }
 
 /// Protocol events
 #[derive(Clone, Debug)]
 pub enum ProtocolEvents {
+    BroadcastFailed {
+        certificate_id: CertificateId,
+    },
+    AlreadyDelivered {
+        certificate_id: CertificateId,
+    },
     /// Emitted to get peers list, expected that Commands.ApplyPeers will come as reaction
     NeedPeers,
     /// (pb.Broadcast)
-    Broadcast { certificate_id: CertificateId },
+    Broadcast {
+        certificate_id: CertificateId,
+    },
     /// After sampling is done we ask peers to participate in the protocol (and provide us echo feedback)
-    EchoSubscribeReq { peers: Vec<PeerId> },
+    EchoSubscribeReq {
+        peers: Vec<PeerId>,
+    },
     /// After sampling is done we ask peers to participate in the protocol
     /// (and provide us ready/delivery feedback (both with Ready message))
-    ReadySubscribeReq { peers: Vec<PeerId> },
+    ReadySubscribeReq {
+        peers: Vec<PeerId>,
+    },
     /// We are ok to participate in the protocol and confirm that to subscriber
-    EchoSubscribeOk { to_peer: PeerId },
+    EchoSubscribeOk {
+        to_peer: PeerId,
+    },
     /// We are ok to participate in the protocol and confirm that to subscriber
-    ReadySubscribeOk { to_peer: PeerId },
+    ReadySubscribeOk {
+        to_peer: PeerId,
+    },
     /// Indicates that 'gossip' message broadcasting is required
     Gossip {
-        peers: Vec<PeerId>,
         cert: Certificate,
-        ctx: Context,
+        ctx: Span,
     },
     /// Indicates that 'echo' message broadcasting is required
     Echo {
-        peers: Vec<PeerId>,
         certificate_id: CertificateId,
-        ctx: Context,
+        ctx: Span,
     },
     /// Indicates that 'ready' message broadcasting is required
     Ready {
-        peers: Vec<PeerId>,
         certificate_id: CertificateId,
-        ctx: Context,
+        ctx: Span,
     },
     /// For simulation purpose, for now only caused by ill-formed sampling
     Die,
 
     /// Certificate successfully delivered
-    CertificateDelivered { certificate: Certificate },
+    CertificateDelivered {
+        certificate: Certificate,
+    },
 
     /// Stable Sample
-    StableSample(Vec<PeerId>),
+    StableSample,
 }

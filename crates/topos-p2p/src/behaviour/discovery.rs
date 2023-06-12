@@ -4,19 +4,25 @@ use crate::{
     config::DiscoveryConfig,
     error::{CommandExecutionError, P2PError},
 };
+use libp2p::kad::KademliaEvent;
 use libp2p::{
     identity::Keypair,
     kad::{store::MemoryStore, Kademlia, KademliaBucketInserts, KademliaConfig},
+    swarm::{behaviour, NetworkBehaviour},
     Multiaddr, PeerId,
 };
 use tokio::sync::oneshot;
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 pub type PendingDials = HashMap<PeerId, oneshot::Sender<Result<(), P2PError>>>;
 pub type PendingRecordRequest = oneshot::Sender<Result<Vec<Multiaddr>, CommandExecutionError>>;
 
 /// DiscoveryBehaviour is responsible to discover and manage connections with peers
-pub(crate) struct DiscoveryBehaviour {}
+#[derive(NetworkBehaviour)]
+#[behaviour(out_event = "KademliaEvent")]
+pub(crate) struct DiscoveryBehaviour {
+    pub(crate) inner: Kademlia<MemoryStore>,
+}
 
 impl DiscoveryBehaviour {
     pub fn create(
@@ -25,7 +31,7 @@ impl DiscoveryBehaviour {
         discovery_protocol: Cow<'static, [u8]>,
         known_peers: &[(PeerId, Multiaddr)],
         _with_mdns: bool,
-    ) -> Kademlia<MemoryStore> {
+    ) -> Self {
         let local_peer_id = peer_key.public().to_peer_id();
         let kademlia_config = KademliaConfig::default()
             .set_protocol_names(vec![discovery_protocol])
@@ -54,6 +60,18 @@ impl DiscoveryBehaviour {
             warn!(reason = %store_error, "Could not start providing Kademlia protocol `topos-tce`")
         }
 
-        kademlia
+        Self { inner: kademlia }
+    }
+
+    pub fn get_addresses_of_peer(&mut self, peer_id: &PeerId) -> Vec<Multiaddr> {
+        if let Some(key_ref) = self.inner.kbucket(*peer_id) {
+            key_ref
+                .iter()
+                .filter(|e| e.node.key.preimage() == peer_id)
+                .map(|e| e.node.value.first().clone())
+                .collect()
+        } else {
+            Vec::new()
+        }
     }
 }

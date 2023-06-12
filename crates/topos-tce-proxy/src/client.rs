@@ -1,8 +1,11 @@
 use crate::{Error, TceProxyEvent};
 use base64::Engine;
+use futures::stream::FuturesUnordered;
+use opentelemetry::trace::FutureExt;
 use std::collections::HashMap;
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::StreamExt;
+use tonic::IntoRequest;
 use topos_core::api::checkpoints::{TargetCheckpoint, TargetStreamPosition};
 use topos_core::api::tce::v1::{GetLastPendingCertificatesRequest, GetSourceHeadRequest};
 use topos_core::{
@@ -12,7 +15,8 @@ use topos_core::{
     },
     uci::{Certificate, SubnetId},
 };
-use tracing::{error, info, warn};
+use tracing::{error, info, info_span, warn, Instrument, Span};
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 const CERTIFICATE_OUTBOUND_CHANNEL_SIZE: usize = 100;
 const CERTIFICATE_INBOUND_CHANNEL_SIZE: usize = 100;
@@ -37,6 +41,7 @@ pub(crate) enum TceClientCommand {
     // Send generated certificate to the TCE node
     SendCertificate {
         cert: Box<Certificate>,
+        span: tracing::Span,
     },
     Shutdown,
 }
@@ -64,7 +69,10 @@ impl TceClient {
         self.command_sender
             .send(TceClientCommand::SendCertificate {
                 cert: Box::new(cert),
+                span: tracing::Span::current(),
             })
+            .with_current_context()
+            .in_current_span()
             .await
             .map_err(|_| Error::InvalidChannelError)?;
         Ok(())
@@ -145,6 +153,7 @@ impl TceClientBuilder {
 
     pub async fn build_and_launch(
         self,
+        mut shutdown: mpsc::Receiver<oneshot::Sender<()>>,
     ) -> Result<
         (
             TceClient,
@@ -303,31 +312,65 @@ impl TceClientBuilder {
             .as_ref()
             .ok_or(Error::InvalidTceEndpoint)?
             .clone();
+
         tokio::spawn(async move {
+            let mut certificate_to_send = FuturesUnordered::new();
             info!(
                 "Entering tce proxy command loop for stream {}",
                 &tce_endpoint
             );
             loop {
                 tokio::select! {
-                   command = tce_command_receiver.recv() => {
+                    Some(_) = certificate_to_send.next() => {
+                        continue;
+                    }
+                    Some(sender) = shutdown.recv() => {
+                        info!("Shutdown tce proxy command received...");
+                        if !certificate_to_send.is_empty() {
+                            info!("Waiting for all certificates to be sent...");
+                            while certificate_to_send.next().await.is_some() {}
+                        }
+
+                        inbound_shutdown_sender.send(()).expect("valid channel for shutting down task");
+
+                        sender.send(()).expect("valid channel for shutting down task");
+                        break;
+                    }
+                    command = tce_command_receiver.recv() => {
                         match command {
-                           Some(TceClientCommand::SendCertificate {cert}) =>  {
+                           Some(TceClientCommand::SendCertificate {cert, span}) =>  {
                                 let cert_id = cert.id;
                                 let previous_cert_id = cert.prev_id;
-                                match tce_grpc_client
-                                .submit_certificate(SubmitCertificateRequest {
+                                let span = info_span!(parent: &span, "SendCertificate", %cert_id, %previous_cert_id, %tce_endpoint);
+                                let context = span.context();
+
+                                let mut request = SubmitCertificateRequest {
                                     certificate: Some(topos_core::api::uci::v1::Certificate::from(*cert)),
-                                })
-                                .await
-                                .map(|r| r.into_inner()) {
-                                    Ok(_response)=> {
-                                        info!("Successfully sent the Certificate {} (previous: {}) to the TCE at {}", &cert_id, &previous_cert_id, &tce_endpoint);
-                                    }
-                                    Err(e) => {
-                                        error!("Failed to submit the Certificate to the TCE at {}: {e}", &tce_endpoint);
+                                }.into_request();
+
+                                let mut span_context = topos_telemetry::TonicMetaInjector(request.metadata_mut());
+
+                                span_context.inject(&context);
+
+                                let tce_endpoint = tce_endpoint.clone();
+                                let mut tce_grpc_client = tce_grpc_client.clone();
+                                certificate_to_send.push(async move {
+                                    match tce_grpc_client
+                                        .submit_certificate(request)
+                                        .with_current_context()
+                                        .instrument(Span::current())
+                                        .await
+                                        .map(|r| r.into_inner()) {
+                                            Ok(_response)=> {
+                                                info!("Successfully sent the Certificate {} (previous: {}) to the TCE at {}", &cert_id, &previous_cert_id, &tce_endpoint);
+                                            }
+                                            Err(e) => {
+                                                error!("Failed to submit the Certificate to the TCE at {}: {e}", &tce_endpoint);
+                                            }
                                     }
                                 }
+                                .with_context(context)
+                                .instrument(span));
                             }
                             Some(TceClientCommand::OpenStream {target_checkpoint}) =>  {
                                 // Send command to TCE to open stream with my subnet id
@@ -429,7 +472,8 @@ impl TceClientBuilder {
                                 };
                             }
                             None => {
-                                panic!("Unexpected termination of the TCE proxy service of the Sequencer");
+                                error!("Unexpected termination of the TCE proxy service of the Sequencer");
+                                break;
                             }
                         }
                     }
