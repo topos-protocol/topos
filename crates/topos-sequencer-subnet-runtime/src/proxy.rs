@@ -9,7 +9,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::sync::{mpsc, oneshot};
 use tokio::time::{self, Duration};
-use topos_core::api::checkpoints::TargetStreamPosition;
+use topos_core::api::grpc::checkpoints::TargetStreamPosition;
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
 use topos_sequencer_subnet_client::{self, SubnetClient};
 use tracing::{debug, error, field, info, info_span, instrument, warn, Instrument, Span};
@@ -402,9 +402,11 @@ impl SubnetRuntimeProxy {
     ) -> Result<(), Error> {
         self.source_head_certificate_id_sender
             .take()
-            .ok_or(Error::SourceHeadCertChannelError(
-                "source head certificate id was previously set".to_string(),
-            ))?
+            .ok_or_else(|| {
+                Error::SourceHeadCertChannelError(
+                    "source head certificate id was previously set".to_string(),
+                )
+            })?
             .send(source_head_certificate_id)
             .map_err(|_| Error::SourceHeadCertChannelError("channel error".to_string()))
     }

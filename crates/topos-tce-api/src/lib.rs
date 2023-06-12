@@ -1,3 +1,4 @@
+mod graphql;
 mod grpc;
 mod metadata_map;
 mod runtime;

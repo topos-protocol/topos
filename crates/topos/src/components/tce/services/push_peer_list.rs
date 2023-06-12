@@ -6,7 +6,7 @@ use std::{
 };
 
 use futures::FutureExt;
-use topos_core::api::tce::v1::PushPeerListRequest;
+use topos_core::api::grpc::tce::v1::PushPeerListRequest;
 use tower::Service;
 use tracing::{debug, error, info, trace};
 use uuid::Uuid;

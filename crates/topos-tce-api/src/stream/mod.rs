@@ -8,7 +8,7 @@ use tokio::{
     time::timeout,
 };
 use tonic::Status;
-use topos_core::api::checkpoints::{TargetCheckpoint, TargetStreamPosition};
+use topos_core::api::grpc::checkpoints::{TargetCheckpoint, TargetStreamPosition};
 use topos_core::uci::SubnetId;
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;

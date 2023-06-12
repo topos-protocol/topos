@@ -3,7 +3,7 @@ use futures::FutureExt;
 use std::{net::UdpSocket, process::Command, time::Duration};
 use tokio::spawn;
 use tonic::{Request, Response, Status};
-use topos_core::api::tce::v1::{
+use topos_core::api::grpc::tce::v1::{
     console_service_server::{ConsoleService, ConsoleServiceServer},
     PushPeerListRequest, PushPeerListResponse, StatusRequest, StatusResponse,
 };

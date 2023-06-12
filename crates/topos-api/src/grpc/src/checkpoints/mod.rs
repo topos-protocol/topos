@@ -1,4 +1,4 @@
-use crate::shared::v1 as shared_v1;
+use crate::grpc::shared::v1 as shared_v1;
 use topos_uci::SubnetId;
 
 mod errors;

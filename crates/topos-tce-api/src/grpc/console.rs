@@ -2,7 +2,7 @@ use std::{str::FromStr, sync::Arc};
 
 use tokio::sync::{mpsc::Sender, oneshot, RwLock};
 use tonic::{Request, Response, Status};
-use topos_core::api::tce::v1::{
+use topos_core::api::grpc::tce::v1::{
     console_service_server::ConsoleService, PushPeerListRequest, PushPeerListResponse,
     StatusRequest, StatusResponse,
 };

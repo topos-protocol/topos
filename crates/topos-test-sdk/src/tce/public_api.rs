@@ -6,7 +6,7 @@ use futures::Stream;
 use rstest::*;
 use tonic::transport::{channel, Channel};
 
-use topos_core::api::tce::v1::{
+use topos_core::api::grpc::tce::v1::{
     api_service_client::ApiServiceClient, console_service_client::ConsoleServiceClient,
 };
 use topos_tce_api::RuntimeClient;
@@ -29,17 +29,27 @@ fn default_public_api_addr() -> SocketAddr {
 }
 
 #[fixture]
+fn default_public_graphql_addr() -> SocketAddr {
+    let socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
+    socket.local_addr().expect("Can't extract local_addr")
+}
+
+#[fixture]
 pub async fn create_public_api(
     #[future] storage_client: StorageClient,
     default_public_api_addr: SocketAddr,
+    default_public_graphql_addr: SocketAddr,
 ) -> (PublicApiContext, impl Stream<Item = RuntimeEvent>) {
     let storage_client = storage_client.await;
-    let addr = default_public_api_addr;
-    let api_port = addr.port();
+    let grpc_addr = default_public_api_addr;
+    let api_port = grpc_addr.port();
+
+    let graphql_addr = default_public_graphql_addr;
 
     let api_endpoint = format!("http://0.0.0.0:{api_port}");
     let (client, stream) = topos_tce_api::Runtime::builder()
-        .serve_addr(addr)
+        .serve_grpc_addr(grpc_addr)
+        .serve_graphql_addr(graphql_addr)
         .storage(storage_client)
         .build_and_launch()
         .await;

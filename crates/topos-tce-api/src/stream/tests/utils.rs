@@ -8,7 +8,7 @@ use tonic::{
     transport::Body,
     Status, Streaming,
 };
-use topos_core::api::tce::v1::{WatchCertificatesRequest, WatchCertificatesResponse};
+use topos_core::api::grpc::tce::v1::{WatchCertificatesRequest, WatchCertificatesResponse};
 use uuid::Uuid;
 
 use crate::{

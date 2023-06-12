@@ -24,6 +24,7 @@ pub struct TceConfiguration {
     pub tce_params: ReliableBroadcastParams,
     pub boot_peers: Vec<(PeerId, Multiaddr)>,
     pub api_addr: SocketAddr,
+    pub graphql_api_addr: SocketAddr,
     pub tce_addr: String,
     pub tce_local_port: u16,
     pub storage: StorageConfiguration,
@@ -150,7 +151,8 @@ pub async fn run(
     debug!("Starting gRPC api");
     let (api_client, api_stream) = topos_tce_api::Runtime::builder()
         .with_peer_id(peer_id.to_string())
-        .serve_addr(config.api_addr)
+        .serve_grpc_addr(config.api_addr)
+        .serve_graphql_addr(config.graphql_api_addr)
         .storage(storage_client.clone())
         .build_and_launch()
         .await;

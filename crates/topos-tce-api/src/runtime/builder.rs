@@ -5,16 +5,20 @@ use tokio::{
     sync::{mpsc, oneshot, RwLock},
 };
 use tokio_stream::wrappers::ReceiverStream;
-use topos_core::api::tce::v1::StatusResponse;
+use topos_core::api::grpc::tce::v1::StatusResponse;
 use topos_tce_storage::StorageClient;
 
-use crate::{grpc::builder::ServerBuilder, Runtime, RuntimeClient, RuntimeEvent};
+use crate::{
+    graphql::builder::ServerBuilder as GraphQLBuilder, grpc::builder::ServerBuilder, Runtime,
+    RuntimeClient, RuntimeEvent,
+};
 
 #[derive(Default)]
 pub struct RuntimeBuilder {
     storage: Option<StorageClient>,
     local_peer_id: String,
     grpc_socket_addr: Option<SocketAddr>,
+    graphql_socket_addr: Option<SocketAddr>,
     status: Option<RwLock<StatusResponse>>,
 }
 
@@ -25,8 +29,14 @@ impl RuntimeBuilder {
         self
     }
 
-    pub fn serve_addr(mut self, addr: SocketAddr) -> Self {
+    pub fn serve_grpc_addr(mut self, addr: SocketAddr) -> Self {
         self.grpc_socket_addr = Some(addr);
+
+        self
+    }
+
+    pub fn serve_graphql_addr(mut self, addr: SocketAddr) -> Self {
+        self.graphql_socket_addr = Some(addr);
 
         self
     }
@@ -49,10 +59,15 @@ impl RuntimeBuilder {
 
         let (health_reporter, tce_status, grpc) = ServerBuilder::default()
             .with_peer_id(self.local_peer_id)
-            .command_sender(command_sender)
+            .command_sender(command_sender.clone())
             .serve_addr(self.grpc_socket_addr)
             .build()
             .await;
+
+        let graphql = GraphQLBuilder::default()
+            .storage(self.storage.clone())
+            .serve_addr(self.graphql_socket_addr)
+            .build();
 
         let (command_sender, runtime_command_receiver) = mpsc::channel(2048);
         let (shutdown_channel, shutdown_receiver) = mpsc::channel::<oneshot::Sender<()>>(1);
@@ -73,6 +88,7 @@ impl RuntimeBuilder {
         };
 
         spawn(grpc);
+        spawn(graphql.await);
         spawn(runtime.launch());
 
         (

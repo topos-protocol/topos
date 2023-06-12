@@ -3,7 +3,7 @@ use std::{net::SocketAddr, sync::Arc};
 use futures::{future::BoxFuture, FutureExt};
 use tokio::sync::{mpsc::Sender, RwLock};
 use tonic_health::server::HealthReporter;
-use topos_core::api::tce::v1::{
+use topos_core::api::grpc::tce::v1::{
     api_service_server::ApiServiceServer, console_service_server::ConsoleServiceServer,
     StatusResponse,
 };
@@ -72,7 +72,7 @@ impl ServerBuilder {
             .await;
 
         let reflexion = tonic_reflection::server::Builder::configure()
-            .register_encoded_file_descriptor_set(topos_core::api::FILE_DESCRIPTOR_SET)
+            .register_encoded_file_descriptor_set(topos_core::api::grpc::FILE_DESCRIPTOR_SET)
             .build()
             .expect("Cannot build gRPC because of FILE_DESCRIPTOR_SET error");
 

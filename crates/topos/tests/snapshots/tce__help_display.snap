@@ -27,6 +27,8 @@ Options:
           Storage database path, if not set RAM storage is used [env: TCE_DB_PATH=] [default: ./default_db/]
       --api-addr <API_ADDR>
           gRPC API Addr [env: TCE_API_ADDR=] [default: [::1]:1340]
+      --graphql-api-addr <GRAPHQL_API_ADDR>
+          GraphQL API Addr [env: TCE_GRAPHQL_API_ADDR=] [default: [::1]:4000]
       --echo-threshold <ECHO_THRESHOLD>
           Echo threshold [env: TCE_ECHO_THRESHOLD=] [default: 1]
       --ready-threshold <READY_THRESHOLD>

@@ -8,13 +8,13 @@ use std::pin::Pin;
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::{Request, Response, Status, Streaming};
-use topos_core::api::tce::v1::{
+use topos_core::api::grpc::tce::v1::{
     api_service_server::ApiService, GetLastPendingCertificatesRequest,
     GetLastPendingCertificatesResponse, GetSourceHeadRequest, GetSourceHeadResponse,
     SubmitCertificateRequest, SubmitCertificateResponse, WatchCertificatesRequest,
     WatchCertificatesResponse,
 };
-use topos_core::api::uci::v1::OptionalCertificate;
+use topos_core::api::grpc::uci::v1::OptionalCertificate;
 use topos_core::uci::SubnetId;
 use topos_telemetry::TonicMetaExtractor;
 use tracing::{debug, error, field, info, info_span, Instrument, Span};
@@ -187,7 +187,7 @@ impl ApiService for TceGrpcService {
                     Ok(Ok((position, ref certificate))) => {
                         Ok(Response::new(GetSourceHeadResponse {
                             certificate: Some(certificate.clone().into()),
-                            position: Some(topos_core::api::tce::v1::SourceStreamPosition {
+                            position: Some(topos_core::api::grpc::tce::v1::SourceStreamPosition {
                                 subnet_id: Some(certificate.source_subnet_id.into()),
                                 certificate_id: Some((*certificate.id.as_array()).into()),
                                 position,

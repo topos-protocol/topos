@@ -4,9 +4,9 @@ use std::sync::Arc;
 use super::RuntimeCommand;
 use futures::Future;
 use tokio::sync::{mpsc, oneshot, RwLock};
-use topos_core::api::checkpoints::TargetStreamPosition;
+use topos_core::api::grpc::checkpoints::TargetStreamPosition;
 use topos_core::uci::SubnetId;
-use topos_core::{api::tce::v1::StatusResponse, uci::Certificate};
+use topos_core::{api::grpc::tce::v1::StatusResponse, uci::Certificate};
 use tracing::error;
 
 #[derive(Clone, Debug)]

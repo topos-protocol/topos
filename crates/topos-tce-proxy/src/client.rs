@@ -5,11 +5,12 @@ use opentelemetry::trace::FutureExt;
 use std::collections::HashMap;
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::StreamExt;
+
 use tonic::IntoRequest;
-use topos_core::api::checkpoints::{TargetCheckpoint, TargetStreamPosition};
-use topos_core::api::tce::v1::{GetLastPendingCertificatesRequest, GetSourceHeadRequest};
+use topos_core::api::grpc::checkpoints::{TargetCheckpoint, TargetStreamPosition};
+use topos_core::api::grpc::tce::v1::{GetLastPendingCertificatesRequest, GetSourceHeadRequest};
 use topos_core::{
-    api::tce::v1::{
+    api::grpc::tce::v1::{
         watch_certificates_request, watch_certificates_response, SubmitCertificateRequest,
         WatchCertificatesRequest, WatchCertificatesResponse,
     },
@@ -345,7 +346,7 @@ impl TceClientBuilder {
                                 let context = span.context();
 
                                 let mut request = SubmitCertificateRequest {
-                                    certificate: Some(topos_core::api::uci::v1::Certificate::from(*cert)),
+                                    certificate: Some(topos_core::api::grpc::uci::v1::Certificate::from(*cert)),
                                 }.into_request();
 
                                 let mut span_context = topos_telemetry::TonicMetaInjector(request.metadata_mut());
