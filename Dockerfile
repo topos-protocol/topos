@@ -1,5 +1,5 @@
 ARG TOOLCHAIN_VERSION
-FROM ghcr.io/topos-network/rust_builder:bullseye-${TOOLCHAIN_VERSION} AS base
+FROM --platform=${BUILDPLATFORM:-linux/amd64} ghcr.io/topos-network/rust_builder:bullseye-${TOOLCHAIN_VERSION} AS base
 
 ARG FEATURES
 # Rust cache
@@ -11,14 +11,14 @@ ARG PROTOC_VERSION=22.2
 
 WORKDIR /usr/src/app
 
-FROM base AS build
+FROM --platform=${BUILDPLATFORM:-linux/amd64} base AS build
 COPY . .
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     --mount=type=cache,id=sccache,target=/root/.cache/sccache \
   cargo build --release --no-default-features --features=${FEATURES} \
   && sccache --show-stats
 
-FROM debian:bullseye-slim AS topos
+FROM --platform=${BUILDPLATFORM:-linux/amd64} debian:bullseye-slim AS topos
 
 ENV TCE_PORT=9090
 ENV USER=topos

@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   docker:
     uses: ./.github/workflows/docker_utils.yml
@@ -97,5 +101,3 @@ jobs:
           ref: main
           wait_interval: 60
           client_payload: '{ "git_commit": "${{ github.sha }}", "docker_tag": "${{ env.docker_tag }}" }'
-
-
