@@ -402,9 +402,11 @@ impl SubnetRuntimeProxy {
     ) -> Result<(), Error> {
         self.source_head_certificate_id_sender
             .take()
-            .ok_or(Error::SourceHeadCertChannelError(
-                "source head certificate id was previously set".to_string(),
-            ))?
+            .ok_or_else(|| {
+                Error::SourceHeadCertChannelError(
+                    "source head certificate id was previously set".to_string(),
+                )
+            })?
             .send(source_head_certificate_id)
             .map_err(|_| Error::SourceHeadCertChannelError("channel error".to_string()))
     }
