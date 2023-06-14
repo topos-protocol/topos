@@ -70,7 +70,7 @@ abigen!(
 );
 
 type IToposCoreClient = IToposCore<SignerMiddleware<Provider<Http>, Wallet<SigningKey>>>;
-type IToposMessagingClient = IERC20Messaging<SignerMiddleware<Provider<Http>, Wallet<SigningKey>>>;
+type IERC20MessagingClient = IERC20Messaging<SignerMiddleware<Provider<Http>, Wallet<SigningKey>>>;
 type IERC20Client = IERC20<SignerMiddleware<Provider<Http>, Wallet<SigningKey>>>;
 
 fn spawn_subnet_node(
@@ -128,7 +128,7 @@ fn spawn_subnet_node(
 #[allow(dead_code)]
 struct Context {
     pub i_topos_core: IToposCoreClient,
-    pub i_erc20_messaging: IToposMessagingClient,
+    pub ierc20_messaging: IERC20MessagingClient,
     pub subnet_node_handle: Option<tokio::task::JoinHandle<()>>,
     pub subnet_stop_sender: Option<tokio::sync::oneshot::Sender<()>>,
     pub port: u32,
@@ -169,7 +169,7 @@ impl Drop for Context {
 async fn deploy_contracts(
     deploy_key: &str,
     endpoint: &str,
-) -> Result<(IToposCoreClient, IToposMessagingClient), Box<dyn std::error::Error>> {
+) -> Result<(IToposCoreClient, IERC20MessagingClient), Box<dyn std::error::Error>> {
     use ethers::abi::Token;
 
     let wallet: LocalWallet = deploy_key.parse()?;
@@ -245,8 +245,7 @@ async fn deploy_contracts(
         topos_messaging_contract.address()
     );
 
-    let i_erc20_messaging =
-        IERC20Messaging::new(topos_messaging_contract.address(), client.clone());
+    let ierc20_messaging = IERC20Messaging::new(topos_messaging_contract.address(), client.clone());
     let i_topos_core = IToposCore::new(topos_core_proxy_contract.address(), client);
 
     // Set network subnet id
@@ -279,7 +278,7 @@ async fn deploy_contracts(
         }
     }
 
-    Ok((i_topos_core, i_erc20_messaging))
+    Ok((i_topos_core, ierc20_messaging))
 }
 
 async fn deploy_test_token(
@@ -298,7 +297,7 @@ async fn deploy_test_token(
         wallet.clone().with_chain_id(chain_id.as_u64()),
     ));
 
-    let i_erc20_messaging = IERC20Messaging::new(topos_messaging_address, client.clone());
+    let ierc20_messaging = IERC20Messaging::new(topos_messaging_address, client.clone());
 
     // Deploy token
     let token_name: Token = Token::String("Test Token".to_string());
@@ -320,7 +319,7 @@ async fn deploy_test_token(
         "Deploying new token {} with symbol {}",
         token_name, token_symbol
     );
-    if let Err(e) = i_erc20_messaging
+    if let Err(e) = ierc20_messaging
         .deploy_token(token_encoded_params)
         .legacy()
         .gas(DEFAULT_GAS)
@@ -335,7 +334,7 @@ async fn deploy_test_token(
         panic!("Error deploying token: {e}");
     };
 
-    let events = i_erc20_messaging
+    let events = ierc20_messaging
         .event::<ierc20_messaging::TokenDeployedFilter>()
         .from_block(0);
     let events = events.query().await?;
@@ -368,12 +367,12 @@ async fn context_running_subnet_node(#[default(8545)] port: u32) -> Context {
     // Deploy contracts
     let json_rpc_endpoint = format!("http://127.0.0.1:{port}");
     match deploy_contracts(TEST_SECRET_ETHEREUM_KEY, &json_rpc_endpoint).await {
-        Ok((i_topos_core, i_erc20_messaging)) => {
+        Ok((i_topos_core, ierc20_messaging)) => {
             info!("Contracts successfully deployed");
             // Context with subnet container working in the background and ready deployed contracts
             Context {
                 i_topos_core,
-                i_erc20_messaging,
+                ierc20_messaging,
                 subnet_node_handle: Some(subnet_node_handle),
                 subnet_stop_sender: Some(subnet_stop_sender),
                 port,
@@ -754,13 +753,13 @@ async fn test_subnet_send_token_processing(
     let i_erc20 = deploy_test_token(
         &hex::encode(&test_private_key),
         &subnet_jsonrpc_endpoint,
-        context.i_erc20_messaging.address(),
+        context.ierc20_messaging.address(),
     )
     .await?;
 
     // Approve token spending
     if let Err(e) = i_erc20
-        .approve(context.i_erc20_messaging.address(), U256::from(10))
+        .approve(context.ierc20_messaging.address(), U256::from(10))
         .legacy()
         .gas(DEFAULT_GAS)
         .send()
@@ -773,7 +772,7 @@ async fn test_subnet_send_token_processing(
     // Perform send token
     info!("Sending token");
     if let Err(e) = context
-        .i_erc20_messaging
+        .ierc20_messaging
         .send_token(
             TARGET_SUBNET_ID_2.into(),
             "00000000000000000000000000000000000000AA".parse()?,
