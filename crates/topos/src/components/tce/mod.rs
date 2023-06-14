@@ -13,13 +13,13 @@ use tokio::{
     sync::{mpsc, oneshot, Mutex},
 };
 use tonic::transport::{Channel, Endpoint};
-use topos_core::api::tce::v1::{
+use topos_core::api::grpc::tce::v1::{
     api_service_client::ApiServiceClient, console_service_client::ConsoleServiceClient,
 };
 use topos_p2p::{config::NetworkConfig, PeerId};
 use topos_tce::{StorageConfiguration, TceConfiguration};
 use tower::Service;
-use tracing::{debug, error, info, trace};
+use tracing::{debug, error, info, trace, warn};
 
 use crate::options::input_format::{InputFormat, Parser};
 use crate::tracing::setup_tracing;
@@ -100,6 +100,7 @@ pub(crate) async fn handle_command(
                 tce_local_port: cmd.tce_local_port,
                 tce_params: cmd.tce_params,
                 api_addr: cmd.api_addr,
+                graphql_api_addr: cmd.graphql_api_addr,
                 storage: StorageConfiguration::RocksDB(
                     cmd.db_path
                         .as_ref()
@@ -170,14 +171,18 @@ pub(crate) async fn handle_command(
 }
 
 pub fn print_node_info(config: &TceConfiguration) {
-    info!("TCE Node - version: {}", config.version);
+    tracing::warn!("TCE Node - version: {}", config.version);
 
     if let StorageConfiguration::RocksDB(Some(ref path)) = config.storage {
         info!("RocksDB at {:?}", path);
     }
 
-    info!("API gRPC endpoint reachable at {}", config.api_addr);
-    info!("Broadcast Parameters {:?}", config.tce_params);
+    warn!("API gRPC endpoint reachable at {}", config.api_addr);
+    info!(
+        "API GraphQL endpoint reachable at {}",
+        config.graphql_api_addr
+    );
+    warn!("Broadcast Parameters {:?}", config.tce_params);
 }
 
 fn setup_console_tce_grpc(endpoint: &str) -> Arc<Mutex<ConsoleServiceClient<Channel>>> {

@@ -1,4 +1,4 @@
-use topos_core::api::checkpoints::TargetStreamPosition;
+use topos_core::api::grpc::checkpoints::TargetStreamPosition;
 use topos_core::uci::Certificate;
 
 #[derive(Debug)]

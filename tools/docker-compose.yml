@@ -25,6 +25,7 @@ services:
       - "9090"
       - "1340:1340"
       - "3000:3000"
+      - "4000:4000"
     env_file:
       - env/base.env
       - env/node.env
@@ -56,6 +57,7 @@ services:
     ports:
       - "9090"
       - "1340"
+      - "4000"
     deploy:
       replicas: 14
     env_file:

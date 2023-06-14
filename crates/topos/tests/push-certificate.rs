@@ -1,6 +1,6 @@
 use assert_cmd::Command;
 use std::{thread, time::Duration};
-use topos_core::api::tce::v1::StatusRequest;
+use topos_core::api::grpc::tce::v1::StatusRequest;
 use topos_test_sdk::tce::create_network;
 
 #[test]

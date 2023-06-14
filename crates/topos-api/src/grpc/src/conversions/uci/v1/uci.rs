@@ -1,8 +1,8 @@
 //!
 //! Protobuf generated/native Rust structures related conversions for GRPC API
 //!
-use crate::shared::v1_conversions_subnet::Error;
-use crate::uci::v1 as proto_v1;
+use crate::grpc::shared::v1_conversions_subnet::Error;
+use crate::grpc::uci::v1 as proto_v1;
 
 impl TryFrom<proto_v1::Certificate> for topos_uci::Certificate {
     type Error = Error;
@@ -51,10 +51,10 @@ impl TryFrom<proto_v1::Certificate> for topos_uci::Certificate {
 impl From<topos_uci::Certificate> for proto_v1::Certificate {
     fn from(certificate: topos_uci::Certificate) -> Self {
         proto_v1::Certificate {
-            prev_id: Some(crate::shared::v1::CertificateId {
+            prev_id: Some(crate::grpc::shared::v1::CertificateId {
                 value: certificate.prev_id.into(),
             }),
-            source_subnet_id: Some(crate::shared::v1::SubnetId {
+            source_subnet_id: Some(crate::grpc::shared::v1::SubnetId {
                 value: certificate.source_subnet_id.into(),
             }),
             state_root: certificate.state_root.to_vec(),
@@ -65,13 +65,13 @@ impl From<topos_uci::Certificate> for proto_v1::Certificate {
                 .into_iter()
                 .map(|target_subnet| target_subnet.into())
                 .collect(),
-            id: Some(crate::shared::v1::CertificateId {
+            id: Some(crate::grpc::shared::v1::CertificateId {
                 value: certificate.id.into(),
             }),
-            proof: Some(crate::shared::v1::StarkProof {
+            proof: Some(crate::grpc::shared::v1::StarkProof {
                 value: certificate.proof,
             }),
-            signature: Some(crate::shared::v1::Frost {
+            signature: Some(crate::grpc::shared::v1::Frost {
                 value: certificate.signature,
             }),
         }

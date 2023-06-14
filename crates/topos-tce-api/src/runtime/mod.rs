@@ -13,8 +13,8 @@ use tokio::{
     task::JoinHandle,
 };
 use tonic_health::server::HealthReporter;
-use topos_core::api::checkpoints::TargetStreamPosition;
-use topos_core::api::tce::v1::api_service_server::ApiServiceServer;
+use topos_core::api::grpc::checkpoints::TargetStreamPosition;
+use topos_core::api::grpc::tce::v1::api_service_server::ApiServiceServer;
 use topos_core::uci::{Certificate, SubnetId};
 use topos_tce_storage::{
     CertificateTargetStreamPosition, FetchCertificatesFilter, FetchCertificatesPosition,

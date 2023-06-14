@@ -1,4 +1,4 @@
-use crate::shared::v1_conversions_subnet::Error;
+use crate::grpc::shared::v1_conversions_subnet::Error;
 
 #[derive(Debug, thiserror::Error)]
 pub enum TargetCheckpointError {
