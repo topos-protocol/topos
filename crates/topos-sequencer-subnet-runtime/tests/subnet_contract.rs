@@ -50,8 +50,11 @@ abigen!(TokenDeployerContract, "npm:@topos-network/topos-smart-contracts@latest/
 abigen!(ToposCoreContract, "npm:@topos-network/topos-smart-contracts@latest/artifacts/contracts/topos-core/ToposCore.sol/ToposCore.json");
 abigen!(ToposCoreProxyContract, "npm:@topos-network/topos-smart-contracts@latest/artifacts/contracts/topos-core/ToposCoreProxy.sol/ToposCoreProxy.json");
 abigen!(ToposMessagingContract, "npm:@topos-network/topos-smart-contracts@latest/artifacts/contracts/topos-core/ToposMessaging.sol/ToposMessaging.json");
+abigen!(ERC20MessagingContract, "npm:@topos-network/topos-smart-contracts@latest/artifacts/contracts/examples/ERC20Messaging.sol/ERC20Messaging.json");
 abigen!(IToposCore, "npm:@topos-network/topos-smart-contracts@latest/artifacts/contracts/interfaces/IToposCore.sol/IToposCore.json");
 abigen!(IToposMessaging, "npm:@topos-network/topos-smart-contracts@latest/artifacts/contracts/interfaces/IToposMessaging.sol/IToposMessaging.json");
+abigen!(IERC20Messaging, "npm:@topos-network/topos-smart-contracts@latest/artifacts/contracts/interfaces/IERC20Messaging.sol/IERC20Messaging.json");
+
 abigen!(
     IERC20,
     r"[
@@ -72,6 +75,7 @@ abigen!(
 type IToposCoreClient = IToposCore<SignerMiddleware<Provider<Http>, Wallet<SigningKey>>>;
 type IToposMessagingClient = IToposMessaging<SignerMiddleware<Provider<Http>, Wallet<SigningKey>>>;
 type IERC20Client = IERC20<SignerMiddleware<Provider<Http>, Wallet<SigningKey>>>;
+type IERC20MessagingClient = IERC20Messaging<SignerMiddleware<Provider<Http>, Wallet<SigningKey>>>;
 
 fn spawn_subnet_node(
     stop_subnet_receiver: tokio::sync::oneshot::Receiver<()>,
@@ -129,6 +133,7 @@ fn spawn_subnet_node(
 struct Context {
     pub i_topos_core: IToposCoreClient,
     pub i_topos_messaging: IToposMessagingClient,
+    pub i_erc20_messaging: IERC20MessagingClient,
     pub subnet_node_handle: Option<tokio::task::JoinHandle<()>>,
     pub subnet_stop_sender: Option<tokio::sync::oneshot::Sender<()>>,
     pub port: u32,
@@ -169,7 +174,14 @@ impl Drop for Context {
 async fn deploy_contracts(
     deploy_key: &str,
     endpoint: &str,
-) -> Result<(IToposCoreClient, IToposMessagingClient), Box<dyn std::error::Error>> {
+) -> Result<
+    (
+        IToposCoreClient,
+        IToposMessagingClient,
+        IERC20MessagingClient,
+    ),
+    Box<dyn std::error::Error>,
+> {
     use ethers::abi::Token;
 
     let wallet: LocalWallet = deploy_key.parse()?;
@@ -227,8 +239,8 @@ async fn deploy_contracts(
         topos_core_proxy_contract.address()
     );
 
-    info!("Deploying ToposMessaging contract...");
-    let topos_messaging_contract = ToposMessagingContract::deploy(
+    info!("Deploying ERC20Messaging contract...");
+    let erc20_messaging_contract = ERC20MessagingContract::deploy(
         client.clone(),
         (
             token_deployer_contract.address(),
@@ -241,12 +253,14 @@ async fn deploy_contracts(
     .send()
     .await?;
     info!(
-        "ToposMessaging contract deployed to 0x{:x}",
-        topos_messaging_contract.address()
+        "ERC20 contract deployed to 0x{:x}",
+        erc20_messaging_contract.address()
     );
 
     let i_topos_messaging =
-        IToposMessaging::new(topos_messaging_contract.address(), client.clone());
+        IToposMessaging::new(erc20_messaging_contract.address(), client.clone());
+    let i_erc20_messaging =
+        IERC20Messaging::new(erc20_messaging_contract.address(), client.clone());
     let i_topos_core = IToposCore::new(topos_core_proxy_contract.address(), client);
 
     // Set network subnet id
@@ -279,7 +293,7 @@ async fn deploy_contracts(
         }
     }
 
-    Ok((i_topos_core, i_topos_messaging))
+    Ok((i_topos_core, i_topos_messaging, i_erc20_messaging))
 }
 
 async fn deploy_test_token(
@@ -298,7 +312,7 @@ async fn deploy_test_token(
         wallet.clone().with_chain_id(chain_id.as_u64()),
     ));
 
-    let i_topos_messaging = IToposMessaging::new(topos_messaging_address, client.clone());
+    let ierc20_messaging = IERC20Messaging::new(topos_messaging_address, client.clone());
 
     // Deploy token
     let token_name: Token = Token::String("Test Token".to_string());
@@ -320,7 +334,7 @@ async fn deploy_test_token(
         "Deploying new token {} with symbol {}",
         token_name, token_symbol
     );
-    if let Err(e) = i_topos_messaging
+    match ierc20_messaging
         .deploy_token(token_encoded_params)
         .legacy()
         .gas(DEFAULT_GAS)
@@ -332,11 +346,16 @@ async fn deploy_test_token(
         })?
         .await
     {
-        panic!("Error deploying token: {e}");
-    };
+        Ok(r) => {
+            info!("Token deployed: {:?}", r);
+        }
+        Err(e) => {
+            panic!("Error deploying token: {e}");
+        }
+    }
 
-    let events = i_topos_messaging
-        .event::<i_topos_messaging::TokenDeployedFilter>()
+    let events = ierc20_messaging
+        .event::<ierc20_messaging::TokenDeployedFilter>()
         .from_block(0);
     let events = events.query().await?;
     let token_address = events[0].token_address;
@@ -368,12 +387,13 @@ async fn context_running_subnet_node(#[default(8545)] port: u32) -> Context {
     // Deploy contracts
     let json_rpc_endpoint = format!("http://127.0.0.1:{port}");
     match deploy_contracts(TEST_SECRET_ETHEREUM_KEY, &json_rpc_endpoint).await {
-        Ok((i_topos_core, i_topos_messaging)) => {
+        Ok((i_topos_core, i_topos_messaging, i_erc20_messaging)) => {
             info!("Contracts successfully deployed");
             // Context with subnet container working in the background and ready deployed contracts
             Context {
                 i_topos_core,
                 i_topos_messaging,
+                i_erc20_messaging,
                 subnet_node_handle: Some(subnet_node_handle),
                 subnet_stop_sender: Some(subnet_stop_sender),
                 port,
@@ -773,7 +793,7 @@ async fn test_subnet_send_token_processing(
     // Perform send token
     info!("Sending token");
     if let Err(e) = context
-        .i_topos_messaging
+        .i_erc20_messaging
         .send_token(
             TARGET_SUBNET_ID_2.into(),
             "00000000000000000000000000000000000000AA".parse()?,
