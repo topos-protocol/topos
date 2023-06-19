@@ -27,6 +27,7 @@ async-graphql.workspace = true
 async-graphql-axum.workspace = true
 serde.workspace = true
 async-trait.workspace = true
+tracing.workspace = true
 
 [build-dependencies]
 tonic-build = { version = "0.8", default-features = false, features = [

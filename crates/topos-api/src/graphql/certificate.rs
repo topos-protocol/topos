@@ -1,8 +1,10 @@
-use async_graphql::SimpleObject;
+use async_graphql::{InputObject, SimpleObject};
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize, SimpleObject)]
-pub struct SubnetId {
+use super::subnet::SubnetId;
+
+#[derive(Debug, Default, Serialize, Deserialize, InputObject)]
+pub struct CertificateId {
     pub value: String,
 }
 

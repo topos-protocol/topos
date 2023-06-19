@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display};
 use std::hash::Hash;
+use std::str::FromStr;
 
 use crate::{Error, SUBNET_ID_LENGTH};
 
@@ -58,10 +59,33 @@ impl TryFrom<&[u8]> for SubnetId {
         if value.len() != SUBNET_ID_LENGTH {
             return Err(Error::ValidationError);
         }
+
         let mut id = [0; SUBNET_ID_LENGTH];
         id.copy_from_slice(value);
 
         Ok(Self { id })
+    }
+}
+
+impl FromStr for SubnetId {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let s = if s.starts_with("0x") {
+            println!("s: {:?}", s);
+            println!("s[2..s.len()]: {:?}", &s[2..s.len()]);
+
+            hex::decode(&s[2..s.len()]).map_err(|x| {
+                println!("x: {:?}", x);
+                Error::ValidationError
+            })?
+        } else {
+            s.as_bytes().to_vec()
+        };
+
+        println!("s: {:?}", s);
+
+        s.as_slice().try_into()
     }
 }
 
