@@ -28,15 +28,48 @@ jobs:
   lint:
     name: Lint - Clippy
     runs-on: ubuntu-latest
+    env:
+      CARGO_TERM_COLOR: always
+      RUSTFLAGS: -Dwarnings
+      RUST_BACKTRACE: 1
     steps:
-      - name: Checkout
+      - name: Checkout topos repo
         uses: actions/checkout@v3
 
-      - uses: ./.github/actions/install-rust
+      - name: Install Rust
+        uses: ./.github/actions/install-rust
         with:
           components: clippy
           AWS_ACCESS_KEY_ID: ${{ secrets.ROBOT_AWS_ACCESS_KEY_ID}}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.ROBOT_AWS_SECRET_ACCESS_KEY}}
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v1
+
+      - name: Checkout topos-smart-contracts repo
+        uses: actions/checkout@v3
+        with:
+          repository: topos-network/topos-smart-contracts
+          ref: ${{ env.CONTRACTS_REF }}
+          path: contracts
+
+      - name: Set up NodeJS
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+          cache: "npm"
+          cache-dependency-path: contracts/package-lock.json
+
+      - name: Install dependencies
+        working-directory: contracts
+        run: npm ci
+
+      - name: Build contracts
+        working-directory: contracts
+        run: npm run build
+
+      - name: Move contract artifacts
+        run: mv contracts/artifacts ./
 
       - name: Cargo xclippy
         run: cargo xclippy

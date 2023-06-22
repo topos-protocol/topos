@@ -46,14 +46,39 @@ const CERTIFICATE_ID_3: CertificateId = CERTIFICATE_ID_8;
 const DEFAULT_GAS: u64 = 5_000_000;
 
 //TODO I haven't find a way to parametrize version, macro accepts strictly string literal
-abigen!(TokenDeployerContract, "npm:@topos-network/topos-smart-contracts@latest/artifacts/contracts/topos-core/TokenDeployer.sol/TokenDeployer.json");
-abigen!(ToposCoreContract, "npm:@topos-network/topos-smart-contracts@latest/artifacts/contracts/topos-core/ToposCore.sol/ToposCore.json");
-abigen!(ToposCoreProxyContract, "npm:@topos-network/topos-smart-contracts@latest/artifacts/contracts/topos-core/ToposCoreProxy.sol/ToposCoreProxy.json");
-abigen!(ToposMessagingContract, "npm:@topos-network/topos-smart-contracts@latest/artifacts/contracts/topos-core/ToposMessaging.sol/ToposMessaging.json");
-abigen!(ERC20MessagingContract, "npm:@topos-network/topos-smart-contracts@latest/artifacts/contracts/examples/ERC20Messaging.sol/ERC20Messaging.json");
-abigen!(IToposCore, "npm:@topos-network/topos-smart-contracts@latest/artifacts/contracts/interfaces/IToposCore.sol/IToposCore.json");
-abigen!(IToposMessaging, "npm:@topos-network/topos-smart-contracts@latest/artifacts/contracts/interfaces/IToposMessaging.sol/IToposMessaging.json");
-abigen!(IERC20Messaging, "npm:@topos-network/topos-smart-contracts@latest/artifacts/contracts/interfaces/IERC20Messaging.sol/IERC20Messaging.json");
+// `topos-smart-contracts` build artifacts directory must be copied to the root topos directory to run these tests
+abigen!(
+    TokenDeployerContract,
+    "./artifacts/contracts/topos-core/TokenDeployer.sol/TokenDeployer.json"
+);
+abigen!(
+    ToposCoreContract,
+    "./artifacts/contracts/topos-core/ToposCore.sol/ToposCore.json"
+);
+abigen!(
+    ToposCoreProxyContract,
+    "./artifacts/contracts/topos-core/ToposCoreProxy.sol/ToposCoreProxy.json"
+);
+abigen!(
+    ToposMessagingContract,
+    "./artifacts/contracts/topos-core/ToposMessaging.sol/ToposMessaging.json"
+);
+abigen!(
+    ERC20MessagingContract,
+    "./artifacts/contracts/examples/ERC20Messaging.sol/ERC20Messaging.json"
+);
+abigen!(
+    IToposCore,
+    "./artifacts/contracts/interfaces/IToposCore.sol/IToposCore.json"
+);
+abigen!(
+    IToposMessaging,
+    "./artifacts/contracts/interfaces/IToposMessaging.sol/IToposMessaging.json"
+);
+abigen!(
+    IERC20Messaging,
+    "./artifacts/contracts/interfaces/IERC20Messaging.sol/IERC20Messaging.json"
+);
 
 abigen!(
     IERC20,
