@@ -1,10 +1,13 @@
 use std::io;
 
+use crate::constant::TRANSMISSION_PROTOCOL;
+
 use super::protocol::TransmissionProtocol;
 use futures::{AsyncRead, AsyncWrite, AsyncWriteExt};
 use libp2p::{
     core::upgrade::{read_length_prefixed, write_length_prefixed},
     request_response::Codec,
+    StreamProtocol,
 };
 
 #[derive(Clone)]
@@ -18,7 +21,7 @@ pub struct TransmissionResponse(pub(crate) Vec<u8>);
 
 #[async_trait::async_trait]
 impl Codec for TransmissionCodec {
-    type Protocol = TransmissionProtocol;
+    type Protocol = StreamProtocol;
     type Request = TransmissionRequest;
     type Response = TransmissionResponse;
 

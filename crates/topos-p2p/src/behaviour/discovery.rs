@@ -2,15 +2,16 @@ use std::{borrow::Cow, collections::HashMap, num::NonZeroUsize, time::Duration};
 
 use crate::{
     config::DiscoveryConfig,
+    constant::TRANSMISSION_PROTOCOL,
     error::{CommandExecutionError, P2PError},
 };
-use libp2p::kad::KademliaEvent;
 use libp2p::{
     identity::Keypair,
     kad::{store::MemoryStore, Kademlia, KademliaBucketInserts, KademliaConfig},
     swarm::{behaviour, NetworkBehaviour},
     Multiaddr, PeerId,
 };
+use libp2p::{kad::KademliaEvent, StreamProtocol};
 use tokio::sync::oneshot;
 use tracing::{debug, info, warn};
 
@@ -19,7 +20,7 @@ pub type PendingRecordRequest = oneshot::Sender<Result<Vec<Multiaddr>, CommandEx
 
 /// DiscoveryBehaviour is responsible to discover and manage connections with peers
 #[derive(NetworkBehaviour)]
-#[behaviour(out_event = "KademliaEvent")]
+#[behaviour(to_swarm = "KademliaEvent")]
 pub(crate) struct DiscoveryBehaviour {
     pub(crate) inner: Kademlia<MemoryStore>,
 }
@@ -34,7 +35,7 @@ impl DiscoveryBehaviour {
     ) -> Self {
         let local_peer_id = peer_key.public().to_peer_id();
         let kademlia_config = KademliaConfig::default()
-            .set_protocol_names(vec![discovery_protocol])
+            .set_protocol_names(vec![StreamProtocol::new(TRANSMISSION_PROTOCOL)])
             .set_replication_factor(config.replication_factor)
             .set_kbucket_inserts(KademliaBucketInserts::Manual)
             .set_replication_interval(config.replication_interval)

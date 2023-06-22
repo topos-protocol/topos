@@ -124,12 +124,3 @@ services:
 
 volumes:
   shared:
-  prometheus_data: {}
-  grafana_data: {}
-
-
-networks:
-  monitoring:
-    driver: bridge
-
-

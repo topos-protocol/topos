@@ -44,7 +44,8 @@ impl EventHandler<Box<GossipsubEvent>> for Runtime {
 
             if let Err(e) = self
                 .event_sender
-                .try_send(Event::Gossip { from: source, data })
+                .send(Event::Gossip { from: source, data })
+                .await
             {
                 tracing::error!("Failed to send gossip event to runtime: {:?}", e);
             }
