@@ -3,7 +3,7 @@ use std::io;
 use libp2p::{
     core::either,
     multiaddr::Protocol,
-    swarm::{derive_prelude::Either, ConnectionHandlerUpgrErr, NetworkBehaviour, SwarmEvent},
+    swarm::{derive_prelude::Either, NetworkBehaviour, SwarmEvent},
 };
 use tracing::{debug, error, info, warn};
 
@@ -48,10 +48,7 @@ impl
         SwarmEvent<
             ComposedEvent,
             Either<
-                Either<
-                    Either<Either<io::Error, io::Error>, ConnectionHandlerUpgrErr<io::Error>>,
-                    void::Void,
-                >,
+                Either<Either<Either<io::Error, io::Error>, void::Void>, void::Void>,
                 void::Void,
             >,
         >,
@@ -62,10 +59,7 @@ impl
         event: SwarmEvent<
             ComposedEvent,
             Either<
-                Either<
-                    Either<Either<io::Error, io::Error>, ConnectionHandlerUpgrErr<io::Error>>,
-                    void::Void,
-                >,
+                Either<Either<Either<io::Error, io::Error>, void::Void>, void::Void>,
                 void::Void,
             >,
         >,
@@ -148,7 +142,7 @@ impl
                 }
             }
 
-            SwarmEvent::Dialing(peer_id) => {}
+            SwarmEvent::Dialing { peer_id, .. } => {}
 
             SwarmEvent::Behaviour(event) => {
                 self.handle(event).await;
