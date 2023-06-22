@@ -32,8 +32,6 @@ jobs:
       REGISTRY: ghcr.io
       PRIV_GH_USER: ${{ secrets.ROBOT_TOPOSWARE_USER }}
       PRIV_GH_PACKAGE_TOKEN: ${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
-      TOPOS_SMART_CONTRACTS_IMAGE_NAME: topos-network/topos-smart-contracts
-      TOPOS_SMART_CONTRACTS_IMAGE_TAG: main
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -54,24 +52,30 @@ jobs:
           username: ${{ env.PRIV_GH_USER }}
           password: ${{ env.PRIV_GH_PACKAGE_TOKEN }}
 
-      - name: Pull images
-        run: |
-          docker pull ${{ env.REGISTRY }}/${{ env.TOPOS_SMART_CONTRACTS_IMAGE_NAME }}:${{ env.TOPOS_SMART_CONTRACTS_IMAGE_TAG }}
+      - name: Checkout topos-smart-contracts repo
+        uses: actions/checkout@v3
+        with:
+          repository: topos-network/topos-smart-contracts
+          ref: ${{ env.CONTRACTS_REF }}
+          path: contracts
 
-      - name: Acquire built smart contracts
-        run: |
-          mkdir -p artifacts/contracts/topos-core/TokenDeployer.sol  artifacts/contracts/topos-core/ToposCore.sol artifacts/contracts/topos-core/ToposCoreProxy.sol artifacts/contracts/topos-core/ToposMessaging.sol/
-          mkdir -p artifacts/contracts/examples/ERC20Messaging.sol/ artifacts/contracts/interfaces/IERC20Messaging.sol/ artifacts/contracts/interfaces/IToposCore.sol artifacts/contracts/interfaces/IToposMessaging.sol/ 
-          docker create --name dummy ${{ env.REGISTRY }}/${{ env.TOPOS_SMART_CONTRACTS_IMAGE_NAME }}:${{ env.TOPOS_SMART_CONTRACTS_IMAGE_TAG }}
-          docker cp dummy:/usr/src/app/artifacts/contracts/topos-core/TokenDeployer.sol/TokenDeployer.json ./artifacts/contracts/topos-core/TokenDeployer.sol/
-          docker cp dummy:/usr/src/app/artifacts/contracts/topos-core/ToposCore.sol/ToposCore.json ./artifacts/contracts/topos-core/ToposCore.sol/
-          docker cp dummy:/usr/src/app/artifacts/contracts/topos-core/ToposCoreProxy.sol/ToposCoreProxy.json ./artifacts/contracts/topos-core/ToposCoreProxy.sol/
-          docker cp dummy:/usr/src/app/artifacts/contracts/topos-core/ToposMessaging.sol/ToposMessaging.json ./artifacts/contracts/topos-core/ToposMessaging.sol/
-          docker cp dummy:/usr/src/app/artifacts/contracts/examples/ERC20Messaging.sol/ERC20Messaging.json ./artifacts/contracts/examples/ERC20Messaging.sol/
-          docker cp dummy:/usr/src/app/artifacts/contracts/interfaces/IToposCore.sol/IToposCore.json ./artifacts/contracts/interfaces/IToposCore.sol/
-          docker cp dummy:/usr/src/app/artifacts/contracts/interfaces/IToposMessaging.sol/IToposMessaging.json ./artifacts/contracts/interfaces/IToposMessaging.sol/
-          docker cp dummy:/usr/src/app/artifacts/contracts/interfaces/IERC20Messaging.sol/IERC20Messaging.json ./artifacts/contracts/interfaces/IERC20Messaging.sol/
-          docker rm -f dummy          
+      - name: Set up NodeJS
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+          cache: "npm"
+          cache-dependency-path: contracts/package-lock.json
+
+      - name: Install dependencies
+        working-directory: contracts
+        run: npm ci
+
+      - name: Build contracts
+        working-directory: contracts
+        run: npm run build
+
+      - name: Move contract artifacts
+        run: mv contracts/artifacts ./artifacts
 
       - name: Cargo xclippy
         run: cargo xclippy
