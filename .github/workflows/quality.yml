@@ -29,14 +29,15 @@ jobs:
     name: Lint - Clippy
     runs-on: ubuntu-latest
     env:
-      REGISTRY: ghcr.io
-      PRIV_GH_USER: ${{ secrets.ROBOT_TOPOSWARE_USER }}
-      PRIV_GH_PACKAGE_TOKEN: ${{ secrets.ROBOT_TOPOSWARE_GH_PACKAGE_TOKEN }}
+      CARGO_TERM_COLOR: always
+      RUSTFLAGS: -Dwarnings
+      RUST_BACKTRACE: 1
     steps:
-      - name: Checkout
+      - name: Checkout topos repo
         uses: actions/checkout@v3
 
-      - uses: ./.github/actions/install-rust
+      - name: Install Rust
+        uses: ./.github/actions/install-rust
         with:
           components: clippy
           AWS_ACCESS_KEY_ID: ${{ secrets.ROBOT_AWS_ACCESS_KEY_ID}}
@@ -44,13 +45,6 @@ jobs:
 
       - name: Install Protoc
         uses: arduino/setup-protoc@v1
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v1
-        with:
-          registry: ghcr.io
-          username: ${{ env.PRIV_GH_USER }}
-          password: ${{ env.PRIV_GH_PACKAGE_TOKEN }}
 
       - name: Checkout topos-smart-contracts repo
         uses: actions/checkout@v3
@@ -75,7 +69,7 @@ jobs:
         run: npm run build
 
       - name: Move contract artifacts
-        run: mv contracts/artifacts ./artifacts
+        run: mv contracts/artifacts ./
 
       - name: Cargo xclippy
         run: cargo xclippy
