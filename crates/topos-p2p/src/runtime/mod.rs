@@ -226,7 +226,7 @@ impl Runtime {
                     )) => {}
 
                     SwarmEvent::ConnectionEstablished { .. } => {}
-                    SwarmEvent::Dialing(_) => {}
+                    SwarmEvent::Dialing { .. } => {}
                     SwarmEvent::IncomingConnection { .. } => {}
                     SwarmEvent::NewListenAddr { .. } => {}
                     SwarmEvent::Behaviour(ComposedEvent::Gossipsub(_)) => {}
@@ -235,6 +235,7 @@ impl Runtime {
                         local_addr,
                         send_back_addr,
                         error,
+                        ..
                     } => {
                         warn!("IncomingConnectionError: local_addr: {local_addr:?}, send_back_addr: {send_back_addr:?}, error: {error:?}");
                     }
