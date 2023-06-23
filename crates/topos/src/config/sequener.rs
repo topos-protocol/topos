@@ -52,17 +52,26 @@ fn default_verifier() -> u32 {
     0
 }
 
-impl Default for SequencerConfig {
-    fn default() -> Self {
-        SequencerConfig {
-            subnet_id: None,
-            subnet_jsonrpc_endpoint: default_subnet_jsonrpc_endpoint(),
-            subnet_contract_address: default_subnet_contract_address(),
-            base_tce_api_url: default_base_tce_api_url(),
-            subnet_data_dir: PathBuf::from("../test-chain-1"),
-            verifier: default_verifier(),
-            otlp_agent: None,
-            otlp_service_name: None,
-        }
+impl Config for SequencerConfig {
+    type Command = sequencer::commands::Run;
+
+    type Output = Self;
+
+    fn load_from_file(figment: Figment, home: &PathBuf) -> figment::Figment {
+        let home = home.join("default.toml");
+
+        let second = Figment::new()
+            .merge(Toml::file(home).nested())
+            .select("sequencer");
+
+        figment.merge(second)
+    }
+
+    fn load_context(figment: Figment) -> Result<Self::Output, figment::Error> {
+        figment.extract()
+    }
+
+    fn profile(&self) -> String {
+        "sequencer".to_string()
     }
 }

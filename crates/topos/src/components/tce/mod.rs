@@ -56,6 +56,7 @@ pub(crate) async fn handle_command(
     TceCommand {
         verbose,
         mut subcommands,
+        home,
     }: TceCommand,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if let Some(TceCommands::Run(cmd)) = subcommands.as_mut() {
@@ -101,51 +102,53 @@ pub(crate) async fn handle_command(
         }
 
         Some(TceCommands::Run(cmd)) => {
-            let config = TceConfiguration {
-                boot_peers: cmd.parse_boot_peers(),
-                local_key_seed: cmd.local_key_seed.map(|s| s.as_bytes().to_vec()),
-                tce_addr: cmd.tce_ext_host,
-                tce_local_port: cmd.tce_local_port,
-                tce_params: cmd.tce_params,
-                api_addr: cmd.api_addr,
-                graphql_api_addr: cmd.graphql_api_addr,
-                storage: StorageConfiguration::RocksDB(
-                    cmd.db_path
-                        .as_ref()
-                        .and_then(|path| PathBuf::from_str(path).ok()),
-                ),
-                network_bootstrap_timeout: Duration::from_secs(10),
-                minimum_cluster_size: cmd
-                    .minimum_tce_cluster_size
-                    .unwrap_or(NetworkConfig::MINIMUM_CLUSTER_SIZE),
-                version: env!("TOPOS_VERSION"),
-            };
-
-            print_node_info(&config);
-
-            let (shutdown_sender, shutdown_receiver) = mpsc::channel::<oneshot::Sender<()>>(1);
-
-            tokio::select! {
-                _ = signal::ctrl_c() => {
-                    info!("Received ctrl_c, shutting down application...");
-                    let (shutdown_finished_sender, shutdown_finished_receiver) = oneshot::channel::<()>();
-                    if let Err(e) = shutdown_sender.send(shutdown_finished_sender).await {
-                        error!("Error sending shutdown signal to TCE application: {e}");
-                    }
-                    if let Err(e) = shutdown_finished_receiver.await {
-                        error!("Error with shutdown receiver: {e}");
-                    }
-                    info!("Shutdown procedure finished, exiting...");
-                }
-                result = topos_tce::run(&config, shutdown_receiver) => {
-                    global::shutdown_tracer_provider();
-                    if let Err(ref error) = result {
-                        error!("TCE node terminated {:?}", error);
-                        std::process::exit(1);
-                    }
-                }
-
-            }
+            let tce_config = TceConfig::load(home)?;
+            println!("TCE config: {:?}", tce_config);
+            // let config = TceConfiguration {
+            //     boot_peers: cmd.parse_boot_peers(),
+            //     local_key_seed: cmd.local_key_seed.map(|s| s.as_bytes().to_vec()),
+            //     tce_addr: cmd.tce_ext_host,
+            //     tce_local_port: cmd.tce_local_port,
+            //     tce_params: cmd.tce_params,
+            //     api_addr: cmd.api_addr,
+            //     graphql_api_addr: cmd.graphql_api_addr,
+            //     storage: StorageConfiguration::RocksDB(
+            //         cmd.db_path
+            //             .as_ref()
+            //             .and_then(|path| PathBuf::from_str(path).ok()),
+            //     ),
+            //     network_bootstrap_timeout: Duration::from_secs(10),
+            //     minimum_cluster_size: cmd
+            //         .minimum_tce_cluster_size
+            //         .unwrap_or(NetworkConfig::MINIMUM_CLUSTER_SIZE),
+            //     version: env!("TOPOS_VERSION"),
+            // };
+            //
+            // print_node_info(&config);
+            //
+            // let (shutdown_sender, shutdown_receiver) = mpsc::channel::<oneshot::Sender<()>>(1);
+            //
+            // tokio::select! {
+            //     _ = signal::ctrl_c() => {
+            //         info!("Received ctrl_c, shutting down application...");
+            //         let (shutdown_finished_sender, shutdown_finished_receiver) = oneshot::channel::<()>();
+            //         if let Err(e) = shutdown_sender.send(shutdown_finished_sender).await {
+            //             error!("Error sending shutdown signal to TCE application: {e}");
+            //         }
+            //         if let Err(e) = shutdown_finished_receiver.await {
+            //             error!("Error with shutdown receiver: {e}");
+            //         }
+            //         info!("Shutdown procedure finished, exiting...");
+            //     }
+            //     result = topos_tce::run(&config, shutdown_receiver) => {
+            //         global::shutdown_tracer_provider();
+            //         if let Err(ref error) = result {
+            //             error!("TCE node terminated {:?}", error);
+            //             std::process::exit(1);
+            //         }
+            //     }
+            //
+            // }
 
             Ok(())
         }

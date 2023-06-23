@@ -1,4 +1,5 @@
 use std::net::SocketAddr;
+use std::path::PathBuf;
 
 use clap::{Args, Subcommand};
 use serde::Serialize;
@@ -27,6 +28,9 @@ pub(crate) struct NodeArgument {
 pub(crate) struct TceCommand {
     #[clap(from_global)]
     pub(crate) verbose: u8,
+
+    #[clap(from_global)]
+    pub(crate) home: PathBuf,
 
     #[clap(subcommand)]
     pub(crate) subcommands: Option<TceCommands>,

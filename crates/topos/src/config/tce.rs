@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
+use std::path::PathBuf;
 use topos_p2p::{Multiaddr, PeerId};
+use crate::config::Config;
+use crate::config::error::ConfigError;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TceConfig {
@@ -110,25 +113,25 @@ fn default_delivery_threshold() -> usize {
     1
 }
 
-impl Default for TceConfig {
-    fn default() -> Self {
-        TceConfig {
-            boot_peers: default_boot_peers(),
-            tce_ext_host: default_tce_ext_host(),
-            tce_local_port: default_tce_local_port(),
-            api_addr: default_api_addr(),
-            graphql_api_addr: default_graphql_api_addr(),
-            web_api_ext_url: None,
-            web_api_local_port: default_web_api_local_port(),
-            local_key_seed: None,
-            local_key_pair: None,
-            db_path: default_db_path(),
-            otlp_agent: None,
-            otlp_service_name: None,
-            minimum_tce_cluster_size: None,
-            echo_threshold: default_echo_threshold(),
-            ready_threshold: default_ready_threshold(),
-            delivery_threshold: default_delivery_threshold(),
-        }
+impl Config for TceConfig {
+    type Command = Run;
+    type Output = TceConfig;
+
+    fn profile(&self) -> String {
+        "tce".to_string()
+    }
+
+    fn load_from_file(figment: Figment, home: &PathBuf) -> figment::Figment {
+        let home = home.join("default.toml");
+
+        let second = Figment::new()
+            .merge(Toml::file(home).nested())
+            .select("tce");
+
+        figment.merge(second)
+    }
+
+    fn load_context(figment: Figment) -> Result<Self::Output, figment::Error> {
+        figment.extract()
     }
 }

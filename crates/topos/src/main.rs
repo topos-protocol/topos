@@ -12,7 +12,7 @@ pub(crate) mod options;
 mod tracing;
 
 use crate::options::ToposCommand;
-use config::Config;
+// use config::Config;
 use tracing_log::LogTracer;
 
 #[tokio::main]
@@ -32,7 +32,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ToposCommand::Setup(cmd) => components::setup::handle_command(cmd).await,
         #[cfg(feature = "subnet")]
         ToposCommand::Subnet(cmd) => components::subnet::handle_command(cmd).await,
-        ToposCommand::Node(cmd) => components::node::handle_command(cmd, args).await,
+        ToposCommand::Node(cmd) => components::node::handle_command(cmd).await,
         ToposCommand::Doctor => components::doctor::handle_doctor().await,
     }
 }

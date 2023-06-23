@@ -15,9 +15,8 @@ pub(crate) struct NodeCommand {
     #[clap(from_global)]
     pub(crate) verbose: u8,
 
-    /// Home directory for the configuration
-    #[arg(long, default_value = "~/.config/topos", env = "TOPOS_HOME")]
-    pub home: PathBuf,
+    #[clap(from_global)]
+    pub(crate) home: PathBuf,
 
     #[clap(subcommand)]
     pub(crate) subcommands: Option<NodeCommands>,
