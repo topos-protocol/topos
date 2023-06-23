@@ -1,9 +1,8 @@
+use clap::Args;
+use serde::Serialize;
 use std::path::PathBuf;
 
-use clap::{Args, Parser};
-use serde::Serialize;
-
-#[derive(Parser, Debug, Clone, Serialize)]
+#[derive(Args, Clone, Debug, Serialize)]
 #[command(about = "Install Polygon Edge node binary")]
 pub struct Subnet {
     /// Installation directory path for Polygon Edge binary.

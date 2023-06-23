@@ -1,9 +1,8 @@
-use clap::Parser;
+use clap::Args;
 use serde::Serialize;
 
-#[derive(Parser, Debug, Clone, Serialize)]
+#[derive(Args, Clone, Debug, Serialize)]
 pub(crate) struct Keys {
     #[arg(long = "from-seed")]
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) from_seed: Option<String>,
 }
