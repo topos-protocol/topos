@@ -124,6 +124,9 @@ impl<'a> NetworkBuilder<'a> {
 
         let gossipsub = gossipsub::ConfigBuilder::default()
             .max_transmit_size(2 * 1024 * 1024)
+            .mesh_n(14)
+            .mesh_n_low(14)
+            .mesh_n_high(15)
             .validation_mode(gossipsub::ValidationMode::Strict)
             .build()
             .unwrap();
