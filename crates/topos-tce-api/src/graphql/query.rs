@@ -18,9 +18,11 @@ impl CertificateQuery for QueryRoot {
         from_source_checkpoint: SourceCheckpoint,
         first: usize,
     ) -> Result<Vec<Certificate>, GraphQLServerError> {
-        let storage = ctx
-            .data::<StorageClient>()
-            .map_err(|_| GraphQLServerError::ParseDataConnector)?;
+        let storage = ctx.data::<StorageClient>().map_err(|_| {
+            tracing::error!("Failed to get storage client from context");
+
+            GraphQLServerError::ParseDataConnector
+        })?;
 
         let mut certificates = Vec::default();
 
@@ -28,10 +30,9 @@ impl CertificateQuery for QueryRoot {
             let certificates_with_position = storage
                 .fetch_certificates(FetchCertificatesFilter::Source {
                     source_stream_position: CertificateSourceStreamPosition {
-                        source_subnet_id: from_source_checkpoint.positions[index]
-                            .source_subnet_id
-                            .clone()
-                            .to_uci_subnet_id()?,
+                        source_subnet_id: topos_core::uci::SubnetId::try_from(
+                            &from_source_checkpoint.positions[index].source_subnet_id,
+                        )?,
                         position: topos_tce_storage::Position(
                             from_source_checkpoint.positions[index].position,
                         ),
