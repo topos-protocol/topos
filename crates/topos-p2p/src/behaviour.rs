@@ -12,6 +12,7 @@ use libp2p::{
 };
 
 pub(crate) mod discovery;
+pub(crate) mod gossip;
 pub(crate) mod peer_info;
 pub(crate) mod topos;
 pub(crate) mod transmission;
@@ -34,5 +35,5 @@ pub(crate) struct Behaviour {
 
     pub(crate) keep_alive: keep_alive::Behaviour,
 
-    pub(crate) gossipsub: gossipsub::Behaviour,
+    pub(crate) gossipsub: gossip::Behaviour,
 }

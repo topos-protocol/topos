@@ -139,12 +139,7 @@ impl Runtime {
             }
 
             Command::Gossip { topic, data } => {
-                match self
-                    .swarm
-                    .behaviour_mut()
-                    .gossipsub
-                    .publish(IdentTopic::new(topic), data)
-                {
+                match self.swarm.behaviour_mut().gossipsub.publish(topic, data) {
                     Ok(message_id) => {
                         info!("Published message {message_id:?} to {topic}");
                         MESSAGE_SENT_ON_GOSSIPSUB.inc();

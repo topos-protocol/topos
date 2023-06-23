@@ -9,13 +9,20 @@ use libp2p::{
 use crate::behaviour::transmission::codec::{TransmissionRequest, TransmissionResponse};
 
 #[derive(Debug)]
+pub struct GossipEvent {
+    pub source: Option<PeerId>,
+    pub topic: &'static str,
+    pub message: Vec<u8>,
+}
+
+#[derive(Debug)]
 pub enum ComposedEvent {
     Kademlia(Box<KademliaEvent>),
     Transmission(RequestResponseEvent<TransmissionRequest, TransmissionResponse>),
     #[allow(dead_code)]
     OutEvent(Event),
     PeerInfo(Box<identify::Event>),
-    Gossipsub(Box<GossipsubEvent>),
+    Gossipsub(GossipEvent),
     Void,
 }
 
@@ -24,12 +31,12 @@ impl From<KademliaEvent> for ComposedEvent {
         ComposedEvent::Kademlia(Box::new(event))
     }
 }
-
-impl From<GossipsubEvent> for ComposedEvent {
-    fn from(event: GossipsubEvent) -> Self {
-        ComposedEvent::Gossipsub(Box::new(event))
-    }
-}
+//
+// impl From<GossipsubEvent> for ComposedEvent {
+//     fn from(event: GossipsubEvent) -> Self {
+//         ComposedEvent::Gossipsub(Box::new(event))
+//     }
+// }
 
 impl From<identify::Event> for ComposedEvent {
     fn from(event: identify::Event) -> Self {

@@ -248,17 +248,7 @@ impl Runtime {
 
         let gossipsub = &mut self.swarm.behaviour_mut().gossipsub;
 
-        gossipsub
-            .subscribe(&gossipsub::IdentTopic::new(TOPOS_GOSSIP))
-            .unwrap();
-
-        gossipsub
-            .subscribe(&gossipsub::IdentTopic::new(TOPOS_ECHO))
-            .unwrap();
-
-        gossipsub
-            .subscribe(&gossipsub::IdentTopic::new(TOPOS_READY))
-            .unwrap();
+        gossipsub.subscribe()?;
 
         Ok(self)
     }

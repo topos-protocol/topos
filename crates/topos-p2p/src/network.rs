@@ -1,7 +1,7 @@
 use super::{Behaviour, Client, Event, Runtime};
 use crate::{
     behaviour::{
-        discovery::DiscoveryBehaviour, peer_info::PeerInfoBehaviour,
+        discovery::DiscoveryBehaviour, gossip, peer_info::PeerInfoBehaviour,
         transmission::TransmissionBehaviour,
     },
     config::NetworkConfig,
@@ -122,16 +122,7 @@ impl<'a> NetworkBuilder<'a> {
         let (command_sender, command_receiver) = mpsc::channel(COMMAND_STREAM_BUFFER);
         let (event_sender, event_receiver) = mpsc::channel(EVENT_STREAM_BUFFER);
 
-        let gossipsub = gossipsub::ConfigBuilder::default()
-            .max_transmit_size(2 * 1024 * 1024)
-            .validation_mode(gossipsub::ValidationMode::Strict)
-            .build()
-            .unwrap();
-
-        let gossipsub =
-            gossipsub::Behaviour::new(MessageAuthenticity::Signed(peer_key.clone()), gossipsub)
-                .unwrap();
-
+        let gossipsub = gossip::Behaviour::new(peer_key.clone());
         let behaviour = Behaviour {
             gossipsub,
             peer_info: PeerInfoBehaviour::new(
