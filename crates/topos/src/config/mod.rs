@@ -47,7 +47,9 @@ impl Config {
         figment = Self::merge_config_with_cmd_args(figment, args);
         let config = Self::extract_valid_config(figment);
 
-        let config_path = Self::get_config_path();
+        let node_name = config.node.name.clone();
+
+        let config_path = Self::create_node_config_file(node_name);
         let toml = toml::to_string(&config).unwrap();
 
         std::fs::write(config_path, toml).expect("Unable to write file");
@@ -59,8 +61,8 @@ impl Config {
     ///TODO: We should not use `Config::default` here, but check if a file exists or if the values
     /// needed are provided by the CLI. If not, we have to fail and/or create a new config file with
     /// the values needed to run it, and notify the user to fill out the empty values in the file
-    pub fn load(args: Opt) -> Config {
-        let config_path = Self::get_config_path();
+    pub fn load(args: Opt, node_name: String) -> Config {
+        let config_path = Self::get_config_path(node_name);
 
         let mut figment = Figment::new()
             .merge(Serialized::defaults(Config::default()))
@@ -74,25 +76,47 @@ impl Config {
     /// Build the initial config file to write to a file.
     /// We assume here that the file is not yet created
     fn build_default_config() -> Figment {
-        let figment = Figment::new().merge(Serialized::defaults(Config::default()));
-
-        println!("figment: {:#?}", figment);
-
-        figment
+        Figment::new().merge(Serialized::defaults(Config::default()))
     }
 
     /// Get the path to the config file from the environment through `$TOPOS_HOME` or
-    /// default to `/Users/USERNAME/.config/topos/config.toml`
-    fn get_config_path() -> PathBuf {
+    /// default to `/Users/USERNAME/.config/topos/node/NODE_NAME/config.toml`
+    ///TODO: Adapt this to not only using `node` but also `subnet` and other hierachies
+    fn create_node_config_file(node_name: String) -> PathBuf {
         let topos_home = match std::env::var("TOPOS_HOME") {
-            Ok(path) => PathBuf::from(path),
+            Ok(path) => PathBuf::from(path).join("node").join(node_name),
             Err(_) => {
                 let home_dir = dirs::home_dir().expect("Failed to get home directory");
-                home_dir.join(".config").join("topos")
+                home_dir
+                    .join(".config")
+                    .join("topos")
+                    .join("node")
+                    .join(node_name)
             }
         };
         if !topos_home.exists() {
             std::fs::create_dir_all(&topos_home).expect("Could not create topos home directory");
+        }
+
+        topos_home.join("config.toml")
+    }
+
+    fn get_config_path(node_name: String) -> PathBuf {
+        let topos_home = match std::env::var("TOPOS_HOME") {
+            Ok(path) => PathBuf::from(path).join("node").join(node_name.clone()),
+            Err(_) => {
+                let home_dir = dirs::home_dir().expect("Failed to get home directory");
+                home_dir
+                    .join(".config")
+                    .join("topos")
+                    .join("node")
+                    .join(node_name.clone())
+            }
+        };
+
+        if !topos_home.exists() {
+            eprintln!("The requested config file: {}/config.rs was not found.\nPlease provide a valid node name or run topos node init --name NODENAME", topos_home.display());
+            std::process::exit(1);
         }
 
         topos_home.join("config.toml")

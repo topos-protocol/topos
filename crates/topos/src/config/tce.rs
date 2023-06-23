@@ -110,27 +110,6 @@ fn default_delivery_threshold() -> usize {
     1
 }
 
-impl TceConfig {
-    pub fn parse_boot_peers(&self) -> Vec<(PeerId, Multiaddr)> {
-        self.boot_peers
-            .split(&[',', ' '])
-            .map(|s| s.to_string())
-            .collect::<Vec<String>>()
-            .chunks(2)
-            .filter_map(|pair| {
-                if pair.len() > 1 {
-                    Some((
-                        pair[0].as_str().parse().unwrap(),
-                        pair[1].as_str().parse().unwrap(),
-                    ))
-                } else {
-                    None
-                }
-            })
-            .collect()
-    }
-}
-
 impl Default for TceConfig {
     fn default() -> Self {
         TceConfig {
