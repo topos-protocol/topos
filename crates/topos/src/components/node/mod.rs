@@ -33,7 +33,11 @@ pub(crate) async fn handle_command(
             Ok(())
         }
         Some(NodeCommands::Up(cmd)) => {
-            let name = cmd.node.clone().take().unwrap_or("default".to_string());
+            let name = cmd
+                .node
+                .clone()
+                .take()
+                .unwrap_or_else(|| "default".to_string());
 
             let config = Config::load(Opt::parse(), name).node;
 

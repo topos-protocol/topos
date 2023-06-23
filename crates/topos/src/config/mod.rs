@@ -103,14 +103,14 @@ impl Config {
 
     fn get_config_path(node_name: String) -> PathBuf {
         let topos_home = match std::env::var("TOPOS_HOME") {
-            Ok(path) => PathBuf::from(path).join("node").join(node_name.clone()),
+            Ok(path) => PathBuf::from(path).join("node").join(node_name),
             Err(_) => {
                 let home_dir = dirs::home_dir().expect("Failed to get home directory");
                 home_dir
                     .join(".config")
                     .join("topos")
                     .join("node")
-                    .join(node_name.clone())
+                    .join(node_name)
             }
         };
 
@@ -152,6 +152,7 @@ impl Config {
     /// If a command line argument is provided, merge it with the config
     fn merge_config_with_cmd_args(figment: Figment, args: Opt) -> Figment {
         match args.commands {
+            #[cfg(feature = "network")]
             ToposCommand::Network(ref cmd) => {
                 figment.merge(Serialized::defaults(cmd).key("network"))
             }
@@ -166,11 +167,15 @@ impl Config {
                 }
                 _ => figment,
             },
+            #[cfg(feature = "sequencer")]
             ToposCommand::Sequencer(ref cmd) => {
                 figment.merge(Serialized::defaults(cmd).key("sequencer"))
             }
+            #[cfg(feature = "setup")]
             ToposCommand::Setup(ref cmd) => figment.merge(Serialized::defaults(cmd).key("setup")),
+            #[cfg(feature = "subnet")]
             ToposCommand::Subnet(ref cmd) => figment.merge(Serialized::defaults(cmd).key("subnet")),
+            #[cfg(feature = "tce")]
             ToposCommand::Tce(TceCommand {
                 ref subcommands, ..
             }) => match subcommands {
