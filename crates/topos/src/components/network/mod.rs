@@ -1,4 +1,5 @@
 use self::commands::{NetworkCommand, NetworkCommands};
+use clap::Parser;
 use opentelemetry::global;
 use tokio::{
     signal, spawn,
@@ -8,6 +9,7 @@ use topos_certificate_spammer::CertificateSpammerConfig;
 use tracing::{error, info};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
+use crate::config::Config;
 use crate::tracing::setup_tracing;
 
 pub(crate) mod commands;
@@ -20,15 +22,17 @@ pub(crate) async fn handle_command(
 ) -> Result<(), Box<dyn std::error::Error>> {
     match subcommands {
         Some(NetworkCommands::Spam(cmd)) => {
+            let config = Config::load(crate::options::Opt::parse()).network;
+
             let config = CertificateSpammerConfig {
-                target_nodes: cmd.target_nodes,
-                target_nodes_path: cmd.target_nodes_path,
-                local_key_seed: cmd.local_key_seed,
-                cert_per_batch: cmd.cert_per_batch,
-                nb_subnets: cmd.nb_subnets,
+                target_nodes: Some(config.target_nodes),
+                target_nodes_path: config.target_nodes_path,
+                local_key_seed: config.local_key_seed,
+                cert_per_batch: config.cert_per_batch,
+                nb_subnets: config.nb_subnets,
                 nb_batches: cmd.nb_batches,
-                batch_interval: cmd.batch_interval,
-                target_subnets: cmd.target_subnets,
+                batch_interval: config.batch_interval,
+                target_subnets: Some(config.target_subnets),
             };
 
             // Setup instrumentation if both otlp agent and otlp service name

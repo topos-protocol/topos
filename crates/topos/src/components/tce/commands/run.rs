@@ -1,53 +1,66 @@
+use std::any::type_name;
 use std::net::SocketAddr;
+use std::str::FromStr;
 
-use clap::Args;
-use topos_p2p::{Multiaddr, PeerId};
+use clap::{Args, Parser};
+use serde::{Deserialize, Serialize};
+
 use topos_tce_transport::ReliableBroadcastParams;
 
-#[derive(Args, Debug)]
+#[derive(Parser, Debug, Clone, Serialize, Deserialize)]
 #[command(about = "Run a full TCE instance")]
 pub struct Run {
     /// Boot nodes to connect to, pairs of <PeerId> <Multiaddr>, space separated,
     /// quoted list like --boot-peers='a a1,b b1'
-    #[arg(long, default_value = "", env = "TCE_BOOT_PEERS")]
-    pub boot_peers: String,
+    #[arg(long, env = "TCE_BOOT_PEERS")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub boot_peers: Option<String>,
 
     /// Advertised (externally visible) <host>,
     /// if empty this machine ip address(es) are used
-    #[arg(long, env = "TCE_EXT_HOST", default_value = "/ip4/0.0.0.0")]
-    pub tce_ext_host: String,
+    #[arg(long, env = "TCE_EXT_HOST")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tce_ext_host: Option<String>,
 
     /// Port to listen on (host is 0.0.0.0, should be good for most installations)
-    #[arg(long, default_value_t = 0, env = "TCE_PORT")]
-    pub tce_local_port: u16,
+    #[arg(long, env = "TCE_PORT")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tce_local_port: Option<u16>,
 
     /// WebAPI external url <host|address:port> (optional)
-    #[clap(long, env = "TCE_WEB_API_EXT_URL")]
+    #[arg(long, env = "TCE_WEB_API_EXT_URL")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub web_api_ext_url: Option<String>,
 
     /// WebAPI port
-    #[clap(long, default_value_t = 8080, env = "TCE_WEB_API_PORT")]
-    pub web_api_local_port: u16,
+    #[arg(long, env = "TCE_WEB_API_PORT")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub web_api_local_port: Option<u16>,
 
     /// Local peer secret key seed (optional, used for testing)
-    #[clap(long, env = "TCE_LOCAL_KS")]
+    #[arg(long, env = "TCE_LOCAL_KS")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub local_key_seed: Option<String>,
 
     /// Local peer key-pair (in base64 format)
-    #[clap(long, env = "TCE_LOCAL_KEYPAIR")]
+    #[arg(long, env = "TCE_LOCAL_KEYPAIR")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub local_key_pair: Option<String>,
 
     /// Storage database path, if not set RAM storage is used
-    #[clap(long, default_value = "./default_db/", env = "TCE_DB_PATH")]
+    #[arg(long, env = "TCE_DB_PATH")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub db_path: Option<String>,
 
     /// gRPC API Addr
-    #[clap(long, env = "TCE_API_ADDR", default_value = "[::1]:1340")]
-    pub api_addr: SocketAddr,
+    #[arg(long, env = "TCE_API_ADDR")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub api_addr: Option<SocketAddr>,
 
     /// GraphQL API Addr
-    #[clap(long, env = "TCE_GRAPHQL_API_ADDR", default_value = "[::1]:4000")]
-    pub graphql_api_addr: SocketAddr,
+    #[arg(long, env = "TCE_GRAPHQL_API_ADDR")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub graphql_api_addr: Option<SocketAddr>,
 
     /// Broadcast parameters
     #[command(flatten)]
@@ -55,35 +68,17 @@ pub struct Run {
 
     /// Socket of the opentelemetry agent endpoint
     /// If not provided open telemetry will not be used
-    #[arg(long, env = "TOPOS_OTLP_AGENT")]
+    #[clap(long, env = "TOPOS_OTLP_AGENT")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub otlp_agent: Option<String>,
 
     /// Otlp service name
     /// If not provided open telemetry will not be used
     #[arg(long, env = "TOPOS_OTLP_SERVICE_NAME")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub otlp_service_name: Option<String>,
 
     #[arg(long, env = "TOPOS_MINIMUM_TCE_CLUSTER_SIZE")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub minimum_tce_cluster_size: Option<usize>,
-}
-
-impl Run {
-    pub fn parse_boot_peers(&self) -> Vec<(PeerId, Multiaddr)> {
-        self.boot_peers
-            .split(&[',', ' '])
-            .map(|s| s.to_string())
-            .collect::<Vec<String>>()
-            .chunks(2)
-            .filter_map(|pair| {
-                if pair.len() > 1 {
-                    Some((
-                        pair[0].as_str().parse().unwrap(),
-                        pair[1].as_str().parse().unwrap(),
-                    ))
-                } else {
-                    None
-                }
-            })
-            .collect()
-    }
 }

@@ -1,11 +1,12 @@
 use clap::{Args, Subcommand};
+use serde::Serialize;
 
 mod run;
 
 pub(crate) use run::Run;
 
 /// Topos CLI subcommand for the Sequencer components
-#[derive(Args, Debug)]
+#[derive(Args, Debug, Clone, Serialize)]
 pub(crate) struct SequencerCommand {
     #[clap(from_global)]
     pub(crate) verbose: u8,
@@ -14,7 +15,7 @@ pub(crate) struct SequencerCommand {
     pub(crate) subcommands: Option<SequencerCommands>,
 }
 
-#[derive(Subcommand, Debug)]
+#[derive(Subcommand, Debug, Clone, Serialize)]
 pub(crate) enum SequencerCommands {
     Run(Box<Run>),
 }

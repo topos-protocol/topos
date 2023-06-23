@@ -1,10 +1,11 @@
 use std::net::SocketAddr;
 
-use clap::Args;
+use clap::Parser;
+use serde::Serialize;
 
 use crate::options::input_format::InputFormat;
 
-#[derive(Args, Debug)]
+#[derive(Parser, Debug, Clone, Serialize)]
 pub(crate) struct PushCertificate {
     #[arg(short, long="format", value_enum, default_value_t = InputFormat::Plain)]
     pub(crate) format: InputFormat,

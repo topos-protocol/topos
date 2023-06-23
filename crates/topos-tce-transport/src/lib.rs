@@ -1,23 +1,23 @@
 //! implementation of Topos Network Transport
 //!
-use clap::Args;
+use clap::Parser;
 use serde::{Deserialize, Serialize};
 use topos_core::uci::{Certificate, CertificateId};
 use topos_p2p::PeerId;
 use topos_telemetry::PropagationContext;
 use tracing::Span;
 
-#[derive(Args, Default, Clone, Debug)]
+#[derive(Parser, Clone, Debug, Default, Deserialize, Serialize)]
 #[command(name = "Parameters of the reliable broadcast")]
 pub struct ReliableBroadcastParams {
     /// Echo threshold
-    #[arg(long, default_value_t = 1, env = "TCE_ECHO_THRESHOLD")]
+    #[arg(long, env = "TCE_ECHO_THRESHOLD", default_value_t = 1)]
     pub echo_threshold: usize,
     /// Ready threshold
-    #[arg(long, default_value_t = 1, env = "TCE_READY_THRESHOLD")]
+    #[arg(long, env = "TCE_READY_THRESHOLD", default_value_t = 1)]
     pub ready_threshold: usize,
     /// Delivery threshold
-    #[arg(long, default_value_t = 1, env = "TCE_DELIVERY_THRESHOLD")]
+    #[arg(long, env = "TCE_DELIVERY_THRESHOLD", default_value_t = 1)]
     pub delivery_threshold: usize,
 }
 

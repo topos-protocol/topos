@@ -14,15 +14,15 @@ Options:
       --target-nodes-path <TARGET_NODES_PATH>
           Path to json file with list of target nodes as alternative to `--target-nodes` [env: TOPOS_NETWORK_SPAMMER_TARGET_NODES_PATH=]
       --local-key-seed <LOCAL_KEY_SEED>
-          Seed for generation of local private signing keys and corresponding subnet ids [env: TOPOS_NETWORK_SPAMMER_LOCAL_KEY_SEED=] [default: 1]
+          Seed for generation of local private signing keys and corresponding subnet ids [env: TOPOS_NETWORK_SPAMMER_LOCAL_KEY_SEED=]
       --cert-per-batch <CERT_PER_BATCH>
-          Certificates generated in one batch. Batch is generated every `batch-interval` milliseconds [env: TOPOS_NETWORK_SPAMMER_CERT_PER_BATCH=] [default: 1]
+          Certificates generated in one batch. Batch is generated every `batch-interval` milliseconds [env: TOPOS_NETWORK_SPAMMER_CERT_PER_BATCH=]
       --nb-subnets <NB_SUBNETS>
-          Number of subnets to use for certificate generation. For every certificate subnet id will be picked randomly [env: TOPOS_NETWORK_SPAMMER_NUMBER_OF_SUBNETS=] [default: 1]
+          Number of subnets to use for certificate generation. For every certificate subnet id will be picked randomly [env: TOPOS_NETWORK_SPAMMER_NUMBER_OF_SUBNETS=]
       --nb-batches <NB_BATCHES>
           Number of batches to generate before finishing execution. If not specified, batches will be generated indefinitely [env: TOPOS_NETWORK_SPAMMER_NUMBER_OF_BATCHES=]
       --batch-interval <BATCH_INTERVAL>
-          Time interval in milliseconds between generated batches of certificates [env: TOPOS_NETWORK_SPAMMER_BATCH_INTERVAL=] [default: 2000]
+          Time interval in milliseconds between generated batches of certificates [env: TOPOS_NETWORK_SPAMMER_BATCH_INTERVAL=]
       --target-subnets <TARGET_SUBNETS>
           List of generated certificate target subnets. No target subnets by default. For example `--target-subnets=0x3bc19e36ff1673910575b6727a974a9abd80c9a875d41ab3e2648dbfb9e4b518,0xa00d60b2b408c2a14c5d70cdd2c205db8985ef737a7e55ad20ea32cc9e7c417c` [env: TOPOS_NETWORK_SPAMMER_TARGET_SUBNETS=]
       --otlp-agent <OTLP_AGENT>

@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand};
+use serde::Serialize;
 
 #[cfg(feature = "sequencer")]
 use crate::components::sequencer::commands::SequencerCommand;
@@ -15,11 +16,13 @@ use crate::components::setup::commands::SetupCommand;
 #[cfg(feature = "subnet")]
 use crate::components::subnet::commands::SubnetCommand;
 
+use crate::components::node::commands::NodeCommand;
+
 pub(crate) mod input_format;
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Serialize)]
 #[clap(name = "topos", about = "Topos CLI")]
-pub(crate) struct Opt {
+pub struct Opt {
     /// Defines the verbosity level
     #[arg(
         long,
@@ -33,7 +36,7 @@ pub(crate) struct Opt {
     pub(crate) commands: ToposCommand,
 }
 
-#[derive(Subcommand, Debug)]
+#[derive(Subcommand, Debug, Clone, Serialize)]
 pub(crate) enum ToposCommand {
     #[cfg(feature = "tce")]
     Tce(TceCommand),
@@ -45,5 +48,6 @@ pub(crate) enum ToposCommand {
     Setup(SetupCommand),
     #[cfg(feature = "subnet")]
     Subnet(SubnetCommand),
+    Node(NodeCommand),
     Doctor,
 }

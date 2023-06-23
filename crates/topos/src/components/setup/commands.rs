@@ -1,11 +1,12 @@
 use clap::{Args, Subcommand};
+use serde::Serialize;
 
 mod subnet;
 
 pub(crate) use subnet::Subnet;
 
 /// Topos CLI subcommand for the setup of various Topos related components (e.g., installation of Polygon Edge binary)
-#[derive(Args, Debug)]
+#[derive(Args, Debug, Clone, Serialize)]
 pub(crate) struct SetupCommand {
     #[clap(from_global)]
     pub(crate) verbose: u8,
@@ -14,7 +15,7 @@ pub(crate) struct SetupCommand {
     pub(crate) subcommands: Option<SetupCommands>,
 }
 
-#[derive(Subcommand, Debug)]
+#[derive(Subcommand, Debug, Clone, Serialize)]
 pub(crate) enum SetupCommands {
     Subnet(Box<Subnet>),
 }

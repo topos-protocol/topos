@@ -8,27 +8,27 @@ Usage: topos tce run [OPTIONS]
 
 Options:
       --boot-peers <BOOT_PEERS>
-          Boot nodes to connect to, pairs of <PeerId> <Multiaddr>, space separated, quoted list like --boot-peers='a a1,b b1' [env: TCE_BOOT_PEERS=] [default: ]
+          Boot nodes to connect to, pairs of <PeerId> <Multiaddr>, space separated, quoted list like --boot-peers='a a1,b b1' [env: TCE_BOOT_PEERS=]
   -v, --verbose...
           Defines the verbosity level
       --tce-ext-host <TCE_EXT_HOST>
-          Advertised (externally visible) <host>, if empty this machine ip address(es) are used [env: TCE_EXT_HOST=] [default: /ip4/0.0.0.0]
+          Advertised (externally visible) <host>, if empty this machine ip address(es) are used [env: TCE_EXT_HOST=]
       --tce-local-port <TCE_LOCAL_PORT>
-          Port to listen on (host is 0.0.0.0, should be good for most installations) [env: TCE_PORT=] [default: 0]
+          Port to listen on (host is 0.0.0.0, should be good for most installations) [env: TCE_PORT=]
       --web-api-ext-url <WEB_API_EXT_URL>
           WebAPI external url <host|address:port> (optional) [env: TCE_WEB_API_EXT_URL=]
       --web-api-local-port <WEB_API_LOCAL_PORT>
-          WebAPI port [env: TCE_WEB_API_PORT=] [default: 8080]
+          WebAPI port [env: TCE_WEB_API_PORT=]
       --local-key-seed <LOCAL_KEY_SEED>
           Local peer secret key seed (optional, used for testing) [env: TCE_LOCAL_KS=]
       --local-key-pair <LOCAL_KEY_PAIR>
           Local peer key-pair (in base64 format) [env: TCE_LOCAL_KEYPAIR=]
       --db-path <DB_PATH>
-          Storage database path, if not set RAM storage is used [env: TCE_DB_PATH=] [default: ./default_db/]
+          Storage database path, if not set RAM storage is used [env: TCE_DB_PATH=]
       --api-addr <API_ADDR>
-          gRPC API Addr [env: TCE_API_ADDR=] [default: [::1]:1340]
+          gRPC API Addr [env: TCE_API_ADDR=]
       --graphql-api-addr <GRAPHQL_API_ADDR>
-          GraphQL API Addr [env: TCE_GRAPHQL_API_ADDR=] [default: [::1]:4000]
+          GraphQL API Addr [env: TCE_GRAPHQL_API_ADDR=]
       --echo-threshold <ECHO_THRESHOLD>
           Echo threshold [env: TCE_ECHO_THRESHOLD=] [default: 1]
       --ready-threshold <READY_THRESHOLD>

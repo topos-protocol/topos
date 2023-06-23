@@ -1,8 +1,9 @@
-use clap::Args;
+use clap::Parser;
+use serde::Serialize;
 
 use super::NodeArgument;
 
-#[derive(Args, Debug)]
+#[derive(Parser, Debug, Clone, Serialize)]
 pub(crate) struct Status {
     #[command(flatten)]
     pub(crate) node_args: NodeArgument,

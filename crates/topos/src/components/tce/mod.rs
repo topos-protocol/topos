@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     fs::File,
     io::{self, Read},
     path::{Path, PathBuf},
@@ -7,7 +8,9 @@ use std::{
     time::Duration,
 };
 
+use clap::{parser::ValueSource, ArgMatches, CommandFactory, Parser};
 use opentelemetry::global;
+use serde_json::{Map as JsonMap, Value};
 use tokio::{
     signal, spawn,
     sync::{mpsc, oneshot, Mutex},
@@ -18,10 +21,15 @@ use topos_core::api::grpc::tce::v1::{
 };
 use topos_p2p::{config::NetworkConfig, PeerId};
 use topos_tce::{StorageConfiguration, TceConfiguration};
+use topos_tce_transport::ReliableBroadcastParams;
 use tower::Service;
 use tracing::{debug, error, info, trace, warn};
 
-use crate::options::input_format::{InputFormat, Parser};
+use crate::components::tce::commands::Run;
+use crate::config::tce::TceConfig;
+use crate::config::Config;
+use crate::options::input_format::InputFormat;
+use crate::options::Opt;
 use crate::tracing::setup_tracing;
 
 use self::commands::{TceCommand, TceCommands};
@@ -50,6 +58,8 @@ pub(crate) async fn handle_command(
         mut subcommands,
     }: TceCommand,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let config = Config::load(crate::options::Opt::parse()).tce;
+
     if let Some(TceCommands::Run(cmd)) = subcommands.as_mut() {
         // Setup instrumentation if both otlp agent and otlp service name are provided as arguments
         setup_tracing(verbose, cmd.otlp_agent.take(), cmd.otlp_service_name.take())?;
@@ -92,22 +102,28 @@ pub(crate) async fn handle_command(
             Ok(())
         }
 
-        Some(TceCommands::Run(cmd)) => {
+        Some(TceCommands::Run(_)) => {
             let config = TceConfiguration {
-                boot_peers: cmd.parse_boot_peers(),
-                local_key_seed: cmd.local_key_seed.map(|s| s.as_bytes().to_vec()),
-                tce_addr: cmd.tce_ext_host,
-                tce_local_port: cmd.tce_local_port,
-                tce_params: cmd.tce_params,
-                api_addr: cmd.api_addr,
-                graphql_api_addr: cmd.graphql_api_addr,
-                storage: StorageConfiguration::RocksDB(
-                    cmd.db_path
-                        .as_ref()
-                        .and_then(|path| PathBuf::from_str(path).ok()),
-                ),
+                boot_peers: if !config.boot_peers.is_empty() {
+                    config.parse_boot_peers()
+                } else {
+                    vec![]
+                },
+                local_key_seed: config.local_key_seed.map(|s| s.as_bytes().to_vec()),
+                tce_addr: config.tce_ext_host,
+                tce_local_port: config.tce_local_port,
+                tce_params: ReliableBroadcastParams {
+                    echo_threshold: config.echo_threshold,
+                    ready_threshold: config.ready_threshold,
+                    delivery_threshold: config.delivery_threshold,
+                },
+                api_addr: config.api_addr,
+                graphql_api_addr: config.graphql_api_addr,
+                storage: StorageConfiguration::RocksDB(Some(
+                    PathBuf::from_str(&config.db_path).expect("Cannot build path from String"),
+                )),
                 network_bootstrap_timeout: Duration::from_secs(10),
-                minimum_cluster_size: cmd
+                minimum_cluster_size: config
                     .minimum_tce_cluster_size
                     .unwrap_or(NetworkConfig::MINIMUM_CLUSTER_SIZE),
                 version: env!("TOPOS_VERSION"),

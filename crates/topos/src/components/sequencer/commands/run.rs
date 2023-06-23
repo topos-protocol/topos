@@ -1,7 +1,9 @@
-use clap::Args;
 use std::path::PathBuf;
 
-#[derive(Args, Debug)]
+use clap::Parser;
+use serde::Serialize;
+
+#[derive(Parser, Debug, Clone, Serialize)]
 #[command(about = "Run a full Topos Sequencer instance")]
 pub struct Run {
     /// SubnetId of the local subnet node, hex encoded 32 bytes starting with 0x

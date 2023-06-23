@@ -1,0 +1,13 @@
+[tce]
+#boot_peers = ""
+#tce_ext_host = "/ip4/0.0.0.0"
+#tce_local_port = 0
+#web_api_local_port = 8080
+#db_path = "./default_db/"
+##api_addr = "[::1]:1340"
+#graphql_api_addr = "[::1]:4000"
+##tce_params.echo_threshold = 1
+##tce_params.ready_threshold = 1
+##tce_params.delivery_threshold = 1
+
+[network]
