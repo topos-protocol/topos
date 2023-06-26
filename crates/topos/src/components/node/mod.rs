@@ -93,7 +93,7 @@ pub(crate) async fn handle_command(
                 std::process::exit(1);
             }
 
-            let config = NodeConfig::load(&node_path, None)?;
+            let config = load_config::<NodeConfig>(&node_path);
 
             println!(
                 "Reading the configuration from {}/{}/config.toml",
