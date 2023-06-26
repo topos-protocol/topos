@@ -6,6 +6,7 @@ pub(crate) mod tce;
 use std::path::Path;
 
 use figment::{
+    error::Kind,
     providers::{Format, Serialized, Toml},
     Figment,
 };
@@ -55,4 +56,28 @@ pub(crate) trait Config: Serialize {
 
         Self::load_context(figment)
     }
+}
+
+pub(crate) fn load_config<T: Config>(node_path: &Path) -> T::Output {
+    match T::load(&node_path, None) {
+        Ok(config) => config,
+        Err(figment::Error {
+            kind: Kind::MissingField(name),
+            ..
+        }) => {
+            println!("Missing field: {}", name);
+            std::process::exit(1);
+        }
+        _ => {
+            println!("Failed to load config");
+            std::process::exit(1);
+        }
+    }
+}
+
+pub(crate) fn insert_into_toml<T: Config>(config_toml: &mut toml::Table, config: T) {
+    config_toml.insert(
+        config.profile(),
+        toml::Value::Table(config.to_toml().expect("failed to convert config to toml")),
+    );
 }

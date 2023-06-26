@@ -19,7 +19,8 @@ use tracing_opentelemetry::OpenTelemetrySpanExt;
 use self::commands::{NodeCommand, NodeCommands};
 use crate::{
     config::{
-        base::BaseConfig, node::NodeConfig, sequencer::SequencerConfig, tce::TceConfig, Config,
+        base::BaseConfig, insert_into_toml, load_config, node::NodeConfig,
+        sequencer::SequencerConfig, tce::TceConfig, Config,
     },
     tracing::setup_tracing,
 };
@@ -53,82 +54,15 @@ pub(crate) async fn handle_command(
                 std::process::exit(1);
             }
 
-            // Handle config missing key here
-            let base_config = match BaseConfig::load(&node_path, None) {
-                Ok(config) => config,
-                Err(figment::Error {
-                    kind: Kind::MissingField(name),
-                    ..
-                }) => {
-                    println!("Missing field: {}", name);
-                    std::process::exit(1);
-                }
-                _ => {
-                    println!("Failed to load config");
-                    std::process::exit(1);
-                }
-            };
+            let base_config = load_config::<BaseConfig>(&node_path);
+            let tce_config = load_config::<TceConfig>(&node_path);
+            let sequencer_config = load_config::<SequencerConfig>(&node_path);
 
-            // Handle config missing key here
-            let tce_config = match TceConfig::load(&node_path, None) {
-                Ok(config) => config,
-                Err(figment::Error {
-                    kind: Kind::MissingField(name),
-                    ..
-                }) => {
-                    println!("Missing field: {}", name);
-                    std::process::exit(1);
-                }
-                _ => {
-                    println!("Failed to load config");
-                    std::process::exit(1);
-                }
-            };
-
-            // Handle config missing key here
-            let sequencer_config = match SequencerConfig::load(&node_path, None) {
-                Ok(config) => config,
-                Err(figment::Error {
-                    kind: Kind::MissingField(name),
-                    ..
-                }) => {
-                    println!("Missing field: {}", name);
-                    std::process::exit(1);
-                }
-                _ => {
-                    println!("Failed to load config");
-                    std::process::exit(1);
-                }
-            };
             // Creating the TOML output
             let mut config_toml = toml::Table::new();
-
-            config_toml.insert(
-                base_config.profile(),
-                toml::Value::Table(
-                    base_config
-                        .to_toml()
-                        .expect("failed to convert base config to toml"),
-                ),
-            );
-
-            config_toml.insert(
-                tce_config.profile(),
-                toml::Value::Table(
-                    tce_config
-                        .to_toml()
-                        .expect("failed to convert tce config to toml"),
-                ),
-            );
-
-            config_toml.insert(
-                sequencer_config.profile(),
-                toml::Value::Table(
-                    sequencer_config
-                        .to_toml()
-                        .expect("failed to convert sequencer config to toml"),
-                ),
-            );
+            insert_into_toml(&mut config_toml, base_config);
+            insert_into_toml(&mut config_toml, tce_config);
+            insert_into_toml(&mut config_toml, sequencer_config);
 
             let config_path = node_path.join("config.toml");
             let mut node_config_file = OpenOptions::new()
