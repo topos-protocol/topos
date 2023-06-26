@@ -12,7 +12,7 @@ Options:
   -v, --verbose...
           Defines the verbosity level
       --home <HOME>
-          Home directory for the configuration [env: TOPOS_HOME=] [default: /Users/gruberbastian/.config/topos]
+          Home directory for the configuration [env: TOPOS_HOME=] [default: /home/runner/.config/topos]
       --tce-ext-host <TCE_EXT_HOST>
           Advertised (externally visible) <host>, if empty this machine ip address(es) are used [env: TCE_EXT_HOST=] [default: /ip4/0.0.0.0]
       --tce-local-port <TCE_LOCAL_PORT>
