@@ -1,5 +1,13 @@
+use std::path::{Path, PathBuf};
+
+use figment::{
+    providers::{Format, Serialized, Toml},
+    Figment,
+};
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+
+use crate::components::sequencer::commands::Run;
+use crate::config::Config;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SequencerConfig {
@@ -21,6 +29,7 @@ pub struct SequencerConfig {
     pub base_tce_api_url: String,
 
     /// Polygon subnet node data dir, containing `consensus/validator.key`, e.g. `../test-chain-1`
+    #[serde(default = "default_subnet_data_dir")]
     pub subnet_data_dir: PathBuf,
 
     /// Verifier version
@@ -48,23 +57,27 @@ fn default_base_tce_api_url() -> String {
     "http://[::1]:1340".to_string()
 }
 
+fn default_subnet_data_dir() -> PathBuf {
+    PathBuf::from("../test-chain-1")
+}
+
 fn default_verifier() -> u32 {
     0
 }
 
 impl Config for SequencerConfig {
-    type Command = sequencer::commands::Run;
+    type Command = Run;
 
     type Output = Self;
 
-    fn load_from_file(figment: Figment, home: &PathBuf) -> figment::Figment {
-        let home = home.join("default.toml");
+    fn load_from_file(figment: Figment, home: &Path) -> Figment {
+        let home = home.join("config.toml");
 
-        let second = Figment::new()
+        let sequencer = Figment::new()
             .merge(Toml::file(home).nested())
             .select("sequencer");
 
-        figment.merge(second)
+        figment.merge(sequencer)
     }
 
     fn load_context(figment: Figment) -> Result<Self::Output, figment::Error> {

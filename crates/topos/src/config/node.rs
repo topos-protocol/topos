@@ -1,38 +1,37 @@
+use std::path::Path;
+
+use figment::{
+    providers::{Format, Serialized, Toml},
+    Figment,
+};
+
 use serde::{Deserialize, Serialize};
 
+use crate::components::node::commands::Up;
+use crate::config::{base::BaseConfig, sequencer::SequencerConfig, tce::TceConfig, Config};
+
 #[derive(Serialize, Deserialize, Debug)]
-pub struct NodeConfig {
-    /// Name to identify your node
-    #[serde(default = "default_name")]
-    pub name: String,
-
-    /// Role of your node
-    #[serde(default = "default_role")]
-    pub role: String,
-
-    /// Subnet of your node
-    #[serde(default = "default_subnet")]
-    pub subnet: String,
+pub(crate) struct NodeConfig {
+    pub(crate) base: BaseConfig,
+    pub(crate) tce: TceConfig,
+    pub(crate) sequencer: SequencerConfig,
 }
 
-fn default_name() -> String {
-    "default".to_string()
-}
+impl Config for NodeConfig {
+    type Command = Up;
+    type Output = NodeConfig;
 
-fn default_role() -> String {
-    "validator".to_string()
-}
+    fn profile(&self) -> String {
+        "default".to_string()
+    }
 
-fn default_subnet() -> String {
-    "topos".to_string()
-}
+    fn load_from_file(figment: Figment, home: &Path) -> Figment {
+        let home = home.join("config.toml");
 
-impl Default for NodeConfig {
-    fn default() -> Self {
-        NodeConfig {
-            name: default_name(),
-            role: default_role(),
-            subnet: default_subnet(),
-        }
+        figment.merge(Toml::file(home))
+    }
+
+    fn load_context(figment: Figment) -> Result<Self::Output, figment::Error> {
+        figment.extract()
     }
 }

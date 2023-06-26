@@ -1,6 +1,6 @@
-use std::{ffi::OsString, path::PathBuf};
 use clap::{Parser, Subcommand};
 use serde::Serialize;
+use std::{ffi::OsString, path::PathBuf};
 
 #[cfg(feature = "sequencer")]
 use crate::components::sequencer::commands::SequencerCommand;

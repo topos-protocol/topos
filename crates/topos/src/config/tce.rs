@@ -1,9 +1,16 @@
-use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
-use std::path::PathBuf;
+use std::path::Path;
+
+use figment::{
+    providers::{Format, Serialized, Toml},
+    Figment,
+};
+use serde::{Deserialize, Serialize};
+
 use topos_p2p::{Multiaddr, PeerId};
+
+use crate::components::tce::commands::Run;
 use crate::config::Config;
-use crate::config::error::ConfigError;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TceConfig {
@@ -121,14 +128,14 @@ impl Config for TceConfig {
         "tce".to_string()
     }
 
-    fn load_from_file(figment: Figment, home: &PathBuf) -> figment::Figment {
-        let home = home.join("default.toml");
+    fn load_from_file(figment: Figment, home: &Path) -> Figment {
+        let home = home.join("config.toml");
 
-        let second = Figment::new()
+        let tce = Figment::new()
             .merge(Toml::file(home).nested())
             .select("tce");
 
-        figment.merge(second)
+        figment.merge(tce)
     }
 
     fn load_context(figment: Figment) -> Result<Self::Output, figment::Error> {

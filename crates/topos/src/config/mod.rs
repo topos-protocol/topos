@@ -1,12 +1,15 @@
-use std::path::PathBuf;
+pub(crate) mod base;
+pub(crate) mod node;
+pub(crate) mod sequencer;
+pub(crate) mod tce;
+
+use std::path::Path;
 
 use figment::{
     providers::{Format, Serialized, Toml},
     Figment,
 };
-use serde::{Deserialize, Serialize};
-
-use crate::components::sequencer::{self, commands::Run};
+use serde::Serialize;
 
 pub(crate) trait Config: Serialize {
     /// The command line command to load the configuration.
@@ -17,7 +20,7 @@ pub(crate) trait Config: Serialize {
     /// Load the configuration from a file or multiple files.
     /// The home is the directory where the configuration files are located.
     /// For node, it is the `node` directory in the $TOPOS_HOME directory.
-    fn load_from_file(figment: Figment, home: &PathBuf) -> figment::Figment;
+    fn load_from_file(figment: Figment, home: &Path) -> Figment;
 
     /// Load the configuration from the context.
     /// Trying to extract the configuration from the figment context.
@@ -33,7 +36,7 @@ pub(crate) trait Config: Serialize {
     }
 
     /// Load the configuration from the command line command.
-    fn load_from_command(figment: Figment, command: Self::Command) -> figment::Figment {
+    fn load_from_command(figment: Figment, command: Self::Command) -> Figment {
         figment.merge(Serialized::defaults(command))
     }
 
@@ -41,10 +44,7 @@ pub(crate) trait Config: Serialize {
     /// It will load the configuration from the file and the command line (if any)
     /// and then extract the configuration from the context in order to build the Config.
     /// The Config is then returned or an error if the configuration is not valid.
-    fn load(
-        home: &PathBuf,
-        command: Option<Self::Command>,
-    ) -> Result<Self::Output, figment::Error> {
+    fn load(home: &Path, command: Option<Self::Command>) -> Result<Self::Output, figment::Error> {
         let mut figment = Figment::new();
 
         figment = Self::load_from_file(figment, home);
