@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use topos_p2p::{Multiaddr, PeerId};
 
+#[cfg(feature = "tce")]
 use crate::components::tce::commands::Run;
 use crate::config::Config;
 
