@@ -64,5 +64,4 @@ crates/topos-sequencer-subnet-runtime/tests/temp
 # Node modules
 **/node_modules
 
-# Artifacts copied from topos-smart-contractgs to run tests
-artifacts
+artifacts/
