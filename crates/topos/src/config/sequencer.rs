@@ -5,7 +5,6 @@ use figment::{
     Figment,
 };
 use serde::{Deserialize, Serialize};
-
 #[cfg(feature = "sequencer")]
 use crate::components::sequencer::commands::Run;
 use crate::config::Config;

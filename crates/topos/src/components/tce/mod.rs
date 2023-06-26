@@ -27,7 +27,6 @@ use topos_p2p::{config::NetworkConfig, PeerId};
 use topos_tce::{StorageConfiguration, TceConfiguration};
 use topos_tce_transport::ReliableBroadcastParams;
 
-use crate::components::tce::commands::Run;
 use crate::config::tce::TceConfig;
 use crate::config::Config;
 use crate::options::input_format::InputFormat;

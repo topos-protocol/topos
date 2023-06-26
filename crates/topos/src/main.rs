@@ -4,15 +4,15 @@ use std::time::Duration;
 use clap::CommandFactory;
 use clap::{Args, Parser, Subcommand};
 
-#[cfg(feature = "tce")]
-use components::tce::commands::{TceCommand, TceCommands};
 mod components;
 mod config;
 pub(crate) mod options;
 mod tracing;
 
+#[cfg(feature = "tce")]
+use components::tce::commands::{TceCommand, TceCommands};
+
 use crate::options::ToposCommand;
-// use config::Config;
 use tracing_log::LogTracer;
 
 #[tokio::main]
