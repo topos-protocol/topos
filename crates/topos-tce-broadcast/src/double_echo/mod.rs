@@ -8,6 +8,9 @@ use std::{
 use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
 use tokio::sync::{broadcast, mpsc, oneshot};
 use topos_core::uci::{Certificate, CertificateId};
+use topos_metrics::{
+    CERTIFICATE_RECEIVED, CERTIFICATE_RECEIVED_FROM_API, CERTIFICATE_RECEIVED_FROM_GOSSIP,
+};
 use topos_p2p::Client as NetworkClient;
 use topos_p2p::PeerId;
 use topos_tce_storage::{PendingCertificateId, StorageClient};
@@ -125,6 +128,14 @@ impl DoubleEcho {
                                 span.in_scope(|| {
                                     warn!("Broadcast registered for {}", cert.id);
                                     self.span_tracker.insert(cert.id, span.clone());
+                                    CERTIFICATE_RECEIVED.inc();
+
+                                    if need_gossip {
+                                        CERTIFICATE_RECEIVED_FROM_API.inc();
+                                    } else {
+                                        CERTIFICATE_RECEIVED_FROM_GOSSIP.inc();
+                                    }
+
                                 });
                                 span.add_link(ctx.context().span().span_context().clone());
                                 let maybe_pending = self

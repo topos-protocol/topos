@@ -20,10 +20,9 @@ opentelemetry.workspace = true
 tracing-attributes.workspace = true
 tracing-opentelemetry.workspace = true
 
-lazy_static = "1.4"
-
 tce_transport = { package = "topos-tce-transport", path = "../topos-tce-transport" }
 topos-p2p = { path = "../topos-p2p" }
+topos-metrics = { path = "../topos-metrics" }
 topos-tce-api = { path = "../topos-tce-api"}
 topos-tce-broadcast = { path = "../topos-tce-broadcast" }
 topos-tce-gatekeeper = { path = "../topos-tce-gatekeeper" }

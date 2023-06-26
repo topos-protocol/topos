@@ -7297,6 +7297,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "topos-metrics"
+version = "0.1.0"
+dependencies = [
+ "lazy_static",
+ "prometheus",
+]
+
+[[package]]
 name = "topos-p2p"
 version = "0.1.0"
 dependencies = [
@@ -7304,15 +7312,14 @@ dependencies = [
  "bincode",
  "env_logger 0.10.0",
  "futures",
- "lazy_static",
  "libp2p",
- "prometheus",
  "rstest",
  "serde",
  "test-log",
  "thiserror",
  "tokio",
  "tokio-stream",
+ "topos-metrics",
  "topos-test-sdk",
  "tracing",
  "tracing-subscriber",
@@ -7398,7 +7405,6 @@ dependencies = [
  "cucumber",
  "futures",
  "hyper",
- "lazy_static",
  "libp2p",
  "opentelemetry",
  "prometheus",
@@ -7411,6 +7417,7 @@ dependencies = [
  "tokio",
  "tonic 0.9.2",
  "topos-core",
+ "topos-metrics",
  "topos-p2p",
  "topos-tce-api",
  "topos-tce-broadcast",
@@ -7489,6 +7496,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "topos-core",
+ "topos-metrics",
  "topos-p2p",
  "topos-tce-storage",
  "topos-tce-transport",

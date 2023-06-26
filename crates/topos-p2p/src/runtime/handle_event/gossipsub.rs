@@ -1,10 +1,10 @@
 use libp2p::gossipsub::{Event as GossipsubEvent, Message};
+use topos_metrics::{
+    MESSAGE_RECEIVED_ON_ECHO, MESSAGE_RECEIVED_ON_GOSSIP, MESSAGE_RECEIVED_ON_READY,
+};
 use tracing::{error, info};
 
-use crate::{
-    Event, Runtime, MESSAGE_RECEIVED_ON_ECHO, MESSAGE_RECEIVED_ON_GOSSIP,
-    MESSAGE_RECEIVED_ON_READY, TOPOS_ECHO, TOPOS_GOSSIP, TOPOS_READY,
-};
+use crate::{Event, Runtime, TOPOS_ECHO, TOPOS_GOSSIP, TOPOS_READY};
 
 use super::EventHandler;
 
