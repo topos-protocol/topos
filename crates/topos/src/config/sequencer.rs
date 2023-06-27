@@ -1,13 +1,12 @@
 use std::path::{Path, PathBuf};
 
+use crate::components::sequencer::commands::Run;
+use crate::config::Config;
 use figment::{
     providers::{Format, Serialized, Toml},
     Figment,
 };
 use serde::{Deserialize, Serialize};
-#[cfg(feature = "sequencer")]
-use crate::components::sequencer::commands::Run;
-use crate::config::Config;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SequencerConfig {

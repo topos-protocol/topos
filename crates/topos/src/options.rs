@@ -17,6 +17,7 @@ use crate::components::setup::commands::SetupCommand;
 #[cfg(feature = "subnet")]
 use crate::components::subnet::commands::SubnetCommand;
 
+#[cfg(all(feature = "sequencer", feature = "tce"))]
 use crate::components::node::commands::NodeCommand;
 
 pub(crate) mod input_format;
@@ -67,6 +68,7 @@ pub(crate) enum ToposCommand {
     Setup(SetupCommand),
     #[cfg(feature = "subnet")]
     Subnet(SubnetCommand),
+    #[cfg(all(feature = "sequencer", feature = "tce"))]
     Node(NodeCommand),
     Doctor,
 }

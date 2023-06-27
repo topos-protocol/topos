@@ -1,6 +1,10 @@
+#[cfg(all(feature = "sequencer", feature = "tce"))]
 pub(crate) mod base;
+#[cfg(all(feature = "sequencer", feature = "tce"))]
 pub(crate) mod node;
+#[cfg(feature = "sequencer")]
 pub(crate) mod sequencer;
+#[cfg(feature = "tce")]
 pub(crate) mod tce;
 
 use std::path::Path;

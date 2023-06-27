@@ -4,7 +4,7 @@ use std::time::Duration;
 use clap::CommandFactory;
 use clap::{Args, Parser, Subcommand};
 
-mod components;
+pub(crate) mod components;
 mod config;
 pub(crate) mod options;
 mod tracing;
@@ -32,6 +32,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ToposCommand::Setup(cmd) => components::setup::handle_command(cmd).await,
         #[cfg(feature = "subnet")]
         ToposCommand::Subnet(cmd) => components::subnet::handle_command(cmd).await,
+        #[cfg(all(feature = "sequencer", feature = "tce"))]
         ToposCommand::Node(cmd) => components::node::handle_command(cmd).await,
         ToposCommand::Doctor => components::doctor::handle_doctor().await,
     }

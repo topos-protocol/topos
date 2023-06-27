@@ -17,11 +17,12 @@ use tracing::{error, info};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 use self::commands::{NodeCommand, NodeCommands};
+
+use crate::config::sequencer::SequencerConfig;
+use crate::config::tce::TceConfig;
+
 use crate::{
-    config::{
-        base::BaseConfig, insert_into_toml, load_config, node::NodeConfig,
-        sequencer::SequencerConfig, tce::TceConfig, Config,
-    },
+    config::{base::BaseConfig, insert_into_toml, load_config, node::NodeConfig, Config},
     tracing::setup_tracing,
 };
 

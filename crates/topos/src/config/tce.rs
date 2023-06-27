@@ -7,10 +7,9 @@ use figment::{
 };
 use serde::{Deserialize, Serialize};
 
-use topos_p2p::{Multiaddr, PeerId};
-#[cfg(feature = "tce")]
 use crate::components::tce::commands::Run;
 use crate::config::Config;
+use topos_p2p::{Multiaddr, PeerId};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TceConfig {

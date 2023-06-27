@@ -6,6 +6,7 @@ use figment::{
 };
 use serde::{Deserialize, Serialize};
 
+#[cfg(all(feature = "sequencer", feature = "tce"))]
 use crate::components::node::commands::Init;
 use crate::config::Config;
 
