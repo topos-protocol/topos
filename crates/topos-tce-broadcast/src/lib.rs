@@ -20,6 +20,7 @@ use double_echo::DoubleEcho;
 use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
 
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
+use topos_metrics::DOUBLE_ECHO_COMMAND_CHANNEL_CAPACITY;
 use topos_p2p::PeerId;
 use topos_tce_storage::StorageClient;
 use tracing::{debug, error, info, Span};
@@ -31,6 +32,7 @@ pub use topos_core::uci;
 
 pub type Peer = String;
 
+mod constant;
 pub mod double_echo;
 pub mod mem_store;
 pub mod sampler;
@@ -129,16 +131,15 @@ impl ReliableBroadcastClient {
         let (subscriptions_view_sender, subscriptions_view_receiver) =
             mpsc::channel::<SubscriptionsView>(2048);
         let (event_sender, event_receiver) = broadcast::channel(2048);
-        let (broadcast_commands, command_receiver) = mpsc::channel(2048);
+        let (broadcast_commands, command_receiver) = mpsc::channel(*constant::COMMAND_CHANNEL_SIZE);
         let (double_echo_shutdown_channel, double_echo_shutdown_receiver) =
             mpsc::channel::<oneshot::Sender<()>>(1);
 
-        let last_pending_certificate = storage
-            .next_pending_certificate(None)
+        let pending_certificate_count = storage
+            .get_pending_certificates()
             .await
-            .unwrap_or(None)
-            .map(|(id, _)| id)
-            .unwrap_or(0);
+            .map(|v| v.len())
+            .unwrap_or(0) as u64;
 
         let double_echo = DoubleEcho::new(
             config.tce_params,
@@ -151,11 +152,7 @@ impl ReliableBroadcastClient {
             network_client,
             double_echo_shutdown_receiver,
             local_peer_id,
-            last_pending_certificate,
-            std::env::var("TOPOS_BROADCAST_MAX_BUFFER_SIZE")
-                .ok()
-                .and_then(|s| s.parse().ok())
-                .unwrap_or(DoubleEcho::MAX_BUFFER_SIZE),
+            pending_certificate_count,
         );
 
         spawn(double_echo.run());
@@ -250,6 +247,10 @@ impl ReliableBroadcastClient {
         origin: bool,
     ) -> Result<(), ()> {
         let broadcast_commands = self.broadcast_commands.clone();
+
+        if broadcast_commands.capacity() <= *constant::COMMAND_CHANNEL_CAPACITY {
+            DOUBLE_ECHO_COMMAND_CHANNEL_CAPACITY.inc();
+        }
 
         info!("Send certificate to be broadcast");
         if broadcast_commands

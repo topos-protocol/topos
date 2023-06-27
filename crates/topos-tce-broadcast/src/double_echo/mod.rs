@@ -1,6 +1,7 @@
 use crate::Errors;
 use crate::{sampler::SampleType, tce_store::TceStore, DoubleEchoCommand, SubscriptionsView};
 use opentelemetry::trace::TraceContextExt;
+use std::collections::HashSet;
 use std::{
     collections::{HashMap, VecDeque},
     time,
@@ -10,6 +11,9 @@ use tokio::sync::{broadcast, mpsc, oneshot};
 use topos_core::uci::{Certificate, CertificateId};
 use topos_metrics::{
     CERTIFICATE_RECEIVED, CERTIFICATE_RECEIVED_FROM_API, CERTIFICATE_RECEIVED_FROM_GOSSIP,
+    DOUBLE_ECHO_BROADCAST_CREATED, DOUBLE_ECHO_BROADCAST_FINISHED,
+    DOUBLE_ECHO_BUFFERED_MESSAGE_COUNT, DOUBLE_ECHO_BUFFER_CAPACITY,
+    DOUBLE_ECHO_CURRENT_BUFFER_SIZE,
 };
 use topos_p2p::Client as NetworkClient;
 use topos_p2p::PeerId;
@@ -30,6 +34,7 @@ pub struct DeliveryState {
 }
 
 pub struct DoubleEcho {
+    pending_certificate_count: u64,
     last_pending_certificate: PendingCertificateId,
     pub(crate) params: ReliableBroadcastParams,
     command_receiver: mpsc::Receiver<DoubleEchoCommand>,
@@ -42,13 +47,14 @@ pub struct DoubleEcho {
 
     cert_candidate: HashMap<CertificateId, (Certificate, DeliveryState)>,
 
-    pending_delivery: HashMap<CertificateId, (Certificate, Span)>,
+    // Span tracker for each certificate
     span_tracker: HashMap<CertificateId, Span>,
-    all_known_certs: Vec<Certificate>,
     delivery_time: HashMap<CertificateId, (time::SystemTime, time::Duration)>,
     pub(crate) subscriptions: SubscriptionsView, // My subscriptions for echo, ready and delivery feedback
     buffer: VecDeque<(bool, Certificate)>,
     pub(crate) shutdown: mpsc::Receiver<oneshot::Sender<()>>,
+
+    known_certificates: HashSet<CertificateId>,
 
     local_peer_id: String,
 
@@ -71,9 +77,10 @@ impl DoubleEcho {
         shutdown: mpsc::Receiver<oneshot::Sender<()>>,
         local_peer_id: String,
         last_pending_certificate: PendingCertificateId,
-        max_buffer_size: usize,
+        pending_certificate_count: u64,
     ) -> Self {
         Self {
+            pending_certificate_count,
             last_pending_certificate,
             params,
             command_receiver,
@@ -83,16 +90,14 @@ impl DoubleEcho {
             storage,
             network_client,
             cert_candidate: Default::default(),
-            pending_delivery: Default::default(),
             span_tracker: Default::default(),
-            all_known_certs: Default::default(),
             delivery_time: Default::default(),
             subscriptions: SubscriptionsView::default(),
             buffer: VecDeque::new(),
             shutdown,
             local_peer_id,
             buffered_messages: Default::default(),
-            max_buffer_size,
+            known_certificates: Default::default(),
         }
     }
 
@@ -123,10 +128,16 @@ impl DoubleEcho {
                         }
 
                         DoubleEchoCommand::Broadcast { need_gossip, cert, ctx } => {
-                            if self.storage.pending_certificate_exists(cert.id).await.is_err() &&
-                                self.storage.get_certificate(cert.id).await.is_err()
-                            {
+                            let checking_timer = STORAGE_PENDING_CERTIFICATE_EXISTANCE_LATENCY.start_timer();
+                            // NOTE: Comment in order to check performance during benchmark
+                            // if self.storage.pending_certificate_exists(cert.id).await.is_err() &&
+                            //     self.storage.get_certificate(cert.id).await.is_err()
+                            // {
+
+                            if !self.known_certificates.contains(&cert.id) {
+                                checking_timer.stop_and_record();
                                 let span = warn_span!("Broadcast", peer_id = self.local_peer_id, certificate_id = cert.id.to_string());
+                                DOUBLE_ECHO_BROADCAST_CREATED.inc();
                                 span.in_scope(|| {
                                     warn!("Broadcast registered for {}", cert.id);
                                     self.span_tracker.insert(cert.id, span.clone());
@@ -140,22 +151,33 @@ impl DoubleEcho {
 
                                 });
                                 span.add_link(ctx.context().span().span_context().clone());
+                                let adding_timer = STORAGE_ADDING_PENDING_CERTIFICATE_LATENCY.start_timer();
                                 let maybe_pending = self
                                     .storage
                                     .add_pending_certificate(cert.clone())
                                     .instrument(span.clone())
                                     .await;
+                                adding_timer.stop_and_record();
 
+                                self.known_certificates.insert(cert.id);
                                 span.in_scope(||{
                                     info!("Certificate {} added to pending storage", cert.id);
                                     debug!("DoubleEchoCommand::Broadcast certificate_id: {}", cert.id);
                                     if self.buffer.len() < self.max_buffer_size {
                                         self.buffer.push_back((need_gossip, cert));
+                                        DOUBLE_ECHO_CURRENT_BUFFER_SIZE.inc();
                                         if let Ok(pending) = maybe_pending {
                                             self.last_pending_certificate = pending;
                                         }
+                                    } else {
+                                        DOUBLE_ECHO_BUFFER_CAPACITY.inc();
+                                        // Adding one to the pending_certificate_count because we
+                                        // can't buffer it right now
+                                        _ = self.pending_certificate_count.checked_add(1);
                                     }
                                 });
+                            } else {
+                                checking_timer.stop_and_record();
                             }
                         }
 
@@ -208,6 +230,7 @@ impl DoubleEcho {
                                                         certificate_id,
                                                         ctx,
                                                     });
+                                                DOUBLE_ECHO_BUFFERED_MESSAGE_COUNT.inc();
                                             }
                                         }
                                     }.await;
@@ -245,6 +268,7 @@ impl DoubleEcho {
                                                         certificate_id,
                                                         ctx,
                                                     });
+                                                DOUBLE_ECHO_BUFFERED_MESSAGE_COUNT.inc();
                                             }
                                         }
                                     }.await;
@@ -294,6 +318,7 @@ impl DoubleEcho {
                 // TODO: Remove the unused_variables attribute when the feature direct is removed
                 #[allow(unused_variables)]
                 if let Some((need_gossip, cert)) = self.buffer.pop_front() {
+                    DOUBLE_ECHO_CURRENT_BUFFER_SIZE.dec();
                     if let Some(ctx) = self.span_tracker.get(&cert.id) {
                         let span = info_span!(
                             parent: ctx,
@@ -316,6 +341,7 @@ impl DoubleEcho {
 
                         if let Some(messages) = self.buffered_messages.remove(&cert_id) {
                             for message in messages {
+                                DOUBLE_ECHO_BUFFERED_MESSAGE_COUNT.dec();
                                 match message {
                                     DoubleEchoCommand::Echo {
                                         from_peer,
@@ -380,15 +406,20 @@ impl DoubleEcho {
                             cert.id, cert.id
                         );
                     }
-                    if let Ok(Some((pending, certificate))) = self
-                        .storage
-                        .next_pending_certificate(Some(self.last_pending_certificate as usize))
-                        .await
-                    {
-                        self.last_pending_certificate = pending;
-                        self.buffer.push_back((true, certificate));
-                    } else {
-                        info!("No more certificate to broadcast");
+
+                    if self.pending_certificate_count > 0 {
+                        if let Ok(Some((pending, certificate))) = self
+                            .storage
+                            .next_pending_certificate(Some(self.last_pending_certificate as usize))
+                            .await
+                        {
+                            _ = self.pending_certificate_count.checked_sub(1);
+                            self.last_pending_certificate = pending;
+                            self.buffer.push_back((true, certificate));
+                            DOUBLE_ECHO_CURRENT_BUFFER_SIZE.inc();
+                        } else {
+                            info!("No more certificate to broadcast");
+                        }
                     }
                 }
             }
@@ -508,7 +539,6 @@ impl DoubleEcho {
                 return;
             }
         }
-        self.all_known_certs.push(cert.clone());
         self.delivery_time
             .insert(cert.id, (time::SystemTime::now(), Default::default()));
 
@@ -652,6 +682,8 @@ impl DoubleEcho {
                     self.span_tracker.remove(&certificate_id);
 
                     debug!("📝 Accepted[{}]\t Delivery time: {:?}", &certificate_id, d);
+
+                    DOUBLE_ECHO_BROADCAST_FINISHED.inc();
 
                     _ = self
                         .event_sender

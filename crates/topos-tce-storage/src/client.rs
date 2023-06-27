@@ -1,7 +1,9 @@
 use tokio::sync::{mpsc, oneshot};
 use topos_core::uci::{Certificate, CertificateId, SubnetId, CERTIFICATE_ID_LENGTH};
+use topos_metrics::STORAGE_COMMAND_CHANNEL_CAPACITY;
 
 use crate::command::{GetNextPendingCertificate, GetPendingCertificates};
+use crate::constant;
 use crate::{
     command::{
         AddPendingCertificate, CertificateDelivered, CheckPendingCertificateExists,
@@ -41,6 +43,9 @@ impl StorageClient {
         &self,
         certificate_id: CertificateId,
     ) -> Result<(PendingCertificateId, Certificate), StorageError> {
+        if self.sender.capacity() <= *constant::COMMAND_CHANNEL_CAPACITY {
+            STORAGE_COMMAND_CHANNEL_CAPACITY.inc();
+        }
         CheckPendingCertificateExists { certificate_id }
             .send_to(&self.sender)
             .await
@@ -50,6 +55,9 @@ impl StorageClient {
         &self,
         starting_at: Option<usize>,
     ) -> Result<Option<(PendingCertificateId, Certificate)>, StorageError> {
+        if self.sender.capacity() <= *constant::COMMAND_CHANNEL_CAPACITY {
+            STORAGE_COMMAND_CHANNEL_CAPACITY.inc();
+        }
         GetNextPendingCertificate { starting_at }
             .send_to(&self.sender)
             .await
@@ -61,6 +69,9 @@ impl StorageClient {
         &self,
         certificate: Certificate,
     ) -> Result<PendingCertificateId, StorageError> {
+        if self.sender.capacity() <= *constant::COMMAND_CHANNEL_CAPACITY {
+            STORAGE_COMMAND_CHANNEL_CAPACITY.inc();
+        }
         AddPendingCertificate { certificate }
             .send_to(&self.sender)
             .await
@@ -121,6 +132,9 @@ impl StorageClient {
         &self,
         certificate_id: CertificateId,
     ) -> Result<Certificate, StorageError> {
+        if self.sender.capacity() <= *constant::COMMAND_CHANNEL_CAPACITY {
+            STORAGE_COMMAND_CHANNEL_CAPACITY.inc();
+        }
         GetCertificate { certificate_id }
             .send_to(&self.sender)
             .await

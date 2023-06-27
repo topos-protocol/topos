@@ -1,14 +1,20 @@
-use std::{collections::VecDeque, env, task::Poll, time::Duration};
+use std::{
+    collections::{HashSet, VecDeque},
+    env,
+    task::Poll,
+    time::Duration,
+};
 
 use libp2p::{
-    gossipsub::{self, IdentTopic, Message, MessageAuthenticity, Topic},
+    gossipsub::{self, IdentTopic, Message, MessageAuthenticity, MessageId, Topic},
     identity::Keypair,
     multihash::IdentityHasher,
     swarm::{NetworkBehaviour, THandlerInEvent, ToSwarm},
 };
 use serde::{Deserialize, Serialize};
+use topos_metrics::{P2P_DUPLICATE_MESSAGE_ID_RECEIVED, P2P_GOSSIP_BATCH_SIZE};
 
-use crate::{event::ComposedEvent, TOPOS_ECHO, TOPOS_GOSSIP, TOPOS_READY};
+use crate::{constant, event::ComposedEvent, TOPOS_ECHO, TOPOS_GOSSIP, TOPOS_READY};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct Batch {
@@ -21,6 +27,7 @@ pub struct Behaviour {
     echo_queue: VecDeque<Vec<u8>>,
     ready_queue: VecDeque<Vec<u8>>,
     tick: tokio::time::Interval,
+    cache: HashSet<MessageId>,
 }
 
 impl Behaviour {
@@ -64,9 +71,16 @@ impl Behaviour {
             .build()
             .unwrap();
 
-        let gossipsub =
-            gossipsub::Behaviour::new(MessageAuthenticity::Signed(peer_key.clone()), gossipsub)
-                .unwrap();
+        let gossipsub = gossipsub::Behaviour::new_with_metrics(
+            MessageAuthenticity::Signed(peer_key.clone()),
+            gossipsub,
+            constant::METRIC_REGISTRY
+                .try_lock()
+                .unwrap()
+                .sub_registry_with_prefix("gossipsub"),
+            Default::default(),
+        )
+        .unwrap();
 
         Self {
             batch_size,
@@ -79,6 +93,7 @@ impl Behaviour {
                     .unwrap_or(Ok(100))
                     .unwrap(),
             )),
+            cache: HashSet::new(),
         }
     }
 }
@@ -149,6 +164,7 @@ impl NetworkBehaviour for Behaviour {
                     }
                 }
 
+                P2P_GOSSIP_BATCH_SIZE.observe(echos.data.len() as f64);
                 let msg = bincode::serialize::<Batch>(&echos).expect("msg ser");
 
                 _ = self.gossipsub.publish(IdentTopic::new(TOPOS_ECHO), msg);
@@ -164,6 +180,7 @@ impl NetworkBehaviour for Behaviour {
                     }
                 }
 
+                P2P_GOSSIP_BATCH_SIZE.observe(readies.data.len() as f64);
                 let msg = bincode::serialize::<Batch>(&readies).expect("msg ser");
 
                 _ = self.gossipsub.publish(IdentTopic::new(TOPOS_READY), msg);
@@ -204,6 +221,12 @@ impl NetworkBehaviour for Behaviour {
                 return Poll::Ready(ToSwarm::NewExternalAddrCandidate(addr))
             }
         };
+
+        if let gossipsub::Event::Message { ref message_id, .. } = event {
+            if self.cache.contains(message_id) {
+                P2P_DUPLICATE_MESSAGE_ID_RECEIVED.inc();
+            }
+        }
 
         let outcome = match event {
             gossipsub::Event::Message {

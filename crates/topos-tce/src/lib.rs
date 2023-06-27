@@ -43,6 +43,7 @@ pub async fn run(
     config: &TceConfiguration,
     shutdown: mpsc::Receiver<oneshot::Sender<()>>,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    topos_metrics::init_metrics();
     let key = config
         .local_key_seed
         .as_ref()

@@ -1,6 +1,7 @@
 use libp2p::gossipsub::{Event as GossipsubEvent, Message};
 use topos_metrics::{
     MESSAGE_RECEIVED_ON_ECHO, MESSAGE_RECEIVED_ON_GOSSIP, MESSAGE_RECEIVED_ON_READY,
+    P2P_EVENT_STREAM_CAPACITY,
 };
 use tracing::{error, info};
 
@@ -20,8 +21,8 @@ impl EventHandler<GossipEvent> for Runtime {
             topic,
         } = event
         {
-            if self.event_sender.capacity() >= *constant::CAPACITY_EVENT_STREAM_BUFFER {
-                tracing::error!("P2P Event sender is almost full, dropping event");
+            if self.event_sender.capacity() < *constant::CAPACITY_EVENT_STREAM_BUFFER {
+                P2P_EVENT_STREAM_CAPACITY.inc();
             }
 
             info!("Received message from {:?} on topic {:?}", source, topic);

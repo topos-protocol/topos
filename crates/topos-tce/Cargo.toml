@@ -32,6 +32,7 @@ topos-telemetry = { path = "../topos-telemetry" }
 axum = "0.6.18"
 axum-prometheus = "0.3.3"
 prometheus = "0.13.3"
+prometheus-client = "0.21.1"
 
 [dev-dependencies]
 async-stream.workspace = true

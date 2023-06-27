@@ -6,7 +6,7 @@ use crate::{
     },
     config::NetworkConfig,
     constant::{
-        COMMAND_STREAM_BUFFER, DISCOVERY_PROTOCOL, EVENT_STREAM_BUFFER, TRANSMISSION_PROTOCOL,
+        COMMAND_STREAM_BUFFER_SIZE, DISCOVERY_PROTOCOL, EVENT_STREAM_BUFFER, TRANSMISSION_PROTOCOL,
     },
     error::P2PError,
     TOPOS_ECHO, TOPOS_GOSSIP, TOPOS_READY,
@@ -119,7 +119,7 @@ impl<'a> NetworkBuilder<'a> {
 
         // let noise_keys = noise::Keypair::<noise::>::new().into_authentic(&peer_key)?;
 
-        let (command_sender, command_receiver) = mpsc::channel(COMMAND_STREAM_BUFFER);
+        let (command_sender, command_receiver) = mpsc::channel(*COMMAND_STREAM_BUFFER_SIZE);
         let (event_sender, event_receiver) = mpsc::channel(*EVENT_STREAM_BUFFER);
 
         let gossipsub = gossip::Behaviour::new(peer_key.clone());

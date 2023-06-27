@@ -1,10 +1,13 @@
 use std::env;
 
 use lazy_static::lazy_static;
+use prometheus_client::registry::Registry;
+use tokio::sync::Mutex;
 
 // TODO: Investigate BUFFER SIZE
 
 lazy_static! {
+    pub static ref METRIC_REGISTRY: Mutex<Registry> = Mutex::new(<Registry>::with_prefix("topos"));
     pub static ref EVENT_STREAM_BUFFER: usize = env::var("TCE_EVENT_STREAM_BUFFER")
         .ok()
         .and_then(|v| v.parse::<usize>().ok())
@@ -16,8 +19,11 @@ lazy_static! {
             r
         })
         .unwrap_or(*EVENT_STREAM_BUFFER);
+    pub static ref COMMAND_STREAM_BUFFER_SIZE: usize = env::var("TCE_COMMAND_STREAM_BUFFER_SIZE")
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .unwrap_or(2048);
 }
 
-pub const COMMAND_STREAM_BUFFER: usize = 2048;
 pub const TRANSMISSION_PROTOCOL: &str = "/tce-transmission/1";
 pub const DISCOVERY_PROTOCOL: &str = "/tce-disco/1";

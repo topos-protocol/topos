@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 topos-core = { workspace = true, features = ["uci", "api"] }
 topos-commands = { path = "../topos-commands/" }
+topos-metrics = { path = "../topos-metrics/" }
 
 async-stream.workspace = true
 async-trait.workspace = true
@@ -16,6 +17,7 @@ thiserror.workspace = true
 tokio = { workspace = true, features = ["full"] }
 tokio-stream.workspace = true
 tracing.workspace = true
+lazy_static.workspace = true
 
 rocksdb = { version = "0.20.1", optional = true }
 serde_derive = "1.0.145"
