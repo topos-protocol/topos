@@ -5,8 +5,8 @@ use topos_metrics::{
 use tracing::{error, info};
 
 use crate::{
-    behaviour::gossip::Batch, event::GossipEvent, Event, Runtime, TOPOS_ECHO, TOPOS_GOSSIP,
-    TOPOS_READY,
+    behaviour::gossip::Batch, constant, event::GossipEvent, Event, Runtime, TOPOS_ECHO,
+    TOPOS_GOSSIP, TOPOS_READY,
 };
 
 use super::EventHandler;
@@ -20,6 +20,10 @@ impl EventHandler<GossipEvent> for Runtime {
             topic,
         } = event
         {
+            if self.event_sender.capacity() >= *constant::CAPACITY_EVENT_STREAM_BUFFER {
+                tracing::error!("P2P Event sender is almost full, dropping event");
+            }
+
             info!("Received message from {:?} on topic {:?}", source, topic);
             match topic {
                 TOPOS_GOSSIP => {

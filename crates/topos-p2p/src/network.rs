@@ -120,7 +120,7 @@ impl<'a> NetworkBuilder<'a> {
         // let noise_keys = noise::Keypair::<noise::>::new().into_authentic(&peer_key)?;
 
         let (command_sender, command_receiver) = mpsc::channel(COMMAND_STREAM_BUFFER);
-        let (event_sender, event_receiver) = mpsc::channel(EVENT_STREAM_BUFFER);
+        let (event_sender, event_receiver) = mpsc::channel(*EVENT_STREAM_BUFFER);
 
         let gossipsub = gossip::Behaviour::new(peer_key.clone());
         let behaviour = Behaviour {

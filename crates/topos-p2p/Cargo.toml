@@ -15,6 +15,7 @@ tracing = { workspace = true, features = ["attributes"] }
 
 libp2p = { workspace = true, features = ["macros", "gossipsub", "tcp", "dns", "tokio", "request-response", "identify", "kad", "serde", "yamux"] }
 void = "1"
+lazy_static = "1"
 
 topos-metrics = { path = "../topos-metrics/" }
 
