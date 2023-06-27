@@ -18,9 +18,9 @@ topos is the unified command line interface to the <a href="https://docs.toposwa
 
 <!-- **`topos` is the unified command line interface to the [Topos](https://docs.toposware.com/general-overview) network.** -->
 
-[![codecov](https://codecov.io/gh/topos-network/topos/branch/main/graph/badge.svg?token=FOH2B2GRL9&style=flat)](https://codecov.io/gh/topos-network/topos)
-![Test workflow](https://github.com/topos-network/topos/actions/workflows/test.yml/badge.svg)
-![Quality workflow](https://github.com/topos-network/topos/actions/workflows/quality.yml/badge.svg)
+[![codecov](https://codecov.io/gh/topos-protocol/topos/branch/main/graph/badge.svg?token=FOH2B2GRL9&style=flat)](https://codecov.io/gh/topos-protocol/topos)
+![Test workflow](https://github.com/topos-protocol/topos/actions/workflows/test.yml/badge.svg)
+![Quality workflow](https://github.com/topos-protocol/topos/actions/workflows/quality.yml/badge.svg)
 ![MSRV](https://img.shields.io/badge/MSRV-1.64-blue?labelColor=1C2C2E&logo=Rust&style=flat-square)
 
 ## Getting Started
@@ -32,7 +32,7 @@ The first step is to install Rust along with `cargo` by following the instructio
 **Install `topos`**
 
 ```
-cargo install topos --git https://github.com/topos-network/topos
+cargo install topos --git https://github.com/topos-protocol/topos
 ```
 
 **Try out `topos`!**
@@ -45,12 +45,12 @@ Find more about how topos works in the [documentation](https://docs.toposware.co
 
 ## Development
 
-Contributions are very welcomed, the guidelines are outlined in [`CONTRIBUTING.md`](https://github.com/topos-network/.github/blob/main/CONTRIBUTING.md).<br />
+Contributions are very welcomed, the guidelines are outlined in [`CONTRIBUTING.md`](https://github.com/topos-protocol/.github/blob/main/CONTRIBUTING.md).<br />
 Running a minimal local setup with docker compose is described [here](./tools/README.md).
 
 ## Support
 
-Feel free to [open an issue](https://github.com/topos-network/topos/issues/new) if you have any feature request or bug report.<br />
+Feel free to [open an issue](https://github.com/topos-protocol/topos/issues/new) if you have any feature request or bug report.<br />
 
 ## Resources
 

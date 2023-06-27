@@ -1,5 +1,5 @@
-* @topos-network/protocol
+* @topos-protocol/protocol
 
 # Crypto Internals
 
-/crates/topos-crypto/ @topos-network/protocol @topos-network/crypto @Nashtare
+/crates/topos-crypto/ @topos-protocol/protocol @topos-protocol/crypto @Nashtare
