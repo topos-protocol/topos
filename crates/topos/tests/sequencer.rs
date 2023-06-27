@@ -1,5 +1,7 @@
-use assert_cmd::prelude::*;
 use std::process::Command;
+
+use assert_cmd::prelude::*;
+use regex::Regex;
 
 #[test]
 fn sequencer_help_display() -> Result<(), Box<dyn std::error::Error>> {
@@ -10,7 +12,13 @@ fn sequencer_help_display() -> Result<(), Box<dyn std::error::Error>> {
 
     let result: &str = std::str::from_utf8(&output.get_output().stdout)?;
 
-    insta::assert_snapshot!(result);
+    // Sanitize the result here:
+    // When run locally, we get /Users/<username>/.config/topos
+    // When testing on the CI, we get /home/runner/.config/topos
+    let pattern = Regex::new(r"\[default: .+?/.config/topos\]").unwrap();
+    let sanitized_result = pattern.replace(&result, "[default: /home/runner/.config/topos]");
+
+    insta::assert_snapshot!(sanitized_result);
 
     Ok(())
 }

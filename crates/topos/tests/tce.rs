@@ -1,8 +1,11 @@
+use std::{net::UdpSocket, process::Command, time::Duration};
+
 use assert_cmd::prelude::*;
 use futures::FutureExt;
-use std::{net::UdpSocket, process::Command, time::Duration};
+use regex::Regex;
 use tokio::spawn;
 use tonic::{Request, Response, Status};
+
 use topos_core::api::grpc::tce::v1::{
     console_service_server::{ConsoleService, ConsoleServiceServer},
     PushPeerListRequest, PushPeerListResponse, StatusRequest, StatusResponse,
@@ -17,7 +20,13 @@ fn help_display() -> Result<(), Box<dyn std::error::Error>> {
 
     let result: &str = std::str::from_utf8(&output.get_output().stdout)?;
 
-    insta::assert_snapshot!(result);
+    // Sanitize the result here:
+    // When run locally, we get /Users/<username>/.config/topos
+    // When testing on the CI, we get /home/runner/.config/topos
+    let pattern = Regex::new(r"\[default: .+?/.config/topos\]").unwrap();
+    let sanitized_result = pattern.replace(&result, "[default: /home/runner/.config/topos]");
+
+    insta::assert_snapshot!(sanitized_result);
 
     Ok(())
 }
