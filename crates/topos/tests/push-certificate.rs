@@ -19,7 +19,7 @@ fn help_display() -> Result<(), Box<dyn std::error::Error>> {
     // When run locally, we get /Users/<username>/.config/topos
     // When testing on the CI, we get /home/runner/.config/topos
     let pattern = Regex::new(r"\[default: .+?/.config/topos\]").unwrap();
-    let sanitized_result = pattern.replace(&result, "[default: /home/runner/.config/topos]");
+    let sanitized_result = pattern.replace(result, "[default: /home/runner/.config/topos]");
 
     insta::assert_snapshot!(sanitized_result);
 
