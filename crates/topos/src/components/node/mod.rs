@@ -85,12 +85,12 @@ pub(crate) async fn handle_command(
             Ok(())
         }
         Some(NodeCommands::Up(cmd)) => {
-            let node = cmd.node.expect("No name or default was given for node");
-            let node_path = home.join("node").join(node.clone());
-            let config_path = home.join("node").join(node.clone()).join("config.toml");
+            let name = cmd.name.expect("No name or default was given for node");
+            let node_path = home.join("node").join(name.clone());
+            let config_path = node_path.join("config.toml");
 
             if !Path::new(&config_path).exists() {
-                println!("Please run 'topos init -n {node}' to create a config file first.");
+                println!("Please run 'topos init --name {name}' to create a config file first.");
                 std::process::exit(1);
             }
 

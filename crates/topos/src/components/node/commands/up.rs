@@ -8,7 +8,7 @@ use serde::Serialize;
 pub struct Up {
     /// Name to identify your node
     #[arg(long, env = "TOPOS_NODE_NAME", default_value = "default")]
-    pub node: Option<String>,
+    pub name: Option<String>,
 }
 
 impl Up {}
