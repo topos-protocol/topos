@@ -73,7 +73,12 @@ impl Behaviour {
             gossipsub,
             echo_queue: VecDeque::new(),
             ready_queue: VecDeque::new(),
-            tick: tokio::time::interval(Duration::from_millis(100)),
+            tick: tokio::time::interval(Duration::from_millis(
+                env::var("TOPOS_GOSSIP_INTERVAL")
+                    .map(|v| v.parse::<u64>())
+                    .unwrap_or(Ok(100))
+                    .unwrap(),
+            )),
         }
     }
 }
@@ -139,6 +144,8 @@ impl NetworkBehaviour for Behaviour {
                 for _ in 0..self.batch_size {
                     if let Some(data) = self.echo_queue.pop_front() {
                         echos.data.push(data);
+                    } else {
+                        break;
                     }
                 }
 
@@ -152,6 +159,8 @@ impl NetworkBehaviour for Behaviour {
                 for _ in 0..self.batch_size {
                     if let Some(data) = self.ready_queue.pop_front() {
                         readies.data.push(data);
+                    } else {
+                        break;
                     }
                 }
 
