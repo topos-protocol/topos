@@ -62,6 +62,7 @@ pub(crate) trait Config: Serialize {
     }
 }
 
+#[allow(dead_code)]
 pub(crate) fn load_config<T: Config>(node_path: &Path) -> T::Output {
     match T::load(node_path, None) {
         Ok(config) => config,
@@ -79,6 +80,7 @@ pub(crate) fn load_config<T: Config>(node_path: &Path) -> T::Output {
     }
 }
 
+#[allow(dead_code)]
 pub(crate) fn insert_into_toml<T: Config>(config_toml: &mut toml::Table, config: T) {
     config_toml.insert(
         config.profile(),
