@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use topos_p2p::PeerId;
 
-// These are all the same in the new, deterministic view (Subscriptions == Subscribers)
+/// Categorize what we expect from which peer for the broadcast
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 pub enum SampleType {
     /// Listen Echo from this Sample
@@ -14,11 +14,15 @@ pub enum SampleType {
     ReadySubscriber,
 }
 
+/// Stateful network view with whom we broadcast the Certificate
+/// The Echo and the Ready sets are initially equal to the whole network
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct SubscriptionsView {
-    // All have the same peers (whole network) initially
+    /// Set of Peer from which we listen Echo
     pub echo: HashSet<PeerId>,
+    /// Set of Peer from which we listen Ready
     pub ready: HashSet<PeerId>,
+    /// Size of the network
     pub network_size: usize,
 }
 
@@ -31,7 +35,7 @@ impl SubscriptionsView {
         self.echo.is_empty() && self.ready.is_empty()
     }
 
-    /// Current view of subscriptions of the node, which is the whole network
+    /// Current view of subscriptions of the node, which is initially the whole network
     pub fn get_subscriptions(&self) -> Vec<PeerId> {
         self.echo
             .iter()
