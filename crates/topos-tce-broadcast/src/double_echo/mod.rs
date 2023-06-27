@@ -21,6 +21,8 @@ use tracing_opentelemetry::OpenTelemetrySpanExt;
 #[derive(Clone)]
 pub struct DeliveryState {
     pub subscriptions: SubscriptionsView,
+    pub ready_sent: bool,
+    pub delivered: bool,
     ctx: Span,
 }
 
@@ -395,7 +397,6 @@ impl DoubleEcho {
         match sample_type {
             SampleType::EchoSubscription => state.subscriptions.echo.remove(from_peer),
             SampleType::ReadySubscription => state.subscriptions.ready.remove(from_peer),
-            SampleType::DeliverySubscription => state.subscriptions.delivery.remove(from_peer),
             _ => false,
         };
     }
@@ -409,7 +410,6 @@ impl DoubleEcho {
     pub(crate) fn handle_ready(&mut self, from_peer: PeerId, certificate_id: &CertificateId) {
         if let Some((_certificate, state)) = self.cert_candidate.get_mut(certificate_id) {
             Self::sample_consume_peer(&from_peer, state, SampleType::ReadySubscription);
-            Self::sample_consume_peer(&from_peer, state, SampleType::DeliverySubscription);
         }
     }
 
@@ -465,9 +465,8 @@ impl DoubleEcho {
             .unwrap_or_else(Span::current);
 
         if origin {
-            warn!("📣 Gossipping the Certificate {}", &cert.id);
+            warn!("📣 Gossiping the Certificate {}", &cert.id);
             let _ = self.event_sender.send(ProtocolEvents::Gossip {
-                // peers: gossip_peers, // considered as the G-set for erdos-renyi
                 cert: cert.clone(),
                 ctx: span,
             });
@@ -509,7 +508,6 @@ impl DoubleEcho {
             .unwrap_or_else(Span::current);
 
         let _ = self.event_sender.send(ProtocolEvents::Echo {
-            // peers: echo_peers,
             certificate_id: cert.id,
             ctx,
         });
@@ -521,17 +519,13 @@ impl DoubleEcho {
         certificate_id: &CertificateId,
     ) -> Option<DeliveryState> {
         let subscriptions = self.subscriptions.clone();
-        // check inbound sets are not empty
 
-        if subscriptions.echo.is_empty()
-            || subscriptions.ready.is_empty()
-            || subscriptions.delivery.is_empty()
-        {
+        // Check whether inbound sets are empty
+        if subscriptions.echo.is_empty() || subscriptions.ready.is_empty() {
             error!(
-                "One Subscription sample is empty: Echo({}), Ready({}), Delivery({})",
+                "One Subscription sample is empty: Echo({}), Ready({})",
                 subscriptions.echo.is_empty(),
                 subscriptions.ready.is_empty(),
-                subscriptions.delivery.is_empty()
             );
             None
         } else {
@@ -541,7 +535,12 @@ impl DoubleEcho {
                 .cloned()
                 .unwrap_or_else(Span::current);
 
-            Some(DeliveryState { subscriptions, ctx })
+            Some(DeliveryState {
+                subscriptions,
+                ready_sent: false,
+                delivered: false,
+                ctx,
+            })
         }
     }
 
@@ -549,41 +548,40 @@ impl DoubleEcho {
         debug!("StateChangeFollowUp called");
         let mut state_modified = false;
         let mut gen_evts = Vec::<ProtocolEvents>::new();
+
         // For all current Cert on processing
         for (certificate_id, (certificate, state_to_delivery)) in &mut self.cert_candidate {
-            if !state_to_delivery.subscriptions.ready.is_empty()
-                && (is_e_ready(
+            // Check whether we should send Ready
+            if !state_to_delivery.ready_sent
+                && is_r_ready(
                     &self.params,
                     self.subscriptions.network_size,
                     state_to_delivery,
-                ) || is_r_ready(
-                    &self.params,
-                    self.subscriptions.network_size,
-                    state_to_delivery,
-                ))
+                )
             {
                 // Fanout the Ready messages to my subscribers
                 gen_evts.push(ProtocolEvents::Ready {
                     certificate_id: certificate.id,
                     ctx: state_to_delivery.ctx.clone(),
                 });
-                state_to_delivery.subscriptions.ready.clear();
-                state_to_delivery.subscriptions.echo.clear();
+
+                state_to_delivery.ready_sent = true;
                 state_modified = true;
             }
 
-            if !state_to_delivery.subscriptions.delivery.is_empty()
+            // Check whether we should deliver
+            if !state_to_delivery.delivered
                 && is_ok_to_deliver(
                     &self.params,
                     self.subscriptions.network_size,
                     state_to_delivery,
                 )
             {
-                state_to_delivery.subscriptions.delivery.clear();
                 self.pending_delivery.insert(
                     *certificate_id,
                     (certificate.clone(), state_to_delivery.ctx.clone()),
                 );
+                state_to_delivery.delivered = true;
                 state_modified = true;
             }
 
@@ -602,28 +600,23 @@ impl DoubleEcho {
             let delivery_missing = self
                 .subscriptions
                 .network_size
-                .checked_sub(state_to_delivery.subscriptions.delivery.len())
+                .checked_sub(state_to_delivery.subscriptions.ready.len())
                 .map(|consumed| self.params.delivery_threshold.saturating_sub(consumed))
                 .unwrap_or(0);
 
             debug!("Waiting for {echo_missing} Echo from the E-Sample");
             trace!("Echo Sample: {:?}", state_to_delivery.subscriptions.echo);
 
-            debug!("Waiting for {ready_missing} Ready from the R-Sample");
-            trace!("Ready Sample: {:?}", state_to_delivery.subscriptions.ready);
-
-            debug!("Waiting for {delivery_missing} Ready from the D-Sample");
-            trace!(
-                "Delivery Sample: {:?}",
-                state_to_delivery.subscriptions.delivery
+            debug!(
+                "Waiting for {ready_missing}-R and {delivery_missing}-D Ready from the R-Sample"
             );
+            trace!("Ready Sample: {:?}", state_to_delivery.subscriptions.ready);
         }
 
         if state_modified {
             // Keep the candidates only if not delivered, or not (E|R)-Ready yet
-            self.cert_candidate.retain(|c, (_, state)| {
-                !self.pending_delivery.contains_key(c) || !state.subscriptions.ready.is_empty()
-            });
+            self.cert_candidate
+                .retain(|_, (_, state)| !state.delivered || !state.ready_sent);
 
             let delivered_certificates = self
                 .pending_delivery
@@ -685,36 +678,36 @@ impl DoubleEcho {
     }
 }
 
-// state checkers
+/// Predicate on whether we reached the threshold to deliver the Certificate
 fn is_ok_to_deliver(
     params: &ReliableBroadcastParams,
     network_size: usize,
     state: &DeliveryState,
 ) -> bool {
-    match network_size.checked_sub(state.subscriptions.delivery.len()) {
+    // If reached the delivery threshold, I can deliver
+    match network_size.checked_sub(state.subscriptions.ready.len()) {
         Some(consumed) => consumed >= params.delivery_threshold,
         None => false,
     }
 }
 
-fn is_e_ready(
-    params: &ReliableBroadcastParams,
-    network_size: usize,
-    state: &DeliveryState,
-) -> bool {
-    match network_size.checked_sub(state.subscriptions.echo.len()) {
-        Some(consumed) => consumed >= params.echo_threshold,
-        None => false,
-    }
-}
-
+/// Predicate on whether we reached the threshold to send our Ready for this Certificate
 fn is_r_ready(
     params: &ReliableBroadcastParams,
     network_size: usize,
     state: &DeliveryState,
 ) -> bool {
-    match network_size.checked_sub(state.subscriptions.ready.len()) {
+    // Compute the threshold
+    let reached_echo_threshold = match network_size.checked_sub(state.subscriptions.echo.len()) {
+        Some(consumed) => consumed >= params.echo_threshold,
+        None => false,
+    };
+
+    let reached_ready_threshold = match network_size.checked_sub(state.subscriptions.ready.len()) {
         Some(consumed) => consumed >= params.ready_threshold,
         None => false,
-    }
+    };
+
+    // If reached any of the Echo or Ready thresholds, I send the Ready
+    reached_echo_threshold || reached_ready_threshold
 }
