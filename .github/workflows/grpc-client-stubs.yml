@@ -27,7 +27,7 @@ jobs:
           cache: npm
           cache-dependency-path: ./crates/topos-api/proto/package-lock.json
           registry-url: https://registry.npmjs.org
-          scope: "@topos-network"
+          scope: "@topos-protocol"
 
       - name: Install grpc-tool globally
         run: npm install -g grpc-tools
@@ -61,7 +61,7 @@ jobs:
         uses: EndBug/version-check@v2
         with:
           file-name: ./crates/topos-api/proto/package.json
-          file-url: https://unpkg.com/@topos-network/topos-grpc-client-stub@latest/package.json
+          file-url: https://unpkg.com/@topos-protocol/topos-grpc-client-stub@latest/package.json
           static-checking: localIsNew
 
       - name: Check coverage tolerance

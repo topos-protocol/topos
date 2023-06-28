@@ -49,7 +49,7 @@ jobs:
       - name: Checkout topos-smart-contracts repo
         uses: actions/checkout@v3
         with:
-          repository: topos-network/topos-smart-contracts
+          repository: topos-protocol/topos-smart-contracts
           ref: ${{ env.CONTRACTS_REF }}
           path: contracts
 

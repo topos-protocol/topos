@@ -32,7 +32,7 @@ use topos_test_sdk::constants::*;
 const SUBNET_RPC_PORT: u32 = 8545;
 const TEST_SECRET_ETHEREUM_KEY: &str =
     "d7e2e00b43c12cf17239d4755ed744df6ca70a933fc7c8bbb7da1342a5ff2e38";
-const POLYGON_EDGE_CONTAINER: &str = "ghcr.io/topos-network/polygon-edge";
+const POLYGON_EDGE_CONTAINER: &str = "ghcr.io/topos-protocol/polygon-edge";
 const POLYGON_EDGE_CONTAINER_TAG: &str = "develop";
 const SUBNET_STARTUP_DELAY: u64 = 5; // seconds left for subnet startup
 const TEST_SUBNET_ID: &str = "6464646464646464646464646464646464646464646464646464646464646464";
