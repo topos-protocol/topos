@@ -61,10 +61,11 @@ rstest = { workspace = true, features = ["async-timeout"] }
 regex = "1"
 
 [features]
-default = ["tce", "sequencer", "network", "setup", "subnet"]
+default = ["tce", "sequencer", "network", "node", "setup", "subnet"]
 tce = ["topos-tce", "topos-tce-transport"]
 sequencer = ["topos-sequencer"]
 network = ["topos-certificate-spammer"]
+node = ["tce", "sequencer"]
 setup = []
 subnet = []
 

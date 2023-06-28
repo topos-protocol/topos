@@ -1,8 +1,7 @@
 use clap::Args;
-use serde::Serialize;
 use std::path::PathBuf;
 
-#[derive(Args, Clone, Debug, Serialize)]
+#[derive(Args, Debug)]
 #[command(
     about = "Run a test topos certificate spammer to send test certificates to the network, generating randomly among \
 the `nb_subnets` subnets the batch of `cert_per_batch` certificates at every `batch-interval`"

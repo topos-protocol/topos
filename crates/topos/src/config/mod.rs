@@ -1,6 +1,6 @@
-#[cfg(all(feature = "sequencer", feature = "tce"))]
+#[cfg(feature = "node")]
 pub(crate) mod base;
-#[cfg(all(feature = "sequencer", feature = "tce"))]
+#[cfg(feature = "node")]
 pub(crate) mod node;
 #[cfg(feature = "sequencer")]
 pub(crate) mod sequencer;

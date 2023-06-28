@@ -17,12 +17,12 @@ use crate::components::setup::commands::SetupCommand;
 #[cfg(feature = "subnet")]
 use crate::components::subnet::commands::SubnetCommand;
 
-#[cfg(all(feature = "sequencer", feature = "tce"))]
+#[cfg(feature = "node")]
 use crate::components::node::commands::NodeCommand;
 
 pub(crate) mod input_format;
 
-#[derive(Parser, Debug, Serialize)]
+#[derive(Parser, Debug)]
 #[clap(name = "topos", about = "Topos CLI")]
 pub struct Opt {
     /// Defines the verbosity level
@@ -36,10 +36,10 @@ pub struct Opt {
 
     /// Home directory for the configuration
     #[arg(
-    long,
-    env = "TOPOS_HOME",
-    default_value = get_default_home(),
-    global = true
+        long,
+        env = "TOPOS_HOME",
+        default_value = get_default_home(),
+        global = true
     )]
     pub(crate) home: PathBuf,
 
@@ -56,7 +56,7 @@ fn get_default_home() -> OsString {
     home.into_os_string()
 }
 
-#[derive(Subcommand, Debug, Clone, Serialize)]
+#[derive(Subcommand, Debug)]
 pub(crate) enum ToposCommand {
     #[cfg(feature = "tce")]
     Tce(TceCommand),
@@ -68,7 +68,7 @@ pub(crate) enum ToposCommand {
     Setup(SetupCommand),
     #[cfg(feature = "subnet")]
     Subnet(SubnetCommand),
-    #[cfg(all(feature = "sequencer", feature = "tce"))]
+    #[cfg(feature = "node")]
     Node(NodeCommand),
     Doctor,
 }

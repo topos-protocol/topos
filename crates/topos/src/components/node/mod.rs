@@ -86,7 +86,7 @@ pub(crate) async fn handle_command(
         }
         Some(NodeCommands::Up(cmd)) => {
             let name = cmd.name.expect("No name or default was given for node");
-            let node_path = home.join("node").join(name.clone());
+            let node_path = home.join("node").join(&name);
             let config_path = node_path.join("config.toml");
 
             if !Path::new(&config_path).exists() {

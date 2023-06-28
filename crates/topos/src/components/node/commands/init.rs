@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use clap::Args;
 use serde::Serialize;
 
-#[derive(Args, Debug, Clone, Serialize)]
+#[derive(Args, Debug, Serialize)]
 #[command(about = "Setup your node!")]
 pub struct Init {
     /// Name to identify your node

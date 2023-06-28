@@ -6,7 +6,7 @@ mod spam;
 pub(crate) use spam::Spam;
 
 /// Topos CLI subcommand for network related functionalities (e.g., running the certificate spammer)
-#[derive(Args, Debug, Clone, Serialize)]
+#[derive(Args, Debug)]
 pub(crate) struct NetworkCommand {
     #[clap(from_global)]
     pub(crate) verbose: u8,
@@ -15,7 +15,7 @@ pub(crate) struct NetworkCommand {
     pub(crate) subcommands: Option<NetworkCommands>,
 }
 
-#[derive(Subcommand, Debug, Clone, Serialize)]
+#[derive(Subcommand, Debug)]
 pub(crate) enum NetworkCommands {
     Spam(Box<Spam>),
 }

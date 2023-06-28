@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 
 use clap::{Args, Subcommand};
-use serde::Serialize;
 
 mod init;
 mod up;
@@ -10,7 +9,7 @@ pub(crate) use init::Init;
 pub(crate) use up::Up;
 
 /// Utility to manage your nodes in the Topos network
-#[derive(Args, Debug, Clone, Serialize)]
+#[derive(Args, Debug)]
 pub(crate) struct NodeCommand {
     #[clap(from_global)]
     pub(crate) verbose: u8,
@@ -22,7 +21,7 @@ pub(crate) struct NodeCommand {
     pub(crate) subcommands: Option<NodeCommands>,
 }
 
-#[derive(Subcommand, Debug, Clone, Serialize)]
+#[derive(Subcommand, Debug)]
 pub(crate) enum NodeCommands {
     Up(Box<Up>),
     Init(Box<Init>),

@@ -4,7 +4,7 @@ use std::net::SocketAddr;
 use topos_p2p::{Multiaddr, PeerId};
 use topos_tce_transport::ReliableBroadcastParams;
 
-#[derive(Args, Clone, Debug, Serialize)]
+#[derive(Args, Debug, Serialize)]
 #[command(about = "Run a full TCE instance")]
 pub struct Run {
     /// Boot nodes to connect to, pairs of <PeerId> <Multiaddr>, space separated,

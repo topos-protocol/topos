@@ -21,7 +21,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let args = options::Opt::parse();
 
-    match args.commands.clone() {
+    match args.commands {
         #[cfg(feature = "tce")]
         ToposCommand::Tce(cmd) => components::tce::handle_command(cmd).await,
         #[cfg(feature = "sequencer")]
@@ -32,7 +32,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ToposCommand::Setup(cmd) => components::setup::handle_command(cmd).await,
         #[cfg(feature = "subnet")]
         ToposCommand::Subnet(cmd) => components::subnet::handle_command(cmd).await,
-        #[cfg(all(feature = "sequencer", feature = "tce"))]
+        #[cfg(feature = "node")]
         ToposCommand::Node(cmd) => components::node::handle_command(cmd).await,
         ToposCommand::Doctor => components::doctor::handle_doctor().await,
     }

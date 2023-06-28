@@ -1,8 +1,9 @@
+mod utils;
+
 use std::{net::UdpSocket, process::Command, time::Duration};
 
 use assert_cmd::prelude::*;
 use futures::FutureExt;
-use regex::Regex;
 use tokio::spawn;
 use tonic::{Request, Response, Status};
 
@@ -20,13 +21,7 @@ fn help_display() -> Result<(), Box<dyn std::error::Error>> {
 
     let result: &str = std::str::from_utf8(&output.get_output().stdout)?;
 
-    // Sanitize the result here:
-    // When run locally, we get /Users/<username>/.config/topos
-    // When testing on the CI, we get /home/runner/.config/topos
-    let pattern = Regex::new(r"\[default: .+?/.config/topos\]").unwrap();
-    let sanitized_result = pattern.replace(result, "[default: /home/runner/.config/topos]");
-
-    insta::assert_snapshot!(sanitized_result);
+    insta::assert_snapshot!(utils::sanitize_config_folder_path(result));
 
     Ok(())
 }

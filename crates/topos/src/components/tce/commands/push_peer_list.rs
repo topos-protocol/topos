@@ -1,10 +1,9 @@
 use crate::options::input_format::InputFormat;
 use clap::Args;
-use serde::Serialize;
 
 use super::NodeArgument;
 
-#[derive(Args, Clone, Debug, Serialize)]
+#[derive(Args, Debug)]
 pub(crate) struct PushPeerList {
     #[command(flatten)]
     pub(crate) node_args: NodeArgument,

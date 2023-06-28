@@ -1,5 +1,5 @@
 use self::commands::{NetworkCommand, NetworkCommands};
-use clap::Parser;
+
 use opentelemetry::global;
 use tokio::{
     signal, spawn,
