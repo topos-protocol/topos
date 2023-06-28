@@ -1,5 +1,5 @@
 {
-  "name": "@topos-network/topos-grpc-client-stub",
+  "name": "@topos-protocol/topos-grpc-client-stub",
   "version": "0.1.2",
   "description": "JavaScript gRPC client stub for topos-api",
   "files": [
@@ -7,7 +7,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/topos-network/topos.git"
+    "url": "git+https://github.com/topos-protocol/topos.git"
   },
   "keywords": [
     "grpc",
@@ -20,9 +20,9 @@
   "author": "Sebastien Dan <sebastien.dan@gmail.com>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/topos-network/topos/issues"
+    "url": "https://github.com/topos-protocol/topos/issues"
   },
-  "homepage": "https://github.com/topos-network/topos#readme",
+  "homepage": "https://github.com/topos-protocol/topos#readme",
   "devDependencies": {
     "grpc_tools_node_protoc_ts": "^5.3.3"
   }

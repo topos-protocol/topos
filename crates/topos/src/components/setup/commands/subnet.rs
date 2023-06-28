@@ -16,7 +16,7 @@ pub struct Subnet {
     #[arg(
         long,
         env = "TOPOS_SETUP_SUBNET_REPOSITORY",
-        default_value = "topos-network/polygon-edge"
+        default_value = "topos-protocol/polygon-edge"
     )]
     pub repository: String,
     /// List all available Polygon Edge release versions without installation

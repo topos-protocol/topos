@@ -3,7 +3,7 @@ use std::collections::hash_map::Entry;
 use crate::{
     behaviour::transmission::codec::{TransmissionRequest, TransmissionResponse},
     error::P2PError,
-    Command, Runtime, MESSAGE_SENT_ON_GOSSIP,
+    Command, Runtime,
 };
 use libp2p::{
     gossipsub::IdentTopic,
@@ -11,6 +11,7 @@ use libp2p::{
     swarm::NetworkBehaviour,
     PeerId,
 };
+use topos_metrics::MESSAGE_SENT_ON_GOSSIPSUB;
 use tracing::{debug, error, info, warn};
 impl Runtime {
     pub(crate) async fn handle_command(&mut self, command: Command) {
@@ -146,7 +147,7 @@ impl Runtime {
                 {
                     Ok(message_id) => {
                         info!("Published message {message_id:?} to {topic}");
-                        MESSAGE_SENT_ON_GOSSIP.inc();
+                        MESSAGE_SENT_ON_GOSSIPSUB.inc();
                     }
                     Err(err) => error!("Failed to publish message to {topic}: {err}"),
                 }

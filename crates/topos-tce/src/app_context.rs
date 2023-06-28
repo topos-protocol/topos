@@ -11,6 +11,7 @@ use tokio::spawn;
 use tokio::sync::{mpsc, oneshot};
 use topos_core::api::grpc::checkpoints::TargetStreamPosition;
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
+use topos_metrics::CERTIFICATE_DELIVERED;
 use topos_p2p::{Client as NetworkClient, Event as NetEvent};
 use topos_tce_api::RuntimeEvent as ApiEvent;
 use topos_tce_api::{RuntimeClient as ApiClient, RuntimeError};
@@ -24,28 +25,6 @@ use topos_tce_synchronizer::{SynchronizerClient, SynchronizerEvent};
 use topos_telemetry::PropagationContext;
 use tracing::{debug, error, info, info_span, trace, warn, Instrument};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
-
-use prometheus::{self, IntCounter};
-
-use lazy_static::lazy_static;
-use prometheus::register_int_counter;
-
-lazy_static! {
-    static ref CERTIFICATE_RECEIVED: IntCounter =
-        register_int_counter!("certificate_received", "Number of certificate received.").unwrap();
-    static ref CERTIFICATE_RECEIVED_FROM_GOSSIP: IntCounter = register_int_counter!(
-        "certificate_received_from_gossip",
-        "Number of certificate received from gossip."
-    )
-    .unwrap();
-    static ref CERTIFICATE_RECEIVED_FROM_API: IntCounter = register_int_counter!(
-        "certificate_received_from_api",
-        "Number of certificate received from api."
-    )
-    .unwrap();
-    static ref CERTIFICATE_DELIVERED: IntCounter =
-        register_int_counter!("certificate_delivered", "Number of certificate delivered.").unwrap();
-}
 
 use crate::events::Events;
 
@@ -164,8 +143,6 @@ impl AppContext {
                     .instrument(span)
                     .await;
 
-                CERTIFICATE_RECEIVED.inc();
-                CERTIFICATE_RECEIVED_FROM_API.inc();
                 _ = sender.send(Ok(()));
             }
 
@@ -454,9 +431,6 @@ impl AppContext {
                                 .is_err()
                             {
                                 error!("Unable to send broadcast_new_certificate command, Receiver was dropped");
-                            } else {
-                                CERTIFICATE_RECEIVED.inc();
-                                CERTIFICATE_RECEIVED_FROM_GOSSIP.inc();
                             }
                         });
                     }

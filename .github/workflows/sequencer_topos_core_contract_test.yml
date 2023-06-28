@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: convictional/trigger-workflow-and-wait@v1.6.1
         with:
-          owner: topos-network
+          owner: topos-protocol
           repo: e2e-tests
           github_token: ${{ secrets.ROBOT_PAT_TRIGGER_E2E_WORKFLOWS }}
           workflow_file_name: topos:sequencer-contracts.yml

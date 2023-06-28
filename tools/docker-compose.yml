@@ -4,7 +4,7 @@ services:
   boot:
     container_name: boot
     command: boot tce run
-    image: ghcr.io/topos-network/topos:main
+    image: ghcr.io/topos-protocol/topos:main
     init: true
     labels:
       "autoheal": "true"
@@ -34,7 +34,7 @@ services:
       - TCE_LOCAL_KS=1 # 12D3KooWRhFCXBhmsMnur3up3vJsDoqWh4c39PKXgSWwzAzDHNLn
 
   peer:
-    image: ghcr.io/topos-network/topos:main
+    image: ghcr.io/topos-protocol/topos:main
     command: peer tce run
     init: true
     labels:
@@ -68,7 +68,7 @@ services:
   spammer:
     container_name: spam
     command: network spam
-    image: ghcr.io/topos-network/topos:main
+    image: ghcr.io/topos-protocol/topos:main
     init: true
     build:
       context: ../
@@ -89,7 +89,7 @@ services:
 
   check:
     container_name: check
-    image: ghcr.io/topos-network/topos:main
+    image: ghcr.io/topos-protocol/topos:main
     command: tce push-certificate -f json
     profiles:
       - CI
