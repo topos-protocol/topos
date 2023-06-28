@@ -9,7 +9,7 @@
 <br />
 
 <p align="center">
-topos is the unified command line interface to the <a href="https://docs.toposware.com/general-overview">Topos</a> network.
+topos is the unified command line interface to the <a href="https://docs.toposware.com/general-overview">Topos</a> protocol.
 </p>
 
 <br />
