@@ -4,7 +4,7 @@ services:
   boot:
     container_name: boot
     command: boot tce run
-    image: ghcr.io/topos-protocol/topos:main
+    image: ghcr.io/topos-protocol/topos:pr-248-tce
     init: true
     labels:
       "autoheal": "true"
@@ -34,7 +34,7 @@ services:
       - TCE_LOCAL_KS=1 # 12D3KooWRhFCXBhmsMnur3up3vJsDoqWh4c39PKXgSWwzAzDHNLn
 
   peer:
-    image: ghcr.io/topos-protocol/topos:main
+    image: ghcr.io/topos-protocol/topos:pr-248-tce
     command: peer tce run
     init: true
     labels:
@@ -57,6 +57,7 @@ services:
     ports:
       - "9090"
       - "1340"
+      - "3000"
       - "4000"
     deploy:
       replicas: 14
@@ -122,5 +123,47 @@ services:
       - AUTOHEAL_INTERVAL=30
       - CURL_TIMEOUT=30
 
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    ports:
+      - 9090:9090
+    restart: unless-stopped
+    volumes:
+      - ./config/prometheus:/etc/prometheus
+      - prom_data:/prometheus
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    ports:
+      - 8080:8080
+    restart: always
+    deploy:
+      mode: global
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    depends_on:
+      - prometheus
+    ports:
+      - 3030:3000
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=grafana
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    volumes:
+      - ./config/grafana/provisioning/:/etc/grafana/provisioning/
+
 volumes:
   shared:
+  prom_data:

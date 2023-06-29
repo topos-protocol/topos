@@ -152,6 +152,7 @@ impl ReliableBroadcastClient {
             network_client,
             double_echo_shutdown_receiver,
             local_peer_id,
+            0,
             pending_certificate_count,
         );
 

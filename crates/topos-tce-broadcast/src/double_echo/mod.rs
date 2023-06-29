@@ -13,7 +13,8 @@ use topos_metrics::{
     CERTIFICATE_RECEIVED, CERTIFICATE_RECEIVED_FROM_API, CERTIFICATE_RECEIVED_FROM_GOSSIP,
     DOUBLE_ECHO_BROADCAST_CREATED, DOUBLE_ECHO_BROADCAST_FINISHED,
     DOUBLE_ECHO_BUFFERED_MESSAGE_COUNT, DOUBLE_ECHO_BUFFER_CAPACITY,
-    DOUBLE_ECHO_CURRENT_BUFFER_SIZE,
+    DOUBLE_ECHO_CURRENT_BUFFER_SIZE, STORAGE_ADDING_PENDING_CERTIFICATE_LATENCY,
+    STORAGE_PENDING_CERTIFICATE_EXISTANCE_LATENCY,
 };
 use topos_p2p::Client as NetworkClient;
 use topos_p2p::PeerId;
@@ -47,6 +48,7 @@ pub struct DoubleEcho {
 
     cert_candidate: HashMap<CertificateId, (Certificate, DeliveryState)>,
 
+    pending_delivery: HashMap<CertificateId, (Certificate, Span)>,
     // Span tracker for each certificate
     span_tracker: HashMap<CertificateId, Span>,
     delivery_time: HashMap<CertificateId, (time::SystemTime, time::Duration)>,
@@ -90,6 +92,7 @@ impl DoubleEcho {
             storage,
             network_client,
             cert_candidate: Default::default(),
+            pending_delivery: Default::default(),
             span_tracker: Default::default(),
             delivery_time: Default::default(),
             subscriptions: SubscriptionsView::default(),
@@ -97,6 +100,7 @@ impl DoubleEcho {
             shutdown,
             local_peer_id,
             buffered_messages: Default::default(),
+            max_buffer_size: Self::MAX_BUFFER_SIZE,
             known_certificates: Default::default(),
         }
     }
