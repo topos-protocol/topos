@@ -406,21 +406,6 @@ impl DoubleEcho {
                             cert.id, cert.id
                         );
                     }
-
-                    if self.pending_certificate_count > 0 {
-                        if let Ok(Some((pending, certificate))) = self
-                            .storage
-                            .next_pending_certificate(Some(self.last_pending_certificate as usize))
-                            .await
-                        {
-                            _ = self.pending_certificate_count.checked_sub(1);
-                            self.last_pending_certificate = pending;
-                            self.buffer.push_back((true, certificate));
-                            DOUBLE_ECHO_CURRENT_BUFFER_SIZE.inc();
-                        } else {
-                            info!("No more certificate to broadcast");
-                        }
-                    }
                 }
             }
         };
