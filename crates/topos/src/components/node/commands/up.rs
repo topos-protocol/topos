@@ -10,5 +10,3 @@ pub struct Up {
     #[arg(long, env = "TOPOS_NODE_NAME", default_value = "default")]
     pub name: Option<String>,
 }
-
-impl Up {}

@@ -1,36 +1,24 @@
+use opentelemetry::global;
+use std::str::FromStr;
 use std::{
-    collections::HashMap,
-    fs::File,
     io::{self, Read},
-    path::{Path, PathBuf},
-    str::FromStr,
+    path::PathBuf,
     sync::Arc,
     time::Duration,
 };
-
-use clap::{parser::ValueSource, ArgMatches, CommandFactory, Parser};
-use figment::error::Kind;
-use opentelemetry::global;
-use serde_json::{Map as JsonMap, Value};
 use tokio::{
-    signal, spawn,
+    signal,
     sync::{mpsc, oneshot, Mutex},
 };
 use tonic::transport::{Channel, Endpoint};
-use tower::Service;
-use tracing::{debug, error, info, trace, warn};
-
 use topos_core::api::grpc::tce::v1::{
     api_service_client::ApiServiceClient, console_service_client::ConsoleServiceClient,
 };
-use topos_p2p::{config::NetworkConfig, PeerId};
+use topos_p2p::config::NetworkConfig;
 use topos_tce::{StorageConfiguration, TceConfiguration};
-use topos_tce_transport::ReliableBroadcastParams;
+use tower::Service;
+use tracing::{debug, error, info, warn};
 
-use crate::config::tce::TceConfig;
-use crate::config::Config;
-use crate::options::input_format::InputFormat;
-use crate::options::Opt;
 use crate::tracing::setup_tracing;
 
 use self::commands::{TceCommand, TceCommands};

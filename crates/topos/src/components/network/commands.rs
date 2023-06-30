@@ -1,5 +1,4 @@
 use clap::{Args, Subcommand};
-use serde::Serialize;
 
 mod spam;
 

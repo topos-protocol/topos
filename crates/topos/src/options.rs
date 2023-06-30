@@ -24,7 +24,7 @@ pub(crate) mod input_format;
 
 #[derive(Parser, Debug)]
 #[clap(name = "topos", about = "Topos CLI")]
-pub struct Opt {
+pub(crate) struct Opt {
     /// Defines the verbosity level
     #[arg(
         long,

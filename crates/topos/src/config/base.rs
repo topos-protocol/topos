@@ -6,7 +6,6 @@ use figment::{
 };
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "node")]
 use crate::components::node::commands::Init;
 use crate::config::Config;
 

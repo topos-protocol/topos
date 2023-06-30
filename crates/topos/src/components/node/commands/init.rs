@@ -18,5 +18,3 @@ pub struct Init {
     #[arg(long, env = "TOPOS_NODE_SUBNET", default_value = "topos")]
     pub subnet: Option<String>,
 }
-
-impl Init {}

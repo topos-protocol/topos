@@ -9,7 +9,6 @@ use topos_certificate_spammer::CertificateSpammerConfig;
 use tracing::{error, info};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
-use crate::config::Config;
 use crate::tracing::setup_tracing;
 
 pub(crate) mod commands;
