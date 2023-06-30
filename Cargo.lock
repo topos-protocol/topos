@@ -7300,11 +7300,8 @@ dependencies = [
 name = "topos-metrics"
 version = "0.1.0"
 dependencies = [
- "axum",
- "hyper",
  "lazy_static",
  "prometheus",
- "tracing",
 ]
 
 [[package]]
@@ -7469,6 +7466,7 @@ dependencies = [
  "tonic-reflection",
  "topos-api",
  "topos-core",
+ "topos-metrics",
  "topos-p2p",
  "topos-tce-storage",
  "topos-telemetry",

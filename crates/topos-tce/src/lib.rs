@@ -9,7 +9,6 @@ pub use app_context::AppContext;
 use opentelemetry::global;
 use tce_transport::ReliableBroadcastParams;
 use tokio::{spawn, sync::mpsc, sync::oneshot};
-use topos_metrics::ServerBuilder;
 use topos_p2p::utils::local_key_pair_from_slice;
 use topos_p2p::{utils::local_key_pair, Multiaddr, PeerId};
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
@@ -59,13 +58,6 @@ pub async fn run(
         format!("{}/tcp/{}", config.tce_addr, config.tce_local_port).parse()?;
 
     let addr: Multiaddr = format!("/ip4/0.0.0.0/tcp/{}", config.tce_local_port).parse()?;
-
-    let metrics_server = ServerBuilder::default()
-        .serve_addr(Some(config.metrics_api_addr))
-        .build();
-
-    debug!("Starting Promotheus server");
-    spawn(metrics_server.await);
 
     let (network_client, event_stream, unbootstrapped_runtime) = topos_p2p::network::builder()
         .peer_key(key)
@@ -133,6 +125,7 @@ pub async fn run(
         .with_peer_id(peer_id.to_string())
         .serve_grpc_addr(config.api_addr)
         .serve_graphql_addr(config.graphql_api_addr)
+        .serve_metrics_addr(config.metrics_api_addr)
         .storage(storage_client.clone())
         .build_and_launch()
         .await;

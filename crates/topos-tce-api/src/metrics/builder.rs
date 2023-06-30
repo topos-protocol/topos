@@ -1,7 +1,8 @@
 use std::net::SocketAddr;
 
+use topos_metrics::gather_metrics;
+
 use axum::{routing::get, Router, Server};
-use prometheus::{self, Encoder, TextEncoder};
 use tracing::info;
 
 #[derive(Default)]
@@ -19,20 +20,7 @@ impl ServerBuilder {
     pub async fn build(
         mut self,
     ) -> Server<hyper::server::conn::AddrIncoming, axum::routing::IntoMakeService<Router>> {
-        let app = Router::new().route(
-            "/metrics",
-            get(|| async move {
-                let mut buffer = Vec::new();
-                let encoder = TextEncoder::new();
-
-                // Gather the metrics.
-                let metric_families = prometheus::gather();
-                // Encode them to send.
-                encoder.encode(&metric_families, &mut buffer).unwrap();
-
-                String::from_utf8(buffer.clone()).unwrap()
-            }),
-        );
+        let app = Router::new().route("/metrics", get(gather_metrics));
 
         let serve_addr = self.serve_addr.take().expect("Server address is not set");
         info!("Starting metrics server on {}", serve_addr);

@@ -1,11 +1,7 @@
-mod server;
-
-use prometheus::{self, IntCounter};
+use prometheus::{self, Encoder, IntCounter, TextEncoder};
 
 use lazy_static::lazy_static;
 use prometheus::register_int_counter;
-
-pub use server::ServerBuilder;
 
 lazy_static! {
     pub static ref MESSAGE_RECEIVED_ON_GOSSIP: IntCounter =
@@ -34,4 +30,16 @@ lazy_static! {
     .unwrap();
     pub static ref CERTIFICATE_DELIVERED: IntCounter =
         register_int_counter!("certificate_delivered", "Number of certificate delivered.").unwrap();
+}
+
+pub async fn gather_metrics() -> String {
+    let mut buffer = Vec::new();
+    let encoder = TextEncoder::new();
+
+    // Gather the metrics.
+    let metric_families = prometheus::gather();
+    // Encode them to send.
+    encoder.encode(&metric_families, &mut buffer).unwrap();
+
+    String::from_utf8(buffer.clone()).unwrap()
 }

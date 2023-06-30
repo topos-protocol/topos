@@ -9,8 +9,8 @@ use topos_core::api::grpc::tce::v1::StatusResponse;
 use topos_tce_storage::StorageClient;
 
 use crate::{
-    graphql::builder::ServerBuilder as GraphQLBuilder, grpc::builder::ServerBuilder, Runtime,
-    RuntimeClient, RuntimeEvent,
+    graphql::builder::ServerBuilder as GraphQLBuilder, grpc::builder::ServerBuilder,
+    metrics::builder::ServerBuilder as MetricsBuilder, Runtime, RuntimeClient, RuntimeEvent,
 };
 
 #[derive(Default)]
@@ -19,6 +19,7 @@ pub struct RuntimeBuilder {
     local_peer_id: String,
     grpc_socket_addr: Option<SocketAddr>,
     graphql_socket_addr: Option<SocketAddr>,
+    metrics_socket_addr: Option<SocketAddr>,
     status: Option<RwLock<StatusResponse>>,
 }
 
@@ -37,6 +38,12 @@ impl RuntimeBuilder {
 
     pub fn serve_graphql_addr(mut self, addr: SocketAddr) -> Self {
         self.graphql_socket_addr = Some(addr);
+
+        self
+    }
+
+    pub fn serve_metrics_addr(mut self, addr: SocketAddr) -> Self {
+        self.metrics_socket_addr = Some(addr);
 
         self
     }
@@ -69,6 +76,10 @@ impl RuntimeBuilder {
             .serve_addr(self.graphql_socket_addr)
             .build();
 
+        let metrics_server = MetricsBuilder::default()
+            .serve_addr(self.metrics_socket_addr)
+            .build();
+
         let (command_sender, runtime_command_receiver) = mpsc::channel(2048);
         let (shutdown_channel, shutdown_receiver) = mpsc::channel::<oneshot::Sender<()>>(1);
 
@@ -89,6 +100,7 @@ impl RuntimeBuilder {
 
         spawn(grpc);
         spawn(graphql.await);
+        spawn(metrics_server.await);
         spawn(runtime.launch());
 
         (
