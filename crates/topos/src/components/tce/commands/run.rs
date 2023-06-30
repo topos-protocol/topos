@@ -49,6 +49,10 @@ pub struct Run {
     #[clap(long, env = "TCE_GRAPHQL_API_ADDR", default_value = "[::1]:4000")]
     pub graphql_api_addr: SocketAddr,
 
+    /// Metrics server API Addr
+    #[clap(long, env = "TCE_METRICS_API_ADDR", default_value = "[::1]:3000")]
+    pub metrics_api_addr: SocketAddr,
+
     /// Broadcast parameters
     #[command(flatten)]
     pub tce_params: ReliableBroadcastParams,

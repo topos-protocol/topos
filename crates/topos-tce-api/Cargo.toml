@@ -7,6 +7,7 @@ edition = "2021"
 topos-p2p = { path = "../topos-p2p" }
 topos-api = { path = "../topos-api", features = ["graphql"] }
 topos-core = { workspace = true, features = ["uci", "api"] }
+topos-metrics = { path = "../topos-metrics" }
 topos-tce-storage = { path = "../topos-tce-storage" }
 topos-telemetry = { path = "../topos-telemetry" }
 
@@ -29,11 +30,11 @@ axum.workspace = true
 async-graphql.workspace = true
 async-graphql-axum.workspace = true
 hyper.workspace = true
+http.workspace = true
+tower-http.workspace = true
 
 tonic-health = "0.9.0"
 tonic-reflection = "0.9.0"
-tower-http = { version = "0.4", features = ["cors"] }
-http = "0.2.9"
 pin-project = "1.0.12"
 async-recursion = "1.0"
 

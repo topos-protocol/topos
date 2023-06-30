@@ -7,14 +7,13 @@ use std::time::Duration;
 
 pub use app_context::AppContext;
 use opentelemetry::global;
-use prometheus::{self, Encoder, TextEncoder};
 use tce_transport::ReliableBroadcastParams;
 use tokio::{spawn, sync::mpsc, sync::oneshot};
 use topos_p2p::utils::local_key_pair_from_slice;
 use topos_p2p::{utils::local_key_pair, Multiaddr, PeerId};
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
 use topos_tce_storage::{Connection, RocksDBStorage};
-use tracing::{debug, info, warn};
+use tracing::{debug, warn};
 
 pub mod events;
 
@@ -25,6 +24,7 @@ pub struct TceConfiguration {
     pub boot_peers: Vec<(PeerId, Multiaddr)>,
     pub api_addr: SocketAddr,
     pub graphql_api_addr: SocketAddr,
+    pub metrics_api_addr: SocketAddr,
     pub tce_addr: String,
     pub tce_local_port: u16,
     pub storage: StorageConfiguration,
@@ -58,34 +58,6 @@ pub async fn run(
         format!("{}/tcp/{}", config.tce_addr, config.tce_local_port).parse()?;
 
     let addr: Multiaddr = format!("/ip4/0.0.0.0/tcp/{}", config.tce_local_port).parse()?;
-
-    use axum::{routing::get, Router};
-    let app = Router::new()
-        .route(
-            "/metrics",
-            get(|| async move {
-                let mut buffer = Vec::new();
-                let encoder = TextEncoder::new();
-
-                // Gather the metrics.
-                let metric_families = prometheus::gather();
-                // Encode them to send.
-                encoder.encode(&metric_families, &mut buffer).unwrap();
-
-                String::from_utf8(buffer.clone()).unwrap()
-            }),
-        )
-        .route("/", get(|| async move { "Hello World" }));
-
-    spawn(async move {
-        let metrics_addr = SocketAddr::from(([0, 0, 0, 0], 3000));
-
-        info!("Starting metrics server on {}", metrics_addr);
-        axum::Server::bind(&metrics_addr)
-            .serve(app.into_make_service())
-            .await
-            .unwrap();
-    });
 
     let (network_client, event_stream, unbootstrapped_runtime) = topos_p2p::network::builder()
         .peer_key(key)
@@ -153,6 +125,7 @@ pub async fn run(
         .with_peer_id(peer_id.to_string())
         .serve_grpc_addr(config.api_addr)
         .serve_graphql_addr(config.graphql_api_addr)
+        .serve_metrics_addr(config.metrics_api_addr)
         .storage(storage_client.clone())
         .build_and_launch()
         .await;
