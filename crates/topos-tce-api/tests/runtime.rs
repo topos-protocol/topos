@@ -206,6 +206,9 @@ async fn can_catchup_with_old_certs_with_position() {
     let graphql_socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
     let graphql_addr = graphql_socket.local_addr().ok().unwrap();
 
+    let metrics_socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
+    let metrics_addr = metrics_socket.local_addr().ok().unwrap();
+
     // launch data store
     let certificates = create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], 15);
 
@@ -221,6 +224,7 @@ async fn can_catchup_with_old_certs_with_position() {
         .storage(storage_client)
         .serve_grpc_addr(addr)
         .serve_graphql_addr(graphql_addr)
+        .serve_metrics_addr(metrics_addr)
         .build_and_launch()
         .await;
 
@@ -330,6 +334,9 @@ async fn boots_healthy_graphql_server() {
     let graphql_socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
     let graphql_addr = graphql_socket.local_addr().ok().unwrap();
 
+    let metrics_socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
+    let metrics_addr = metrics_socket.local_addr().ok().unwrap();
+
     // launch data store
     let certificates = create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], 15);
 
@@ -345,6 +352,7 @@ async fn boots_healthy_graphql_server() {
         .storage(storage_client)
         .serve_grpc_addr(addr)
         .serve_graphql_addr(graphql_addr)
+        .serve_metrics_addr(metrics_addr)
         .build_and_launch()
         .await;
 
@@ -371,6 +379,9 @@ async fn graphql_server_enables_cors() {
     let graphql_socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
     let graphql_addr = graphql_socket.local_addr().ok().unwrap();
 
+    let metrics_socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
+    let metrics_addr = metrics_socket.local_addr().ok().unwrap();
+
     // launch data store
     let certificates = create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], 15);
 
@@ -386,6 +397,7 @@ async fn graphql_server_enables_cors() {
         .storage(storage_client)
         .serve_grpc_addr(addr)
         .serve_graphql_addr(graphql_addr)
+        .serve_metrics_addr(metrics_addr)
         .build_and_launch()
         .await;
 
@@ -436,6 +448,9 @@ async fn can_query_graphql_endpoint_for_certificates() {
     let graphql_socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
     let graphql_addr = graphql_socket.local_addr().ok().unwrap();
 
+    let metrics_socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
+    let metrics_addr = metrics_socket.local_addr().ok().unwrap();
+
     // launch data store
     let certificates = create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], 15);
 
@@ -451,6 +466,7 @@ async fn can_query_graphql_endpoint_for_certificates() {
         .storage(storage_client)
         .serve_grpc_addr(addr)
         .serve_graphql_addr(graphql_addr)
+        .serve_metrics_addr(metrics_addr)
         .build_and_launch()
         .await;
 

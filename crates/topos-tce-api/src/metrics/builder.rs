@@ -22,7 +22,10 @@ impl ServerBuilder {
     ) -> Server<hyper::server::conn::AddrIncoming, axum::routing::IntoMakeService<Router>> {
         let app = Router::new().route("/metrics", get(gather_metrics));
 
-        let serve_addr = self.serve_addr.take().expect("Server address is not set");
+        let serve_addr = self
+            .serve_addr
+            .take()
+            .expect("Metrics server address is not set");
         info!("Starting metrics server on {}", serve_addr);
         Server::bind(&serve_addr).serve(app.into_make_service())
     }
