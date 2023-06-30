@@ -20,7 +20,7 @@ impl ServerBuilder {
     pub async fn build(
         mut self,
     ) -> Server<hyper::server::conn::AddrIncoming, axum::routing::IntoMakeService<Router>> {
-        let app = Router::new().route("/metrics", get(gather_metrics));
+        let app = Router::new().route("/metrics", get(|| async {  gather_metrics() } ));
 
         let serve_addr = self
             .serve_addr

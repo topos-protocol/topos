@@ -32,7 +32,7 @@ lazy_static! {
         register_int_counter!("certificate_delivered", "Number of certificate delivered.").unwrap();
 }
 
-pub async fn gather_metrics() -> String {
+pub fn gather_metrics() -> String {
     let mut buffer = Vec::new();
     let encoder = TextEncoder::new();
 
