@@ -29,6 +29,8 @@ Options:
           gRPC API Addr [env: TCE_API_ADDR=] [default: [::1]:1340]
       --graphql-api-addr <GRAPHQL_API_ADDR>
           GraphQL API Addr [env: TCE_GRAPHQL_API_ADDR=] [default: [::1]:4000]
+      --metrics-api-addr <METRICS_API_ADDR>
+          Metrics server API Addr [env: TCE_METRICS_API_ADDR=] [default: [::1]:3000]
       --echo-threshold <ECHO_THRESHOLD>
           Echo threshold [env: TCE_ECHO_THRESHOLD=] [default: 1]
       --ready-threshold <READY_THRESHOLD>

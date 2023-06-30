@@ -1,7 +1,11 @@
+mod server;
+
 use prometheus::{self, IntCounter};
 
 use lazy_static::lazy_static;
 use prometheus::register_int_counter;
+
+pub use server::ServerBuilder;
 
 lazy_static! {
     pub static ref MESSAGE_RECEIVED_ON_GOSSIP: IntCounter =

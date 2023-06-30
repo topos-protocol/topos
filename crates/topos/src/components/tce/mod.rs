@@ -101,6 +101,7 @@ pub(crate) async fn handle_command(
                 tce_params: cmd.tce_params,
                 api_addr: cmd.api_addr,
                 graphql_api_addr: cmd.graphql_api_addr,
+                metrics_api_addr: cmd.metrics_api_addr,
                 storage: StorageConfiguration::RocksDB(
                     cmd.db_path
                         .as_ref()
