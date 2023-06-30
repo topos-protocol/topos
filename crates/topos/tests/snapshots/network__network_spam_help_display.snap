@@ -11,6 +11,8 @@ Options:
           The target node api endpoint. Multiple nodes could be specified as comma separated list e.g. `--target-nodes=http://[::1]:1340,http://[::1]:1341` [env: TOPOS_NETWORK_SPAMMER_TARGET_NODES=]
   -v, --verbose...
           Defines the verbosity level
+      --home <HOME>
+          Home directory for the configuration [env: TOPOS_HOME=] [default: /home/runner/.config/topos]
       --target-nodes-path <TARGET_NODES_PATH>
           Path to json file with list of target nodes as alternative to `--target-nodes` [env: TOPOS_NETWORK_SPAMMER_TARGET_NODES_PATH=]
       --local-key-seed <LOCAL_KEY_SEED>

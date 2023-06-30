@@ -11,6 +11,8 @@ Options:
           Boot nodes to connect to, pairs of <PeerId> <Multiaddr>, space separated, quoted list like --boot-peers='a a1,b b1' [env: TCE_BOOT_PEERS=] [default: ]
   -v, --verbose...
           Defines the verbosity level
+      --home <HOME>
+          Home directory for the configuration [env: TOPOS_HOME=] [default: /home/runner/.config/topos]
       --tce-ext-host <TCE_EXT_HOST>
           Advertised (externally visible) <host>, if empty this machine ip address(es) are used [env: TCE_EXT_HOST=] [default: /ip4/0.0.0.0]
       --tce-local-port <TCE_LOCAL_PORT>

@@ -1,13 +1,18 @@
 #![allow(unused_imports)]
 use std::time::Duration;
 
-use clap::Parser;
-#[cfg(feature = "tce")]
-use components::tce::commands::{TceCommand, TceCommands};
-mod components;
-mod options;
+use clap::CommandFactory;
+use clap::{Args, Parser, Subcommand};
+
+pub(crate) mod components;
+mod config;
+pub(crate) mod options;
 mod tracing;
 
+#[cfg(feature = "tce")]
+use components::tce::commands::{TceCommand, TceCommands};
+
+use crate::options::ToposCommand;
 use tracing_log::LogTracer;
 
 #[tokio::main]
@@ -18,15 +23,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match args.commands {
         #[cfg(feature = "tce")]
-        options::ToposCommand::Tce(cmd) => components::tce::handle_command(cmd).await,
+        ToposCommand::Tce(cmd) => components::tce::handle_command(cmd).await,
         #[cfg(feature = "sequencer")]
-        options::ToposCommand::Sequencer(cmd) => components::sequencer::handle_command(cmd).await,
+        ToposCommand::Sequencer(cmd) => components::sequencer::handle_command(cmd).await,
         #[cfg(feature = "network")]
-        options::ToposCommand::Network(cmd) => components::network::handle_command(cmd).await,
+        ToposCommand::Network(cmd) => components::network::handle_command(cmd).await,
         #[cfg(feature = "setup")]
-        options::ToposCommand::Setup(cmd) => components::setup::handle_command(cmd).await,
+        ToposCommand::Setup(cmd) => components::setup::handle_command(cmd).await,
         #[cfg(feature = "subnet")]
-        options::ToposCommand::Subnet(cmd) => components::subnet::handle_command(cmd).await,
-        options::ToposCommand::Doctor => components::doctor::handle_doctor().await,
+        ToposCommand::Subnet(cmd) => components::subnet::handle_command(cmd).await,
+        #[cfg(feature = "node")]
+        ToposCommand::Node(cmd) => components::node::handle_command(cmd).await,
+        ToposCommand::Doctor => components::doctor::handle_doctor().await,
     }
 }

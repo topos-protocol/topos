@@ -30,11 +30,14 @@ rand.workspace = true
 reqwest.workspace = true
 thiserror.workspace = true
 opentelemetry-otlp = { workspace = true, features = ["grpc-tonic", "metrics", "tls-roots"] }
+figment = { version = "0.10", features = ["yaml", "toml", "env"] }
+dirs = "5.0"
 tracing-log = { version = "0.1.3", features = ["env_logger"] }
 tar = "0.4.38"
 flate2 ="1.0.26"
 url = "2.3.1"
 once_cell = "1.17.1"
+toml = "0.7.4"
 
 [dev-dependencies]
 topos-tce-broadcast = { path = "../topos-tce-broadcast" }
@@ -55,12 +58,14 @@ libp2p = { workspace = true, features = ["identify"] }
 assert_cmd = "2.0.6"
 insta = { version = "1.21", features = ["json", "redactions"] }
 rstest = { workspace = true, features = ["async-timeout"] }
+regex = "1"
 
 [features]
-default = ["tce", "sequencer", "network", "setup", "subnet"]
+default = ["tce", "sequencer", "network", "node", "setup", "subnet"]
 tce = ["topos-tce", "topos-tce-transport"]
 sequencer = ["topos-sequencer"]
 network = ["topos-certificate-spammer"]
+node = ["tce", "sequencer"]
 setup = []
 subnet = []
 

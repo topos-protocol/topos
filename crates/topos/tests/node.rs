@@ -5,9 +5,9 @@ use std::process::Command;
 use assert_cmd::prelude::*;
 
 #[test]
-fn network_spam_help_display() -> Result<(), Box<dyn std::error::Error>> {
+fn help_display() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin("topos")?;
-    cmd.arg("network").arg("spam").arg("-h");
+    cmd.arg("node").arg("-h");
 
     let output = cmd.assert().success();
 

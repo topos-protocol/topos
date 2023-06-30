@@ -9,6 +9,8 @@ Options:
           [default: plain] [possible values: json, plain]
   -v, --verbose...
           Defines the verbosity level
+      --home <HOME>
+          Home directory for the configuration [env: TOPOS_HOME=] [default: /home/runner/.config/topos]
   -t, --timeout <TIMEOUT>
           Global timeout for the command [default: 60]
       --timeout-broadcast <TIMEOUT_BROADCAST>

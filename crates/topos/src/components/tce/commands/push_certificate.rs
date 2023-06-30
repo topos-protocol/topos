@@ -1,6 +1,5 @@
-use std::net::SocketAddr;
-
 use clap::Args;
+use std::net::SocketAddr;
 
 use crate::options::input_format::InputFormat;
 

@@ -1,6 +1,8 @@
 pub(crate) mod doctor;
 #[cfg(feature = "network")]
 pub(crate) mod network;
+#[cfg(feature = "node")]
+pub(crate) mod node;
 #[cfg(feature = "sequencer")]
 pub(crate) mod sequencer;
 #[cfg(feature = "setup")]

@@ -9,7 +9,7 @@ topos-core = { path = "./crates/topos-core", default-features = false }
 topos-crypto = { path = "./crates/topos-crypto", default-features = false }
 
 # Various utility crates
-clap = { version = "4.0", features = ["derive", "env"] }
+clap = { version = "4.0", features = ["derive", "env", "string"] }
 rand = { version = "0.8", default-features = false }
 rand_core = { version = "0.6", default-features = false }
 rand_distr = { version = "0.4", default-features = false }

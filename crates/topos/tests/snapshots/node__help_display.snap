@@ -1,0 +1,18 @@
+---
+source: crates/topos/tests/node.rs
+expression: sanitized_result
+---
+Utility to manage your nodes in the Topos network
+
+Usage: topos node [OPTIONS] [COMMAND]
+
+Commands:
+  up    Spawn your node!
+  init  Setup your node!
+  help  Print this message or the help of the given subcommand(s)
+
+Options:
+  -v, --verbose...   Defines the verbosity level
+      --home <HOME>  Home directory for the configuration [env: TOPOS_HOME=] [default: /home/runner/.config/topos]
+  -h, --help         Print help
+

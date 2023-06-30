@@ -63,4 +63,5 @@ crates/topos-sequencer-subnet-runtime/tests/temp
 
 # Node modules
 **/node_modules
+
 artifacts/

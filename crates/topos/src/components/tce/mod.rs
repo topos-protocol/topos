@@ -1,27 +1,24 @@
+use opentelemetry::global;
+use std::str::FromStr;
 use std::{
-    fs::File,
     io::{self, Read},
-    path::{Path, PathBuf},
-    str::FromStr,
+    path::PathBuf,
     sync::Arc,
     time::Duration,
 };
-
-use opentelemetry::global;
 use tokio::{
-    signal, spawn,
+    signal,
     sync::{mpsc, oneshot, Mutex},
 };
 use tonic::transport::{Channel, Endpoint};
 use topos_core::api::grpc::tce::v1::{
     api_service_client::ApiServiceClient, console_service_client::ConsoleServiceClient,
 };
-use topos_p2p::{config::NetworkConfig, PeerId};
+use topos_p2p::config::NetworkConfig;
 use topos_tce::{StorageConfiguration, TceConfiguration};
 use tower::Service;
-use tracing::{debug, error, info, trace, warn};
+use tracing::{debug, error, info, warn};
 
-use crate::options::input_format::{InputFormat, Parser};
 use crate::tracing::setup_tracing;
 
 use self::commands::{TceCommand, TceCommands};
@@ -48,6 +45,7 @@ pub(crate) async fn handle_command(
     TceCommand {
         verbose,
         mut subcommands,
+        ..
     }: TceCommand,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if let Some(TceCommands::Run(cmd)) = subcommands.as_mut() {

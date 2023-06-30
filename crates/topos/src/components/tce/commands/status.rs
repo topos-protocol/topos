@@ -1,6 +1,5 @@
-use clap::Args;
-
 use super::NodeArgument;
+use clap::Args;
 
 #[derive(Args, Debug)]
 pub(crate) struct Status {

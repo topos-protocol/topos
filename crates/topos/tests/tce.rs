@@ -1,8 +1,12 @@
+mod utils;
+
+use std::{net::UdpSocket, process::Command, time::Duration};
+
 use assert_cmd::prelude::*;
 use futures::FutureExt;
-use std::{net::UdpSocket, process::Command, time::Duration};
 use tokio::spawn;
 use tonic::{Request, Response, Status};
+
 use topos_core::api::grpc::tce::v1::{
     console_service_server::{ConsoleService, ConsoleServiceServer},
     PushPeerListRequest, PushPeerListResponse, StatusRequest, StatusResponse,
@@ -17,7 +21,7 @@ fn help_display() -> Result<(), Box<dyn std::error::Error>> {
 
     let result: &str = std::str::from_utf8(&output.get_output().stdout)?;
 
-    insta::assert_snapshot!(result);
+    insta::assert_snapshot!(utils::sanitize_config_folder_path(result));
 
     Ok(())
 }

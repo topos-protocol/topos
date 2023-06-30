@@ -1,6 +1,5 @@
-use clap::Args;
-
 use crate::options::input_format::InputFormat;
+use clap::Args;
 
 use super::NodeArgument;
 
