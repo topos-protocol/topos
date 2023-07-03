@@ -176,7 +176,6 @@ impl ReliableBroadcastClient {
             .send(SubscriptionsView {
                 echo: set.clone(),
                 ready: set.clone(),
-                delivery: set.clone(),
                 network_size: set.len(),
             })
             .await

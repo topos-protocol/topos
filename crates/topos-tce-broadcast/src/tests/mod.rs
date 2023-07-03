@@ -99,7 +99,6 @@ fn create_context(params: TceParams) -> (DoubleEcho, Context) {
     // Subscriptions
     double_echo.subscriptions.echo = peers.clone();
     double_echo.subscriptions.ready = peers.clone();
-    double_echo.subscriptions.delivery = peers.clone();
     double_echo.subscriptions.network_size = params.nb_peers;
 
     (
@@ -145,7 +144,7 @@ fn reach_ready_threshold(double_echo: &mut DoubleEcho, cert: &Certificate) {
 fn reach_delivery_threshold(double_echo: &mut DoubleEcho, cert: &Certificate) {
     let selected = double_echo
         .subscriptions
-        .delivery
+        .ready
         .iter()
         .take(double_echo.params.delivery_threshold)
         .cloned()
@@ -304,10 +303,6 @@ async fn process_after_delivery_until_sending_ready(#[case] params: TceParams) {
     ));
 
     // Trigger Delivery upon reaching the Delivery threshold
-
-    // NOTE: Samples are done with replacement
-    // Reaching the D-threshold may bring the R-threshold reached
-    // If the overlap between R and D is greater than R-threshold
     reach_delivery_threshold(&mut double_echo, &dummy_cert);
     double_echo.state_change_follow_up();
 
