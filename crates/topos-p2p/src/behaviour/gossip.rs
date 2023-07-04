@@ -8,7 +8,6 @@ use std::{
 use libp2p::{
     gossipsub::{self, IdentTopic, Message, MessageAuthenticity, MessageId, Topic},
     identity::Keypair,
-    multihash::IdentityHasher,
     swarm::{NetworkBehaviour, THandlerInEvent, ToSwarm},
 };
 use serde::{Deserialize, Serialize};
@@ -189,6 +188,12 @@ impl NetworkBehaviour for Behaviour {
 
         let event = match self.gossipsub.poll(cx, params) {
             Poll::Pending => return Poll::Pending,
+            Poll::Ready(ToSwarm::ListenOn { opts }) => {
+                return Poll::Ready(ToSwarm::ListenOn { opts })
+            }
+            Poll::Ready(ToSwarm::RemoveListener { id }) => {
+                return Poll::Ready(ToSwarm::RemoveListener { id })
+            }
             Poll::Ready(ToSwarm::GenerateEvent(event)) => event,
             Poll::Ready(ToSwarm::Dial { opts }) => return Poll::Ready(ToSwarm::Dial { opts }),
             Poll::Ready(ToSwarm::NotifyHandler {
