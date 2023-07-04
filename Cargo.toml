@@ -32,6 +32,8 @@ ethers = {version = "2.0.4", features = ["legacy", "abigen-online"]}
 # Log, Tracing & telemetry
 opentelemetry = { version = "0.19", features = ["rt-tokio", "metrics"] }
 opentelemetry-otlp = { version = "0.12", features = ["grpc-tonic", "metrics", "tls-roots"] }
+prometheus = "0.13.3"
+prometheus-client = "0.21"
 tracing = { version = "0.1", default-features = false }
 tracing-attributes = "0.1"
 tracing-opentelemetry = "0.19"

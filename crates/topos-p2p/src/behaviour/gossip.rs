@@ -195,6 +195,12 @@ impl NetworkBehaviour for Behaviour {
                 return Poll::Ready(ToSwarm::RemoveListener { id })
             }
             Poll::Ready(ToSwarm::GenerateEvent(event)) => event,
+            Poll::Ready(ToSwarm::ListenOn { opts }) => {
+                return Poll::Ready(ToSwarm::ListenOn { opts })
+            }
+            Poll::Ready(ToSwarm::RemoveListener { id }) => {
+                return Poll::Ready(ToSwarm::RemoveListener { id })
+            }
             Poll::Ready(ToSwarm::Dial { opts }) => return Poll::Ready(ToSwarm::Dial { opts }),
             Poll::Ready(ToSwarm::NotifyHandler {
                 peer_id,
