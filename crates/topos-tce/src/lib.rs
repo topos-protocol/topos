@@ -106,7 +106,6 @@ pub async fn run(
         },
         peer_id.to_string(),
         storage_client.clone(),
-        network_client.clone(),
     )
     .await;
     debug!("Reliable broadcast started");

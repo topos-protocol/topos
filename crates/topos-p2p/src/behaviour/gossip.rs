@@ -11,7 +11,7 @@ use libp2p::{
     swarm::{NetworkBehaviour, THandlerInEvent, ToSwarm},
 };
 use serde::{Deserialize, Serialize};
-use topos_metrics::{P2P_DUPLICATE_MESSAGE_ID_RECEIVED, P2P_GOSSIP_BATCH_SIZE};
+use topos_metrics::{P2P_DUPLICATE_MESSAGE_ID_RECEIVED_TOTAL, P2P_GOSSIP_BATCH_SIZE};
 
 use crate::{constant, event::ComposedEvent, TOPOS_ECHO, TOPOS_GOSSIP, TOPOS_READY};
 
@@ -76,7 +76,7 @@ impl Behaviour {
             constant::METRIC_REGISTRY
                 .try_lock()
                 .unwrap()
-                .sub_registry_with_prefix("gossipsub"),
+                .sub_registry_with_prefix("libp2p_gossipsub"),
             Default::default(),
         )
         .unwrap();
@@ -235,7 +235,7 @@ impl NetworkBehaviour for Behaviour {
 
         if let gossipsub::Event::Message { ref message_id, .. } = event {
             if self.cache.contains(message_id) {
-                P2P_DUPLICATE_MESSAGE_ID_RECEIVED.inc();
+                P2P_DUPLICATE_MESSAGE_ID_RECEIVED_TOTAL.inc();
             }
         }
 

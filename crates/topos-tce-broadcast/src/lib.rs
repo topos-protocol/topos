@@ -10,22 +10,19 @@ use thiserror::Error;
 use tokio::spawn;
 use tokio_stream::wrappers::BroadcastStream;
 
-use futures::{Future, Stream, TryStreamExt};
-#[allow(unused)]
-use opentelemetry::global;
+use futures::{Stream, TryStreamExt};
 use tokio::sync::mpsc::Sender;
 use tokio::sync::{broadcast, mpsc, oneshot};
 
 use double_echo::DoubleEcho;
 use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
 
-use topos_core::uci::{Certificate, CertificateId, SubnetId};
-use topos_metrics::DOUBLE_ECHO_COMMAND_CHANNEL_CAPACITY;
+use topos_core::uci::{Certificate, CertificateId};
+use topos_metrics::DOUBLE_ECHO_COMMAND_CHANNEL_CAPACITY_TOTAL;
 use topos_p2p::PeerId;
 use topos_tce_storage::StorageClient;
 use tracing::{debug, error, info, Span};
 
-use crate::mem_store::TceMemStore;
 use crate::sampler::SubscriptionsView;
 use crate::tce_store::TceStore;
 pub use topos_core::uci;
@@ -65,23 +62,6 @@ pub enum SamplerCommand {
 
 #[derive(Debug)]
 pub enum DoubleEchoCommand {
-    IsCertificateDelivered {
-        certificate_id: CertificateId,
-        sender: oneshot::Sender<bool>,
-    },
-
-    GetSpanOfCert {
-        certificate_id: CertificateId,
-        sender: oneshot::Sender<Result<Span, Errors>>,
-    },
-
-    /// Received G-set message
-    Deliver {
-        from_peer: PeerId,
-        certificate_id: CertificateId,
-        ctx: Span,
-    },
-
     /// Entry point for new certificate to submit as initial sender
     Broadcast {
         need_gossip: bool,
@@ -102,11 +82,6 @@ pub enum DoubleEchoCommand {
         certificate_id: CertificateId,
         ctx: Span,
     },
-    DeliveredCerts {
-        subnet_id: SubnetId,
-        limit: u64,
-        sender: oneshot::Sender<Result<Vec<Certificate>, Errors>>,
-    },
 }
 
 /// Thread safe client to the protocol aggregate
@@ -126,7 +101,6 @@ impl ReliableBroadcastClient {
         config: ReliableBroadcastConfig,
         local_peer_id: String,
         storage: StorageClient,
-        network_client: topos_p2p::Client,
     ) -> (Self, impl Stream<Item = Result<ProtocolEvents, ()>>) {
         let (subscriptions_view_sender, subscriptions_view_receiver) =
             mpsc::channel::<SubscriptionsView>(2048);
@@ -146,13 +120,8 @@ impl ReliableBroadcastClient {
             command_receiver,
             subscriptions_view_receiver,
             event_sender,
-            #[allow(clippy::box_default)]
-            Box::new(TceMemStore::default()),
-            storage,
-            network_client,
             double_echo_shutdown_receiver,
             local_peer_id,
-            0,
             pending_certificate_count,
         );
 
@@ -180,63 +149,6 @@ impl ReliableBroadcastClient {
             .map_err(|_| ())
     }
 
-    /// delivered certificates for given target chain after the given certificate
-    pub fn delivered_certs(
-        &self,
-        subnet_id: SubnetId,
-        _from_cert_id: CertificateId,
-    ) -> impl Future<Output = Result<Vec<Certificate>, Errors>> + 'static + Send {
-        let (sender, receiver) = oneshot::channel();
-
-        let broadcast_commands = self.broadcast_commands.clone();
-
-        async move {
-            if broadcast_commands
-                .send(DoubleEchoCommand::DeliveredCerts {
-                    subnet_id,
-                    limit: 10,
-                    sender,
-                })
-                .await
-                .is_err()
-            {
-                error!("Unable to execute delivered_certs");
-            }
-
-            receiver.await.map_err(Into::into).and_then(|result| result)
-        }
-    }
-
-    /// delivered certificates for given target chain after the given certificate
-    pub async fn get_span_cert(&self, certificate_id: CertificateId) -> Result<Span, Errors> {
-        let (sender, receiver) = oneshot::channel();
-
-        let broadcast_commands = self.broadcast_commands.clone();
-
-        if broadcast_commands
-            .send(DoubleEchoCommand::GetSpanOfCert {
-                certificate_id,
-                sender,
-            })
-            .await
-            .is_err()
-        {
-            error!("Unable to execute get_span_cert");
-        }
-
-        receiver.await.map_err(Into::into).and_then(|result| result)
-    }
-
-    pub async fn delivered_certs_ids(
-        &self,
-        subnet_id: SubnetId,
-        from_cert_id: CertificateId,
-    ) -> Result<Vec<CertificateId>, Errors> {
-        self.delivered_certs(subnet_id, from_cert_id)
-            .await
-            .map(|mut v| v.iter_mut().map(|c| c.id).collect())
-    }
-
     pub fn get_double_echo_channel(&self) -> Sender<DoubleEchoCommand> {
         self.broadcast_commands.clone()
     }
@@ -250,7 +162,7 @@ impl ReliableBroadcastClient {
         let broadcast_commands = self.broadcast_commands.clone();
 
         if broadcast_commands.capacity() <= *constant::COMMAND_CHANNEL_CAPACITY {
-            DOUBLE_ECHO_COMMAND_CHANNEL_CAPACITY.inc();
+            DOUBLE_ECHO_COMMAND_CHANNEL_CAPACITY_TOTAL.inc();
         }
 
         info!("Send certificate to be broadcast");
@@ -267,28 +179,6 @@ impl ReliableBroadcastClient {
         }
 
         Ok(())
-    }
-
-    pub async fn is_certificate_delivered_in_cache(
-        &self,
-        certificate_id: CertificateId,
-    ) -> Result<bool, Errors> {
-        let (sender, receiver) = oneshot::channel();
-
-        let broadcast_commands = self.broadcast_commands.clone();
-
-        if broadcast_commands
-            .send(DoubleEchoCommand::IsCertificateDelivered {
-                certificate_id,
-                sender,
-            })
-            .await
-            .is_err()
-        {
-            error!("Unable to send is_certificate_delivered command, Receiver was dropped");
-        }
-
-        receiver.await.map_err(Into::into)
     }
 
     pub async fn shutdown(&self) -> Result<(), Errors> {

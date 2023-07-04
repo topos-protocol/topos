@@ -23,12 +23,12 @@ impl ServerBuilder {
         let app = Router::new().route(
             "/metrics",
             get(|| async {
-                let metrics = gather_metrics();
-                let mut buf = String::new();
+                let topos_metrics = gather_metrics();
+                let mut libp2p_metrics = String::new();
                 let reg = topos_p2p::constant::METRIC_REGISTRY.lock().await;
-                _ = prometheus_client::encoding::text::encode(&mut buf, &reg);
+                _ = prometheus_client::encoding::text::encode(&mut libp2p_metrics, &reg);
 
-                format!("{metrics}{buf}")
+                format!("{topos_metrics}{libp2p_metrics}")
             }),
         );
 

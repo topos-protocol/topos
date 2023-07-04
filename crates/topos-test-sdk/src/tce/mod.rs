@@ -141,7 +141,6 @@ pub async fn start_node(
         create_reliable_broadcast_params(peers.len()),
         config.keypair.public().to_peer_id().to_string(),
         storage_client.clone(),
-        network_client.clone(),
     )
     .await;
 

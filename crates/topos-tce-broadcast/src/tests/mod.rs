@@ -1,5 +1,4 @@
 use crate::double_echo::*;
-use crate::mem_store::TceMemStore;
 use crate::*;
 use rstest::*;
 use std::collections::HashSet;
@@ -59,31 +58,13 @@ fn create_context(params: TceParams) -> (DoubleEcho, Context) {
     let (double_echo_shutdown_sender, double_echo_shutdown_receiver) =
         mpsc::channel::<oneshot::Sender<()>>(1);
 
-    let (sender, _) = mpsc::channel(CHANNEL_SIZE);
-    let (storage_sender, _) = mpsc::channel(CHANNEL_SIZE);
-    let (shutdown_sender_storage, _) = mpsc::channel(1);
-    let (shutdown_sender, _) = mpsc::channel(1);
-    let storage_client = topos_tce_storage::StorageClient {
-        sender: storage_sender,
-        shutdown_channel: shutdown_sender_storage,
-    };
-    let network_client = topos_p2p::Client {
-        retry_ttl: 10,
-        local_peer_id: topos_test_sdk::p2p::local_peer(1).0.public().to_peer_id(),
-        sender,
-        shutdown_channel: shutdown_sender,
-    };
     let mut double_echo = DoubleEcho::new(
         params.broadcast_params,
         cmd_receiver,
         subscriptions_view_receiver,
         event_sender,
-        Box::<TceMemStore>::default(),
-        storage_client,
-        network_client,
         double_echo_shutdown_receiver,
         String::new(),
-        0,
         0,
     );
 
@@ -123,7 +104,7 @@ fn reach_echo_threshold(double_echo: &mut DoubleEcho, cert: &Certificate) {
         .collect::<Vec<_>>();
 
     for p in selected {
-        double_echo.handle_echo(p, &cert.id);
+        double_echo.consume_echo(p, &cert.id);
     }
 }
 
@@ -137,7 +118,7 @@ fn reach_ready_threshold(double_echo: &mut DoubleEcho, cert: &Certificate) {
         .collect::<Vec<_>>();
 
     for p in selected {
-        double_echo.handle_ready(p, &cert.id);
+        double_echo.consume_ready(p, &cert.id);
     }
 }
 
@@ -151,7 +132,7 @@ fn reach_delivery_threshold(double_echo: &mut DoubleEcho, cert: &Certificate) {
         .collect::<Vec<_>>();
 
     for p in selected {
-        double_echo.handle_ready(p, &cert.id);
+        double_echo.consume_ready(p, &cert.id);
     }
 }
 
@@ -175,7 +156,7 @@ async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams)
     .expect("Dummy certificate");
 
     // Trigger Echo upon dispatching
-    double_echo.handle_broadcast(dummy_cert.clone(), true);
+    double_echo.broadcast(dummy_cert.clone(), true);
 
     assert_eq!(ctx.event_receiver.len(), 3);
 
@@ -239,7 +220,7 @@ async fn trigger_ready_when_reached_enough_ready(#[case] params: TceParams) {
     .expect("Dummy certificate");
 
     // Trigger Echo upon dispatching
-    double_echo.handle_broadcast(dummy_cert.clone(), true);
+    double_echo.broadcast(dummy_cert.clone(), true);
 
     assert_eq!(ctx.event_receiver.len(), 3);
     assert!(matches!(
@@ -286,7 +267,7 @@ async fn process_after_delivery_until_sending_ready(#[case] params: TceParams) {
     .expect("Dummy certificate");
 
     // Trigger Echo upon dispatching
-    double_echo.handle_broadcast(dummy_cert.clone(), true);
+    double_echo.broadcast(dummy_cert.clone(), true);
 
     assert_eq!(ctx.event_receiver.len(), 3);
     assert!(matches!(

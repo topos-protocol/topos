@@ -11,7 +11,7 @@ use tokio::spawn;
 use tokio::sync::{mpsc, oneshot};
 use topos_core::api::grpc::checkpoints::TargetStreamPosition;
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
-use topos_metrics::CERTIFICATE_DELIVERED;
+use topos_metrics::CERTIFICATE_DELIVERED_TOTAL;
 use topos_p2p::{Client as NetworkClient, Event as NetEvent};
 use topos_tce_api::RuntimeEvent as ApiEvent;
 use topos_tce_api::{RuntimeClient as ApiClient, RuntimeError};
@@ -270,7 +270,7 @@ impl AppContext {
 
             ProtocolEvents::CertificateDelivered { certificate } => {
                 warn!("Certificate delivered {}", certificate.id);
-                CERTIFICATE_DELIVERED.inc();
+                CERTIFICATE_DELIVERED_TOTAL.inc();
                 let storage = self.pending_storage.clone();
                 let api_client = self.api_client.clone();
 

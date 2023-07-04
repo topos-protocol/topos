@@ -1,7 +1,7 @@
 use libp2p::gossipsub::{Event as GossipsubEvent, Message};
 use topos_metrics::{
-    MESSAGE_RECEIVED_ON_ECHO, MESSAGE_RECEIVED_ON_GOSSIP, MESSAGE_RECEIVED_ON_READY,
-    P2P_EVENT_STREAM_CAPACITY,
+    P2P_EVENT_STREAM_CAPACITY_TOTAL, P2P_MESSAGE_RECEIVED_ON_ECHO_TOTAL,
+    P2P_MESSAGE_RECEIVED_ON_GOSSIP_TOTAL, P2P_MESSAGE_RECEIVED_ON_READY_TOTAL,
 };
 use tracing::{error, info};
 
@@ -22,13 +22,13 @@ impl EventHandler<GossipEvent> for Runtime {
         } = event
         {
             if self.event_sender.capacity() < *constant::CAPACITY_EVENT_STREAM_BUFFER {
-                P2P_EVENT_STREAM_CAPACITY.inc();
+                P2P_EVENT_STREAM_CAPACITY_TOTAL.inc();
             }
 
             info!("Received message from {:?} on topic {:?}", source, topic);
             match topic {
                 TOPOS_GOSSIP => {
-                    MESSAGE_RECEIVED_ON_GOSSIP.inc();
+                    P2P_MESSAGE_RECEIVED_ON_GOSSIP_TOTAL.inc();
 
                     if let Err(e) = self
                         .event_sender
@@ -42,7 +42,7 @@ impl EventHandler<GossipEvent> for Runtime {
                     }
                 }
                 TOPOS_ECHO => {
-                    MESSAGE_RECEIVED_ON_ECHO.inc();
+                    P2P_MESSAGE_RECEIVED_ON_ECHO_TOTAL.inc();
 
                     let msg: Batch = bincode::deserialize(&message).unwrap();
 
@@ -57,7 +57,7 @@ impl EventHandler<GossipEvent> for Runtime {
                     }
                 }
                 TOPOS_READY => {
-                    MESSAGE_RECEIVED_ON_READY.inc();
+                    P2P_MESSAGE_RECEIVED_ON_READY_TOTAL.inc();
 
                     let msg: Batch = bincode::deserialize(&message).unwrap();
 
