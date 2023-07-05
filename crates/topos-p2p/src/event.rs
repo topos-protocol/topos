@@ -19,8 +19,6 @@ pub struct GossipEvent {
 pub enum ComposedEvent {
     Kademlia(Box<KademliaEvent>),
     Transmission(RequestResponseEvent<TransmissionRequest, TransmissionResponse>),
-    #[allow(dead_code)]
-    OutEvent(Event),
     PeerInfo(Box<identify::Event>),
     Gossipsub(GossipEvent),
     Void,
@@ -31,12 +29,6 @@ impl From<KademliaEvent> for ComposedEvent {
         ComposedEvent::Kademlia(Box::new(event))
     }
 }
-//
-// impl From<GossipsubEvent> for ComposedEvent {
-//     fn from(event: GossipsubEvent) -> Self {
-//         ComposedEvent::Gossipsub(Box::new(event))
-//     }
-// }
 
 impl From<identify::Event> for ComposedEvent {
     fn from(event: identify::Event) -> Self {

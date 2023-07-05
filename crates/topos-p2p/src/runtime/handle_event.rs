@@ -36,7 +36,6 @@ impl EventHandler<ComposedEvent> for Runtime {
             ComposedEvent::PeerInfo(event) => self.handle(event).await,
             ComposedEvent::Transmission(event) => self.handle(event).await,
             ComposedEvent::Gossipsub(event) => self.handle(event).await,
-            ComposedEvent::OutEvent(event) => self.handle(event).await,
             ComposedEvent::Void => (),
         }
     }

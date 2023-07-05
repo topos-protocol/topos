@@ -1,6 +1,6 @@
 use prometheus::{
-    self, register_histogram_with_registry, register_int_counter_with_registry, Histogram,
-    IntCounter,
+    self, register_histogram_with_registry, register_int_counter_vec_with_registry,
+    register_int_counter_with_registry, Histogram, IntCounter, IntCounterVec,
 };
 
 use lazy_static::lazy_static;
@@ -57,4 +57,20 @@ lazy_static! {
         TOPOS_METRIC_REGISTRY
     )
     .unwrap();
+    pub static ref P2P_MESSAGE_DESERIALIZE_FAILURE_TOTAL: IntCounterVec =
+        register_int_counter_vec_with_registry!(
+            "p2p_message_deserialize_failure_total",
+            "Number of message deserialization failure.",
+            &["echo", "ready", "gossip"],
+            TOPOS_METRIC_REGISTRY
+        )
+        .unwrap();
+    pub static ref P2P_MESSAGE_SERIALIZE_FAILURE_TOTAL: IntCounterVec =
+        register_int_counter_vec_with_registry!(
+            "p2p_message_serialize_failure_total",
+            "Number of message serialization failure.",
+            &["echo", "ready", "gossip"],
+            TOPOS_METRIC_REGISTRY
+        )
+        .unwrap();
 }

@@ -1,9 +1,10 @@
 use libp2p::gossipsub::{Event as GossipsubEvent, Message};
 use topos_metrics::{
-    P2P_EVENT_STREAM_CAPACITY_TOTAL, P2P_MESSAGE_RECEIVED_ON_ECHO_TOTAL,
-    P2P_MESSAGE_RECEIVED_ON_GOSSIP_TOTAL, P2P_MESSAGE_RECEIVED_ON_READY_TOTAL,
+    P2P_EVENT_STREAM_CAPACITY_TOTAL, P2P_MESSAGE_DESERIALIZE_FAILURE_TOTAL,
+    P2P_MESSAGE_RECEIVED_ON_ECHO_TOTAL, P2P_MESSAGE_RECEIVED_ON_GOSSIP_TOTAL,
+    P2P_MESSAGE_RECEIVED_ON_READY_TOTAL,
 };
-use tracing::{error, info};
+use tracing::{debug, error};
 
 use crate::{
     behaviour::gossip::Batch, constant, event::GossipEvent, Event, Runtime, TOPOS_ECHO,
@@ -25,7 +26,7 @@ impl EventHandler<GossipEvent> for Runtime {
                 P2P_EVENT_STREAM_CAPACITY_TOTAL.inc();
             }
 
-            info!("Received message from {:?} on topic {:?}", source, topic);
+            debug!("Received message from {:?} on topic {:?}", source, topic);
             match topic {
                 TOPOS_GOSSIP => {
                     P2P_MESSAGE_RECEIVED_ON_GOSSIP_TOTAL.inc();
@@ -38,37 +39,45 @@ impl EventHandler<GossipEvent> for Runtime {
                         })
                         .await
                     {
-                        tracing::error!("Failed to send gossip event to runtime: {:?}", e);
+                        error!("Failed to send gossip event to runtime: {:?}", e);
                     }
                 }
                 TOPOS_ECHO => {
                     P2P_MESSAGE_RECEIVED_ON_ECHO_TOTAL.inc();
 
-                    let msg: Batch = bincode::deserialize(&message).unwrap();
-
-                    for data in msg.data {
-                        if let Err(e) = self
-                            .event_sender
-                            .send(Event::Gossip { from: source, data })
-                            .await
-                        {
-                            tracing::error!("Failed to send gossip event to runtime: {:?}", e);
+                    if let Ok(msg) = bincode::deserialize::<Batch>(&message) {
+                        for data in msg.data {
+                            if let Err(e) = self
+                                .event_sender
+                                .send(Event::Gossip { from: source, data })
+                                .await
+                            {
+                                error!("Failed to send gossip event to runtime: {:?}", e);
+                            }
                         }
+                    } else {
+                        P2P_MESSAGE_DESERIALIZE_FAILURE_TOTAL
+                            .with_label_values(&["echo"])
+                            .inc();
                     }
                 }
                 TOPOS_READY => {
                     P2P_MESSAGE_RECEIVED_ON_READY_TOTAL.inc();
 
-                    let msg: Batch = bincode::deserialize(&message).unwrap();
-
-                    for data in msg.data {
-                        if let Err(e) = self
-                            .event_sender
-                            .send(Event::Gossip { from: source, data })
-                            .await
-                        {
-                            tracing::error!("Failed to send gossip event to runtime: {:?}", e);
+                    if let Ok(msg) = bincode::deserialize::<Batch>(&message) {
+                        for data in msg.data {
+                            if let Err(e) = self
+                                .event_sender
+                                .send(Event::Gossip { from: source, data })
+                                .await
+                            {
+                                error!("Failed to send gossip event to runtime: {:?}", e);
+                            }
                         }
+                    } else {
+                        P2P_MESSAGE_DESERIALIZE_FAILURE_TOTAL
+                            .with_label_values(&["ready"])
+                            .inc();
                     }
                 }
                 _ => {

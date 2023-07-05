@@ -117,8 +117,6 @@ impl<'a> NetworkBuilder<'a> {
         let peer_key = self.peer_key.ok_or(P2PError::MissingPeerKey)?;
         let peer_id = peer_key.public().to_peer_id();
 
-        // let noise_keys = noise::Keypair::<noise::>::new().into_authentic(&peer_key)?;
-
         let (command_sender, command_receiver) = mpsc::channel(*COMMAND_STREAM_BUFFER_SIZE);
         let (event_sender, event_receiver) = mpsc::channel(*EVENT_STREAM_BUFFER);
 

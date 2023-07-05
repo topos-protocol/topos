@@ -4,9 +4,8 @@ use lazy_static::lazy_static;
 use prometheus_client::registry::Registry;
 use tokio::sync::Mutex;
 
-// TODO: Investigate BUFFER SIZE
-
 lazy_static! {
+    /// Metric Registry used to register all the metrics from libp2p::gossipsub
     pub static ref METRIC_REGISTRY: Mutex<Registry> = Mutex::new(<Registry>::with_prefix("topos"));
     pub static ref EVENT_STREAM_BUFFER: usize = env::var("TCE_EVENT_STREAM_BUFFER")
         .ok()

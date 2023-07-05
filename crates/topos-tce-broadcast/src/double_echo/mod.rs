@@ -31,32 +31,42 @@ pub struct DeliveryState {
 }
 
 pub struct DoubleEcho {
-    pending_certificate_count: u64,
-    pub(crate) params: ReliableBroadcastParams,
+    /// Channel to receive commands
     command_receiver: mpsc::Receiver<DoubleEchoCommand>,
+    /// Channel to receive subscriptions updates
     subscriptions_view_receiver: mpsc::Receiver<SubscriptionsView>,
+    /// Channel to send events
     event_sender: broadcast::Sender<ProtocolEvents>,
 
-    // Current certificates being processed
+    /// Channel to receive shutdown signal
+    pub(crate) shutdown: mpsc::Receiver<oneshot::Sender<()>>,
+
+    /// pending certificates state
+    pending_certificate_count: u64,
+    /// buffer of certificates to process
+    buffer: VecDeque<(bool, Certificate)>,
+
+    /// known certificate ids to avoid processing twice the same certificate
+    known_certificates: HashSet<CertificateId>,
+    /// delivered certificate ids to avoid processing twice the same certificate
+    delivered_certificates: HashSet<CertificateId>,
+
+    pub(crate) params: ReliableBroadcastParams,
+
+    /// Current certificates being processed
     cert_candidate: HashMap<CertificateId, (Certificate, DeliveryState)>,
 
-    pending_delivery: HashMap<CertificateId, (Certificate, Span)>,
-    // Span tracker for each certificate
+    /// Span tracker for each certificate
     span_tracker: HashMap<CertificateId, Span>,
 
-    // Delivery time for each certificate (for metrics)
+    /// Delivery time for each certificate (for metrics)
     delivery_time: HashMap<CertificateId, (time::SystemTime, time::Duration)>,
 
     pub(crate) subscriptions: SubscriptionsView, // My subscriptions for echo, ready and delivery feedback
-    buffer: VecDeque<(bool, Certificate)>,
-    pub(crate) shutdown: mpsc::Receiver<oneshot::Sender<()>>,
-
-    known_certificates: HashSet<CertificateId>,
-    delivered_certificates: HashSet<CertificateId>,
 
     local_peer_id: String,
 
-    // Buffer of messages to be processed once the certificate payload is received
+    /// Buffer of messages to be processed once the certificate payload is received
     buffered_messages: HashMap<CertificateId, Vec<DoubleEchoCommand>>,
 }
 
@@ -80,7 +90,6 @@ impl DoubleEcho {
             subscriptions_view_receiver,
             event_sender,
             cert_candidate: Default::default(),
-            pending_delivery: Default::default(),
             span_tracker: Default::default(),
             delivery_time: Default::default(),
             subscriptions: SubscriptionsView::default(),
@@ -105,6 +114,7 @@ impl DoubleEcho {
 
         let shutdowned: Option<oneshot::Sender<()>> = loop {
             tokio::select! {
+
                 shutdown = self.shutdown.recv() => {
                         warn!("Double echo shutdown signal received {:?}", shutdown);
                         break shutdown;
@@ -112,7 +122,7 @@ impl DoubleEcho {
                 Some(command) = self.command_receiver.recv() => {
                     match command {
 
-                        DoubleEchoCommand::Broadcast { need_gossip, cert, ctx } => self.handle_broadcast(cert, need_gossip, ctx),
+                        DoubleEchoCommand::Broadcast { need_gossip, cert, ctx } => self.handle_broadcast(cert,need_gossip, ctx),
 
                         command if self.subscriptions.is_some() => {
                             match command {

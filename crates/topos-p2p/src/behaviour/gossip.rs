@@ -11,7 +11,10 @@ use libp2p::{
     swarm::{NetworkBehaviour, THandlerInEvent, ToSwarm},
 };
 use serde::{Deserialize, Serialize};
-use topos_metrics::{P2P_DUPLICATE_MESSAGE_ID_RECEIVED_TOTAL, P2P_GOSSIP_BATCH_SIZE};
+use topos_metrics::{
+    P2P_DUPLICATE_MESSAGE_ID_RECEIVED_TOTAL, P2P_GOSSIP_BATCH_SIZE,
+    P2P_MESSAGE_SERIALIZE_FAILURE_TOTAL,
+};
 
 use crate::{constant, event::ComposedEvent, TOPOS_ECHO, TOPOS_GOSSIP, TOPOS_READY};
 
@@ -163,10 +166,15 @@ impl NetworkBehaviour for Behaviour {
                     }
                 }
 
-                P2P_GOSSIP_BATCH_SIZE.observe(echos.data.len() as f64);
-                let msg = bincode::serialize::<Batch>(&echos).expect("msg ser");
+                if let Ok(msg) = bincode::serialize::<Batch>(&echos) {
+                    P2P_GOSSIP_BATCH_SIZE.observe(echos.data.len() as f64);
 
-                _ = self.gossipsub.publish(IdentTopic::new(TOPOS_ECHO), msg);
+                    _ = self.gossipsub.publish(IdentTopic::new(TOPOS_ECHO), msg);
+                } else {
+                    P2P_MESSAGE_SERIALIZE_FAILURE_TOTAL
+                        .with_label_values(&["echo"])
+                        .inc();
+                }
             }
 
             if !self.ready_queue.is_empty() {
@@ -179,10 +187,14 @@ impl NetworkBehaviour for Behaviour {
                     }
                 }
 
-                P2P_GOSSIP_BATCH_SIZE.observe(readies.data.len() as f64);
-                let msg = bincode::serialize::<Batch>(&readies).expect("msg ser");
-
-                _ = self.gossipsub.publish(IdentTopic::new(TOPOS_READY), msg);
+                if let Ok(msg) = bincode::serialize::<Batch>(&readies) {
+                    P2P_GOSSIP_BATCH_SIZE.observe(readies.data.len() as f64);
+                    _ = self.gossipsub.publish(IdentTopic::new(TOPOS_READY), msg);
+                } else {
+                    P2P_MESSAGE_SERIALIZE_FAILURE_TOTAL
+                        .with_label_values(&["ready"])
+                        .inc();
+                }
             }
         }
 
@@ -239,18 +251,19 @@ impl NetworkBehaviour for Behaviour {
             }
         }
 
-        let outcome = match event {
-            gossipsub::Event::Message {
-                propagation_source,
-                message_id,
-                message:
-                    Message {
-                        source,
-                        data,
-                        sequence_number,
-                        topic,
-                    },
-            } => match topic.as_str() {
+        if let gossipsub::Event::Message {
+            propagation_source,
+            message_id,
+            message:
+                Message {
+                    source,
+                    data,
+                    sequence_number,
+                    topic,
+                },
+        } = event
+        {
+            match topic.as_str() {
                 TOPOS_GOSSIP => {
                     return Poll::Ready(ToSwarm::GenerateEvent(ComposedEvent::Gossipsub(
                         crate::event::GossipEvent {
@@ -279,9 +292,8 @@ impl NetworkBehaviour for Behaviour {
                     )))
                 }
                 _ => {}
-            },
-            _ => {}
-        };
+            }
+        }
 
         Poll::Pending
     }

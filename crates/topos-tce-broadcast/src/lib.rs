@@ -87,7 +87,7 @@ pub enum DoubleEchoCommand {
 /// Thread safe client to the protocol aggregate
 #[derive(Clone, Debug)]
 pub struct ReliableBroadcastClient {
-    broadcast_commands: mpsc::Sender<DoubleEchoCommand>,
+    command_sender: mpsc::Sender<DoubleEchoCommand>,
     pub(crate) subscriptions_view_sender: mpsc::Sender<SubscriptionsView>,
     pub(crate) double_echo_shutdown_channel: mpsc::Sender<oneshot::Sender<()>>,
 }
@@ -105,7 +105,7 @@ impl ReliableBroadcastClient {
         let (subscriptions_view_sender, subscriptions_view_receiver) =
             mpsc::channel::<SubscriptionsView>(2048);
         let (event_sender, event_receiver) = broadcast::channel(2048);
-        let (broadcast_commands, command_receiver) = mpsc::channel(*constant::COMMAND_CHANNEL_SIZE);
+        let (command_sender, command_receiver) = mpsc::channel(*constant::COMMAND_CHANNEL_SIZE);
         let (double_echo_shutdown_channel, double_echo_shutdown_receiver) =
             mpsc::channel::<oneshot::Sender<()>>(1);
 
@@ -129,7 +129,7 @@ impl ReliableBroadcastClient {
 
         (
             Self {
-                broadcast_commands,
+                command_sender,
                 subscriptions_view_sender,
                 double_echo_shutdown_channel,
             },
@@ -150,7 +150,7 @@ impl ReliableBroadcastClient {
     }
 
     pub fn get_double_echo_channel(&self) -> Sender<DoubleEchoCommand> {
-        self.broadcast_commands.clone()
+        self.command_sender.clone()
     }
 
     /// Use to broadcast new certificate to the TCE network
@@ -159,7 +159,7 @@ impl ReliableBroadcastClient {
         certificate: Certificate,
         origin: bool,
     ) -> Result<(), ()> {
-        let broadcast_commands = self.broadcast_commands.clone();
+        let broadcast_commands = self.command_sender.clone();
 
         if broadcast_commands.capacity() <= *constant::COMMAND_CHANNEL_CAPACITY {
             DOUBLE_ECHO_COMMAND_CHANNEL_CAPACITY_TOTAL.inc();
