@@ -4,10 +4,13 @@ use rstest::*;
 use std::collections::HashSet;
 use std::usize;
 use tce_transport::ReliableBroadcastParams;
+
+#[cfg(not(feature = "direct"))]
 use tokio::sync::broadcast::error::TryRecvError;
 use tokio::sync::broadcast::Receiver;
 use tokio::time::Duration;
 
+#[cfg(not(feature = "direct"))]
 use topos_test_sdk::constants::*;
 
 const CHANNEL_SIZE: usize = 10;
@@ -94,6 +97,7 @@ fn create_context(params: TceParams) -> (DoubleEcho, Context) {
     )
 }
 
+#[cfg(not(feature = "direct"))]
 fn reach_echo_threshold(double_echo: &mut DoubleEcho, cert: &Certificate) {
     let selected = double_echo
         .subscriptions
@@ -108,6 +112,7 @@ fn reach_echo_threshold(double_echo: &mut DoubleEcho, cert: &Certificate) {
     }
 }
 
+#[cfg(not(feature = "direct"))]
 fn reach_ready_threshold(double_echo: &mut DoubleEcho, cert: &Certificate) {
     let selected = double_echo
         .subscriptions
@@ -122,6 +127,7 @@ fn reach_ready_threshold(double_echo: &mut DoubleEcho, cert: &Certificate) {
     }
 }
 
+#[cfg(not(feature = "direct"))]
 fn reach_delivery_threshold(double_echo: &mut DoubleEcho, cert: &Certificate) {
     let selected = double_echo
         .subscriptions
@@ -141,6 +147,7 @@ fn reach_delivery_threshold(double_echo: &mut DoubleEcho, cert: &Certificate) {
 #[case(medium_config())]
 #[tokio::test]
 #[trace]
+#[cfg(not(feature = "direct"))]
 async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams) {
     let (mut double_echo, mut ctx) = create_context(params);
 
@@ -205,6 +212,7 @@ async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams)
 #[case(medium_config())]
 #[tokio::test]
 #[trace]
+#[cfg(not(feature = "direct"))]
 async fn trigger_ready_when_reached_enough_ready(#[case] params: TceParams) {
     let (mut double_echo, mut ctx) = create_context(params);
 
@@ -252,6 +260,7 @@ async fn trigger_ready_when_reached_enough_ready(#[case] params: TceParams) {
 #[case(medium_config())]
 #[tokio::test]
 #[trace]
+#[cfg(not(feature = "direct"))]
 async fn process_after_delivery_until_sending_ready(#[case] params: TceParams) {
     let (mut double_echo, mut ctx) = create_context(params);
 

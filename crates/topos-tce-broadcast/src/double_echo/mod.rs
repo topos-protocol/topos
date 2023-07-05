@@ -1,4 +1,4 @@
-use crate::{constant, Errors};
+use crate::constant;
 use crate::{sampler::SampleType, DoubleEchoCommand, SubscriptionsView};
 use opentelemetry::trace::TraceContextExt;
 use std::collections::HashSet;
@@ -16,8 +16,9 @@ use topos_metrics::{
     DOUBLE_ECHO_BUFFER_CAPACITY_TOTAL, DOUBLE_ECHO_CURRENT_BUFFER_SIZE,
 };
 use topos_p2p::PeerId;
-use topos_tce_storage::PendingCertificateId;
-use tracing::{debug, error, info, info_span, instrument, trace, warn, warn_span, Span};
+#[cfg(not(feature = "direct"))]
+use tracing::error;
+use tracing::{debug, info, info_span, trace, warn, warn_span, Span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 /// Processing data associated to a Certificate candidate for delivery
@@ -261,6 +262,140 @@ impl DoubleEcho {
     }
 }
 
+#[cfg(not(feature = "direct"))]
+impl DoubleEcho {
+    /// Called to process potentially new certificate:
+    /// - either submitted from API ( [tce_transport::TceCommands::Broadcast] command)
+    /// - or received through the gossip (first step of protocol exchange)
+    pub(crate) fn broadcast(&mut self, cert: Certificate, origin: bool) {
+        info!("🙌 Starting broadcasting the Certificate {}", &cert.id);
+
+        if self.cert_pre_broadcast_check(&cert).is_err() {
+            error!("Failure on the pre-check for the Certificate {}", &cert.id);
+            self.event_sender
+                .send(ProtocolEvents::BroadcastFailed {
+                    certificate_id: cert.id,
+                })
+                .unwrap();
+            return;
+        }
+        // Don't gossip one cert already gossiped
+        if self.cert_candidate.contains_key(&cert.id) {
+            self.event_sender
+                .send(ProtocolEvents::BroadcastFailed {
+                    certificate_id: cert.id,
+                })
+                .unwrap();
+            return;
+        }
+
+        if self.delivered_certificates.get(&cert.id).is_some() {
+            self.event_sender
+                .send(ProtocolEvents::AlreadyDelivered {
+                    certificate_id: cert.id,
+                })
+                .unwrap();
+
+            return;
+        }
+
+        let span = self
+            .span_tracker
+            .get(&cert.id)
+            .cloned()
+            .unwrap_or_else(Span::current);
+
+        if origin {
+            warn!("📣 Gossiping the Certificate {}", &cert.id);
+            let _ = self.event_sender.send(ProtocolEvents::Gossip {
+                cert: cert.clone(),
+                ctx: span,
+            });
+        }
+
+        // Trigger event of new certificate candidate for delivery
+        self.start_broadcast(cert);
+    }
+
+    fn start_broadcast(&mut self, cert: Certificate) {
+        // To include tracing context in client requests from _this_ app,
+        // use `context` to extract the current OpenTelemetry context.
+        // Add new entry for the new Cert candidate
+        match self.delivery_state_for_new_cert(&cert.id) {
+            Some(delivery_state) => {
+                self.cert_candidate
+                    .insert(cert.id, (cert.clone(), delivery_state));
+
+                _ = self.event_sender.send(ProtocolEvents::Broadcast {
+                    certificate_id: cert.id,
+                });
+            }
+            None => {
+                error!("Ill-formed samples");
+                let _ = self.event_sender.send(ProtocolEvents::Die);
+                return;
+            }
+        }
+        self.delivery_time
+            .insert(cert.id, (time::SystemTime::now(), Default::default()));
+
+        let ctx = self
+            .span_tracker
+            .get(&cert.id)
+            .cloned()
+            .unwrap_or_else(Span::current);
+
+        let _ = self.event_sender.send(ProtocolEvents::Echo {
+            certificate_id: cert.id,
+            ctx,
+        });
+    }
+
+    /// Build initial delivery state
+    fn delivery_state_for_new_cert(
+        &mut self,
+        certificate_id: &CertificateId,
+    ) -> Option<DeliveryState> {
+        let subscriptions = self.subscriptions.clone();
+
+        // Check whether inbound sets are empty
+        if subscriptions.echo.is_empty() || subscriptions.ready.is_empty() {
+            error!(
+                "One Subscription sample is empty: Echo({}), Ready({})",
+                subscriptions.echo.is_empty(),
+                subscriptions.ready.is_empty(),
+            );
+            None
+        } else {
+            let ctx = self
+                .span_tracker
+                .get(certificate_id)
+                .cloned()
+                .unwrap_or_else(Span::current);
+
+            Some(DeliveryState {
+                subscriptions,
+                ready_sent: false,
+                delivered: false,
+                ctx,
+            })
+        }
+    }
+
+    /// Checks done before starting to broadcast
+    fn cert_pre_broadcast_check(&self, cert: &Certificate) -> Result<(), ()> {
+        if cert.check_signature().is_err() {
+            error!("Error on the signature");
+        }
+
+        if cert.check_proof().is_err() {
+            error!("Error on the proof");
+        }
+
+        Ok(())
+    }
+}
+
 impl DoubleEcho {
     fn sample_consume_peer(from_peer: &PeerId, state: &mut DeliveryState, sample_type: SampleType) {
         match sample_type {
@@ -293,7 +428,6 @@ impl DoubleEcho {
 
             self.known_certificates.insert(cert.id);
             span.in_scope(|| {
-                info!("Certificate {} added to pending storage", cert.id);
                 debug!("DoubleEchoCommand::Broadcast certificate_id: {}", cert.id);
                 if self.buffer.len() < *constant::TOPOS_DOUBLE_ECHO_MAX_BUFFER_SIZE {
                     self.buffer.push_back((need_gossip, cert));
@@ -318,7 +452,6 @@ impl DoubleEcho {
         if !cert_delivered {
             if self.known_certificates.get(&certificate_id).is_some() {
                 let span = if let Some(root) = self.span_tracker.get(&certificate_id) {
-                    info!("DEBUG::Receive ECHO with root");
                     info_span!(
                         parent: root,
                         "RECV Inbound Echo",
@@ -326,7 +459,6 @@ impl DoubleEcho {
                         certificate_id = certificate_id.to_string()
                     )
                 } else {
-                    info!("DEBUG::Receive ECHO without root");
                     info_span!(
                         "RECV Inbound Echo",
                         peer = self.local_peer_id,
@@ -345,7 +477,6 @@ impl DoubleEcho {
                 drop(_enter);
                 // need to deliver the certificate
             } else if self.delivered_certificates.get(&certificate_id).is_none() {
-                info!("DEBUG::Receive ECHO BUFFERING");
                 // need to buffer the Echo
                 self.buffered_messages
                     .entry(certificate_id)
@@ -422,127 +553,6 @@ impl DoubleEcho {
         }
     }
 
-    /// Called to process potentially new certificate:
-    /// - either submitted from API ( [tce_transport::TceCommands::Broadcast] command)
-    /// - or received through the gossip (first step of protocol exchange)
-    #[instrument(skip_all)]
-    pub(crate) fn broadcast(&mut self, cert: Certificate, origin: bool) {
-        info!("🙌 Starting broadcasting the Certificate {}", &cert.id);
-
-        if self.cert_pre_broadcast_check(&cert).is_err() {
-            error!("Failure on the pre-check for the Certificate {}", &cert.id);
-            self.event_sender
-                .send(ProtocolEvents::BroadcastFailed {
-                    certificate_id: cert.id,
-                })
-                .unwrap();
-            return;
-        }
-        // Don't gossip one cert already gossiped
-        if self.cert_candidate.contains_key(&cert.id) {
-            self.event_sender
-                .send(ProtocolEvents::BroadcastFailed {
-                    certificate_id: cert.id,
-                })
-                .unwrap();
-            return;
-        }
-
-        if self.delivered_certificates.get(&cert.id).is_some() {
-            self.event_sender
-                .send(ProtocolEvents::AlreadyDelivered {
-                    certificate_id: cert.id,
-                })
-                .unwrap();
-
-            return;
-        }
-
-        let span = self
-            .span_tracker
-            .get(&cert.id)
-            .cloned()
-            .unwrap_or_else(Span::current);
-
-        if origin {
-            warn!("📣 Gossiping the Certificate {}", &cert.id);
-            let _ = self.event_sender.send(ProtocolEvents::Gossip {
-                cert: cert.clone(),
-                ctx: span,
-            });
-        }
-
-        // Trigger event of new certificate candidate for delivery
-        self.start_broadcast(cert);
-    }
-
-    fn start_broadcast(&mut self, cert: Certificate) {
-        // To include tracing context in client requests from _this_ app,
-        // use `context` to extract the current OpenTelemetry context.
-        // Add new entry for the new Cert candidate
-        match self.delivery_state_for_new_cert(&cert.id) {
-            Some(delivery_state) => {
-                info!("DeliveryState is : {:?}", delivery_state.subscriptions);
-
-                self.cert_candidate
-                    .insert(cert.id, (cert.clone(), delivery_state));
-
-                _ = self.event_sender.send(ProtocolEvents::Broadcast {
-                    certificate_id: cert.id,
-                });
-            }
-            None => {
-                error!("Ill-formed samples");
-                let _ = self.event_sender.send(ProtocolEvents::Die);
-                return;
-            }
-        }
-        self.delivery_time
-            .insert(cert.id, (time::SystemTime::now(), Default::default()));
-
-        let ctx = self
-            .span_tracker
-            .get(&cert.id)
-            .cloned()
-            .unwrap_or_else(Span::current);
-
-        let _ = self.event_sender.send(ProtocolEvents::Echo {
-            certificate_id: cert.id,
-            ctx,
-        });
-    }
-
-    /// Build initial delivery state
-    fn delivery_state_for_new_cert(
-        &mut self,
-        certificate_id: &CertificateId,
-    ) -> Option<DeliveryState> {
-        let subscriptions = self.subscriptions.clone();
-
-        // Check whether inbound sets are empty
-        if subscriptions.echo.is_empty() || subscriptions.ready.is_empty() {
-            error!(
-                "One Subscription sample is empty: Echo({}), Ready({})",
-                subscriptions.echo.is_empty(),
-                subscriptions.ready.is_empty(),
-            );
-            None
-        } else {
-            let ctx = self
-                .span_tracker
-                .get(certificate_id)
-                .cloned()
-                .unwrap_or_else(Span::current);
-
-            Some(DeliveryState {
-                subscriptions,
-                ready_sent: false,
-                delivered: false,
-                ctx,
-            })
-        }
-    }
-
     pub(crate) fn state_change_follow_up(&mut self) {
         debug!("StateChangeFollowUp called");
         let mut state_modified = false;
@@ -550,7 +560,7 @@ impl DoubleEcho {
         let mut delivered_certificates = Vec::<(Certificate, Span)>::new();
 
         // For all current Cert on processing
-        for (_certificate_id, (certificate, state_to_delivery)) in &mut self.cert_candidate {
+        for (certificate, state_to_delivery) in self.cert_candidate.values_mut() {
             // Check whether we should send Ready
             if !state_to_delivery.ready_sent
                 && is_r_ready(
@@ -643,19 +653,6 @@ impl DoubleEcho {
         for evt in gen_evts {
             let _ = self.event_sender.send(evt);
         }
-    }
-
-    /// Checks done before starting to broadcast
-    fn cert_pre_broadcast_check(&self, cert: &Certificate) -> Result<(), ()> {
-        if cert.check_signature().is_err() {
-            error!("Error on the signature");
-        }
-
-        if cert.check_proof().is_err() {
-            error!("Error on the proof");
-        }
-
-        Ok(())
     }
 }
 

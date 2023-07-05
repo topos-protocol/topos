@@ -71,7 +71,7 @@ impl
             } => {
                 info!(
                     "Local node is listening on {:?}",
-                    address.with(Protocol::P2p(self.local_peer_id.into())),
+                    address.with(Protocol::P2p(self.local_peer_id)),
                 );
 
                 self.active_listeners.insert(listener_id);

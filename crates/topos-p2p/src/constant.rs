@@ -26,3 +26,4 @@ lazy_static! {
 
 pub const TRANSMISSION_PROTOCOL: &str = "/tce-transmission/1";
 pub const DISCOVERY_PROTOCOL: &str = "/tce-disco/1";
+pub const PEER_INFO_PROTOCOL: &str = "/tce-peer-info/1";

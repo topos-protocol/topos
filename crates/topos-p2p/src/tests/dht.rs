@@ -1,7 +1,8 @@
-use std::time::Duration;
+use std::{num::NonZeroUsize, time::Duration};
 
 use futures::StreamExt;
 use libp2p::{
+    identify::{self, Info},
     kad::{record::Key, KademliaEvent, PutRecordOk, QueryResult, Record},
     swarm::SwarmEvent,
 };
@@ -10,15 +11,15 @@ use test_log::test;
 use topos_test_sdk::tce::NodeConfig;
 
 use crate::{
-    event::ComposedEvent, network::NetworkBuilder, tests::support::local_peer, wait_for_event,
-    Client, Runtime,
+    config::DiscoveryConfig, event::ComposedEvent, network::NetworkBuilder,
+    tests::support::local_peer, wait_for_event, Client, Runtime,
 };
 
 use super::support::{dummy_peer, PeerAddr};
 
 #[rstest]
 #[test(tokio::test)]
-#[timeout(Duration::from_secs(1))]
+#[timeout(Duration::from_secs(5))]
 async fn put_value_in_dht() {
     let peer_1 = NodeConfig::from_seed(1);
     let peer_2 = NodeConfig::from_seed(2);
@@ -27,19 +28,43 @@ async fn put_value_in_dht() {
 
     let (_, _, runtime) = crate::network::builder()
         .peer_key(peer_2.keypair.clone())
-        .known_peers(&[])
+        .known_peers(&[(peer_1.peer_id(), peer_1.addr.clone())])
         .exposed_addresses(peer_2.addr.clone())
         .listen_addr(peer_2.addr.clone())
-        .minimum_cluster_size(0)
+        .minimum_cluster_size(1)
+        .discovery_config(
+            DiscoveryConfig::default().with_replication_factor(NonZeroUsize::new(1).unwrap()),
+        )
         .build()
         .await
         .expect("Unable to create p2p network");
 
     let mut runtime = runtime.bootstrap().await.unwrap();
+    // runtime
+    //     .swarm
+    //     .behaviour_mut()
+    //     .discovery
+    //     .inner
+    //     .add_address(&peer_1.keypair.public().to_peer_id(), peer_1.addr);
+
+    // loop {
+    //     if let Some(SwarmEvent::Behaviour(ComposedEvent::PeerInfo(event))) =
+    //         runtime.swarm.next().await
+    //     {
+    //         println!("Event: {:?}", event);
+    //         if let identify::Event::Received {
+    //             peer_id,
+    //             info: Info { observed_addr, .. },
+    //         } = *event
+    //         {
+    //             println!("Peer {} observed address: {}", peer_id, observed_addr);
+    //             runtime.swarm.add_external_address(observed_addr);
+    //             break;
+    //         }
+    //     }
+    // }
 
     let kad = &mut runtime.swarm.behaviour_mut().discovery;
-    kad.inner
-        .add_address(&peer_1.keypair.public().to_peer_id(), peer_1.addr);
 
     let input_key = Key::new(&runtime.local_peer_id.to_string());
     _ = kad

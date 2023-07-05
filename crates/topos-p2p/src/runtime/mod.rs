@@ -129,6 +129,10 @@ impl Runtime {
                         if addr_query_id.is_none()
                             && self.peer_set.len() >= self.config.minimum_cluster_size
                         {
+                            warn!(
+                                "Publishing our addresses to the network ! We have {} peers",
+                                self.peer_set.len()
+                            );
                             let key = Key::new(&self.local_peer_id.to_string());
                             addr_query_id = if let Ok(query_id_record) =
                                 self.swarm.behaviour_mut().discovery.inner.put_record(
@@ -165,11 +169,17 @@ impl Runtime {
                             KademliaEvent::OutboundQueryProgressed {
                                 id,
                                 result:
-                                    QueryResult::PutRecord(Err(PutRecordError::QuorumFailed { .. })),
-                                ..
+                                    QueryResult::PutRecord(Err(PutRecordError::QuorumFailed {
+                                        key,
+                                        success,
+                                        quorum,
+                                    })),
+                                stats,
+                                step,
                             } if Some(id) == addr_query_id && publish_retry > 0 => {
                                 publish_retry -= 1;
                                 warn!("Failed to PutRecord in DHT, retry again, attempt number {publish_retry}");
+                                warn!("QuorumFailure on DHT addr publication: key: {key:?}, success: {success:?}, quorum: {quorum:?}, stats: {stats:?}");
                                 let key = Key::new(&self.local_peer_id.to_string());
                                 if let Ok(query_id_record) =
                                     self.swarm.behaviour_mut().discovery.inner.put_record(
@@ -201,7 +211,14 @@ impl Runtime {
                                 ..
                             } => {}
 
-                            KademliaEvent::OutboundQueryProgressed { .. } => {}
+                            KademliaEvent::OutboundQueryProgressed {
+                                id,
+                                result,
+                                stats,
+                                step,
+                            } => {
+                                println!("OutboundQueryProgressed: {id:?}, {result:?}, {stats:?}, {step:?}");
+                            }
 
                             KademliaEvent::InboundRequest { .. } => {}
                             KademliaEvent::RoutingUpdated { .. } => {}

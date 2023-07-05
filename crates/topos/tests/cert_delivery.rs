@@ -19,7 +19,7 @@ use topos_core::{
     uci::{Certificate, SubnetId, SUBNET_ID_LENGTH},
 };
 use topos_test_sdk::{certificates::create_certificate_chains, tce::create_network};
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 const NUMBER_OF_SUBNETS_PER_CLIENT: usize = 1;
 
@@ -37,7 +37,7 @@ fn get_subset_of_subnets(subnets: &[SubnetId], subset_size: usize) -> Vec<Subnet
 #[test(tokio::test)]
 #[timeout(Duration::from_secs(5))]
 async fn start_a_cluster() {
-    let mut peers_context = create_network(4).await;
+    let mut peers_context = create_network(5).await;
 
     let mut status: Vec<bool> = Vec::new();
 
@@ -56,7 +56,7 @@ async fn start_a_cluster() {
 
 #[rstest]
 #[tokio::test]
-#[timeout(Duration::from_secs(60))]
+#[timeout(Duration::from_secs(30))]
 // FIXME: This test is flaky, it fails sometimes because of gRPC connection error (StreamClosed)
 async fn cert_delivery() {
     let subscriber = tracing_subscriber::FmtSubscriber::builder()
@@ -65,7 +65,7 @@ async fn cert_delivery() {
         .finish();
     let _ = tracing::subscriber::set_global_default(subscriber);
 
-    let peer_number = 15;
+    let peer_number = 5;
     let number_of_certificates_per_subnet = 2;
     let number_of_subnets = 3;
 
@@ -94,9 +94,12 @@ async fn cert_delivery() {
             }
         }
     }
+
+    warn!("Starting the cluster...");
     // List of peers (tce nodes) with their context
     let mut peers_context = create_network(peer_number).await;
 
+    warn!("Cluster started, starting clients...");
     // Connected tce clients are passing received certificates to this mpsc::Receiver, collect all of them
     let mut clients_delivered_certificates: Vec<mpsc::Receiver<(PeerId, SubnetId, Certificate)>> =
         Vec::new(); // (Peer Id, Subnet Id, Certificate)

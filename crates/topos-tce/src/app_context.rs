@@ -4,7 +4,6 @@
 //!
 use futures::{Stream, StreamExt};
 use opentelemetry::trace::{FutureExt as TraceFutureExt, TraceContextExt};
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tce_transport::{ProtocolEvents, TceCommands};
 use tokio::spawn;
@@ -27,6 +26,7 @@ use tracing::{debug, error, info, info_span, trace, warn, Instrument};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 use crate::events::Events;
+use crate::NetworkMessage;
 
 /// Top-level transducer main app context & driver (alike)
 ///
@@ -274,10 +274,13 @@ impl AppContext {
                 let storage = self.pending_storage.clone();
                 let api_client = self.api_client.clone();
 
+                let certificate_id = certificate.id;
                 spawn(async move {
-                    match storage.certificate_delivered(certificate.id).await {
+                    match storage
+                        .certificate_delivered(certificate_id, Some(certificate.clone()))
+                        .await
+                    {
                         Ok(positions) => {
-                            let certificate_id = certificate.id;
                             api_client
                                 .dispatch_certificate(
                                     certificate,
@@ -307,7 +310,12 @@ impl AppContext {
                         }
                         Err(StorageError::InternalStorage(
                             InternalStorageError::CertificateNotFound(_),
-                        )) => {}
+                        )) => {
+                            error!(
+                                "Certificate {} not found in pending storage",
+                                certificate_id
+                            );
+                        }
                         Err(e) => {
                             error!("Pending storage error while delivering certificate: {e}");
                         }
@@ -329,6 +337,7 @@ impl AppContext {
                     ctx: PropagationContext::inject(&span.context()),
                 });
 
+                info!("Sending Gossip for certificate {}", cert_id);
                 if let Err(e) = self
                     .network_client
                     .publish::<NetworkMessage>(topos_p2p::TOPOS_GOSSIP, data)
@@ -509,39 +518,5 @@ impl AppContext {
         self.network_client.shutdown().await?;
 
         Ok(())
-    }
-}
-
-/// Definition of networking payload.
-///
-/// We assume that only Commands will go through the network,
-/// [Response] is used to allow reporting of logic errors to the caller.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[allow(clippy::large_enum_variant)]
-enum NetworkMessage {
-    Cmd(TceCommands),
-    Bulk(Vec<TceCommands>),
-
-    NotReady(topos_p2p::NotReadyMessage),
-}
-
-// deserializer
-impl From<Vec<u8>> for NetworkMessage {
-    fn from(data: Vec<u8>) -> Self {
-        bincode::deserialize::<NetworkMessage>(data.as_ref()).expect("msg deser")
-    }
-}
-
-// serializer
-impl From<NetworkMessage> for Vec<u8> {
-    fn from(msg: NetworkMessage) -> Self {
-        bincode::serialize::<NetworkMessage>(&msg).expect("msg ser")
-    }
-}
-
-// transformer of protocol commands into network commands
-impl From<TceCommands> for NetworkMessage {
-    fn from(cmd: TceCommands) -> Self {
-        Self::Cmd(cmd)
     }
 }

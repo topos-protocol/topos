@@ -20,7 +20,8 @@ use topos_core::uci::Certificate;
 use topos_core::uci::SubnetId;
 use topos_p2p::{error::P2PError, Client, Event, Runtime};
 use topos_tce::{events::Events, AppContext};
-use tracing::info;
+use topos_tce_api::RuntimeContext;
+use tracing::{info, warn};
 
 use crate::p2p::local_peer;
 use crate::storage::create_rocksdb;
@@ -44,6 +45,7 @@ pub struct TceContext {
     pub peer_id: PeerId, // P2P ID
     pub api_entrypoint: String,
     pub api_grpc_client: ApiServiceClient<Channel>, // GRPC Client for this peer (tce node)
+    pub api_context: Option<RuntimeContext>,
     pub console_grpc_client: ConsoleServiceClient<Channel>, // Console TCE GRPC Client for this peer (tce node)
     pub runtime_join_handle: JoinHandle<Result<(), ()>>,
     pub app_join_handle: JoinHandle<()>,
@@ -52,6 +54,16 @@ pub struct TceContext {
     pub synchronizer_join_handle: JoinHandle<Result<(), topos_tce_synchronizer::SynchronizerError>>,
     pub connected_subnets: Option<Vec<SubnetId>>, // Particular subnet clients (topos nodes) connected to this tce node
     pub shutdown_sender: mpsc::Sender<oneshot::Sender<()>>,
+}
+
+impl Drop for TceContext {
+    fn drop(&mut self) {
+        self.app_join_handle.abort();
+        self.runtime_join_handle.abort();
+        self.storage_join_handle.abort();
+        self.gatekeeper_join_handle.abort();
+        self.synchronizer_join_handle.abort();
+    }
 }
 
 impl TceContext {
@@ -70,12 +82,13 @@ impl TceContext {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct NodeConfig {
     pub seed: u8,
     pub port: u16,
     pub keypair: Keypair,
     pub addr: Multiaddr,
+    pub minimum_cluster_size: usize,
 }
 
 impl Default for NodeConfig {
@@ -93,7 +106,12 @@ impl NodeConfig {
             port,
             keypair,
             addr,
+            minimum_cluster_size: 1,
         }
+    }
+
+    pub fn peer_id(&self) -> PeerId {
+        self.keypair.public().to_peer_id()
     }
 
     pub async fn bootstrap(
@@ -107,14 +125,28 @@ impl NodeConfig {
         ),
         Box<dyn Error>,
     > {
-        bootstrap_network(self.seed, self.port, self.addr.clone(), peers, 2).await
+        bootstrap_network(
+            self.seed,
+            self.port,
+            self.addr.clone(),
+            peers,
+            self.minimum_cluster_size,
+        )
+        .await
     }
 
     pub async fn create(
         &self,
         peers: &[NodeConfig],
     ) -> Result<(Client, impl Stream<Item = Event>, Runtime), P2PError> {
-        create_network_worker(self.seed, self.port, self.addr.clone(), peers, 2).await
+        create_network_worker(
+            self.seed,
+            self.port,
+            self.addr.clone(),
+            peers,
+            self.minimum_cluster_size,
+        )
+        .await
     }
 }
 
@@ -127,10 +159,15 @@ pub async fn start_node(
     let peer_id = config.keypair.public().to_peer_id();
     let peer_id_str = peer_id.to_base58();
 
-    let (network_client, network_stream, runtime_join_handle) =
-        bootstrap_network(config.seed, config.port, config.addr.clone(), peers, 1)
-            .await
-            .expect("Unable to bootstrap tce network");
+    let (network_client, network_stream, runtime_join_handle) = bootstrap_network(
+        config.seed,
+        config.port,
+        config.addr.clone(),
+        peers,
+        config.minimum_cluster_size,
+    )
+    .await
+    .expect("Unable to bootstrap tce network");
 
     let (_, (storage, storage_client, storage_stream)) =
         create_rocksdb(&peer_id_str, certificates).await;
@@ -178,6 +215,7 @@ pub async fn start_node(
         peer_id,
         api_entrypoint: api_context.entrypoint,
         api_grpc_client: api_context.api_client,
+        api_context: api_context.api_context,
         console_grpc_client: api_context.console_client,
         runtime_join_handle,
         app_join_handle,
@@ -190,7 +228,14 @@ pub async fn start_node(
 }
 
 fn build_peer_config_pool(peer_number: u8) -> Vec<NodeConfig> {
-    (1..=peer_number).map(NodeConfig::from_seed).collect()
+    (1..=peer_number)
+        .map(NodeConfig::from_seed)
+        .map(|mut c| {
+            c.minimum_cluster_size = peer_number as usize / 2;
+
+            c
+        })
+        .collect()
 }
 
 pub async fn start_pool(peer_number: u8) -> HashMap<PeerId, TceContext> {
@@ -221,6 +266,7 @@ pub async fn create_network(peer_number: usize) -> HashMap<PeerId, TceContext> {
     let mut peers_context = start_pool(peer_number as u8).await;
     let all_peers: Vec<PeerId> = peers_context.keys().cloned().collect();
 
+    warn!("Pool created, waiting for peers to connect...");
     // Force TCE nodes to recreate subscriptions and subscribers
     let mut await_peers = Vec::new();
     for (peer_id, client) in peers_context.iter_mut() {
@@ -244,6 +290,7 @@ pub async fn create_network(peer_number: usize) -> HashMap<PeerId, TceContext> {
     }
 
     assert!(!join_all(await_peers).await.iter().any(|res| res.is_err()));
+    warn!("Peers connected");
 
     for (peer_id, client) in peers_context.iter_mut() {
         wait_for_event!(
@@ -253,6 +300,8 @@ pub async fn create_network(peer_number: usize) -> HashMap<PeerId, TceContext> {
             15000
         );
     }
+
+    warn!("Stable sample received");
 
     // Waiting for new network view
     let mut await_peers = Vec::new();
@@ -267,5 +316,6 @@ pub async fn create_network(peer_number: usize) -> HashMap<PeerId, TceContext> {
             .map(|r: tonic::Response<_>| r.into_inner().has_active_sample))
         .any(|r| r.is_err() || !r.unwrap()));
 
+    warn!("GRPC status received and ok");
     peers_context
 }

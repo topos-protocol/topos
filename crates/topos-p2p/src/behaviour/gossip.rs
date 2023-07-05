@@ -6,7 +6,7 @@ use std::{
 };
 
 use libp2p::{
-    gossipsub::{self, IdentTopic, Message, MessageAuthenticity, MessageId, Topic},
+    gossipsub::{self, IdentTopic, Message, MessageAuthenticity, MessageId, Topic, TopicHash},
     identity::Keypair,
     swarm::{NetworkBehaviour, THandlerInEvent, ToSwarm},
 };
@@ -15,6 +15,7 @@ use topos_metrics::{
     P2P_DUPLICATE_MESSAGE_ID_RECEIVED_TOTAL, P2P_GOSSIP_BATCH_SIZE,
     P2P_MESSAGE_SERIALIZE_FAILURE_TOTAL,
 };
+use tracing::{debug, error, info};
 
 use crate::{constant, event::ComposedEvent, TOPOS_ECHO, TOPOS_GOSSIP, TOPOS_READY};
 
@@ -74,7 +75,7 @@ impl Behaviour {
             .unwrap();
 
         let gossipsub = gossipsub::Behaviour::new_with_metrics(
-            MessageAuthenticity::Signed(peer_key.clone()),
+            MessageAuthenticity::Signed(peer_key),
             gossipsub,
             constant::METRIC_REGISTRY
                 .try_lock()
@@ -154,7 +155,7 @@ impl NetworkBehaviour for Behaviour {
         cx: &mut std::task::Context<'_>,
         params: &mut impl libp2p::swarm::PollParameters,
     ) -> Poll<ToSwarm<Self::ToSwarm, THandlerInEvent<Self>>> {
-        if let Poll::Ready(_) = self.tick.poll_tick(cx) {
+        if self.tick.poll_tick(cx).is_ready() {
             // Publish batch
             if !self.echo_queue.is_empty() {
                 let mut echos = Batch { data: Vec::new() };
@@ -166,10 +167,14 @@ impl NetworkBehaviour for Behaviour {
                     }
                 }
 
+                debug!("Publishing {} echos", echos.data.len());
                 if let Ok(msg) = bincode::serialize::<Batch>(&echos) {
                     P2P_GOSSIP_BATCH_SIZE.observe(echos.data.len() as f64);
 
-                    _ = self.gossipsub.publish(IdentTopic::new(TOPOS_ECHO), msg);
+                    match self.gossipsub.publish(IdentTopic::new(TOPOS_ECHO), msg) {
+                        Ok(message_id) => debug!("Published echo {}", message_id),
+                        Err(error) => error!("Failed to publish echo: {}", error),
+                    }
                 } else {
                     P2P_MESSAGE_SERIALIZE_FAILURE_TOTAL
                         .with_label_values(&["echo"])
@@ -187,6 +192,7 @@ impl NetworkBehaviour for Behaviour {
                     }
                 }
 
+                debug!("Publishing {} readies", readies.data.len());
                 if let Ok(msg) = bincode::serialize::<Batch>(&readies) {
                     P2P_GOSSIP_BATCH_SIZE.observe(readies.data.len() as f64);
                     _ = self.gossipsub.publish(IdentTopic::new(TOPOS_READY), msg);
@@ -200,13 +206,7 @@ impl NetworkBehaviour for Behaviour {
 
         let event = match self.gossipsub.poll(cx, params) {
             Poll::Pending => return Poll::Pending,
-            Poll::Ready(ToSwarm::ListenOn { opts }) => {
-                return Poll::Ready(ToSwarm::ListenOn { opts })
-            }
-            Poll::Ready(ToSwarm::RemoveListener { id }) => {
-                return Poll::Ready(ToSwarm::RemoveListener { id })
-            }
-            Poll::Ready(ToSwarm::GenerateEvent(event)) => event,
+            Poll::Ready(ToSwarm::GenerateEvent(event)) => Some(event),
             Poll::Ready(ToSwarm::ListenOn { opts }) => {
                 return Poll::Ready(ToSwarm::ListenOn { opts })
             }
@@ -245,13 +245,13 @@ impl NetworkBehaviour for Behaviour {
             }
         };
 
-        if let gossipsub::Event::Message { ref message_id, .. } = event {
+        if let Some(gossipsub::Event::Message { ref message_id, .. }) = event {
             if self.cache.contains(message_id) {
                 P2P_DUPLICATE_MESSAGE_ID_RECEIVED_TOTAL.inc();
             }
         }
 
-        if let gossipsub::Event::Message {
+        if let Some(gossipsub::Event::Message {
             propagation_source,
             message_id,
             message:
@@ -261,7 +261,7 @@ impl NetworkBehaviour for Behaviour {
                     sequence_number,
                     topic,
                 },
-        } = event
+        }) = event
         {
             match topic.as_str() {
                 TOPOS_GOSSIP => {

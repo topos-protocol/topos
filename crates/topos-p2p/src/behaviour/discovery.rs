@@ -35,7 +35,6 @@ impl DiscoveryBehaviour {
     ) -> Self {
         let local_peer_id = peer_key.public().to_peer_id();
         let kademlia_config = KademliaConfig::default()
-            .set_protocol_names(vec![StreamProtocol::new(TRANSMISSION_PROTOCOL)])
             .set_replication_factor(config.replication_factor)
             .set_kbucket_inserts(KademliaBucketInserts::Manual)
             .set_replication_interval(config.replication_interval)
@@ -57,9 +56,9 @@ impl DiscoveryBehaviour {
             kademlia.add_address(&known_peer.0, known_peer.1.clone());
         }
 
-        if let Err(store_error) = kademlia.start_providing("topos-tce".as_bytes().to_vec().into()) {
-            warn!(reason = %store_error, "Could not start providing Kademlia protocol `topos-tce`")
-        }
+        // if let Err(store_error) = kademlia.start_providing("topos-tce".as_bytes().to_vec().into()) {
+        //     warn!(reason = %store_error, "Could not start providing Kademlia protocol `topos-tce`")
+        // }
 
         Self { inner: kademlia }
     }

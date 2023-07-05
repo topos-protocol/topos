@@ -16,6 +16,7 @@ topos-tce-broadcast = { path = "../topos-tce-broadcast/", optional = true }
 topos-tce-transport = { path = "../topos-tce-transport/", optional = true }
 
 futures.workspace = true
+lazy_static = { version = "1.4.0" }
 libp2p.workspace = true
 proc_macro_sdk = { path = "./proc_macro_sdk/" }
 rand.workspace = true

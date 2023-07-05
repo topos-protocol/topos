@@ -102,10 +102,14 @@ impl StorageClient {
     pub async fn certificate_delivered(
         &self,
         certificate_id: CertificateId,
+        certificate: Option<Certificate>,
     ) -> Result<CertificatePositions, StorageError> {
-        CertificateDelivered { certificate_id }
-            .send_to(&self.sender)
-            .await
+        CertificateDelivered {
+            certificate_id,
+            certificate,
+        }
+        .send_to(&self.sender)
+        .await
     }
 
     pub async fn fetch_certificates(

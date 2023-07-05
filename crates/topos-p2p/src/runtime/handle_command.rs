@@ -141,7 +141,7 @@ impl Runtime {
             Command::Gossip { topic, data } => {
                 match self.swarm.behaviour_mut().gossipsub.publish(topic, data) {
                     Ok(message_id) => {
-                        info!("Published message {message_id:?} to {topic}");
+                        debug!("Published message to {topic}");
                         P2P_MESSAGE_SENT_ON_GOSSIPSUB_TOTAL.inc();
                     }
                     Err(err) => error!("Failed to publish message to {topic}: {err}"),

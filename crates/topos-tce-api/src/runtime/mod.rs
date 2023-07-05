@@ -30,7 +30,8 @@ use crate::{
     stream::{StreamCommand, StreamError, StreamErrorKind},
 };
 
-pub(crate) mod builder;
+pub mod builder;
+pub use builder::RuntimeContext;
 mod client;
 mod commands;
 pub mod error;

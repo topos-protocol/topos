@@ -36,13 +36,6 @@ scrape_configs:
     static_configs:
       - targets: ["localhost:9090"]
 
-  - job_name: "cadvisor"
-
-    # Override the global default and scrape targets from this job every 5 seconds.
-    scrape_interval: 5s
-
-    static_configs:
-      - targets: ["cadvisor:8080"]
 
   - job_name: "peers"
 
@@ -67,3 +60,9 @@ scrape_configs:
                   'tools-peer-13:3000',
                   'tools-peer-14:3000',
                 ]
+    metric_relabel_configs:
+      - source_labels: ["instance"]
+        regex: ".*((boot|peer)[^:]*).*"
+        target_label: "job"
+        replacement: "$1"
+

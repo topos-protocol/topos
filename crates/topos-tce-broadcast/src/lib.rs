@@ -24,16 +24,13 @@ use topos_tce_storage::StorageClient;
 use tracing::{debug, error, info, Span};
 
 use crate::sampler::SubscriptionsView;
-use crate::tce_store::TceStore;
 pub use topos_core::uci;
 
 pub type Peer = String;
 
 mod constant;
 pub mod double_echo;
-pub mod mem_store;
 pub mod sampler;
-pub mod tce_store;
 
 #[cfg(test)]
 mod tests;
@@ -198,7 +195,7 @@ impl ReliableBroadcastClient {
 #[derive(Error, Debug)]
 pub enum Errors {
     #[error("Error while sending a DoubleEchoCommand to DoubleEcho: {0:?}")]
-    DoubleEchoSend(#[from] mpsc::error::SendError<DoubleEchoCommand>),
+    DoubleEchoSend(#[from] Box<mpsc::error::SendError<DoubleEchoCommand>>),
 
     #[error("Error while waiting for a DoubleEchoCommand response: {0:?}")]
     DoubleEchoRecv(#[from] oneshot::error::RecvError),

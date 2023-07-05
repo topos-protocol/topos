@@ -4,9 +4,10 @@ use crate::{
         discovery::DiscoveryBehaviour, gossip, peer_info::PeerInfoBehaviour,
         transmission::TransmissionBehaviour,
     },
-    config::NetworkConfig,
+    config::{DiscoveryConfig, NetworkConfig},
     constant::{
-        COMMAND_STREAM_BUFFER_SIZE, DISCOVERY_PROTOCOL, EVENT_STREAM_BUFFER, TRANSMISSION_PROTOCOL,
+        COMMAND_STREAM_BUFFER_SIZE, DISCOVERY_PROTOCOL, EVENT_STREAM_BUFFER, PEER_INFO_PROTOCOL,
+        TRANSMISSION_PROTOCOL,
     },
     error::P2PError,
     TOPOS_ECHO, TOPOS_GOSSIP, TOPOS_READY,
@@ -53,6 +54,12 @@ pub struct NetworkBuilder<'a> {
 }
 
 impl<'a> NetworkBuilder<'a> {
+    pub fn discovery_config(mut self, config: DiscoveryConfig) -> Self {
+        self.config.discovery = config;
+
+        self
+    }
+
     pub fn publish_retry(mut self, retry: usize) -> Self {
         self.config.publish_retry = retry;
 
@@ -123,10 +130,7 @@ impl<'a> NetworkBuilder<'a> {
         let gossipsub = gossip::Behaviour::new(peer_key.clone());
         let behaviour = Behaviour {
             gossipsub,
-            peer_info: PeerInfoBehaviour::new(
-                self.transmission_protocol.unwrap_or(TRANSMISSION_PROTOCOL),
-                &peer_key,
-            ),
+            peer_info: PeerInfoBehaviour::new(PEER_INFO_PROTOCOL, &peer_key),
 
             discovery: DiscoveryBehaviour::create(
                 &self.config.discovery,
