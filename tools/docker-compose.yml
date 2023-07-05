@@ -4,7 +4,7 @@ services:
   boot:
     container_name: boot
     command: boot tce run
-    image: ghcr.io/topos-protocol/topos:pr-248-tce
+    image: ghcr.io/topos-protocol/topos:main
     init: true
     labels:
       "autoheal": "true"
@@ -34,7 +34,7 @@ services:
       - TCE_LOCAL_KS=1 # 12D3KooWRhFCXBhmsMnur3up3vJsDoqWh4c39PKXgSWwzAzDHNLn
 
   peer:
-    image: ghcr.io/topos-protocol/topos:pr-248-tce
+    image: ghcr.io/topos-protocol/topos:main
     command: peer tce run
     init: true
     labels:

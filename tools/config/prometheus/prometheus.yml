@@ -61,4 +61,9 @@ scrape_configs:
                   'tools-peer-7:3000',
                   'tools-peer-8:3000',
                   'tools-peer-9:3000',
-                  ]
+                  'tools-peer-10:3000',
+                  'tools-peer-11:3000',
+                  'tools-peer-12:3000',
+                  'tools-peer-13:3000',
+                  'tools-peer-14:3000',
+                ]

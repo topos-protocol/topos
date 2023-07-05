@@ -1,5 +1,0 @@
-scrape_configs:
-  - job_name: 'peers'
-    scrape_interval: 1s
-    static_configs:
-      - targets: ['boot:3000', 'peer_1:3000']
