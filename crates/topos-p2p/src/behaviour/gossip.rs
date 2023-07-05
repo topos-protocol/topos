@@ -75,7 +75,7 @@ impl Behaviour {
             gossipsub,
             constant::METRIC_REGISTRY
                 .try_lock()
-                .unwrap()
+                .expect("Failed to lock metric registry during gossipsub creation")
                 .sub_registry_with_prefix("libp2p_gossipsub"),
             Default::default(),
         )
