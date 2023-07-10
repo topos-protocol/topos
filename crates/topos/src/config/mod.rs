@@ -63,8 +63,8 @@ pub(crate) trait Config: Serialize {
 }
 
 #[allow(dead_code)]
-pub(crate) fn load_config<T: Config>(node_path: &Path) -> T::Output {
-    match T::load(node_path, None) {
+pub(crate) fn load_config<T: Config>(node_path: &Path, command: Option<T::Command>) -> T::Output {
+    match T::load(node_path, command) {
         Ok(config) => config,
         Err(figment::Error {
             kind: Kind::MissingField(name),
