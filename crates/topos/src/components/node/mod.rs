@@ -90,7 +90,7 @@ pub(crate) async fn handle_command(
                 .name
                 .as_ref()
                 .expect("No name or default was given for node");
-            let node_path = home.join("node").join(&name);
+            let node_path = home.join("node").join(name);
             let config_path = node_path.join("config.toml");
 
             if !Path::new(&config_path).exists() {
