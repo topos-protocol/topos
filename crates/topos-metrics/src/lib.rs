@@ -1,5 +1,6 @@
 use prometheus::{
-    self, register_int_counter_with_registry, Encoder, IntCounter, Registry, TextEncoder,
+    self, register_histogram_with_registry, register_int_counter_with_registry, Encoder, Histogram,
+    IntCounter, Registry, TextEncoder,
 };
 
 use lazy_static::lazy_static;
@@ -38,6 +39,13 @@ lazy_static! {
     pub static ref CERTIFICATE_DELIVERED_TOTAL: IntCounter = register_int_counter_with_registry!(
         "certificate_delivered_total",
         "Number of certificate delivered.",
+        TOPOS_METRIC_REGISTRY
+    )
+    .unwrap();
+    pub static ref CERTIFICATE_DELIVERY_LATENCY: Histogram = register_histogram_with_registry!(
+        "double_echo_delivery_latency",
+        "Latency to delivery.",
+        prometheus::linear_buckets(0.1, 0.01, 500).unwrap(),
         TOPOS_METRIC_REGISTRY
     )
     .unwrap();
