@@ -86,7 +86,10 @@ pub(crate) async fn handle_command(
             Ok(())
         }
         Some(NodeCommands::Up(cmd)) => {
-            let name = cmd.name.as_ref().expect("No name or default was given for node");
+            let name = cmd
+                .name
+                .as_ref()
+                .expect("No name or default was given for node");
             let node_path = home.join("node").join(&name);
             let config_path = node_path.join("config.toml");
 
