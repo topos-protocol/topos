@@ -37,7 +37,8 @@ pub(crate) async fn handle_command(
 ) -> Result<(), Box<dyn std::error::Error>> {
     match subcommands {
         Some(NodeCommands::Init(cmd)) => {
-            let name = cmd.name.expect("No name or default was given");
+            let cmd = *cmd;
+            let name = cmd.name.as_ref().expect("No name or default was given");
 
             // Construct path to node config
             // will be $TOPOS_HOME/node/default/ with no given name
@@ -48,16 +49,16 @@ pub(crate) async fn handle_command(
             create_dir_all(&node_path).expect("failed to create node folder");
 
             // Check if the config file exists
-            let config_path = home.join("config.toml");
+            let config_path = node_path.join("config.toml");
 
             if Path::new(&config_path).exists() {
                 println!("Config file: {} already exists", config_path.display());
                 std::process::exit(1);
             }
 
-            let base_config = load_config::<BaseConfig>(&node_path);
-            let tce_config = load_config::<TceConfig>(&node_path);
-            let sequencer_config = load_config::<SequencerConfig>(&node_path);
+            let base_config = load_config::<BaseConfig>(&node_path, Some(cmd));
+            let tce_config = load_config::<TceConfig>(&node_path, None);
+            let sequencer_config = load_config::<SequencerConfig>(&node_path, None);
 
             // Creating the TOML output
             let mut config_toml = toml::Table::new();
@@ -85,7 +86,7 @@ pub(crate) async fn handle_command(
             Ok(())
         }
         Some(NodeCommands::Up(cmd)) => {
-            let name = cmd.name.expect("No name or default was given for node");
+            let name = cmd.name.as_ref().expect("No name or default was given for node");
             let node_path = home.join("node").join(&name);
             let config_path = node_path.join("config.toml");
 
@@ -94,7 +95,7 @@ pub(crate) async fn handle_command(
                 std::process::exit(1);
             }
 
-            let config = load_config::<NodeConfig>(&node_path);
+            let config = load_config::<NodeConfig>(&node_path, Some(*cmd));
 
             println!(
                 "Reading the configuration from {}/{}/config.toml",
