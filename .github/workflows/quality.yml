@@ -27,7 +27,7 @@ jobs:
 
   lint:
     name: Lint - Clippy
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-16-core
     env:
       CARGO_TERM_COLOR: always
       RUSTFLAGS: -Dwarnings

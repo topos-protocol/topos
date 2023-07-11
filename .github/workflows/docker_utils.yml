@@ -31,7 +31,7 @@ on:
 jobs:
   docker:
     name: Build and push docker image to GitHub Container Registry
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-16-core
     outputs:
       tags: ${{ steps.meta.outputs.tags }}
     steps:

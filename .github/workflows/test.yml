@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   test_stable:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-16-core
     strategy:
       fail-fast: false
     name: stable - Test
@@ -29,7 +29,7 @@ jobs:
           RUST_LOG: topos=warn
 
   test_nightly:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-16-core
     strategy:
       fail-fast: false
     name: nightly - Test
