@@ -16,9 +16,7 @@ use topos_metrics::{
     DOUBLE_ECHO_BUFFER_CAPACITY_TOTAL, DOUBLE_ECHO_CURRENT_BUFFER_SIZE,
 };
 use topos_p2p::PeerId;
-#[cfg(not(feature = "direct"))]
-use tracing::error;
-use tracing::{debug, info, info_span, trace, warn, warn_span, Span};
+use tracing::{debug, error, info, info_span, trace, warn, warn_span, Span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 /// Processing data associated to a Certificate candidate for delivery
@@ -251,36 +249,6 @@ impl DoubleEcho {
 }
 
 impl DoubleEcho {
-    fn sample_consume_peer(from_peer: &PeerId, state: &mut DeliveryState, sample_type: SampleType) {
-        match sample_type {
-            SampleType::EchoSubscription => state.subscriptions.echo.remove(from_peer),
-            SampleType::ReadySubscription => state.subscriptions.ready.remove(from_peer),
-            _ => false,
-        };
-    }
-
-    pub(crate) fn handle_echo(&mut self, from_peer: PeerId, certificate_id: &CertificateId) {
-        if let Some((_certificate, state)) = self.cert_candidate.get_mut(certificate_id) {
-            Self::sample_consume_peer(&from_peer, state, SampleType::EchoSubscription);
-        }
-    }
-
-    pub(crate) fn handle_ready(&mut self, from_peer: PeerId, certificate_id: &CertificateId) {
-        if let Some((_certificate, state)) = self.cert_candidate.get_mut(certificate_id) {
-            Self::sample_consume_peer(&from_peer, state, SampleType::ReadySubscription);
-        }
-    }
-
-    pub(crate) fn handle_broadcast(&mut self, cert: Certificate, origin: bool) {
-        info!("🙌 Starting broadcasting the Certificate {}", &cert.id);
-
-        self.dispatch(cert, origin);
-    }
-
-    pub(crate) fn handle_deliver(&mut self, cert: Certificate) {
-        self.dispatch(cert, false)
-    }
-
     /// Called to process potentially new certificate:
     /// - either submitted from API ( [tce_transport::TceCommands::Broadcast] command)
     /// - or received through the gossip (first step of protocol exchange)
