@@ -1,11 +1,10 @@
-use std::net::UdpSocket;
-
 use libp2p::{
     identity::{self, ed25519::SecretKey, Keypair},
     Multiaddr, PeerId,
 };
 use rstest::fixture;
 use tokio::spawn;
+use topos_test_sdk::networking::get_available_port;
 
 use crate::{network::NetworkBuilder, Client, Runtime};
 
@@ -39,8 +38,7 @@ pub fn keypair_from_byte(seed: u8) -> Keypair {
 
 pub fn local_peer(peer_index: u8) -> (Keypair, Multiaddr) {
     let peer_id: Keypair = keypair_from_byte(peer_index);
-    let socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
-    let port = socket.local_addr().unwrap().port();
+    let port = get_available_port();
     let local_listen_addr: Multiaddr = format!("/ip4/127.0.0.1/tcp/{port}").parse().unwrap();
     (peer_id, local_listen_addr)
 }

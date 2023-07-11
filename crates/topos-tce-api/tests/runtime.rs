@@ -2,7 +2,7 @@ use futures::Stream;
 use rstest::rstest;
 use serde::Deserialize;
 use std::future::IntoFuture;
-use std::{net::UdpSocket, time::Duration};
+use std::time::Duration;
 use test_log::test;
 use tokio::sync::mpsc;
 use tokio::{spawn, sync::oneshot};
@@ -23,6 +23,7 @@ use topos_core::{
 use topos_tce_api::{Runtime, RuntimeEvent};
 use topos_test_sdk::certificates::create_certificate_chain;
 use topos_test_sdk::constants::*;
+use topos_test_sdk::networking::get_available_addr;
 use topos_test_sdk::storage::storage_client;
 use topos_test_sdk::tce::public_api::{create_public_api, PublicApiContext};
 
@@ -200,14 +201,9 @@ async fn can_catchup_with_old_certs(
 async fn can_catchup_with_old_certs_with_position() {
     let (tx, mut rx) = mpsc::channel::<Certificate>(16);
 
-    let socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
-    let addr = socket.local_addr().ok().unwrap();
-
-    let graphql_socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
-    let graphql_addr = graphql_socket.local_addr().ok().unwrap();
-
-    let metrics_socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
-    let metrics_addr = metrics_socket.local_addr().ok().unwrap();
+    let addr = get_available_addr();
+    let graphql_addr = get_available_addr();
+    let metrics_addr = get_available_addr();
 
     // launch data store
     let certificates = create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], 15);
@@ -328,14 +324,9 @@ async fn can_listen_for_multiple_subnet_id() {}
 #[timeout(Duration::from_secs(2))]
 #[test(tokio::test)]
 async fn boots_healthy_graphql_server() {
-    let socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
-    let addr = socket.local_addr().ok().unwrap();
-
-    let graphql_socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
-    let graphql_addr = graphql_socket.local_addr().ok().unwrap();
-
-    let metrics_socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
-    let metrics_addr = metrics_socket.local_addr().ok().unwrap();
+    let addr = get_available_addr();
+    let graphql_addr = get_available_addr();
+    let metrics_addr = get_available_addr();
 
     // launch data store
     let certificates = create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], 15);
@@ -373,14 +364,9 @@ async fn boots_healthy_graphql_server() {
 #[timeout(Duration::from_secs(2))]
 #[test(tokio::test)]
 async fn graphql_server_enables_cors() {
-    let socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
-    let addr = socket.local_addr().ok().unwrap();
-
-    let graphql_socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
-    let graphql_addr = graphql_socket.local_addr().ok().unwrap();
-
-    let metrics_socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
-    let metrics_addr = metrics_socket.local_addr().ok().unwrap();
+    let addr = get_available_addr();
+    let graphql_addr = get_available_addr();
+    let metrics_addr = get_available_addr();
 
     // launch data store
     let certificates = create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], 15);
@@ -442,14 +428,9 @@ async fn graphql_server_enables_cors() {
 async fn can_query_graphql_endpoint_for_certificates() {
     let (tx, mut rx) = mpsc::channel::<Certificate>(16);
 
-    let socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
-    let addr = socket.local_addr().ok().unwrap();
-
-    let graphql_socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
-    let graphql_addr = graphql_socket.local_addr().ok().unwrap();
-
-    let metrics_socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
-    let metrics_addr = metrics_socket.local_addr().ok().unwrap();
+    let addr = get_available_addr();
+    let graphql_addr = get_available_addr();
+    let metrics_addr = get_available_addr();
 
     // launch data store
     let certificates = create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], 15);
