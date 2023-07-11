@@ -12,12 +12,13 @@ use libp2p::{
 };
 
 pub(crate) mod discovery;
+pub(crate) mod gossip;
 pub(crate) mod peer_info;
 pub(crate) mod topos;
 pub(crate) mod transmission;
 
 #[derive(NetworkBehaviour)]
-#[behaviour(out_event = "ComposedEvent")]
+#[behaviour(to_swarm = "ComposedEvent")]
 pub(crate) struct Behaviour {
     /// All the topos-specific protocols.
     // pub(crate) topos: ToposBehaviour,
@@ -34,5 +35,5 @@ pub(crate) struct Behaviour {
 
     pub(crate) keep_alive: keep_alive::Behaviour,
 
-    pub(crate) gossipsub: gossipsub::Behaviour,
+    pub(crate) gossipsub: gossip::Behaviour,
 }

@@ -5,8 +5,7 @@ use std::{collections::VecDeque, sync::Arc};
 use tokio::sync::{mpsc, oneshot};
 
 use crate::{
-    command::StorageCommand, errors::StorageError, events::StorageEvent, Connection,
-    PendingCertificateId, Storage,
+    command::StorageCommand, errors::StorageError, events::StorageEvent, Connection, Storage,
 };
 
 use super::MAX_PENDING_CERTIFICATES;
@@ -17,7 +16,6 @@ pub struct ConnectionBuilder<S: Storage> {
     pub(crate) storage_builder: Option<StorageBuilder<S>>,
     pub(crate) queries: mpsc::Receiver<StorageCommand>,
     pub(crate) events: mpsc::Sender<StorageEvent>,
-    pub(crate) certificate_dispatcher: mpsc::Sender<PendingCertificateId>,
     pub(crate) shutdown_receiver: mpsc::Receiver<oneshot::Sender<()>>,
 }
 
@@ -32,7 +30,6 @@ where
             storage: Arc::new(storage),
             queries: self.queries,
             events: self.events,
-            certificate_dispatcher: Some(self.certificate_dispatcher),
             // TODO: Move MAX_PENDING_CERTIFICATES into a configuration option
             pending_certificates: VecDeque::with_capacity(MAX_PENDING_CERTIFICATES),
             shutdown: self.shutdown_receiver,

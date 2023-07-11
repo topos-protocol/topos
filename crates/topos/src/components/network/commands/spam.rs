@@ -32,7 +32,7 @@ pub struct Spam {
         env = "TOPOS_NETWORK_SPAMMER_CERT_PER_BATCH",
         default_value = "1"
     )]
-    pub cert_per_batch: u8,
+    pub cert_per_batch: u64,
     /// Number of subnets to use for certificate generation. For every certificate subnet id will be picked randomly.
     #[arg(
         long,

@@ -1,52 +1,88 @@
 use libp2p::gossipsub::{Event as GossipsubEvent, Message};
 use topos_metrics::{
-    MESSAGE_RECEIVED_ON_ECHO, MESSAGE_RECEIVED_ON_GOSSIP, MESSAGE_RECEIVED_ON_READY,
+    P2P_EVENT_STREAM_CAPACITY_TOTAL, P2P_MESSAGE_DESERIALIZE_FAILURE_TOTAL,
+    P2P_MESSAGE_RECEIVED_ON_ECHO_TOTAL, P2P_MESSAGE_RECEIVED_ON_GOSSIP_TOTAL,
+    P2P_MESSAGE_RECEIVED_ON_READY_TOTAL,
 };
-use tracing::{error, info};
+use tracing::{debug, error};
 
-use crate::{Event, Runtime, TOPOS_ECHO, TOPOS_GOSSIP, TOPOS_READY};
+use crate::{
+    behaviour::gossip::Batch, constant, event::GossipEvent, Event, Runtime, TOPOS_ECHO,
+    TOPOS_GOSSIP, TOPOS_READY,
+};
 
 use super::EventHandler;
 
 #[async_trait::async_trait]
-impl EventHandler<Box<GossipsubEvent>> for Runtime {
-    async fn handle(&mut self, event: Box<GossipsubEvent>) {
-        if let GossipsubEvent::Message {
-            message:
-                Message {
-                    source: Some(source),
-                    data,
-                    topic,
-                    ..
-                },
-            message_id,
-            ..
-        } = *event
+impl EventHandler<GossipEvent> for Runtime {
+    async fn handle(&mut self, event: GossipEvent) {
+        if let GossipEvent {
+            source: Some(source),
+            message,
+            topic,
+        } = event
         {
-            info!(
-                "Received message {:?} from {:?} on topic {:?}",
-                message_id, source, topic
-            );
-            match topic.as_str() {
+            if self.event_sender.capacity() < *constant::CAPACITY_EVENT_STREAM_BUFFER {
+                P2P_EVENT_STREAM_CAPACITY_TOTAL.inc();
+            }
+
+            debug!("Received message from {:?} on topic {:?}", source, topic);
+            match topic {
                 TOPOS_GOSSIP => {
-                    MESSAGE_RECEIVED_ON_GOSSIP.inc();
+                    P2P_MESSAGE_RECEIVED_ON_GOSSIP_TOTAL.inc();
+
+                    if let Err(e) = self
+                        .event_sender
+                        .send(Event::Gossip {
+                            from: source,
+                            data: message,
+                        })
+                        .await
+                    {
+                        error!("Failed to send gossip event to runtime: {:?}", e);
+                    }
                 }
                 TOPOS_ECHO => {
-                    MESSAGE_RECEIVED_ON_ECHO.inc();
+                    P2P_MESSAGE_RECEIVED_ON_ECHO_TOTAL.inc();
+
+                    if let Ok(msg) = bincode::deserialize::<Batch>(&message) {
+                        for data in msg.data {
+                            if let Err(e) = self
+                                .event_sender
+                                .send(Event::Gossip { from: source, data })
+                                .await
+                            {
+                                error!("Failed to send gossip event to runtime: {:?}", e);
+                            }
+                        }
+                    } else {
+                        P2P_MESSAGE_DESERIALIZE_FAILURE_TOTAL
+                            .with_label_values(&["echo"])
+                            .inc();
+                    }
                 }
                 TOPOS_READY => {
-                    MESSAGE_RECEIVED_ON_READY.inc();
+                    P2P_MESSAGE_RECEIVED_ON_READY_TOTAL.inc();
+
+                    if let Ok(msg) = bincode::deserialize::<Batch>(&message) {
+                        for data in msg.data {
+                            if let Err(e) = self
+                                .event_sender
+                                .send(Event::Gossip { from: source, data })
+                                .await
+                            {
+                                error!("Failed to send gossip event to runtime: {:?}", e);
+                            }
+                        }
+                    } else {
+                        P2P_MESSAGE_DESERIALIZE_FAILURE_TOTAL
+                            .with_label_values(&["ready"])
+                            .inc();
+                    }
                 }
                 _ => {
                     error!("Received message on unknown topic {:?}", topic);
                 }
-            }
-
-            if let Err(e) = self
-                .event_sender
-                .try_send(Event::Gossip { from: source, data })
-            {
-                tracing::error!("Failed to send gossip event to runtime: {:?}", e);
             }
         }
     }

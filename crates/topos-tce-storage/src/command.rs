@@ -64,6 +64,7 @@ impl Command for GetNextPendingCertificate {
 #[derive(Debug)]
 pub struct CertificateDelivered {
     pub(crate) certificate_id: CertificateId,
+    pub(crate) certificate: Option<Certificate>,
 }
 
 impl Command for CertificateDelivered {

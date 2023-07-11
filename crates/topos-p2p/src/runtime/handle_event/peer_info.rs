@@ -1,12 +1,11 @@
 use std::borrow::Cow;
 
-use libp2p::{
-    identify::{Event as IdentifyEvent, Info as IdentifyInfo},
-    request_response::ProtocolName,
-};
+use libp2p::identify::{Event as IdentifyEvent, Info as IdentifyInfo};
 use tracing::info;
 
-use crate::{behaviour::transmission::protocol::TransmissionProtocol, Runtime};
+use crate::{
+    behaviour::transmission::protocol::TransmissionProtocol, constant::PEER_INFO_PROTOCOL, Runtime,
+};
 
 use super::EventHandler;
 
@@ -18,20 +17,15 @@ impl EventHandler<Box<IdentifyEvent>> for Runtime {
                 protocol_version,
                 listen_addrs,
                 protocols,
+                observed_addr,
                 ..
             } = info;
 
+            // TODO: Check subprotocols for TransmissionProtocol
             if !self.peer_set.contains(&peer_id)
-                && protocol_version.as_bytes() == TransmissionProtocol().protocol_name()
-                && protocols.iter().any(|p| {
-                    self.swarm
-                        .behaviour()
-                        .discovery
-                        .inner
-                        .protocol_names()
-                        .contains(&Cow::Borrowed(p.as_bytes()))
-                })
+                && protocol_version.as_bytes() == PEER_INFO_PROTOCOL.as_bytes()
             {
+                self.swarm.add_external_address(observed_addr);
                 self.peer_set.insert(peer_id);
                 for addr in listen_addrs {
                     info!(

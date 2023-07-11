@@ -35,8 +35,6 @@ pub struct Connection<S: Storage> {
     #[allow(dead_code)]
     events: mpsc::Sender<StorageEvent>,
 
-    certificate_dispatcher: Option<mpsc::Sender<PendingCertificateId>>,
-
     pending_certificates: VecDeque<PendingCertificateId>,
 
     /// Storage shutdown signal receiver
@@ -53,7 +51,6 @@ impl<S: Storage> Connection<S> {
     ) {
         let (sender, queries) = mpsc::channel(1024);
         let (events, events_stream) = mpsc::channel(1024);
-        let (certificate_dispatcher, _dispatchable_certificates) = mpsc::channel(10);
         let (shutdown_channel, shutdown_receiver) = mpsc::channel::<oneshot::Sender<()>>(1);
 
         (
@@ -61,7 +58,6 @@ impl<S: Storage> Connection<S> {
                 storage_builder: Some(storage),
                 queries,
                 events,
-                certificate_dispatcher,
                 shutdown_receiver,
             },
             StorageClient::new(sender, shutdown_channel),
@@ -97,20 +93,11 @@ impl<S: Storage> IntoFuture for Connection<S> {
     fn into_future(mut self) -> Self::IntoFuture {
         use crate::connection::StorageCommand::*;
         async move {
-            let certificate_dispatcher = self.certificate_dispatcher.take().ok_or(
-                StorageError::InternalStorage(InternalStorageError::UnableToStartStorage)
-            )?;
-
             let shutdowned: Option<oneshot::Sender<()>> = loop {
                 tokio::select! {
                     shutdown = self.shutdown.recv() => {
                         break shutdown;
                     },
-                    Ok(permit) = certificate_dispatcher.reserve(), if !self.pending_certificates.is_empty() => {
-
-                        permit.send(self.pending_certificates.pop_front().unwrap());
-                    },
-
                     Some(command) = self.queries.recv() => {
                         macro_rules! HandleCommands {
                             ($($command_type:ident),+) => {

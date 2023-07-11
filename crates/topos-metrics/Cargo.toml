@@ -4,5 +4,5 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-prometheus = "0.13.3"
-lazy_static = "1.4"
+lazy_static.workspace = true
+prometheus.workspace = true

@@ -10,15 +10,17 @@ async-trait.workspace = true
 bincode.workspace = true
 clap.workspace = true
 futures.workspace = true
+opentelemetry.workspace = true
+prometheus-client.workspace = true
+prometheus.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 topos-core.workspace = true
-tracing-subscriber = { workspace = true, default-features = false,  features = ["std", "env-filter", "fmt", "ansi"] }
-tracing.workspace = true
-opentelemetry.workspace = true
 tracing-attributes.workspace = true
 tracing-opentelemetry.workspace = true
+tracing-subscriber = { workspace = true, default-features = false,  features = ["std", "env-filter", "fmt", "ansi"] }
+tracing.workspace = true
 
 tce_transport = { package = "topos-tce-transport", path = "../topos-tce-transport" }
 topos-p2p = { path = "../topos-p2p" }
@@ -31,7 +33,6 @@ topos-tce-synchronizer = { path = "../topos-tce-synchronizer" }
 topos-telemetry = { path = "../topos-telemetry" }
 axum = "0.6.18"
 axum-prometheus = "0.3.3"
-prometheus = "0.13.3"
 
 [dev-dependencies]
 async-stream.workspace = true

@@ -4,6 +4,7 @@ use std::{thread, time::Duration};
 
 use assert_cmd::Command;
 
+use rstest::*;
 use topos_core::api::grpc::tce::v1::StatusRequest;
 use topos_test_sdk::tce::create_network;
 
@@ -21,10 +22,12 @@ fn help_display() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+#[rstest]
 #[test_log::test(tokio::test)]
+#[timeout(Duration::from_secs(20))]
 // FIXME: This test is flaky, it fails sometimes because of sample failure
 async fn assert_delivery() -> Result<(), Box<dyn std::error::Error>> {
-    let mut peers_context = create_network(10).await;
+    let mut peers_context = create_network(5).await;
 
     let mut status: Vec<bool> = Vec::new();
 

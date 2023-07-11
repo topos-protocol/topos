@@ -11,7 +11,7 @@ use libp2p::{
     swarm::NetworkBehaviour,
     PeerId,
 };
-use topos_metrics::MESSAGE_SENT_ON_GOSSIPSUB;
+use topos_metrics::P2P_MESSAGE_SENT_ON_GOSSIPSUB_TOTAL;
 use tracing::{debug, error, info, warn};
 impl Runtime {
     pub(crate) async fn handle_command(&mut self, command: Command) {
@@ -139,15 +139,10 @@ impl Runtime {
             }
 
             Command::Gossip { topic, data } => {
-                match self
-                    .swarm
-                    .behaviour_mut()
-                    .gossipsub
-                    .publish(IdentTopic::new(topic), data)
-                {
+                match self.swarm.behaviour_mut().gossipsub.publish(topic, data) {
                     Ok(message_id) => {
-                        info!("Published message {message_id:?} to {topic}");
-                        MESSAGE_SENT_ON_GOSSIPSUB.inc();
+                        debug!("Published message to {topic}");
+                        P2P_MESSAGE_SENT_ON_GOSSIPSUB_TOTAL.inc();
                     }
                     Err(err) => error!("Failed to publish message to {topic}: {err}"),
                 }

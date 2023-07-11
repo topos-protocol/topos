@@ -1,8 +1,11 @@
-use crate::error::CommandExecutionError;
+use crate::{constant::TRANSMISSION_PROTOCOL, error::CommandExecutionError};
 
 use self::{codec::TransmissionCodec, protocol::TransmissionProtocol};
 
-use libp2p::request_response::{Behaviour, Config, ProtocolSupport, RequestId};
+use libp2p::{
+    request_response::{Behaviour, Config, ProtocolSupport, RequestId},
+    StreamProtocol,
+};
 use std::{collections::HashMap, iter, time::Duration};
 use tokio::sync::oneshot;
 
@@ -21,9 +24,12 @@ impl TransmissionBehaviour {
         cfg.set_connection_keep_alive(Duration::from_secs(60));
         cfg.set_request_timeout(Duration::from_secs(30));
 
-        Behaviour::new(
+        Behaviour::with_codec(
             TransmissionCodec(),
-            iter::once((TransmissionProtocol(), ProtocolSupport::Full)),
+            iter::once((
+                StreamProtocol::new(TRANSMISSION_PROTOCOL),
+                ProtocolSupport::Full,
+            )),
             cfg,
         )
     }

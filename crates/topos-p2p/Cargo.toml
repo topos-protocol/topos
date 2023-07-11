@@ -7,13 +7,16 @@ edition = "2021"
 async-trait.workspace = true
 bincode.workspace = true
 futures.workspace = true
+lazy_static.workspace = true
+prometheus-client.workspace = true
 serde = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
-tokio-stream.workspace = true
 tokio = { workspace = true, features = ["full"] }
+tokio-stream.workspace = true
 tracing = { workspace = true, features = ["attributes"] }
 
-libp2p = { workspace = true, features = ["macros", "gossipsub", "tcp", "dns", "tokio", "request-response", "identify", "mplex", "kad", "serde", "yamux"] }
+libp2p = { workspace = true, features = ["macros", "gossipsub", "tcp", "dns", "tokio", "request-response", "identify", "kad", "serde", "yamux"] }
+
 void = "1"
 
 topos-metrics = { path = "../topos-metrics/" }
