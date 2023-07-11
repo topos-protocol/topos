@@ -15,7 +15,7 @@ use tokio::{
 use tonic::transport::Channel;
 use topos_core::api::grpc::tce::v1::console_service_client::ConsoleServiceClient;
 use topos_p2p::PeerId;
-use topos_tce::{StorageConfiguration, TceConfiguration};
+use topos_tce::config::{StorageConfiguration, TceConfiguration};
 use tower::Service;
 use tracing::{debug, error, info, trace};
 
