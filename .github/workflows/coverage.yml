@@ -26,16 +26,16 @@ jobs:
 
       - name: Build
         env:
-          RUSTFLAGS: '-Cinstrument-coverage'
-          RUSTDOCFLAGS: '-Cinstrument-coverage'
+          RUSTFLAGS: "-Cinstrument-coverage"
+          RUSTDOCFLAGS: "-Cinstrument-coverage"
         run: cargo build --all
 
       - name: Run tests
         env:
-          RUSTFLAGS: '-Cinstrument-coverage'
-          RUSTDOCFLAGS: '-Cinstrument-coverage'
-          LLVM_PROFILE_FILE: 'codecov-instrumentation-%p-%m.profraw'
-        run: cargo nextest run --workspace --exclude topos-sequencer-subnet-runtime 
+          RUSTFLAGS: "-Cinstrument-coverage"
+          RUSTDOCFLAGS: "-Cinstrument-coverage"
+          LLVM_PROFILE_FILE: "codecov-instrumentation-%p-%m.profraw"
+        run: cargo nextest run --workspace --exclude topos-sequencer-subnet-runtime
 
       - name: Run grcov
         run: grcov . --binary-path target/debug/ -s . -t lcov --branch --ignore-not-existing --ignore '../**' --ignore '/*' -o coverage.lcov
