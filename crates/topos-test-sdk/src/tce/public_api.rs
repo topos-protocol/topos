@@ -1,5 +1,3 @@
-use std::net::SocketAddr;
-use std::net::UdpSocket;
 use std::str::FromStr;
 
 use futures::Stream;
@@ -13,6 +11,7 @@ use topos_tce_api::RuntimeClient;
 use topos_tce_api::RuntimeEvent;
 use topos_tce_storage::StorageClient;
 
+use crate::networking::get_available_addr;
 use crate::storage::storage_client;
 
 pub struct PublicApiContext {
@@ -23,36 +22,16 @@ pub struct PublicApiContext {
 }
 
 #[fixture]
-fn default_public_api_addr() -> SocketAddr {
-    let socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
-    socket.local_addr().expect("Can't extract local_addr")
-}
-
-#[fixture]
-fn default_public_graphql_addr() -> SocketAddr {
-    let socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
-    socket.local_addr().expect("Can't extract local_addr")
-}
-
-#[fixture]
-fn default_public_metrics_addr() -> SocketAddr {
-    let socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
-    socket.local_addr().expect("Can't extract local_addr")
-}
-
-#[fixture]
 pub async fn create_public_api(
     #[future] storage_client: StorageClient,
-    default_public_api_addr: SocketAddr,
-    default_public_graphql_addr: SocketAddr,
-    default_public_metrics_addr: SocketAddr,
 ) -> (PublicApiContext, impl Stream<Item = RuntimeEvent>) {
     let storage_client = storage_client.await;
-    let grpc_addr = default_public_api_addr;
-    let api_port = grpc_addr.port();
 
-    let graphql_addr = default_public_graphql_addr;
-    let metrics_addr = default_public_metrics_addr;
+    let grpc_addr = get_available_addr();
+    let graphql_addr = get_available_addr();
+    let metrics_addr = get_available_addr();
+
+    let api_port = grpc_addr.port();
 
     let api_endpoint = format!("http://0.0.0.0:{api_port}");
     let (client, stream) = topos_tce_api::Runtime::builder()

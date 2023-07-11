@@ -1,6 +1,6 @@
 mod utils;
 
-use std::{net::UdpSocket, process::Command, time::Duration};
+use std::{process::Command, time::Duration};
 
 use assert_cmd::prelude::*;
 use futures::FutureExt;
@@ -11,6 +11,7 @@ use topos_core::api::grpc::tce::v1::{
     console_service_server::{ConsoleService, ConsoleServiceServer},
     PushPeerListRequest, PushPeerListResponse, StatusRequest, StatusResponse,
 };
+use topos_test_sdk::networking::get_available_addr;
 
 #[test]
 fn help_display() -> Result<(), Box<dyn std::error::Error>> {
@@ -28,8 +29,7 @@ fn help_display() -> Result<(), Box<dyn std::error::Error>> {
 
 #[tokio::test]
 async fn do_not_push_empty_list() -> Result<(), Box<dyn std::error::Error>> {
-    let socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port on host");
-    let addr = socket.local_addr().unwrap();
+    let addr = get_available_addr();
     let port = addr.port();
 
     let server = ConsoleServiceServer::new(DummyServer);
