@@ -1,44 +1,22 @@
-mod app_context;
-
 use std::future::IntoFuture;
-use std::net::SocketAddr;
-use std::path::PathBuf;
-use std::time::Duration;
 
-pub use app_context::AppContext;
+use config::TceConfiguration;
 use opentelemetry::global;
-use serde::{Deserialize, Serialize};
-use tce_transport::{ReliableBroadcastParams, TceCommands};
 use tokio::{spawn, sync::mpsc, sync::oneshot};
 use topos_p2p::utils::local_key_pair_from_slice;
-use topos_p2p::{utils::local_key_pair, Multiaddr, PeerId};
+use topos_p2p::{utils::local_key_pair, Multiaddr};
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
 use topos_tce_storage::{Connection, RocksDBStorage};
 use tracing::{debug, warn};
 
+mod app_context;
+pub mod config;
 pub mod events;
+pub mod messages;
 
-#[derive(Debug)]
-pub struct TceConfiguration {
-    pub local_key_seed: Option<Vec<u8>>,
-    pub tce_params: ReliableBroadcastParams,
-    pub boot_peers: Vec<(PeerId, Multiaddr)>,
-    pub api_addr: SocketAddr,
-    pub graphql_api_addr: SocketAddr,
-    pub metrics_api_addr: SocketAddr,
-    pub tce_addr: String,
-    pub tce_local_port: u16,
-    pub storage: StorageConfiguration,
-    pub network_bootstrap_timeout: Duration,
-    pub minimum_cluster_size: usize,
-    pub version: &'static str,
-}
+pub use app_context::AppContext;
 
-#[derive(Debug)]
-pub enum StorageConfiguration {
-    RAM,
-    RocksDB(Option<PathBuf>),
-}
+use crate::config::StorageConfiguration;
 
 pub async fn run(
     config: &TceConfiguration,
@@ -155,38 +133,4 @@ pub async fn run(
 
     global::shutdown_tracer_provider();
     Ok(())
-}
-
-/// Definition of networking payload.
-///
-/// We assume that only Commands will go through the network,
-/// [Response] is used to allow reporting of logic errors to the caller.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[allow(clippy::large_enum_variant)]
-pub enum NetworkMessage {
-    Cmd(TceCommands),
-    Bulk(Vec<TceCommands>),
-
-    NotReady(topos_p2p::NotReadyMessage),
-}
-
-// deserializer
-impl From<Vec<u8>> for NetworkMessage {
-    fn from(data: Vec<u8>) -> Self {
-        bincode::deserialize::<NetworkMessage>(data.as_ref()).expect("msg deser")
-    }
-}
-
-// serializer
-impl From<NetworkMessage> for Vec<u8> {
-    fn from(msg: NetworkMessage) -> Self {
-        bincode::serialize::<NetworkMessage>(&msg).expect("msg ser")
-    }
-}
-
-// transformer of protocol commands into network commands
-impl From<TceCommands> for NetworkMessage {
-    fn from(cmd: TceCommands) -> Self {
-        Self::Cmd(cmd)
-    }
 }
