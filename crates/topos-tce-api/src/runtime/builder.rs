@@ -60,7 +60,13 @@ impl RuntimeBuilder {
         self
     }
 
-    pub async fn build_and_launch(mut self) -> (RuntimeClient, impl Stream<Item = RuntimeEvent>) {
+    pub async fn build_and_launch(
+        mut self,
+    ) -> (
+        RuntimeClient,
+        impl Stream<Item = RuntimeEvent>,
+        RuntimeContext,
+    ) {
         let (command_sender, internal_runtime_command_receiver) = mpsc::channel(2048);
         let (api_event_sender, api_event_receiver) = mpsc::channel(2048);
 
@@ -71,17 +77,39 @@ impl RuntimeBuilder {
             .build()
             .await;
 
-        let graphql = GraphQLBuilder::default()
-            .storage(self.storage.clone())
-            .serve_addr(self.graphql_socket_addr)
-            .build();
-
-        let metrics_server = MetricsBuilder::default()
-            .serve_addr(self.metrics_socket_addr)
-            .build();
-
         let (command_sender, runtime_command_receiver) = mpsc::channel(2048);
         let (shutdown_channel, shutdown_receiver) = mpsc::channel::<oneshot::Sender<()>>(1);
+
+        let grpc_handler = spawn(grpc);
+
+        let graphql_handler = if let Some(graphql_addr) = self.graphql_socket_addr {
+            tracing::info!("Serving GraphQL on {}", graphql_addr);
+
+            let graphql = GraphQLBuilder::default()
+                .storage(self.storage.clone())
+                .serve_addr(Some(graphql_addr))
+                .build();
+            spawn(graphql.await)
+        } else {
+            spawn(async move {
+                tracing::info!("Not serving GraphQL");
+                Ok(())
+            })
+        };
+
+        let metrics_handler = if let Some(metrics_addr) = self.metrics_socket_addr {
+            tracing::info!("Serving metrics on {}", metrics_addr);
+
+            let metrics_server = MetricsBuilder::default()
+                .serve_addr(Some(metrics_addr))
+                .build();
+            spawn(metrics_server.await)
+        } else {
+            spawn(async move {
+                tracing::info!("Not serving metrics");
+                Ok(())
+            })
+        };
 
         let runtime = Runtime {
             sync_tasks: HashMap::new(),
@@ -97,11 +125,7 @@ impl RuntimeBuilder {
             shutdown: shutdown_receiver,
             streams: Default::default(),
         };
-
-        spawn(grpc);
-        spawn(graphql.await);
-        spawn(metrics_server.await);
-        spawn(runtime.launch());
+        let runtime_handler = spawn(runtime.launch());
 
         (
             RuntimeClient {
@@ -110,6 +134,12 @@ impl RuntimeBuilder {
                 shutdown_channel,
             },
             ReceiverStream::new(api_event_receiver),
+            RuntimeContext {
+                grpc_handler,
+                graphql_handler,
+                metrics_handler,
+                runtime_handler,
+            },
         )
     }
 
@@ -117,5 +147,24 @@ impl RuntimeBuilder {
         self.grpc_socket_addr = socket;
 
         self
+    }
+}
+
+#[derive(Debug)]
+pub struct RuntimeContext {
+    grpc_handler: tokio::task::JoinHandle<Result<(), tonic::transport::Error>>,
+    graphql_handler: tokio::task::JoinHandle<Result<(), hyper::Error>>,
+    metrics_handler: tokio::task::JoinHandle<Result<(), hyper::Error>>,
+    runtime_handler: tokio::task::JoinHandle<()>,
+}
+
+impl Drop for RuntimeContext {
+    fn drop(&mut self) {
+        println!("Dropping RuntimeContext");
+        tracing::warn!("Dropping RuntimeContext");
+        self.grpc_handler.abort();
+        self.graphql_handler.abort();
+        self.metrics_handler.abort();
+        self.runtime_handler.abort();
     }
 }

@@ -33,7 +33,7 @@ use topos_test_sdk::tce::public_api::{create_public_api, PublicApiContext};
 async fn runtime_can_dispatch_a_cert(
     #[future] create_public_api: (PublicApiContext, impl Stream<Item = RuntimeEvent>),
 ) {
-    let (api_context, _) = create_public_api.await;
+    let (mut api_context, _) = create_public_api.await;
     let mut client = api_context.api_client;
     let (tx, rx) = oneshot::channel::<Certificate>();
 
@@ -103,6 +103,7 @@ async fn runtime_can_dispatch_a_cert(
 
     let certificate_received = rx.await.unwrap();
     assert_eq!(cert, certificate_received);
+    drop(api_context.api_context.take());
 }
 
 #[rstest]
@@ -114,7 +115,7 @@ async fn can_catchup_with_old_certs(
     certificates: Vec<Certificate>,
 ) {
     let storage_client = storage_client::partial_1(certificates.clone());
-    let (api_context, _) = create_public_api::partial_1(storage_client).await;
+    let (mut api_context, _) = create_public_api::partial_1(storage_client).await;
 
     let mut client = api_context.api_client;
 
@@ -193,6 +194,7 @@ async fn can_catchup_with_old_certs(
 
     let certificate_received = rx.recv().await.unwrap();
     assert_eq!(cert, certificate_received);
+    drop(api_context.api_context.take());
 }
 
 #[rstest]
@@ -216,7 +218,7 @@ async fn can_catchup_with_old_certs_with_position() {
 
     let _storage_join_handle = spawn(storage.into_future());
 
-    let (runtime_client, _launcher) = Runtime::builder()
+    let (runtime_client, _launcher, _ctx) = Runtime::builder()
         .storage(storage_client)
         .serve_grpc_addr(addr)
         .serve_graphql_addr(graphql_addr)
@@ -316,6 +318,7 @@ async fn can_catchup_with_old_certs_with_position() {
     let certificate_received = rx.recv().await.unwrap();
     assert_eq!(cert, certificate_received);
 }
+
 #[test(tokio::test)]
 #[ignore = "not yet implemented"]
 async fn can_listen_for_multiple_subnet_id() {}
@@ -339,7 +342,7 @@ async fn boots_healthy_graphql_server() {
 
     let _storage_join_handle = spawn(storage.into_future());
 
-    let (_runtime_client, _launcher) = Runtime::builder()
+    let (_runtime_client, _launcher, _ctx) = Runtime::builder()
         .storage(storage_client)
         .serve_grpc_addr(addr)
         .serve_graphql_addr(graphql_addr)
@@ -379,7 +382,7 @@ async fn graphql_server_enables_cors() {
 
     let _storage_join_handle = spawn(storage.into_future());
 
-    let (_runtime_client, _launcher) = Runtime::builder()
+    let (_runtime_client, _launcher, _ctx) = Runtime::builder()
         .storage(storage_client)
         .serve_grpc_addr(addr)
         .serve_graphql_addr(graphql_addr)
@@ -443,7 +446,7 @@ async fn can_query_graphql_endpoint_for_certificates() {
 
     let _storage_join_handle = spawn(storage.into_future());
 
-    let (runtime_client, _launcher) = Runtime::builder()
+    let (runtime_client, _launcher, _ctx) = Runtime::builder()
         .storage(storage_client)
         .serve_grpc_addr(addr)
         .serve_graphql_addr(graphql_addr)

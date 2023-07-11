@@ -1,35 +1,46 @@
-use prometheus::{self, Encoder, IntCounter, TextEncoder};
+use prometheus::{
+    self, register_int_counter_with_registry, Encoder, IntCounter, Registry, TextEncoder,
+};
 
 use lazy_static::lazy_static;
-use prometheus::register_int_counter;
+
+mod double_echo;
+mod p2p;
+mod storage;
+
+pub use double_echo::*;
+pub use p2p::*;
+pub use storage::*;
 
 lazy_static! {
-    pub static ref MESSAGE_RECEIVED_ON_GOSSIP: IntCounter =
-        register_int_counter!("gossip_message_count", "Number of gossip message received.")
-            .unwrap();
-    pub static ref MESSAGE_RECEIVED_ON_ECHO: IntCounter =
-        register_int_counter!("echo_message_count", "Number of echo message received.").unwrap();
-    pub static ref MESSAGE_RECEIVED_ON_READY: IntCounter =
-        register_int_counter!("ready_message_count", "Number of ready message received.").unwrap();
-    pub static ref MESSAGE_SENT_ON_GOSSIPSUB: IntCounter = register_int_counter!(
-        "gossipsub_message_sent_count",
-        "Number of gossipsub message sent."
+    pub static ref TOPOS_METRIC_REGISTRY: Registry =
+        Registry::new_custom(Some("topos".to_string()), None).unwrap();
+    pub static ref CERTIFICATE_RECEIVED_TOTAL: IntCounter = register_int_counter_with_registry!(
+        "certificate_received_total",
+        "Number of certificate received.",
+        TOPOS_METRIC_REGISTRY
     )
     .unwrap();
-    pub static ref CERTIFICATE_RECEIVED: IntCounter =
-        register_int_counter!("certificate_received", "Number of certificate received.").unwrap();
-    pub static ref CERTIFICATE_RECEIVED_FROM_GOSSIP: IntCounter = register_int_counter!(
-        "certificate_received_from_gossip",
-        "Number of certificate received from gossip."
+    pub static ref CERTIFICATE_RECEIVED_FROM_GOSSIP_TOTAL: IntCounter =
+        register_int_counter_with_registry!(
+            "certificate_received_from_gossip_total",
+            "Number of certificate received from gossip.",
+            TOPOS_METRIC_REGISTRY
+        )
+        .unwrap();
+    pub static ref CERTIFICATE_RECEIVED_FROM_API_TOTAL: IntCounter =
+        register_int_counter_with_registry!(
+            "certificate_received_from_api_total",
+            "Number of certificate received from api.",
+            TOPOS_METRIC_REGISTRY
+        )
+        .unwrap();
+    pub static ref CERTIFICATE_DELIVERED_TOTAL: IntCounter = register_int_counter_with_registry!(
+        "certificate_delivered_total",
+        "Number of certificate delivered.",
+        TOPOS_METRIC_REGISTRY
     )
     .unwrap();
-    pub static ref CERTIFICATE_RECEIVED_FROM_API: IntCounter = register_int_counter!(
-        "certificate_received_from_api",
-        "Number of certificate received from api."
-    )
-    .unwrap();
-    pub static ref CERTIFICATE_DELIVERED: IntCounter =
-        register_int_counter!("certificate_delivered", "Number of certificate delivered.").unwrap();
 }
 
 pub fn gather_metrics() -> String {
@@ -41,5 +52,25 @@ pub fn gather_metrics() -> String {
     // Encode them to send.
     encoder.encode(&metric_families, &mut buffer).unwrap();
 
+    let topos_metrics = TOPOS_METRIC_REGISTRY.gather();
+    encoder.encode(&topos_metrics, &mut buffer).unwrap();
+
     String::from_utf8(buffer.clone()).unwrap()
+}
+
+pub fn init_metrics() {
+    P2P_EVENT_STREAM_CAPACITY_TOTAL.reset();
+    P2P_MESSAGE_RECEIVED_ON_GOSSIP_TOTAL.reset();
+    P2P_MESSAGE_RECEIVED_ON_ECHO_TOTAL.reset();
+    P2P_MESSAGE_RECEIVED_ON_READY_TOTAL.reset();
+    P2P_MESSAGE_SENT_ON_GOSSIPSUB_TOTAL.reset();
+    DOUBLE_ECHO_COMMAND_CHANNEL_CAPACITY_TOTAL.reset();
+    DOUBLE_ECHO_BUFFER_CAPACITY_TOTAL.reset();
+    DOUBLE_ECHO_CURRENT_BUFFER_SIZE.set(0);
+    DOUBLE_ECHO_BUFFERED_MESSAGE_COUNT.set(0);
+    CERTIFICATE_RECEIVED_TOTAL.reset();
+    CERTIFICATE_RECEIVED_FROM_GOSSIP_TOTAL.reset();
+    CERTIFICATE_RECEIVED_FROM_API_TOTAL.reset();
+    CERTIFICATE_DELIVERED_TOTAL.reset();
+    STORAGE_COMMAND_CHANNEL_CAPACITY_TOTAL.reset();
 }

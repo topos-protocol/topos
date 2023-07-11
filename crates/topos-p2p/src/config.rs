@@ -45,3 +45,11 @@ impl Default for DiscoveryConfig {
         }
     }
 }
+
+impl DiscoveryConfig {
+    pub fn with_replication_factor(mut self, replication_factor: NonZeroUsize) -> Self {
+        self.replication_factor = replication_factor;
+
+        self
+    }
+}

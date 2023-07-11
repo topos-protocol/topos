@@ -1,7 +1,9 @@
 use tokio::sync::{mpsc, oneshot};
 use topos_core::uci::{Certificate, CertificateId, SubnetId, CERTIFICATE_ID_LENGTH};
+use topos_metrics::STORAGE_COMMAND_CHANNEL_CAPACITY_TOTAL;
 
 use crate::command::{GetNextPendingCertificate, GetPendingCertificates};
+use crate::constant;
 use crate::{
     command::{
         AddPendingCertificate, CertificateDelivered, CheckPendingCertificateExists,
@@ -41,6 +43,9 @@ impl StorageClient {
         &self,
         certificate_id: CertificateId,
     ) -> Result<(PendingCertificateId, Certificate), StorageError> {
+        if self.sender.capacity() <= *constant::COMMAND_CHANNEL_CAPACITY {
+            STORAGE_COMMAND_CHANNEL_CAPACITY_TOTAL.inc();
+        }
         CheckPendingCertificateExists { certificate_id }
             .send_to(&self.sender)
             .await
@@ -50,6 +55,9 @@ impl StorageClient {
         &self,
         starting_at: Option<usize>,
     ) -> Result<Option<(PendingCertificateId, Certificate)>, StorageError> {
+        if self.sender.capacity() <= *constant::COMMAND_CHANNEL_CAPACITY {
+            STORAGE_COMMAND_CHANNEL_CAPACITY_TOTAL.inc();
+        }
         GetNextPendingCertificate { starting_at }
             .send_to(&self.sender)
             .await
@@ -61,6 +69,9 @@ impl StorageClient {
         &self,
         certificate: Certificate,
     ) -> Result<PendingCertificateId, StorageError> {
+        if self.sender.capacity() <= *constant::COMMAND_CHANNEL_CAPACITY {
+            STORAGE_COMMAND_CHANNEL_CAPACITY_TOTAL.inc();
+        }
         AddPendingCertificate { certificate }
             .send_to(&self.sender)
             .await
@@ -91,10 +102,14 @@ impl StorageClient {
     pub async fn certificate_delivered(
         &self,
         certificate_id: CertificateId,
+        certificate: Option<Certificate>,
     ) -> Result<CertificatePositions, StorageError> {
-        CertificateDelivered { certificate_id }
-            .send_to(&self.sender)
-            .await
+        CertificateDelivered {
+            certificate_id,
+            certificate,
+        }
+        .send_to(&self.sender)
+        .await
     }
 
     pub async fn fetch_certificates(
@@ -121,6 +136,9 @@ impl StorageClient {
         &self,
         certificate_id: CertificateId,
     ) -> Result<Certificate, StorageError> {
+        if self.sender.capacity() <= *constant::COMMAND_CHANNEL_CAPACITY {
+            STORAGE_COMMAND_CHANNEL_CAPACITY_TOTAL.inc();
+        }
         GetCertificate { certificate_id }
             .send_to(&self.sender)
             .await

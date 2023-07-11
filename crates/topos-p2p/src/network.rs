@@ -1,12 +1,13 @@
 use super::{Behaviour, Client, Event, Runtime};
 use crate::{
     behaviour::{
-        discovery::DiscoveryBehaviour, peer_info::PeerInfoBehaviour,
+        discovery::DiscoveryBehaviour, gossip, peer_info::PeerInfoBehaviour,
         transmission::TransmissionBehaviour,
     },
-    config::NetworkConfig,
+    config::{DiscoveryConfig, NetworkConfig},
     constant::{
-        COMMAND_STREAM_BUFFER, DISCOVERY_PROTOCOL, EVENT_STREAM_BUFFER, TRANSMISSION_PROTOCOL,
+        COMMAND_STREAM_BUFFER_SIZE, DISCOVERY_PROTOCOL, EVENT_STREAM_BUFFER, PEER_INFO_PROTOCOL,
+        TRANSMISSION_PROTOCOL,
     },
     error::P2PError,
     TOPOS_ECHO, TOPOS_GOSSIP, TOPOS_READY,
@@ -53,6 +54,12 @@ pub struct NetworkBuilder<'a> {
 }
 
 impl<'a> NetworkBuilder<'a> {
+    pub fn discovery_config(mut self, config: DiscoveryConfig) -> Self {
+        self.config.discovery = config;
+
+        self
+    }
+
     pub fn publish_retry(mut self, retry: usize) -> Self {
         self.config.publish_retry = retry;
 
@@ -117,27 +124,13 @@ impl<'a> NetworkBuilder<'a> {
         let peer_key = self.peer_key.ok_or(P2PError::MissingPeerKey)?;
         let peer_id = peer_key.public().to_peer_id();
 
-        // let noise_keys = noise::Keypair::<noise::>::new().into_authentic(&peer_key)?;
+        let (command_sender, command_receiver) = mpsc::channel(*COMMAND_STREAM_BUFFER_SIZE);
+        let (event_sender, event_receiver) = mpsc::channel(*EVENT_STREAM_BUFFER);
 
-        let (command_sender, command_receiver) = mpsc::channel(COMMAND_STREAM_BUFFER);
-        let (event_sender, event_receiver) = mpsc::channel(EVENT_STREAM_BUFFER);
-
-        let gossipsub = gossipsub::ConfigBuilder::default()
-            .max_transmit_size(2 * 1024 * 1024)
-            .validation_mode(gossipsub::ValidationMode::Strict)
-            .build()
-            .unwrap();
-
-        let gossipsub =
-            gossipsub::Behaviour::new(MessageAuthenticity::Signed(peer_key.clone()), gossipsub)
-                .unwrap();
-
+        let gossipsub = gossip::Behaviour::new(peer_key.clone());
         let behaviour = Behaviour {
             gossipsub,
-            peer_info: PeerInfoBehaviour::new(
-                self.transmission_protocol.unwrap_or(TRANSMISSION_PROTOCOL),
-                &peer_key,
-            ),
+            peer_info: PeerInfoBehaviour::new(PEER_INFO_PROTOCOL, &peer_key),
 
             discovery: DiscoveryBehaviour::create(
                 &self.config.discovery,

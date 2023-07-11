@@ -20,7 +20,17 @@ impl ServerBuilder {
     pub async fn build(
         mut self,
     ) -> Server<hyper::server::conn::AddrIncoming, axum::routing::IntoMakeService<Router>> {
-        let app = Router::new().route("/metrics", get(|| async { gather_metrics() }));
+        let app = Router::new().route(
+            "/metrics",
+            get(|| async {
+                let topos_metrics = gather_metrics();
+                let mut libp2p_metrics = String::new();
+                let reg = topos_p2p::constant::METRIC_REGISTRY.lock().await;
+                _ = prometheus_client::encoding::text::encode(&mut libp2p_metrics, &reg);
+
+                format!("{topos_metrics}{libp2p_metrics}")
+            }),
+        );
 
         let serve_addr = self
             .serve_addr

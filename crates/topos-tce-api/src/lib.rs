@@ -8,4 +8,6 @@ mod stream;
 #[cfg(test)]
 mod tests;
 
-pub use runtime::{error::RuntimeError, Runtime, RuntimeClient, RuntimeCommand, RuntimeEvent};
+pub use runtime::{
+    error::RuntimeError, Runtime, RuntimeClient, RuntimeCommand, RuntimeContext, RuntimeEvent,
+};

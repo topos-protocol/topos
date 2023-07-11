@@ -135,12 +135,18 @@ where
     ) -> Result<CertificatePositions, StorageError> {
         let certificate_id = command.certificate_id;
 
-        let (pending_certificate_id, certificate) =
-            self.storage.get_pending_certificate(certificate_id).await?;
+        let (pending_certificate_id, certificate) = if let Some(certificate) = command.certificate {
+            (None, certificate)
+        } else {
+            self.storage
+                .get_pending_certificate(certificate_id)
+                .await
+                .map(|(id, cert)| (Some(id), cert))?
+        };
 
         Ok(self
             .storage
-            .persist(&certificate, Some(pending_certificate_id))
+            .persist(&certificate, pending_certificate_id)
             .await?)
     }
 }

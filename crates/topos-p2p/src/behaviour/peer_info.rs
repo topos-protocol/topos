@@ -4,7 +4,7 @@ use libp2p::{
 };
 
 #[derive(NetworkBehaviour)]
-#[behaviour(out_event = "IdentifyEvent")]
+#[behaviour(to_swarm = "IdentifyEvent")]
 pub struct PeerInfoBehaviour {
     identify: Identify,
 }

@@ -3,7 +3,7 @@ use std::io;
 use libp2p::{
     core::either,
     multiaddr::Protocol,
-    swarm::{derive_prelude::Either, ConnectionHandlerUpgrErr, NetworkBehaviour, SwarmEvent},
+    swarm::{derive_prelude::Either, NetworkBehaviour, SwarmEvent},
 };
 use tracing::{debug, error, info, warn};
 
@@ -36,7 +36,6 @@ impl EventHandler<ComposedEvent> for Runtime {
             ComposedEvent::PeerInfo(event) => self.handle(event).await,
             ComposedEvent::Transmission(event) => self.handle(event).await,
             ComposedEvent::Gossipsub(event) => self.handle(event).await,
-            ComposedEvent::OutEvent(event) => self.handle(event).await,
             ComposedEvent::Void => (),
         }
     }
@@ -48,10 +47,7 @@ impl
         SwarmEvent<
             ComposedEvent,
             Either<
-                Either<
-                    Either<Either<io::Error, io::Error>, ConnectionHandlerUpgrErr<io::Error>>,
-                    void::Void,
-                >,
+                Either<Either<Either<io::Error, io::Error>, void::Void>, void::Void>,
                 void::Void,
             >,
         >,
@@ -62,10 +58,7 @@ impl
         event: SwarmEvent<
             ComposedEvent,
             Either<
-                Either<
-                    Either<Either<io::Error, io::Error>, ConnectionHandlerUpgrErr<io::Error>>,
-                    void::Void,
-                >,
+                Either<Either<Either<io::Error, io::Error>, void::Void>, void::Void>,
                 void::Void,
             >,
         >,
@@ -78,7 +71,7 @@ impl
             } => {
                 info!(
                     "Local node is listening on {:?}",
-                    address.with(Protocol::P2p(self.local_peer_id.into())),
+                    address.with(Protocol::P2p(self.local_peer_id)),
                 );
 
                 self.active_listeners.insert(listener_id);
@@ -148,7 +141,7 @@ impl
                 }
             }
 
-            SwarmEvent::Dialing(peer_id) => {}
+            SwarmEvent::Dialing { peer_id, .. } => {}
 
             SwarmEvent::Behaviour(event) => {
                 self.handle(event).await;

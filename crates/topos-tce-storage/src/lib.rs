@@ -8,6 +8,7 @@ use topos_core::uci::{Certificate, CertificateId, SubnetId};
 pub mod client;
 pub(crate) mod command;
 pub(crate) mod connection;
+mod constant;
 pub mod errors;
 pub mod events;
 
