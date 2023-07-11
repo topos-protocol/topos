@@ -1,16 +1,15 @@
-use std::net::UdpSocket;
-
 use libp2p::{
     identity::{self, Keypair},
     Multiaddr,
 };
 
+use crate::networking::get_available_port;
+
 pub type Port = u16;
 
 pub fn local_peer(peer_index: u8) -> (Keypair, Port, Multiaddr) {
     let peer_id: Keypair = keypair_from_seed(peer_index);
-    let socket = UdpSocket::bind("0.0.0.0:0").expect("Can't find an available port");
-    let port = socket.local_addr().unwrap().port();
+    let port = get_available_port();
     let local_listen_addr: Multiaddr = format!(
         "/ip4/127.0.0.1/tcp/{}/p2p/{}",
         port,
