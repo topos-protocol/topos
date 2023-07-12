@@ -1,26 +1,65 @@
 use tokio::sync::mpsc;
 
 use topos_core::uci::CertificateId;
+
 use crate::DoubleEchoCommand;
 
-pub(crate) enum TaskStatus {
-    /// The task has finished processing the certificate
-    Finished,
-    /// The task is currently processing the double echo for a certificate
-    Processing,
-    /// The task has encountered an error while processing the certificate
-    Error,
+pub(crate) struct TaskContext {
+    pub(crate) certificate_id: CertificateId,
+    pub(crate) message_sender: mpsc::Sender<DoubleEchoCommand>,
 }
 
-/// One unit of work to process the whole lifecycle of a certificate
 pub(crate) struct Task {
-    /// The id of the task is tightly associated with the certificate it is currently processing
-    certificate_id: CertificateId,
-    /// The task is receiving DoubleEchoCommands from the parent process which spawned it
-    message_receiver: mpsc::Receiver<DoubleEchoCommand>,
-    /// The task can send status updates to the parent process which spawned it
-    status_sender: mpsc::Sender<TaskStatus>,
-    /// The task has to shutdown once the parent process sends a shutdown signal
-    shutdown: mpsc::Receiver<()>,
+    pub(crate) message_receiver: mpsc::Receiver<DoubleEchoCommand>,
+    pub(crate) certificate_id: CertificateId,
+    pub(crate) completion: mpsc::Sender<(bool, CertificateId)>,
 }
 
+impl Task {
+   pub(crate) fn new(
+        certificate_id: CertificateId,
+        completion: mpsc::Sender<(bool, CertificateId)>,
+    ) -> (Self, TaskContext) {
+        let (message_sender, message_receiver) = mpsc::channel(1024);
+        let task_context = TaskContext {
+            certificate_id,
+            message_sender,
+        };
+        let task = Task {
+            message_receiver,
+            certificate_id,
+            completion,
+        };
+
+        (task, task_context)
+    }
+
+    async fn handle_msg(&mut self, msg: DoubleEchoCommand) -> Result<bool, ()> {
+        match msg {
+            DoubleEchoCommand::Echo { .. } => {
+                // Do the echo
+                // Send the result to the gateway
+                return Ok(false);
+            }
+            DoubleEchoCommand::Ready { certificate_id, .. } => {
+                println!("Receive Ready {}", certificate_id);
+
+                self.completion.send((true, self.certificate_id)).await;
+                return Ok(true);
+                // Do the echo
+                // Send the result to the gateway
+            }
+            _ => todo!()
+        }
+    }
+
+    pub(crate) async fn run(mut self) {
+        loop {
+            tokio::select! {
+                Some(msg) = self.message_receiver.recv() => if let Ok(true) = self.handle_msg(msg).await {
+                    break;
+                }
+            }
+        }
+    }
+}

@@ -36,9 +36,9 @@ pub mod mem_store;
 pub mod sampler;
 pub mod tce_store;
 
+mod task_manager;
 #[cfg(test)]
 mod tests;
-mod task_manager;
 
 /// Configuration of TCE implementation
 pub struct ReliableBroadcastConfig {
