@@ -22,7 +22,7 @@ jobs:
       features: "network"
 
   docker_e2e:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-16-core
     needs: docker
     env:
       EXPECTED_IMAGE_NAME: ghcr.io/${{ github.repository }}:main
@@ -95,3 +95,24 @@ jobs:
           ref: main
           wait_interval: 60
           client_payload: '{ "git_commit": "${{ github.sha }}", "docker_tag": "${{ env.docker_tag }}" }'
+
+  frontend-erc20-e2e:
+    runs-on: ubuntu-latest
+    needs: docker
+    steps:
+      - name: Set environment
+        run: |
+          # It's fine to assume a single tag. Our tagging strategy follows a 1:1 mapping of image:tag
+          tags=${{ needs.docker.outputs.tags }}
+          echo "docker_tag=${tags#*:}" >> $GITHUB_ENV
+        shell: bash
+
+      - uses: convictional/trigger-workflow-and-wait@v1.6.1
+        with:
+          owner: topos-protocol
+          repo: e2e-tests
+          github_token: ${{ secrets.ROBOT_PAT_TRIGGER_E2E_WORKFLOWS }}
+          workflow_file_name: frontend:erc20-messaging.yml
+          ref: main
+          wait_interval: 60
+          client_payload: '{ "topos-docker-tag": "${{ env.docker_tag }}" }'
