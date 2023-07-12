@@ -4,7 +4,7 @@ use tracing::Span;
 
 use topos_core::uci::CertificateId;
 
-mod task;
+pub(crate) mod task;
 
 use crate::DoubleEchoCommand;
 use task::{Task, TaskContext};
@@ -17,13 +17,17 @@ pub(crate) struct Thresholds {
 }
 
 pub(crate) struct TaskManager {
-    pub(crate) receiver: mpsc::Receiver<DoubleEchoCommand>,
+    pub(crate) message_receiver: mpsc::Receiver<DoubleEchoCommand>,
     pub(crate) task_completion: mpsc::Receiver<(bool, CertificateId)>,
     pub(crate) task_context: HashMap<CertificateId, TaskContext>,
 }
 
 impl TaskManager {
-    pub(crate) async fn run(mut self, task_completion_sender: mpsc::Sender<(bool, CertificateId)>) {
+    pub(crate) async fn run(
+        mut self,
+        task_completion_sender: mpsc::Sender<(bool, CertificateId)>,
+        event_sender: mpsc::Sender<task::Events>,
+    ) {
         loop {
             tokio::select! {
                 Some(task_completion) = self.task_completion.recv() => {
@@ -38,7 +42,7 @@ impl TaskManager {
                     }
                 }
 
-                Some(msg) = self.receiver.recv() => {
+                Some(msg) = self.message_receiver.recv() => {
                     // Check if we have task for this certificate_id
                     //      -> if yes forward the message
                     //      -> if no, create a new task and forward the message
@@ -53,7 +57,7 @@ impl TaskManager {
                                 });
 
                             } else {
-                                let (task, context) = Task::new(certificate_id, task_completion_sender.clone());
+                                let (task, context) = Task::new(certificate_id, task_completion_sender.clone(), event_sender.clone());
 
                                 spawn(task.run());
 

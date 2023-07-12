@@ -5,6 +5,12 @@ use topos_core::uci::CertificateId;
 use crate::task_manager::Thresholds;
 use crate::DoubleEchoCommand;
 
+#[derive(Debug, PartialEq)]
+pub(crate) enum Events {
+    ReachedThresholdOfReady(CertificateId),
+    TimeOut(CertificateId),
+}
+
 pub(crate) struct TaskContext {
     pub(crate) certificate_id: CertificateId,
     pub(crate) message_sender: mpsc::Sender<DoubleEchoCommand>,
@@ -13,14 +19,16 @@ pub(crate) struct TaskContext {
 pub(crate) struct Task {
     pub(crate) message_receiver: mpsc::Receiver<DoubleEchoCommand>,
     pub(crate) certificate_id: CertificateId,
-    pub(crate) completion: mpsc::Sender<(bool, CertificateId)>,
+    pub(crate) completion_sender: mpsc::Sender<(bool, CertificateId)>,
+    pub(crate) event_sender: mpsc::Sender<Events>,
     thresholds: Thresholds,
 }
 
 impl Task {
     pub(crate) fn new(
         certificate_id: CertificateId,
-        completion: mpsc::Sender<(bool, CertificateId)>,
+        completion_sender: mpsc::Sender<(bool, CertificateId)>,
+        event_sender: mpsc::Sender<Events>,
     ) -> (Self, TaskContext) {
         let (message_sender, message_receiver) = mpsc::channel(1024);
         let task_context = TaskContext {
@@ -37,7 +45,8 @@ impl Task {
         let task = Task {
             message_receiver,
             certificate_id,
-            completion,
+            completion_sender,
+            event_sender,
             thresholds,
         };
 
@@ -52,7 +61,14 @@ impl Task {
                 self.thresholds.echo -= 1;
 
                 if self.thresholds.echo == 0 {
-                    self.completion.send((false, self.certificate_id)).await;
+                    self.event_sender
+                        .send(Events::ReachedThresholdOfReady(self.certificate_id))
+                        .await;
+
+                    self.completion_sender
+                        .send((false, self.certificate_id))
+                        .await;
+
                     return Ok(true);
                 }
                 return Ok(false);
@@ -61,7 +77,13 @@ impl Task {
                 println!("Receive Ready {certificate_id}");
                 // Do the echo
                 // Send the result to the gateway
-                self.completion.send((true, self.certificate_id)).await;
+                if let Err(e) = self
+                    .completion_sender
+                    .send((true, self.certificate_id))
+                    .await
+                {
+                    println!("Error sending completion: {:#?}", e);
+                }
                 return Ok(true);
             }
             DoubleEchoCommand::Broadcast { cert, .. } => {
