@@ -15,12 +15,6 @@ jobs:
     uses: ./.github/workflows/docker_utils.yml
     secrets: inherit
 
-  direct:
-    uses: ./.github/workflows/docker_utils.yml
-    secrets: inherit
-    with:
-      features: "tce-direct,sequencer"
-
   network:
     uses: ./.github/workflows/docker_utils.yml
     secrets: inherit
