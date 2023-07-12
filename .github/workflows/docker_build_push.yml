@@ -74,7 +74,7 @@ jobs:
 
   k8s_e2e:
     if: ${{ github.event_name == 'push' }}
-    runs-on: ubuntu-latest-16-core
+    runs-on: ubuntu-latest
     needs:
       - docker
       - docker_e2e
@@ -97,7 +97,7 @@ jobs:
           client_payload: '{ "git_commit": "${{ github.sha }}", "docker_tag": "${{ env.docker_tag }}" }'
 
   frontend-erc20-e2e:
-    runs-on: ubuntu-latest-16-core
+    runs-on: ubuntu-latest
     needs: docker
     steps:
       - name: Set environment
