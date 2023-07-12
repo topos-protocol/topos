@@ -16,9 +16,7 @@ use topos_metrics::{
     DOUBLE_ECHO_BUFFER_CAPACITY_TOTAL, DOUBLE_ECHO_CURRENT_BUFFER_SIZE,
 };
 use topos_p2p::PeerId;
-#[cfg(not(feature = "direct"))]
-use tracing::error;
-use tracing::{debug, info, info_span, trace, warn, warn_span, Span};
+use tracing::{debug, error, info, info_span, trace, warn, warn_span, Span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 /// Processing data associated to a Certificate candidate for delivery
@@ -150,16 +148,10 @@ impl DoubleEcho {
                 }
             };
 
-            #[cfg(not(feature = "direct"))]
             let has_subscriptions = self.subscriptions.is_some();
-
-            #[cfg(feature = "direct")]
-            let has_subscriptions = true;
 
             // Broadcast next certificate
             if has_subscriptions {
-                // TODO: Remove the unused_variables attribute when the feature direct is removed
-                #[allow(unused_variables)]
                 if let Some((need_gossip, cert)) = self.buffer.pop_front() {
                     DOUBLE_ECHO_CURRENT_BUFFER_SIZE.dec();
                     if let Some(ctx) = self.span_tracker.get(&cert.id) {
@@ -173,13 +165,7 @@ impl DoubleEcho {
                         let _span = span.entered();
 
                         let cert_id = cert.id;
-                        #[cfg(feature = "direct")]
-                        {
-                            _ = self
-                                .event_sender
-                                .send(ProtocolEvents::CertificateDelivered { certificate: cert });
-                        }
-                        #[cfg(not(feature = "direct"))]
+
                         self.broadcast(cert, need_gossip);
 
                         if let Some(messages) = self.buffered_messages.remove(&cert_id) {
@@ -262,7 +248,6 @@ impl DoubleEcho {
     }
 }
 
-#[cfg(not(feature = "direct"))]
 impl DoubleEcho {
     /// Called to process potentially new certificate:
     /// - either submitted from API ( [tce_transport::TceCommands::Broadcast] command)
