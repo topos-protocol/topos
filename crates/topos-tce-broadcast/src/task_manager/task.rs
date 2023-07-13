@@ -45,7 +45,7 @@ pub(crate) struct Task {
     pub(crate) certificate_id: CertificateId,
     pub(crate) completion_sender: mpsc::Sender<TaskCompletion>,
     pub(crate) event_sender: mpsc::Sender<Events>,
-    thresholds: Thresholds,
+    pub(crate) thresholds: Thresholds,
 }
 
 impl Task {
@@ -53,17 +53,12 @@ impl Task {
         certificate_id: CertificateId,
         completion_sender: mpsc::Sender<TaskCompletion>,
         event_sender: mpsc::Sender<Events>,
+        thresholds: Thresholds,
     ) -> (Self, TaskContext) {
         let (message_sender, message_receiver) = mpsc::channel(1024);
         let task_context = TaskContext {
             certificate_id,
             message_sender,
-        };
-
-        let thresholds = Thresholds {
-            echo: 3,
-            ready: 3,
-            delivery: 3,
         };
 
         let task = Task {

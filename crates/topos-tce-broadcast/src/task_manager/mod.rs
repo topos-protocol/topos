@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use tokio::{spawn, sync::mpsc};
-use tokio_stream::wrappers::BroadcastStream;
 
 use topos_core::uci::CertificateId;
 
@@ -9,6 +8,7 @@ pub(crate) mod task;
 use crate::DoubleEchoCommand;
 use task::{Task, TaskCompletion, TaskContext};
 
+#[derive(Clone)]
 pub(crate) struct Thresholds {
     pub(crate) echo: usize,
     pub(crate) ready: usize,
@@ -22,6 +22,7 @@ pub(crate) struct TaskManager {
     pub(crate) message_receiver: mpsc::Receiver<DoubleEchoCommand>,
     pub(crate) task_completion: mpsc::Receiver<TaskCompletion>,
     pub(crate) task_context: HashMap<CertificateId, TaskContext>,
+    pub(crate) thresholds: Thresholds,
 }
 
 impl TaskManager {
@@ -78,7 +79,12 @@ impl TaskManager {
         task_completion_sender: mpsc::Sender<TaskCompletion>,
         event_sender: mpsc::Sender<task::Events>,
     ) -> TaskContext {
-        let (task, context) = Task::new(certificate_id, task_completion_sender, event_sender);
+        let (task, context) = Task::new(
+            certificate_id,
+            task_completion_sender,
+            event_sender,
+            self.thresholds.clone(),
+        );
 
         spawn(task.run());
 

@@ -1,4 +1,4 @@
-use crate::task_manager::{task::Events, TaskManager};
+use crate::task_manager::{task::Events, TaskManager, Thresholds};
 
 use crate::*;
 use rstest::*;
@@ -18,6 +18,11 @@ async fn receiving_echo_messages() {
         message_receiver,
         task_completion: task_completion_receiver,
         task_context: HashMap::new(),
+        thresholds: Thresholds {
+            echo: 3,
+            ready: 3,
+            delivery: 3,
+        },
     };
 
     spawn(task_manager.run(task_completion_sender, event_sender));
