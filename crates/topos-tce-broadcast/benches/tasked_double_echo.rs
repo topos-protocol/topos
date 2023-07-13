@@ -8,7 +8,7 @@ use topos_p2p::PeerId;
 use topos_tce_broadcast::DoubleEchoCommand;
 use tracing::Span;
 
-use topos_tce_broadcast::task_manager::{TaskManager, Thresholds};
+use topos_tce_broadcast::task_manager::{task::Events, TaskManager, Thresholds};
 
 async fn processing_double_echo(n: u64) {
     let (message_sender, message_receiver) = mpsc::channel(1024);
@@ -46,19 +46,15 @@ async fn processing_double_echo(n: u64) {
         message_sender.send(echo).await.unwrap();
     }
 
-    let mut count = 0;
-
     while let Some(event) = event_receiver.recv().await {
-        count += 1;
-
-        if count == n {
-            break;
+        if event == Events::ReachedThresholdOfReady(certificate_id) {
+            return;
         }
     }
 }
 
 pub fn criterion_benchmark(c: &mut Criterion) {
-    let iterations = 1_000_000;
+    let iterations = 10;
 
     let runtime = tokio::runtime::Builder::new_current_thread()
         .build()

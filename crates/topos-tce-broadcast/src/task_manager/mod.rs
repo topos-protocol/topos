@@ -3,7 +3,7 @@ use tokio::{spawn, sync::mpsc};
 
 use topos_core::uci::CertificateId;
 
-pub(crate) mod task;
+pub mod task;
 
 use crate::DoubleEchoCommand;
 use task::{Task, TaskCompletion, TaskContext};

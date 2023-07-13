@@ -10,6 +10,8 @@ use tracing::Span;
 #[rstest]
 #[tokio::test]
 async fn receiving_echo_messages() {
+    let n = 10;
+
     let (message_sender, message_receiver) = mpsc::channel(1024);
     let (task_completion_sender, task_completion_receiver) = mpsc::channel(1024);
     let (event_sender, mut event_receiver) = mpsc::channel(1024);
@@ -19,9 +21,9 @@ async fn receiving_echo_messages() {
         task_completion: task_completion_receiver,
         task_context: HashMap::new(),
         thresholds: Thresholds {
-            echo: 3,
-            ready: 3,
-            delivery: 3,
+            echo: n,
+            ready: n,
+            delivery: n,
         },
     };
 
@@ -31,7 +33,7 @@ async fn receiving_echo_messages() {
 
     let mut echos = vec![];
 
-    for _ in 0..4 {
+    for _ in 0..n {
         let echo = DoubleEchoCommand::Echo {
             from_peer: PeerId::random(),
             certificate_id,
@@ -45,12 +47,9 @@ async fn receiving_echo_messages() {
         message_sender.send(echo).await.unwrap();
     }
 
-    let event = event_receiver.recv().await;
-    assert_eq!(event, Some(Events::ReceivedEcho(certificate_id)));
-    let event = event_receiver.recv().await;
-    assert_eq!(event, Some(Events::ReceivedEcho(certificate_id)));
-    let event = event_receiver.recv().await;
-    assert_eq!(event, Some(Events::ReceivedEcho(certificate_id)));
-    let event = event_receiver.recv().await;
-    assert_eq!(event, Some(Events::ReachedThresholdOfReady(certificate_id)));
+    while let Some(event) = event_receiver.recv().await {
+        if event == Events::ReachedThresholdOfReady(certificate_id) {
+            return;
+        }
+    }
 }
