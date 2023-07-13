@@ -8,6 +8,7 @@ use crate::DoubleEchoCommand;
 #[derive(Debug, PartialEq)]
 pub(crate) enum Events {
     ReachedThresholdOfReady(CertificateId),
+    ReceivedEcho(CertificateId),
     TimeOut(CertificateId),
 }
 
@@ -80,15 +81,21 @@ impl Task {
         match msg {
             DoubleEchoCommand::Echo { certificate_id, .. } => {
                 println!("Receive Echo for: {certificate_id}");
+                let _ = self
+                    .event_sender
+                    .send(Events::ReceivedEcho(self.certificate_id))
+                    .await;
 
                 self.thresholds.echo -= 1;
 
                 if self.thresholds.echo == 0 {
-                    self.event_sender
+                    let _ = self
+                        .event_sender
                         .send(Events::ReachedThresholdOfReady(self.certificate_id))
                         .await;
 
-                    self.completion_sender
+                    let _ = self
+                        .completion_sender
                         .send(TaskCompletion::success(certificate_id))
                         .await;
 

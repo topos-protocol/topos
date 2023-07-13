@@ -41,5 +41,11 @@ async fn receiving_echo_messages() {
     }
 
     let event = event_receiver.recv().await;
+    assert_eq!(event, Some(Events::ReceivedEcho(certificate_id)));
+    let event = event_receiver.recv().await;
+    assert_eq!(event, Some(Events::ReceivedEcho(certificate_id)));
+    let event = event_receiver.recv().await;
+    assert_eq!(event, Some(Events::ReceivedEcho(certificate_id)));
+    let event = event_receiver.recv().await;
     assert_eq!(event, Some(Events::ReachedThresholdOfReady(certificate_id)));
 }
