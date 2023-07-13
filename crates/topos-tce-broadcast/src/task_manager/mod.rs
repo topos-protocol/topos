@@ -9,24 +9,24 @@ use crate::DoubleEchoCommand;
 use task::{Task, TaskCompletion, TaskContext};
 
 #[derive(Clone)]
-pub(crate) struct Thresholds {
-    pub(crate) echo: usize,
-    pub(crate) ready: usize,
-    pub(crate) delivery: usize,
+pub struct Thresholds {
+    pub echo: usize,
+    pub ready: usize,
+    pub delivery: usize,
 }
 
 /// The TaskManager is responsible for receiving messages from the network and distributing them
 /// among tasks. These tasks are either created if none for a certain CertificateID exists yet,
 /// or existing tasks will receive the messages.
-pub(crate) struct TaskManager {
-    pub(crate) message_receiver: mpsc::Receiver<DoubleEchoCommand>,
-    pub(crate) task_completion: mpsc::Receiver<TaskCompletion>,
-    pub(crate) task_context: HashMap<CertificateId, TaskContext>,
-    pub(crate) thresholds: Thresholds,
+pub struct TaskManager {
+    pub message_receiver: mpsc::Receiver<DoubleEchoCommand>,
+    pub task_completion: mpsc::Receiver<TaskCompletion>,
+    pub task_context: HashMap<CertificateId, TaskContext>,
+    pub thresholds: Thresholds,
 }
 
 impl TaskManager {
-    pub(crate) async fn run(
+    pub async fn run(
         mut self,
         task_completion_sender: mpsc::Sender<TaskCompletion>,
         event_sender: mpsc::Sender<task::Events>,
