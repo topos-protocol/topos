@@ -11,6 +11,29 @@ pub(crate) enum Events {
     TimeOut(CertificateId),
 }
 
+#[derive(Debug)]
+pub(crate) struct TaskCompletion {
+    pub(crate) success: bool,
+    pub(crate) certificate_id: CertificateId,
+}
+
+impl TaskCompletion {
+    fn success(certificate_id: CertificateId) -> Self {
+        TaskCompletion {
+            success: true,
+            certificate_id,
+        }
+    }
+
+    fn failure(certificate_id: CertificateId) -> Self {
+        TaskCompletion {
+            success: false,
+            certificate_id,
+        }
+    }
+}
+
+#[derive(Clone)]
 pub(crate) struct TaskContext {
     pub(crate) certificate_id: CertificateId,
     pub(crate) message_sender: mpsc::Sender<DoubleEchoCommand>,
@@ -19,7 +42,7 @@ pub(crate) struct TaskContext {
 pub(crate) struct Task {
     pub(crate) message_receiver: mpsc::Receiver<DoubleEchoCommand>,
     pub(crate) certificate_id: CertificateId,
-    pub(crate) completion_sender: mpsc::Sender<(bool, CertificateId)>,
+    pub(crate) completion_sender: mpsc::Sender<TaskCompletion>,
     pub(crate) event_sender: mpsc::Sender<Events>,
     thresholds: Thresholds,
 }
@@ -27,7 +50,7 @@ pub(crate) struct Task {
 impl Task {
     pub(crate) fn new(
         certificate_id: CertificateId,
-        completion_sender: mpsc::Sender<(bool, CertificateId)>,
+        completion_sender: mpsc::Sender<TaskCompletion>,
         event_sender: mpsc::Sender<Events>,
     ) -> (Self, TaskContext) {
         let (message_sender, message_receiver) = mpsc::channel(1024);
@@ -66,7 +89,7 @@ impl Task {
                         .await;
 
                     self.completion_sender
-                        .send((false, self.certificate_id))
+                        .send(TaskCompletion::success(certificate_id))
                         .await;
 
                     return Ok(true);
@@ -79,7 +102,7 @@ impl Task {
                 // Send the result to the gateway
                 if let Err(e) = self
                     .completion_sender
-                    .send((true, self.certificate_id))
+                    .send(TaskCompletion::success(certificate_id))
                     .await
                 {
                     println!("Error sending completion: {:#?}", e);
