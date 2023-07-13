@@ -1,3 +1,5 @@
+mod task_manager;
+
 use crate::double_echo::*;
 use crate::*;
 use rstest::*;

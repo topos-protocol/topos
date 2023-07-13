@@ -32,6 +32,8 @@ mod constant;
 pub mod double_echo;
 pub mod sampler;
 
+pub mod task_manager;
+
 #[cfg(test)]
 mod tests;
 
