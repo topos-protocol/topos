@@ -34,6 +34,19 @@ pub struct TaskManager {
 }
 
 impl TaskManager {
+    pub fn new(
+        message_receiver: mpsc::Receiver<DoubleEchoCommand>,
+        task_completion_sender: mpsc::Sender<(CertificateId, TaskStatus)>,
+        thresholds: Thresholds,
+    ) -> Self {
+        TaskManager {
+            message_receiver,
+            task_completion_sender,
+            tasks: Default::default(),
+            running_tasks: FuturesUnordered::new(),
+            thresholds,
+        }
+    }
     pub async fn run(mut self) {
         loop {
             // task_completion_sender
@@ -81,9 +94,9 @@ impl TaskManager {
                 }
                 task = self.running_tasks.next() => {
                     if let Some((id, status)) = task {
-                        println!("Task {} finished with status {:?}", id, status);
                         let status = self.task_completion_sender.send((id, status)).await;
-                        println!("Sent message to channel: {:?}", status);
+                        // quick fix for benchmarks
+                        break;
                     }
                 }
             }

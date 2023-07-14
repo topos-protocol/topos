@@ -38,6 +38,6 @@ topos-test-sdk = { path = "../topos-test-sdk/" }
 default = []
 
 [[bench]]
-name = "tasked_double_echo"
-path = "benches/task_manager_channels.rs"
+name = "double_echo"
+path = "benches/double_echo.rs"
 harness = false

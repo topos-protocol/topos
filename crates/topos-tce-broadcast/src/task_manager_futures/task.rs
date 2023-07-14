@@ -64,16 +64,13 @@ impl IntoFuture for Task {
                                 self.thresholds.echo -= 1;
 
                                 if self.thresholds.echo == 0 {
-                                    println!("Reached threshold");
                                     return (certificate_id.clone(), TaskStatus::Success);
                                 }
                             }
                             DoubleEchoCommand::Ready { certificate_id, .. } => {
-                                println!("Received ready: {:#?}", certificate_id);
                                 return (certificate_id.clone(), TaskStatus::Success);
                             }
                             DoubleEchoCommand::Broadcast { cert, .. } => {
-                                println!("Received certificate via broadcast: {:#?}", cert);
                                 // Do the broadcast
                                 // Send the result to the gateway
                                 return (cert.id.clone(), TaskStatus::Success);
