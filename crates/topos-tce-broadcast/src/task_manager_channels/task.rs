@@ -2,7 +2,7 @@ use tokio::sync::mpsc;
 
 use topos_core::uci::CertificateId;
 
-use crate::task_manager::Thresholds;
+use crate::task_manager_channels::Thresholds;
 use crate::DoubleEchoCommand;
 
 #[derive(Debug, PartialEq)]

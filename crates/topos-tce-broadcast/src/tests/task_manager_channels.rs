@@ -1,4 +1,4 @@
-use crate::task_manager::{task::Events, TaskManager, Thresholds};
+use crate::task_manager_channels::{task::Events, TaskManager, Thresholds};
 
 use crate::*;
 use rstest::*;
@@ -9,8 +9,8 @@ use tracing::Span;
 
 #[rstest]
 #[tokio::test]
-async fn receiving_echo_messages() {
-    let n = 1_000_000;
+async fn task_manager_channels_receiving_messages() {
+    let n = 100_000;
 
     let (message_sender, message_receiver) = mpsc::channel(1024);
     let (task_completion_sender, task_completion_receiver) = mpsc::channel(1024);

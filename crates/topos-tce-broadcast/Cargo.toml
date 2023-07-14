@@ -39,5 +39,5 @@ default = []
 
 [[bench]]
 name = "tasked_double_echo"
-path = "benches/tasked_double_echo.rs"
+path = "benches/task_manager_channels.rs"
 harness = false
