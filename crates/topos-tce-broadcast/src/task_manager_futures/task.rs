@@ -14,7 +14,7 @@ pub enum Events {
     TimeOut(CertificateId),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TaskStatus {
     Success,
     Failure,
@@ -32,19 +32,33 @@ pub struct Task {
 }
 
 impl Task {
-    pub fn new(certificate_id: CertificateId, thresholds: Thresholds) -> (Task, TaskContext) {
+    fn new(certificate_id: CertificateId, thresholds: Thresholds) -> (Self, TaskContext) {
         let (message_sender, message_receiver) = mpsc::channel(1024);
-        let task_context = TaskContext {
-            sink: message_sender,
-        };
 
-        let task = Task {
-            message_receiver,
-            certificate_id,
-            thresholds,
-        };
+        (
+            Self {
+                certificate_id,
+                message_receiver,
+                thresholds,
+            },
+            TaskContext {
+                sink: message_sender,
+            },
+        )
+    }
 
-        (task, task_context)
+    pub async fn spawn(
+        task_sender: mpsc::Sender<Self>,
+        certificate_id: CertificateId,
+        thresholds: Thresholds,
+    ) -> TaskContext {
+        let (task, task_context) = Self::new(certificate_id, thresholds);
+
+        if let Err(e) = task_sender.send(task).await {
+            panic!("Failed to send task to task runner: {:?}", e);
+        }
+
+        task_context
     }
 }
 
@@ -60,7 +74,6 @@ impl IntoFuture for Task {
                     Some(msg) = self.message_receiver.recv() => {
                         match msg {
                             DoubleEchoCommand::Echo { certificate_id, .. } => {
-
                                 self.thresholds.echo -= 1;
 
                                 if self.thresholds.echo == 0 {
@@ -78,10 +91,6 @@ impl IntoFuture for Task {
 
                         }
                     }
-                    // _ = self.shutdown_channel.recv() => {
-                    //     println!("Received shutdown, shutting down task {:?}", self.id);
-                    //     return (self.id.clone(), Status::DeliveryFailure)
-                    // }
                 }
             }
         })

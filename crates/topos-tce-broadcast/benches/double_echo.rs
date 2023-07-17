@@ -5,7 +5,7 @@ mod task_manager_channels;
 mod task_manager_futures;
 
 pub fn criterion_benchmark(c: &mut Criterion) {
-    let iterations = 1_000_000;
+    let iterations = 100_000;
 
     let runtime = tokio::runtime::Builder::new_current_thread()
         .build()

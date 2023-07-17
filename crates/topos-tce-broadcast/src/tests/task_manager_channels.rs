@@ -1,5 +1,6 @@
 use crate::task_manager_channels::{task::Events, TaskManager, Thresholds};
 
+use crate::task_manager_channels::task::Events::ReachedThresholdOfReady;
 use crate::*;
 use rstest::*;
 use std::collections::HashMap;
@@ -29,27 +30,39 @@ async fn task_manager_channels_receiving_messages() {
 
     spawn(task_manager.run(task_completion_sender, event_sender));
 
-    let certificate_id = CertificateId::from_array([0u8; topos_core::uci::CERTIFICATE_ID_LENGTH]);
+    let mut certificates = vec![];
 
-    let mut echos = vec![];
-
-    for _ in 0..n {
-        let echo = DoubleEchoCommand::Echo {
-            from_peer: PeerId::random(),
-            certificate_id,
-            ctx: Span::current(),
-        };
-
-        echos.push(echo);
+    for i in 0..10 {
+        certificates.push(CertificateId::from_array(
+            [i; topos_core::uci::CERTIFICATE_ID_LENGTH],
+        ));
     }
 
-    for echo in echos {
-        message_sender.send(echo).await.unwrap();
+    for cert in certificates {
+        for _ in 0..n {
+            let echo = DoubleEchoCommand::Echo {
+                from_peer: PeerId::random(),
+                certificate_id: cert.clone(),
+                ctx: Span::current(),
+            };
+
+            message_sender.send(echo).await.unwrap();
+        }
     }
+
+    let mut count = 0;
 
     while let Some(event) = event_receiver.recv().await {
-        if event == Events::ReachedThresholdOfReady(certificate_id) {
-            return;
+        match event {
+            ReachedThresholdOfReady { 0: certificate_id } => {
+                println!("Threshold reached for {certificate_id:?}");
+                count += 1;
+            }
+            _ => {}
+        }
+
+        if count == 10 {
+            break;
         }
     }
 }

@@ -75,11 +75,6 @@ impl Task {
     async fn handle_msg(&mut self, msg: DoubleEchoCommand) -> Result<bool, ()> {
         match msg {
             DoubleEchoCommand::Echo { certificate_id, .. } => {
-                let _ = self
-                    .event_sender
-                    .send(Events::ReceivedEcho(self.certificate_id))
-                    .await;
-
                 self.thresholds.echo -= 1;
 
                 if self.thresholds.echo == 0 {
