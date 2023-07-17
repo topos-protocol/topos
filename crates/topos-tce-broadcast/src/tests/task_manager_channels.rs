@@ -2,6 +2,7 @@ use crate::task_manager_channels::{task::Events, TaskManager, Thresholds};
 
 use crate::task_manager_channels::task::Events::ReachedThresholdOfReady;
 use crate::*;
+use rand::Rng;
 use rstest::*;
 use std::collections::HashMap;
 use tokio::{spawn, sync::mpsc};
@@ -32,10 +33,13 @@ async fn task_manager_channels_receiving_messages() {
 
     let mut certificates = vec![];
 
-    for i in 0..10 {
-        certificates.push(CertificateId::from_array(
-            [i; topos_core::uci::CERTIFICATE_ID_LENGTH],
-        ));
+    let mut rng = rand::thread_rng();
+
+    for _ in 0..10_000 {
+        let mut id = [0u8; 32];
+        rng.fill(&mut id);
+        let cert_id = CertificateId::from_array(id);
+        certificates.push(cert_id);
     }
 
     for cert in certificates {

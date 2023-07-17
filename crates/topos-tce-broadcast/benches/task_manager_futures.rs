@@ -1,4 +1,5 @@
 use futures::stream::FuturesUnordered;
+use rand::Rng;
 use std::collections::HashMap;
 use tokio::spawn;
 use tokio::sync::mpsc;
@@ -20,10 +21,13 @@ pub async fn processing_double_echo(n: u64) {
 
     let mut certificates = vec![];
 
-    for i in 0..10 {
-        certificates.push(CertificateId::from_array(
-            [i; topos_core::uci::CERTIFICATE_ID_LENGTH],
-        ));
+    let mut rng = rand::thread_rng();
+
+    for _ in 0..10_000 {
+        let mut id = [0u8; 32];
+        rng.fill(&mut id);
+        let cert_id = CertificateId::from_array(id);
+        certificates.push(cert_id);
     }
 
     for cert in certificates {
@@ -40,10 +44,11 @@ pub async fn processing_double_echo(n: u64) {
 
     let mut count = 0;
 
-    while let Some(event) = task_manager.task_completed_receiver.recv().await {
+    while let Some((certificate_id, _)) = task_manager.task_completed_receiver.recv().await {
         count += 1;
 
-        if count == 10 {
+        task_manager.remove_finished_task(certificate_id);
+        if count == n {
             break;
         }
     }

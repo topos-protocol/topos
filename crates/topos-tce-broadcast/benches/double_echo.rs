@@ -5,7 +5,7 @@ mod task_manager_channels;
 mod task_manager_futures;
 
 pub fn criterion_benchmark(c: &mut Criterion) {
-    let iterations = 100_000;
+    let echo_messages = 10;
 
     let runtime = tokio::runtime::Builder::new_current_thread()
         .build()
@@ -13,15 +13,17 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     c.bench_function(&format!("double_echo with channels"), |b| {
         b.to_async(FuturesExecutor).iter(|| async {
-            runtime
-                .block_on(async { task_manager_channels::processing_double_echo(iterations).await })
+            runtime.block_on(async {
+                task_manager_channels::processing_double_echo(echo_messages).await
+            })
         })
     });
 
     c.bench_function(&format!("double_echo with futures"), |b| {
         b.to_async(FuturesExecutor).iter(|| async {
-            runtime
-                .block_on(async { task_manager_futures::processing_double_echo(iterations).await })
+            runtime.block_on(async {
+                task_manager_futures::processing_double_echo(echo_messages).await
+            })
         })
     });
 }

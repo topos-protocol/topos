@@ -33,8 +33,8 @@ impl TaskRunner {
         mpsc::Receiver<(CertificateId, TaskStatus)>,
         mpsc::Sender<Task>,
     ) {
-        let (task_completion_sender, task_completion_receiver) = mpsc::channel(100);
-        let (task_sender, task_receiver) = mpsc::channel(100);
+        let (task_completion_sender, task_completion_receiver) = mpsc::channel(10_000);
+        let (task_sender, task_receiver) = mpsc::channel(10_000);
 
         let runner = Self {
             task_completion_sender,
@@ -115,5 +115,9 @@ impl TaskManager {
         }
 
         Ok(())
+    }
+
+    pub fn remove_finished_task(&mut self, certificate_id: CertificateId) {
+        self.tasks.remove(&certificate_id);
     }
 }

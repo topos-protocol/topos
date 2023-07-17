@@ -31,6 +31,7 @@ criterion = { version = "0.5.1", features = ["async_futures", "async_tokio"] }
 test-log.workspace = true
 env_logger.workspace = true
 rstest.workspace = true
+rand.workspace = true
 
 topos-test-sdk = { path = "../topos-test-sdk/" }
 

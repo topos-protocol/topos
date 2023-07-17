@@ -1,3 +1,4 @@
+use rand::Rng;
 use std::collections::HashMap;
 use tokio::spawn;
 use tokio::sync::mpsc;
@@ -29,10 +30,13 @@ pub(crate) async fn processing_double_echo(n: u64) {
 
     let mut certificates = vec![];
 
-    for i in 0..10 {
-        certificates.push(CertificateId::from_array(
-            [i; topos_core::uci::CERTIFICATE_ID_LENGTH],
-        ));
+    let mut rng = rand::thread_rng();
+
+    for _ in 0..10_000 {
+        let mut id = [0u8; 32];
+        rng.fill(&mut id);
+        let cert_id = CertificateId::from_array(id);
+        certificates.push(cert_id);
     }
 
     for cert in certificates {
@@ -57,7 +61,7 @@ pub(crate) async fn processing_double_echo(n: u64) {
             _ => {}
         }
 
-        if count == 10 {
+        if count == n {
             break;
         }
     }
