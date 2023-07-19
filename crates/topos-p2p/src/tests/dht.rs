@@ -40,30 +40,6 @@ async fn put_value_in_dht() {
         .expect("Unable to create p2p network");
 
     let mut runtime = runtime.bootstrap().await.unwrap();
-    // runtime
-    //     .swarm
-    //     .behaviour_mut()
-    //     .discovery
-    //     .inner
-    //     .add_address(&peer_1.keypair.public().to_peer_id(), peer_1.addr);
-
-    // loop {
-    //     if let Some(SwarmEvent::Behaviour(ComposedEvent::PeerInfo(event))) =
-    //         runtime.swarm.next().await
-    //     {
-    //         println!("Event: {:?}", event);
-    //         if let identify::Event::Received {
-    //             peer_id,
-    //             info: Info { observed_addr, .. },
-    //         } = *event
-    //         {
-    //             println!("Peer {} observed address: {}", peer_id, observed_addr);
-    //             runtime.swarm.add_external_address(observed_addr);
-    //             break;
-    //         }
-    //     }
-    // }
-
     let kad = &mut runtime.swarm.behaviour_mut().discovery;
 
     let input_key = Key::new(&runtime.local_peer_id.to_string());

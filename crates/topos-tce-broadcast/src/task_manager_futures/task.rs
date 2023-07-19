@@ -3,6 +3,7 @@ use std::pin::Pin;
 use tokio::sync::mpsc;
 
 use topos_core::uci::CertificateId;
+use tracing::warn;
 
 use crate::task_manager_futures::Thresholds;
 use crate::DoubleEchoCommand;
@@ -79,7 +80,7 @@ impl IntoFuture for Task {
                         }
                     }
                     _ = self.shutdown_receiver.recv() => {
-                        println!("Received shutdown, shutting down task {:?}", self.certificate_id);
+                        warn!("Received shutdown, shutting down task {:?}", self.certificate_id);
                         return (self.certificate_id, TaskStatus::Failure)
                     }
                 }

@@ -73,7 +73,7 @@ impl AppContext {
     pub async fn run(
         mut self,
         mut network_stream: impl Stream<Item = NetEvent> + Unpin,
-        mut tce_stream: impl Stream<Item = Result<ProtocolEvents, ()>> + Unpin,
+        mut tce_stream: impl Stream<Item = ProtocolEvents> + Unpin,
         mut api_stream: impl Stream<Item = ApiEvent> + Unpin,
         mut storage_stream: impl Stream<Item = StorageEvent> + Unpin,
         mut synchronizer_stream: impl Stream<Item = SynchronizerEvent> + Unpin,
@@ -83,7 +83,7 @@ impl AppContext {
             tokio::select! {
 
                 // protocol
-                Some(Ok(evt)) = tce_stream.next() => {
+                Some(evt) = tce_stream.next() => {
                     self.on_protocol_event(evt).await;
                 },
 
