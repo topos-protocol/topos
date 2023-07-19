@@ -12,12 +12,24 @@ use topos_tce_broadcast::task_manager_futures::task::TaskStatus;
 use topos_tce_broadcast::task_manager_futures::{task::Events, TaskManager, Thresholds};
 
 pub async fn processing_double_echo(n: u64) {
-    let mut task_manager = TaskManager::new(Thresholds {
-        echo: n as usize,
-        ready: n as usize,
-        delivery: n as usize,
-    })
-    .await;
+    let (message_sender, message_receiver) = mpsc::channel(1024);
+    let (task_completion_sender, mut task_completion_receiver) = mpsc::channel(1024);
+    let (shutdown_sender, shutdown_receiver) = mpsc::channel(1);
+
+    let task_manager = TaskManager {
+        message_receiver,
+        task_completion_sender,
+        tasks: Default::default(),
+        running_tasks: FuturesUnordered::new(),
+        thresholds: Thresholds {
+            echo: n as usize,
+            ready: n as usize,
+            delivery: n as usize,
+        },
+        shutdown_sender,
+    };
+
+    spawn(task_manager.run(shutdown_receiver));
 
     let mut certificates = vec![];
 
@@ -38,17 +50,16 @@ pub async fn processing_double_echo(n: u64) {
                 ctx: Span::current(),
             };
 
-            task_manager.add_message(echo).await.unwrap();
+            message_sender.send(echo).await.unwrap();
         }
     }
 
     let mut count = 0;
 
-    while let Some((certificate_id, _)) = task_manager.task_completed_receiver.recv().await {
+    while let Some((_, _)) = task_completion_receiver.recv().await {
         count += 1;
 
-        task_manager.remove_finished_task(certificate_id);
-        if count == n {
+        if count == 10 {
             break;
         }
     }

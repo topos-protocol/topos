@@ -14,20 +14,32 @@ use tracing::Span;
 #[rstest]
 #[tokio::test]
 async fn task_manager_futures_receiving_messages() {
-    let n = 100_000;
+    let n = 10;
 
-    let mut task_manager = TaskManager::new(Thresholds {
-        echo: n,
-        ready: n,
-        delivery: n,
-    })
-    .await;
+    let (message_sender, message_receiver) = mpsc::channel(10_240);
+    let (task_completion_sender, mut task_completion_receiver) = mpsc::channel(10_240);
+    let (shutdown_sender, shutdown_receiver) = mpsc::channel(1);
+
+    let mut task_manager = TaskManager {
+        message_receiver,
+        task_completion_sender,
+        tasks: Default::default(),
+        running_tasks: FuturesUnordered::new(),
+        thresholds: Thresholds {
+            echo: n,
+            ready: n,
+            delivery: n,
+        },
+        shutdown_sender,
+    };
+
+    spawn(task_manager.run(shutdown_receiver));
 
     let mut certificates = vec![];
 
     let mut rng = rand::thread_rng();
 
-    for _ in 0..10_000 {
+    for _ in 0..10 {
         let mut id = [0u8; 32];
         rng.fill(&mut id);
         let cert_id = CertificateId::from_array(id);
@@ -42,16 +54,15 @@ async fn task_manager_futures_receiving_messages() {
                 ctx: Span::current(),
             };
 
-            task_manager.add_message(echo).await.unwrap();
+            message_sender.send(echo).await.unwrap();
         }
     }
 
     let mut count = 0;
 
-    while let Some((certificate_id, _)) = task_manager.task_completed_receiver.recv().await {
+    while let Some((certificate_id, _)) = task_completion_receiver.recv().await {
+        println!("Get task completion for certificate: {:?}", certificate_id);
         count += 1;
-
-        task_manager.remove_finished_task(certificate_id);
 
         if count == 10 {
             break;

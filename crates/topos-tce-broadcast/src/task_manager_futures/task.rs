@@ -14,51 +14,46 @@ pub enum Events {
     TimeOut(CertificateId),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum TaskStatus {
+    /// The task finished succesfully and broadcasted the certificate + received ready
     Success,
+    /// The task did not finish succesfully and stopped.
     Failure,
 }
 
-#[derive(Clone)]
 pub struct TaskContext {
     pub sink: mpsc::Sender<DoubleEchoCommand>,
+    pub message_buffer: Vec<DoubleEchoCommand>,
+    pub shutdown_sender: mpsc::Sender<()>,
 }
 
 pub struct Task {
     pub message_receiver: mpsc::Receiver<DoubleEchoCommand>,
     pub certificate_id: CertificateId,
     pub thresholds: Thresholds,
+    pub shutdown_receiver: mpsc::Receiver<()>,
 }
 
 impl Task {
-    fn new(certificate_id: CertificateId, thresholds: Thresholds) -> (Self, TaskContext) {
+    pub fn new(certificate_id: CertificateId, thresholds: Thresholds) -> (Task, TaskContext) {
         let (message_sender, message_receiver) = mpsc::channel(1024);
+        let (shutdown_sender, shutdown_receiver) = mpsc::channel(1);
 
-        (
-            Self {
-                certificate_id,
-                message_receiver,
-                thresholds,
-            },
-            TaskContext {
-                sink: message_sender,
-            },
-        )
-    }
+        let task_context = TaskContext {
+            sink: message_sender,
+            message_buffer: Vec::new(),
+            shutdown_sender,
+        };
 
-    pub async fn spawn(
-        task_sender: mpsc::Sender<Self>,
-        certificate_id: CertificateId,
-        thresholds: Thresholds,
-    ) -> TaskContext {
-        let (task, task_context) = Self::new(certificate_id, thresholds);
+        let task = Task {
+            message_receiver,
+            certificate_id,
+            thresholds,
+            shutdown_receiver,
+        };
 
-        if let Err(e) = task_sender.send(task).await {
-            panic!("Failed to send task to task runner: {:?}", e);
-        }
-
-        task_context
+        (task, task_context)
     }
 }
 
@@ -75,7 +70,6 @@ impl IntoFuture for Task {
                         match msg {
                             DoubleEchoCommand::Echo { certificate_id, .. } => {
                                 self.thresholds.echo -= 1;
-
                                 if self.thresholds.echo == 0 {
                                     return (certificate_id.clone(), TaskStatus::Success);
                                 }
@@ -84,12 +78,14 @@ impl IntoFuture for Task {
                                 return (certificate_id.clone(), TaskStatus::Success);
                             }
                             DoubleEchoCommand::Broadcast { cert, .. } => {
-                                // Do the broadcast
-                                // Send the result to the gateway
                                 return (cert.id.clone(), TaskStatus::Success);
                             }
 
                         }
+                    }
+                    _ = self.shutdown_receiver.recv() => {
+                        println!("Received shutdown, shutting down task {:?}", self.certificate_id);
+                        return (self.certificate_id, TaskStatus::Failure)
                     }
                 }
             }
