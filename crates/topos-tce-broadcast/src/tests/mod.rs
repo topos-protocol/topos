@@ -1,3 +1,6 @@
+mod task_manager_channels;
+mod task_manager_futures;
+
 use crate::double_echo::*;
 use crate::*;
 use rstest::*;
