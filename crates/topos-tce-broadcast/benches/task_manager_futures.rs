@@ -1,6 +1,5 @@
 use futures::stream::FuturesUnordered;
 use rand::Rng;
-use std::collections::HashMap;
 use tokio::spawn;
 use tokio::sync::mpsc;
 use topos_core::uci::CertificateId;
@@ -8,8 +7,7 @@ use topos_p2p::PeerId;
 use topos_tce_broadcast::DoubleEchoCommand;
 use tracing::Span;
 
-use topos_tce_broadcast::task_manager_futures::task::TaskStatus;
-use topos_tce_broadcast::task_manager_futures::{task::Events, TaskManager, Thresholds};
+use topos_tce_broadcast::task_manager_futures::{TaskManager, Thresholds};
 
 pub async fn processing_double_echo(n: u64) {
     let (message_sender, message_receiver) = mpsc::channel(10_240);

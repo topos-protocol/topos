@@ -27,6 +27,7 @@ pub struct TaskManager {
     pub message_receiver: mpsc::Receiver<DoubleEchoCommand>,
     pub task_completion_sender: mpsc::Sender<(CertificateId, TaskStatus)>,
     pub tasks: HashMap<CertificateId, TaskContext>,
+    #[allow(clippy::type_complexity)]
     pub running_tasks: FuturesUnordered<
         Pin<Box<dyn Future<Output = (CertificateId, TaskStatus)> + Send + 'static>>,
     >,
@@ -52,7 +53,7 @@ impl TaskManager {
                             // If task exists, check if it's running or not
                             // If task is running, send message to task
                             // If it's not running, add the message to the buffer
-                            let task = match self.tasks.entry(certificate_id.clone()) {
+                            let task = match self.tasks.entry(certificate_id) {
                                 std::collections::hash_map::Entry::Vacant(entry) => {
                                     let (task, task_context) = Task::new(certificate_id, self.thresholds.clone());
                                     self.running_tasks.push(task.into_future());
@@ -65,7 +66,7 @@ impl TaskManager {
                             _ = task.sink.send(msg).await;
                         }
                         DoubleEchoCommand::Broadcast { ref cert, .. } => {
-                            let task = match self.tasks.entry(cert.id.clone()) {
+                            let task = match self.tasks.entry(cert.id) {
                                 std::collections::hash_map::Entry::Vacant(entry) => {
                                     let (task, task_context) = Task::new(cert.id, self.thresholds.clone());
 
@@ -82,7 +83,7 @@ impl TaskManager {
                 }
                 Some((id, status)) = self.running_tasks.next() => {
                     if status == TaskStatus::Success {
-                        self.remove_finished_task(id.clone());
+                        self.remove_finished_task(id);
                         let _ = self.task_completion_sender.send((id, status)).await;
                     }
                 }

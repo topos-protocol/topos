@@ -1,4 +1,4 @@
-use crate::task_manager_channels::{task::Events, TaskManager, Thresholds};
+use crate::task_manager_channels::{TaskManager, Thresholds};
 
 use crate::task_manager_channels::task::Events::ReachedThresholdOfReady;
 use crate::*;

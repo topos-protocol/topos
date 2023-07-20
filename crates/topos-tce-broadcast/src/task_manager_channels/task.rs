@@ -5,7 +5,7 @@ use topos_core::uci::CertificateId;
 use crate::task_manager_channels::Thresholds;
 use crate::DoubleEchoCommand;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Events {
     ReachedThresholdOfReady(CertificateId),
     ReceivedEcho(CertificateId),
@@ -26,6 +26,7 @@ impl TaskCompletion {
         }
     }
 
+    #[allow(dead_code)]
     fn failure(certificate_id: CertificateId) -> Self {
         TaskCompletion {
             success: false,
@@ -90,7 +91,8 @@ impl Task {
 
                     return Ok(true);
                 }
-                return Ok(false);
+
+                Ok(false)
             }
             DoubleEchoCommand::Ready { certificate_id, .. } => {
                 // Do the echo
@@ -102,13 +104,14 @@ impl Task {
                 {
                     println!("Error sending completion: {:#?}", e);
                 }
-                return Ok(true);
+
+                Ok(true)
             }
             DoubleEchoCommand::Broadcast { cert, .. } => {
                 println!("Received certificate via broadcast: {:#?}", cert);
                 // Do the broadcast
                 // Send the result to the gateway
-                return Ok(false);
+                Ok(false)
             }
         }
     }

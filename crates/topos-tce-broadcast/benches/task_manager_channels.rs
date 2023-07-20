@@ -8,7 +8,7 @@ use topos_tce_broadcast::DoubleEchoCommand;
 use tracing::Span;
 
 use topos_tce_broadcast::task_manager_channels::task::Events::ReachedThresholdOfReady;
-use topos_tce_broadcast::task_manager_channels::{task::Events, TaskManager, Thresholds};
+use topos_tce_broadcast::task_manager_channels::{TaskManager, Thresholds};
 
 pub(crate) async fn processing_double_echo(n: u64) {
     let (message_sender, message_receiver) = mpsc::channel(1024);

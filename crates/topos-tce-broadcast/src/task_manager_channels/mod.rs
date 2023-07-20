@@ -93,10 +93,8 @@ impl TaskManager {
     }
 
     async fn send_message_to_task(task_context: TaskContext, msg: DoubleEchoCommand) {
-        let sender = task_context.message_sender.clone();
-
         spawn(async move {
-            _ = sender.send(msg).await;
+            _ = task_context.message_sender.send(msg).await;
         });
     }
 }

@@ -7,14 +7,14 @@ use topos_core::uci::CertificateId;
 use crate::task_manager_futures::Thresholds;
 use crate::DoubleEchoCommand;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Events {
     ReachedThresholdOfReady(CertificateId),
     ReceivedEcho(CertificateId),
     TimeOut(CertificateId),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum TaskStatus {
     /// The task finished succesfully and broadcasted the certificate + received ready
     Success,
@@ -71,14 +71,14 @@ impl IntoFuture for Task {
                             DoubleEchoCommand::Echo { certificate_id, .. } => {
                                 self.thresholds.echo -= 1;
                                 if self.thresholds.echo == 0 {
-                                    return (certificate_id.clone(), TaskStatus::Success);
+                                    return (certificate_id, TaskStatus::Success);
                                 }
                             }
                             DoubleEchoCommand::Ready { certificate_id, .. } => {
-                                return (certificate_id.clone(), TaskStatus::Success);
+                                return (certificate_id, TaskStatus::Success);
                             }
                             DoubleEchoCommand::Broadcast { cert, .. } => {
-                                return (cert.id.clone(), TaskStatus::Success);
+                                return (cert.id, TaskStatus::Success);
                             }
 
                         }
