@@ -49,13 +49,12 @@ impl TaskManager {
                 Some(msg) = self.message_receiver.recv() => {
                     match msg {
                         DoubleEchoCommand::Echo { certificate_id, .. } | DoubleEchoCommand::Ready{ certificate_id, .. } => {
-                            if let Some(task_context) = self.task_context.get(&certificate_id) {
-                                Self::send_message_to_task(task_context.clone(), msg).await;
+                            let task_context = match self.task_context.get(&certificate_id) {
+                                Some(task_context) => task_context.to_owned(),
+                                None => self.create_and_spawn_new_task(certificate_id, task_completion_sender.clone(), event_sender.clone()),
+                            };
 
-                            } else {
-                                let task_context = self.create_and_spawn_new_task(certificate_id, task_completion_sender.clone(), event_sender.clone());
-                                Self::send_message_to_task(task_context, msg).await;
-                            }
+                            Self::send_message_to_task(task_context, msg).await;
                         }
                         DoubleEchoCommand::Broadcast { ref cert, .. } => {
                             if self.task_context.get(&cert.id).is_none() {
