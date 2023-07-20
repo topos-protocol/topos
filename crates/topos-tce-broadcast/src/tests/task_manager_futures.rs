@@ -42,11 +42,11 @@ async fn task_manager_futures_receiving_messages() {
         certificates.push(cert_id);
     }
 
-    for cert in certificates {
+    for certificate_id in certificates {
         for _ in 0..n {
             let echo = DoubleEchoCommand::Echo {
                 from_peer: PeerId::random(),
-                certificate_id: cert.clone(),
+                certificate_id,
                 ctx: Span::current(),
             };
 

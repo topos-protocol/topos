@@ -11,7 +11,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         .build()
         .unwrap();
 
-    c.bench_function(&format!("double_echo with channels"), |b| {
+    c.bench_function("double_echo with channels", |b| {
         b.to_async(FuturesExecutor).iter(|| async {
             runtime.block_on(async {
                 task_manager_channels::processing_double_echo(echo_messages).await
@@ -19,7 +19,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         })
     });
 
-    c.bench_function(&format!("double_echo with futures"), |b| {
+    c.bench_function("double_echo with futures", |b| {
         b.to_async(FuturesExecutor).iter(|| async {
             runtime.block_on(async {
                 task_manager_futures::processing_double_echo(echo_messages).await
