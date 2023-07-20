@@ -55,7 +55,7 @@ async fn task_manager_channels_receiving_messages() {
 
     let mut count = 0;
 
-    while let Some(_) = event_receiver.recv().await {
+    while (event_receiver.recv().await).is_some() {
         count += 1;
 
         if count == n {

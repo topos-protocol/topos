@@ -53,7 +53,7 @@ pub async fn processing_double_echo(n: u64) {
 
     let mut count = 0;
 
-    while let Some(_) = event_receiver.recv().await {
+    while (event_receiver.recv().await).is_some() {
         count += 1;
 
         if count == n {
