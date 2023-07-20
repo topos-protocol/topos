@@ -12,8 +12,8 @@ use topos_tce_broadcast::task_manager_futures::task::TaskStatus;
 use topos_tce_broadcast::task_manager_futures::{task::Events, TaskManager, Thresholds};
 
 pub async fn processing_double_echo(n: u64) {
-    let (message_sender, message_receiver) = mpsc::channel(1024);
-    let (task_completion_sender, mut task_completion_receiver) = mpsc::channel(1024);
+    let (message_sender, message_receiver) = mpsc::channel(10_240);
+    let (task_completion_sender, mut task_completion_receiver) = mpsc::channel(10_240);
     let (shutdown_sender, shutdown_receiver) = mpsc::channel(1);
 
     let task_manager = TaskManager {
