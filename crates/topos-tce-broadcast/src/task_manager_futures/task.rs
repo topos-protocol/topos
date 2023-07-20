@@ -24,7 +24,6 @@ pub enum TaskStatus {
 
 pub struct TaskContext {
     pub sink: mpsc::Sender<DoubleEchoCommand>,
-    pub message_buffer: Vec<DoubleEchoCommand>,
     pub shutdown_sender: mpsc::Sender<()>,
 }
 
@@ -37,12 +36,11 @@ pub struct Task {
 
 impl Task {
     pub fn new(certificate_id: CertificateId, thresholds: Thresholds) -> (Task, TaskContext) {
-        let (message_sender, message_receiver) = mpsc::channel(1024);
+        let (message_sender, message_receiver) = mpsc::channel(10_024);
         let (shutdown_sender, shutdown_receiver) = mpsc::channel(1);
 
         let task_context = TaskContext {
             sink: message_sender,
-            message_buffer: Vec::new(),
             shutdown_sender,
         };
 
@@ -69,10 +67,7 @@ impl IntoFuture for Task {
                     Some(msg) = self.message_receiver.recv() => {
                         match msg {
                             DoubleEchoCommand::Echo { certificate_id, .. } => {
-                                self.thresholds.echo -= 1;
-                                if self.thresholds.echo == 0 {
-                                    return (certificate_id, TaskStatus::Success);
-                                }
+                                return (certificate_id, TaskStatus::Success);
                             }
                             DoubleEchoCommand::Ready { certificate_id, .. } => {
                                 return (certificate_id, TaskStatus::Success);

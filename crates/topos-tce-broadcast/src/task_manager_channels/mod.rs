@@ -47,9 +47,6 @@ impl TaskManager {
                 }
 
                 Some(msg) = self.message_receiver.recv() => {
-                    // Check if we have task for this certificate_id
-                    //      -> if yes forward the message
-                    //      -> if no, create a new task and forward the message
                     match msg {
                         DoubleEchoCommand::Echo { certificate_id, .. } | DoubleEchoCommand::Ready{ certificate_id, .. } => {
                             if let Some(task_context) = self.task_context.get(&certificate_id) {

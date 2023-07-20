@@ -10,8 +10,8 @@ use tracing::Span;
 use topos_tce_broadcast::task_manager_futures::{TaskManager, Thresholds};
 
 pub async fn processing_double_echo(n: u64) {
-    let (message_sender, message_receiver) = mpsc::channel(10_240);
-    let (task_completion_sender, mut task_completion_receiver) = mpsc::channel(10_240);
+    let (message_sender, message_receiver) = mpsc::channel(1024);
+    let (task_completion_sender, mut task_completion_receiver) = mpsc::channel(48_000);
     let (shutdown_sender, shutdown_receiver) = mpsc::channel(1);
 
     let task_manager = TaskManager {
@@ -57,7 +57,7 @@ pub async fn processing_double_echo(n: u64) {
     while let Some((_, _)) = task_completion_receiver.recv().await {
         count += 1;
 
-        if count == 10 {
+        if count == n {
             break;
         }
     }

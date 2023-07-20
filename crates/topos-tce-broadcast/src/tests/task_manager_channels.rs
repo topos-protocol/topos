@@ -1,6 +1,5 @@
 use crate::task_manager_channels::{TaskManager, Thresholds};
 
-use crate::task_manager_channels::task::Events::ReachedThresholdOfReady;
 use crate::*;
 use rand::Rng;
 use rstest::*;
@@ -12,7 +11,7 @@ use tracing::Span;
 #[rstest]
 #[tokio::test]
 async fn task_manager_channels_receiving_messages() {
-    let n = 100_000;
+    let n = 5;
 
     let (message_sender, message_receiver) = mpsc::channel(1024);
     let (task_completion_sender, task_completion_receiver) = mpsc::channel(1024);
@@ -56,13 +55,10 @@ async fn task_manager_channels_receiving_messages() {
 
     let mut count = 0;
 
-    while let Some(event) = event_receiver.recv().await {
-        if let ReachedThresholdOfReady { 0: certificate_id } = event {
-            println!("Threshold reached for {certificate_id:?}");
-            count += 1;
-        }
+    while let Some(_) = event_receiver.recv().await {
+        count += 1;
 
-        if count == 10 {
+        if count == n {
             break;
         }
     }

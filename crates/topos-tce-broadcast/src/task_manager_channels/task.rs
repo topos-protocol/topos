@@ -76,43 +76,20 @@ impl Task {
     async fn handle_msg(&mut self, msg: DoubleEchoCommand) -> Result<bool, ()> {
         match msg {
             DoubleEchoCommand::Echo { certificate_id, .. } => {
-                self.thresholds.echo -= 1;
-
-                if self.thresholds.echo == 0 {
-                    let _ = self
-                        .event_sender
-                        .send(Events::ReachedThresholdOfReady(self.certificate_id))
-                        .await;
-
-                    let _ = self
-                        .completion_sender
-                        .send(TaskCompletion::success(certificate_id))
-                        .await;
-
-                    return Ok(true);
-                }
-
-                Ok(false)
-            }
-            DoubleEchoCommand::Ready { certificate_id, .. } => {
-                // Do the echo
-                // Send the result to the gateway
-                if let Err(e) = self
+                let _ = self
                     .completion_sender
                     .send(TaskCompletion::success(certificate_id))
-                    .await
-                {
-                    println!("Error sending completion: {:#?}", e);
-                }
+                    .await;
+
+                let _ = self
+                    .event_sender
+                    .send(Events::ReachedThresholdOfReady(self.certificate_id))
+                    .await;
 
                 Ok(true)
             }
-            DoubleEchoCommand::Broadcast { cert, .. } => {
-                println!("Received certificate via broadcast: {:#?}", cert);
-                // Do the broadcast
-                // Send the result to the gateway
-                Ok(false)
-            }
+            DoubleEchoCommand::Ready { .. } => Ok(true),
+            DoubleEchoCommand::Broadcast { .. } => Ok(false),
         }
     }
 

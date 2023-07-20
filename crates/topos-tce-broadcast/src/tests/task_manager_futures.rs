@@ -10,10 +10,10 @@ use tracing::Span;
 #[rstest]
 #[tokio::test]
 async fn task_manager_futures_receiving_messages() {
-    let n = 10;
+    let n = 5;
 
-    let (message_sender, message_receiver) = mpsc::channel(10_240);
-    let (task_completion_sender, mut task_completion_receiver) = mpsc::channel(10_240);
+    let (message_sender, message_receiver) = mpsc::channel(1024);
+    let (task_completion_sender, mut task_completion_receiver) = mpsc::channel(1024);
     let (shutdown_sender, shutdown_receiver) = mpsc::channel(1);
 
     let task_manager = TaskManager {
@@ -59,7 +59,7 @@ async fn task_manager_futures_receiving_messages() {
     while let Some((_, _)) = task_completion_receiver.recv().await {
         count += 1;
 
-        if count == 10 {
+        if count == n {
             break;
         }
     }

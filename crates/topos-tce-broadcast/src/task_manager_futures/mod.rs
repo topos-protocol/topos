@@ -48,11 +48,6 @@ impl TaskManager {
                 Some(msg) = self.message_receiver.recv() => {
                     match msg {
                         DoubleEchoCommand::Echo { certificate_id, .. } | DoubleEchoCommand::Ready { certificate_id, ..} => {
-                            //TODO:
-                            // Check if task exists
-                            // If task exists, check if it's running or not
-                            // If task is running, send message to task
-                            // If it's not running, add the message to the buffer
                             let task = match self.tasks.entry(certificate_id) {
                                 std::collections::hash_map::Entry::Vacant(entry) => {
                                     let (task, task_context) = Task::new(certificate_id, self.thresholds.clone());
