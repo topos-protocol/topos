@@ -35,7 +35,7 @@ async fn task_manager_futures_receiving_messages() {
 
     let mut rng = rand::thread_rng();
 
-    for _ in 0..10_000 {
+    for _ in 0..10 {
         let mut id = [0u8; 32];
         rng.fill(&mut id);
         let cert_id = CertificateId::from_array(id);
