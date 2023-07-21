@@ -5,9 +5,7 @@ use topos_core::api::grpc::checkpoints::TargetStreamPosition;
 use topos_core::uci::SubnetId;
 use topos_metrics::CERTIFICATE_DELIVERED_TOTAL;
 use topos_tce_storage::errors::{InternalStorageError, StorageError};
-use topos_telemetry::PropagationContext;
-use tracing::{debug, error, info, info_span, warn};
-use tracing_opentelemetry::OpenTelemetrySpanExt;
+use tracing::{debug, error, info, warn};
 
 use crate::events::Events;
 use crate::messages::NetworkMessage;
@@ -83,19 +81,10 @@ impl AppContext {
                 });
             }
 
-            ProtocolEvents::Gossip { cert, ctx } => {
-                let span = info_span!(
-                    parent: &ctx,
-                    "SEND Outbound Gossip",
-                    peer_id = self.network_client.local_peer_id.to_string(),
-                    "otel.kind" = "producer",
-                );
+            ProtocolEvents::Gossip { cert } => {
                 let cert_id = cert.id;
 
-                let data = NetworkMessage::from(TceCommands::OnGossip {
-                    cert,
-                    ctx: PropagationContext::inject(&span.context()),
-                });
+                let data = NetworkMessage::from(TceCommands::OnGossip { cert });
 
                 info!("Sending Gossip for certificate {}", cert_id);
                 if let Err(e) = self
@@ -107,21 +96,9 @@ impl AppContext {
                 }
             }
 
-            ProtocolEvents::Echo {
-                certificate_id,
-                ctx,
-            } => {
-                let span = info_span!(
-                    parent: &ctx,
-                    "SEND Outbound Echo",
-                    peer_id = self.network_client.local_peer_id.to_string(),
-                    "otel.kind" = "producer",
-                );
+            ProtocolEvents::Echo { certificate_id } => {
                 // Send echo message
-                let data = NetworkMessage::from(TceCommands::OnEcho {
-                    certificate_id,
-                    ctx: PropagationContext::inject(&span.context()),
-                });
+                let data = NetworkMessage::from(TceCommands::OnEcho { certificate_id });
 
                 if let Err(e) = self
                     .network_client
@@ -132,20 +109,8 @@ impl AppContext {
                 }
             }
 
-            ProtocolEvents::Ready {
-                certificate_id,
-                ctx,
-            } => {
-                let span = info_span!(
-                    parent: &ctx,
-                    "SEND Outbound Ready",
-                    peer_id = self.network_client.local_peer_id.to_string(),
-                    "otel.kind" = "producer",
-                );
-                let data = NetworkMessage::from(TceCommands::OnReady {
-                    certificate_id,
-                    ctx: PropagationContext::inject(&span.context()),
-                });
+            ProtocolEvents::Ready { certificate_id } => {
+                let data = NetworkMessage::from(TceCommands::OnReady { certificate_id });
 
                 if let Err(e) = self
                     .network_client

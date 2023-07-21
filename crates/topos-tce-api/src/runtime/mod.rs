@@ -1,5 +1,4 @@
 use futures::{stream::FuturesUnordered, StreamExt};
-use opentelemetry::trace::FutureExt;
 use std::{
     collections::{hash_map::Entry, HashMap, HashSet},
     future,
@@ -20,9 +19,8 @@ use topos_tce_storage::{
     CertificateTargetStreamPosition, FetchCertificatesFilter, FetchCertificatesPosition,
     StorageClient,
 };
-use tracing_opentelemetry::OpenTelemetrySpanExt;
 
-use tracing::{debug, error, info, info_span, Instrument, Span};
+use tracing::{debug, error, info};
 use uuid::Uuid;
 
 use crate::{
@@ -332,10 +330,7 @@ impl Runtime {
             InternalRuntimeCommand::CertificateSubmitted {
                 certificate,
                 sender,
-                ctx,
             } => {
-                let span = info_span!(parent: &ctx, "TCE API Runtime",);
-
                 async move {
                     info!(
                         "A certificate has been submitted to the TCE {}",
@@ -346,10 +341,7 @@ impl Runtime {
                         .send(RuntimeEvent::CertificateSubmitted {
                             certificate,
                             sender,
-                            ctx: Span::current(),
                         })
-                        .with_current_context()
-                        .instrument(Span::current())
                         .await
                     {
                         error!(
@@ -358,8 +350,6 @@ impl Runtime {
                         );
                     }
                 }
-                .with_context(span.context())
-                .instrument(span)
                 .await
             }
 

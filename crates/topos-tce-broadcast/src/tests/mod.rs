@@ -325,7 +325,6 @@ async fn buffering_certificate(#[case] params: TceParams) {
         .send(DoubleEchoCommand::Broadcast {
             need_gossip: true,
             cert: le_cert.clone(),
-            ctx: Span::current(),
         })
         .await
         .expect("Cannot send broadcast command");

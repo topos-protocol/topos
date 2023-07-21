@@ -1,9 +1,5 @@
 use base64::Engine;
 use futures::{FutureExt, Stream as FutureStream, StreamExt};
-use opentelemetry::{
-    trace::{FutureExt as TraceFutureExt, TraceContextExt},
-    Context,
-};
 use std::pin::Pin;
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
@@ -16,9 +12,7 @@ use topos_core::api::grpc::tce::v1::{
 };
 use topos_core::api::grpc::uci::v1::OptionalCertificate;
 use topos_core::uci::SubnetId;
-use topos_telemetry::TonicMetaExtractor;
-use tracing::{debug, error, field, info, info_span, Instrument, Span};
-use tracing_opentelemetry::OpenTelemetrySpanExt;
+use tracing::{error, info, Span};
 use uuid::Uuid;
 
 use crate::{
@@ -39,7 +33,6 @@ pub(crate) mod messaging;
 
 #[derive(Debug)]
 pub(crate) struct TceGrpcService {
-    local_peer_id: String,
     command_sender: mpsc::Sender<InternalRuntimeCommand>,
 }
 
@@ -86,22 +79,7 @@ impl ApiService for TceGrpcService {
         &self,
         request: Request<SubmitCertificateRequest>,
     ) -> Result<Response<SubmitCertificateResponse>, Status> {
-        debug!("submit_certificate metadata: {:?}", request.metadata());
-        let ctx = TonicMetaExtractor(request.metadata());
-        let context = ctx.extract();
-        debug!("submit_certificate context: {:?}", context);
-        let span = info_span!(
-            "CertificateSubmitted",
-            peer_id = self.local_peer_id,
-            certificate_id = field::Empty
-        );
-
-        span.add_link(context.span().span_context().clone());
-
         async {
-            tracing::trace!(span_span_id = ?Span::current().context().span().span_context().span_id(), "pre_run");
-            tracing::trace!(cx_span_id = ?Context::current().span().span_context().span_id(), "pre_run");
-
             let data = request.into_inner();
             if let Some(certificate) = data.certificate {
                 if let Some(ref id) = certificate.id {
@@ -123,10 +101,7 @@ impl ApiService for TceGrpcService {
                         .send(InternalRuntimeCommand::CertificateSubmitted {
                             certificate: Box::new(certificate),
                             sender,
-                            ctx: Span::current(),
                         })
-                        .with_current_context()
-                        .instrument(Span::current())
                         .await
                         .is_err()
                     {
@@ -148,7 +123,6 @@ impl ApiService for TceGrpcService {
                 Err(Status::invalid_argument("Certificate is malformed"))
             }
         }
-        .instrument(span)
         .await
     }
 

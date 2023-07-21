@@ -4,8 +4,6 @@ use clap::Parser;
 use serde::{Deserialize, Serialize};
 use topos_core::uci::{Certificate, CertificateId};
 use topos_p2p::PeerId;
-use topos_telemetry::PropagationContext;
-use tracing::Span;
 
 #[derive(Parser, Clone, Debug, Default, Deserialize, Serialize)]
 #[command(name = "Parameters of the reliable broadcast")]
@@ -43,20 +41,11 @@ pub enum TceCommands {
     /// Upon new certificate to start delivery
     OnStartDelivery { cert: Certificate },
     /// Received G-set message
-    OnGossip {
-        cert: Certificate,
-        ctx: PropagationContext,
-    },
+    OnGossip { cert: Certificate },
     /// When echo reply received
-    OnEcho {
-        certificate_id: CertificateId,
-        ctx: PropagationContext,
-    },
+    OnEcho { certificate_id: CertificateId },
     /// When ready reply received
-    OnReady {
-        certificate_id: CertificateId,
-        ctx: PropagationContext,
-    },
+    OnReady { certificate_id: CertificateId },
     /// Given peer replied ok to the double echo request
     OnDoubleEchoOk {},
 }
@@ -96,17 +85,14 @@ pub enum ProtocolEvents {
     /// Indicates that 'gossip' message broadcasting is required
     Gossip {
         cert: Certificate,
-        ctx: Span,
     },
     /// Indicates that 'echo' message broadcasting is required
     Echo {
         certificate_id: CertificateId,
-        ctx: Span,
     },
     /// Indicates that 'ready' message broadcasting is required
     Ready {
         certificate_id: CertificateId,
-        ctx: Span,
     },
     /// For simulation purpose, for now only caused by ill-formed sampling
     Die,

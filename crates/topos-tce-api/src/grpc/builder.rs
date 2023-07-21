@@ -45,7 +45,6 @@ impl ServerBuilder {
         Arc<RwLock<StatusResponse>>,
         BoxFuture<'static, Result<(), tonic::transport::Error>>,
     ) {
-        let local_peer_id = self.local_peer_id;
         let command_sender = self
             .command_sender
             .take()
@@ -60,10 +59,7 @@ impl ServerBuilder {
             status: status.clone(),
         });
 
-        let service = ApiServiceServer::new(TceGrpcService {
-            local_peer_id,
-            command_sender,
-        });
+        let service = ApiServiceServer::new(TceGrpcService { command_sender });
 
         let (mut health_reporter, health_service) = tonic_health::server::health_reporter();
 

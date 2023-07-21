@@ -6,7 +6,6 @@ use rstest::*;
 use std::collections::HashMap;
 use tokio::{spawn, sync::mpsc};
 use topos_p2p::PeerId;
-use tracing::Span;
 
 #[rstest]
 #[tokio::test]
@@ -46,7 +45,6 @@ async fn task_manager_channels_receiving_messages() {
             let echo = DoubleEchoCommand::Echo {
                 from_peer: PeerId::random(),
                 certificate_id,
-                ctx: Span::current(),
             };
 
             message_sender.send(echo).await.unwrap();

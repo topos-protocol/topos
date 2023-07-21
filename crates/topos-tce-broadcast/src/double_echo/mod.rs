@@ -1,6 +1,5 @@
 use crate::constant;
 use crate::{sampler::SampleType, DoubleEchoCommand, SubscriptionsView};
-use opentelemetry::trace::TraceContextExt;
 use std::collections::HashSet;
 use std::{
     collections::{HashMap, VecDeque},
@@ -16,8 +15,7 @@ use topos_metrics::{
     DOUBLE_ECHO_BUFFER_CAPACITY_TOTAL, DOUBLE_ECHO_CURRENT_BUFFER_SIZE,
 };
 use topos_p2p::PeerId;
-use tracing::{debug, error, info, info_span, trace, warn, warn_span, Span};
-use tracing_opentelemetry::OpenTelemetrySpanExt;
+use tracing::{debug, error, info, trace, warn, warn_span, Span};
 
 /// Processing data associated to a Certificate candidate for delivery
 /// Sample repartition, one peer may belongs to multiple samples
@@ -26,7 +24,6 @@ pub struct DeliveryState {
     pub subscriptions: SubscriptionsView,
     pub ready_sent: bool,
     pub delivered: bool,
-    ctx: Span,
 }
 
 pub struct DoubleEcho {
@@ -121,12 +118,12 @@ impl DoubleEcho {
                 Some(command) = self.command_receiver.recv() => {
                     match command {
 
-                        DoubleEchoCommand::Broadcast { need_gossip, cert, ctx } => self.handle_broadcast(cert,need_gossip, ctx),
+                        DoubleEchoCommand::Broadcast { need_gossip, cert } => self.handle_broadcast(cert,need_gossip),
 
                         command if self.subscriptions.is_some() => {
                             match command {
-                                DoubleEchoCommand::Echo { from_peer, certificate_id, ctx } => self.handle_echo(from_peer, certificate_id, ctx),
-                                DoubleEchoCommand::Ready { from_peer, certificate_id, ctx } => self.handle_ready(from_peer, certificate_id, ctx),
+                                DoubleEchoCommand::Echo { from_peer, certificate_id } => self.handle_echo(from_peer, certificate_id),
+                                DoubleEchoCommand::Ready { from_peer, certificate_id } => self.handle_ready(from_peer, certificate_id),
                                 _ => {}
                             }
 
@@ -154,86 +151,34 @@ impl DoubleEcho {
             if has_subscriptions {
                 if let Some((need_gossip, cert)) = self.buffer.pop_front() {
                     DOUBLE_ECHO_CURRENT_BUFFER_SIZE.dec();
-                    if let Some(ctx) = self.span_tracker.get(&cert.id) {
-                        let span = info_span!(
-                            parent: ctx,
-                            "DoubleEcho start dispatching",
-                            certificate_id = cert.id.to_string(),
-                            peer_id = self.local_peer_id,
-                            "otel.kind" = "producer"
-                        );
-                        let _span = span.entered();
+                    let cert_id = cert.id;
 
-                        let cert_id = cert.id;
+                    self.broadcast(cert, need_gossip);
 
-                        self.broadcast(cert, need_gossip);
-
-                        if let Some(messages) = self.buffered_messages.remove(&cert_id) {
-                            for message in messages {
-                                DOUBLE_ECHO_BUFFERED_MESSAGE_COUNT.dec();
-                                match message {
-                                    DoubleEchoCommand::Echo {
-                                        from_peer,
-                                        certificate_id,
-                                        ..
-                                    } => {
-                                        let span = if let Some(root) =
-                                            self.span_tracker.get(&certificate_id)
-                                        {
-                                            info_span!(
-                                                parent: root,
-                                                "RECV Inbound Echo (Buffered)",
-                                                peer = self.local_peer_id,
-                                                certificate_id = certificate_id.to_string()
-                                            )
-                                        } else {
-                                            info_span!(
-                                                "RECV Inbound Echo (Buffered)",
-                                                peer = self.local_peer_id,
-                                                certificate_id = certificate_id.to_string()
-                                            )
-                                        };
-
-                                        let _enter = span.enter();
-                                        self.consume_echo(from_peer, &certificate_id);
-                                        self.state_change_follow_up();
-                                    }
-                                    DoubleEchoCommand::Ready {
-                                        from_peer,
-                                        certificate_id,
-                                        ..
-                                    } => {
-                                        let span = if let Some(root) =
-                                            self.span_tracker.get(&certificate_id)
-                                        {
-                                            info_span!(
-                                                parent: root,
-                                                "RECV Inbound Ready (Buffered)",
-                                                peer = self.local_peer_id,
-                                                certificate_id = certificate_id.to_string()
-                                            )
-                                        } else {
-                                            info_span!(
-                                                "RECV Inbound Ready (Buffered)",
-                                                peer = self.local_peer_id,
-                                                certificate_id = certificate_id.to_string()
-                                            )
-                                        };
-
-                                        let _enter = span.enter();
-                                        self.consume_ready(from_peer, &certificate_id);
-
-                                        self.state_change_follow_up();
-                                    }
-                                    _ => {}
+                    if let Some(messages) = self.buffered_messages.remove(&cert_id) {
+                        for message in messages {
+                            DOUBLE_ECHO_BUFFERED_MESSAGE_COUNT.dec();
+                            match message {
+                                DoubleEchoCommand::Echo {
+                                    from_peer,
+                                    certificate_id,
+                                    ..
+                                } => {
+                                    self.consume_echo(from_peer, &certificate_id);
+                                    self.state_change_follow_up();
                                 }
+                                DoubleEchoCommand::Ready {
+                                    from_peer,
+                                    certificate_id,
+                                    ..
+                                } => {
+                                    self.consume_ready(from_peer, &certificate_id);
+
+                                    self.state_change_follow_up();
+                                }
+                                _ => {}
                             }
                         }
-                    } else {
-                        warn!(
-                            "No span found for certificate id: {} {:?}",
-                            cert.id, cert.id
-                        );
                     }
                 }
             }
@@ -283,19 +228,11 @@ impl DoubleEcho {
 
             return;
         }
-
-        let span = self
-            .span_tracker
-            .get(&cert.id)
-            .cloned()
-            .unwrap_or_else(Span::current);
-
         if origin {
             warn!("📣 Gossiping the Certificate {}", &cert.id);
-            let _ = self.event_sender.send(ProtocolEvents::Gossip {
-                cert: cert.clone(),
-                ctx: span,
-            });
+            let _ = self
+                .event_sender
+                .send(ProtocolEvents::Gossip { cert: cert.clone() });
         }
 
         // Trigger event of new certificate candidate for delivery
@@ -324,22 +261,15 @@ impl DoubleEcho {
         self.delivery_time
             .insert(cert.id, (time::SystemTime::now(), Default::default()));
 
-        let ctx = self
-            .span_tracker
-            .get(&cert.id)
-            .cloned()
-            .unwrap_or_else(Span::current);
-
         let _ = self.event_sender.send(ProtocolEvents::Echo {
             certificate_id: cert.id,
-            ctx,
         });
     }
 
     /// Build initial delivery state
     fn delivery_state_for_new_cert(
         &mut self,
-        certificate_id: &CertificateId,
+        _certificate_id: &CertificateId,
     ) -> Option<DeliveryState> {
         let subscriptions = self.subscriptions.clone();
 
@@ -352,17 +282,10 @@ impl DoubleEcho {
             );
             None
         } else {
-            let ctx = self
-                .span_tracker
-                .get(certificate_id)
-                .cloned()
-                .unwrap_or_else(Span::current);
-
             Some(DeliveryState {
                 subscriptions,
                 ready_sent: false,
                 delivered: false,
-                ctx,
             })
         }
     }
@@ -390,7 +313,7 @@ impl DoubleEcho {
         };
     }
 
-    pub(crate) fn handle_broadcast(&mut self, cert: Certificate, need_gossip: bool, ctx: Span) {
+    pub(crate) fn handle_broadcast(&mut self, cert: Certificate, need_gossip: bool) {
         if !self.known_certificates.contains(&cert.id) {
             let span = warn_span!(
                 "Broadcast",
@@ -409,7 +332,6 @@ impl DoubleEcho {
                     CERTIFICATE_RECEIVED_FROM_GOSSIP_TOTAL.inc();
                 }
             });
-            span.add_link(ctx.context().span().span_context().clone());
 
             self.known_certificates.insert(cert.id);
             span.in_scope(|| {
@@ -427,31 +349,10 @@ impl DoubleEcho {
         }
     }
 
-    pub(crate) fn handle_echo(
-        &mut self,
-        from_peer: PeerId,
-        certificate_id: CertificateId,
-        ctx: Span,
-    ) {
+    pub(crate) fn handle_echo(&mut self, from_peer: PeerId, certificate_id: CertificateId) {
         let cert_delivered = self.delivered_certificates.get(&certificate_id).is_some();
         if !cert_delivered {
             if self.known_certificates.get(&certificate_id).is_some() {
-                let span = if let Some(root) = self.span_tracker.get(&certificate_id) {
-                    info_span!(
-                        parent: root,
-                        "RECV Inbound Echo",
-                        peer = self.local_peer_id,
-                        certificate_id = certificate_id.to_string()
-                    )
-                } else {
-                    info_span!(
-                        "RECV Inbound Echo",
-                        peer = self.local_peer_id,
-                        certificate_id = certificate_id.to_string()
-                    )
-                };
-
-                let _enter = span.enter();
                 debug!(
                     "Handling DoubleEchoCommand::Echo from_peer: {} cert_id: {}",
                     &from_peer, certificate_id
@@ -459,7 +360,6 @@ impl DoubleEcho {
                 self.consume_echo(from_peer, &certificate_id);
 
                 self.state_change_follow_up();
-                drop(_enter);
                 // need to deliver the certificate
             } else if self.delivered_certificates.get(&certificate_id).is_none() {
                 // need to buffer the Echo
@@ -469,38 +369,16 @@ impl DoubleEcho {
                     .push(DoubleEchoCommand::Echo {
                         from_peer,
                         certificate_id,
-                        ctx,
                     });
                 DOUBLE_ECHO_BUFFERED_MESSAGE_COUNT.inc();
             }
         }
     }
 
-    pub(crate) fn handle_ready(
-        &mut self,
-        from_peer: PeerId,
-        certificate_id: CertificateId,
-        ctx: Span,
-    ) {
+    pub(crate) fn handle_ready(&mut self, from_peer: PeerId, certificate_id: CertificateId) {
         let cert_delivered = self.delivered_certificates.get(&certificate_id).is_some();
         if !cert_delivered {
             if self.known_certificates.get(&certificate_id).is_some() {
-                let span = if let Some(root) = self.span_tracker.get(&certificate_id) {
-                    info_span!(
-                        parent: root,
-                        "RECV Inbound Ready",
-                        peer = self.local_peer_id,
-                        certificate_id = certificate_id.to_string()
-                    )
-                } else {
-                    info_span!(
-                        "RECV Inbound Ready",
-                        peer = self.local_peer_id,
-                        certificate_id = certificate_id.to_string()
-                    )
-                };
-
-                let _enter = span.enter();
                 debug!(
                     "Handling DoubleEchoCommand::Ready from_peer: {} cert_id: {}",
                     &from_peer, &certificate_id
@@ -509,7 +387,6 @@ impl DoubleEcho {
                 self.consume_ready(from_peer, &certificate_id);
 
                 self.state_change_follow_up();
-                drop(_enter);
                 // need to deliver the certificate
             } else if self.delivered_certificates.get(&certificate_id).is_none() {
                 // need to buffer the Ready
@@ -519,7 +396,6 @@ impl DoubleEcho {
                     .push(DoubleEchoCommand::Ready {
                         from_peer,
                         certificate_id,
-                        ctx,
                     });
                 DOUBLE_ECHO_BUFFERED_MESSAGE_COUNT.inc();
             }
@@ -542,7 +418,7 @@ impl DoubleEcho {
         debug!("StateChangeFollowUp called");
         let mut state_modified = false;
         let mut gen_evts = Vec::<ProtocolEvents>::new();
-        let mut delivered_certificates = Vec::<(Certificate, Span)>::new();
+        let mut delivered_certificates = Vec::<Certificate>::new();
 
         // For all current Cert on processing
         for (certificate, state_to_delivery) in self.cert_candidate.values_mut() {
@@ -557,7 +433,6 @@ impl DoubleEcho {
                 // Fanout the Ready messages to my subscribers
                 gen_evts.push(ProtocolEvents::Ready {
                     certificate_id: certificate.id,
-                    ctx: state_to_delivery.ctx.clone(),
                 });
 
                 state_to_delivery.ready_sent = true;
@@ -572,7 +447,7 @@ impl DoubleEcho {
                     state_to_delivery,
                 )
             {
-                delivered_certificates.push((certificate.clone(), state_to_delivery.ctx.clone()));
+                delivered_certificates.push(certificate.clone());
                 state_to_delivery.delivered = true;
                 state_modified = true;
             }
@@ -610,28 +485,24 @@ impl DoubleEcho {
             self.cert_candidate
                 .retain(|_, (_, state)| !state.delivered || !state.ready_sent);
 
-            for (certificate, ctx) in delivered_certificates {
-                let span = info_span!(parent: &ctx, "Delivered");
+            for certificate in delivered_certificates {
+                let mut d = time::Duration::from_millis(0);
+                if let Some((from, duration)) = self.delivery_time.get_mut(&certificate.id) {
+                    *duration = from.elapsed().unwrap();
+                    d = *duration;
 
-                span.in_scope(|| {
-                    let mut d = time::Duration::from_millis(0);
-                    if let Some((from, duration)) = self.delivery_time.get_mut(&certificate.id) {
-                        *duration = from.elapsed().unwrap();
-                        d = *duration;
+                    info!("Certificate {} got delivered in {:?}", certificate.id, d);
+                }
+                self.cert_candidate.remove(&certificate.id);
+                self.span_tracker.remove(&certificate.id);
 
-                        info!("Certificate {} got delivered in {:?}", certificate.id, d);
-                    }
-                    self.cert_candidate.remove(&certificate.id);
-                    self.span_tracker.remove(&certificate.id);
+                debug!("📝 Accepted[{}]\t Delivery time: {:?}", &certificate.id, d);
 
-                    debug!("📝 Accepted[{}]\t Delivery time: {:?}", &certificate.id, d);
-
-                    DOUBLE_ECHO_BROADCAST_FINISHED_TOTAL.inc();
-                    self.delivered_certificates.insert(certificate.id);
-                    _ = self
-                        .event_sender
-                        .send(ProtocolEvents::CertificateDelivered { certificate });
-                });
+                DOUBLE_ECHO_BROADCAST_FINISHED_TOTAL.inc();
+                self.delivered_certificates.insert(certificate.id);
+                _ = self
+                    .event_sender
+                    .send(ProtocolEvents::CertificateDelivered { certificate });
             }
         }
 

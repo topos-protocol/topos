@@ -7,15 +7,12 @@ edition = "2021"
 byteorder.workspace = true
 futures.workspace = true
 lazy_static.workspace = true
-opentelemetry-otlp.workspace = true
-opentelemetry.workspace = true
 rand.workspace = true
 rand_core.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full"] }
 tokio-stream = { workspace = true, features = ["sync"] }
-tracing-opentelemetry.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 tracing.workspace = true
 
@@ -24,7 +21,6 @@ topos-core = { workspace = true, features = ["uci"] }
 topos-p2p = { path = "../topos-p2p/"}
 topos-metrics = { path = "../topos-metrics/" }
 topos-tce-storage = { path = "../topos-tce-storage/" }
-topos-telemetry = { path = "../topos-telemetry/" }
 
 [dev-dependencies]
 criterion = { version = "0.5.1", features = ["async_futures", "async_tokio"] }

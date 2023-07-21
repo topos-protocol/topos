@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use rand::Rng;
 use tokio::spawn;
 use tokio::sync::mpsc;
-use tracing::Span;
 
 use topos_core::uci::CertificateId;
 use topos_p2p::PeerId;
@@ -44,7 +43,6 @@ pub async fn processing_double_echo(n: u64) {
             let echo = DoubleEchoCommand::Echo {
                 from_peer: PeerId::random(),
                 certificate_id,
-                ctx: Span::current(),
             };
 
             message_sender.send(echo).await.unwrap();
