@@ -47,7 +47,9 @@ pub struct DoubleEcho {
     /// delivered certificate ids to avoid processing twice the same certificate
     delivered_certificates: HashSet<CertificateId>,
 
-    pub(crate) params: ReliableBroadcastParams,
+    task_manager_message_sender: mpsc::Sender<DoubleEchoCommand>,
+
+    task_completion_receiver: mpsc::Receiver<(CertificateId, TaskStatus)>,
 
     /// Current certificates being processed
     cert_candidate: HashMap<CertificateId, (Certificate, DeliveryState)>,
@@ -71,7 +73,8 @@ impl DoubleEcho {
 
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        params: ReliableBroadcastParams,
+        task_manager_message_sender: mpsc::Sender<DoubleEchoCommand>,
+        task_completion_receiver: mpsc::Receiver<(CertificateId, TaskStatus)>,
         command_receiver: mpsc::Receiver<DoubleEchoCommand>,
         subscriptions_view_receiver: mpsc::Receiver<SubscriptionsView>,
         event_sender: broadcast::Sender<ProtocolEvents>,
@@ -80,8 +83,9 @@ impl DoubleEcho {
         pending_certificate_count: u64,
     ) -> Self {
         Self {
+            task_manager_message_sender,
+            task_completion_receiver,
             pending_certificate_count,
-            params,
             command_receiver,
             subscriptions_view_receiver,
             event_sender,

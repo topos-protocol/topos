@@ -120,7 +120,16 @@ impl ReliableBroadcastClient {
         let (double_echo_shutdown_channel, double_echo_shutdown_receiver) =
             mpsc::channel::<oneshot::Sender<()>>(1);
 
-        // let (task_manager_message_sender, task_manager_message_receiver) = mpsc::channel(24_000);
+        let (task_manager_message_sender, task_manager_message_receiver) = mpsc::channel(24_000);
+        let (task_completion_sender, task_completion_receiver) = mpsc::channel(24_000);
+
+        let (task_manager, shutdown_receiver) = TaskManager::new(
+            task_manager_message_receiver,
+            task_completion_sender,
+            config.tce_params,
+        );
+
+        spawn(task_manager.run(shutdown_receiver));
 
         let pending_certificate_count = storage
             .get_pending_certificates()
@@ -129,7 +138,8 @@ impl ReliableBroadcastClient {
             .unwrap_or(0) as u64;
 
         let double_echo = DoubleEcho::new(
-            config.tce_params,
+            task_manager_message_sender,
+            task_completion_receiver,
             command_receiver,
             subscriptions_view_receiver,
             event_sender,
