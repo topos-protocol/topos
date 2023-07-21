@@ -21,7 +21,6 @@ fn main() {
         println!("cargo:rustc-env=TOPOS_VERSION={topos_version}");
     }
 
-    // println!("TEST");
     let using_futures = cfg!(feature = "task-manager-futures");
     let using_channels = cfg!(feature = "task-manager-channels");
 
