@@ -1,6 +1,5 @@
 mod graphql;
 mod grpc;
-mod metadata_map;
 mod metrics;
 mod runtime;
 mod stream;

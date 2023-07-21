@@ -21,7 +21,7 @@ use topos_core::uci::{Certificate, CertificateId};
 use topos_metrics::DOUBLE_ECHO_COMMAND_CHANNEL_CAPACITY_TOTAL;
 use topos_p2p::PeerId;
 use topos_tce_storage::StorageClient;
-use tracing::{debug, error, info, Span};
+use tracing::{debug, error, info};
 
 use crate::sampler::SubscriptionsView;
 pub use topos_core::uci;
@@ -65,21 +65,18 @@ pub enum DoubleEchoCommand {
     Broadcast {
         need_gossip: bool,
         cert: Certificate,
-        ctx: Span,
     },
 
     /// When echo reply received
     Echo {
         from_peer: PeerId,
         certificate_id: CertificateId,
-        ctx: Span,
     },
 
     /// When ready reply received
     Ready {
         from_peer: PeerId,
         certificate_id: CertificateId,
-        ctx: Span,
     },
 }
 
@@ -169,7 +166,6 @@ impl ReliableBroadcastClient {
             .send(DoubleEchoCommand::Broadcast {
                 cert: certificate,
                 need_gossip: origin,
-                ctx: Span::current(),
             })
             .await
             .is_err()

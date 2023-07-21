@@ -3,7 +3,6 @@ use std::collections::HashSet;
 use tokio::sync::oneshot;
 use topos_core::uci::{Certificate, SubnetId};
 use topos_p2p::PeerId;
-use tracing::Span;
 
 use super::error::RuntimeError;
 
@@ -11,7 +10,6 @@ pub enum RuntimeEvent {
     CertificateSubmitted {
         certificate: Box<Certificate>,
         sender: oneshot::Sender<Result<(), RuntimeError>>,
-        ctx: Span,
     },
 
     PeerListPushed {

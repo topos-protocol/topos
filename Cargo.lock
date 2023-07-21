@@ -6929,7 +6929,6 @@ dependencies = [
  "http",
  "http-body",
  "hyper",
- "opentelemetry",
  "pin-project",
  "prometheus-client",
  "prost",
@@ -6949,12 +6948,10 @@ dependencies = [
  "topos-metrics",
  "topos-p2p",
  "topos-tce-storage",
- "topos-telemetry",
  "topos-test-sdk",
  "tower",
  "tower-http",
  "tracing",
- "tracing-opentelemetry",
  "tracing-subscriber",
  "uuid 1.4.0",
 ]
@@ -6968,8 +6965,6 @@ dependencies = [
  "env_logger 0.10.0",
  "futures",
  "lazy_static",
- "opentelemetry",
- "opentelemetry-otlp",
  "rand 0.8.5",
  "rand_core 0.6.4",
  "rstest",
@@ -6983,10 +6978,8 @@ dependencies = [
  "topos-p2p",
  "topos-tce-storage",
  "topos-tce-transport",
- "topos-telemetry",
  "topos-test-sdk",
  "tracing",
- "tracing-opentelemetry",
  "tracing-subscriber",
 ]
 
@@ -7093,11 +7086,9 @@ name = "topos-tce-transport"
 version = "0.1.0"
 dependencies = [
  "clap 4.3.11",
- "opentelemetry",
  "serde",
  "topos-core",
  "topos-p2p",
- "topos-telemetry",
  "tracing",
 ]
 
