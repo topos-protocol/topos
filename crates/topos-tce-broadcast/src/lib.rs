@@ -8,11 +8,11 @@ use std::collections::HashSet;
 use sampler::SampleType;
 use thiserror::Error;
 use tokio::spawn;
-use tokio_stream::wrappers::BroadcastStream;
+use tokio_stream::wrappers::ReceiverStream;
 
-use futures::{Stream, TryStreamExt};
+use futures::Stream;
 use tokio::sync::mpsc::Sender;
-use tokio::sync::{broadcast, mpsc, oneshot};
+use tokio::sync::{mpsc, oneshot};
 
 use double_echo::DoubleEcho;
 use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
@@ -112,10 +112,10 @@ impl ReliableBroadcastClient {
         config: ReliableBroadcastConfig,
         local_peer_id: String,
         storage: StorageClient,
-    ) -> (Self, impl Stream<Item = Result<ProtocolEvents, ()>>) {
+    ) -> (Self, impl Stream<Item = ProtocolEvents>) {
         let (subscriptions_view_sender, subscriptions_view_receiver) =
             mpsc::channel::<SubscriptionsView>(2048);
-        let (event_sender, event_receiver) = broadcast::channel(2048);
+        let (event_sender, event_receiver) = mpsc::channel(2048);
         let (command_sender, command_receiver) = mpsc::channel(*constant::COMMAND_CHANNEL_SIZE);
         let (double_echo_shutdown_channel, double_echo_shutdown_receiver) =
             mpsc::channel::<oneshot::Sender<()>>(1);
@@ -156,7 +156,7 @@ impl ReliableBroadcastClient {
                 subscriptions_view_sender,
                 double_echo_shutdown_channel,
             },
-            BroadcastStream::new(event_receiver).map_err(|_| ()),
+            ReceiverStream::new(event_receiver),
         )
     }
 

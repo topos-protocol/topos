@@ -9,7 +9,7 @@ pub async fn create_reliable_broadcast_client(
     storage: topos_tce_storage::StorageClient,
 ) -> (
     ReliableBroadcastClient,
-    impl Stream<Item = Result<ProtocolEvents, ()>> + Unpin,
+    impl Stream<Item = ProtocolEvents> + Unpin,
 ) {
     let config = ReliableBroadcastConfig { tce_params };
 

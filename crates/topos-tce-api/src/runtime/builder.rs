@@ -160,7 +160,6 @@ pub struct RuntimeContext {
 
 impl Drop for RuntimeContext {
     fn drop(&mut self) {
-        println!("Dropping RuntimeContext");
         tracing::warn!("Dropping RuntimeContext");
         self.grpc_handler.abort();
         self.graphql_handler.abort();

@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::future::IntoFuture;
 use std::pin::Pin;
 use tokio::sync::mpsc;
+use tracing::warn;
 
 use tce_transport::ReliableBroadcastParams;
 use topos_core::uci::CertificateId;
@@ -91,7 +92,7 @@ impl TaskManager {
                     }
                 }
                 _ = shutdown_receiver.recv() => {
-                    println!("Task Manager shutting down");
+                    warn!("Task Manager shutting down");
 
                     // Shutting down every open task
                     for task in self.tasks.iter() {
