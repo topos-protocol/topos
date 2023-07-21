@@ -1,4 +1,9 @@
+#[cfg(all(
+    feature = "task-manager-channels",
+    not(feature = "task-manager-futures")
+))]
 mod task_manager_channels;
+#[cfg(feature = "task-manager-futures")]
 mod task_manager_futures;
 
 use crate::double_echo::*;

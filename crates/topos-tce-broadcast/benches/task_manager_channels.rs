@@ -1,9 +1,8 @@
-use std::collections::HashMap;
-
 use rand::Rng;
 use tokio::spawn;
 use tokio::sync::mpsc;
 
+use tce_transport::ReliableBroadcastParams;
 use topos_core::uci::CertificateId;
 use topos_p2p::PeerId;
 use topos_tce_broadcast::task_manager_channels::{TaskManager, Thresholds};
@@ -11,22 +10,18 @@ use topos_tce_broadcast::DoubleEchoCommand;
 
 pub async fn processing_double_echo(n: u64) {
     let (message_sender, message_receiver) = mpsc::channel(1024);
-    let (task_completion_sender, task_completion_receiver) = mpsc::channel(1024);
     let (event_sender, mut event_receiver) = mpsc::channel(1024);
+    let (_shutdown_sender, shutdown_receiver) = mpsc::channel(1);
 
-    let task_manager = TaskManager {
-        message_receiver,
-        task_completion: task_completion_receiver,
-        task_context: HashMap::new(),
-        thresholds: Thresholds {
-            echo: n as usize,
-            ready: n as usize,
-            delivery: n as usize,
-        },
+    let threshold = ReliableBroadcastParams {
+        echo_threshold: n as usize,
+        ready_threshold: n as usize,
+        delivery_threshold: n as usize,
     };
 
-    spawn(task_manager.run(task_completion_sender, event_sender));
+    let (task_manager, task_completion_sender, _) = TaskManager::new(message_receiver, threshold);
 
+    spawn(task_manager.run(task_completion_sender, event_sender, shutdown_receiver));
     let mut certificates = vec![];
 
     let mut rng = rand::thread_rng();

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use tokio::{spawn, sync::mpsc};
 
+use tce_transport::ReliableBroadcastParams;
 use topos_core::uci::CertificateId;
 
 pub mod task;
@@ -8,40 +9,55 @@ pub mod task;
 use crate::DoubleEchoCommand;
 use task::{Task, TaskCompletion, TaskContext};
 
-#[derive(Clone)]
-pub struct Thresholds {
-    pub echo: usize,
-    pub ready: usize,
-    pub delivery: usize,
-}
-
 /// The TaskManager is responsible for receiving messages from the network and distributing them
 /// among tasks. These tasks are either created if none for a certain CertificateID exists yet,
 /// or existing tasks will receive the messages.
 pub struct TaskManager {
     pub message_receiver: mpsc::Receiver<DoubleEchoCommand>,
-    pub task_completion: mpsc::Receiver<TaskCompletion>,
-    pub task_context: HashMap<CertificateId, TaskContext>,
-    pub thresholds: Thresholds,
+    pub task_completion_receiver: mpsc::Receiver<TaskCompletion>,
+    pub tasks: HashMap<CertificateId, TaskContext>,
+    pub thresholds: ReliableBroadcastParams,
+    pub shutdown_sender: mpsc::Sender<()>,
 }
 
 impl TaskManager {
+    pub fn new(
+        message_receiver: mpsc::Receiver<DoubleEchoCommand>,
+        thresholds: ReliableBroadcastParams,
+    ) -> (Self, mpsc::Sender<TaskCompletion>, mpsc::Receiver<()>) {
+        let (task_completion_sender, task_completion_receiver) = mpsc::channel(1024);
+        let (shutdown_sender, shutdown_receiver) = mpsc::channel(1);
+
+        (
+            Self {
+                message_receiver,
+                task_completion_receiver,
+                tasks: HashMap::new(),
+                thresholds,
+                shutdown_sender,
+            },
+            task_completion_sender,
+            shutdown_receiver,
+        )
+    }
+
     pub async fn run(
         mut self,
         task_completion_sender: mpsc::Sender<TaskCompletion>,
         event_sender: mpsc::Sender<task::Events>,
+        mut shutdown_receiver: mpsc::Receiver<()>,
     ) {
         loop {
             tokio::select! {
                 // If a task sends a message over the completion channel, it is signalling that it
                 // is done and can be removed from the open tasks inside `task_context`
-                Some(task_completion) = self.task_completion.recv() => {
+                Some(task_completion) = self.task_completion_receiver.recv() => {
                     match task_completion.success {
                         true => {
-                            self.task_context.remove(&task_completion.certificate_id);
+                            self.tasks.remove(&task_completion.certificate_id);
                         }
                         false => {
-                            self.task_context.remove(&task_completion.certificate_id);
+                            self.tasks.remove(&task_completion.certificate_id);
                         }
                     }
                 }
@@ -49,7 +65,7 @@ impl TaskManager {
                 Some(msg) = self.message_receiver.recv() => {
                     match msg {
                         DoubleEchoCommand::Echo { certificate_id, .. } | DoubleEchoCommand::Ready{ certificate_id, .. } => {
-                            let task_context = match self.task_context.get(&certificate_id) {
+                            let task_context = match self.tasks.get(&certificate_id) {
                                 Some(task_context) => task_context.to_owned(),
                                 None => self.create_and_spawn_new_task(certificate_id, task_completion_sender.clone(), event_sender.clone()),
                             };
@@ -57,12 +73,23 @@ impl TaskManager {
                             Self::send_message_to_task(task_context, msg).await;
                         }
                         DoubleEchoCommand::Broadcast { ref cert, .. } => {
-                            if self.task_context.get(&cert.id).is_none() {
+                            if self.tasks.get(&cert.id).is_none() {
                                 let task_context = self.create_and_spawn_new_task(cert.id, task_completion_sender.clone(), event_sender.clone());
                                 Self::send_message_to_task(task_context, msg).await;
                             }
                         }
                     }
+                }
+
+                _ = shutdown_receiver.recv() => {
+                    println!("Task Manager shutting down");
+
+                    // Shutting down every open task
+                    for task in self.tasks.iter() {
+                        task.1.shutdown_sender.send(()).await.unwrap();
+                    }
+
+                    break;
                 }
             }
         }
@@ -83,7 +110,7 @@ impl TaskManager {
 
         spawn(task.run());
 
-        self.task_context.insert(certificate_id, context.clone());
+        self.tasks.insert(certificate_id, context.clone());
 
         context
     }
@@ -92,5 +119,11 @@ impl TaskManager {
         spawn(async move {
             _ = task_context.message_sender.send(msg).await;
         });
+    }
+}
+
+impl Drop for TaskManager {
+    fn drop(&mut self) {
+        _ = self.shutdown_sender.try_send(());
     }
 }

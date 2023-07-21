@@ -23,7 +23,6 @@ use topos_p2p::PeerId;
 use topos_tce_storage::StorageClient;
 use tracing::{debug, error, info};
 
-use crate::sampler::SubscriptionsView;
 pub use topos_core::uci;
 
 pub type Peer = String;
@@ -32,10 +31,26 @@ mod constant;
 pub mod double_echo;
 pub mod sampler;
 
+#[cfg(all(
+    feature = "task-manager-channels",
+    not(feature = "task-manager-futures")
+))]
 pub mod task_manager_channels;
+#[cfg(feature = "task-manager-futures")]
 pub mod task_manager_futures;
+
 #[cfg(test)]
 mod tests;
+
+use crate::sampler::SubscriptionsView;
+
+#[cfg(feature = "task-manager-futures")]
+use crate::task_manager_futures::TaskManager;
+#[cfg(all(
+    feature = "task-manager-channels",
+    not(feature = "task-manager-futures")
+))]
+use task_manager_channels::TaskManager;
 
 /// Configuration of TCE implementation
 pub struct ReliableBroadcastConfig {

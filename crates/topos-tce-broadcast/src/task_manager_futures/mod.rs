@@ -6,19 +6,13 @@ use std::future::IntoFuture;
 use std::pin::Pin;
 use tokio::sync::mpsc;
 
+use tce_transport::ReliableBroadcastParams;
 use topos_core::uci::CertificateId;
 
 pub mod task;
 
 use crate::DoubleEchoCommand;
 use task::{Task, TaskContext, TaskStatus};
-
-#[derive(Clone)]
-pub struct Thresholds {
-    pub echo: usize,
-    pub ready: usize,
-    pub delivery: usize,
-}
 
 /// The TaskManager is responsible for receiving messages from the network and distributing them
 /// among tasks. These tasks are either created if none for a certain CertificateID exists yet,
@@ -31,11 +25,31 @@ pub struct TaskManager {
     pub running_tasks: FuturesUnordered<
         Pin<Box<dyn Future<Output = (CertificateId, TaskStatus)> + Send + 'static>>,
     >,
-    pub thresholds: Thresholds,
+    pub thresholds: ReliableBroadcastParams,
     pub shutdown_sender: mpsc::Sender<()>,
 }
 
 impl TaskManager {
+    pub fn new(
+        message_receiver: mpsc::Receiver<DoubleEchoCommand>,
+        task_completion_sender: mpsc::Sender<(CertificateId, TaskStatus)>,
+        thresholds: ReliableBroadcastParams,
+    ) -> (Self, mpsc::Receiver<()>) {
+        let (shutdown_sender, shutdown_receiver) = mpsc::channel(1);
+
+        (
+            Self {
+                message_receiver,
+                task_completion_sender,
+                tasks: HashMap::new(),
+                running_tasks: FuturesUnordered::new(),
+                thresholds,
+                shutdown_sender,
+            },
+            shutdown_receiver,
+        )
+    }
+
     pub async fn run(mut self, mut shutdown_receiver: mpsc::Receiver<()>) {
         loop {
             tokio::select! {

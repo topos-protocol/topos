@@ -61,10 +61,12 @@ rstest = { workspace = true, features = ["async-timeout"] }
 regex = "1"
 
 [features]
-default = ["tce", "sequencer", "network", "node", "setup", "subnet"]
+default = ["tce", "sequencer", "network", "node", "setup", "subnet", "topos-tce-broadcast/task-manager-futures"]
 tce = ["topos-tce", "topos-tce-transport"]
 sequencer = ["topos-sequencer"]
 network = ["topos-certificate-spammer"]
 node = ["tce", "sequencer"]
 setup = []
 subnet = []
+task-manager-futures = ["topos-tce-broadcast/task-manager-futures"]
+task-manager-channels = ["tce", "sequencer", "network", "node", "setup", "subnet", "topos-tce-broadcast/task-manager-channels"]

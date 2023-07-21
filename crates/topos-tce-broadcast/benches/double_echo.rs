@@ -1,7 +1,9 @@
 use criterion::async_executor::FuturesExecutor;
 use criterion::{criterion_group, criterion_main, Criterion};
 
+#[cfg(feature = "task-manager-channels")]
 mod task_manager_channels;
+#[cfg(feature = "task-manager-futures")]
 mod task_manager_futures;
 
 pub fn criterion_benchmark(c: &mut Criterion) {
@@ -11,6 +13,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         .build()
         .unwrap();
 
+    #[cfg(feature = "task-manager-channels")]
     c.bench_function("double_echo with channels", |b| {
         b.to_async(FuturesExecutor).iter(|| async {
             runtime.block_on(async {
@@ -19,6 +22,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         })
     });
 
+    #[cfg(feature = "task-manager-futures")]
     c.bench_function("double_echo with futures", |b| {
         b.to_async(FuturesExecutor).iter(|| async {
             runtime.block_on(async {

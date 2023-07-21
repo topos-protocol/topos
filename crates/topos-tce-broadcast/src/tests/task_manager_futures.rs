@@ -1,8 +1,8 @@
-use crate::task_manager_futures::{TaskManager, Thresholds};
+use crate::task_manager_futures::TaskManager;
 use crate::{CertificateId, DoubleEchoCommand};
-use futures::stream::FuturesUnordered;
 use rand::Rng;
 use rstest::*;
+use tce_transport::ReliableBroadcastParams;
 use tokio::{spawn, sync::mpsc};
 use topos_p2p::PeerId;
 
@@ -13,20 +13,15 @@ async fn task_manager_futures_receiving_messages() {
 
     let (message_sender, message_receiver) = mpsc::channel(1024);
     let (task_completion_sender, mut task_completion_receiver) = mpsc::channel(1024);
-    let (shutdown_sender, shutdown_receiver) = mpsc::channel(1);
 
-    let task_manager = TaskManager {
-        message_receiver,
-        task_completion_sender,
-        tasks: Default::default(),
-        running_tasks: FuturesUnordered::new(),
-        thresholds: Thresholds {
-            echo: n,
-            ready: n,
-            delivery: n,
-        },
-        shutdown_sender,
+    let thresholds = ReliableBroadcastParams {
+        echo_threshold: n,
+        ready_threshold: n,
+        delivery_threshold: n,
     };
+
+    let (task_manager, shutdown_receiver) =
+        TaskManager::new(message_receiver, task_completion_sender, thresholds);
 
     spawn(task_manager.run(shutdown_receiver));
 

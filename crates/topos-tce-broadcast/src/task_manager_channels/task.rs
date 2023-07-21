@@ -1,9 +1,8 @@
 use tokio::sync::mpsc;
 
-use topos_core::uci::CertificateId;
-
-use crate::task_manager_channels::Thresholds;
 use crate::DoubleEchoCommand;
+use tce_transport::ReliableBroadcastParams;
+use topos_core::uci::CertificateId;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Events {
@@ -37,8 +36,8 @@ impl TaskCompletion {
 
 #[derive(Clone)]
 pub struct TaskContext {
-    pub certificate_id: CertificateId,
     pub message_sender: mpsc::Sender<DoubleEchoCommand>,
+    pub shutdown_sender: mpsc::Sender<()>,
 }
 
 pub struct Task {
@@ -46,7 +45,8 @@ pub struct Task {
     pub certificate_id: CertificateId,
     pub completion_sender: mpsc::Sender<TaskCompletion>,
     pub event_sender: mpsc::Sender<Events>,
-    pub thresholds: Thresholds,
+    pub thresholds: ReliableBroadcastParams,
+    pub shutdown_receiver: mpsc::Receiver<()>,
 }
 
 impl Task {
@@ -54,12 +54,14 @@ impl Task {
         certificate_id: CertificateId,
         completion_sender: mpsc::Sender<TaskCompletion>,
         event_sender: mpsc::Sender<Events>,
-        thresholds: Thresholds,
+        thresholds: ReliableBroadcastParams,
     ) -> (Self, TaskContext) {
         let (message_sender, message_receiver) = mpsc::channel(1024);
+        let (shutdown_sender, shutdown_receiver) = mpsc::channel(1);
+
         let task_context = TaskContext {
-            certificate_id,
             message_sender,
+            shutdown_sender,
         };
 
         let task = Task {
@@ -68,6 +70,7 @@ impl Task {
             completion_sender,
             event_sender,
             thresholds,
+            shutdown_receiver,
         };
 
         (task, task_context)
@@ -96,7 +99,16 @@ impl Task {
     pub(crate) async fn run(mut self) {
         loop {
             tokio::select! {
-                Some(msg) = self.message_receiver.recv() => if let Ok(true) = self.handle_msg(msg).await {
+                msg = self.message_receiver.recv() => {
+                    if let Some(msg) = msg {
+                        if let Ok(true) = self.handle_msg(msg).await {
+                            break;
+                        }
+                    }
+                }
+
+                _ = self.shutdown_receiver.recv() => {
+                    println!("Received shutdown, shutting down task {:?}", self.certificate_id);
                     break;
                 }
             }

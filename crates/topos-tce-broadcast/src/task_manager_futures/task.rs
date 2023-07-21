@@ -4,8 +4,8 @@ use tokio::sync::mpsc;
 
 use topos_core::uci::CertificateId;
 
-use crate::task_manager_futures::Thresholds;
 use crate::DoubleEchoCommand;
+use tce_transport::ReliableBroadcastParams;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Events {
@@ -30,12 +30,15 @@ pub struct TaskContext {
 pub struct Task {
     pub message_receiver: mpsc::Receiver<DoubleEchoCommand>,
     pub certificate_id: CertificateId,
-    pub thresholds: Thresholds,
+    pub thresholds: ReliableBroadcastParams,
     pub shutdown_receiver: mpsc::Receiver<()>,
 }
 
 impl Task {
-    pub fn new(certificate_id: CertificateId, thresholds: Thresholds) -> (Task, TaskContext) {
+    pub fn new(
+        certificate_id: CertificateId,
+        thresholds: ReliableBroadcastParams,
+    ) -> (Task, TaskContext) {
         let (message_sender, message_receiver) = mpsc::channel(10_024);
         let (shutdown_sender, shutdown_receiver) = mpsc::channel(1);
 
