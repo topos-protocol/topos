@@ -8,8 +8,7 @@ use std::collections::HashSet;
 use std::usize;
 use tce_transport::ReliableBroadcastParams;
 
-use tokio::sync::broadcast::error::TryRecvError;
-use tokio::sync::broadcast::Receiver;
+use tokio::sync::mpsc::Receiver;
 use tokio::time::Duration;
 
 use topos_test_sdk::constants::*;
@@ -58,7 +57,7 @@ fn create_context(params: TceParams) -> (DoubleEcho, Context) {
     let (subscriptions_view_sender, subscriptions_view_receiver) = mpsc::channel(CHANNEL_SIZE);
 
     let (cmd_sender, cmd_receiver) = mpsc::channel(CHANNEL_SIZE);
-    let (event_sender, event_receiver) = broadcast::channel(CHANNEL_SIZE);
+    let (event_sender, event_receiver) = mpsc::channel(CHANNEL_SIZE);
     let (double_echo_shutdown_sender, double_echo_shutdown_receiver) =
         mpsc::channel::<oneshot::Sender<()>>(1);
 
@@ -162,15 +161,14 @@ async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams)
     // Trigger Echo upon dispatching
     double_echo.broadcast(dummy_cert.clone(), true);
 
-    assert_eq!(ctx.event_receiver.len(), 3);
+    assert!(matches!(
+        ctx.event_receiver.try_recv(),
+        Ok(ProtocolEvents::Broadcast { certificate_id }) if certificate_id == dummy_cert.id
+    ));
 
     assert!(matches!(
         ctx.event_receiver.try_recv(),
         Ok(ProtocolEvents::Gossip { .. })
-    ));
-    assert!(matches!(
-        ctx.event_receiver.try_recv(),
-        Ok(ProtocolEvents::Broadcast { certificate_id }) if certificate_id == dummy_cert.id
     ));
     assert!(matches!(
         ctx.event_receiver.try_recv(),
@@ -179,15 +177,12 @@ async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams)
 
     assert!(matches!(
         ctx.event_receiver.try_recv(),
-        Err(TryRecvError::Empty)
+        Err(mpsc::error::TryRecvError::Empty)
     ));
-    assert_eq!(ctx.event_receiver.len(), 0);
 
     // Trigger Ready upon reaching the Echo threshold
     reach_echo_threshold(&mut double_echo, &dummy_cert);
-    double_echo.state_change_follow_up();
 
-    assert_eq!(ctx.event_receiver.len(), 1);
     assert!(matches!(
         ctx.event_receiver.try_recv(),
         Ok(ProtocolEvents::Ready { .. })
@@ -195,9 +190,7 @@ async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams)
 
     // Trigger Delivery upon reaching the Delivery threshold
     reach_delivery_threshold(&mut double_echo, &dummy_cert);
-    double_echo.state_change_follow_up();
 
-    assert_eq!(ctx.event_receiver.len(), 1);
     assert!(matches!(
          ctx.event_receiver.try_recv(),
         Ok(ProtocolEvents::CertificateDelivered { certificate }) if certificate == dummy_cert
@@ -226,15 +219,16 @@ async fn trigger_ready_when_reached_enough_ready(#[case] params: TceParams) {
     // Trigger Echo upon dispatching
     double_echo.broadcast(dummy_cert.clone(), true);
 
-    assert_eq!(ctx.event_receiver.len(), 3);
-    assert!(matches!(
-        ctx.event_receiver.try_recv(),
-        Ok(ProtocolEvents::Gossip { .. })
-    ));
     assert!(matches!(
         ctx.event_receiver.try_recv(),
         Ok(ProtocolEvents::Broadcast { certificate_id }) if certificate_id == dummy_cert.id
     ));
+
+    assert!(matches!(
+        ctx.event_receiver.try_recv(),
+        Ok(ProtocolEvents::Gossip { .. })
+    ));
+
     assert!(matches!(
         ctx.event_receiver.try_recv(),
         Ok(ProtocolEvents::Echo { .. })
@@ -242,65 +236,7 @@ async fn trigger_ready_when_reached_enough_ready(#[case] params: TceParams) {
 
     // Trigger Ready upon reaching the Ready threshold
     reach_ready_threshold(&mut double_echo, &dummy_cert);
-    double_echo.state_change_follow_up();
 
-    assert_eq!(ctx.event_receiver.len(), 1);
-    assert!(matches!(
-        ctx.event_receiver.try_recv(),
-        Ok(ProtocolEvents::Ready { .. })
-    ));
-}
-
-#[rstest]
-#[case::small_config(small_config())]
-#[case(medium_config())]
-#[tokio::test]
-#[trace]
-async fn process_after_delivery_until_sending_ready(#[case] params: TceParams) {
-    let (mut double_echo, mut ctx) = create_context(params);
-
-    let dummy_cert = Certificate::new(
-        PREV_CERTIFICATE_ID,
-        SOURCE_SUBNET_ID_1,
-        Default::default(),
-        Default::default(),
-        &[],
-        0,
-        Default::default(),
-    )
-    .expect("Dummy certificate");
-
-    // Trigger Echo upon dispatching
-    double_echo.broadcast(dummy_cert.clone(), true);
-
-    assert_eq!(ctx.event_receiver.len(), 3);
-    assert!(matches!(
-        ctx.event_receiver.try_recv(),
-        Ok(ProtocolEvents::Gossip { .. })
-    ));
-    assert!(matches!(
-        ctx.event_receiver.try_recv(),
-        Ok(ProtocolEvents::Broadcast { certificate_id }) if certificate_id == dummy_cert.id
-    ));
-    assert!(matches!(
-        ctx.event_receiver.try_recv(),
-        Ok(ProtocolEvents::Echo { .. })
-    ));
-
-    // Trigger Delivery upon reaching the Delivery threshold
-    reach_delivery_threshold(&mut double_echo, &dummy_cert);
-    double_echo.state_change_follow_up();
-
-    assert!(matches!(
-        ctx.event_receiver.try_recv(),
-        Ok(ProtocolEvents::CertificateDelivered { certificate }) if certificate == dummy_cert
-    ));
-
-    // Trigger Ready upon reaching the Echo threshold
-    reach_echo_threshold(&mut double_echo, &dummy_cert);
-    double_echo.state_change_follow_up();
-
-    assert_eq!(ctx.event_receiver.len(), 1);
     assert!(matches!(
         ctx.event_receiver.try_recv(),
         Ok(ProtocolEvents::Ready { .. })
@@ -329,7 +265,6 @@ async fn buffering_certificate(#[case] params: TceParams) {
         .await
         .expect("Cannot send broadcast command");
 
-    assert_eq!(ctx.event_receiver.len(), 0);
     ctx.subscriptions_view_sender
         .send(subscriptions.clone())
         .await
@@ -337,7 +272,7 @@ async fn buffering_certificate(#[case] params: TceParams) {
 
     let mut received_gossip_commands: Vec<Certificate> = Vec::new();
     let assertion = async {
-        while let Ok(event) = ctx.event_receiver.recv().await {
+        while let Some(event) = ctx.event_receiver.recv().await {
             if let ProtocolEvents::Gossip { cert, .. } = event {
                 received_gossip_commands.push(cert);
             }

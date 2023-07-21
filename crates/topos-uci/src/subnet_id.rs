@@ -72,18 +72,10 @@ impl FromStr for SubnetId {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let s = if s.starts_with("0x") {
-            println!("s: {:?}", s);
-            println!("s[2..s.len()]: {:?}", &s[2..s.len()]);
-
-            hex::decode(&s[2..s.len()]).map_err(|x| {
-                println!("x: {:?}", x);
-                Error::ValidationError
-            })?
+            hex::decode(&s[2..s.len()]).map_err(|_| Error::ValidationError)?
         } else {
             s.as_bytes().to_vec()
         };
-
-        println!("s: {:?}", s);
 
         s.as_slice().try_into()
     }

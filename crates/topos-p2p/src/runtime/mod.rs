@@ -217,7 +217,7 @@ impl Runtime {
                                 stats,
                                 step,
                             } => {
-                                println!("OutboundQueryProgressed: {id:?}, {result:?}, {stats:?}, {step:?}");
+                                debug!("OutboundQueryProgressed: {id:?}, {result:?}, {stats:?}, {step:?}");
                             }
 
                             KademliaEvent::InboundRequest { .. } => {}
