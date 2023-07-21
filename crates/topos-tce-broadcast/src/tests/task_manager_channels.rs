@@ -14,7 +14,6 @@ async fn task_manager_channels_receiving_messages() {
 
     let (message_sender, message_receiver) = mpsc::channel(1024);
     let (event_sender, mut event_receiver) = mpsc::channel(1024);
-    let (_shutdown_sender, shutdown_receiver) = mpsc::channel(1);
 
     let threshold = ReliableBroadcastParams {
         echo_threshold: n,
@@ -22,9 +21,9 @@ async fn task_manager_channels_receiving_messages() {
         delivery_threshold: n,
     };
 
-    let (task_manager, task_completion_sender, _) = TaskManager::new(message_receiver, threshold);
+    let (task_manager, shutdown_receiver) = TaskManager::new(message_receiver, threshold);
 
-    spawn(task_manager.run(task_completion_sender, event_sender, shutdown_receiver));
+    spawn(task_manager.run(event_sender, shutdown_receiver));
 
     let mut certificates = vec![];
 
