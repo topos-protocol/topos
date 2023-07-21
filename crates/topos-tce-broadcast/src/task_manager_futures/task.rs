@@ -8,13 +8,6 @@ use crate::DoubleEchoCommand;
 use tce_transport::ReliableBroadcastParams;
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum Events {
-    ReachedThresholdOfReady(CertificateId),
-    ReceivedEcho(CertificateId),
-    TimeOut(CertificateId),
-}
-
-#[derive(Debug, PartialEq, Eq)]
 pub enum TaskStatus {
     /// The task finished succesfully and broadcasted the certificate + received ready
     Success,

@@ -120,6 +120,8 @@ impl ReliableBroadcastClient {
         let (double_echo_shutdown_channel, double_echo_shutdown_receiver) =
             mpsc::channel::<oneshot::Sender<()>>(1);
 
+        // let (task_manager_message_sender, task_manager_message_receiver) = mpsc::channel(24_000);
+
         let pending_certificate_count = storage
             .get_pending_certificates()
             .await

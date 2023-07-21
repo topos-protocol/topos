@@ -21,9 +21,10 @@ async fn task_manager_channels_receiving_messages() {
         delivery_threshold: n,
     };
 
-    let (task_manager, shutdown_receiver) = TaskManager::new(message_receiver, threshold);
+    let (task_manager, shutdown_receiver) =
+        TaskManager::new(message_receiver, event_sender, threshold);
 
-    spawn(task_manager.run(event_sender, shutdown_receiver));
+    spawn(task_manager.run(shutdown_receiver));
 
     let mut certificates = vec![];
 
@@ -49,7 +50,7 @@ async fn task_manager_channels_receiving_messages() {
 
     let mut count = 0;
 
-    while (event_receiver.recv().await).is_some() {
+    while let Some((_, _)) = event_receiver.recv().await {
         count += 1;
 
         if count == n {

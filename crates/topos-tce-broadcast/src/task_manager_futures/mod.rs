@@ -53,12 +53,6 @@ impl TaskManager {
     pub async fn run(mut self, mut shutdown_receiver: mpsc::Receiver<()>) {
         loop {
             tokio::select! {
-                // We receive a new DoubleEchoCommand from the outside through a channel receiver
-                // The base state is that there is no running task yet
-                // What we need to do is to
-                // a) create a new task in the local HashMap: So we can check if incoming messages already have an open task
-                // b) Add the task to the FuturesUnordered stream: So we can check if the task is done
-                // The task future has to be started for it to be able to listen on the it's own message receiver.
                 Some(msg) = self.message_receiver.recv() => {
                     match msg {
                         DoubleEchoCommand::Echo { certificate_id, .. } | DoubleEchoCommand::Ready { certificate_id, ..} => {
@@ -92,7 +86,7 @@ impl TaskManager {
                 }
                 Some((id, status)) = self.running_tasks.next() => {
                     if status == TaskStatus::Success {
-                        self.remove_finished_task(id);
+                        self.tasks.remove(&certificate_id);
                         let _ = self.task_completion_sender.send((id, status)).await;
                     }
                 }
@@ -108,10 +102,6 @@ impl TaskManager {
                 }
             }
         }
-    }
-
-    fn remove_finished_task(&mut self, certificate_id: CertificateId) {
-        self.tasks.remove(&certificate_id);
     }
 }
 

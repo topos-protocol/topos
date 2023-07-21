@@ -5,36 +5,14 @@ use tce_transport::ReliableBroadcastParams;
 use topos_core::uci::CertificateId;
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum Events {
-    ReachedThresholdOfReady(CertificateId),
-    ReceivedEcho(CertificateId),
-    TimeOut(CertificateId),
+pub enum TaskStatus {
+    /// The task finished succesfully and broadcasted the certificate + received ready
+    Success,
+    /// The task did not finish succesfully and stopped.
+    Failure,
 }
 
-#[derive(Debug)]
-pub struct TaskCompletion {
-    pub(crate) success: bool,
-    pub(crate) certificate_id: CertificateId,
-}
-
-impl TaskCompletion {
-    fn success(certificate_id: CertificateId) -> Self {
-        TaskCompletion {
-            success: true,
-            certificate_id,
-        }
-    }
-
-    #[allow(dead_code)]
-    fn failure(certificate_id: CertificateId) -> Self {
-        TaskCompletion {
-            success: false,
-            certificate_id,
-        }
-    }
-}
-
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct TaskContext {
     pub message_sender: mpsc::Sender<DoubleEchoCommand>,
     pub shutdown_sender: mpsc::Sender<()>,
@@ -43,8 +21,7 @@ pub struct TaskContext {
 pub struct Task {
     pub message_receiver: mpsc::Receiver<DoubleEchoCommand>,
     pub certificate_id: CertificateId,
-    pub completion_sender: mpsc::Sender<TaskCompletion>,
-    pub event_sender: mpsc::Sender<Events>,
+    pub completion_sender: mpsc::Sender<(CertificateId, TaskStatus)>,
     pub thresholds: ReliableBroadcastParams,
     pub shutdown_receiver: mpsc::Receiver<()>,
 }
@@ -52,8 +29,7 @@ pub struct Task {
 impl Task {
     pub fn new(
         certificate_id: CertificateId,
-        completion_sender: mpsc::Sender<TaskCompletion>,
-        event_sender: mpsc::Sender<Events>,
+        completion_sender: mpsc::Sender<(CertificateId, TaskStatus)>,
         thresholds: ReliableBroadcastParams,
     ) -> (Self, TaskContext) {
         let (message_sender, message_receiver) = mpsc::channel(1024);
@@ -68,7 +44,6 @@ impl Task {
             message_receiver,
             certificate_id,
             completion_sender,
-            event_sender,
             thresholds,
             shutdown_receiver,
         };
@@ -76,23 +51,20 @@ impl Task {
         (task, task_context)
     }
 
-    async fn handle_msg(&mut self, msg: DoubleEchoCommand) -> Result<bool, ()> {
+    async fn handle_msg(&mut self, msg: DoubleEchoCommand) -> (CertificateId, TaskStatus) {
         match msg {
             DoubleEchoCommand::Echo { certificate_id, .. } => {
                 let _ = self
                     .completion_sender
-                    .send(TaskCompletion::success(certificate_id))
+                    .send((certificate_id, TaskStatus::Success))
                     .await;
 
-                let _ = self
-                    .event_sender
-                    .send(Events::ReachedThresholdOfReady(self.certificate_id))
-                    .await;
-
-                Ok(true)
+                return (certificate_id, TaskStatus::Success);
             }
-            DoubleEchoCommand::Ready { .. } => Ok(true),
-            DoubleEchoCommand::Broadcast { .. } => Ok(false),
+            DoubleEchoCommand::Ready { certificate_id, .. } => {
+                return (certificate_id, TaskStatus::Success)
+            }
+            DoubleEchoCommand::Broadcast { cert, .. } => return (cert.id, TaskStatus::Success),
         }
     }
 
@@ -101,7 +73,7 @@ impl Task {
             tokio::select! {
                 msg = self.message_receiver.recv() => {
                     if let Some(msg) = msg {
-                        if let Ok(true) = self.handle_msg(msg).await {
+                        if let (_, TaskStatus::Success) = self.handle_msg(msg).await {
                             break;
                         }
                     }
