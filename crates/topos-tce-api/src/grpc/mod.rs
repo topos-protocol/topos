@@ -12,6 +12,7 @@ use topos_core::api::grpc::tce::v1::{
 };
 use topos_core::api::grpc::uci::v1::OptionalCertificate;
 use topos_core::uci::SubnetId;
+use topos_metrics::API_GRPC_CERTIFICATE_RECEIVED_TOTAL;
 use tracing::{error, info, Span};
 use uuid::Uuid;
 
@@ -106,6 +107,8 @@ impl ApiService for TceGrpcService {
                         .is_err()
                     {
                         return Err(Status::internal("Can't submit certificate: sender dropped"));
+                    } else {
+                        API_GRPC_CERTIFICATE_RECEIVED_TOTAL.inc();
                     }
 
                     receiver
