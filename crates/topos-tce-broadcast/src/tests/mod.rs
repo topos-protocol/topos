@@ -116,7 +116,7 @@ fn reach_echo_threshold(double_echo: &mut DoubleEcho, cert: &Certificate) {
         .collect::<Vec<_>>();
 
     for p in selected {
-        double_echo.consume_echo(p, &cert.id);
+        double_echo.handle_echo(p, cert.id);
     }
 }
 
@@ -130,7 +130,7 @@ fn reach_ready_threshold(double_echo: &mut DoubleEcho, cert: &Certificate) {
         .collect::<Vec<_>>();
 
     for p in selected {
-        double_echo.consume_ready(p, &cert.id);
+        double_echo.handle_ready(p, cert.id);
     }
 }
 
@@ -144,7 +144,7 @@ fn reach_delivery_threshold(double_echo: &mut DoubleEcho, cert: &Certificate) {
         .collect::<Vec<_>>();
 
     for p in selected {
-        double_echo.consume_ready(p, &cert.id);
+        double_echo.handle_ready(p, cert.id);
     }
 }
 
