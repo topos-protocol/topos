@@ -17,16 +17,7 @@ use tracing::{debug, error, info, warn, warn_span, Span};
 
 use self::broadcast_state::BroadcastState;
 
-mod broadcast_state;
-
-/// Processing data associated to a Certificate candidate for delivery
-/// Sample repartition, one peer may belongs to multiple samples
-#[derive(Clone)]
-pub struct DeliveryState {
-    pub subscriptions: SubscriptionsView,
-    pub ready_sent: bool,
-    pub delivered: bool,
-}
+pub mod broadcast_state;
 
 pub struct DoubleEcho {
     /// Channel to receive commands
@@ -114,7 +105,7 @@ impl DoubleEcho {
                 Some(command) = self.command_receiver.recv() => {
                     match command {
 
-                        DoubleEchoCommand::Broadcast { need_gossip, cert } => self.handle_broadcast(cert,need_gossip),
+                        DoubleEchoCommand::Broadcast { need_gossip, cert } => self.task_manager_message_sender.send(command).await,
 
                         command if self.subscriptions.is_some() => {
                             match command {
@@ -146,24 +137,6 @@ impl DoubleEcho {
                     break None;
                 }
             };
-
-            // Broadcast next certificate
-            if self.subscriptions.is_some() {
-                if let Some((need_gossip, cert)) = self.buffer.pop_front() {
-                    DOUBLE_ECHO_CURRENT_BUFFER_SIZE.dec();
-                    let certificate_id = cert.id;
-
-                    self.broadcast(cert, need_gossip);
-
-                    if let Some(messages) = self.buffered_messages.remove(&certificate_id) {
-                        for message in messages {
-                            DOUBLE_ECHO_BUFFERED_MESSAGE_COUNT.dec();
-                            //TODO: error handling
-                            let _ = self.task_manager_message_sender.send(msg).await;
-                        }
-                    }
-                }
-            }
         };
 
         if let Some(sender) = shutdowned {
@@ -271,42 +244,6 @@ impl DoubleEcho {
 }
 
 impl DoubleEcho {
-    pub(crate) fn handle_broadcast(&mut self, cert: Certificate, need_gossip: bool) {
-        if !self.known_certificates.contains(&cert.id) {
-            let span = warn_span!(
-                "Broadcast",
-                peer_id = self.local_peer_id,
-                certificate_id = cert.id.to_string()
-            );
-            DOUBLE_ECHO_BROADCAST_CREATED_TOTAL.inc();
-            span.in_scope(|| {
-                warn!("Broadcast registered for {}", cert.id);
-                self.span_tracker.insert(cert.id, span.clone());
-                CERTIFICATE_RECEIVED_TOTAL.inc();
-
-                if need_gossip {
-                    CERTIFICATE_RECEIVED_FROM_API_TOTAL.inc();
-                } else {
-                    CERTIFICATE_RECEIVED_FROM_GOSSIP_TOTAL.inc();
-                }
-            });
-
-            self.known_certificates.insert(cert.id);
-            span.in_scope(|| {
-                debug!("DoubleEchoCommand::Broadcast certificate_id: {}", cert.id);
-                if self.buffer.len() < *constant::TOPOS_DOUBLE_ECHO_MAX_BUFFER_SIZE {
-                    self.buffer.push_back((need_gossip, cert));
-                    DOUBLE_ECHO_CURRENT_BUFFER_SIZE.inc();
-                } else {
-                    DOUBLE_ECHO_BUFFER_CAPACITY_TOTAL.inc();
-                    // Adding one to the pending_certificate_count because we
-                    // can't buffer it right now
-                    _ = self.pending_certificate_count.checked_add(1);
-                }
-            });
-        }
-    }
-
     pub(crate) async fn handle_echo(&mut self, from_peer: PeerId, certificate_id: CertificateId) {
         if self.delivered_certificates.get(&certificate_id).is_none() {
             let _ = self

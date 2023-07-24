@@ -27,7 +27,6 @@ pub struct TaskManager {
     pub running_tasks: FuturesUnordered<
         Pin<Box<dyn Future<Output = (CertificateId, TaskStatus)> + Send + 'static>>,
     >,
-    pub known_certificates: HashSet<CertificateId>,
     pub buffered_messages: HashMap<CertificateId, Vec<DoubleEchoCommand>>,
     pub thresholds: ReliableBroadcastParams,
     pub shutdown_sender: mpsc::Sender<()>,
@@ -47,7 +46,6 @@ impl TaskManager {
                 task_completion_sender,
                 tasks: HashMap::new(),
                 running_tasks: FuturesUnordered::new(),
-                known_certificates: Default::default(),
                 buffered_messages: Default::default(),
                 thresholds,
                 shutdown_sender,
@@ -72,27 +70,45 @@ impl TaskManager {
                             };
                         }
                         DoubleEchoCommand::Broadcast { ref cert, .. } => {
-                            let task = match self.tasks.entry(cert.id) {
+                            match self.tasks.entry(cert.id) {
                                 std::collections::hash_map::Entry::Vacant(entry) => {
+                                    let span = warn_span!(
+                                        "Broadcast",
+                                        peer_id = self.local_peer_id,
+                                        certificate_id = cert.id.to_string()
+                                    );
+                                    DOUBLE_ECHO_BROADCAST_CREATED_TOTAL.inc();
+                                    span.in_scope(|| {
+                                        warn!("Broadcast registered for {}", cert.id);
+                                        self.span_tracker.insert(cert.id, span.clone());
+                                        CERTIFICATE_RECEIVED_TOTAL.inc();
+
+                                        if need_gossip {
+                                            CERTIFICATE_RECEIVED_FROM_API_TOTAL.inc();
+                                        } else {
+                                            CERTIFICATE_RECEIVED_FROM_GOSSIP_TOTAL.inc();
+                                        }
+                                    });
+
                                     let (task, task_context) = Task::new(cert.id, self.thresholds.clone());
 
                                     self.running_tasks.push(task.into_future());
 
                                     entry.insert(task_context)
                                 }
-                                std::collections::hash_map::Entry::Occupied(entry) => entry.into_mut(),
-                            };
-
-                            _ = task.sink.send(msg).await;
+                                std::collections::hash_map::Entry::Occupied(entry) => {},
+                            }
                         }
                     }
                 }
+
                 Some((id, status)) = self.running_tasks.next() => {
                     if status == TaskStatus::Success {
                         self.tasks.remove(&certificate_id);
                         let _ = self.task_completion_sender.send((id, status)).await;
                     }
                 }
+
                 _ = shutdown_receiver.recv() => {
                     warn!("Task Manager shutting down");
 
@@ -102,6 +118,14 @@ impl TaskManager {
                     }
 
                     break;
+                }
+            }
+
+            for (certificate_id, messages) in self.buffered_messages.drain() {
+                if let Some(task) = self.tasks.get_mut(&certificate_id) {
+                    for msg in messages {
+                        _ = task.sink.send(msg).await;
+                    }
                 }
             }
         }

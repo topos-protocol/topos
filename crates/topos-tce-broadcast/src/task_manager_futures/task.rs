@@ -5,7 +5,8 @@ use tokio::sync::mpsc;
 use topos_core::uci::CertificateId;
 use tracing::warn;
 
-use crate::{broadcast_state::BroadcastState, DoubleEchoCommand};
+use crate::double_echo::broadcast_state::BroadcastState;
+use crate::DoubleEchoCommand;
 use tce_transport::ReliableBroadcastParams;
 
 #[derive(Debug, PartialEq, Eq)]
