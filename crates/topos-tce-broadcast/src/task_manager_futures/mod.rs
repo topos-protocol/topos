@@ -7,7 +7,7 @@ use std::pin::Pin;
 use tokio::sync::mpsc;
 use tracing::warn;
 
-use tce_transport::ReliableBroadcastParams;
+use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
 use topos_core::uci::CertificateId;
 
 pub mod task;
@@ -22,6 +22,7 @@ use topos_p2p::PeerId;
 pub struct TaskManager {
     pub message_receiver: mpsc::Receiver<DoubleEchoCommand>,
     pub task_completion_sender: mpsc::Sender<(CertificateId, TaskStatus)>,
+    pub event_sender: mpsc::Sender<ProtocolEvents>,
     pub tasks: HashMap<CertificateId, TaskContext>,
     #[allow(clippy::type_complexity)]
     pub running_tasks: FuturesUnordered<
@@ -36,6 +37,7 @@ impl TaskManager {
     pub fn new(
         message_receiver: mpsc::Receiver<DoubleEchoCommand>,
         task_completion_sender: mpsc::Sender<(CertificateId, TaskStatus)>,
+        event_sender: mpsc::Sender<ProtocolEvents>,
         thresholds: ReliableBroadcastParams,
     ) -> (Self, mpsc::Receiver<()>) {
         let (shutdown_sender, shutdown_receiver) = mpsc::channel(1);
@@ -44,6 +46,7 @@ impl TaskManager {
             Self {
                 message_receiver,
                 task_completion_sender,
+                event_sender,
                 tasks: HashMap::new(),
                 running_tasks: FuturesUnordered::new(),
                 buffered_messages: Default::default(),
@@ -90,7 +93,17 @@ impl TaskManager {
                                         }
                                     });
 
-                                    let (task, task_context) = Task::new(cert.id, self.thresholds.clone());
+                                    let broadcast_state = BroadcastState::new(
+                                        certificate,
+                                        self.params.echo_threshold,
+                                        self.params.ready_threshold,
+                                        self.params.delivery_threshold,
+                                        self.event_sender.clone(),
+                                        subscriptions,
+                                        origin,
+                                    );
+
+                                    let (task, task_context) = Task::new(cert.id, self.thresholds.clone(), broadcast_state);
 
                                     self.running_tasks.push(task.into_future());
 
@@ -121,10 +134,11 @@ impl TaskManager {
                 }
             }
 
-            for (certificate_id, messages) in self.buffered_messages.drain() {
+            for (certificate_id, messages) in self.buffered_messages {
                 if let Some(task) = self.tasks.get_mut(&certificate_id) {
                     for msg in messages {
                         _ = task.sink.send(msg).await;
+                        self.buffered_messages.remove(&certificate_id);
                     }
                 }
             }

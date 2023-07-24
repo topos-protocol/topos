@@ -34,6 +34,7 @@ impl Task {
     pub fn new(
         certificate_id: CertificateId,
         thresholds: ReliableBroadcastParams,
+        broadcast_state: BroadcastState,
     ) -> (Task, TaskContext) {
         let (message_sender, message_receiver) = mpsc::channel(10_024);
         let (shutdown_sender, shutdown_receiver) = mpsc::channel(1);
@@ -47,7 +48,7 @@ impl Task {
             message_receiver,
             certificate_id,
             thresholds,
-            broadcast_state: BroadcastState::new(),
+            broadcast_state,
             shutdown_receiver,
         };
 

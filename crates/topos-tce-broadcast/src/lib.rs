@@ -21,7 +21,7 @@ use topos_core::uci::{Certificate, CertificateId};
 use topos_metrics::DOUBLE_ECHO_COMMAND_CHANNEL_CAPACITY_TOTAL;
 use topos_p2p::PeerId;
 use topos_tce_storage::StorageClient;
-use tracing::{debug, error, info};
+use tracing::{debug, error, event, info};
 
 pub use topos_core::uci;
 
@@ -126,6 +126,7 @@ impl ReliableBroadcastClient {
         let (task_manager, shutdown_receiver) = TaskManager::new(
             task_manager_message_receiver,
             task_completion_sender,
+            event_sender.clone(),
             config.tce_params,
         );
 
