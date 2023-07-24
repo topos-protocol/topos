@@ -5,7 +5,7 @@ use tokio::sync::mpsc;
 use topos_core::uci::CertificateId;
 use tracing::warn;
 
-use crate::double_echo::broadcast_state::BroadcastState;
+use crate::double_echo::broadcast_state::{BroadcastState, Status};
 use crate::DoubleEchoCommand;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -64,13 +64,17 @@ impl IntoFuture for Task {
                     Some(msg) = self.message_receiver.recv() => {
                         match msg {
                             DoubleEchoCommand::Echo { certificate_id, from_peer } => {
-                                self.broadcast_state.apply_echo(from_peer);
+                                if let Some(Status::DeliveredWithReadySent) = self.broadcast_state.apply_echo(from_peer) {
+                                    return (self.certificate_id, TaskStatus::Success);
+                                }
                             }
                             DoubleEchoCommand::Ready { certificate_id, from_peer } => {
-                                self.broadcast_state.apply_ready(from_peer);
+                                if let Some(Status::DeliveredWithReadySent) = self.broadcast_state.apply_ready(from_peer) {
+                                    return (self.certificate_id, TaskStatus::Success);
+                                }
                             }
                             DoubleEchoCommand::Broadcast { cert, .. } => {
-                                return (cert.id, TaskStatus::Success);
+                                // return (cert.id, TaskStatus::Success);
                             }
 
                         }

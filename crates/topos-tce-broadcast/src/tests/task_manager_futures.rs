@@ -1,8 +1,10 @@
+use crate::sampler::SubscriptionsView;
 use crate::task_manager_futures::TaskManager;
 use crate::{CertificateId, DoubleEchoCommand};
 use rand::Rng;
 use rstest::*;
 use tce_transport::ReliableBroadcastParams;
+use tokio::sync::broadcast;
 use tokio::{spawn, sync::mpsc};
 use topos_p2p::PeerId;
 
@@ -13,6 +15,8 @@ async fn task_manager_futures_receiving_messages() {
 
     let (message_sender, message_receiver) = mpsc::channel(1024);
     let (task_completion_sender, mut task_completion_receiver) = mpsc::channel(1024);
+    let (subscription_view_sender, mut subscription_view_receiver) = broadcast::channel(1024);
+    let (event_sender, mut event_receiver) = mpsc::channel(1024);
 
     let thresholds = ReliableBroadcastParams {
         echo_threshold: n,
@@ -20,8 +24,17 @@ async fn task_manager_futures_receiving_messages() {
         delivery_threshold: n,
     };
 
-    let (task_manager, shutdown_receiver) =
-        TaskManager::new(message_receiver, task_completion_sender, thresholds);
+    let (task_manager, shutdown_receiver) = TaskManager::new(
+        message_receiver,
+        task_completion_sender,
+        subscription_view_receiver,
+        event_sender,
+        thresholds,
+    );
+
+    let subscription_view = SubscriptionsView::default();
+
+    subscription_view_sender.send(subscription_view);
 
     spawn(task_manager.run(shutdown_receiver));
 
