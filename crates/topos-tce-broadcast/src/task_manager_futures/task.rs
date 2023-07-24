@@ -5,7 +5,7 @@ use tokio::sync::mpsc;
 use topos_core::uci::CertificateId;
 use tracing::warn;
 
-use crate::DoubleEchoCommand;
+use crate::{broadcast_state::BroadcastState, DoubleEchoCommand};
 use tce_transport::ReliableBroadcastParams;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -25,6 +25,7 @@ pub struct Task {
     pub message_receiver: mpsc::Receiver<DoubleEchoCommand>,
     pub certificate_id: CertificateId,
     pub thresholds: ReliableBroadcastParams,
+    pub broadcast_state: BroadcastState,
     pub shutdown_receiver: mpsc::Receiver<()>,
 }
 
@@ -45,6 +46,7 @@ impl Task {
             message_receiver,
             certificate_id,
             thresholds,
+            broadcast_state: BroadcastState::new(),
             shutdown_receiver,
         };
 
@@ -63,11 +65,11 @@ impl IntoFuture for Task {
                 tokio::select! {
                     Some(msg) = self.message_receiver.recv() => {
                         match msg {
-                            DoubleEchoCommand::Echo { certificate_id, .. } => {
-                                return (certificate_id, TaskStatus::Success);
+                            DoubleEchoCommand::Echo { certificate_id, from_peer } => {
+                                self.broadcast_state.apply_echo(from_peer)
                             }
-                            DoubleEchoCommand::Ready { certificate_id, .. } => {
-                                return (certificate_id, TaskStatus::Success);
+                            DoubleEchoCommand::Ready { certificate_id, from_peer } => {
+                                self.broadcast_state.apply_ready(from_peer)
                             }
                             DoubleEchoCommand::Broadcast { cert, .. } => {
                                 return (cert.id, TaskStatus::Success);

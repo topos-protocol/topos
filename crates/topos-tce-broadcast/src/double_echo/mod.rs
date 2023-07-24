@@ -1,4 +1,5 @@
 use crate::constant;
+use crate::task_manager_futures::task::TaskStatus;
 use crate::{DoubleEchoCommand, SubscriptionsView};
 use std::collections::HashSet;
 use std::collections::{HashMap, VecDeque};
@@ -40,11 +41,9 @@ pub struct DoubleEcho {
 
     /// pending certificates state
     pending_certificate_count: u64,
+
     /// buffer of certificates to process
     buffer: VecDeque<(bool, Certificate)>,
-
-    /// known certificate ids to avoid processing twice the same certificate
-    known_certificates: HashSet<CertificateId>,
 
     /// delivered certificate ids to avoid processing twice the same certificate
     delivered_certificates: HashSet<CertificateId>,
@@ -62,9 +61,6 @@ pub struct DoubleEcho {
     pub(crate) subscriptions: SubscriptionsView, // My subscriptions for echo, ready and delivery feedback
 
     local_peer_id: String,
-
-    /// Buffer of messages to be processed once the certificate payload is received
-    buffered_messages: HashMap<CertificateId, Vec<DoubleEchoCommand>>,
 }
 
 impl DoubleEcho {
@@ -94,9 +90,7 @@ impl DoubleEcho {
             buffer: VecDeque::new(),
             shutdown,
             local_peer_id,
-            buffered_messages: Default::default(),
             delivered_certificates: Default::default(),
-            known_certificates: Default::default(),
         }
     }
 
@@ -124,8 +118,8 @@ impl DoubleEcho {
 
                         command if self.subscriptions.is_some() => {
                             match command {
-                                DoubleEchoCommand::Echo { from_peer, certificate_id } => self.handle_echo(from_peer, certificate_id),
-                                DoubleEchoCommand::Ready { from_peer, certificate_id } => self.handle_ready(from_peer, certificate_id),
+                                DoubleEchoCommand::Echo { from_peer, certificate_id } => self.handle_echo(from_peer, certificate_id).await,
+                                DoubleEchoCommand::Ready { from_peer, certificate_id } => self.handle_ready(from_peer, certificate_id).await,
                                 _ => {}
                             }
 
@@ -133,6 +127,12 @@ impl DoubleEcho {
                         command => {
                             warn!("Received a command {command:?} while not having a complete sampling");
                         }
+                    }
+                }
+
+                Some((certificate_id, status)) = task_completion_receiver.recv() => {
+                    if status == TaskStatus::Success {
+                        self.delivered_certificates.insert(certificate_id);
                     }
                 }
 
@@ -158,21 +158,8 @@ impl DoubleEcho {
                     if let Some(messages) = self.buffered_messages.remove(&certificate_id) {
                         for message in messages {
                             DOUBLE_ECHO_BUFFERED_MESSAGE_COUNT.dec();
-                            match message {
-                                DoubleEchoCommand::Echo {
-                                    from_peer,
-                                    certificate_id,
-                                } => {
-                                    self.consume_echo(from_peer, &certificate_id);
-                                }
-                                DoubleEchoCommand::Ready {
-                                    from_peer,
-                                    certificate_id,
-                                } => {
-                                    self.consume_ready(from_peer, &certificate_id);
-                                }
-                                _ => {}
-                            }
+                            //TODO: error handling
+                            let _ = self.task_manager_message_sender.send(msg).await;
                         }
                     }
                 }
@@ -320,86 +307,27 @@ impl DoubleEcho {
         }
     }
 
-    pub(crate) fn handle_echo(&mut self, from_peer: PeerId, certificate_id: CertificateId) {
-        let cert_delivered = self.delivered_certificates.get(&certificate_id).is_some();
-        if !cert_delivered {
-            if self.known_certificates.get(&certificate_id).is_some() {
-                debug!(
-                    "Handling DoubleEchoCommand::Echo from_peer: {} cert_id: {}",
-                    &from_peer, certificate_id
-                );
-                if let Some(status) = self.consume_echo(from_peer, &certificate_id) {
-                    if status.is_delivered() {
-                        self.delivered_certificates.insert(certificate_id);
-                        self.span_tracker.remove(&certificate_id);
-                        self.cert_candidate.remove(&certificate_id);
-                    }
-                }
-
-                // need to deliver the certificate
-            } else if self.delivered_certificates.get(&certificate_id).is_none() {
-                // need to buffer the Echo
-                self.buffered_messages
-                    .entry(certificate_id)
-                    .or_default()
-                    .push(DoubleEchoCommand::Echo {
-                        from_peer,
-                        certificate_id,
-                    });
-                DOUBLE_ECHO_BUFFERED_MESSAGE_COUNT.inc();
-            }
+    pub(crate) async fn handle_echo(&mut self, from_peer: PeerId, certificate_id: CertificateId) {
+        if self.delivered_certificates.get(&certificate_id).is_none() {
+            let _ = self
+                .task_manager_message_sender
+                .send(DoubleEchoCommand::Echo {
+                    from_peer,
+                    certificate_id,
+                })
+                .await;
         }
     }
 
-    pub(crate) fn handle_ready(&mut self, from_peer: PeerId, certificate_id: CertificateId) {
-        let cert_delivered = self.delivered_certificates.get(&certificate_id).is_some();
-        if !cert_delivered {
-            if self.known_certificates.get(&certificate_id).is_some() {
-                debug!(
-                    "Handling DoubleEchoCommand::Ready from_peer: {} cert_id: {}",
-                    &from_peer, &certificate_id
-                );
-
-                if let Some(status) = self.consume_ready(from_peer, &certificate_id) {
-                    if status.is_delivered() {
-                        self.delivered_certificates.insert(certificate_id);
-                        self.span_tracker.remove(&certificate_id);
-                        self.cert_candidate.remove(&certificate_id);
-                    }
-                }
-
-                // need to deliver the certificate
-            } else if self.delivered_certificates.get(&certificate_id).is_none() {
-                // need to buffer the Ready
-                self.buffered_messages
-                    .entry(certificate_id)
-                    .or_default()
-                    .push(DoubleEchoCommand::Ready {
-                        from_peer,
-                        certificate_id,
-                    });
-                DOUBLE_ECHO_BUFFERED_MESSAGE_COUNT.inc();
-            }
+    pub(crate) async fn handle_ready(&mut self, from_peer: PeerId, certificate_id: CertificateId) {
+        if self.delivered_certificates.get(&certificate_id).is_none() {
+            let _ = self
+                .task_manager_message_sender
+                .send(DoubleEchoCommand::Ready {
+                    from_peer,
+                    certificate_id,
+                })
+                .await;
         }
-    }
-
-    pub(crate) fn consume_echo(
-        &mut self,
-        from_peer: PeerId,
-        certificate_id: &CertificateId,
-    ) -> Option<broadcast_state::Status> {
-        self.cert_candidate
-            .get_mut(certificate_id)
-            .and_then(|state| state.apply_echo(from_peer))
-    }
-
-    pub(crate) fn consume_ready(
-        &mut self,
-        from_peer: PeerId,
-        certificate_id: &CertificateId,
-    ) -> Option<broadcast_state::Status> {
-        self.cert_candidate
-            .get_mut(certificate_id)
-            .and_then(|state| state.apply_ready(from_peer))
     }
 }

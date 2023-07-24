@@ -1,7 +1,7 @@
 use futures::stream::FuturesUnordered;
 use futures::Future;
 use futures::StreamExt;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::future::IntoFuture;
 use std::pin::Pin;
 use tokio::sync::mpsc;
@@ -14,6 +14,7 @@ pub mod task;
 
 use crate::DoubleEchoCommand;
 use task::{Task, TaskContext, TaskStatus};
+use topos_p2p::PeerId;
 
 /// The TaskManager is responsible for receiving messages from the network and distributing them
 /// among tasks. These tasks are either created if none for a certain CertificateID exists yet,
@@ -26,6 +27,8 @@ pub struct TaskManager {
     pub running_tasks: FuturesUnordered<
         Pin<Box<dyn Future<Output = (CertificateId, TaskStatus)> + Send + 'static>>,
     >,
+    pub known_certificates: HashSet<CertificateId>,
+    pub buffered_messages: HashMap<CertificateId, Vec<DoubleEchoCommand>>,
     pub thresholds: ReliableBroadcastParams,
     pub shutdown_sender: mpsc::Sender<()>,
 }
@@ -44,6 +47,8 @@ impl TaskManager {
                 task_completion_sender,
                 tasks: HashMap::new(),
                 running_tasks: FuturesUnordered::new(),
+                known_certificates: Default::default(),
+                buffered_messages: Default::default(),
                 thresholds,
                 shutdown_sender,
             },
@@ -56,18 +61,15 @@ impl TaskManager {
             tokio::select! {
                 Some(msg) = self.message_receiver.recv() => {
                     match msg {
-                        DoubleEchoCommand::Echo { certificate_id, .. } | DoubleEchoCommand::Ready { certificate_id, ..} => {
-                            let task = match self.tasks.entry(certificate_id) {
-                                std::collections::hash_map::Entry::Vacant(entry) => {
-                                    let (task, task_context) = Task::new(certificate_id, self.thresholds.clone());
-                                    self.running_tasks.push(task.into_future());
-
-                                    entry.insert(task_context)
-                                }
-                                std::collections::hash_map::Entry::Occupied(entry) => entry.into_mut(),
+                        DoubleEchoCommand::Echo { certificate_id, from_peer } | DoubleEchoCommand::Ready { certificate_id, from_peer } => {
+                            if let task = self.tasks.get(certificate_id) {
+                                _ = task.sink.send(msg).await;
+                            } else {
+                                self.buffered_messages
+                                    .entry(certificate_id)
+                                    .or_default()
+                                    .push(msg);
                             };
-
-                            _ = task.sink.send(msg).await;
                         }
                         DoubleEchoCommand::Broadcast { ref cert, .. } => {
                             let task = match self.tasks.entry(cert.id) {
