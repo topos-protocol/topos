@@ -53,21 +53,25 @@ struct TceParams {
 
 struct Context {
     event_receiver: Receiver<ProtocolEvents>,
-    subscriptions_view_sender: Sender<SubscriptionsView>,
+    subscriptions_view_sender: broadcast::Sender<SubscriptionsView>,
     cmd_sender: Sender<DoubleEchoCommand>,
     double_echo_shutdown_sender: Sender<oneshot::Sender<()>>,
 }
 
 fn create_context(params: TceParams) -> (DoubleEcho, Context) {
-    let (subscriptions_view_sender, subscriptions_view_receiver) = mpsc::channel(CHANNEL_SIZE);
+    let (subscriptions_view_sender, subscriptions_view_receiver) = broadcast::channel(CHANNEL_SIZE);
 
     let (cmd_sender, cmd_receiver) = mpsc::channel(CHANNEL_SIZE);
     let (event_sender, event_receiver) = mpsc::channel(CHANNEL_SIZE);
     let (double_echo_shutdown_sender, double_echo_shutdown_receiver) =
         mpsc::channel::<oneshot::Sender<()>>(1);
+    let (task_manager_message_sender, _task_manager_message_receiver) = mpsc::channel(CHANNEL_SIZE);
+    let (_task_completion_sender, task_completion_receiver) = mpsc::channel(CHANNEL_SIZE);
 
     let mut double_echo = DoubleEcho::new(
         params.broadcast_params,
+        task_manager_message_sender,
+        task_completion_receiver,
         cmd_receiver,
         subscriptions_view_receiver,
         event_sender,
@@ -272,7 +276,6 @@ async fn buffering_certificate(#[case] params: TceParams) {
 
     ctx.subscriptions_view_sender
         .send(subscriptions.clone())
-        .await
         .expect("Cannot send expected view");
 
     let mut received_gossip_commands: Vec<Certificate> = Vec::new();
