@@ -7,7 +7,6 @@ use tracing::warn;
 
 use crate::double_echo::broadcast_state::BroadcastState;
 use crate::DoubleEchoCommand;
-use tce_transport::ReliableBroadcastParams;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum TaskStatus {
@@ -25,7 +24,6 @@ pub struct TaskContext {
 pub struct Task {
     pub message_receiver: mpsc::Receiver<DoubleEchoCommand>,
     pub certificate_id: CertificateId,
-    pub thresholds: ReliableBroadcastParams,
     pub broadcast_state: BroadcastState,
     pub shutdown_receiver: mpsc::Receiver<()>,
 }
@@ -33,7 +31,6 @@ pub struct Task {
 impl Task {
     pub fn new(
         certificate_id: CertificateId,
-        thresholds: ReliableBroadcastParams,
         broadcast_state: BroadcastState,
     ) -> (Task, TaskContext) {
         let (message_sender, message_receiver) = mpsc::channel(10_024);
@@ -47,7 +44,6 @@ impl Task {
         let task = Task {
             message_receiver,
             certificate_id,
-            thresholds,
             broadcast_state,
             shutdown_receiver,
         };
@@ -68,10 +64,10 @@ impl IntoFuture for Task {
                     Some(msg) = self.message_receiver.recv() => {
                         match msg {
                             DoubleEchoCommand::Echo { certificate_id, from_peer } => {
-                                self.broadcast_state.apply_echo(from_peer)
+                                self.broadcast_state.apply_echo(from_peer);
                             }
                             DoubleEchoCommand::Ready { certificate_id, from_peer } => {
-                                self.broadcast_state.apply_ready(from_peer)
+                                self.broadcast_state.apply_ready(from_peer);
                             }
                             DoubleEchoCommand::Broadcast { cert, .. } => {
                                 return (cert.id, TaskStatus::Success);

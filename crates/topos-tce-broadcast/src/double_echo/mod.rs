@@ -1,19 +1,13 @@
-use crate::constant;
 use crate::task_manager_futures::task::TaskStatus;
 use crate::{DoubleEchoCommand, SubscriptionsView};
 use std::collections::HashSet;
 use std::collections::{HashMap, VecDeque};
 use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::{broadcast, mpsc, oneshot};
 use topos_core::uci::{Certificate, CertificateId};
-use topos_metrics::{
-    CERTIFICATE_RECEIVED_FROM_API_TOTAL, CERTIFICATE_RECEIVED_FROM_GOSSIP_TOTAL,
-    CERTIFICATE_RECEIVED_TOTAL, DOUBLE_ECHO_BROADCAST_CREATED_TOTAL,
-    DOUBLE_ECHO_BUFFERED_MESSAGE_COUNT, DOUBLE_ECHO_BUFFER_CAPACITY_TOTAL,
-    DOUBLE_ECHO_CURRENT_BUFFER_SIZE,
-};
+
 use topos_p2p::PeerId;
-use tracing::{debug, error, info, warn, warn_span, Span};
+use tracing::{error, info, warn, Span};
 
 use self::broadcast_state::BroadcastState;
 
@@ -23,7 +17,7 @@ pub struct DoubleEcho {
     /// Channel to receive commands
     command_receiver: mpsc::Receiver<DoubleEchoCommand>,
     /// Channel to receive subscriptions updates
-    subscriptions_view_receiver: mpsc::Receiver<SubscriptionsView>,
+    subscriptions_view_receiver: broadcast::Receiver<SubscriptionsView>,
     /// Channel to send events
     event_sender: mpsc::Sender<ProtocolEvents>,
 
@@ -38,6 +32,8 @@ pub struct DoubleEcho {
 
     /// delivered certificate ids to avoid processing twice the same certificate
     delivered_certificates: HashSet<CertificateId>,
+
+    pub(crate) params: ReliableBroadcastParams,
 
     task_manager_message_sender: mpsc::Sender<DoubleEchoCommand>,
 
@@ -59,16 +55,18 @@ impl DoubleEcho {
 
     #[allow(clippy::too_many_arguments)]
     pub fn new(
+        params: ReliableBroadcastParams,
         task_manager_message_sender: mpsc::Sender<DoubleEchoCommand>,
         task_completion_receiver: mpsc::Receiver<(CertificateId, TaskStatus)>,
         command_receiver: mpsc::Receiver<DoubleEchoCommand>,
-        subscriptions_view_receiver: mpsc::Receiver<SubscriptionsView>,
+        subscriptions_view_receiver: broadcast::Receiver<SubscriptionsView>,
         event_sender: mpsc::Sender<ProtocolEvents>,
         shutdown: mpsc::Receiver<oneshot::Sender<()>>,
         local_peer_id: String,
         pending_certificate_count: u64,
     ) -> Self {
         Self {
+            params,
             task_manager_message_sender,
             task_completion_receiver,
             pending_certificate_count,
@@ -105,31 +103,34 @@ impl DoubleEcho {
                 Some(command) = self.command_receiver.recv() => {
                     match command {
 
-                        DoubleEchoCommand::Broadcast { need_gossip, cert } => self.task_manager_message_sender.send(command).await,
+                        DoubleEchoCommand::Broadcast { need_gossip, ref cert } => self.task_manager_message_sender.send(command).await,
 
-                        command if self.subscriptions.is_some() => {
+                        command if self.subscriptions.is_some() => Ok({
                             match command {
                                 DoubleEchoCommand::Echo { from_peer, certificate_id } => self.handle_echo(from_peer, certificate_id).await,
                                 DoubleEchoCommand::Ready { from_peer, certificate_id } => self.handle_ready(from_peer, certificate_id).await,
                                 _ => {}
                             }
 
-                        }
+                        }),
                         command => {
                             warn!("Received a command {command:?} while not having a complete sampling");
+                            Ok(())
                         }
                     }
                 }
 
-                Some((certificate_id, status)) = task_completion_receiver.recv() => {
+                Some((certificate_id, status)) = self.task_completion_receiver.recv() => {
                     if status == TaskStatus::Success {
                         self.delivered_certificates.insert(certificate_id);
                     }
+                    Ok(())
                 }
 
-                Some(new_subscriptions_view) = self.subscriptions_view_receiver.recv() => {
+                Ok(new_subscriptions_view) = self.subscriptions_view_receiver.recv() => {
                     info!("Starting to use the new operational set of samples: {:?}", &new_subscriptions_view);
                     self.subscriptions = new_subscriptions_view;
+                    Ok(())
                 }
 
                 else => {
