@@ -71,12 +71,12 @@ impl TaskManager {
                 Some(new_subscriptions_view) = self.subscription_view_receiver.recv() => {
                     self.subscriptions = new_subscriptions_view;
                 }
+
                 Some(msg) = self.message_receiver.recv() => {
                     match msg {
                         DoubleEchoCommand::Echo { certificate_id, .. } | DoubleEchoCommand::Ready { certificate_id, .. } => {
-                            if let Some(task) = self.tasks.get(&certificate_id) {
-
-                                _ = task.sink.send(msg).await;
+                            if let Some(task_context) = self.tasks.get(&certificate_id) {
+                                _ = task_context.sink.send(msg).await;
                             } else {
                                 self.buffered_messages
                                     .entry(certificate_id)
@@ -120,7 +120,6 @@ impl TaskManager {
                 _ = shutdown_receiver.recv() => {
                     warn!("Task Manager shutting down");
 
-                    // Shutting down every open task
                     for task in self.tasks.iter() {
                         task.1.shutdown_sender.send(()).await.unwrap();
                     }
