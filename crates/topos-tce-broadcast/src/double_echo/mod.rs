@@ -153,6 +153,8 @@ impl DoubleEcho {
     /// Called to process potentially new certificate:
     /// - either submitted from API ( [tce_transport::TceCommands::Broadcast] command)
     /// - or received through the gossip (first step of protocol exchange)
+    ///TODO: This is not really broadcasting, merley adding the certificate into a known list.
+    ///TODO: Rename or restructure this function
     pub(crate) fn broadcast(&mut self, cert: Certificate, origin: bool) {
         info!("🙌 Starting broadcasting the Certificate {}", &cert.id);
 

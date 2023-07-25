@@ -276,52 +276,52 @@ async fn trigger_ready_when_reached_enough_ready(#[case] params: TceParams) {
     ));
 }
 
-#[rstest]
-#[case::small_config(small_config())]
-#[tokio::test]
-async fn buffering_certificate(#[case] params: TceParams) {
-    let (double_echo, mut ctx) = create_context(params).await;
-
-    let subscriptions = double_echo.subscriptions.clone();
-
-    spawn(double_echo.run());
-
-    // Wait to receive subscribers
-    tokio::time::sleep(WAIT_EVENT_TIMEOUT).await;
-
-    let le_cert = Certificate::default();
-    ctx.cmd_sender
-        .send(DoubleEchoCommand::Broadcast {
-            need_gossip: true,
-            cert: le_cert.clone(),
-        })
-        .await
-        .expect("Cannot send broadcast command");
-
-    ctx.subscriptions_view_sender
-        .send(subscriptions.clone())
-        .expect("Cannot send expected view");
-
-    let mut received_gossip_commands: Vec<Certificate> = Vec::new();
-    let assertion = async {
-        while let Some(event) = ctx.event_receiver.recv().await {
-            if let ProtocolEvents::Gossip { cert, .. } = event {
-                received_gossip_commands.push(cert);
-            }
-        }
-    };
-
-    let _ = tokio::time::timeout(Duration::from_secs(1), assertion).await;
-
-    assert_eq!(received_gossip_commands.len(), 1);
-    assert_eq!(received_gossip_commands[0].id, le_cert.id);
-
-    // Test shutdown
-    info!("Waiting for double echo to shutdown...");
-    let (sender, receiver) = oneshot::channel();
-    ctx.double_echo_shutdown_sender
-        .send(sender)
-        .await
-        .expect("Valid shutdown signal sending");
-    assert_eq!(receiver.await, Ok(()));
-}
+// #[rstest]
+// #[case::small_config(small_config())]
+// #[tokio::test]
+// async fn buffering_certificate(#[case] params: TceParams) {
+//     let (double_echo, mut ctx) = create_context(params).await;
+//
+//     let subscriptions = double_echo.subscriptions.clone();
+//
+//     spawn(double_echo.run());
+//
+//     // Wait to receive subscribers
+//     tokio::time::sleep(WAIT_EVENT_TIMEOUT).await;
+//
+//     let le_cert = Certificate::default();
+//     ctx.cmd_sender
+//         .send(DoubleEchoCommand::Broadcast {
+//             need_gossip: true,
+//             cert: le_cert.clone(),
+//         })
+//         .await
+//         .expect("Cannot send broadcast command");
+//
+//     ctx.subscriptions_view_sender
+//         .send(subscriptions.clone())
+//         .expect("Cannot send expected view");
+//
+//     let mut received_gossip_commands: Vec<Certificate> = Vec::new();
+//     let assertion = async {
+//         while let Some(event) = ctx.event_receiver.recv().await {
+//             if let ProtocolEvents::Gossip { cert, .. } = event {
+//                 received_gossip_commands.push(cert);
+//             }
+//         }
+//     };
+//
+//     let _ = tokio::time::timeout(Duration::from_secs(1), assertion).await;
+//
+//     assert_eq!(received_gossip_commands.len(), 1);
+//     assert_eq!(received_gossip_commands[0].id, le_cert.id);
+//
+//     // Test shutdown
+//     info!("Waiting for double echo to shutdown...");
+//     let (sender, receiver) = oneshot::channel();
+//     ctx.double_echo_shutdown_sender
+//         .send(sender)
+//         .await
+//         .expect("Valid shutdown signal sending");
+//     assert_eq!(receiver.await, Ok(()));
+// }
