@@ -16,11 +16,13 @@ pub enum TaskStatus {
     Failure,
 }
 
+#[derive(Debug)]
 pub struct TaskContext {
     pub sink: mpsc::Sender<DoubleEchoCommand>,
     pub shutdown_sender: mpsc::Sender<()>,
 }
 
+#[derive(Debug)]
 pub struct Task {
     pub message_receiver: mpsc::Receiver<DoubleEchoCommand>,
     pub certificate_id: CertificateId,
@@ -64,16 +66,19 @@ impl IntoFuture for Task {
                     Some(msg) = self.message_receiver.recv() => {
                         match msg {
                             DoubleEchoCommand::Echo { certificate_id, from_peer } => {
+                                println!("Receive ECHO in task");
                                 if let Some(Status::DeliveredWithReadySent) = self.broadcast_state.apply_echo(from_peer) {
                                     return (self.certificate_id, TaskStatus::Success);
                                 }
                             }
                             DoubleEchoCommand::Ready { certificate_id, from_peer } => {
+                                println!("Receive READY in task");
                                 if let Some(Status::DeliveredWithReadySent) = self.broadcast_state.apply_ready(from_peer) {
                                     return (self.certificate_id, TaskStatus::Success);
                                 }
                             }
                             DoubleEchoCommand::Broadcast { cert, .. } => {
+                                println!("Receive BROADCAST in task");
                                 // return (cert.id, TaskStatus::Success);
                             }
 

@@ -259,6 +259,7 @@ impl DoubleEcho {
 
     pub(crate) async fn handle_ready(&mut self, from_peer: PeerId, certificate_id: CertificateId) {
         if self.delivered_certificates.get(&certificate_id).is_none() {
+            println!("SEND READY");
             let _ = self
                 .task_manager_message_sender
                 .send(DoubleEchoCommand::Ready {

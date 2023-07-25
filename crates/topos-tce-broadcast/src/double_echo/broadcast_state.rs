@@ -13,6 +13,7 @@ mod status;
 
 pub use status::Status;
 
+#[derive(Debug)]
 pub struct BroadcastState {
     subscriptions_view: SubscriptionsView,
     status: Status,

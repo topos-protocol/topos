@@ -66,6 +66,7 @@ impl TaskManager {
         loop {
             tokio::select! {
                 Some(msg) = self.message_receiver.recv() => {
+                    println!("RECEIVE MESSAGE: {msg:?}");
                     match msg {
                         DoubleEchoCommand::Echo { certificate_id, from_peer } | DoubleEchoCommand::Ready { certificate_id, from_peer } => {
                             if let Some(task) = self.tasks.get(&certificate_id) {

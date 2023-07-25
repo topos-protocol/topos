@@ -58,19 +58,29 @@ struct Context {
     double_echo_shutdown_sender: Sender<oneshot::Sender<()>>,
 }
 
-fn create_context(params: TceParams) -> (DoubleEcho, Context) {
+async fn create_context(params: TceParams) -> (DoubleEcho, Context) {
     let (subscriptions_view_sender, subscriptions_view_receiver) = broadcast::channel(CHANNEL_SIZE);
 
     let (cmd_sender, cmd_receiver) = mpsc::channel(CHANNEL_SIZE);
     let (event_sender, event_receiver) = mpsc::channel(CHANNEL_SIZE);
     let (double_echo_shutdown_sender, double_echo_shutdown_receiver) =
         mpsc::channel::<oneshot::Sender<()>>(1);
-    let (task_manager_message_sender, _task_manager_message_receiver) = mpsc::channel(CHANNEL_SIZE);
-    let (_task_completion_sender, task_completion_receiver) = mpsc::channel(CHANNEL_SIZE);
+    let (task_manager_message_sender, task_manager_message_receiver) = mpsc::channel(CHANNEL_SIZE);
+    let (task_completion_sender, task_completion_receiver) = mpsc::channel(CHANNEL_SIZE);
+
+    let (task_manager, shutdown_receiver) = TaskManager::new(
+        task_manager_message_receiver,
+        task_completion_sender,
+        subscriptions_view_sender.subscribe(),
+        event_sender.clone(),
+        params.broadcast_params.clone(),
+    );
+
+    spawn(task_manager.run(shutdown_receiver));
 
     let mut double_echo = DoubleEcho::new(
         params.broadcast_params,
-        task_manager_message_sender,
+        task_manager_message_sender.clone(),
         task_completion_receiver,
         cmd_receiver,
         subscriptions_view_receiver,
@@ -94,6 +104,20 @@ fn create_context(params: TceParams) -> (DoubleEcho, Context) {
     double_echo.subscriptions.ready = peers.clone();
     double_echo.subscriptions.network_size = params.nb_peers;
 
+    let _ = subscriptions_view_sender.send(SubscriptionsView {
+        echo: peers.clone(),
+        ready: peers.clone(),
+        network_size: params.nb_peers,
+    });
+
+    task_manager_message_sender
+        .send(DoubleEchoCommand::Broadcast {
+            need_gossip: true,
+            cert: Certificate::default(),
+        })
+        .await
+        .expect("Cannot send broadcast command");
+
     (
         double_echo,
         Context {
@@ -106,7 +130,7 @@ fn create_context(params: TceParams) -> (DoubleEcho, Context) {
     )
 }
 
-fn reach_echo_threshold(double_echo: &mut DoubleEcho, cert: &Certificate) {
+async fn reach_echo_threshold(double_echo: &mut DoubleEcho, cert: &Certificate) {
     let selected = double_echo
         .subscriptions
         .echo
@@ -116,11 +140,11 @@ fn reach_echo_threshold(double_echo: &mut DoubleEcho, cert: &Certificate) {
         .collect::<Vec<_>>();
 
     for p in selected {
-        double_echo.handle_echo(p, cert.id);
+        double_echo.handle_echo(p, cert.id).await;
     }
 }
 
-fn reach_ready_threshold(double_echo: &mut DoubleEcho, cert: &Certificate) {
+async fn reach_ready_threshold(double_echo: &mut DoubleEcho, cert: &Certificate) {
     let selected = double_echo
         .subscriptions
         .ready
@@ -130,11 +154,11 @@ fn reach_ready_threshold(double_echo: &mut DoubleEcho, cert: &Certificate) {
         .collect::<Vec<_>>();
 
     for p in selected {
-        double_echo.handle_ready(p, cert.id);
+        double_echo.handle_ready(p, cert.id).await;
     }
 }
 
-fn reach_delivery_threshold(double_echo: &mut DoubleEcho, cert: &Certificate) {
+async fn reach_delivery_threshold(double_echo: &mut DoubleEcho, cert: &Certificate) {
     let selected = double_echo
         .subscriptions
         .ready
@@ -144,7 +168,7 @@ fn reach_delivery_threshold(double_echo: &mut DoubleEcho, cert: &Certificate) {
         .collect::<Vec<_>>();
 
     for p in selected {
-        double_echo.handle_ready(p, cert.id);
+        double_echo.handle_ready(p, cert.id).await;
     }
 }
 
@@ -154,7 +178,7 @@ fn reach_delivery_threshold(double_echo: &mut DoubleEcho, cert: &Certificate) {
 #[tokio::test]
 #[trace]
 async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams) {
-    let (mut double_echo, mut ctx) = create_context(params);
+    let (mut double_echo, mut ctx) = create_context(params).await;
 
     let dummy_cert = Certificate::new(
         PREV_CERTIFICATE_ID,
@@ -190,7 +214,7 @@ async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams)
     ));
 
     // Trigger Ready upon reaching the Echo threshold
-    reach_echo_threshold(&mut double_echo, &dummy_cert);
+    reach_echo_threshold(&mut double_echo, &dummy_cert).await;
 
     assert!(matches!(
         ctx.event_receiver.try_recv(),
@@ -198,7 +222,7 @@ async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams)
     ));
 
     // Trigger Delivery upon reaching the Delivery threshold
-    reach_delivery_threshold(&mut double_echo, &dummy_cert);
+    reach_delivery_threshold(&mut double_echo, &dummy_cert).await;
 
     assert!(matches!(
          ctx.event_receiver.try_recv(),
@@ -212,7 +236,7 @@ async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams)
 #[tokio::test]
 #[trace]
 async fn trigger_ready_when_reached_enough_ready(#[case] params: TceParams) {
-    let (mut double_echo, mut ctx) = create_context(params);
+    let (mut double_echo, mut ctx) = create_context(params).await;
 
     let dummy_cert = Certificate::new(
         PREV_CERTIFICATE_ID,
@@ -244,7 +268,7 @@ async fn trigger_ready_when_reached_enough_ready(#[case] params: TceParams) {
     ));
 
     // Trigger Ready upon reaching the Ready threshold
-    reach_ready_threshold(&mut double_echo, &dummy_cert);
+    reach_ready_threshold(&mut double_echo, &dummy_cert).await;
 
     assert!(matches!(
         ctx.event_receiver.try_recv(),
@@ -256,7 +280,7 @@ async fn trigger_ready_when_reached_enough_ready(#[case] params: TceParams) {
 #[case::small_config(small_config())]
 #[tokio::test]
 async fn buffering_certificate(#[case] params: TceParams) {
-    let (double_echo, mut ctx) = create_context(params);
+    let (double_echo, mut ctx) = create_context(params).await;
 
     let subscriptions = double_echo.subscriptions.clone();
 
