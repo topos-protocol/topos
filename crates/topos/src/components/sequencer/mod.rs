@@ -17,10 +17,11 @@ pub(crate) async fn handle_command(
         Some(SequencerCommands::Run(cmd)) => {
             let config = SequencerConfiguration {
                 subnet_id: cmd.subnet_id,
+                public_key: None,
                 subnet_jsonrpc_endpoint: cmd.subnet_jsonrpc_endpoint,
                 subnet_contract_address: cmd.subnet_contract_address,
                 base_tce_api_url: cmd.base_tce_api_url,
-                subnet_data_dir_path: cmd.subnet_data_dir,
+                signing_key: keys.validator.clone().unwrap(),
                 verifier: cmd.verifier,
             };
 

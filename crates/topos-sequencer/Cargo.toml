@@ -14,6 +14,7 @@ tracing-opentelemetry.workspace = true
 opentelemetry.workspace = true
 
 topos-crypto.workspace = true
+topos-wallet = { path = "../topos-wallet" }
 topos-core = { workspace = true, features = ["uci"] }
 topos-sequencer-subnet-runtime = { package = "topos-sequencer-subnet-runtime", path = "../topos-sequencer-subnet-runtime" }
 topos-tce-proxy = { package = "topos-tce-proxy", path = "../topos-tce-proxy" }

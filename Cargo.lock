@@ -6817,6 +6817,7 @@ dependencies = [
  "topos-crypto",
  "topos-sequencer-subnet-runtime",
  "topos-tce-proxy",
+ "topos-wallet",
  "tracing",
  "tracing-opentelemetry",
  "tracing-subscriber",

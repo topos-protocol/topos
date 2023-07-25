@@ -2,7 +2,7 @@ use std::future::IntoFuture;
 
 use config::TceConfiguration;
 use opentelemetry::global;
-use tokio::{spawn, sync::mpsc, sync::oneshot};
+use tokio::{signal, spawn, sync::mpsc, sync::oneshot};
 use topos_p2p::utils::local_key_pair_from_slice;
 use topos_p2p::{utils::local_key_pair, Multiaddr};
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};

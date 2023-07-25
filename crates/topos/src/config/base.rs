@@ -7,15 +7,16 @@ use figment::{
 use serde::{Deserialize, Serialize};
 
 use crate::components::node::commands::Init;
+use crate::config::node::NodeRole;
 use crate::config::Config;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct BaseConfig {
     #[serde(default = "default_name")]
     pub name: String,
 
     #[serde(default = "default_role")]
-    pub role: String,
+    pub role: NodeRole,
 
     #[serde(default = "default_subnet")]
     pub subnet: String,
@@ -25,8 +26,8 @@ fn default_name() -> String {
     "default".to_string()
 }
 
-fn default_role() -> String {
-    "validator".to_string()
+fn default_role() -> NodeRole {
+    NodeRole::Validator
 }
 
 fn default_subnet() -> String {

@@ -170,7 +170,7 @@ pub(crate) async fn handle_command(
 }
 
 pub fn print_node_info(config: &TceConfiguration) {
-    tracing::warn!("TCE Node - version: {}", config.version);
+    tracing::warn!("Topos - version: {}", config.version);
 
     if let StorageConfiguration::RocksDB(Some(ref path)) = config.storage {
         info!("RocksDB at {:?}", path);

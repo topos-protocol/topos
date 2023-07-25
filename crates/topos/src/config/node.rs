@@ -8,13 +8,24 @@ use figment::{
 use serde::{Deserialize, Serialize};
 
 use crate::components::node::commands::Up;
-use crate::config::{base::BaseConfig, sequencer::SequencerConfig, tce::TceConfig, Config};
+use crate::config::{
+    base::BaseConfig, edge::EdgeConfig, sequencer::SequencerConfig, tce::TceConfig, Config,
+};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(clap::ValueEnum, Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum NodeRole {
+    Validator,
+    Sequencer,
+    FullNode,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub(crate) struct NodeConfig {
     pub(crate) base: BaseConfig,
     pub(crate) tce: TceConfig,
     pub(crate) sequencer: SequencerConfig,
+    pub(crate) edge: EdgeConfig,
 }
 
 impl Config for NodeConfig {

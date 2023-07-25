@@ -11,7 +11,7 @@ use crate::components::tce::commands::Run;
 use crate::config::Config;
 use topos_p2p::{Multiaddr, PeerId};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TceConfig {
     /// Boot nodes to connect to, pairs of <PeerId> <Multiaddr>, space separated,
     /// quoted list like --boot-peers='a a1,b b1'
@@ -51,6 +51,10 @@ pub struct TceConfig {
     /// GraphQL API Addr
     #[serde(default = "default_graphql_api_addr")]
     pub graphql_api_addr: SocketAddr,
+
+    /// Metrics server API Addr
+    #[serde(default = "default_metrics_api_addr")]
+    pub metrics_api_addr: SocketAddr,
 
     /// Socket of the opentelemetry agent endpoint
     /// If not provided open telemetry will not be used
@@ -96,13 +100,19 @@ fn default_db_path() -> String {
 }
 
 fn default_api_addr() -> SocketAddr {
-    "[::1]:1340"
+    "0.0.0.0:1340"
         .parse()
         .expect("Cannot parse address to SocketAddr")
 }
 
 fn default_graphql_api_addr() -> SocketAddr {
-    "[::1]:4000"
+    "0.0.0.0:4030"
+        .parse()
+        .expect("Cannot parse address to SocketAddr")
+}
+
+fn default_metrics_api_addr() -> SocketAddr {
+    "0.0.0.0:3000"
         .parse()
         .expect("Cannot parse address to SocketAddr")
 }
@@ -117,6 +127,27 @@ fn default_ready_threshold() -> usize {
 
 fn default_delivery_threshold() -> usize {
     1
+}
+
+impl TceConfig {
+    pub fn parse_boot_peers(&self) -> Vec<(PeerId, Multiaddr)> {
+        self.boot_peers
+            .split(&[',', ' '])
+            .map(|s| s.to_string())
+            .collect::<Vec<String>>()
+            .chunks(2)
+            .filter_map(|pair| {
+                if pair.len() > 1 {
+                    Some((
+                        pair[0].as_str().parse().unwrap(),
+                        pair[1].as_str().parse().unwrap(),
+                    ))
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
 }
 
 impl Config for TceConfig {

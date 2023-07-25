@@ -1,8 +1,9 @@
 use clap::{ArgGroup, Args, Parser};
 
+use serde::Serialize;
 use std::path::PathBuf;
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Serialize)]
 #[clap(about = "Run Polygon Edge", trailing_var_arg = true)]
 pub struct Run {
     /// Installation directory path for Polygon Edge binary.

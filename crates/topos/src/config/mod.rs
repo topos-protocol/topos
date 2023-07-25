@@ -1,11 +1,13 @@
 #[cfg(feature = "node")]
 pub(crate) mod base;
 #[cfg(feature = "node")]
+pub(crate) mod edge;
+#[cfg(feature = "node")]
 pub(crate) mod node;
 #[cfg(feature = "sequencer")]
 pub(crate) mod sequencer;
 #[cfg(feature = "tce")]
-pub(crate) mod tce;
+pub mod tce;
 
 use std::path::Path;
 
@@ -62,7 +64,6 @@ pub(crate) trait Config: Serialize {
     }
 }
 
-#[allow(dead_code)]
 pub(crate) fn load_config<T: Config>(node_path: &Path, command: Option<T::Command>) -> T::Output {
     match T::load(node_path, command) {
         Ok(config) => config,
@@ -80,7 +81,6 @@ pub(crate) fn load_config<T: Config>(node_path: &Path, command: Option<T::Comman
     }
 }
 
-#[allow(dead_code)]
 pub(crate) fn insert_into_toml<T: Config>(config_toml: &mut toml::Table, config: T) {
     config_toml.insert(
         config.profile(),
