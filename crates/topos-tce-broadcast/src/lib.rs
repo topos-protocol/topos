@@ -111,13 +111,14 @@ impl ReliableBroadcastClient {
         storage: StorageClient,
     ) -> (Self, impl Stream<Item = ProtocolEvents>) {
         let (subscriptions_view_sender, subscriptions_view_receiver) =
-            mpsc::channel::<SubscriptionsView>(2048);
-        let (event_sender, event_receiver) = mpsc::channel(2048);
+            mpsc::channel::<SubscriptionsView>(*constant::SUBSCRIPTION_VIEW_CHANNEL_SIZE);
+        let (event_sender, event_receiver) = mpsc::channel(*constant::PROTOCOL_CHANNEL_SIZE);
         let (command_sender, command_receiver) = mpsc::channel(*constant::COMMAND_CHANNEL_SIZE);
         let (double_echo_shutdown_channel, double_echo_shutdown_receiver) =
             mpsc::channel::<oneshot::Sender<()>>(1);
 
-        let (task_manager_message_sender, task_manager_message_receiver) = mpsc::channel(24_000);
+        let (task_manager_message_sender, task_manager_message_receiver) =
+            mpsc::channel(*constant::TASK_MANAGER_CHANNEL_SIZE);
 
         let pending_certificate_count = storage
             .get_pending_certificates()
