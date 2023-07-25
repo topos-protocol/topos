@@ -14,7 +14,8 @@ pub mod task;
 use crate::double_echo::broadcast_state::BroadcastState;
 use crate::sampler::SubscriptionsView;
 use crate::DoubleEchoCommand;
-use task::{Task, TaskContext, TaskStatus};
+use crate::TaskStatus;
+use task::{Task, TaskContext};
 
 /// The TaskManager is responsible for receiving messages from the network and distributing them
 /// among tasks. These tasks are either created if none for a certain CertificateID exists yet,
@@ -22,7 +23,7 @@ use task::{Task, TaskContext, TaskStatus};
 pub struct TaskManager {
     pub message_receiver: mpsc::Receiver<DoubleEchoCommand>,
     pub task_completion_sender: mpsc::Sender<(CertificateId, TaskStatus)>,
-    pub subscription_view_receiver: broadcast::Receiver<SubscriptionsView>,
+    pub subscription_view_receiver: mpsc::Receiver<SubscriptionsView>,
     pub subscriptions: SubscriptionsView,
     pub event_sender: mpsc::Sender<ProtocolEvents>,
     pub tasks: HashMap<CertificateId, TaskContext>,
@@ -39,7 +40,7 @@ impl TaskManager {
     pub fn new(
         message_receiver: mpsc::Receiver<DoubleEchoCommand>,
         task_completion_sender: mpsc::Sender<(CertificateId, TaskStatus)>,
-        subscription_view_receiver: broadcast::Receiver<SubscriptionsView>,
+        subscription_view_receiver: mpsc::Receiver<SubscriptionsView>,
         event_sender: mpsc::Sender<ProtocolEvents>,
         thresholds: ReliableBroadcastParams,
     ) -> (Self, mpsc::Receiver<()>) {
@@ -65,6 +66,12 @@ impl TaskManager {
     pub async fn run(mut self, mut shutdown_receiver: mpsc::Receiver<()>) {
         loop {
             tokio::select! {
+                biased;
+
+                Some(new_subscriptions_view) = self.subscription_view_receiver.recv() => {
+                    println!("Received view");
+                    self.subscriptions = new_subscriptions_view;
+                }
                 Some(msg) = self.message_receiver.recv() => {
                     println!("RECEIVE MESSAGE: {msg:?}");
                     match msg {
@@ -103,9 +110,6 @@ impl TaskManager {
                     }
                 }
 
-                Ok(new_subscriptions_view) = self.subscription_view_receiver.recv() => {
-                    self.subscriptions = new_subscriptions_view;
-                }
 
                 Some((certificate_id, status)) = self.running_tasks.next() => {
                     if status == TaskStatus::Success {

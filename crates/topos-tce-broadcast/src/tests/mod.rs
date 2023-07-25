@@ -53,37 +53,24 @@ struct TceParams {
 
 struct Context {
     event_receiver: Receiver<ProtocolEvents>,
-    subscriptions_view_sender: broadcast::Sender<SubscriptionsView>,
+    subscriptions_view_sender: mpsc::Sender<SubscriptionsView>,
     cmd_sender: Sender<DoubleEchoCommand>,
     double_echo_shutdown_sender: Sender<oneshot::Sender<()>>,
 }
 
 async fn create_context(params: TceParams) -> (DoubleEcho, Context) {
-    let (subscriptions_view_sender, subscriptions_view_receiver) = broadcast::channel(CHANNEL_SIZE);
+    let (subscriptions_view_sender, subscriptions_view_receiver) = mpsc::channel(CHANNEL_SIZE);
 
     let (cmd_sender, cmd_receiver) = mpsc::channel(CHANNEL_SIZE);
     let (event_sender, event_receiver) = mpsc::channel(CHANNEL_SIZE);
     let (double_echo_shutdown_sender, double_echo_shutdown_receiver) =
         mpsc::channel::<oneshot::Sender<()>>(1);
     let (task_manager_message_sender, task_manager_message_receiver) = mpsc::channel(CHANNEL_SIZE);
-    let (task_completion_sender, task_completion_receiver) = mpsc::channel(CHANNEL_SIZE);
-
-    let (task_manager, shutdown_receiver) = TaskManager::new(
-        task_manager_message_receiver,
-        task_completion_sender,
-        subscriptions_view_sender.subscribe(),
-        event_sender.clone(),
-        params.broadcast_params.clone(),
-    );
-
-    spawn(task_manager.run(shutdown_receiver));
 
     let mut double_echo = DoubleEcho::new(
         params.broadcast_params,
         task_manager_message_sender.clone(),
-        task_completion_receiver,
         cmd_receiver,
-        subscriptions_view_receiver,
         event_sender,
         double_echo_shutdown_receiver,
         String::new(),
@@ -104,25 +91,19 @@ async fn create_context(params: TceParams) -> (DoubleEcho, Context) {
     double_echo.subscriptions.ready = peers.clone();
     double_echo.subscriptions.network_size = params.nb_peers;
 
-    let _ = subscriptions_view_sender.send(SubscriptionsView {
+    let msg = SubscriptionsView {
         echo: peers.clone(),
         ready: peers.clone(),
         network_size: params.nb_peers,
-    });
+    };
+    let _ = subscriptions_view_sender.send(msg).await.unwrap();
 
-    task_manager_message_sender
-        .send(DoubleEchoCommand::Broadcast {
-            need_gossip: true,
-            cert: Certificate::default(),
-        })
-        .await
-        .expect("Cannot send broadcast command");
+    double_echo.spawn_task_manager(subscriptions_view_receiver, task_manager_message_receiver);
 
     (
         double_echo,
         Context {
             event_receiver,
-            // subscribers_update_sender,
             subscriptions_view_sender,
             cmd_sender,
             double_echo_shutdown_sender,
@@ -192,11 +173,11 @@ async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams)
     .expect("Dummy certificate");
 
     // Trigger Echo upon dispatching
-    double_echo.broadcast(dummy_cert.clone(), true);
+    double_echo.broadcast(dummy_cert.clone(), true).await;
 
     assert!(matches!(
-        ctx.event_receiver.try_recv(),
-        Ok(ProtocolEvents::Broadcast { certificate_id }) if certificate_id == dummy_cert.id
+        ctx.event_receiver.recv().await,
+        Some(ProtocolEvents::Broadcast { certificate_id }) if certificate_id == dummy_cert.id
     ));
 
     assert!(matches!(
@@ -217,16 +198,16 @@ async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams)
     reach_echo_threshold(&mut double_echo, &dummy_cert).await;
 
     assert!(matches!(
-        ctx.event_receiver.try_recv(),
-        Ok(ProtocolEvents::Ready { .. })
+        ctx.event_receiver.recv().await,
+        Some(ProtocolEvents::Ready { .. })
     ));
 
     // Trigger Delivery upon reaching the Delivery threshold
     reach_delivery_threshold(&mut double_echo, &dummy_cert).await;
 
     assert!(matches!(
-         ctx.event_receiver.try_recv(),
-        Ok(ProtocolEvents::CertificateDelivered { certificate }) if certificate == dummy_cert
+         ctx.event_receiver.recv().await,
+        Some(ProtocolEvents::CertificateDelivered { certificate }) if certificate == dummy_cert
     ));
 }
 
@@ -250,7 +231,7 @@ async fn trigger_ready_when_reached_enough_ready(#[case] params: TceParams) {
     .expect("Dummy certificate");
 
     // Trigger Echo upon dispatching
-    double_echo.broadcast(dummy_cert.clone(), true);
+    double_echo.broadcast(dummy_cert.clone(), true).await;
 
     assert!(matches!(
         ctx.event_receiver.try_recv(),
@@ -271,8 +252,8 @@ async fn trigger_ready_when_reached_enough_ready(#[case] params: TceParams) {
     reach_ready_threshold(&mut double_echo, &dummy_cert).await;
 
     assert!(matches!(
-        ctx.event_receiver.try_recv(),
-        Ok(ProtocolEvents::Ready { .. })
+        ctx.event_receiver.recv().await,
+        Some(ProtocolEvents::Ready { .. })
     ));
 }
 

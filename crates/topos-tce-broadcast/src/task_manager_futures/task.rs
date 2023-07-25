@@ -6,15 +6,7 @@ use topos_core::uci::CertificateId;
 use tracing::warn;
 
 use crate::double_echo::broadcast_state::{BroadcastState, Status};
-use crate::DoubleEchoCommand;
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum TaskStatus {
-    /// The task finished succesfully and broadcasted the certificate + received ready
-    Success,
-    /// The task did not finish succesfully and stopped.
-    Failure,
-}
+use crate::{DoubleEchoCommand, TaskStatus};
 
 #[derive(Debug)]
 pub struct TaskContext {

@@ -1,16 +1,9 @@
 use tokio::sync::mpsc;
 
 use crate::DoubleEchoCommand;
+use crate::TaskStatus;
 use tce_transport::ReliableBroadcastParams;
 use topos_core::uci::CertificateId;
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum TaskStatus {
-    /// The task finished succesfully and broadcasted the certificate + received ready
-    Success,
-    /// The task did not finish succesfully and stopped.
-    Failure,
-}
 
 #[derive(Debug, Clone)]
 pub struct TaskContext {

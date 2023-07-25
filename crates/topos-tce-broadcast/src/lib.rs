@@ -12,7 +12,7 @@ use tokio_stream::wrappers::ReceiverStream;
 
 use futures::Stream;
 use tokio::sync::mpsc::Sender;
-use tokio::sync::{broadcast, mpsc, oneshot};
+use tokio::sync::{mpsc, oneshot};
 
 use double_echo::DoubleEcho;
 use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
@@ -44,6 +44,13 @@ mod tests;
 
 use crate::sampler::SubscriptionsView;
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum TaskStatus {
+    /// The task finished succesfully and broadcasted the certificate + received ready
+    Success,
+    /// The task did not finish succesfully and stopped.
+    Failure,
+}
 #[cfg(feature = "task-manager-futures")]
 use crate::task_manager_futures::TaskManager;
 #[cfg(all(
@@ -99,7 +106,7 @@ pub enum DoubleEchoCommand {
 #[derive(Clone, Debug)]
 pub struct ReliableBroadcastClient {
     command_sender: mpsc::Sender<DoubleEchoCommand>,
-    pub(crate) subscriptions_view_sender: broadcast::Sender<SubscriptionsView>,
+    pub(crate) subscriptions_view_sender: mpsc::Sender<SubscriptionsView>,
     pub(crate) double_echo_shutdown_channel: mpsc::Sender<oneshot::Sender<()>>,
 }
 
@@ -114,24 +121,13 @@ impl ReliableBroadcastClient {
         storage: StorageClient,
     ) -> (Self, impl Stream<Item = ProtocolEvents>) {
         let (subscriptions_view_sender, subscriptions_view_receiver) =
-            broadcast::channel::<SubscriptionsView>(2048);
+            mpsc::channel::<SubscriptionsView>(2048);
         let (event_sender, event_receiver) = mpsc::channel(2048);
         let (command_sender, command_receiver) = mpsc::channel(*constant::COMMAND_CHANNEL_SIZE);
         let (double_echo_shutdown_channel, double_echo_shutdown_receiver) =
             mpsc::channel::<oneshot::Sender<()>>(1);
 
         let (task_manager_message_sender, task_manager_message_receiver) = mpsc::channel(24_000);
-        let (task_completion_sender, task_completion_receiver) = mpsc::channel(24_000);
-
-        let (task_manager, shutdown_receiver) = TaskManager::new(
-            task_manager_message_receiver,
-            task_completion_sender,
-            subscriptions_view_sender.subscribe(),
-            event_sender.clone(),
-            config.tce_params.clone(),
-        );
-
-        spawn(task_manager.run(shutdown_receiver));
 
         let pending_certificate_count = storage
             .get_pending_certificates()
@@ -142,16 +138,14 @@ impl ReliableBroadcastClient {
         let double_echo = DoubleEcho::new(
             config.tce_params,
             task_manager_message_sender,
-            task_completion_receiver,
             command_receiver,
-            subscriptions_view_receiver,
             event_sender,
             double_echo_shutdown_receiver,
             local_peer_id,
             pending_certificate_count,
         );
 
-        spawn(double_echo.run());
+        spawn(double_echo.run(subscriptions_view_receiver, task_manager_message_receiver));
 
         (
             Self {
@@ -171,6 +165,7 @@ impl ReliableBroadcastClient {
                 ready: set.clone(),
                 network_size: set.len(),
             })
+            .await
             .map(|_| ())
             .map_err(|_| ())
     }

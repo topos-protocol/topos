@@ -15,7 +15,7 @@ async fn task_manager_futures_receiving_messages() {
 
     let (message_sender, message_receiver) = mpsc::channel(1024);
     let (task_completion_sender, mut task_completion_receiver) = mpsc::channel(1024);
-    let (subscription_view_sender, subscription_view_receiver) = broadcast::channel(1024);
+    let (subscription_view_sender, subscription_view_receiver) = mpsc::channel(1024);
     let (event_sender, _event_receiver) = mpsc::channel(1024);
 
     let thresholds = ReliableBroadcastParams {
@@ -34,7 +34,7 @@ async fn task_manager_futures_receiving_messages() {
 
     let subscription_view = SubscriptionsView::default();
 
-    subscription_view_sender.send(subscription_view);
+    subscription_view_sender.send(subscription_view).await;
 
     spawn(task_manager.run(shutdown_receiver));
 

@@ -1,34 +1,24 @@
-use crate::task_manager_futures::task::TaskStatus;
+use crate::TaskStatus;
 use crate::{DoubleEchoCommand, SubscriptionsView};
 use std::collections::HashSet;
 use std::collections::{HashMap, VecDeque};
 use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
-use tokio::sync::{broadcast, mpsc, oneshot};
+use tokio::sync::{mpsc, oneshot};
 use topos_core::uci::{Certificate, CertificateId};
 
 use topos_p2p::PeerId;
 use tracing::{error, info, warn, Span};
-
-use self::broadcast_state::BroadcastState;
 
 pub mod broadcast_state;
 
 pub struct DoubleEcho {
     /// Channel to receive commands
     command_receiver: mpsc::Receiver<DoubleEchoCommand>,
-    /// Channel to receive subscriptions updates
-    subscriptions_view_receiver: broadcast::Receiver<SubscriptionsView>,
     /// Channel to send events
     event_sender: mpsc::Sender<ProtocolEvents>,
 
     /// Channel to receive shutdown signal
     pub(crate) shutdown: mpsc::Receiver<oneshot::Sender<()>>,
-
-    /// pending certificates state
-    pending_certificate_count: u64,
-
-    /// buffer of certificates to process
-    buffer: VecDeque<(bool, Certificate)>,
 
     /// delivered certificate ids to avoid processing twice the same certificate
     delivered_certificates: HashSet<CertificateId>,
@@ -36,11 +26,6 @@ pub struct DoubleEcho {
     pub(crate) params: ReliableBroadcastParams,
 
     task_manager_message_sender: mpsc::Sender<DoubleEchoCommand>,
-
-    task_completion_receiver: mpsc::Receiver<(CertificateId, TaskStatus)>,
-
-    /// Current certificates being processed
-    cert_candidate: HashMap<CertificateId, BroadcastState>,
 
     /// Span tracker for each certificate
     span_tracker: HashMap<CertificateId, Span>,
@@ -57,30 +42,50 @@ impl DoubleEcho {
     pub fn new(
         params: ReliableBroadcastParams,
         task_manager_message_sender: mpsc::Sender<DoubleEchoCommand>,
-        task_completion_receiver: mpsc::Receiver<(CertificateId, TaskStatus)>,
         command_receiver: mpsc::Receiver<DoubleEchoCommand>,
-        subscriptions_view_receiver: broadcast::Receiver<SubscriptionsView>,
         event_sender: mpsc::Sender<ProtocolEvents>,
         shutdown: mpsc::Receiver<oneshot::Sender<()>>,
         local_peer_id: String,
-        pending_certificate_count: u64,
+        _pending_certificate_count: u64,
     ) -> Self {
         Self {
             params,
             task_manager_message_sender,
-            task_completion_receiver,
-            pending_certificate_count,
             command_receiver,
-            subscriptions_view_receiver,
             event_sender,
-            cert_candidate: Default::default(),
             span_tracker: Default::default(),
             subscriptions: SubscriptionsView::default(),
-            buffer: VecDeque::new(),
             shutdown,
             local_peer_id,
             delivered_certificates: Default::default(),
         }
+    }
+
+    #[cfg(not(feature = "task-manager-channels"))]
+    pub(crate) fn spawn_task_manager(
+        &mut self,
+        subscriptions_view_receiver: mpsc::Receiver<SubscriptionsView>,
+        task_manager_message_receiver: mpsc::Receiver<DoubleEchoCommand>,
+    ) -> mpsc::Receiver<(CertificateId, TaskStatus)> {
+        let (task_completion_sender, task_completion_receiver) = mpsc::channel(2048);
+
+        let (task_manager, shutdown_receiver) = crate::task_manager_futures::TaskManager::new(
+            task_manager_message_receiver,
+            task_completion_sender,
+            subscriptions_view_receiver,
+            self.event_sender.clone(),
+            self.params.clone(),
+        );
+
+        tokio::spawn(task_manager.run(shutdown_receiver));
+
+        task_completion_receiver
+    }
+    #[cfg(feature = "task-manager-channels")]
+    pub(crate) fn spawn_task_manager(
+        &mut self,
+        subscriptions_view_receiver: mpsc::Receiver<SubscriptionsView>,
+    ) {
     }
 
     /// DoubleEcho main loop
@@ -90,7 +95,14 @@ impl DoubleEcho {
     ///      - If a new subscription view is received, update the subscriptions
     ///      - If a new Echo/Ready is received, update the state of the certificate or buffer
     ///      the message
-    pub(crate) async fn run(mut self) {
+    pub(crate) async fn run(
+        mut self,
+        subscriptions_view_receiver: mpsc::Receiver<SubscriptionsView>,
+        task_manager_message_receiver: mpsc::Receiver<DoubleEchoCommand>,
+    ) {
+        let mut task_completion =
+            self.spawn_task_manager(subscriptions_view_receiver, task_manager_message_receiver);
+
         info!("DoubleEcho started");
 
         let shutdowned: Option<oneshot::Sender<()>> = loop {
@@ -103,7 +115,7 @@ impl DoubleEcho {
                 Some(command) = self.command_receiver.recv() => {
                     match command {
 
-                        DoubleEchoCommand::Broadcast { need_gossip, ref cert } => self.task_manager_message_sender.send(command).await,
+                        DoubleEchoCommand::Broadcast { need_gossip, cert } => Ok::<_, ()>(self.broadcast(cert, need_gossip).await),
 
                         command if self.subscriptions.is_some() => Ok({
                             match command {
@@ -120,18 +132,13 @@ impl DoubleEcho {
                     }
                 }
 
-                Some((certificate_id, status)) = self.task_completion_receiver.recv() => {
+                Some((certificate_id, status)) = task_completion.recv() => {
                     if status == TaskStatus::Success {
                         self.delivered_certificates.insert(certificate_id);
                     }
                     Ok(())
                 }
 
-                Ok(new_subscriptions_view) = self.subscriptions_view_receiver.recv() => {
-                    info!("Starting to use the new operational set of samples: {:?}", &new_subscriptions_view);
-                    self.subscriptions = new_subscriptions_view;
-                    Ok(())
-                }
 
                 else => {
                     warn!("Break the tokio loop for the double echo");
@@ -155,7 +162,7 @@ impl DoubleEcho {
     /// - or received through the gossip (first step of protocol exchange)
     ///TODO: This is not really broadcasting, merley adding the certificate into a known list.
     ///TODO: Rename or restructure this function
-    pub(crate) fn broadcast(&mut self, cert: Certificate, origin: bool) {
+    pub(crate) async fn broadcast(&mut self, cert: Certificate, origin: bool) {
         info!("🙌 Starting broadcasting the Certificate {}", &cert.id);
 
         if self.cert_pre_broadcast_check(&cert).is_err() {
@@ -167,15 +174,15 @@ impl DoubleEcho {
                 .unwrap();
             return;
         }
-        // Don't gossip one cert already gossiped
-        if self.cert_candidate.contains_key(&cert.id) {
-            self.event_sender
-                .try_send(ProtocolEvents::BroadcastFailed {
-                    certificate_id: cert.id,
-                })
-                .unwrap();
-            return;
-        }
+        // // Don't gossip one cert already gossiped
+        // if self.cert_candidate.contains_key(&cert.id) {
+        //     self.event_sender
+        //         .try_send(ProtocolEvents::BroadcastFailed {
+        //             certificate_id: cert.id,
+        //         })
+        //         .unwrap();
+        //     return;
+        // }
 
         if self.delivered_certificates.get(&cert.id).is_some() {
             self.event_sender
@@ -192,9 +199,9 @@ impl DoubleEcho {
         // To include tracing context in client requests from _this_ app,
         // use `context` to extract the current OpenTelemetry context.
         // Add new entry for the new Cert candidate
-        match self.delivery_state_for_new_cert(cert, origin) {
+        match self.delivery_state_for_new_cert(cert, origin).await {
             Some(delivery_state) => {
-                self.cert_candidate.insert(certificate_id, delivery_state);
+                // self.cert_candidate.insert(certificate_id, delivery_state);
             }
             None => {
                 error!("Ill-formed samples");
@@ -204,11 +211,11 @@ impl DoubleEcho {
     }
 
     /// Build initial delivery state
-    fn delivery_state_for_new_cert(
+    async fn delivery_state_for_new_cert(
         &mut self,
         certificate: Certificate,
         origin: bool,
-    ) -> Option<BroadcastState> {
+    ) -> Option<bool> {
         let subscriptions = self.subscriptions.clone();
 
         // Check whether inbound sets are empty
@@ -220,15 +227,24 @@ impl DoubleEcho {
             );
             None
         } else {
-            Some(BroadcastState::new(
-                certificate,
-                self.params.echo_threshold,
-                self.params.ready_threshold,
-                self.params.delivery_threshold,
-                self.event_sender.clone(),
-                subscriptions,
-                origin,
-            ))
+            _ = self
+                .task_manager_message_sender
+                .send(DoubleEchoCommand::Broadcast {
+                    need_gossip: origin,
+                    cert: certificate,
+                })
+                .await;
+
+            Some(true)
+            // Some(BroadcastState::new(
+            //     certificate,
+            //     self.params.echo_threshold,
+            //     self.params.ready_threshold,
+            //     self.params.delivery_threshold,
+            //     self.event_sender.clone(),
+            //     subscriptions,
+            //     origin,
+            // ))
         }
     }
 
