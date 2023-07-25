@@ -15,18 +15,16 @@ pub struct DoubleEcho {
     command_receiver: mpsc::Receiver<DoubleEchoCommand>,
     /// Channel to send events
     event_sender: mpsc::Sender<ProtocolEvents>,
-
     /// Channel to receive shutdown signal
     pub(crate) shutdown: mpsc::Receiver<oneshot::Sender<()>>,
-
-    /// delivered certificate ids to avoid processing twice the same certificate
+    /// Delivered certificate ids to avoid processing twice the same certificate
     delivered_certificates: HashSet<CertificateId>,
-
+    /// The threshold parameters for the double echo
     pub(crate) params: ReliableBroadcastParams,
-
+    /// The connection to the TaskManager to forward DoubleEchoCommand messages
     task_manager_message_sender: mpsc::Sender<DoubleEchoCommand>,
-
-    pub(crate) subscriptions: SubscriptionsView, // My subscriptions for echo, ready and delivery feedback
+    /// The overview of the network, which holds echo and ready subscriptions and the network size
+    pub(crate) subscriptions: SubscriptionsView,
 }
 
 impl DoubleEcho {
