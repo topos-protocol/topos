@@ -20,11 +20,4 @@ fn main() {
 
         println!("cargo:rustc-env=TOPOS_VERSION={topos_version}");
     }
-
-    let using_futures = cfg!(feature = "task-manager-futures");
-    let using_channels = cfg!(feature = "task-manager-channels");
-
-    if using_futures && using_channels {
-        panic!("The features 'task-manager-futures' and 'task-manager-channels' are mutually exclusive.");
-    }
 }

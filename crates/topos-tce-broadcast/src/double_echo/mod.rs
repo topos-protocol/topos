@@ -1,13 +1,12 @@
 use crate::TaskStatus;
 use crate::{DoubleEchoCommand, SubscriptionsView};
 use std::collections::HashSet;
-use std::collections::{HashMap, VecDeque};
 use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
 use tokio::sync::{mpsc, oneshot};
 use topos_core::uci::{Certificate, CertificateId};
 
 use topos_p2p::PeerId;
-use tracing::{error, info, warn, Span};
+use tracing::{error, info, warn};
 
 pub mod broadcast_state;
 
@@ -27,12 +26,7 @@ pub struct DoubleEcho {
 
     task_manager_message_sender: mpsc::Sender<DoubleEchoCommand>,
 
-    /// Span tracker for each certificate
-    span_tracker: HashMap<CertificateId, Span>,
-
     pub(crate) subscriptions: SubscriptionsView, // My subscriptions for echo, ready and delivery feedback
-
-    local_peer_id: String,
 }
 
 impl DoubleEcho {
@@ -45,7 +39,6 @@ impl DoubleEcho {
         command_receiver: mpsc::Receiver<DoubleEchoCommand>,
         event_sender: mpsc::Sender<ProtocolEvents>,
         shutdown: mpsc::Receiver<oneshot::Sender<()>>,
-        local_peer_id: String,
         _pending_certificate_count: u64,
     ) -> Self {
         Self {
@@ -53,10 +46,8 @@ impl DoubleEcho {
             task_manager_message_sender,
             command_receiver,
             event_sender,
-            span_tracker: Default::default(),
             subscriptions: SubscriptionsView::default(),
             shutdown,
-            local_peer_id,
             delivered_certificates: Default::default(),
         }
     }
@@ -81,6 +72,7 @@ impl DoubleEcho {
 
         task_completion_receiver
     }
+
     #[cfg(feature = "task-manager-channels")]
     pub(crate) fn spawn_task_manager(
         &mut self,
@@ -115,19 +107,18 @@ impl DoubleEcho {
                 Some(command) = self.command_receiver.recv() => {
                     match command {
 
-                        DoubleEchoCommand::Broadcast { need_gossip, cert } => Ok::<_, ()>(self.broadcast(cert, need_gossip).await),
+                        DoubleEchoCommand::Broadcast { need_gossip, cert } => self.broadcast(cert, need_gossip).await,
 
-                        command if self.subscriptions.is_some() => Ok({
+                        command if self.subscriptions.is_some() => {
                             match command {
                                 DoubleEchoCommand::Echo { from_peer, certificate_id } => self.handle_echo(from_peer, certificate_id).await,
                                 DoubleEchoCommand::Ready { from_peer, certificate_id } => self.handle_ready(from_peer, certificate_id).await,
                                 _ => {}
                             }
 
-                        }),
+                        },
                         command => {
                             warn!("Received a command {command:?} while not having a complete sampling");
-                            Ok(())
                         }
                     }
                 }
@@ -136,7 +127,6 @@ impl DoubleEcho {
                     if status == TaskStatus::Success {
                         self.delivered_certificates.insert(certificate_id);
                     }
-                    Ok(())
                 }
 
 
@@ -160,11 +150,8 @@ impl DoubleEcho {
     /// Called to process potentially new certificate:
     /// - either submitted from API ( [tce_transport::TceCommands::Broadcast] command)
     /// - or received through the gossip (first step of protocol exchange)
-    ///TODO: This is not really broadcasting, merley adding the certificate into a known list.
-    ///TODO: Rename or restructure this function
     pub(crate) async fn broadcast(&mut self, cert: Certificate, origin: bool) {
         info!("🙌 Starting broadcasting the Certificate {}", &cert.id);
-
         if self.cert_pre_broadcast_check(&cert).is_err() {
             error!("Failure on the pre-check for the Certificate {}", &cert.id);
             self.event_sender
@@ -174,15 +161,6 @@ impl DoubleEcho {
                 .unwrap();
             return;
         }
-        // // Don't gossip one cert already gossiped
-        // if self.cert_candidate.contains_key(&cert.id) {
-        //     self.event_sender
-        //         .try_send(ProtocolEvents::BroadcastFailed {
-        //             certificate_id: cert.id,
-        //         })
-        //         .unwrap();
-        //     return;
-        // }
 
         if self.delivered_certificates.get(&cert.id).is_some() {
             self.event_sender
@@ -194,19 +172,13 @@ impl DoubleEcho {
             return;
         }
 
-        // Trigger event of new certificate candidate for delivery
-        let certificate_id = cert.id;
-        // To include tracing context in client requests from _this_ app,
-        // use `context` to extract the current OpenTelemetry context.
-        // Add new entry for the new Cert candidate
-        match self.delivery_state_for_new_cert(cert, origin).await {
-            Some(delivery_state) => {
-                // self.cert_candidate.insert(certificate_id, delivery_state);
-            }
-            None => {
-                error!("Ill-formed samples");
-                _ = self.event_sender.try_send(ProtocolEvents::Die);
-            }
+        if self
+            .delivery_state_for_new_cert(cert, origin)
+            .await
+            .is_none()
+        {
+            error!("Ill-formed samples");
+            _ = self.event_sender.try_send(ProtocolEvents::Die);
         }
     }
 
@@ -236,15 +208,6 @@ impl DoubleEcho {
                 .await;
 
             Some(true)
-            // Some(BroadcastState::new(
-            //     certificate,
-            //     self.params.echo_threshold,
-            //     self.params.ready_threshold,
-            //     self.params.delivery_threshold,
-            //     self.event_sender.clone(),
-            //     subscriptions,
-            //     origin,
-            // ))
         }
     }
 
@@ -277,7 +240,6 @@ impl DoubleEcho {
 
     pub(crate) async fn handle_ready(&mut self, from_peer: PeerId, certificate_id: CertificateId) {
         if self.delivered_certificates.get(&certificate_id).is_none() {
-            println!("SEND READY");
             let _ = self
                 .task_manager_message_sender
                 .send(DoubleEchoCommand::Ready {

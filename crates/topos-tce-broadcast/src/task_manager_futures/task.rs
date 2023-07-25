@@ -57,23 +57,17 @@ impl IntoFuture for Task {
                 tokio::select! {
                     Some(msg) = self.message_receiver.recv() => {
                         match msg {
-                            DoubleEchoCommand::Echo { certificate_id, from_peer } => {
-                                println!("Receive ECHO in task");
+                            DoubleEchoCommand::Echo { from_peer, .. } => {
                                 if let Some(Status::DeliveredWithReadySent) = self.broadcast_state.apply_echo(from_peer) {
                                     return (self.certificate_id, TaskStatus::Success);
                                 }
                             }
-                            DoubleEchoCommand::Ready { certificate_id, from_peer } => {
-                                println!("Receive READY in task");
+                            DoubleEchoCommand::Ready { from_peer, .. } => {
                                 if let Some(Status::DeliveredWithReadySent) = self.broadcast_state.apply_ready(from_peer) {
                                     return (self.certificate_id, TaskStatus::Success);
                                 }
                             }
-                            DoubleEchoCommand::Broadcast { cert, .. } => {
-                                println!("Receive BROADCAST in task");
-                                // return (cert.id, TaskStatus::Success);
-                            }
-
+                            _ => {}
                         }
                     }
                     _ = self.shutdown_receiver.recv() => {

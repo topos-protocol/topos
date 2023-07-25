@@ -31,12 +31,9 @@ mod constant;
 pub mod double_echo;
 pub mod sampler;
 
-#[cfg(all(
-    feature = "task-manager-channels",
-    not(feature = "task-manager-futures")
-))]
+#[cfg(feature = "task-manager-channels")]
 pub mod task_manager_channels;
-#[cfg(feature = "task-manager-futures")]
+#[cfg(not(feature = "task-manager-channels"))]
 pub mod task_manager_futures;
 
 #[cfg(test)]
@@ -51,13 +48,6 @@ pub enum TaskStatus {
     /// The task did not finish succesfully and stopped.
     Failure,
 }
-#[cfg(feature = "task-manager-futures")]
-use crate::task_manager_futures::TaskManager;
-#[cfg(all(
-    feature = "task-manager-channels",
-    not(feature = "task-manager-futures")
-))]
-use task_manager_channels::TaskManager;
 
 /// Configuration of TCE implementation
 pub struct ReliableBroadcastConfig {
@@ -117,7 +107,7 @@ impl ReliableBroadcastClient {
     /// Aggregate is spawned as new task.
     pub async fn new(
         config: ReliableBroadcastConfig,
-        local_peer_id: String,
+        _local_peer_id: String,
         storage: StorageClient,
     ) -> (Self, impl Stream<Item = ProtocolEvents>) {
         let (subscriptions_view_sender, subscriptions_view_receiver) =
@@ -141,7 +131,6 @@ impl ReliableBroadcastClient {
             command_receiver,
             event_sender,
             double_echo_shutdown_receiver,
-            local_peer_id,
             pending_certificate_count,
         );
 

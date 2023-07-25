@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::future::IntoFuture;
 use std::pin::Pin;
 use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
-use tokio::sync::{broadcast, mpsc};
+use tokio::sync::mpsc;
 use topos_core::uci::CertificateId;
 use tracing::warn;
 
@@ -69,14 +69,13 @@ impl TaskManager {
                 biased;
 
                 Some(new_subscriptions_view) = self.subscription_view_receiver.recv() => {
-                    println!("Received view");
                     self.subscriptions = new_subscriptions_view;
                 }
                 Some(msg) = self.message_receiver.recv() => {
-                    println!("RECEIVE MESSAGE: {msg:?}");
                     match msg {
-                        DoubleEchoCommand::Echo { certificate_id, from_peer } | DoubleEchoCommand::Ready { certificate_id, from_peer } => {
+                        DoubleEchoCommand::Echo { certificate_id, .. } | DoubleEchoCommand::Ready { certificate_id, .. } => {
                             if let Some(task) = self.tasks.get(&certificate_id) {
+
                                 _ = task.sink.send(msg).await;
                             } else {
                                 self.buffered_messages
@@ -104,7 +103,7 @@ impl TaskManager {
 
                                     entry.insert(task_context);
                                 }
-                                std::collections::hash_map::Entry::Occupied(entry) => {},
+                                std::collections::hash_map::Entry::Occupied(_) => {},
                             }
                         }
                     }
@@ -131,7 +130,7 @@ impl TaskManager {
             }
 
             for (certificate_id, messages) in &mut self.buffered_messages {
-                if let Some(task) = self.tasks.get_mut(&certificate_id) {
+                if let Some(task) = self.tasks.get_mut(certificate_id) {
                     for msg in messages {
                         _ = task.sink.send(msg.clone()).await;
                     }

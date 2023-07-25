@@ -33,7 +33,6 @@ topos-test-sdk = { path = "../topos-test-sdk/" }
 
 [features]
 task-manager-channels = []
-task-manager-futures = []
 
 [[bench]]
 name = "double_echo"
