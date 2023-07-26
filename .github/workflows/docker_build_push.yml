@@ -15,6 +15,12 @@ jobs:
     uses: ./.github/workflows/docker_utils.yml
     secrets: inherit
 
+  broadcast_channels:
+    uses: ./.github/workflows/docker_utils.yml
+    secrets: inherit
+    with:
+      features: broadcast_via_channels
+
   network:
     uses: ./.github/workflows/docker_utils.yml
     secrets: inherit
