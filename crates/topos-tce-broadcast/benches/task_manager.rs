@@ -96,26 +96,23 @@ pub async fn processing_double_echo(n: u64) {
 
     for cert in &certificates {
         for p in &double_echo_selected_echo {
-            double_echo.handle_echo(p.clone(), cert.id).await;
+            double_echo.handle_echo(*p, cert.id).await;
         }
 
         for p in &double_echo_selected_ready {
-            double_echo.handle_ready(p.clone(), cert.id).await;
+            double_echo.handle_ready(*p, cert.id).await;
         }
     }
 
     let mut count = 0;
 
     while let Some(event) = ctx.event_receiver.recv().await {
-        match event {
-            ProtocolEvents::CertificateDelivered { .. } => {
-                count += 1;
+        if let ProtocolEvents::CertificateDelivered { .. } = event {
+            count += 1;
 
-                if count == n {
-                    break;
-                }
+            if count == n {
+                break;
             }
-            _ => {}
         }
     }
 }
