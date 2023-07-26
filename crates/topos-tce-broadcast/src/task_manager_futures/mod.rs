@@ -7,6 +7,7 @@ use std::pin::Pin;
 use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
 use tokio::sync::mpsc;
 use topos_core::uci::CertificateId;
+use topos_metrics::DOUBLE_ECHO_ACTIVE_TASKS_COUNT;
 use tracing::warn;
 
 pub mod task;
@@ -101,6 +102,8 @@ impl TaskManager {
 
                                     self.running_tasks.push(task.into_future());
 
+                                    DOUBLE_ECHO_ACTIVE_TASKS_COUNT.inc();
+
                                     entry.insert(task_context);
                                 }
                                 std::collections::hash_map::Entry::Occupied(_) => {},
@@ -113,6 +116,7 @@ impl TaskManager {
                 Some((certificate_id, status)) = self.running_tasks.next() => {
                     if status == TaskStatus::Success {
                         self.tasks.remove(&certificate_id);
+                        DOUBLE_ECHO_ACTIVE_TASKS_COUNT.dec();
                         let _ = self.task_completion_sender.send((certificate_id, status)).await;
                     }
                 }

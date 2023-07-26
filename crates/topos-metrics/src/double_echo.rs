@@ -8,6 +8,12 @@ use lazy_static::lazy_static;
 use crate::TOPOS_METRIC_REGISTRY;
 
 lazy_static! {
+    pub static ref DOUBLE_ECHO_ACTIVE_TASKS_COUNT: IntGauge = register_int_gauge_with_registry!(
+        "double_echo_active_tasks_count",
+        "Number of active tasks in the double echo.",
+        TOPOS_METRIC_REGISTRY
+    )
+    .unwrap();
     pub static ref DOUBLE_ECHO_COMMAND_CHANNEL_CAPACITY_TOTAL: IntCounter =
         register_int_counter_with_registry!(
             "double_echo_command_channel_capacity_total",
