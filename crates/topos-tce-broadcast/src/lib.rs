@@ -23,7 +23,6 @@ use topos_p2p::PeerId;
 use topos_tce_storage::StorageClient;
 use tracing::{debug, error, info};
 
-use crate::sampler::SubscriptionsView;
 pub use topos_core::uci;
 
 pub type Peer = String;
@@ -32,10 +31,23 @@ mod constant;
 pub mod double_echo;
 pub mod sampler;
 
+#[cfg(feature = "task-manager-channels")]
 pub mod task_manager_channels;
+#[cfg(not(feature = "task-manager-channels"))]
 pub mod task_manager_futures;
+
 #[cfg(test)]
 mod tests;
+
+use crate::sampler::SubscriptionsView;
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum TaskStatus {
+    /// The task finished succesfully and broadcasted the certificate + received ready
+    Success,
+    /// The task did not finish succesfully and stopped.
+    Failure,
+}
 
 /// Configuration of TCE implementation
 pub struct ReliableBroadcastConfig {
@@ -59,7 +71,7 @@ pub enum SamplerCommand {
     ForceResample,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum DoubleEchoCommand {
     /// Entry point for new certificate to submit as initial sender
     Broadcast {
@@ -95,15 +107,18 @@ impl ReliableBroadcastClient {
     /// Aggregate is spawned as new task.
     pub async fn new(
         config: ReliableBroadcastConfig,
-        local_peer_id: String,
+        _local_peer_id: String,
         storage: StorageClient,
     ) -> (Self, impl Stream<Item = ProtocolEvents>) {
         let (subscriptions_view_sender, subscriptions_view_receiver) =
-            mpsc::channel::<SubscriptionsView>(2048);
-        let (event_sender, event_receiver) = mpsc::channel(2048);
+            mpsc::channel::<SubscriptionsView>(*constant::SUBSCRIPTION_VIEW_CHANNEL_SIZE);
+        let (event_sender, event_receiver) = mpsc::channel(*constant::PROTOCOL_CHANNEL_SIZE);
         let (command_sender, command_receiver) = mpsc::channel(*constant::COMMAND_CHANNEL_SIZE);
         let (double_echo_shutdown_channel, double_echo_shutdown_receiver) =
             mpsc::channel::<oneshot::Sender<()>>(1);
+
+        let (task_manager_message_sender, task_manager_message_receiver) =
+            mpsc::channel(*constant::BROADCAST_TASK_MANAGER_CHANNEL_SIZE);
 
         let pending_certificate_count = storage
             .get_pending_certificates()
@@ -113,15 +128,14 @@ impl ReliableBroadcastClient {
 
         let double_echo = DoubleEcho::new(
             config.tce_params,
+            task_manager_message_sender,
             command_receiver,
-            subscriptions_view_receiver,
             event_sender,
             double_echo_shutdown_receiver,
-            local_peer_id,
             pending_certificate_count,
         );
 
-        spawn(double_echo.run());
+        spawn(double_echo.run(subscriptions_view_receiver, task_manager_message_receiver));
 
         (
             Self {
@@ -142,6 +156,7 @@ impl ReliableBroadcastClient {
                 network_size: set.len(),
             })
             .await
+            .map(|_| ())
             .map_err(|_| ())
     }
 

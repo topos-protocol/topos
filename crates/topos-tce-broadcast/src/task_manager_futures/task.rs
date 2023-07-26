@@ -5,38 +5,28 @@ use tokio::sync::mpsc;
 use topos_core::uci::CertificateId;
 use tracing::warn;
 
-use crate::task_manager_futures::Thresholds;
-use crate::DoubleEchoCommand;
+use crate::double_echo::broadcast_state::{BroadcastState, Status};
+use crate::{DoubleEchoCommand, TaskStatus};
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum Events {
-    ReachedThresholdOfReady(CertificateId),
-    ReceivedEcho(CertificateId),
-    TimeOut(CertificateId),
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum TaskStatus {
-    /// The task finished succesfully and broadcasted the certificate + received ready
-    Success,
-    /// The task did not finish succesfully and stopped.
-    Failure,
-}
-
+#[derive(Debug)]
 pub struct TaskContext {
     pub sink: mpsc::Sender<DoubleEchoCommand>,
     pub shutdown_sender: mpsc::Sender<()>,
 }
 
+#[derive(Debug)]
 pub struct Task {
     pub message_receiver: mpsc::Receiver<DoubleEchoCommand>,
     pub certificate_id: CertificateId,
-    pub thresholds: Thresholds,
+    pub broadcast_state: BroadcastState,
     pub shutdown_receiver: mpsc::Receiver<()>,
 }
 
 impl Task {
-    pub fn new(certificate_id: CertificateId, thresholds: Thresholds) -> (Task, TaskContext) {
+    pub fn new(
+        certificate_id: CertificateId,
+        broadcast_state: BroadcastState,
+    ) -> (Task, TaskContext) {
         let (message_sender, message_receiver) = mpsc::channel(10_024);
         let (shutdown_sender, shutdown_receiver) = mpsc::channel(1);
 
@@ -48,7 +38,7 @@ impl Task {
         let task = Task {
             message_receiver,
             certificate_id,
-            thresholds,
+            broadcast_state,
             shutdown_receiver,
         };
 
@@ -67,16 +57,17 @@ impl IntoFuture for Task {
                 tokio::select! {
                     Some(msg) = self.message_receiver.recv() => {
                         match msg {
-                            DoubleEchoCommand::Echo { certificate_id, .. } => {
-                                return (certificate_id, TaskStatus::Success);
+                            DoubleEchoCommand::Echo { from_peer, .. } => {
+                                if let Some(Status::DeliveredWithReadySent) = self.broadcast_state.apply_echo(from_peer) {
+                                    return (self.certificate_id, TaskStatus::Success);
+                                }
                             }
-                            DoubleEchoCommand::Ready { certificate_id, .. } => {
-                                return (certificate_id, TaskStatus::Success);
+                            DoubleEchoCommand::Ready { from_peer, .. } => {
+                                if let Some(Status::DeliveredWithReadySent) = self.broadcast_state.apply_ready(from_peer) {
+                                    return (self.certificate_id, TaskStatus::Success);
+                                }
                             }
-                            DoubleEchoCommand::Broadcast { cert, .. } => {
-                                return (cert.id, TaskStatus::Success);
-                            }
-
+                            _ => {}
                         }
                     }
                     _ = self.shutdown_receiver.recv() => {
