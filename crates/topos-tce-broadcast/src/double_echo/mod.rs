@@ -101,16 +101,26 @@ impl DoubleEcho {
     ///      the message
     pub(crate) async fn run(
         mut self,
-        subscriptions_view_receiver: mpsc::Receiver<SubscriptionsView>,
+        mut subscriptions_view_receiver: mpsc::Receiver<SubscriptionsView>,
         task_manager_message_receiver: mpsc::Receiver<DoubleEchoCommand>,
     ) {
-        let mut task_completion =
-            self.spawn_task_manager(subscriptions_view_receiver, task_manager_message_receiver);
+        let (forwarding_subscriptions_sender, forwarding_subscriptions_receiver) =
+            mpsc::channel(2048);
+        let mut task_completion = self.spawn_task_manager(
+            forwarding_subscriptions_receiver,
+            task_manager_message_receiver,
+        );
 
         info!("DoubleEcho started");
 
         let shutdowned: Option<oneshot::Sender<()>> = loop {
             tokio::select! {
+                biased;
+
+                Some(new_subscriptions_view) = subscriptions_view_receiver.recv() => {
+                    forwarding_subscriptions_sender.send(new_subscriptions_view.clone()).await.unwrap();
+                    self.subscriptions = new_subscriptions_view;
+                }
 
                 shutdown = self.shutdown.recv() => {
                         warn!("Double echo shutdown signal received {:?}", shutdown);
