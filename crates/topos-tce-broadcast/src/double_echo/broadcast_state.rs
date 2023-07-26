@@ -98,7 +98,9 @@ impl BroadcastState {
             let event = ProtocolEvents::Ready {
                 certificate_id: self.certificate.id,
             };
-            self.event_sender.try_send(event).unwrap();
+            if let Err(e) = self.event_sender.try_send(event) {
+                println!("Error sending Ready message: {}", e);
+            }
 
             self.status = self.status.ready_sent();
 

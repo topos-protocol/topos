@@ -82,7 +82,8 @@ async fn create_context(params: TceParams) -> (DoubleEcho, Context) {
         ready: peers.clone(),
         network_size: params.nb_peers,
     };
-    let _ = subscriptions_view_sender.send(msg).await.unwrap();
+
+    subscriptions_view_sender.send(msg).await.unwrap();
 
     double_echo.spawn_task_manager(subscriptions_view_receiver, task_manager_message_receiver);
 

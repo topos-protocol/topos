@@ -20,11 +20,11 @@ pub struct DoubleEcho {
     /// Delivered certificate ids to avoid processing twice the same certificate
     delivered_certificates: HashSet<CertificateId>,
     /// The threshold parameters for the double echo
-    pub(crate) params: ReliableBroadcastParams,
+    pub params: ReliableBroadcastParams,
     /// The connection to the TaskManager to forward DoubleEchoCommand messages
     task_manager_message_sender: mpsc::Sender<DoubleEchoCommand>,
     /// The overview of the network, which holds echo and ready subscriptions and the network size
-    pub(crate) subscriptions: SubscriptionsView,
+    pub subscriptions: SubscriptionsView,
 }
 
 impl DoubleEcho {
@@ -51,7 +51,7 @@ impl DoubleEcho {
     }
 
     #[cfg(not(feature = "task-manager-channels"))]
-    pub(crate) fn spawn_task_manager(
+    pub fn spawn_task_manager(
         &mut self,
         subscriptions_view_receiver: mpsc::Receiver<SubscriptionsView>,
         task_manager_message_receiver: mpsc::Receiver<DoubleEchoCommand>,
@@ -72,7 +72,7 @@ impl DoubleEcho {
     }
 
     #[cfg(feature = "task-manager-channels")]
-    pub(crate) fn spawn_task_manager(
+    pub fn spawn_task_manager(
         &mut self,
         subscriptions_view_receiver: mpsc::Receiver<SubscriptionsView>,
         task_manager_message_receiver: mpsc::Receiver<DoubleEchoCommand>,
@@ -162,7 +162,7 @@ impl DoubleEcho {
     /// Called to process potentially new certificate:
     /// - either submitted from API ( [tce_transport::TceCommands::Broadcast] command)
     /// - or received through the gossip (first step of protocol exchange)
-    pub(crate) async fn broadcast(&mut self, cert: Certificate, origin: bool) {
+    pub async fn broadcast(&mut self, cert: Certificate, origin: bool) {
         info!("🙌 Starting broadcasting the Certificate {}", &cert.id);
         if self.cert_pre_broadcast_check(&cert).is_err() {
             error!("Failure on the pre-check for the Certificate {}", &cert.id);
@@ -238,7 +238,7 @@ impl DoubleEcho {
 }
 
 impl DoubleEcho {
-    pub(crate) async fn handle_echo(&mut self, from_peer: PeerId, certificate_id: CertificateId) {
+    pub async fn handle_echo(&mut self, from_peer: PeerId, certificate_id: CertificateId) {
         if self.delivered_certificates.get(&certificate_id).is_none() {
             let _ = self
                 .task_manager_message_sender
@@ -250,7 +250,7 @@ impl DoubleEcho {
         }
     }
 
-    pub(crate) async fn handle_ready(&mut self, from_peer: PeerId, certificate_id: CertificateId) {
+    pub async fn handle_ready(&mut self, from_peer: PeerId, certificate_id: CertificateId) {
         if self.delivered_certificates.get(&certificate_id).is_none() {
             let _ = self
                 .task_manager_message_sender

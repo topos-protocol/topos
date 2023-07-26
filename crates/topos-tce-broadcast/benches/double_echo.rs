@@ -1,33 +1,17 @@
 use criterion::async_executor::FuturesExecutor;
 use criterion::{criterion_group, criterion_main, Criterion};
-
-#[cfg(feature = "task-manager-channels")]
-mod task_manager_channels;
-#[cfg(not(feature = "task-manager-channels"))]
-mod task_manager_futures;
+mod task_manager;
 
 pub fn criterion_benchmark(c: &mut Criterion) {
-    let echo_messages = 10;
+    let certificates = 10_000;
 
     let runtime = tokio::runtime::Builder::new_current_thread()
         .build()
         .unwrap();
 
-    #[cfg(feature = "task-manager-channels")]
-    c.bench_function("double_echo with channels", |b| {
+    c.bench_function("double_echo", |b| {
         b.to_async(FuturesExecutor).iter(|| async {
-            runtime.block_on(async {
-                task_manager_channels::processing_double_echo(echo_messages).await
-            })
-        })
-    });
-
-    #[cfg(not(feature = "task-manager-channels"))]
-    c.bench_function("double_echo with futures", |b| {
-        b.to_async(FuturesExecutor).iter(|| async {
-            runtime.block_on(async {
-                task_manager_futures::processing_double_echo(echo_messages).await
-            })
+            runtime.block_on(async { task_manager::processing_double_echo(certificates).await })
         })
     });
 }
