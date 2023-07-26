@@ -8,8 +8,8 @@ lazy_static! {
             .and_then(|s| s.parse().ok())
             .unwrap_or(2048);
     /// Size of the channel between double echo and the task manager
-    pub static ref TASK_MANAGER_CHANNEL_SIZE: usize =
-        std::env::var("TOPOS_TASK_MANAGER_CHANNEL_SIZE")
+    pub static ref BROADCAST_TASK_MANAGER_CHANNEL_SIZE: usize =
+        std::env::var("TOPOS_BROADCAST_TASK_MANAGER_CHANNEL_SIZE")
             .ok()
             .and_then(|s| s.parse().ok())
             .unwrap_or(20_480);
@@ -22,6 +22,12 @@ lazy_static! {
     /// Size of the channel to send updated subscriptions views to the double echo
     pub static ref SUBSCRIPTION_VIEW_CHANNEL_SIZE: usize =
         std::env::var("TOPOS_SUBSCRIPTION_VIEW_CHANNEL_SIZE")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(2048);
+    /// Size of the channel to send updated subscriptions views to the double echo
+    pub static ref BROADCAST_TASK_COMPLETION_CHANNEL_SIZE: usize =
+        std::env::var("BROADCAST_TASK_COMPLETION_CHANNEL_SIZE")
             .ok()
             .and_then(|s| s.parse().ok())
             .unwrap_or(2048);

@@ -8,8 +8,8 @@ use tracing::warn;
 pub mod task;
 use crate::double_echo::broadcast_state::BroadcastState;
 use crate::sampler::SubscriptionsView;
-use crate::DoubleEchoCommand;
 use crate::TaskStatus;
+use crate::{constant, DoubleEchoCommand};
 use task::{Task, TaskContext};
 
 /// The TaskManager is responsible for receiving messages from the network and distributing them
@@ -37,7 +37,8 @@ impl TaskManager {
         event_sender: mpsc::Sender<ProtocolEvents>,
         thresholds: ReliableBroadcastParams,
     ) -> (Self, mpsc::Receiver<()>) {
-        let (task_completion_sender, task_completion_receiver) = mpsc::channel(1024);
+        let (task_completion_sender, task_completion_receiver) =
+            mpsc::channel(*constant::BROADCAST_TASK_COMPLETION_CHANNEL_SIZE);
         let (shutdown_sender, shutdown_receiver) = mpsc::channel(1);
 
         (
@@ -118,7 +119,7 @@ impl TaskManager {
             }
 
             for (certificate_id, messages) in &mut self.buffered_messages {
-                if let Some(task) = self.tasks.get_mut(certificate_id) {
+                if let Some(task) = self.tasks.get(certificate_id) {
                     for msg in messages {
                         _ = task.sink.send(msg.clone()).await;
                     }

@@ -118,7 +118,7 @@ impl ReliableBroadcastClient {
             mpsc::channel::<oneshot::Sender<()>>(1);
 
         let (task_manager_message_sender, task_manager_message_receiver) =
-            mpsc::channel(*constant::TASK_MANAGER_CHANNEL_SIZE);
+            mpsc::channel(*constant::BROADCAST_TASK_MANAGER_CHANNEL_SIZE);
 
         let pending_certificate_count = storage
             .get_pending_certificates()
