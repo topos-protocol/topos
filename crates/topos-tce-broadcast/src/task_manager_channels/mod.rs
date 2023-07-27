@@ -118,6 +118,7 @@ impl TaskManager {
                 }
             }
 
+            // Transfer the buffers to the newly existing tasks
             for (certificate_id, messages) in &mut self.buffered_messages {
                 if let Some(task) = self.tasks.get(certificate_id) {
                     for msg in messages {
@@ -125,6 +126,10 @@ impl TaskManager {
                     }
                 }
             }
+
+            // Prune the transferred buffers
+            self.buffered_messages
+                .retain(|c, _| self.tasks.get_mut(c).is_none());
         }
     }
 }
