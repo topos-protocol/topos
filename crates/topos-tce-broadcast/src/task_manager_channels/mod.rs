@@ -98,7 +98,7 @@ impl TaskManager {
                                         let sink = task_context.sink.clone();
                                         spawn(async move {
                                             for msg in messages {
-                                                _ = task_context.sink.send(msg).await;
+                                                _ = sink.send(msg).await;
                                             }
                                         });
                                     }

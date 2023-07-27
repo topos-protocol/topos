@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::future::IntoFuture;
 use std::pin::Pin;
 use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
-use tokio::sync::mpsc;
+use tokio::{spawn, sync::mpsc};
 use topos_core::uci::CertificateId;
 use topos_metrics::DOUBLE_ECHO_ACTIVE_TASKS_COUNT;
 use tracing::warn;
@@ -106,7 +106,7 @@ impl TaskManager {
                                         let sink = task_context.sink.clone();
                                         spawn(async move {
                                             for msg in messages {
-                                                _ = task_context.sink.send(msg).await;
+                                                _ = sink.send(msg).await;
                                             }
                                         });
                                     }
