@@ -102,6 +102,12 @@ impl TaskManager {
 
                                     self.running_tasks.push(task.into_future());
 
+                                    if let Some(messages) = self.buffered_messages.remove(&cert.id) {
+                                        for msg in messages {
+                                            _ = task_context.sink.send(msg).await;
+                                        }
+                                    }
+
                                     DOUBLE_ECHO_ACTIVE_TASKS_COUNT.inc();
 
                                     entry.insert(task_context);
@@ -129,14 +135,6 @@ impl TaskManager {
                     }
 
                     break;
-                }
-            }
-
-            for (certificate_id, messages) in &mut self.buffered_messages {
-                if let Some(task) = self.tasks.get_mut(certificate_id) {
-                    for msg in messages {
-                        _ = task.sink.send(msg.clone()).await;
-                    }
                 }
             }
         }
