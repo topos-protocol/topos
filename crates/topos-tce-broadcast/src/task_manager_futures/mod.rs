@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::future::IntoFuture;
 use std::pin::Pin;
 use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
-use tokio::sync::mpsc;
+use tokio::{spawn, sync::mpsc};
 use topos_core::uci::CertificateId;
 use topos_metrics::DOUBLE_ECHO_ACTIVE_TASKS_COUNT;
 use tracing::warn;
@@ -102,6 +102,15 @@ impl TaskManager {
 
                                     self.running_tasks.push(task.into_future());
 
+                                    if let Some(messages) = self.buffered_messages.remove(&cert.id) {
+                                        let sink = task_context.sink.clone();
+                                        spawn(async move {
+                                            for msg in messages {
+                                                _ = sink.send(msg).await;
+                                            }
+                                        });
+                                    }
+
                                     DOUBLE_ECHO_ACTIVE_TASKS_COUNT.inc();
 
                                     entry.insert(task_context);
@@ -129,14 +138,6 @@ impl TaskManager {
                     }
 
                     break;
-                }
-            }
-
-            for (certificate_id, messages) in &mut self.buffered_messages {
-                if let Some(task) = self.tasks.get_mut(certificate_id) {
-                    for msg in messages {
-                        _ = task.sink.send(msg.clone()).await;
-                    }
                 }
             }
         }
