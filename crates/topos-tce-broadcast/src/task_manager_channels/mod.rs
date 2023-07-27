@@ -95,9 +95,12 @@ impl TaskManager {
                                     spawn(task.run());
 
                                     if let Some(messages) = self.buffered_messages.remove(&cert.id) {
-                                        for msg in messages {
-                                            _ = task_context.sink.send(msg).await;
-                                        }
+                                    	let sink = task_context.sink.clone();
+                                    	spawn(async move {
+	                                    	for msg in messages {
+	                                            _ = task_context.sink.send(msg).await;
+	                                        }
+                                    	});
                                     }
 
                                     entry.insert(task_context);
