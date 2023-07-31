@@ -7,12 +7,6 @@ lazy_static! {
             .ok()
             .and_then(|s| s.parse().ok())
             .unwrap_or(2048);
-    /// Size of the channel between double echo and the task manager
-    pub static ref BROADCAST_TASK_MANAGER_CHANNEL_SIZE: usize =
-        std::env::var("TOPOS_BROADCAST_TASK_MANAGER_CHANNEL_SIZE")
-            .ok()
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(20_480);
     /// Size of the channel to send protocol events from the double echo
     pub static ref PROTOCOL_CHANNEL_SIZE: usize =
         std::env::var("TOPOS_PROTOCOL_CHANNEL_SIZE")

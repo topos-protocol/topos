@@ -1,30 +1,48 @@
+use crate::double_echo::broadcast_state::BroadcastState;
+use crate::double_echo::task::Task;
 use crate::TaskStatus;
 use crate::{DoubleEchoCommand, SubscriptionsView};
-use std::collections::HashSet;
+use futures::{stream::FuturesUnordered, StreamExt};
+use std::future::IntoFuture;
+use std::{
+    collections::{HashMap, HashSet},
+    future::Future,
+    pin::Pin,
+};
+use task::TaskContext;
 use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
+use tokio::spawn;
 use tokio::sync::{mpsc, oneshot};
 use topos_core::uci::{Certificate, CertificateId};
-
+use topos_metrics::DOUBLE_ECHO_ACTIVE_TASKS_COUNT;
 use topos_p2p::PeerId;
 use tracing::{error, info, warn};
 
 pub mod broadcast_state;
+pub mod task;
 
 pub struct DoubleEcho {
-    /// Channel to receive commands
+    /// If Echo | Ready messages arrive before the related certificate is broadcasted, they are buffered here
+    pub buffered_messages: HashMap<CertificateId, Vec<DoubleEchoCommand>>,
+    /// Channel to receive DoubleEchoCommands from the TCE process
     command_receiver: mpsc::Receiver<DoubleEchoCommand>,
-    /// Channel to send events
-    event_sender: mpsc::Sender<ProtocolEvents>,
-    /// Channel to receive shutdown signal
-    pub(crate) shutdown: mpsc::Receiver<oneshot::Sender<()>>,
     /// Delivered certificate ids to avoid processing twice the same certificate
     delivered_certificates: HashSet<CertificateId>,
+    /// Channel to send back ProtocolEvents to the TCE process
+    event_sender: mpsc::Sender<ProtocolEvents>,
     /// The threshold parameters for the double echo
     pub params: ReliableBroadcastParams,
-    /// The connection to the TaskManager to forward DoubleEchoCommand messages
-    task_manager_message_sender: mpsc::Sender<DoubleEchoCommand>,
+    /// The running tasks, which end themselves when they are done
+    #[allow(clippy::type_complexity)]
+    pub running_tasks: FuturesUnordered<
+        Pin<Box<dyn Future<Output = (CertificateId, TaskStatus)> + Send + 'static>>,
+    >,
+    /// Channel to receive shutdown signal
+    pub(crate) shutdown: mpsc::Receiver<oneshot::Sender<()>>,
     /// The overview of the network, which holds echo and ready subscriptions and the network size
     pub subscriptions: SubscriptionsView,
+    /// All open tasks, which currently handle processing a certificate each
+    pub tasks: HashMap<CertificateId, TaskContext>,
 }
 
 impl DoubleEcho {
@@ -33,63 +51,21 @@ impl DoubleEcho {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         params: ReliableBroadcastParams,
-        task_manager_message_sender: mpsc::Sender<DoubleEchoCommand>,
         command_receiver: mpsc::Receiver<DoubleEchoCommand>,
         event_sender: mpsc::Sender<ProtocolEvents>,
         shutdown: mpsc::Receiver<oneshot::Sender<()>>,
-        _pending_certificate_count: u64,
     ) -> Self {
         Self {
-            params,
-            task_manager_message_sender,
+            buffered_messages: Default::default(),
             command_receiver,
-            event_sender,
-            subscriptions: SubscriptionsView::default(),
-            shutdown,
             delivered_certificates: Default::default(),
+            event_sender,
+            params,
+            running_tasks: FuturesUnordered::new(),
+            shutdown,
+            subscriptions: SubscriptionsView::default(),
+            tasks: HashMap::new(),
         }
-    }
-
-    #[cfg(not(feature = "task-manager-channels"))]
-    pub fn spawn_task_manager(
-        &mut self,
-        subscriptions_view_receiver: mpsc::Receiver<SubscriptionsView>,
-        task_manager_message_receiver: mpsc::Receiver<DoubleEchoCommand>,
-    ) -> mpsc::Receiver<(CertificateId, TaskStatus)> {
-        let (task_completion_sender, task_completion_receiver) = mpsc::channel(2048);
-
-        let (task_manager, shutdown_receiver) = crate::task_manager_futures::TaskManager::new(
-            task_manager_message_receiver,
-            task_completion_sender,
-            subscriptions_view_receiver,
-            self.event_sender.clone(),
-            self.params.clone(),
-        );
-
-        tokio::spawn(task_manager.run(shutdown_receiver));
-
-        task_completion_receiver
-    }
-
-    #[cfg(feature = "task-manager-channels")]
-    pub fn spawn_task_manager(
-        &mut self,
-        subscriptions_view_receiver: mpsc::Receiver<SubscriptionsView>,
-        task_manager_message_receiver: mpsc::Receiver<DoubleEchoCommand>,
-    ) -> mpsc::Receiver<(CertificateId, TaskStatus)> {
-        let (task_completion_sender, task_completion_receiver) = mpsc::channel(2048);
-
-        let (task_manager, shutdown_receiver) = crate::task_manager_channels::TaskManager::new(
-            task_manager_message_receiver,
-            task_completion_sender,
-            subscriptions_view_receiver,
-            self.event_sender.clone(),
-            self.params.clone(),
-        );
-
-        tokio::spawn(task_manager.run(shutdown_receiver));
-
-        task_completion_receiver
     }
 
     /// DoubleEcho main loop
@@ -99,33 +75,15 @@ impl DoubleEcho {
     ///      - If a new subscription view is received, update the subscriptions
     ///      - If a new Echo/Ready is received, update the state of the certificate or buffer
     ///      the message
-    pub(crate) async fn run(
-        mut self,
-        mut subscriptions_view_receiver: mpsc::Receiver<SubscriptionsView>,
-        task_manager_message_receiver: mpsc::Receiver<DoubleEchoCommand>,
-    ) {
-        let (forwarding_subscriptions_sender, forwarding_subscriptions_receiver) =
-            mpsc::channel(2048);
-        let mut task_completion = self.spawn_task_manager(
-            forwarding_subscriptions_receiver,
-            task_manager_message_receiver,
-        );
-
-        info!("DoubleEcho started");
-
+    pub async fn run(mut self, mut subscriptions_view_receiver: mpsc::Receiver<SubscriptionsView>) {
         let shutdowned: Option<oneshot::Sender<()>> = loop {
             tokio::select! {
                 biased;
 
                 Some(new_subscriptions_view) = subscriptions_view_receiver.recv() => {
-                    forwarding_subscriptions_sender.send(new_subscriptions_view.clone()).await.unwrap();
                     self.subscriptions = new_subscriptions_view;
                 }
 
-                shutdown = self.shutdown.recv() => {
-                        warn!("Double echo shutdown signal received {:?}", shutdown);
-                        break shutdown;
-                },
                 Some(command) = self.command_receiver.recv() => {
                     match command {
 
@@ -133,7 +91,7 @@ impl DoubleEcho {
 
                         command if self.subscriptions.is_some() => {
                             match command {
-                                DoubleEchoCommand::Echo { from_peer, certificate_id } => self.handle_echo(from_peer, certificate_id).await,
+                                DoubleEchoCommand::Echo { from_peer, certificate_id, .. } => self.handle_echo(from_peer, certificate_id).await,
                                 DoubleEchoCommand::Ready { from_peer, certificate_id } => self.handle_ready(from_peer, certificate_id).await,
                                 _ => {}
                             }
@@ -145,11 +103,16 @@ impl DoubleEcho {
                     }
                 }
 
-                Some((certificate_id, status)) = task_completion.recv() => {
+                Some((certificate_id, status)) = self.running_tasks.next() => {
                     if status == TaskStatus::Success {
-                        self.delivered_certificates.insert(certificate_id);
-                    }
+                        self.tasks.remove(&certificate_id);
+                        DOUBLE_ECHO_ACTIVE_TASKS_COUNT.dec();}
                 }
+
+                shutdown = self.shutdown.recv() => {
+                        warn!("Double echo shutdown signal received {:?}", shutdown);
+                        break shutdown;
+                },
 
 
                 else => {
@@ -174,6 +137,7 @@ impl DoubleEcho {
     /// - or received through the gossip (first step of protocol exchange)
     pub async fn broadcast(&mut self, cert: Certificate, origin: bool) {
         info!("🙌 Starting broadcasting the Certificate {}", &cert.id);
+
         if self.cert_pre_broadcast_check(&cert).is_err() {
             error!("Failure on the pre-check for the Certificate {}", &cert.id);
             self.event_sender
@@ -221,14 +185,36 @@ impl DoubleEcho {
             );
             None
         } else {
-            _ = self
-                .task_manager_message_sender
-                .send(DoubleEchoCommand::Broadcast {
-                    need_gossip: origin,
-                    cert: certificate,
-                })
-                .await;
+            match self.tasks.entry(certificate.id) {
+                std::collections::hash_map::Entry::Vacant(entry) => {
+                    let broadcast_state = BroadcastState::new(
+                        certificate.clone(),
+                        self.params.echo_threshold,
+                        self.params.ready_threshold,
+                        self.params.delivery_threshold,
+                        self.event_sender.clone(),
+                        self.subscriptions.clone(),
+                        origin,
+                    );
 
+                    let (task, task_context) = Task::new(certificate.id, broadcast_state);
+
+                    self.running_tasks.push(task.into_future());
+
+                    if let Some(messages) = self.buffered_messages.remove(&certificate.id) {
+                        let sink = task_context.sink.clone();
+                        spawn(async move {
+                            for msg in messages {
+                                _ = sink.send(msg).await;
+                            }
+                        });
+                    }
+
+                    DOUBLE_ECHO_ACTIVE_TASKS_COUNT.inc();
+                    entry.insert(task_context);
+                }
+                std::collections::hash_map::Entry::Occupied(_) => {}
+            }
             Some(true)
         }
     }
@@ -250,25 +236,45 @@ impl DoubleEcho {
 impl DoubleEcho {
     pub async fn handle_echo(&mut self, from_peer: PeerId, certificate_id: CertificateId) {
         if self.delivered_certificates.get(&certificate_id).is_none() {
-            let _ = self
-                .task_manager_message_sender
-                .send(DoubleEchoCommand::Echo {
-                    from_peer,
-                    certificate_id,
-                })
-                .await;
+            if let Some(task_context) = self.tasks.get(&certificate_id) {
+                let _ = task_context
+                    .sink
+                    .send(DoubleEchoCommand::Echo {
+                        from_peer,
+                        certificate_id,
+                    })
+                    .await;
+            } else {
+                self.buffered_messages
+                    .entry(certificate_id)
+                    .or_default()
+                    .push(DoubleEchoCommand::Echo {
+                        from_peer,
+                        certificate_id,
+                    });
+            };
         }
     }
 
     pub async fn handle_ready(&mut self, from_peer: PeerId, certificate_id: CertificateId) {
         if self.delivered_certificates.get(&certificate_id).is_none() {
-            let _ = self
-                .task_manager_message_sender
-                .send(DoubleEchoCommand::Ready {
-                    from_peer,
-                    certificate_id,
-                })
-                .await;
+            if let Some(task_context) = self.tasks.get(&certificate_id) {
+                _ = task_context
+                    .sink
+                    .send(DoubleEchoCommand::Ready {
+                        from_peer,
+                        certificate_id,
+                    })
+                    .await;
+            } else {
+                self.buffered_messages
+                    .entry(certificate_id)
+                    .or_default()
+                    .push(DoubleEchoCommand::Ready {
+                        from_peer,
+                        certificate_id,
+                    });
+            };
         }
     }
 }

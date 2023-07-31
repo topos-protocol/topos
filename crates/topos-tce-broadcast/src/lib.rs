@@ -31,11 +31,6 @@ mod constant;
 pub mod double_echo;
 pub mod sampler;
 
-#[cfg(feature = "task-manager-channels")]
-pub mod task_manager_channels;
-#[cfg(not(feature = "task-manager-channels"))]
-pub mod task_manager_futures;
-
 #[cfg(test)]
 mod tests;
 
@@ -108,7 +103,7 @@ impl ReliableBroadcastClient {
     pub async fn new(
         config: ReliableBroadcastConfig,
         _local_peer_id: String,
-        storage: StorageClient,
+        _storage: StorageClient,
     ) -> (Self, impl Stream<Item = ProtocolEvents>) {
         let (subscriptions_view_sender, subscriptions_view_receiver) =
             mpsc::channel::<SubscriptionsView>(*constant::SUBSCRIPTION_VIEW_CHANNEL_SIZE);
@@ -117,25 +112,14 @@ impl ReliableBroadcastClient {
         let (double_echo_shutdown_channel, double_echo_shutdown_receiver) =
             mpsc::channel::<oneshot::Sender<()>>(1);
 
-        let (task_manager_message_sender, task_manager_message_receiver) =
-            mpsc::channel(*constant::BROADCAST_TASK_MANAGER_CHANNEL_SIZE);
-
-        let pending_certificate_count = storage
-            .get_pending_certificates()
-            .await
-            .map(|v| v.len())
-            .unwrap_or(0) as u64;
-
         let double_echo = DoubleEcho::new(
             config.tce_params,
-            task_manager_message_sender,
             command_receiver,
             event_sender,
             double_echo_shutdown_receiver,
-            pending_certificate_count,
         );
 
-        spawn(double_echo.run(subscriptions_view_receiver, task_manager_message_receiver));
+        spawn(double_echo.run(subscriptions_view_receiver));
 
         (
             Self {

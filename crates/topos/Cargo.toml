@@ -62,7 +62,6 @@ regex = "1"
 
 [features]
 default = ["tce", "sequencer", "network", "node", "setup", "subnet"]
-broadcast_via_channels = ["default", "topos-tce-broadcast/task-manager-channels"]
 tce = ["topos-tce", "topos-tce-transport"]
 sequencer = ["topos-sequencer"]
 network = ["topos-certificate-spammer"]

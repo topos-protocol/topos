@@ -52,15 +52,12 @@ async fn create_context(params: TceParams) -> (DoubleEcho, Context) {
     let (event_sender, event_receiver) = mpsc::channel(CHANNEL_SIZE);
     let (_double_echo_shutdown_sender, double_echo_shutdown_receiver) =
         mpsc::channel::<oneshot::Sender<()>>(1);
-    let (task_manager_message_sender, task_manager_message_receiver) = mpsc::channel(CHANNEL_SIZE);
 
     let mut double_echo = DoubleEcho::new(
         params.broadcast_params,
-        task_manager_message_sender.clone(),
         cmd_receiver,
         event_sender,
         double_echo_shutdown_receiver,
-        0,
     );
 
     // List of peers
@@ -84,8 +81,6 @@ async fn create_context(params: TceParams) -> (DoubleEcho, Context) {
     };
 
     subscriptions_view_sender.send(msg).await.unwrap();
-
-    double_echo.spawn_task_manager(subscriptions_view_receiver, task_manager_message_receiver);
 
     (double_echo, Context { event_receiver })
 }
