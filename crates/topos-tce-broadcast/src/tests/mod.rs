@@ -35,7 +35,7 @@ fn medium_config() -> TceParams {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct TceParams {
     nb_peers: usize,
     broadcast_params: ReliableBroadcastParams,
@@ -43,12 +43,13 @@ struct TceParams {
 
 struct Context {
     event_receiver: Receiver<ProtocolEvents>,
+    cmd_sender: Sender<DoubleEchoCommand>,
 }
 
 async fn create_context(params: TceParams) -> (DoubleEcho, Context) {
-    let (subscriptions_view_sender, subscriptions_view_receiver) = mpsc::channel(CHANNEL_SIZE);
+    let (subscriptions_view_sender, _subscriptions_view_receiver) = mpsc::channel(CHANNEL_SIZE);
 
-    let (_cmd_sender, cmd_receiver) = mpsc::channel(CHANNEL_SIZE);
+    let (cmd_sender, cmd_receiver) = mpsc::channel(CHANNEL_SIZE);
     let (event_sender, event_receiver) = mpsc::channel(CHANNEL_SIZE);
     let (_double_echo_shutdown_sender, double_echo_shutdown_receiver) =
         mpsc::channel::<oneshot::Sender<()>>(1);
@@ -82,48 +83,82 @@ async fn create_context(params: TceParams) -> (DoubleEcho, Context) {
 
     subscriptions_view_sender.send(msg).await.unwrap();
 
-    (double_echo, Context { event_receiver })
+    (
+        double_echo,
+        Context {
+            event_receiver,
+            cmd_sender,
+        },
+    )
 }
 
-async fn reach_echo_threshold(double_echo: &mut DoubleEcho, cert: &Certificate) {
-    let selected = double_echo
-        .subscriptions
+async fn reach_echo_threshold(
+    cmd_sender: Sender<DoubleEchoCommand>,
+    params: TceParams,
+    cert: &Certificate,
+    subscriptions: SubscriptionsView,
+) {
+    let selected = subscriptions
         .echo
         .iter()
-        .take(double_echo.params.echo_threshold)
+        .take(params.broadcast_params.echo_threshold)
         .cloned()
         .collect::<Vec<_>>();
 
     for p in selected {
-        double_echo.handle_echo(p, cert.id).await;
+        println!("Sending echo from test function");
+        let _ = cmd_sender
+            .send(DoubleEchoCommand::Echo {
+                from_peer: p,
+                certificate_id: cert.id,
+            })
+            .await;
     }
 }
 
-async fn reach_ready_threshold(double_echo: &mut DoubleEcho, cert: &Certificate) {
-    let selected = double_echo
-        .subscriptions
+async fn reach_ready_threshold(
+    cmd_sender: Sender<DoubleEchoCommand>,
+    params: TceParams,
+    cert: &Certificate,
+    subscriptions: SubscriptionsView,
+) {
+    let selected = subscriptions
         .ready
         .iter()
-        .take(double_echo.params.ready_threshold)
+        .take(params.broadcast_params.ready_threshold)
         .cloned()
         .collect::<Vec<_>>();
 
     for p in selected {
-        double_echo.handle_ready(p, cert.id).await;
+        let _ = cmd_sender
+            .send(DoubleEchoCommand::Ready {
+                from_peer: p,
+                certificate_id: cert.id,
+            })
+            .await;
     }
 }
 
-async fn reach_delivery_threshold(double_echo: &mut DoubleEcho, cert: &Certificate) {
-    let selected = double_echo
-        .subscriptions
+async fn reach_delivery_threshold(
+    cmd_sender: Sender<DoubleEchoCommand>,
+    params: TceParams,
+    cert: &Certificate,
+    subscriptions: SubscriptionsView,
+) {
+    let selected = subscriptions
         .ready
         .iter()
-        .take(double_echo.params.delivery_threshold)
+        .take(params.broadcast_params.delivery_threshold)
         .cloned()
         .collect::<Vec<_>>();
 
     for p in selected {
-        double_echo.handle_ready(p, cert.id).await;
+        let _ = cmd_sender
+            .send(DoubleEchoCommand::Ready {
+                from_peer: p,
+                certificate_id: cert.id,
+            })
+            .await;
     }
 }
 
@@ -133,7 +168,7 @@ async fn reach_delivery_threshold(double_echo: &mut DoubleEcho, cert: &Certifica
 #[tokio::test]
 #[trace]
 async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams) {
-    let (mut double_echo, mut ctx) = create_context(params).await;
+    let (double_echo, mut ctx) = create_context(params.clone()).await;
 
     let dummy_cert = Certificate::new(
         PREV_CERTIFICATE_ID,
@@ -146,8 +181,21 @@ async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams)
     )
     .expect("Dummy certificate");
 
+    let (_dummy_subscripotions_view_sender, dummy_subscripotions_view_receiver) =
+        mpsc::channel(CHANNEL_SIZE);
+
+    let subscriptions = double_echo.subscriptions.clone();
+
+    spawn(double_echo.run(dummy_subscripotions_view_receiver));
+
     // Trigger Echo upon dispatching
-    double_echo.broadcast(dummy_cert.clone(), true).await;
+    let _ = ctx
+        .cmd_sender
+        .send(DoubleEchoCommand::Broadcast {
+            cert: dummy_cert.clone(),
+            need_gossip: true,
+        })
+        .await;
 
     assert!(matches!(
         ctx.event_receiver.recv().await,
@@ -158,10 +206,13 @@ async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams)
         ctx.event_receiver.try_recv(),
         Ok(ProtocolEvents::Gossip { .. })
     ));
+
     assert!(matches!(
         ctx.event_receiver.try_recv(),
         Ok(ProtocolEvents::Echo { .. })
     ));
+
+    println!("{:#?}", ctx.event_receiver.try_recv());
 
     assert!(matches!(
         ctx.event_receiver.try_recv(),
@@ -169,7 +220,13 @@ async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams)
     ));
 
     // Trigger Ready upon reaching the Echo threshold
-    reach_echo_threshold(&mut double_echo, &dummy_cert).await;
+    reach_echo_threshold(
+        ctx.cmd_sender.clone(),
+        params.clone(),
+        &dummy_cert,
+        subscriptions.clone(),
+    )
+    .await;
 
     assert!(matches!(
         ctx.event_receiver.recv().await,
@@ -177,7 +234,13 @@ async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams)
     ));
 
     // Trigger Delivery upon reaching the Delivery threshold
-    reach_delivery_threshold(&mut double_echo, &dummy_cert).await;
+    reach_delivery_threshold(
+        ctx.cmd_sender.clone(),
+        params.clone(),
+        &dummy_cert,
+        subscriptions.clone(),
+    )
+    .await;
 
     assert!(matches!(
          ctx.event_receiver.recv().await,
@@ -191,7 +254,7 @@ async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams)
 #[tokio::test]
 #[trace]
 async fn trigger_ready_when_reached_enough_ready(#[case] params: TceParams) {
-    let (mut double_echo, mut ctx) = create_context(params).await;
+    let (double_echo, mut ctx) = create_context(params.clone()).await;
 
     let dummy_cert = Certificate::new(
         PREV_CERTIFICATE_ID,
@@ -204,8 +267,21 @@ async fn trigger_ready_when_reached_enough_ready(#[case] params: TceParams) {
     )
     .expect("Dummy certificate");
 
+    let (_dummy_subscripotions_view_sender, dummy_subscripotions_view_receiver) =
+        mpsc::channel(CHANNEL_SIZE);
+
+    let subscriptions = double_echo.subscriptions.clone();
+
+    spawn(double_echo.run(dummy_subscripotions_view_receiver));
+
     // Trigger Echo upon dispatching
-    double_echo.broadcast(dummy_cert.clone(), true).await;
+    let _ = ctx
+        .cmd_sender
+        .send(DoubleEchoCommand::Broadcast {
+            cert: dummy_cert.clone(),
+            need_gossip: true,
+        })
+        .await;
 
     assert!(matches!(
         ctx.event_receiver.recv().await,
@@ -222,8 +298,16 @@ async fn trigger_ready_when_reached_enough_ready(#[case] params: TceParams) {
         Ok(ProtocolEvents::Echo { .. })
     ));
 
-    // Trigger Ready upon reaching the Ready threshold
-    reach_ready_threshold(&mut double_echo, &dummy_cert).await;
+    // Trigger Ready upon reaching the Echo threshold
+    reach_ready_threshold(
+        ctx.cmd_sender.clone(),
+        params.clone(),
+        &dummy_cert,
+        subscriptions.clone(),
+    )
+    .await;
+
+    println!("{:#?}", ctx.event_receiver.try_recv());
 
     assert!(matches!(
         ctx.event_receiver.recv().await,

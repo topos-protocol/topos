@@ -136,7 +136,6 @@ impl BroadcastState {
             );
 
             DOUBLE_ECHO_BROADCAST_FINISHED_TOTAL.inc();
-
             _ = self
                 .event_sender
                 .try_send(ProtocolEvents::CertificateDelivered {

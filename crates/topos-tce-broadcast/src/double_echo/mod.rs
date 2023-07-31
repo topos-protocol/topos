@@ -200,7 +200,6 @@ impl DoubleEcho {
                     let (task, task_context) = Task::new(certificate.id, broadcast_state);
 
                     self.running_tasks.push(task.into_future());
-
                     if let Some(messages) = self.buffered_messages.remove(&certificate.id) {
                         let sink = task_context.sink.clone();
                         spawn(async move {
