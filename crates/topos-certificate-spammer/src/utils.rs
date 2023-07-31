@@ -3,7 +3,18 @@ use topos_core::uci::{Certificate, SubnetId};
 use crate::{error::Error, SourceSubnet};
 
 lazy_static::lazy_static! {
-    static ref PROOF_SIZE: usize = std::env::var("PROOF_SIZE_KB").map(|v| v.parse::<usize>().unwrap_or(0)).unwrap_or(0) * 1024;
+    /// Size of the proof
+    static ref PROOF_SIZE_BYTES: usize =
+        std::env::var("TOPOS_PROOF_SIZE_BYTES")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(1000);
+
+    /// Dummy proof with specified size
+    static ref STARK_BLOB: Vec<u8> =
+        (0..*PROOF_SIZE_BYTES)
+           .map(|_| rand::random::<u8>())
+           .collect::<Vec<u8>>();
 }
 
 pub fn generate_random_32b_array() -> [u8; 32] {
@@ -26,7 +37,7 @@ pub fn generate_test_certificate(
         generate_random_32b_array(),
         target_subnet_ids,
         0,
-        vec![254u8; *PROOF_SIZE],
+        STARK_BLOB.clone(),
     )?;
     new_cert
         .update_signature(&source_subnet.signing_key)
