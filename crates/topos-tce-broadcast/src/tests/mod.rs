@@ -209,8 +209,6 @@ async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams)
         Ok(ProtocolEvents::Echo { .. })
     ));
 
-    println!("{:#?}", ctx.event_receiver.try_recv());
-
     assert!(matches!(
         ctx.event_receiver.try_recv(),
         Err(mpsc::error::TryRecvError::Empty)
@@ -287,8 +285,6 @@ async fn trigger_ready_when_reached_enough_ready(#[case] params: TceParams) {
         ctx.event_receiver.try_recv(),
         Ok(ProtocolEvents::Echo { .. })
     ));
-
-    // println!("{:#?}", ctx.event_receiver.try_recv());
 
     // Trigger Ready upon reaching the Echo threshold
     reach_ready_threshold(
