@@ -115,7 +115,6 @@ impl BroadcastState {
         // we update the status to Delivered and change the status
         if !self.status.is_delivered() && self.reached_delivery_threshold() {
             self.status = self.status.delivered();
-
             debug!(
                 "📝 Certificate {} is now {}",
                 &self.certificate.id, self.status

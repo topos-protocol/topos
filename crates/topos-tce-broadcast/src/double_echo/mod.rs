@@ -106,12 +106,13 @@ impl DoubleEcho {
                 Some((certificate_id, status)) = self.running_tasks.next() => {
                     if status == TaskStatus::Success {
                         self.tasks.remove(&certificate_id);
-                        DOUBLE_ECHO_ACTIVE_TASKS_COUNT.dec();}
+                        DOUBLE_ECHO_ACTIVE_TASKS_COUNT.dec();
+                    }
                 }
 
                 shutdown = self.shutdown.recv() => {
-                        warn!("Double echo shutdown signal received {:?}", shutdown);
-                        break shutdown;
+                    warn!("Double echo shutdown signal received {:?}", shutdown);
+                    break shutdown;
                 },
 
 

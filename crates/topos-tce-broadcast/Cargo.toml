@@ -33,5 +33,5 @@ topos-test-sdk = { path = "../topos-test-sdk/" }
 
 [[bench]]
 name = "double_echo"
-path = "benches/double_echo.rs"
+path = "benches/benchmark.rs"
 harness = false
