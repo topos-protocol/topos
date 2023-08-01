@@ -7,6 +7,9 @@ use std::pin::Pin;
 use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
 use tokio::{spawn, sync::mpsc};
 use topos_core::uci::CertificateId;
+use topos_metrics::CERTIFICATE_RECEIVED_FROM_API_TOTAL;
+use topos_metrics::CERTIFICATE_RECEIVED_FROM_GOSSIP_TOTAL;
+use topos_metrics::CERTIFICATE_RECEIVED_TOTAL;
 use topos_metrics::DOUBLE_ECHO_ACTIVE_TASKS_COUNT;
 use tracing::warn;
 
@@ -112,6 +115,13 @@ impl TaskManager {
                                     }
 
                                     DOUBLE_ECHO_ACTIVE_TASKS_COUNT.inc();
+
+                                    CERTIFICATE_RECEIVED_TOTAL.inc();
+                                    if need_gossip {
+                                        CERTIFICATE_RECEIVED_FROM_API_TOTAL.inc();
+                                    } else {
+                                        CERTIFICATE_RECEIVED_FROM_GOSSIP_TOTAL.inc();
+                                    }
 
                                     entry.insert(task_context);
                                 }

@@ -11,6 +11,10 @@ use crate::sampler::SubscriptionsView;
 use crate::TaskStatus;
 use crate::{constant, DoubleEchoCommand};
 use task::{Task, TaskContext};
+use topos_metrics::{
+    CERTIFICATE_RECEIVED_FROM_API_TOTAL, CERTIFICATE_RECEIVED_FROM_GOSSIP_TOTAL,
+    CERTIFICATE_RECEIVED_TOTAL,
+};
 
 /// The TaskManager is responsible for receiving messages from the network and distributing them
 /// among tasks. These tasks are either created if none for a certain CertificateID exists yet,
@@ -93,6 +97,13 @@ impl TaskManager {
                                     let (task, task_context) = Task::new(cert.id, self.task_completion_sender.clone(), broadcast_state);
 
                                     spawn(task.run());
+
+                                    CERTIFICATE_RECEIVED_TOTAL.inc();
+                                    if need_gossip {
+                                        CERTIFICATE_RECEIVED_FROM_API_TOTAL.inc();
+                                    } else {
+                                        CERTIFICATE_RECEIVED_FROM_GOSSIP_TOTAL.inc();
+                                    }
 
                                     if let Some(messages) = self.buffered_messages.remove(&cert.id) {
                                         let sink = task_context.sink.clone();
