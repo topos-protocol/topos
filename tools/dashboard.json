@@ -11,6 +11,12 @@
         "hide": true,
         "iconColor": "rgba(0, 211, 255, 1)",
         "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
         "type": "dashboard"
       }
     ]
@@ -18,7 +24,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 2,
+  "id": 419,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -30,7 +36,37 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           },
           "mappings": [],
           "thresholds": {
@@ -39,6 +75,10 @@
               {
                 "color": "green",
                 "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
               }
             ]
           }
@@ -46,40 +86,48 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 12,
-        "w": 4,
+        "h": 5,
+        "w": 10,
         "x": 0,
         "y": 0
       },
-      "id": 25,
+      "id": 51,
       "options": {
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
         },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
       },
-      "pluginVersion": "10.0.1",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "editorMode": "code",
-          "expr": "sum(topos_certificate_received_from_api_total{job=~\"$peer\"})",
+          "editorMode": "builder",
+          "expr": "topos_certificate_delivered_total",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Certificate created",
-      "type": "gauge"
+      "title": "Panel Title",
+      "transformations": [
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [],
+            "fields": {}
+          }
+        }
+      ],
+      "type": "timeseries"
     },
     {
       "datasource": {
@@ -89,7 +137,38 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisGridShow": true,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           },
           "mappings": [],
           "thresholds": {
@@ -98,99 +177,68 @@
               {
                 "color": "green",
                 "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 12,
-        "w": 4,
-        "x": 4,
-        "y": 0
-      },
-      "id": 24,
-      "options": {
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true
-      },
-      "pluginVersion": "10.0.1",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "editorMode": "code",
-          "expr": "sum(topos_certificate_delivered_total{job=~\"$peer\"})",
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Certificate delivered",
-      "type": "gauge"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "max": 100,
-          "min": 0,
-          "thresholds": {
-            "mode": "percentage",
-            "steps": [
-              {
-                "color": "dark-red",
-                "value": null
               },
               {
-                "color": "orange",
+                "color": "red",
                 "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "max"
+            },
+            "properties": [
+              {
+                "id": "custom.fillBelowTo",
+                "value": "min"
               },
               {
-                "color": "green",
-                "value": 100
+                "id": "custom.fillOpacity",
+                "value": 17
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "avg"
+            },
+            "properties": [
+              {
+                "id": "custom.lineWidth",
+                "value": 3
               }
             ]
           }
-        },
-        "overrides": []
+        ]
       },
       "gridPos": {
-        "h": 12,
-        "w": 4,
-        "x": 8,
+        "h": 5,
+        "w": 13,
+        "x": 10,
         "y": 0
       },
-      "id": 26,
+      "id": 52,
+      "interval": "4",
       "options": {
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [],
-          "fields": "/^Delivery$/",
-          "values": false
+        "legend": {
+          "calcs": [
+            "stdDev"
+          ],
+          "displayMode": "list",
+          "placement": "right",
+          "showLegend": true
         },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": false
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
       },
-      "pluginVersion": "10.0.1",
       "targets": [
         {
           "datasource": {
@@ -198,11 +246,34 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(topos_certificate_received_from_api_total{job=~\"$peer\"})",
-          "hide": true,
-          "legendFormat": "__auto",
+          "expr": "avg(rate(topos_double_echo_delivery_latency_sum[$__rate_interval]) / rate(topos_double_echo_delivery_latency_count[$__rate_interval]))",
+          "legendFormat": "avg",
           "range": true,
-          "refId": "A"
+          "refId": "avg"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "min(rate(topos_double_echo_delivery_latency_sum[$__rate_interval]) / rate(topos_double_echo_delivery_latency_count[$__rate_interval]))",
+          "hide": false,
+          "legendFormat": "min",
+          "range": true,
+          "refId": "min"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max(rate(topos_double_echo_delivery_latency_sum[$__rate_interval]) / rate(topos_double_echo_delivery_latency_count[$__rate_interval]))",
+          "hide": false,
+          "legendFormat": "max",
+          "range": true,
+          "refId": "max"
         },
         {
           "datasource": {
@@ -210,10 +281,102 @@
             "type": "__expr__",
             "uid": "__expr__"
           },
-          "expression": "100 * ($B ) / ($A * 15) ",
+          "expression": "avg",
           "hide": false,
-          "refId": "Delivery",
-          "type": "math"
+          "reducer": "mean",
+          "refId": "reduced_point",
+          "settings": {
+            "mode": "dropNN"
+          },
+          "type": "reduce"
+        }
+      ],
+      "title": "Latency",
+      "transformations": [],
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "Ratio"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "percentage",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 2,
+        "x": 0,
+        "y": 5
+      },
+      "id": 25,
+      "options": {
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "9.3.8",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sum(topos_certificate_received_total{job=~\"$peer\"})",
+          "legendFormat": "Received",
+          "range": true,
+          "refId": "A"
         },
         {
           "datasource": {
@@ -222,14 +385,583 @@
           },
           "editorMode": "code",
           "expr": "sum(topos_certificate_delivered_total{job=~\"$peer\"})",
-          "hide": true,
+          "hide": false,
+          "legendFormat": "Delivered",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "name": "Expression",
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "expression": "100 * ($B ) / ($A) ",
+          "hide": false,
+          "refId": "Ratio",
+          "type": "math"
+        }
+      ],
+      "title": "Health",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "scaleDistribution": {
+              "type": "linear"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 9,
+        "x": 2,
+        "y": 5
+      },
+      "id": 37,
+      "interval": "5",
+      "options": {
+        "calculate": false,
+        "cellGap": 1,
+        "color": {
+          "exponent": 0.5,
+          "fill": "dark-orange",
+          "mode": "scheme",
+          "reverse": true,
+          "scale": "exponential",
+          "scheme": "Magma",
+          "steps": 128
+        },
+        "exemplars": {
+          "color": "rgba(255,0,255,0.7)"
+        },
+        "filterValues": {
+          "le": 1e-10
+        },
+        "legend": {
+          "show": true
+        },
+        "rowsFrame": {
+          "layout": "auto"
+        },
+        "tooltip": {
+          "show": true,
+          "yHistogram": false
+        },
+        "yAxis": {
+          "axisPlacement": "left",
+          "reverse": false
+        }
+      },
+      "pluginVersion": "9.3.8",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "builder",
+          "expr": "sum by(job) (increase(topos_certificate_delivered_total[$__rate_interval]))",
           "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Delivery dynamic",
+      "type": "heatmap"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "input"
+            },
+            "properties": [
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "dash": [
+                    10,
+                    10
+                  ],
+                  "fill": "dash"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 13,
+        "x": 11,
+        "y": 5
+      },
+      "id": 39,
+      "interval": "14",
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "right",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "builder",
+          "expr": "avg(sum by(job) (irate(topos_certificate_delivered_total[$__rate_interval])))",
+          "hide": false,
+          "legendFormat": "Actual",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "avg(sum by(job) (irate(topos_certificate_received_total[$__interval])))",
+          "hide": true,
+          "legendFormat": "Input",
+          "range": true,
+          "refId": "input"
+        }
+      ],
+      "title": "Throughput",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisGridShow": true,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "max"
+            },
+            "properties": [
+              {
+                "id": "custom.fillBelowTo",
+                "value": "min"
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 17
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "avg"
+            },
+            "properties": [
+              {
+                "id": "custom.lineWidth",
+                "value": 3
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 13,
+        "x": 11,
+        "y": 12
+      },
+      "id": 41,
+      "interval": "4",
+      "options": {
+        "legend": {
+          "calcs": [
+            "stdDev"
+          ],
+          "displayMode": "list",
+          "placement": "right",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "avg(rate(topos_double_echo_delivery_latency_sum[$__rate_interval]) / rate(topos_double_echo_delivery_latency_count[$__rate_interval]))",
+          "legendFormat": "avg",
+          "range": true,
+          "refId": "avg"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "min(rate(topos_double_echo_delivery_latency_sum[$__rate_interval]) / rate(topos_double_echo_delivery_latency_count[$__rate_interval]))",
+          "hide": false,
+          "legendFormat": "min",
+          "range": true,
+          "refId": "min"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max(rate(topos_double_echo_delivery_latency_sum[$__rate_interval]) / rate(topos_double_echo_delivery_latency_count[$__rate_interval]))",
+          "hide": false,
+          "legendFormat": "max",
+          "range": true,
+          "refId": "max"
+        }
+      ],
+      "title": "Latency",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Received from gRPC",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 11,
+        "x": 0,
+        "y": 13
+      },
+      "id": 43,
+      "interval": "5",
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "builder",
+          "expr": "topos_api_grpc_certificate_received_total",
+          "legendFormat": "{{job}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "gRPC received",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 13,
+        "x": 11,
+        "y": 17
+      },
+      "id": 9,
+      "interval": "4",
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "avg(topos_certificate_received_total{job=~\"$peer\"})",
+          "hide": false,
+          "legendFormat": "Double Echo module",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "avg(topos_certificate_received_from_api_total{job=~\"$peer\"})",
+          "hide": false,
+          "legendFormat": "Received by gRPC API",
           "range": true,
           "refId": "B"
         }
       ],
-      "title": "Full Delivery",
-      "type": "gauge"
+      "title": "Certificate reception in the double echo",
+      "type": "timeseries"
     },
     {
       "datasource": {
@@ -289,12 +1021,107 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 12,
-        "w": 12,
-        "x": 12,
-        "y": 0
+        "h": 8,
+        "w": 11,
+        "x": 0,
+        "y": 21
       },
-      "id": 9,
+      "id": 45,
+      "interval": "5",
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "builder",
+          "expr": "topos_double_echo_active_tasks_count",
+          "legendFormat": "{{job}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Active tokio tasks",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Upon received from the gRPC API",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 13,
+        "x": 11,
+        "y": 25
+      },
+      "id": 48,
+      "interval": "4",
       "options": {
         "legend": {
           "calcs": [],
@@ -315,7 +1142,181 @@
           },
           "editorMode": "code",
           "expr": "topos_certificate_received_from_api_total{job=~\"$peer\"}",
-          "hide": true,
+          "hide": false,
+          "legendFormat": "API {{job}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Certificate reception from API",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "scaleDistribution": {
+              "type": "linear"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 11,
+        "x": 0,
+        "y": 29
+      },
+      "id": 35,
+      "interval": "5",
+      "options": {
+        "calculate": false,
+        "cellGap": 1,
+        "color": {
+          "exponent": 0.5,
+          "fill": "dark-orange",
+          "mode": "scheme",
+          "reverse": true,
+          "scale": "exponential",
+          "scheme": "Oranges",
+          "steps": 113
+        },
+        "exemplars": {
+          "color": "rgba(255,0,255,0.7)"
+        },
+        "filterValues": {
+          "le": 1e-9
+        },
+        "legend": {
+          "show": true
+        },
+        "rowsFrame": {
+          "layout": "auto"
+        },
+        "tooltip": {
+          "show": true,
+          "yHistogram": false
+        },
+        "yAxis": {
+          "axisPlacement": "left",
+          "reverse": false
+        }
+      },
+      "pluginVersion": "9.3.8",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "builder",
+          "expr": "sum by(le) (increase(topos_p2p_gossip_batch_size_bucket[$__rate_interval]))",
+          "format": "heatmap",
+          "legendFormat": "{{job}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Batch size",
+      "type": "heatmap"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Upon received from GossipSub",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 13,
+        "x": 11,
+        "y": 33
+      },
+      "id": 49,
+      "interval": "4",
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "builder",
+          "expr": "topos_libp2p_gossipsub_topic_msg_recv_counts_total{job=~\"$peer\", hash=\"topos_gossip\"}",
+          "hide": false,
           "legendFormat": "API {{job}}",
           "range": true,
           "refId": "A"
@@ -325,15 +1326,104 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "editorMode": "code",
-          "expr": "topos_certificate_received_from_gossip_total{job=~\"$peer\"}",
           "hide": false,
-          "legendFormat": "Gossip {{job}}",
-          "range": true,
           "refId": "B"
         }
       ],
-      "title": "Certificate reception",
+      "title": "Certificate reception from Gossip",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 13,
+        "x": 11,
+        "y": 41
+      },
+      "id": 47,
+      "interval": "4",
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "builder",
+          "expr": "topos_double_echo_broadcast_finished_total",
+          "legendFormat": "{{job}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Broadcast finished",
       "type": "timeseries"
     },
     {
@@ -342,7 +1432,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 12
+        "y": 49
       },
       "id": 32,
       "panels": [],
@@ -405,13 +1495,38 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "Echo published"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 13
+        "y": 50
       },
       "id": 30,
       "interval": "4",
@@ -461,7 +1576,7 @@
           "hide": false,
           "legendFormat": "IWANT Gossip",
           "range": true,
-          "refId": "A"
+          "refId": "IWANT"
         }
       ],
       "title": "Gossip received vs. Echo published",
@@ -563,7 +1678,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 13
+        "y": 50
       },
       "id": 29,
       "interval": "4",
@@ -675,13 +1790,26 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "custom.axisLabel",
+                "value": "IWANT"
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 21
+        "y": 58
       },
       "id": 31,
       "interval": "4",
@@ -705,6 +1833,7 @@
           },
           "editorMode": "code",
           "expr": "sum by(hash) (increase(topos_libp2p_gossipsub_topic_msg_recv_counts_total{hash=\"topos_echo\", job=~\"$peer\"}[$__rate_interval]))",
+          "hide": false,
           "legendFormat": "Echo received",
           "range": true,
           "refId": "Gossip received"
@@ -768,7 +1897,7 @@
         "h": 16,
         "w": 12,
         "x": 12,
-        "y": 21
+        "y": 58
       },
       "id": 27,
       "options": {
@@ -786,7 +1915,7 @@
         "showUnfilled": true,
         "valueMode": "color"
       },
-      "pluginVersion": "10.0.1",
+      "pluginVersion": "9.3.8",
       "targets": [
         {
           "datasource": {
@@ -889,6 +2018,18 @@
                 "value": 3
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "custom.axisLabel",
+                "value": "IWANT"
+              }
+            ]
           }
         ]
       },
@@ -896,7 +2037,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 29
+        "y": 66
       },
       "id": 33,
       "interval": "4",
@@ -919,7 +2060,8 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum by(hash) (increase(topos_libp2p_gossipsub_topic_msg_recv_counts_total{hash=\"topos_ready\", job=~\"$peer\"}[$__rate_interval]))",
+          "expr": "topos_libp2p_gossipsub_topic_msg_recv_counts_total{hash=\"topos_ready\"}",
+          "hide": true,
           "legendFormat": "Ready received",
           "range": true,
           "refId": "Ready received"
@@ -930,7 +2072,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum by(hash) (increase(topos_libp2p_gossipsub_topic_msg_published_total{hash=\"topos_ready\", job=~\"$peer\"}[$__rate_interval]))",
+          "expr": "sum(topos_libp2p_gossipsub_topic_msg_published_total{hash=\"topos_ready\"})",
           "hide": false,
           "legendFormat": "Ready published",
           "range": true,
@@ -943,7 +2085,7 @@
           },
           "editorMode": "code",
           "expr": "sum by(hash) (increase(topos_libp2p_gossipsub_topic_iwant_msgs_total{hash=\"topos_ready\", job=~\"$peer\"}[$__rate_interval]))",
-          "hide": false,
+          "hide": true,
           "legendFormat": "IWANT Ready",
           "range": true,
           "refId": "A"
@@ -954,7 +2096,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(topos_certificate_received_from_api_total{job=~\"$peer\"})",
+          "expr": "avg(topos_certificate_received_total{job=~\"$peer\"})",
           "hide": true,
           "legendFormat": "__auto",
           "range": true,
@@ -979,7 +2121,7 @@
             "uid": "__expr__"
           },
           "expression": "$total_cert - $cert_delivered",
-          "hide": false,
+          "hide": true,
           "refId": "Missing delivery",
           "type": "math"
         }
@@ -993,7 +2135,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 37
+        "y": 74
       },
       "id": 19,
       "panels": [],
@@ -1045,7 +2187,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -1060,7 +2203,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 38
+        "y": 75
       },
       "id": 20,
       "options": {
@@ -1136,7 +2279,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -1151,7 +2295,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 38
+        "y": 75
       },
       "id": 21,
       "options": {
@@ -1197,7 +2341,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -1212,7 +2357,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 46
+        "y": 83
       },
       "id": 22,
       "options": {
@@ -1227,7 +2372,7 @@
         "showThresholdLabels": false,
         "showThresholdMarkers": true
       },
-      "pluginVersion": "10.0.1",
+      "pluginVersion": "9.3.8",
       "targets": [
         {
           "datasource": {
@@ -1279,7 +2424,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -1294,7 +2440,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 46
+        "y": 83
       },
       "id": 23,
       "options": {
@@ -1344,7 +2490,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 54
+        "y": 91
       },
       "id": 15,
       "panels": [],
@@ -1396,7 +2542,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -1411,7 +2558,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 55
+        "y": 92
       },
       "id": 16,
       "options": {
@@ -1457,7 +2604,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -1472,7 +2620,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 55
+        "y": 92
       },
       "id": 17,
       "options": {
@@ -1490,7 +2638,7 @@
         "showUnfilled": true,
         "valueMode": "color"
       },
-      "pluginVersion": "10.0.1",
+      "pluginVersion": "9.3.8",
       "targets": [
         {
           "datasource": {
@@ -1538,7 +2686,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 63
+        "y": 100
       },
       "id": 18,
       "options": {
@@ -1556,7 +2704,7 @@
         "showUnfilled": true,
         "valueMode": "color"
       },
-      "pluginVersion": "10.0.1",
+      "pluginVersion": "9.3.8",
       "targets": [
         {
           "datasource": {
@@ -1580,7 +2728,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 71
+        "y": 108
       },
       "id": 11,
       "panels": [],
@@ -1647,7 +2795,7 @@
         "h": 12,
         "w": 12,
         "x": 0,
-        "y": 72
+        "y": 109
       },
       "id": 3,
       "options": {
@@ -1738,7 +2886,7 @@
         "h": 12,
         "w": 12,
         "x": 12,
-        "y": 72
+        "y": 109
       },
       "id": 2,
       "options": {
@@ -1853,7 +3001,7 @@
         "h": 12,
         "w": 12,
         "x": 0,
-        "y": 84
+        "y": 121
       },
       "id": 1,
       "options": {
@@ -1914,7 +3062,7 @@
         "h": 12,
         "w": 12,
         "x": 12,
-        "y": 84
+        "y": 121
       },
       "id": 7,
       "options": {
@@ -1932,7 +3080,7 @@
         "showUnfilled": true,
         "valueMode": "color"
       },
-      "pluginVersion": "10.0.1",
+      "pluginVersion": "9.3.8",
       "targets": [
         {
           "datasource": {
@@ -1958,7 +3106,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 96
+        "y": 133
       },
       "id": 12,
       "panels": [],
@@ -2025,7 +3173,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 97
+        "y": 134
       },
       "id": 13,
       "options": {
@@ -2062,7 +3210,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 105
+        "y": 142
       },
       "id": 10,
       "panels": [],
@@ -2129,7 +3277,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 106
+        "y": 143
       },
       "id": 4,
       "options": {
@@ -2221,7 +3369,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 106
+        "y": 143
       },
       "id": 5,
       "options": {
@@ -2312,7 +3460,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 114
+        "y": 151
       },
       "id": 6,
       "options": {
@@ -2404,7 +3552,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 114
+        "y": 151
       },
       "id": 8,
       "options": {
@@ -2437,21 +3585,21 @@
       "type": "timeseries"
     }
   ],
-  "refresh": "",
-  "schemaVersion": 38,
+  "refresh": "5s",
+  "schemaVersion": 37,
   "style": "dark",
   "tags": [],
   "templating": {
     "list": [
       {
         "current": {
-          "selected": true,
-          "text": [
-            "boot"
-          ],
-          "value": [
-            "boot"
-          ]
+          "selected": false,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
         },
         "definition": "label_values(topos_certificate_received_total,job)",
         "hide": 0,
@@ -2471,7 +3619,7 @@
       },
       {
         "current": {
-          "selected": false,
+          "selected": true,
           "text": "Prometheus",
           "value": "Prometheus"
         },
@@ -2491,13 +3639,13 @@
     ]
   },
   "time": {
-    "from": "now-5m",
+    "from": "now-1h",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
-  "title": "Benchmarks Copy",
-  "uid": "e3d3b025-4b36-454a-a724-818f85806b6e",
-  "version": 3,
+  "title": "Benchmarks - Gossiped Certificate",
+  "uid": "f4d3b025-4b36-454a-a724-818f85806b6e",
+  "version": 9,
   "weekStart": ""
 }
