@@ -12,8 +12,8 @@ use crate::TaskStatus;
 use crate::{constant, DoubleEchoCommand};
 use task::{Task, TaskContext};
 use topos_metrics::{
-    CERTIFICATE_RECEIVED_FROM_API_TOTAL, CERTIFICATE_RECEIVED_FROM_GOSSIP_TOTAL,
-    CERTIFICATE_RECEIVED_TOTAL,
+    CERTIFICATE_PROCESSING_FROM_API_TOTAL, CERTIFICATE_PROCESSING_FROM_GOSSIP_TOTAL,
+    CERTIFICATE_PROCESSING_TOTAL,
 };
 
 /// The TaskManager is responsible for receiving messages from the network and distributing them
@@ -98,11 +98,11 @@ impl TaskManager {
 
                                     spawn(task.run());
 
-                                    CERTIFICATE_RECEIVED_TOTAL.inc();
+                                    CERTIFICATE_PROCESSING_TOTAL.inc();
                                     if need_gossip {
-                                        CERTIFICATE_RECEIVED_FROM_API_TOTAL.inc();
+                                        CERTIFICATE_PROCESSING_FROM_API_TOTAL.inc();
                                     } else {
-                                        CERTIFICATE_RECEIVED_FROM_GOSSIP_TOTAL.inc();
+                                        CERTIFICATE_PROCESSING_FROM_GOSSIP_TOTAL.inc();
                                     }
 
                                     if let Some(messages) = self.buffered_messages.remove(&cert.id) {

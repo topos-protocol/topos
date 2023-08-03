@@ -35,22 +35,22 @@ lazy_static! {
         ]))
     )
     .unwrap();
-    pub static ref CERTIFICATE_RECEIVED_TOTAL: IntCounter = register_int_counter_with_registry!(
-        "certificate_received_total",
+    pub static ref CERTIFICATE_PROCESSING_TOTAL: IntCounter = register_int_counter_with_registry!(
+        "certificate_processing_total",
         "Number of certificate received.",
         TOPOS_METRIC_REGISTRY
     )
     .unwrap();
-    pub static ref CERTIFICATE_RECEIVED_FROM_GOSSIP_TOTAL: IntCounter =
+    pub static ref CERTIFICATE_PROCESSING_FROM_GOSSIP_TOTAL: IntCounter =
         register_int_counter_with_registry!(
-            "certificate_received_from_gossip_total",
+            "certificate_processing_from_gossip_total",
             "Number of certificate received from gossip.",
             TOPOS_METRIC_REGISTRY
         )
         .unwrap();
-    pub static ref CERTIFICATE_RECEIVED_FROM_API_TOTAL: IntCounter =
+    pub static ref CERTIFICATE_PROCESSING_FROM_API_TOTAL: IntCounter =
         register_int_counter_with_registry!(
-            "certificate_received_from_api_total",
+            "certificate_processing_from_api_total",
             "Number of certificate received from api.",
             TOPOS_METRIC_REGISTRY
         )
@@ -99,9 +99,9 @@ pub fn init_metrics() {
     DOUBLE_ECHO_BUFFERED_MESSAGE_COUNT.set(0);
     DOUBLE_ECHO_BROADCAST_CREATED_TOTAL.reset();
     DOUBLE_ECHO_BROADCAST_FINISHED_TOTAL.reset();
-    CERTIFICATE_RECEIVED_TOTAL.reset();
-    CERTIFICATE_RECEIVED_FROM_GOSSIP_TOTAL.reset();
-    CERTIFICATE_RECEIVED_FROM_API_TOTAL.reset();
+    CERTIFICATE_PROCESSING_TOTAL.reset();
+    CERTIFICATE_PROCESSING_FROM_GOSSIP_TOTAL.reset();
+    CERTIFICATE_PROCESSING_FROM_API_TOTAL.reset();
     CERTIFICATE_DELIVERED_TOTAL.reset();
     STORAGE_COMMAND_CHANNEL_CAPACITY_TOTAL.reset();
 }

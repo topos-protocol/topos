@@ -373,7 +373,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(topos_certificate_received_total{job=~\"$peer\"})",
+          "expr": "sum(topos_certificate_processing_total{job=~\"$peer\"})",
           "legendFormat": "Received",
           "range": true,
           "refId": "A"
@@ -602,7 +602,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "avg(sum by(job) (irate(topos_certificate_received_total[$__interval])))",
+          "expr": "avg(sum by(job) (irate(topos_certificate_processing_total[$__interval])))",
           "hide": true,
           "legendFormat": "Input",
           "range": true,
@@ -941,7 +941,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "avg(topos_certificate_received_total{job=~\"$peer\"})",
+          "expr": "avg(topos_certificate_processing_total{job=~\"$peer\"})",
           "hide": false,
           "legendFormat": "Double Echo module",
           "range": true,
@@ -953,7 +953,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "avg(topos_certificate_received_from_api_total{job=~\"$peer\"})",
+          "expr": "avg(topos_certificate_processing_from_api_total{job=~\"$peer\"})",
           "hide": false,
           "legendFormat": "Received by gRPC API",
           "range": true,
@@ -1141,7 +1141,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "topos_certificate_received_from_api_total{job=~\"$peer\"}",
+          "expr": "topos_certificate_processing_from_api_total{job=~\"$peer\"}",
           "hide": false,
           "legendFormat": "API {{job}}",
           "range": true,
@@ -2096,7 +2096,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "avg(topos_certificate_received_total{job=~\"$peer\"})",
+          "expr": "avg(topos_certificate_processing_total{job=~\"$peer\"})",
           "hide": true,
           "legendFormat": "__auto",
           "range": true,
@@ -3601,14 +3601,14 @@
           "type": "prometheus",
           "uid": "${datasource}"
         },
-        "definition": "label_values(topos_certificate_received_total,job)",
+        "definition": "label_values(topos_certificate_processing_total,job)",
         "hide": 0,
         "includeAll": true,
         "multi": true,
         "name": "peer",
         "options": [],
         "query": {
-          "query": "label_values(topos_certificate_received_total,job)",
+          "query": "label_values(topos_certificate_processing_total,job)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 1,
