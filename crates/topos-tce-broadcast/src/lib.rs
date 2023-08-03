@@ -43,9 +43,9 @@ use crate::sampler::SubscriptionsView;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum TaskStatus {
-    /// The task finished succesfully and broadcasted the certificate + received ready
+    /// The task finished successfully and broadcasted the certificate + received ready
     Success,
-    /// The task did not finish succesfully and stopped.
+    /// The task did not finish successfully and stopped.
     Failure,
 }
 
