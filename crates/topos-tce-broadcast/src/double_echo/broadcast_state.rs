@@ -22,7 +22,7 @@ pub struct BroadcastState {
     ready_threshold: usize,
     delivery_threshold: usize,
     event_sender: mpsc::Sender<ProtocolEvents>,
-    delivery_time: time::SystemTime,
+    delivery_time: time::Instant,
 }
 
 impl BroadcastState {
@@ -43,7 +43,7 @@ impl BroadcastState {
             ready_threshold,
             delivery_threshold,
             event_sender,
-            delivery_time: time::SystemTime::now(),
+            delivery_time: time::Instant::now(),
         };
 
         _ = state.event_sender.try_send(ProtocolEvents::Broadcast {
@@ -122,7 +122,7 @@ impl BroadcastState {
             );
             // Calculate delivery time
             let from = self.delivery_time;
-            let duration = from.elapsed().unwrap();
+            let duration = from.elapsed();
             let d = duration;
 
             info!(
