@@ -13,47 +13,17 @@ use topos_tce_proxy::client::{TceClient, TceClientBuilder};
 use tracing::{debug, error, info, info_span, Instrument, Span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("target nodes are not specified")]
-    TargetNodesNotSpecified,
-    #[error("error reading target nodes json file:{0}")]
-    ErrorReadingTargetNodesJsonFile(String),
-    #[error("error parsing target nodes json file:{0}")]
-    InvalidTargetNodesJsonFile(String),
-    #[error("invalid subnet id error: {0}")]
-    InvalidSubnetId(String),
-    #[error("hex conversion error {0}")]
-    HexConversionError(hex::FromHexError),
-    #[error("invalid signing key: {0}")]
-    InvalidSigningKey(String),
-    #[error("Tce node connection error {0}")]
-    TCENodeConnectionError(topos_tce_proxy::Error),
-    #[error("Certificate signing error: {0}")]
-    CertificateSigningError(topos_core::uci::Error),
-}
+mod config;
+mod error;
+mod utils;
 
-#[derive(Debug)]
-pub struct CertificateSpammerConfig {
-    pub target_nodes: Option<Vec<String>>,
-    pub target_nodes_path: Option<String>,
-    pub local_key_seed: u64,
-    pub cert_per_batch: u64,
-    pub nb_subnets: u8,
-    pub nb_batches: Option<u64>,
-    pub batch_interval: u64,
-    pub target_subnets: Option<Vec<String>>,
-}
+use error::Error;
 
-fn generate_random_32b_array() -> [u8; 32] {
-    (0..32)
-        .map(|_| rand::random::<u8>())
-        .collect::<Vec<u8>>()
-        .try_into()
-        .expect("Valid 32 byte array")
-}
+use crate::utils::{generate_source_subnets, generate_test_certificate};
+pub use config::CertificateSpammerConfig;
 
 type NodeApiAddress = String;
+
 #[derive(Deserialize)]
 struct FileNodes {
     nodes: Vec<String>,
@@ -86,28 +56,6 @@ impl TargetNodeConnection {
     }
 }
 
-/// Generate test certificate
-pub fn generate_test_certificate(
-    source_subnet: &mut SourceSubnet,
-    target_subnet_ids: &[SubnetId],
-) -> Result<Certificate, Box<dyn std::error::Error>> {
-    let mut new_cert = Certificate::new(
-        source_subnet.last_certificate_id,
-        source_subnet.source_subnet_id,
-        generate_random_32b_array(),
-        generate_random_32b_array(),
-        target_subnet_ids,
-        0,
-        Vec::new(),
-    )?;
-    new_cert
-        .update_signature(&source_subnet.signing_key)
-        .map_err(Error::CertificateSigningError)?;
-
-    source_subnet.last_certificate_id = new_cert.id;
-    Ok(new_cert)
-}
-
 async fn open_target_node_connection(
     nodes: &[String],
     source_subnet: &SourceSubnet,
@@ -134,7 +82,7 @@ async fn open_target_node_connection(
                     "Unable to create TCE client for node {}, error details: {}",
                     &tce_address, e
                 );
-                return Err(Error::TCENodeConnectionError(e));
+                return Err(Error::TCENodeConnection(e));
             }
         };
 
@@ -145,7 +93,7 @@ async fn open_target_node_connection(
                     "Unable to connect to node {}, error details: {}",
                     &tce_address, e
                 );
-                return Err(Error::TCENodeConnectionError(e));
+                return Err(Error::TCENodeConnection(e));
             }
         }
 
@@ -242,35 +190,6 @@ async fn dispatch(cert: Certificate, target_node: &TargetNodeConnection) {
     submit_cert_to_tce(target_node, cert).await
 }
 
-pub fn generate_source_subnets(
-    local_key_seed: u64,
-    number_of_subnets: u8,
-) -> Result<Vec<SourceSubnet>, Error> {
-    let mut subnets = Vec::new();
-
-    let mut signing_key = [0u8; 32];
-    let (_, right) = signing_key.split_at_mut(24);
-    right.copy_from_slice(local_key_seed.to_be_bytes().as_slice());
-    for _ in 0..number_of_subnets {
-        signing_key = tiny_keccak::keccak256(&signing_key);
-
-        // Subnet id of the source subnet which will be used for every generated certificate
-        let source_subnet_id: SubnetId = topos_crypto::keys::derive_public_key(&signing_key)
-            .map_err(|e| Error::InvalidSigningKey(e.to_string()))?
-            .as_slice()[1..33]
-            .try_into()
-            .map_err(|_| Error::InvalidSubnetId("Unable to parse subnet id".to_string()))?;
-
-        subnets.push(SourceSubnet {
-            signing_key,
-            source_subnet_id,
-            last_certificate_id: Default::default(),
-        });
-    }
-
-    Ok(subnets)
-}
-
 pub async fn run(
     args: CertificateSpammerConfig,
     mut shutdown: mpsc::Receiver<oneshot::Sender<()>>,
@@ -286,7 +205,7 @@ pub async fn run(
         nodes
     } else if let Some(target_nodes_path) = args.target_nodes_path {
         let json_str = std::fs::read_to_string(target_nodes_path)
-            .map_err(|e| Error::ErrorReadingTargetNodesJsonFile(e.to_string()))?;
+            .map_err(|e| Error::ReadingTargetNodesJsonFile(e.to_string()))?;
 
         let json: FileNodes = serde_json::from_str(&json_str)
             .map_err(|e| Error::InvalidTargetNodesJsonFile(e.to_string()))?;

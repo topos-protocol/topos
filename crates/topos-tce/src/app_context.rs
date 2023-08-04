@@ -2,6 +2,8 @@
 //! Application logic glue
 //!
 use futures::{Stream, StreamExt};
+use prometheus::HistogramTimer;
+use std::collections::HashMap;
 use tce_transport::ProtocolEvents;
 use tokio::sync::{mpsc, oneshot};
 use topos_core::uci::CertificateId;
@@ -37,6 +39,8 @@ pub struct AppContext {
     pub pending_storage: StorageClient,
     pub gatekeeper: GatekeeperClient,
     pub synchronizer: SynchronizerClient,
+
+    pub delivery_latency: HashMap<CertificateId, HistogramTimer>,
 }
 
 impl AppContext {
@@ -64,6 +68,7 @@ impl AppContext {
                 pending_storage,
                 gatekeeper,
                 synchronizer,
+                delivery_latency: Default::default(),
             },
             receiver,
         )

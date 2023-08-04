@@ -1,14 +1,14 @@
+use crate::events::Events;
+use crate::AppContext;
 use std::collections::HashMap;
 use tokio::spawn;
 use topos_core::uci::{Certificate, SubnetId};
+use topos_metrics::CERTIFICATE_DELIVERY_LATENCY;
 use topos_tce_api::RuntimeError;
 use topos_tce_api::RuntimeEvent as ApiEvent;
 use topos_tce_gatekeeper::GatekeeperError;
 use topos_tce_storage::errors::{InternalStorageError, StorageError};
 use tracing::{error, info, warn};
-
-use crate::events::Events;
-use crate::AppContext;
 
 impl AppContext {
     pub async fn on_api_event(&mut self, event: ApiEvent) {
@@ -17,6 +17,9 @@ impl AppContext {
                 certificate,
                 sender,
             } => {
+                self.delivery_latency
+                    .insert(certificate.id, CERTIFICATE_DELIVERY_LATENCY.start_timer());
+
                 _ = self
                     .tce_cli
                     .broadcast_new_certificate(*certificate, true)

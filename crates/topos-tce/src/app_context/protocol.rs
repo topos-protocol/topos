@@ -27,8 +27,13 @@ impl AppContext {
             }
 
             ProtocolEvents::CertificateDelivered { certificate } => {
-                warn!("Certificate delivered {}", certificate.id);
                 CERTIFICATE_DELIVERED_TOTAL.inc();
+
+                if let Some(timer) = self.delivery_latency.remove(&certificate.id) {
+                    let duration = timer.stop_and_record();
+                    warn!("Certificate delivered {} in {}s", certificate.id, duration);
+                }
+
                 let storage = self.pending_storage.clone();
                 let api_client = self.api_client.clone();
 
