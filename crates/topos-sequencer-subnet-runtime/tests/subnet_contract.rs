@@ -520,6 +520,7 @@ async fn test_subnet_certificate_push_call(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let context = context_running_subnet_node.await;
     let test_private_key = generate_test_private_key();
+    let admin_key = hex::decode(TEST_SECRET_ETHEREUM_KEY).unwrap();
     let subnet_smart_contract_address =
         "0x".to_string() + &hex::encode(context.i_topos_core.address());
     let runtime_proxy_worker = SubnetRuntimeProxyWorker::new(
@@ -530,7 +531,7 @@ async fn test_subnet_certificate_push_call(
             verifier: 0,
             source_head_certificate_id: None,
         },
-        test_private_key.clone(),
+        admin_key.clone(),
     )
     .await?;
 
