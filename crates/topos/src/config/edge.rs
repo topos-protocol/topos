@@ -36,7 +36,7 @@ fn default_base_tce_api_url() -> String {
 }
 
 fn default_subnet_data_dir() -> PathBuf {
-    PathBuf::from("../test-chain-1")
+    PathBuf::from("./test-chain-1")
 }
 
 impl Config for EdgeConfig {

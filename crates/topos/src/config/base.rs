@@ -19,7 +19,10 @@ pub struct BaseConfig {
     pub role: NodeRole,
 
     #[serde(default = "default_subnet")]
-    pub subnet: String,
+    pub subnet_id: String,
+
+    #[serde(default = "default_secrets_config")]
+    pub secrets_config: Option<String>,
 }
 
 fn default_name() -> String {
@@ -32,6 +35,10 @@ fn default_role() -> NodeRole {
 
 fn default_subnet() -> String {
     "topos".to_string()
+}
+
+fn default_secrets_config() -> Option<String> {
+    None
 }
 
 impl Config for BaseConfig {

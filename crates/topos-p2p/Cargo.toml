@@ -14,11 +14,13 @@ thiserror.workspace = true
 tokio = { workspace = true, features = ["full"] }
 tokio-stream.workspace = true
 tracing = { workspace = true, features = ["attributes"] }
-libp2p = { workspace = true, features = ["macros", "gossipsub", "tcp", "dns", "tokio", "request-response", "identify", "kad", "serde", "yamux"] }
+libp2p = { workspace = true, features = ["macros", "gossipsub", "tcp", "dns", "tokio", "request-response", "identify", "kad", "serde", "yamux", "secp256k1"] }
+hex.workspace = true
 
 void = "1"
 
 topos-metrics = { path = "../topos-metrics/" }
+topos-crypto = { path = "../topos-crypto" }
 
 [dev-dependencies]
 test-log.workspace = true

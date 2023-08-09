@@ -9,7 +9,7 @@ pub use crate::AppContext;
 
 #[derive(Debug)]
 pub struct TceConfiguration {
-    pub local_key_seed: Option<Vec<u8>>,
+    pub auth_key: Option<AuthKey>,
     pub tce_params: ReliableBroadcastParams,
     pub boot_peers: Vec<(PeerId, Multiaddr)>,
     pub api_addr: SocketAddr,

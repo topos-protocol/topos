@@ -2,8 +2,7 @@ use std::future::IntoFuture;
 
 use config::TceConfiguration;
 use opentelemetry::global;
-use tokio::{signal, spawn, sync::mpsc, sync::oneshot};
-use topos_p2p::utils::local_key_pair_from_slice;
+use tokio::{spawn, sync::mpsc, sync::oneshot};
 use topos_p2p::{utils::local_key_pair, Multiaddr};
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
 use topos_tce_storage::{Connection, RocksDBStorage};
@@ -23,11 +22,12 @@ pub async fn run(
     shutdown: mpsc::Receiver<oneshot::Sender<()>>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     topos_metrics::init_metrics();
-    let key = config
-        .local_key_seed
-        .as_ref()
-        .map(|k| local_key_pair_from_slice(k))
-        .unwrap_or_else(|| local_key_pair(None));
+
+    let key = match config.auth_key.as_ref() {
+        Some(AuthKey::Seed(seed)) => local_key_pair_from_slice(seed),
+        Some(AuthKey::PrivateKey(pk)) => topos_p2p::utils::keypair_from_protobuf_encoding(pk),
+        None => local_key_pair(None),
+    };
 
     let peer_id = key.public().to_peer_id();
 

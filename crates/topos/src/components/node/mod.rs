@@ -2,6 +2,7 @@ use clap::{CommandFactory, Parser};
 use figment::error::Kind;
 use futures::stream::FuturesUnordered;
 use opentelemetry::global;
+use std::fs;
 use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
@@ -27,16 +28,16 @@ use crate::config::edge::EdgeConfig;
 use crate::config::sequencer::SequencerConfig;
 use crate::config::tce::TceConfig;
 use crate::edge::{CommandConfig, BINARY_NAME};
-use tokio::process::Command;
-
 use crate::{
     config::{
         base::BaseConfig, insert_into_toml, load_config, node::NodeConfig, node::NodeRole, Config,
     },
     tracing::setup_tracing,
 };
-use std::path::PathBuf;
+use services::*;
+use tokio::process::Command;
 use topos_tce::config::{StorageConfiguration, TceConfiguration};
+use topos_wallet::SecretManager;
 
 pub(crate) mod commands;
 pub mod services;
@@ -50,60 +51,6 @@ pub fn generate_edge_config(
 
     CommandConfig::new(polygon_edge_path)
         .init(&config_path)
-        .spawn()
-}
-
-async fn spawn_validator(edge_path: PathBuf, subnet_path: PathBuf, config: NodeConfig) {
-    println!(
-        "🧢  {} joining the {} subnet as {:?}",
-        config.base.name, config.base.subnet, config.base.role
-    );
-
-    let subnet_genesis = subnet_path.join("genesis.json");
-
-    let edge_component = spawn_edge_process(edge_path, config.edge.subnet_data_dir, subnet_genesis);
-
-    let tce_config = TceConfiguration {
-        boot_peers: config.tce.parse_boot_peers(),
-        local_key_seed: config.tce.local_key_seed.map(|s| s.as_bytes().to_vec()),
-        tce_addr: config.tce.tce_ext_host,
-        tce_local_port: config.tce.tce_local_port,
-        tce_params: ReliableBroadcastParams {
-            echo_threshold: config.tce.echo_threshold,
-            ready_threshold: config.tce.ready_threshold,
-            delivery_threshold: config.tce.delivery_threshold,
-        },
-        api_addr: config.tce.api_addr,
-        graphql_api_addr: config.tce.graphql_api_addr,
-        metrics_api_addr: config.tce.metrics_api_addr,
-        storage: StorageConfiguration::RocksDB(PathBuf::from_str(&config.tce.db_path).ok()),
-        network_bootstrap_timeout: Duration::from_secs(10),
-        minimum_cluster_size: config
-            .tce
-            .minimum_tce_cluster_size
-            .unwrap_or(NetworkConfig::MINIMUM_CLUSTER_SIZE),
-        version: env!("TOPOS_VERSION"),
-    };
-
-    spawn(edge_component);
-
-    // TCE component if we are Topos
-    if config.base.subnet == "topos" {
-        let _ = topos_tce::spawn_tce_component(&tce_config).await;
-    }
-}
-
-#[allow(dead_code)]
-pub fn spawn_edge_process(
-    edge_path: PathBuf,
-    data_dir: PathBuf,
-    genesis_path: PathBuf,
-) -> impl Future<Output = ()> {
-    // Create the Polygon Edge config
-    let polygon_edge_path = edge_path.join(BINARY_NAME);
-
-    CommandConfig::new(polygon_edge_path)
-        .server(&data_dir, &genesis_path)
         .spawn()
 }
 
@@ -204,23 +151,46 @@ pub(crate) async fn handle_command(
                 .join(config.base.subnet_id.clone())
                 .join("genesis.json");
 
-            match config.base.role {
-                NodeRole::Validator => {
-                    spawn_validator(edge_path, subnet_path, config).await;
-                }
-                NodeRole::Sequencer => {
-                    println!("Running a sequencer!");
+            // Get secrets
+            let keys = match &config.base.secrets_config {
+                Some(secrets_config) => SecretManager::from_aws(secrets_config),
+                None => SecretManager::from_fs(node_path.clone()),
+            };
 
-                    println!("- Spawning the polygon-edge process");
-                    println!("- Spawning the sequencer process");
-                    if config.base.subnet == "topos" {
-                        println!("- Spawning the TCE process");
-                    }
-                }
-                NodeRole::FullNode => {
-                    println!("Running a full node!");
-                }
+            let data_dir = node_path.join(config.edge.subnet_data_dir.clone());
+
+            println!(
+                "🧢  {} joining the {} subnet as {:?}",
+                config.base.name, config.base.subnet, config.base.role
+            );
+
+            //let (shutdown_sender, shutdown_receiver) = mpsc::channel::<oneshot::Sender<()>>(1);
+
+            // Edge
+            processes.push(services::spawn_edge_process(
+                edge_path.join(BINARY_NAME),
+                data_dir,
+                genesis_path,
+            ));
+
+            // Sequencer
+            if matches!(config.base.role, NodeRole::Sequencer) {
+                processes.push(services::spawn_sequencer_process(
+                    config.clone(),
+                    &keys,
+                    (shutdown_token.clone(), shutdown_sender.clone()),
+                ));
             }
+
+            // TCE
+            if config.base.subnet == "topos" {
+                services::spawn_tce_process(config, keys);
+            }
+
+            // Termination
+            signal::ctrl_c()
+                .await
+                .expect("failed to listen for signals");
 
             Ok(())
         }

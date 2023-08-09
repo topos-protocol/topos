@@ -93,7 +93,10 @@ pub(crate) async fn handle_command(
         Some(TceCommands::Run(cmd)) => {
             let config = TceConfiguration {
                 boot_peers: cmd.parse_boot_peers(),
-                local_key_seed: cmd.local_key_seed.map(|s| s.as_bytes().to_vec()),
+                auth_key: cmd
+                    .local_key_seed
+                    .clone()
+                    .map(|s| AuthKey::Seed(s.as_bytes().to_vec())),
                 tce_addr: cmd.tce_ext_host,
                 tce_local_port: cmd.tce_local_port,
                 tce_params: cmd.tce_params,
