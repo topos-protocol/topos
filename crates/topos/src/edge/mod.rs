@@ -1,8 +1,16 @@
-use std::future::Future;
-use std::path::PathBuf;
-use std::process::Stdio;
-use tokio::process::{Child, Command};
-use tracing::{error, info};
+use futures::stream::FuturesUnordered;
+use serde_json::{json, Value};
+use std::path::{Path, PathBuf};
+use std::process::{ExitStatus, Stdio};
+use std::time::Duration;
+use std::{collections::HashMap, future::Future};
+use tokio::time::sleep;
+use tokio::{
+    io::{self, AsyncBufReadExt, BufReader},
+    process::{Child, Command},
+};
+use tracing::debug;
+use tracing::{error, event, info, log::warn, Level};
 
 pub const BINARY_NAME: &str = "polygon-edge";
 
@@ -34,6 +42,7 @@ impl CommandConfig {
         self.args.push(format!("{}", data_dir.display()));
         self.args.push("--chain".into());
         self.args.push(format!("{}", genesis_path.display()));
+        self.args.push("--json".into());
 
         self
     }
@@ -43,27 +52,14 @@ impl CommandConfig {
         command.kill_on_drop(true);
         command.args(self.args);
 
-        async move {
-            match command
-                .stderr(Stdio::inherit())
-                .stdout(Stdio::inherit())
-                .stdin(Stdio::inherit())
-                .spawn()
-            {
-                Ok(mut child) => {
-                    if let Some(pid) = child.id() {
-                        info!("Polygon Edge child process with pid {pid} successfully started");
-                    }
-                    if let Err(e) = child.wait().await {
-                        info!("Polygon Edge child process finished with error: {e}");
-                    }
-                    std::process::exit(0);
-                }
-                Err(e) => {
-                    error!("Error executing Polygon Edge: {e}");
-                    Err(ProcessError::EdgeFailure)
-                }
-            }
+        let mut child = command
+            .stderr(Stdio::piped())
+            .stdout(Stdio::inherit())
+            .stdin(Stdio::inherit())
+            .spawn()?;
+
+        if let Some(pid) = child.id() {
+            info!("Polygon Edge child process with pid {pid} successfully started");
         }
 
         let stdout = child
@@ -91,5 +87,45 @@ impl CommandConfig {
 
         debug!("The Edge process is terminated");
         running_out
+    }
+}
+
+pub struct EdgeLog {
+    v: HashMap<String, Value>,
+}
+
+impl EdgeLog {
+    pub fn new(v: HashMap<String, Value>) -> Self {
+        Self { v }
+    }
+
+    pub fn log(&mut self) {
+        match self.v.get("@level") {
+            Some(level) => match level.as_str() {
+                Some(r#"info"#) => info!("{}", self.internal()),
+                Some(r#"warn"#) => warn!("{}", self.internal()),
+                Some(r#"debug"#) => debug!("{}", self.internal()),
+                Some(r#"error"#) => error!("{}", self.internal()),
+                _ => error!("log parse failure: {:?}", self.v),
+            },
+            None => error!("{:?}", self.v.get("error")),
+        }
+    }
+
+    fn internal(&mut self) -> String {
+        let module = self.v.remove("@module").unwrap();
+        let message = self.v.remove("@message").unwrap();
+
+        // FIXME: Figure out tracing features to make this nicer
+        self.v.remove("@timestamp");
+        self.v.remove("@level");
+
+        let mut message = format!("{module}: {message}");
+
+        for (k, s) in &self.v {
+            message = format!("{} {}:{}", message, k, s);
+        }
+
+        message
     }
 }

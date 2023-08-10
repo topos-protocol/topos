@@ -159,9 +159,9 @@ pub(crate) async fn handle_command(
 
             let data_dir = node_path.join(config.edge.subnet_data_dir.clone());
 
-            println!(
-                "🧢  {} joining the {} subnet as {:?}",
-                config.base.name, config.base.subnet, config.base.role
+            info!(
+                "🧢 New joiner: {} for the \"{}\" subnet as {:?}",
+                config.base.name, config.base.subnet_id, config.base.role
             );
 
             //let (shutdown_sender, shutdown_receiver) = mpsc::channel::<oneshot::Sender<()>>(1);
