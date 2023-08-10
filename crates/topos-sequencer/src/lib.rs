@@ -1,5 +1,13 @@
 use crate::app_context::AppContext;
 use std::io::ErrorKind::InvalidInput;
+use tokio::{
+    spawn,
+    sync::{
+        mpsc,
+        oneshot::{self, Sender},
+    },
+};
+use tokio_util::sync::CancellationToken;
 use topos_core::uci::SubnetId;
 use topos_sequencer_subnet_runtime::{SubnetRuntimeProxyConfig, SubnetRuntimeProxyWorker};
 use topos_tce_proxy::{worker::TceProxyWorker, TceProxyConfig};
@@ -19,7 +27,10 @@ pub struct SequencerConfiguration {
     pub verifier: u32,
 }
 
-pub async fn run(config: SequencerConfiguration) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn launch(
+    config: SequencerConfiguration,
+    ctx_send: Sender<AppContext>,
+) -> Result<(), Box<dyn std::error::Error>> {
     debug!("Starting topos-sequencer application");
 
     // If subnetID is specified as command line argument, use it
@@ -114,6 +125,45 @@ pub async fn run(config: SequencerConfiguration) -> Result<(), Box<dyn std::erro
         panic!("Unable to set source head certificate id: {e}");
     }
 
-    let mut app_context = AppContext::new(config, subnet_runtime_proxy_worker, tce_proxy_worker);
-    app_context.run().await
+    let _ = ctx_send.send(AppContext::new(
+        config,
+        subnet_runtime_proxy_worker,
+        tce_proxy_worker,
+    ));
+    Ok(())
+}
+
+pub async fn run(
+    config: SequencerConfiguration,
+    shutdown: (CancellationToken, mpsc::Sender<()>),
+) -> Result<(), Box<dyn std::error::Error>> {
+    let shutdown_appcontext = shutdown.clone();
+
+    let (ctx_send, mut ctx_recv) = oneshot::channel::<AppContext>();
+
+    let launching = spawn(async move {
+        let _ = launch(config, ctx_send).await;
+    });
+
+    let app_context: Option<AppContext> = tokio::select! {
+        app = &mut ctx_recv => {
+            Some(app.unwrap())
+        },
+
+        // Shutdown signal
+        _ = shutdown.0.cancelled() => {
+            info!("Stopping Sequencer launch...");
+            drop(shutdown.1);
+            launching.abort();
+            None
+        }
+    };
+
+    if let Some(mut app) = app_context {
+        app.run(shutdown_appcontext).await;
+    }
+
+    info!("Exited sequencer");
+
+    Ok(())
 }

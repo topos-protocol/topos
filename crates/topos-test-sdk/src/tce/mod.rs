@@ -8,8 +8,8 @@ use libp2p::identity::Keypair;
 use libp2p::{Multiaddr, PeerId};
 use rstest::*;
 use tokio::spawn;
-use tokio::sync::oneshot;
 use tokio::{sync::mpsc, task::JoinHandle};
+use tokio_util::sync::CancellationToken;
 use tonic::transport::Channel;
 use tonic::Response;
 use topos_core::api::grpc::tce::v1::{
@@ -53,7 +53,7 @@ pub struct TceContext {
     pub gatekeeper_join_handle: JoinHandle<Result<(), topos_tce_gatekeeper::GatekeeperError>>,
     pub synchronizer_join_handle: JoinHandle<Result<(), topos_tce_synchronizer::SynchronizerError>>,
     pub connected_subnets: Option<Vec<SubnetId>>, // Particular subnet clients (topos nodes) connected to this tce node
-    pub shutdown_sender: mpsc::Sender<oneshot::Sender<()>>,
+    pub shutdown: (CancellationToken, mpsc::Receiver<()>),
 }
 
 impl Drop for TceContext {
@@ -67,15 +67,12 @@ impl Drop for TceContext {
 }
 
 impl TceContext {
-    pub async fn shutdown(self) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn shutdown(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         info!("Context performing shutdown...");
-        let (shutdown_finished_sender, shutdown_finished_receiver) = oneshot::channel::<()>();
-        self.shutdown_sender
-            .send(shutdown_finished_sender)
-            .await
-            .unwrap();
 
-        shutdown_finished_receiver.await.unwrap();
+        self.shutdown.0.cancel();
+        self.shutdown.1.recv().await;
+
         info!("Shutdown finished...");
 
         Ok(())
@@ -200,14 +197,18 @@ pub async fn start_node(
         synchronizer_client,
     );
 
-    let (shutdown_sender, shutdown_receiver) = mpsc::channel::<oneshot::Sender<()>>(1);
+    let shutdown_token = CancellationToken::new();
+    let shutdown_cloned = shutdown_token.clone();
+
+    let (shutdown_sender, shutdown_receiver) = mpsc::channel(1);
+
     let app_join_handle = spawn(app.run(
         network_stream,
         tce_stream,
         api_stream,
         storage_stream,
         synchronizer_stream,
-        shutdown_receiver,
+        (shutdown_token, shutdown_sender),
     ));
 
     TceContext {
@@ -223,7 +224,7 @@ pub async fn start_node(
         gatekeeper_join_handle,
         synchronizer_join_handle,
         connected_subnets: None,
-        shutdown_sender,
+        shutdown: (shutdown_cloned, shutdown_receiver),
     }
 }
 

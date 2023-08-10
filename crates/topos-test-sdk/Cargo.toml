@@ -22,6 +22,7 @@ proc_macro_sdk = { path = "./proc_macro_sdk/" }
 rand.workspace = true
 rstest.workspace = true
 tokio.workspace = true
+tokio-util.workspace = true
 tonic = { workspace = true, optional = true }
 tracing.workspace = true
 

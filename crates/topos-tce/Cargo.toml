@@ -16,6 +16,7 @@ prometheus.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
+tokio-util.workspace = true
 topos-core.workspace = true
 tracing-attributes.workspace = true
 tracing-opentelemetry.workspace = true

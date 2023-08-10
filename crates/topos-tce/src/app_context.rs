@@ -1,11 +1,13 @@
 //!
 //! Application logic glue
 //!
+use crate::events::Events;
 use futures::{Stream, StreamExt};
 use prometheus::HistogramTimer;
 use std::collections::HashMap;
 use tce_transport::ProtocolEvents;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::mpsc;
+use tokio_util::sync::CancellationToken;
 use topos_core::uci::CertificateId;
 use topos_p2p::{Client as NetworkClient, Event as NetEvent};
 use topos_tce_api::RuntimeClient as ApiClient;
@@ -16,8 +18,6 @@ use topos_tce_storage::events::StorageEvent;
 use topos_tce_storage::StorageClient;
 use topos_tce_synchronizer::{SynchronizerClient, SynchronizerEvent};
 use tracing::{error, info, warn};
-
-use crate::events::Events;
 
 mod api;
 mod network;
@@ -82,7 +82,7 @@ impl AppContext {
         mut api_stream: impl Stream<Item = ApiEvent> + Unpin,
         mut storage_stream: impl Stream<Item = StorageEvent> + Unpin,
         mut synchronizer_stream: impl Stream<Item = SynchronizerEvent> + Unpin,
-        mut shutdown: mpsc::Receiver<oneshot::Sender<()>>,
+        shutdown: (CancellationToken, mpsc::Sender<()>),
     ) {
         loop {
             tokio::select! {
@@ -111,13 +111,13 @@ impl AppContext {
                 }
 
                 // Shutdown signal
-                Some(sender) = shutdown.recv() => {
+                _ = shutdown.0.cancelled() => {
                     info!("Shutting down TCE app context...");
                     if let Err(e) = self.shutdown().await {
                         error!("Error shutting down TCE app context: {e}");
                     }
-                    // Send feedback that shutdown has been finished
-                    _ = sender.send(());
+                    // Drop the sender to notify the TCE termination
+                    drop(shutdown.1);
                     break;
                 }
             }

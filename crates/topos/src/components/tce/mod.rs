@@ -10,6 +10,7 @@ use tokio::{
     signal,
     sync::{mpsc, oneshot, Mutex},
 };
+use tokio_util::sync::CancellationToken;
 use tonic::transport::{Channel, Endpoint};
 use topos_core::api::grpc::tce::v1::{
     api_service_client::ApiServiceClient, console_service_client::ConsoleServiceClient,
@@ -117,21 +118,24 @@ pub(crate) async fn handle_command(
 
             print_node_info(&config);
 
-            let (shutdown_sender, shutdown_receiver) = mpsc::channel::<oneshot::Sender<()>>(1);
+            warn!("DEPRECATED: Please run with `topos node up`");
+
+            let shutdown_token = CancellationToken::new();
+            let shutdown_trigger = shutdown_token.clone();
+
+            let (shutdown_sender, mut shutdown_receiver) = mpsc::channel(1);
 
             tokio::select! {
                 _ = signal::ctrl_c() => {
                     info!("Received ctrl_c, shutting down application...");
-                    let (shutdown_finished_sender, shutdown_finished_receiver) = oneshot::channel::<()>();
-                    if let Err(e) = shutdown_sender.send(shutdown_finished_sender).await {
-                        error!("Error sending shutdown signal to TCE application: {e}");
-                    }
-                    if let Err(e) = shutdown_finished_receiver.await {
-                        error!("Error with shutdown receiver: {e}");
-                    }
+                    shutdown_trigger.cancel();
+
+                    // Wait that all sender get dropped
+                    let _ = shutdown_receiver.recv().await;
+
                     info!("Shutdown procedure finished, exiting...");
                 }
-                result = topos_tce::run(&config, shutdown_receiver) => {
+                result = topos_tce::run(&config, (shutdown_token, shutdown_sender)) => {
                     global::shutdown_tracer_provider();
                     if let Err(ref error) = result {
                         error!("TCE node terminated {:?}", error);

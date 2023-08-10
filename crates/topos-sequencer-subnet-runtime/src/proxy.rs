@@ -11,7 +11,7 @@ use tokio::sync::{mpsc, oneshot};
 use tokio::time::{self, Duration};
 use topos_core::api::grpc::checkpoints::TargetStreamPosition;
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
-use topos_sequencer_subnet_client::{self, SubnetClient};
+use topos_sequencer_subnet_client::{self, SubnetClient, SubnetClientListener};
 use tracing::{debug, error, field, info, info_span, instrument, warn, Instrument, Span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
@@ -126,121 +126,117 @@ impl SubnetRuntimeProxy {
                     }
                 }
 
-                loop {
-                    // Create subnet listener
-                    let mut subnet_listener =
-                        match topos_sequencer_subnet_client::connect_to_subnet_listener_with_retry(
+                // Establish the connection with the Subnet
+                let mut subnet_listener: Option<SubnetClientListener> = loop {
+                    tokio::select! {
+                        // Create subnet client
+                        Ok(client) = topos_sequencer_subnet_client::connect_to_subnet_listener_with_retry(
                             ws_runtime_endpoint.as_str(),
                             subnet_contract_address.as_str(),
-                        )
-                        .await
-                        {
-                            Ok(subnet_listener) => subnet_listener,
-                            Err(e) => {
-                                error!("Unable create subnet listener: {e}");
-                                continue;
-                            }
-                        };
-
-                    let mut interval = time::interval(SUBNET_BLOCK_TIME);
-
-                    let shutdowned: Option<oneshot::Sender<()>> = loop {
-                        tokio::select! {
-                            _ = interval.tick() => {
-
-                                match subnet_listener
-                                    .get_next_finalized_block()
-                                    .await
-                                {
-                                    Ok(block_info) => {
-                                        let block_number = block_info.number;
-                                        info!("Successfully fetched the finalized block {block_number} from the subnet runtime");
-
-                                        let mut certification = certification.lock().await;
-
-                                        // Update certificate block history
-                                        certification.append_blocks(vec![block_info]);
-
-                                        let new_certificates = match certification.generate_certificates().await {
-                                            Ok(certificates) => certificates,
-                                            Err(e) => {
-                                                error!("Unable to generate certificates: {e}");
-                                                break None;
-                                            }
-                                        };
-
-                                        debug!("Generated new certificates {new_certificates:?}");
-
-                                        for cert in new_certificates {
-                                            Self::send_new_certificate(runtime_proxy.clone(), cert).await
-                                        }
-                                    }
-                                    Err(topos_sequencer_subnet_client::Error::BlockNotAvailable(block_number)) => {
-                                        error!("New block {block_number} not yet available, trying again soon");
-                                    }
-                                    Err(e) => {
-                                        // TODO: Determine if task should end on some type of error
-                                        error!("Failed to fetch the new finalized block: {e}");
-                                        break None;
-                                    }
-                                }
-                            },
-                            shutdown = block_task_shutdown.recv() => {
-                                break shutdown;
-                            }
+                        ) => {
+                            break Some(client);
                         }
-                    };
-
-                    if let Some(sender) = shutdowned {
-                        info!("Shutting down subnet runtime block processing task");
-                        _ = sender.send(());
-                    } else {
-                        warn!("Shutting down subnet runtime block processing task due to error");
+                        _ = block_task_shutdown.recv() => {
+                            break None;
+                        }
                     }
-                }
-            })
-        };
+                };
 
-        // Runtime command task
-        tokio::spawn(async move {
-            loop {
-                // Create subnet client
-                let mut subnet_client =
-                    match topos_sequencer_subnet_client::connect_to_subnet_with_retry(
-                        http_runtime_endpoint.as_ref(),
-                        Some(signing_key.clone()),
-                        subnet_contract_address.as_str(),
-                    )
-                    .await
-                    {
-                        Ok(subnet_client) => {
-                            info!("Connected to subnet node {}", &http_runtime_endpoint);
-                            subnet_client
-                        }
-                        Err(e) => {
-                            error!("Unable to connect to the subnet node: {e}");
-                            continue;
-                        }
-                    };
+                let mut interval = time::interval(SUBNET_BLOCK_TIME);
 
                 let shutdowned: Option<oneshot::Sender<()>> = loop {
                     tokio::select! {
-                        // Poll runtime proxy commands channel
-                        cmd = command_rcv.recv() => {
-                            Self::on_command(&config, &mut subnet_client, cmd).await;
+                        _ = interval.tick() => {
+
+                            match subnet_listener.take().unwrap()
+                                .get_next_finalized_block()
+                                .await
+                            {
+                                Ok(block_info) => {
+                                    let block_number = block_info.number;
+                                    info!("Successfully fetched the finalized block {block_number} from the subnet runtime");
+
+                                    let mut certification = certification.lock().await;
+
+                                    // Update certificate block history
+                                    certification.append_blocks(vec![block_info]);
+
+                                    let new_certificates = match certification.generate_certificates().await {
+                                        Ok(certificates) => certificates,
+                                        Err(e) => {
+                                            error!("Unable to generate certificates: {e}");
+                                            break None;
+                                        }
+                                    };
+
+                                    debug!("Generated new certificates {new_certificates:?}");
+
+                                    for cert in new_certificates {
+                                        Self::send_new_certificate(runtime_proxy.clone(), cert).await
+                                    }
+                                }
+                                Err(topos_sequencer_subnet_client::Error::BlockNotAvailable(block_number)) => {
+                                    error!("New block {block_number} not yet available, trying again soon");
+                                }
+                                Err(e) => {
+                                    // TODO: Determine if task should end on some type of error
+                                    error!("Failed to fetch the new finalized block: {e}");
+                                    break None;
+                                }
+                            }
                         },
-                        shutdown = command_task_shutdown.recv() => {
+                        shutdown = block_task_shutdown.recv() => {
                             break shutdown;
                         }
                     }
                 };
 
                 if let Some(sender) = shutdowned {
-                    info!("Shutting down subnet runtime command processing task");
+                    info!("Shutting down subnet runtime block processing task");
                     _ = sender.send(());
                 } else {
-                    warn!("Shutting down subnet runtime command processing task due to error");
+                    warn!("Shutting down subnet runtime block processing task due to error");
                 }
+            })
+        };
+
+        // Runtime command task
+        tokio::spawn(async move {
+            // Establish the connection with the Subnet
+            let mut subnet_client: Option<SubnetClient> = loop {
+                tokio::select! {
+                    // Create subnet client
+                    Ok(client) = topos_sequencer_subnet_client::connect_to_subnet_with_retry(
+                        http_runtime_endpoint.as_ref(),
+                        Some(signing_key.clone()),
+                        subnet_contract_address.as_str(),
+                    ) => {
+                        info!("Connected to subnet node {}", &http_runtime_endpoint);
+                        break Some(client);
+                    }
+                    _ = command_task_shutdown.recv() => {
+                        break None;
+                    }
+                }
+            };
+
+            let shutdowned: Option<oneshot::Sender<()>> = loop {
+                tokio::select! {
+                    // Poll runtime proxy commands channel
+                    cmd = command_rcv.recv() => {
+                        Self::on_command(&config, &mut subnet_client.take().unwrap(), cmd).await;
+                    },
+                    shutdown = command_task_shutdown.recv() => {
+                        break shutdown;
+                    }
+                }
+            };
+
+            if let Some(sender) = shutdowned {
+                info!("Shutting down subnet runtime command processing task");
+                _ = sender.send(());
+            } else {
+                warn!("Shutting down subnet runtime command processing task due to error");
             }
         });
 

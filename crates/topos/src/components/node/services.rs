@@ -1,24 +1,42 @@
 use crate::config::node::NodeConfig;
 use crate::edge::{CommandConfig, BINARY_NAME};
 use opentelemetry::global;
+use std::error::Error;
 use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::process::ExitStatus;
 use std::str::FromStr;
 use std::time::Duration;
+use thiserror::Error;
 use tokio::process::Command;
 use tokio::{
     signal, spawn,
     sync::{mpsc, oneshot},
+    task::JoinHandle,
 };
+use tokio_util::sync::CancellationToken;
 use topos_p2p::config::NetworkConfig;
 use topos_sequencer::SequencerConfiguration;
 use topos_tce::config::{AuthKey, StorageConfiguration, TceConfiguration};
 use topos_tce_transport::ReliableBroadcastParams;
 use topos_wallet::SecretManager;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
-pub(crate) fn spawn_sequencer_process(config: NodeConfig, keys: &SecretManager) {
+#[derive(Error, Debug)]
+pub enum Errors {
+    #[error("Failure on the TCE")]
+    TceFailure,
+    #[error("Failure on the Sequencer")]
+    SequencerFailure,
+    #[error("Failure on the Edge")]
+    EdgeTerminated(#[from] std::io::Error),
+}
+
+pub(crate) fn spawn_sequencer_process(
+    config: SequencerConfig,
+    keys: &SecretManager,
+    shutdown: (CancellationToken, mpsc::Sender<()>),
+) -> JoinHandle<Result<(), Errors>> {
     let config = SequencerConfiguration {
         subnet_id: None,
         public_key: keys.validator_pubkey(),
@@ -38,7 +56,11 @@ pub(crate) fn spawn_sequencer_process(config: NodeConfig, keys: &SecretManager) 
     })
 }
 
-pub(crate) fn spawn_tce_process(config: NodeConfig, keys: SecretManager) {
+pub(crate) fn spawn_tce_process(
+    config: TceConfig,
+    keys: SecretManager,
+    shutdown: (CancellationToken, mpsc::Sender<()>),
+) -> JoinHandle<Result<(), Errors>> {
     let tce_config = TceConfiguration {
         boot_peers: config.parse_boot_peers(),
         auth_key: keys.network.map(AuthKey::PrivateKey),
@@ -61,13 +83,12 @@ pub(crate) fn spawn_tce_process(config: NodeConfig, keys: SecretManager) {
         version: env!("TOPOS_VERSION"),
     };
 
-    let (_shutdown_sender, shutdown_receiver) = mpsc::channel::<oneshot::Sender<()>>(1);
-
     spawn(async move {
-        if let Err(e) = topos_tce::run(&tce_config, shutdown_receiver).await {
-            panic!("ok {e}");
-        }
-    });
+        topos_tce::run(&tce_config, shutdown).await.map_err(|e| {
+            error!("TCE process terminated: {e:?}");
+            Errors::TceFailure
+        })
+    })
 }
 
 pub fn spawn_edge_process(

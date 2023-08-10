@@ -3,6 +3,8 @@
 //!
 use crate::SequencerConfiguration;
 use opentelemetry::trace::FutureExt;
+use tokio::sync::mpsc;
+use tokio_util::sync::CancellationToken;
 use topos_sequencer_subnet_runtime::proxy::{SubnetRuntimeProxyCommand, SubnetRuntimeProxyEvent};
 use topos_sequencer_subnet_runtime::SubnetRuntimeProxyWorker;
 use topos_tce_proxy::{worker::TceProxyWorker, TceProxyCommand, TceProxyEvent};
@@ -38,7 +40,7 @@ impl AppContext {
     }
 
     /// Main processing loop
-    pub(crate) async fn run(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    pub(crate) async fn run(&mut self, shutdown: (CancellationToken, mpsc::Sender<()>)) {
         loop {
             tokio::select! {
 
@@ -54,6 +56,17 @@ impl AppContext {
                     debug!("tce_proxy_worker.next_event(): {:?}", &tce_evt);
                     self.on_tce_proxy_event(tce_evt).await;
                 },
+
+                // Shutdown signal
+                _ = shutdown.0.cancelled() => {
+                    info!("Shutting down Sequencer app context...");
+                    if let Err(e) = self.shutdown().await {
+                        error!("Error shutting down Sequencer app context: {e}");
+                    }
+                    // Drop the sender to notify the Sequencer termination
+                    drop(shutdown.1);
+                    break;
+                }
             }
         }
     }

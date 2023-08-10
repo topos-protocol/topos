@@ -1,6 +1,7 @@
 use clap::{CommandFactory, Parser};
 use figment::error::Kind;
 use futures::stream::FuturesUnordered;
+use futures::StreamExt;
 use opentelemetry::global;
 use std::fs;
 use std::future::Future;
@@ -13,13 +14,14 @@ use std::{
     io::Write,
     str::FromStr,
 };
+use tokio::sync::broadcast;
 use tokio::{
     signal, spawn,
     sync::{mpsc, oneshot},
 };
+use tokio_util::sync::CancellationToken;
 use topos_p2p::config::NetworkConfig;
 use topos_tce_transport::ReliableBroadcastParams;
-
 use tracing::{error, info};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
@@ -164,7 +166,11 @@ pub(crate) async fn handle_command(
                 config.base.name, config.base.subnet_id, config.base.role
             );
 
-            //let (shutdown_sender, shutdown_receiver) = mpsc::channel::<oneshot::Sender<()>>(1);
+            let shutdown_token = CancellationToken::new();
+            let shutdown_trigger = shutdown_token.clone();
+            let (shutdown_sender, shutdown_receiver) = mpsc::channel(1);
+
+            let mut processes = FuturesUnordered::new();
 
             // Edge
             processes.push(services::spawn_edge_process(
@@ -183,17 +189,41 @@ pub(crate) async fn handle_command(
             }
 
             // TCE
-            if config.base.subnet == "topos" {
-                services::spawn_tce_process(config, keys);
+            if config.base.subnet_id == "topos" {
+                processes.push(services::spawn_tce_process(
+                    config.tce.clone().unwrap(),
+                    keys,
+                    (shutdown_token.clone(), shutdown_sender.clone()),
+                ));
             }
 
-            // Termination
-            signal::ctrl_c()
-                .await
-                .expect("failed to listen for signals");
+            drop(shutdown_sender);
+
+            tokio::select! {
+                _ = signal::ctrl_c() => {
+                    info!("Received ctrl_c, shutting down application...");
+                    shutdown(shutdown_trigger, shutdown_receiver).await;
+                }
+                Some(result) = processes.next() => {
+                    info!("Terminate: {result:?}");
+                    if let Err(e) = result {
+                        error!("Termination: {e}");
+                    }
+                    shutdown(shutdown_trigger, shutdown_receiver).await;
+                    processes.clear();
+                }
+            };
 
             Ok(())
         }
         None => Ok(()),
     }
+}
+
+pub async fn shutdown(trigger: CancellationToken, mut termination: mpsc::Receiver<()>) {
+    trigger.cancel();
+    // Wait that all sender get dropped
+    info!("Waiting that all components dropped");
+    let _ = termination.recv().await;
+    info!("Shutdown procedure finished, exiting...");
 }

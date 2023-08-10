@@ -8,6 +8,7 @@ edition = "2021"
 hex.workspace = true
 serde = { workspace = true, features = ["derive"] }
 tokio = { workspace = true, features = ["full"] }
+tokio-util.workspace = true
 tracing-subscriber = {workspace = true, features = ["fmt", "std", "env-filter",]}
 tracing.workspace = true
 tracing-opentelemetry.workspace = true
