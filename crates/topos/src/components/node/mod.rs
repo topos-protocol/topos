@@ -3,8 +3,10 @@ use figment::error::Kind;
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use opentelemetry::global;
+use serde_json::{json, Value};
 use std::fs;
 use std::future::Future;
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::process::{ExitStatus, Stdio};
@@ -26,6 +28,7 @@ use tracing::{error, info};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 use self::commands::{NodeCommand, NodeCommands};
+use crate::components::subnet::genesis::Genesis;
 use crate::config::edge::EdgeConfig;
 use crate::config::sequencer::SequencerConfig;
 use crate::config::tce::TceConfig;
@@ -131,10 +134,12 @@ pub(crate) async fn handle_command(
                 config.base.name
             );
 
-            let genesis_path = home
-                .join("subnet")
-                .join(config.base.subnet_id.clone())
-                .join("genesis.json");
+            // Load genesis pointed by the local config
+            let genesis = Genesis::new(
+                home.join("subnet")
+                    .join(config.base.subnet_id.clone())
+                    .join("genesis.json"),
+            );
 
             // Get secrets
             let keys = match &config.base.secrets_config {
@@ -159,7 +164,7 @@ pub(crate) async fn handle_command(
             processes.push(services::spawn_edge_process(
                 edge_path.join(BINARY_NAME),
                 data_dir,
-                genesis_path,
+                genesis.path.clone(),
             ));
 
             // Sequencer
@@ -176,6 +181,7 @@ pub(crate) async fn handle_command(
                 processes.push(services::spawn_tce_process(
                     config.tce.clone().unwrap(),
                     keys,
+                    genesis,
                     (shutdown_token.clone(), shutdown_sender.clone()),
                 ));
             }

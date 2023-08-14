@@ -36,6 +36,7 @@ pub async fn run(
     let peer_id = key.public().to_peer_id();
 
     warn!("I am {}", peer_id);
+
     tracing::Span::current().record("peer_id", &peer_id.to_string());
 
     let external_addr: Multiaddr =

@@ -8,6 +8,7 @@ use tracing::{error, info};
 use crate::tracing::setup_tracing;
 
 pub(crate) mod commands;
+pub mod genesis;
 
 pub(crate) async fn handle_command(
     SubnetCommand {

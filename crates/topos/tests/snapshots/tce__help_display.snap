@@ -1,6 +1,6 @@
 ---
 source: crates/topos/tests/tce.rs
-expression: result
+expression: "utils::sanitize_config_folder_path(result)"
 ---
 Run a full TCE instance
 
@@ -23,8 +23,6 @@ Options:
           WebAPI port [env: TCE_WEB_API_PORT=] [default: 8080]
       --local-key-seed <LOCAL_KEY_SEED>
           Local peer secret key seed (optional, used for testing) [env: TCE_LOCAL_KS=]
-      --local-key-pair <LOCAL_KEY_PAIR>
-          Local peer key-pair (in base64 format) [env: TCE_LOCAL_KEYPAIR=]
       --db-path <DB_PATH>
           Storage database path, if not set RAM storage is used [env: TCE_DB_PATH=] [default: ./default_db/]
       --api-addr <API_ADDR>
