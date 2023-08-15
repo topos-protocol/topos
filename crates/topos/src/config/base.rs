@@ -41,6 +41,20 @@ fn default_secrets_config() -> Option<String> {
     None
 }
 
+impl BaseConfig {
+    pub fn need_tce(&self) -> bool {
+        self.subnet_id == "topos"
+    }
+
+    pub fn need_sequencer(&self) -> bool {
+        matches!(self.role, NodeRole::Sequencer)
+    }
+
+    pub fn need_edge(&self) -> bool {
+        true
+    }
+}
+
 impl Config for BaseConfig {
     type Command = Init;
 

@@ -30,7 +30,6 @@ fn test_handle_command_init() -> Result<(), Box<dyn std::error::Error>> {
     assert!(config_contents.contains("[base]"));
     assert!(config_contents.contains("name = \"default\""));
     assert!(config_contents.contains("[tce]"));
-    assert!(config_contents.contains("[sequencer]"));
 
     std::fs::remove_dir_all(temporary_test_folder)?;
     Ok(())
@@ -65,7 +64,6 @@ fn test_handle_command_init_with_custom_name() -> Result<(), Box<dyn std::error:
     assert!(config_contents.contains("[base]"));
     assert!(config_contents.contains(node_name));
     assert!(config_contents.contains("[tce]"));
-    assert!(config_contents.contains("[sequencer]"));
 
     std::fs::remove_dir_all(temporary_test_folder)?;
     Ok(())

@@ -16,7 +16,7 @@ use topos_core::api::grpc::tce::v1::{
     api_service_client::ApiServiceClient, console_service_client::ConsoleServiceClient,
 };
 use topos_p2p::config::NetworkConfig;
-use topos_tce::config::{StorageConfiguration, TceConfiguration};
+use topos_tce::config::{AuthKey, StorageConfiguration, TceConfiguration};
 use tower::Service;
 use tracing::{debug, error, info, warn};
 

@@ -82,8 +82,10 @@ pub(crate) fn load_config<T: Config>(node_path: &Path, command: Option<T::Comman
 }
 
 pub(crate) fn insert_into_toml<T: Config>(config_toml: &mut toml::Table, config: T) {
-    config_toml.insert(
-        config.profile(),
-        toml::Value::Table(config.to_toml().expect("failed to convert config to toml")),
-    );
+    let full = config.to_toml().expect("failed to convert config to toml");
+
+    // Flatten the top level
+    for (profile, content) in full {
+        config_toml.insert(profile, content);
+    }
 }

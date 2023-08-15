@@ -93,16 +93,10 @@ pub(crate) async fn handle_command(
             // Generate the Edge configuration
             let handle = spawn(generate_edge_config(edge_path, node_path.clone()));
 
-            let base_config = load_config::<BaseConfig>(&node_path, Some(cmd));
-            let tce_config = load_config::<TceConfig>(&node_path, None);
-            let sequencer_config = load_config::<SequencerConfig>(&node_path, None);
-            let edge_config = load_config::<EdgeConfig>(&node_path, None);
+            let node_config = NodeConfig::new(&node_path, Some(cmd));
 
             // Creating the TOML output
-            insert_into_toml(&mut config_toml, base_config);
-            insert_into_toml(&mut config_toml, tce_config);
-            insert_into_toml(&mut config_toml, sequencer_config);
-            insert_into_toml(&mut config_toml, edge_config);
+            insert_into_toml(&mut config_toml, node_config);
 
             let config_path = node_path.join("config.toml");
             let mut node_config_file = OpenOptions::new()
@@ -140,7 +134,8 @@ pub(crate) async fn handle_command(
                 std::process::exit(1);
             }
 
-            let config = load_config::<NodeConfig>(&node_path, Some(*cmd));
+            // FIXME: Handle properly the `cmd`
+            let config = NodeConfig::new(&node_path, None);
 
             info!(
                 "⚙️ Reading the configuration from {}/{}/config.toml",
@@ -159,7 +154,7 @@ pub(crate) async fn handle_command(
                 None => SecretManager::from_fs(node_path.clone()),
             };
 
-            let data_dir = node_path.join(config.edge.subnet_data_dir.clone());
+            let data_dir = node_path.join(config.edge.clone().unwrap().subnet_data_dir.clone());
 
             info!(
                 "🧢 New joiner: {} for the \"{}\" subnet as {:?}",
@@ -182,7 +177,7 @@ pub(crate) async fn handle_command(
             // Sequencer
             if matches!(config.base.role, NodeRole::Sequencer) {
                 processes.push(services::spawn_sequencer_process(
-                    config.clone(),
+                    config.sequencer.clone().unwrap(),
                     &keys,
                     (shutdown_token.clone(), shutdown_sender.clone()),
                 ));

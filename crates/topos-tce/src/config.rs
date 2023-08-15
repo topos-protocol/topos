@@ -8,6 +8,12 @@ use topos_p2p::{Multiaddr, PeerId};
 pub use crate::AppContext;
 
 #[derive(Debug)]
+pub enum AuthKey {
+    Seed(Vec<u8>),
+    PrivateKey(Vec<u8>),
+}
+
+#[derive(Debug)]
 pub struct TceConfiguration {
     pub auth_key: Option<AuthKey>,
     pub tce_params: ReliableBroadcastParams,

@@ -1,4 +1,6 @@
 use crate::config::node::NodeConfig;
+use crate::config::sequencer::SequencerConfig;
+use crate::config::tce::TceConfig;
 use crate::edge::{CommandConfig, BINARY_NAME};
 use opentelemetry::global;
 use std::error::Error;
@@ -40,12 +42,12 @@ pub(crate) fn spawn_sequencer_process(
     let config = SequencerConfiguration {
         subnet_id: None,
         public_key: keys.validator_pubkey(),
-        subnet_jsonrpc_endpoint: config.sequencer.subnet_jsonrpc_endpoint,
-        subnet_contract_address: config.sequencer.subnet_contract_address,
+        subnet_jsonrpc_endpoint: config.subnet_jsonrpc_endpoint,
+        subnet_contract_address: config.subnet_contract_address,
         // TODO: Merge with or default to config.tce.tce_local_port?
-        base_tce_api_url: config.sequencer.base_tce_api_url,
+        base_tce_api_url: config.base_tce_api_url,
         signing_key: keys.validator.clone().unwrap(),
-        verifier: config.sequencer.verifier,
+        verifier: config.verifier,
     };
 
     spawn(async move {
@@ -71,13 +73,12 @@ pub(crate) fn spawn_tce_process(
             ready_threshold: config.ready_threshold,
             delivery_threshold: config.delivery_threshold,
         },
-        api_addr: config.tce.api_addr,
-        graphql_api_addr: config.tce.graphql_api_addr,
-        metrics_api_addr: config.tce.metrics_api_addr,
-        storage: StorageConfiguration::RocksDB(PathBuf::from_str(&config.tce.db_path).ok()),
+        api_addr: config.api_addr,
+        graphql_api_addr: config.graphql_api_addr,
+        metrics_api_addr: config.metrics_api_addr,
+        storage: StorageConfiguration::RocksDB(PathBuf::from_str(&config.db_path).ok()),
         network_bootstrap_timeout: Duration::from_secs(10),
         minimum_cluster_size: config
-            .tce
             .minimum_tce_cluster_size
             .unwrap_or(NetworkConfig::MINIMUM_CLUSTER_SIZE),
         version: env!("TOPOS_VERSION"),

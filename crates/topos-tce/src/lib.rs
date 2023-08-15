@@ -19,7 +19,7 @@ pub mod messages;
 
 pub use app_context::AppContext;
 
-use crate::config::StorageConfiguration;
+use crate::config::{AuthKey, StorageConfiguration};
 
 pub async fn run(
     config: &TceConfiguration,

@@ -2,7 +2,8 @@ use self::commands::{SequencerCommand, SequencerCommands};
 use tokio::{signal, spawn, sync::mpsc};
 use tokio_util::sync::CancellationToken;
 use topos_sequencer::{self, SequencerConfiguration};
-use tracing::{error, info};
+use topos_wallet::SecretManager;
+use tracing::{error, info, warn};
 
 use crate::tracing::setup_tracing;
 
@@ -16,6 +17,7 @@ pub(crate) async fn handle_command(
 ) -> Result<(), Box<dyn std::error::Error>> {
     match subcommands {
         Some(SequencerCommands::Run(cmd)) => {
+            let keys = SecretManager::from_fs(cmd.subnet_data_dir);
             let config = SequencerConfiguration {
                 subnet_id: cmd.subnet_id,
                 public_key: None,
