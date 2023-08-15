@@ -1,0 +1,51 @@
+{
+    "name": "polygon-edge",
+    "genesis": {
+        "nonce": "0x0000000000000000",
+        "timestamp": "0x0",
+        "extraData": "0x0000000000000000000000000000000000000000000000000000000000000000f90129f90120f84694100d617e4392c02b31bdce650b26b6c0c3e04f95b0ae7711044926a23c1462754cbb0d1b43fb91fc8fd18bf5c81edb4de15124203157657bf7a8e86d9a3be5f32de725f3c4f8469492183cff18a1328e7d791d607589a15d9eee4bc4b0b45118f9e430d94f424019bb8702e004db5dad5725ab1a5346b0aaad556935189c47df5e401988527ce880bb1e2492cef84694b4973cdb10894d1d1547673bd758589034c2bba5b0b9833912ee2eab270a1204f3f9e58c5f2be603cc2ce32f5467e2a8246bb6b25a7908b39a8a0ed629a689da376b5cdd2df84694c16d83893cb61872206d4e271b813015d3242d94b0a468068169523df684362de6a5b729c8db400958bfd4f6d4e3646cc640f3d241253a21b00f05ff97545f535b36b31c7b80c28080c080",
+        "gasLimit": "0x500000",
+        "difficulty": "0x1",
+        "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "coinbase": "0x0000000000000000000000000000000000000000",
+        "alloc": {
+            "0x100D617E4392C02B31bdCe650b26b6c0c3E04F95": {
+                "balance": "0x3b9aca00"
+            },
+            "0x92183Cff18A1328E7d791D607589A15d9EeE4bC4": {
+                "balance": "0x3b9aca00"
+            },
+            "0xB4973Cdb10894D1D1547673bD758589034C2BBa5": {
+                "balance": "0x3b9aca00"
+            },
+            "0xC16d83893cB61872206D4e271B813015D3242d94": {
+                "balance": "0x3b9aca00"
+            }
+        },
+        "number": "0x0",
+        "gasUsed": "0x70000",
+        "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "baseFee": "0x0",
+        "baseFeeEM": "0x0"
+    },
+    "params": {
+        "chainID": 100,
+        "engine": {
+            "ibft": {
+                "blockTime": 6000000000,
+                "epochSize": 30000,
+                "type": "PoA",
+                "validator_type": "bls"
+            }
+        },
+        "blockGasTarget": 0,
+        "burnContract": null,
+        "burnContractDestinationAddress": "0x0000000000000000000000000000000000000000"
+    },
+    "bootnodes": [
+        "/ip4/10.101.192.110/tcp/10001/p2p/16Uiu2HAkxKTnwPL3eZmFkiKYJiG3um9uraPh21XhsJEPNm8juhy3",
+        "/ip4/10.101.232.59/tcp/10001/p2p/16Uiu2HAmQfaE4bjJMVCwzigAUgp9eLcGQz8HZpURqEPNjtfDwge8",
+        "/ip4/10.101.208.7/tcp/10001/p2p/16Uiu2HAm5tS7AdBhhtQ2JuTtyy2U4uFqsiW57vof5fiyHPRpwboD",
+        "/ip4/10.101.210.76/tcp/10001/p2p/16Uiu2HAmFjGqEUYSnKkoqURRu8bZaWpuGdxBBqW15KFs4BsxFxdp"
+    ]
+}
