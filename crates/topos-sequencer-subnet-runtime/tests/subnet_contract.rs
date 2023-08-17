@@ -244,25 +244,37 @@ async fn deploy_contracts(
     );
 
     let topos_core_contact_address: Token = Token::Address(topos_core_contract.address());
-    let admin_account: Token = Token::Array(vec![Token::Address(wallet.address())]);
-    let new_admin_threshold: Token = Token::Uint(U256::from(1));
-    let topos_core_proxy_encoded_params: ethers::types::Bytes =
-        ethers::abi::encode(&[admin_account, new_admin_threshold]).into();
+    let admin_account = vec![wallet.address()];
+    let new_admin_threshold = U256::from(1);
 
     info!("Deploying ToposCoreProxy contract...");
-    let topos_core_proxy_contract = ToposCoreProxyContract::deploy(
-        client.clone(),
-        (topos_core_contact_address, topos_core_proxy_encoded_params),
-    )?
-    .gas(DEFAULT_GAS)
-    .chain_id(chain_id.as_u64())
-    .legacy()
-    .send()
-    .await?;
+    let topos_core_proxy_contract =
+        ToposCoreProxyContract::deploy(client.clone(), topos_core_contact_address)?
+            .gas(DEFAULT_GAS)
+            .chain_id(chain_id.as_u64())
+            .legacy()
+            .send()
+            .await?;
     info!(
         "ToposCoreProxy contract deployed to 0x{:x}",
         topos_core_proxy_contract.address()
     );
+    let i_topos_core = IToposCore::new(topos_core_proxy_contract.address(), client.clone());
+
+    if let Err(e) = i_topos_core
+        .initialize(admin_account, new_admin_threshold)
+        .legacy()
+        .gas(DEFAULT_GAS)
+        .send()
+        .await
+        .map_err(|e| {
+            error!("Unable to initalize topos core contract: {e}");
+            e
+        })?
+        .await
+    {
+        panic!("Error setting network subnet id: {e}");
+    }
 
     info!("Deploying ERC20Messaging contract...");
     let erc20_messaging_contract = ERC20MessagingContract::deploy(
@@ -284,9 +296,7 @@ async fn deploy_contracts(
 
     let i_topos_messaging =
         IToposMessaging::new(erc20_messaging_contract.address(), client.clone());
-    let i_erc20_messaging =
-        IERC20Messaging::new(erc20_messaging_contract.address(), client.clone());
-    let i_topos_core = IToposCore::new(topos_core_proxy_contract.address(), client);
+    let i_erc20_messaging = IERC20Messaging::new(erc20_messaging_contract.address(), client);
 
     // Set network subnet id
     info!(
