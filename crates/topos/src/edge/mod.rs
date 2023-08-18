@@ -10,7 +10,7 @@ use tokio::{
     process::{Child, Command},
 };
 use tracing::debug;
-use tracing::{error, event, info, log::warn, Level};
+use tracing::{error, event, info, warn, Level};
 
 pub const BINARY_NAME: &str = "polygon-edge";
 
