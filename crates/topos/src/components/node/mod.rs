@@ -82,7 +82,8 @@ pub(crate) async fn handle_command(
             let mut config_toml = toml::Table::new();
 
             // Generate the Edge configuration
-            let handle = services::generate_edge_config(edge_path, node_path.clone());
+            let handle =
+                services::generate_edge_config(edge_path.join(BINARY_NAME), node_path.clone());
 
             let node_config = NodeConfig::new(&node_path, Some(cmd));
 

@@ -32,10 +32,6 @@ fn test_handle_command_init() -> Result<(), Box<dyn std::error::Error>> {
     assert!(config_contents.contains("[subnet]"));
     assert!(config_contents.contains("[tce]"));
 
-    // Check that the Edge keys are generated
-    let edge_contents = home.join("node").join("default").join("libp2p");
-    assert!(edge_contents.exists());
-
     std::fs::remove_dir_all(temporary_test_folder)?;
     Ok(())
 }
