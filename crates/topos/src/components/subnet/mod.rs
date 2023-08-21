@@ -19,8 +19,7 @@ pub(crate) async fn handle_command(
         Some(SubnetCommands::Run(cmd)) => {
             setup_tracing(verbose, None, None)?;
 
-            let binary_name =
-                "polygon-edge-".to_string() + std::env::consts::ARCH + "-" + std::env::consts::OS;
+            let binary_name = "polygon-edge".to_string();
             let polygon_edge_path = cmd.path.join(&binary_name);
 
             info!(

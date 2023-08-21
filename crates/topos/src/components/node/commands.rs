@@ -17,6 +17,10 @@ pub(crate) struct NodeCommand {
     #[clap(from_global)]
     pub(crate) home: PathBuf,
 
+    /// Installation directory path for Polygon Edge binary
+    #[arg(long, env = "TOPOS_POLYGON_EDGE_BIN_PATH", default_value = ".")]
+    pub(crate) edge_path: PathBuf,
+
     #[clap(subcommand)]
     pub(crate) subcommands: Option<NodeCommands>,
 }

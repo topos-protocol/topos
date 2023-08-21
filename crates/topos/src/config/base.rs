@@ -7,30 +7,52 @@ use figment::{
 use serde::{Deserialize, Serialize};
 
 use crate::components::node::commands::Init;
+use crate::config::node::NodeRole;
 use crate::config::Config;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct BaseConfig {
     #[serde(default = "default_name")]
     pub name: String,
 
     #[serde(default = "default_role")]
-    pub role: String,
+    pub role: NodeRole,
 
     #[serde(default = "default_subnet")]
-    pub subnet: String,
+    pub subnet_id: String,
+
+    #[serde(default = "default_secrets_config")]
+    pub secrets_config: Option<String>,
 }
 
 fn default_name() -> String {
     "default".to_string()
 }
 
-fn default_role() -> String {
-    "validator".to_string()
+fn default_role() -> NodeRole {
+    NodeRole::Validator
 }
 
 fn default_subnet() -> String {
     "topos".to_string()
+}
+
+fn default_secrets_config() -> Option<String> {
+    None
+}
+
+impl BaseConfig {
+    pub fn need_tce(&self) -> bool {
+        self.subnet_id == "topos"
+    }
+
+    pub fn need_sequencer(&self) -> bool {
+        matches!(self.role, NodeRole::Sequencer)
+    }
+
+    pub fn need_edge(&self) -> bool {
+        true
+    }
 }
 
 impl Config for BaseConfig {

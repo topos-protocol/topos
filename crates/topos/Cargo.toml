@@ -11,6 +11,7 @@ topos-sequencer = { path = "../topos-sequencer", optional = true }
 topos-core = { workspace = true, features = ["api"] }
 topos-certificate-spammer = { path = "../topos-certificate-spammer", optional = true }
 topos-tce-broadcast = { path = "../topos-tce-broadcast", optional = true }
+topos-wallet = { path = "../topos-wallet" }
 
 async-stream.workspace = true
 async-trait.workspace = true
@@ -20,6 +21,7 @@ opentelemetry.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tokio = { workspace = true, features = ["full"] }
+tokio-util.workspace = true
 tonic.workspace = true
 tower.workspace = true
 tracing = { workspace = true, features = ["log"] }
@@ -44,7 +46,7 @@ topos-tce-broadcast = { path = "../topos-tce-broadcast" }
 topos-tce-transport = { path = "../topos-tce-transport" }
 topos-tce-synchronizer = { path = "../topos-tce-synchronizer" }
 topos-tce-gatekeeper = { path = "../topos-tce-gatekeeper" }
-topos-tce-api = {path = "../topos-tce-api"}
+topos-tce-api = { path = "../topos-tce-api" }
 topos-tce-storage = { path = "../topos-tce-storage" }
 topos-test-sdk = { path = "../topos-test-sdk", features = ["tce"] }
 serde.workspace = true

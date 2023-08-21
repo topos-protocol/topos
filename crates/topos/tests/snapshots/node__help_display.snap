@@ -1,6 +1,6 @@
 ---
 source: crates/topos/tests/node.rs
-expression: sanitized_result
+expression: "utils::sanitize_config_folder_path(result)"
 ---
 Utility to manage your nodes in the Topos network
 
@@ -12,7 +12,8 @@ Commands:
   help  Print this message or the help of the given subcommand(s)
 
 Options:
-  -v, --verbose...   Defines the verbosity level
-      --home <HOME>  Home directory for the configuration [env: TOPOS_HOME=] [default: /home/runner/.config/topos]
-  -h, --help         Print help
+      --edge-path <EDGE_PATH>  Installation directory path for Polygon Edge binary [env: TOPOS_POLYGON_EDGE_BIN_PATH=] [default: .]
+  -v, --verbose...             Defines the verbosity level
+      --home <HOME>            Home directory for the configuration [env: TOPOS_HOME=] [default: /home/runner/.config/topos]
+  -h, --help                   Print help
 

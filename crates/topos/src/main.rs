@@ -5,12 +5,17 @@ use clap::CommandFactory;
 use clap::{Args, Parser, Subcommand};
 
 pub(crate) mod components;
-mod config;
 pub(crate) mod options;
 mod tracing;
 
 #[cfg(feature = "tce")]
 use components::tce::commands::{TceCommand, TceCommands};
+
+#[cfg(feature = "node")]
+mod config;
+
+#[cfg(feature = "node")]
+mod edge;
 
 use crate::options::ToposCommand;
 use tracing_log::LogTracer;

@@ -1,7 +1,9 @@
 use self::commands::{SequencerCommand, SequencerCommands};
-use tokio::{signal, spawn};
+use tokio::{signal, spawn, sync::mpsc};
+use tokio_util::sync::CancellationToken;
 use topos_sequencer::{self, SequencerConfiguration};
-use tracing::{error, info};
+use topos_wallet::SecretManager;
+use tracing::{error, info, warn};
 
 use crate::tracing::setup_tracing;
 
@@ -15,30 +17,45 @@ pub(crate) async fn handle_command(
 ) -> Result<(), Box<dyn std::error::Error>> {
     match subcommands {
         Some(SequencerCommands::Run(cmd)) => {
+            let keys = SecretManager::from_fs(cmd.subnet_data_dir);
             let config = SequencerConfiguration {
                 subnet_id: cmd.subnet_id,
+                public_key: None,
                 subnet_jsonrpc_endpoint: cmd.subnet_jsonrpc_endpoint,
                 subnet_contract_address: cmd.subnet_contract_address,
                 base_tce_api_url: cmd.base_tce_api_url,
-                subnet_data_dir_path: cmd.subnet_data_dir,
+                signing_key: keys.validator.clone().unwrap(),
                 verifier: cmd.verifier,
             };
 
             // Setup instrumentation if both otlp agent and otlp service name are provided as arguments
             setup_tracing(verbose, cmd.otlp_agent, cmd.otlp_service_name)?;
 
+            warn!("DEPRECATED: Please run with `topos node up`");
+
             print_sequencer_info(&config);
+            let shutdown_token = CancellationToken::new();
+            let shutdown_trigger = shutdown_token.clone();
 
-            spawn(async move {
-                if let Err(error) = topos_sequencer::run(config).await {
-                    // TODO: Find a better way
-                    panic!("Unable to start the Sequencer node 1 due to : {error:?}");
+            let (shutdown_sender, mut shutdown_receiver) = mpsc::channel(1);
+
+            tokio::select! {
+                _ = signal::ctrl_c() => {
+                    info!("Received ctrl_c, shutting down application...");
+                    shutdown_trigger.cancel();
+
+                    // Wait that all sender get dropped
+                    let _ = shutdown_receiver.recv().await;
+
+                    info!("Shutdown procedure finished, exiting...");
                 }
-            });
-
-            signal::ctrl_c()
-                .await
-                .expect("failed to listen for signals");
+                result = topos_sequencer::run(config, (shutdown_token, shutdown_sender)) => {
+                    if let Err(ref error) = result {
+                        error!("Sequencer node terminated {:?}", error);
+                        std::process::exit(1);
+                    }
+                }
+            }
 
             Ok(())
         }

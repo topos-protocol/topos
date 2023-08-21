@@ -8,12 +8,14 @@ edition = "2021"
 hex.workspace = true
 serde = { workspace = true, features = ["derive"] }
 tokio = { workspace = true, features = ["full"] }
+tokio-util.workspace = true
 tracing-subscriber = {workspace = true, features = ["fmt", "std", "env-filter",]}
 tracing.workspace = true
 tracing-opentelemetry.workspace = true
 opentelemetry.workspace = true
 
 topos-crypto.workspace = true
+topos-wallet = { path = "../topos-wallet" }
 topos-core = { workspace = true, features = ["uci"] }
 topos-sequencer-subnet-runtime = { package = "topos-sequencer-subnet-runtime", path = "../topos-sequencer-subnet-runtime" }
 topos-tce-proxy = { package = "topos-tce-proxy", path = "../topos-tce-proxy" }

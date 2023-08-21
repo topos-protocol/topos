@@ -65,3 +65,5 @@ crates/topos-sequencer-subnet-runtime/tests/temp
 **/node_modules
 
 artifacts/
+
+polygon-edge
