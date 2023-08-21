@@ -127,7 +127,7 @@ impl SubnetRuntimeProxy {
                 }
 
                 // Establish the connection with the Subnet
-                let mut subnet_listener: Option<SubnetClientListener> = loop {
+                let subnet_listener: Option<SubnetClientListener> = loop {
                     tokio::select! {
                         // Create subnet client
                         Ok(client) = topos_sequencer_subnet_client::connect_to_subnet_listener_with_retry(
@@ -144,11 +144,13 @@ impl SubnetRuntimeProxy {
 
                 let mut interval = time::interval(SUBNET_BLOCK_TIME);
 
+                let mut subnet_listener = subnet_listener.expect("subnet listener");
+
                 let shutdowned: Option<oneshot::Sender<()>> = loop {
                     tokio::select! {
                         _ = interval.tick() => {
 
-                            match subnet_listener.take().unwrap()
+                            match subnet_listener
                                 .get_next_finalized_block()
                                 .await
                             {
