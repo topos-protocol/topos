@@ -8,7 +8,6 @@ use tracing::{error, info};
 use crate::tracing::setup_tracing;
 
 pub(crate) mod commands;
-pub mod genesis;
 
 #[cfg(test)]
 pub mod tests;

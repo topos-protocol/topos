@@ -9,6 +9,8 @@ pub(crate) mod sequencer;
 #[cfg(feature = "tce")]
 pub mod tce;
 
+pub(crate) mod genesis;
+
 use std::path::Path;
 
 use figment::{
