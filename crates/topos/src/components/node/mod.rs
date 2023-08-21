@@ -106,7 +106,9 @@ pub(crate) async fn handle_command(
                 node_path.display()
             );
 
-            let _ = handle.await.unwrap();
+            if let Err(e) = handle.await.unwrap() {
+                error!("Failed to init: {e}");
+            }
 
             Ok(())
         }
