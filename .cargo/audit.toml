@@ -1,2 +1,9 @@
 [advisories]
-ignore = ["RUSTSEC-2022-0061", "RUSTSEC-2021-0139"]
+ignore = [
+    "RUSTSEC-2022-0061",
+    "RUSTSEC-2021-0139",
+
+    # Waiting for the libp2p-noise release bump to 0.43.1
+    # https://github.com/libp2p/rust-libp2p/pull/4358
+    "RUSTSEC-2022-0093"
+]
