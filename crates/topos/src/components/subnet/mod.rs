@@ -9,9 +9,6 @@ use crate::tracing::setup_tracing;
 
 pub(crate) mod commands;
 
-#[cfg(test)]
-pub mod tests;
-
 pub(crate) async fn handle_command(
     SubnetCommand {
         subcommands,

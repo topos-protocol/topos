@@ -24,7 +24,7 @@ use topos_tce_transport::ReliableBroadcastParams;
 use topos_wallet::SecretManager;
 use tracing::{error, info, warn};
 
-use super::Genesis;
+use crate::config::genesis::Genesis;
 
 #[derive(Error, Debug)]
 pub enum Errors {

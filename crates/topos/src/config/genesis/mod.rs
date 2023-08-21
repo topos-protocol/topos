@@ -3,6 +3,9 @@ use std::{fs, path::PathBuf};
 use serde_json::Value;
 use topos_p2p::{Multiaddr, PeerId};
 
+#[cfg(test)]
+pub(crate) mod tests;
+
 /// From the Edge format
 pub struct Genesis {
     pub path: PathBuf,

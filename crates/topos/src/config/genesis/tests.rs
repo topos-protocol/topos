@@ -1,9 +1,10 @@
 use std::path::PathBuf;
 
-use super::genesis::Genesis;
 use libp2p::PeerId;
 use rstest::fixture;
 use rstest::rstest;
+
+use super::Genesis;
 
 macro_rules! test_case {
     ($fname:expr) => {

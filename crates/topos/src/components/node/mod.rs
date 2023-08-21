@@ -28,8 +28,8 @@ use tracing::{error, info};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 use self::commands::{NodeCommand, NodeCommands};
-use crate::components::subnet::genesis::Genesis;
 use crate::config::edge::EdgeConfig;
+use crate::config::genesis::Genesis;
 use crate::config::sequencer::SequencerConfig;
 use crate::config::tce::TceConfig;
 use crate::edge::{CommandConfig, BINARY_NAME};
