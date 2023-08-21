@@ -44,18 +44,6 @@ use topos_wallet::SecretManager;
 pub(crate) mod commands;
 pub mod services;
 
-pub fn generate_edge_config(
-    edge_path: PathBuf,
-    config_path: PathBuf,
-) -> impl Future<Output = Result<ExitStatus, std::io::Error>> {
-    // Create the Polygon Edge config
-    let polygon_edge_path = edge_path.join(BINARY_NAME);
-
-    CommandConfig::new(polygon_edge_path)
-        .init(&config_path)
-        .spawn()
-}
-
 pub(crate) async fn handle_command(
     NodeCommand {
         subcommands,
@@ -91,7 +79,7 @@ pub(crate) async fn handle_command(
             let mut config_toml = toml::Table::new();
 
             // Generate the Edge configuration
-            let handle = spawn(generate_edge_config(edge_path, node_path.clone()));
+            let handle = services::generate_edge_config(edge_path, node_path.clone());
 
             let node_config = NodeConfig::new(&node_path, Some(cmd));
 

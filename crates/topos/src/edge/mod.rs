@@ -85,7 +85,7 @@ impl CommandConfig {
 
         let (running_out, _) = tokio::join!(running, logging);
 
-        debug!("The Edge process is terminated");
+        info!("The Edge process is terminated");
         running_out
     }
 }

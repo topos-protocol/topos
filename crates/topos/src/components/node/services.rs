@@ -34,6 +34,26 @@ pub enum Errors {
     EdgeTerminated(#[from] std::io::Error),
 }
 
+pub fn generate_edge_config(
+    edge_path: PathBuf,
+    config_path: PathBuf,
+) -> JoinHandle<Result<(), Errors>> {
+    // Create the Polygon Edge config
+    spawn(async move {
+        match CommandConfig::new(edge_path)
+            .init(&config_path)
+            .spawn()
+            .await
+        {
+            Ok(status) => {
+                info!("Edge process terminated: {status:?}");
+                Ok(())
+            }
+            Err(e) => Err(Errors::EdgeTerminated(e)),
+        }
+    })
+}
+
 pub(crate) fn spawn_sequencer_process(
     config: SequencerConfig,
     keys: &SecretManager,
