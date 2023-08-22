@@ -82,11 +82,10 @@ pub(crate) async fn handle_command(
             if let Ok(result) = generate_edge_config(edge_path, node_path.clone()).await {
                 if result.is_err() {
                     println!("Failed to generate edge config");
-                    remove_dir_all(home).expect("failed to remove config folder");
+                    remove_dir_all(node_path).expect("failed to remove config folder");
                     std::process::exit(1);
                 }
             }
-            // let handle = services::generate_edge_config(edge_path, node_path.clone());
 
             let node_config = NodeConfig::new(&node_path, Some(cmd));
 
@@ -109,8 +108,6 @@ pub(crate) async fn handle_command(
                 "Created node config file at {}/config.toml",
                 node_path.display()
             );
-
-            // let _ = handle.await.unwrap();
 
             Ok(())
         }
