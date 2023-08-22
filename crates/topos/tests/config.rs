@@ -2,13 +2,18 @@ use std::path::PathBuf;
 use std::process::Command;
 
 use assert_cmd::prelude::*;
-
 #[test]
 fn test_handle_command_init() -> Result<(), Box<dyn std::error::Error>> {
     let temporary_test_folder = "/tmp/topos/handle_command_init";
 
+    let polygon_edge_test_path = PathBuf::from(std::env::current_dir().unwrap())
+        .join("tests")
+        .join("binary");
+
     let mut cmd = Command::cargo_bin("topos")?;
     cmd.arg("node")
+        .arg("--edge-path")
+        .arg(polygon_edge_test_path.as_path())
         .arg("init")
         .arg("--home")
         .arg(temporary_test_folder);
@@ -65,8 +70,14 @@ fn test_handle_command_init_with_custom_name() -> Result<(), Box<dyn std::error:
     let temporary_test_folder = "/tmp/topos/test_handle_command_init_with_custom_name";
     let node_name = "TEST_NODE";
 
+    let polygon_edge_test_path = PathBuf::from(std::env::current_dir().unwrap())
+        .join("tests")
+        .join("binary");
+
     let mut cmd = Command::cargo_bin("topos")?;
     cmd.arg("node")
+        .arg("--edge-path")
+        .arg(polygon_edge_test_path.as_path())
         .arg("init")
         .arg("--home")
         .arg(temporary_test_folder)
