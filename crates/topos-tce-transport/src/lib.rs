@@ -19,6 +19,18 @@ pub struct ReliableBroadcastParams {
     pub delivery_threshold: usize,
 }
 
+impl ReliableBroadcastParams {
+    pub fn new(n: usize) -> Self {
+        let f: usize = n / 3;
+
+        Self {
+            echo_threshold: 1 + (n + f) / 2,
+            ready_threshold: 1 + f,
+            delivery_threshold: 2 * f + 1,
+        }
+    }
+}
+
 /// Protocol commands
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum TceCommands {

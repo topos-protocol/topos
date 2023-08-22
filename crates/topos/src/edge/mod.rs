@@ -24,9 +24,9 @@ impl CommandConfig {
         let binary_path = if binary_path == PathBuf::from(".") {
             std::env::current_dir()
                 .expect("Cannot get the current directory")
-                .join("polygon-edge")
+                .join(BINARY_NAME)
         } else {
-            binary_path.join("polygon-edge")
+            binary_path
         };
 
         CommandConfig {
