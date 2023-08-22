@@ -3,8 +3,10 @@ use figment::error::Kind;
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use opentelemetry::global;
+use serde_json::{json, Value};
 use std::fs;
 use std::future::Future;
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::process::{ExitStatus, Stdio};
@@ -27,6 +29,7 @@ use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 use self::commands::{NodeCommand, NodeCommands};
 use crate::config::edge::EdgeConfig;
+use crate::config::genesis::Genesis;
 use crate::config::sequencer::SequencerConfig;
 use crate::config::tce::TceConfig;
 use crate::edge::{CommandConfig, BINARY_NAME};
@@ -79,7 +82,8 @@ pub(crate) async fn handle_command(
             let mut config_toml = toml::Table::new();
 
             // Generate the Edge configuration
-            let handle = services::generate_edge_config(edge_path, node_path.clone());
+            let handle =
+                services::generate_edge_config(edge_path.join(BINARY_NAME), node_path.clone());
 
             let node_config = NodeConfig::new(&node_path, Some(cmd));
 
@@ -103,7 +107,9 @@ pub(crate) async fn handle_command(
                 node_path.display()
             );
 
-            let _ = handle.await.unwrap();
+            if let Err(e) = handle.await.unwrap() {
+                error!("Failed to init: {e}");
+            }
 
             Ok(())
         }
@@ -131,10 +137,12 @@ pub(crate) async fn handle_command(
                 config.base.name
             );
 
-            let genesis_path = home
-                .join("subnet")
-                .join(config.base.subnet_id.clone())
-                .join("genesis.json");
+            // Load genesis pointed by the local config
+            let genesis = Genesis::new(
+                home.join("subnet")
+                    .join(config.base.subnet_id.clone())
+                    .join("genesis.json"),
+            );
 
             // Get secrets
             let keys = match &config.base.secrets_config {
@@ -159,7 +167,7 @@ pub(crate) async fn handle_command(
             processes.push(services::spawn_edge_process(
                 edge_path.join(BINARY_NAME),
                 data_dir,
-                genesis_path,
+                genesis.path.clone(),
             ));
 
             // Sequencer
@@ -176,6 +184,7 @@ pub(crate) async fn handle_command(
                 processes.push(services::spawn_tce_process(
                     config.tce.clone().unwrap(),
                     keys,
+                    genesis,
                     (shutdown_token.clone(), shutdown_sender.clone()),
                 ));
             }

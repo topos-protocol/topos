@@ -24,6 +24,8 @@ use topos_tce_transport::ReliableBroadcastParams;
 use topos_wallet::SecretManager;
 use tracing::{error, info, warn};
 
+use crate::config::genesis::Genesis;
+
 #[derive(Error, Debug)]
 pub enum Errors {
     #[error("Failure on the TCE")]
@@ -81,19 +83,20 @@ pub(crate) fn spawn_sequencer_process(
 pub(crate) fn spawn_tce_process(
     config: TceConfig,
     keys: SecretManager,
+    genesis: Genesis,
     shutdown: (CancellationToken, mpsc::Sender<()>),
 ) -> JoinHandle<Result<(), Errors>> {
     let tce_config = TceConfiguration {
-        boot_peers: config.parse_boot_peers(),
+        boot_peers: genesis
+            .boot_peers()
+            .into_iter()
+            .chain(config.parse_boot_peers().into_iter())
+            .collect::<Vec<_>>(),
         auth_key: keys.network.map(AuthKey::PrivateKey),
-        tce_addr: config.tce_ext_host,
-        tce_local_port: config.tce_local_port,
-        tce_params: ReliableBroadcastParams {
-            echo_threshold: config.echo_threshold,
-            ready_threshold: config.ready_threshold,
-            delivery_threshold: config.delivery_threshold,
-        },
-        api_addr: config.api_addr,
+        tce_addr: "/ip4/0.0.0.0".into(), // FIXME: to remove, no need to be exposed
+        tce_local_port: 0,               // FIXME: to remove, no need to be exposed
+        tce_params: ReliableBroadcastParams::new(genesis.validator_count()),
+        api_addr: config.grpc_api_addr,
         graphql_api_addr: config.graphql_api_addr,
         metrics_api_addr: config.metrics_api_addr,
         storage: StorageConfiguration::RocksDB(PathBuf::from_str(&config.db_path).ok()),
