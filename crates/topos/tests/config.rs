@@ -6,7 +6,8 @@ use assert_cmd::prelude::*;
 fn test_handle_command_init() -> Result<(), Box<dyn std::error::Error>> {
     let temporary_test_folder = "/tmp/topos/handle_command_init";
 
-    let polygon_edge_test_path = PathBuf::from(std::env::current_dir().unwrap())
+    let polygon_edge_test_path = std::env::current_dir()
+        .unwrap()
         .join("tests")
         .join("binary");
 
@@ -70,7 +71,8 @@ fn test_handle_command_init_with_custom_name() -> Result<(), Box<dyn std::error:
     let temporary_test_folder = "/tmp/topos/test_handle_command_init_with_custom_name";
     let node_name = "TEST_NODE";
 
-    let polygon_edge_test_path = PathBuf::from(std::env::current_dir().unwrap())
+    let polygon_edge_test_path = std::env::current_dir()
+        .unwrap()
         .join("tests")
         .join("binary");
 
