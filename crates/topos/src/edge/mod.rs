@@ -66,7 +66,6 @@ impl CommandConfig {
             .stderr
             .take()
             .expect("child did not have a handle to stdout");
-
         let mut reader = BufReader::new(stdout).lines();
 
         let running = async { child.wait().await };

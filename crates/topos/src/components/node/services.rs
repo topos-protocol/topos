@@ -49,7 +49,10 @@ pub fn generate_edge_config(
                 info!("Edge process terminated: {status:?}");
                 Ok(())
             }
-            Err(e) => Err(Errors::EdgeTerminated(e)),
+            Err(e) => {
+                println!("Edge process terminated: {e:?}");
+                Err(Errors::EdgeTerminated(e))
+            }
         }
     })
 }

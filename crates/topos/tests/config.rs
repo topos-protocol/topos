@@ -37,7 +37,6 @@ fn test_handle_command_init() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-#[ignore]
 fn test_nothing_written_if_failure() -> Result<(), Box<dyn std::error::Error>> {
     let temporary_test_folder = "/tmp/topos/test_nothing_written_if_failure";
 
