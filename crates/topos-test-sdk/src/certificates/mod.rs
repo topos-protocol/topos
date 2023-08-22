@@ -19,14 +19,10 @@ pub fn create_certificate_chain(
     let mut parent = None;
 
     for _ in 0..number {
-        let cert = Certificate::new(
+        let cert = Certificate::new_with_default_fields(
             parent.take().unwrap_or(*PREV_CERTIFICATE_ID.as_array()),
             source_subnet,
-            Default::default(),
-            Default::default(),
             target_subnets,
-            0,
-            Default::default(),
         )
         .unwrap();
         parent = Some(*cert.id.as_array());

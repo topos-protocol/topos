@@ -37,9 +37,10 @@ pub(crate) async fn get_block_events(
             info!("Received CrossSubnetMessageSentFilter event: {f:?}");
             result.push(SubnetEvent::CrossSubnetMessageSent {
                 target_subnet_id: f.target_subnet_id.into(),
+                data: f.data.to_vec(),
             })
         } else {
-            // Ignored for now other events UpgradedFilter, CertStoredFilter
+            // Ignored for now other events Upgraded, CertStored
         }
     }
 

@@ -24,16 +24,8 @@ const TARGET_STORAGE_SUBNET_ID_2: SubnetId = TARGET_SUBNET_ID_2;
 #[rstest]
 #[test(tokio::test)]
 async fn can_persist_a_pending_certificate(storage: RocksDBStorage) {
-    let certificate = Certificate::new(
-        PREV_CERTIFICATE_ID,
-        SOURCE_SUBNET_ID_1,
-        Default::default(),
-        Default::default(),
-        &[],
-        0,
-        Vec::new(),
-    )
-    .unwrap();
+    let certificate =
+        Certificate::new_with_default_fields(PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID_1, &[]).unwrap();
 
     assert!(storage.add_pending_certificate(&certificate).await.is_ok());
 }
@@ -45,14 +37,10 @@ async fn can_persist_a_delivered_certificate(storage: RocksDBStorage) {
     let source_streams_column = storage.source_streams_column();
     let target_streams_column = storage.target_streams_column();
 
-    let certificate = Certificate::new(
+    let certificate = Certificate::new_with_default_fields(
         PREV_CERTIFICATE_ID,
         SOURCE_SUBNET_ID_1,
-        Default::default(),
-        Default::default(),
         &[TARGET_SUBNET_ID_1],
-        0,
-        Vec::new(),
     )
     .unwrap();
 
@@ -99,14 +87,10 @@ async fn delivered_certificate_are_added_to_target_stream(storage: RocksDBStorag
         )
         .unwrap();
 
-    let certificate = Certificate::new(
+    let certificate = Certificate::new_with_default_fields(
         PREV_CERTIFICATE_ID,
         SOURCE_SUBNET_ID_1,
-        Default::default(),
-        Default::default(),
         &[TARGET_SUBNET_ID_1, TARGET_SUBNET_ID_2],
-        0,
-        Vec::new(),
     )
     .unwrap();
 
@@ -145,14 +129,10 @@ async fn delivered_certificate_are_added_to_target_stream(storage: RocksDBStorag
 async fn pending_certificate_are_removed_during_persist_action(storage: RocksDBStorage) {
     let pending_column = storage.pending_certificates_column();
 
-    let certificate = Certificate::new(
+    let certificate = Certificate::new_with_default_fields(
         PREV_CERTIFICATE_ID,
         SOURCE_SUBNET_ID_1,
-        Default::default(),
-        Default::default(),
         &[TARGET_SUBNET_ID_1],
-        0,
-        Vec::new(),
     )
     .unwrap();
 
@@ -170,14 +150,10 @@ async fn pending_certificate_are_removed_during_persist_action(storage: RocksDBS
 #[rstest]
 #[test(tokio::test)]
 async fn fetch_certificates_for_subnets(storage: RocksDBStorage) {
-    let other_certificate = Certificate::new(
+    let other_certificate = Certificate::new_with_default_fields(
         PREV_CERTIFICATE_ID,
         TARGET_SUBNET_ID_2,
-        Default::default(),
-        Default::default(),
         &[TARGET_SUBNET_ID_1],
-        0,
-        Vec::new(),
     )
     .unwrap();
 
@@ -245,14 +221,10 @@ async fn fetch_certificates_for_subnets(storage: RocksDBStorage) {
 async fn pending_certificate_can_be_removed(storage: RocksDBStorage) {
     let pending_column = storage.pending_certificates_column();
 
-    let certificate = Certificate::new(
+    let certificate = Certificate::new_with_default_fields(
         PREV_CERTIFICATE_ID,
         SOURCE_SUBNET_ID_1,
-        Default::default(),
-        Default::default(),
         &[TARGET_SUBNET_ID_1],
-        0,
-        Vec::new(),
     )
     .unwrap();
 
@@ -326,14 +298,10 @@ async fn get_source_head_for_subnet(storage: RocksDBStorage) {
     );
     assert_eq!(9, last_certificate_source_subnet_2.position.0); //check position
 
-    let new_certificate_source_subnet_1 = Certificate::new(
+    let new_certificate_source_subnet_1 = Certificate::new_with_default_fields(
         expected_certificates_for_source_subnet_1.last().unwrap().id,
         SOURCE_SUBNET_ID_1,
-        Default::default(),
-        Default::default(),
         &[TARGET_SUBNET_ID_1],
-        0,
-        Vec::new(),
     )
     .unwrap();
     storage
@@ -354,14 +322,10 @@ async fn get_source_head_for_subnet(storage: RocksDBStorage) {
     );
     assert_eq!(10, last_certificate_subnet_1.position.0); //check position
 
-    let other_certificate_2 = Certificate::new(
+    let other_certificate_2 = Certificate::new_with_default_fields(
         new_certificate_source_subnet_1.id,
         SOURCE_SUBNET_ID_1,
-        Default::default(),
-        Default::default(),
         &[TARGET_SUBNET_ID_2, TARGET_SUBNET_ID_1],
-        0,
-        Vec::new(),
     )
     .unwrap();
     storage.persist(&other_certificate_2, None).await.unwrap();

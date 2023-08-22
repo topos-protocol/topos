@@ -25,6 +25,7 @@ pub type Address = [u8; 20];
 pub type Amount = ethereum_types::U256;
 pub type StateRoot = [u8; 32];
 pub type TxRootHash = [u8; 32];
+pub type ReceiptsRootHash = [u8; 32];
 
 /// Heavily checked on the gossip, so not abstracted
 const DUMMY_FROST_VERIF_DELAY: time::Duration = time::Duration::from_millis(0);
