@@ -86,6 +86,7 @@ pub(crate) async fn handle_command(
                     std::process::exit(1);
                 }
             }
+            // let handle = services::generate_edge_config(edge_path, node_path.clone());
 
             let node_config = NodeConfig::new(&node_path, Some(cmd));
 
@@ -108,6 +109,8 @@ pub(crate) async fn handle_command(
                 "Created node config file at {}/config.toml",
                 node_path.display()
             );
+
+            // let _ = handle.await.unwrap();
 
             Ok(())
         }

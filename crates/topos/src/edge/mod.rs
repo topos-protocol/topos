@@ -48,6 +48,10 @@ impl CommandConfig {
     }
 
     pub async fn spawn(self) -> Result<ExitStatus, std::io::Error> {
+        println!(
+            "Spawn process at {}",
+            std::env::current_dir().expect("current dir").display()
+        );
         let mut command = Command::new(self.binary_path);
         command.kill_on_drop(true);
         command.args(self.args);
