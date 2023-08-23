@@ -32,10 +32,7 @@ pub type Hash = String;
 /// Event collected from the sending subnet
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SubnetEvent {
-    CrossSubnetMessageSent {
-        target_subnet_id: SubnetId,
-        data: Vec<u8>,
-    },
+    CrossSubnetMessageSent { target_subnet_id: SubnetId },
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -283,10 +280,10 @@ impl SubnetClient {
         cert: &Certificate,
         cert_position: u64,
     ) -> Result<Option<TransactionReceipt>, Error> {
-        // Tx Root from the certificate is currently not used by the smart contract
         let prev_cert_id: Token = Token::FixedBytes(cert.prev_id.as_array().to_vec());
         let source_subnet_id: Token = Token::FixedBytes(cert.source_subnet_id.into());
         let state_root: Token = Token::FixedBytes(cert.state_root.to_vec());
+        let tx_root: Token = Token::FixedBytes(cert.tx_root_hash.to_vec());
         let receipt_root: Token = Token::FixedBytes(cert.receipts_root_hash.to_vec());
         let target_subnets: Token = Token::Array(
             cert.target_subnets
@@ -303,6 +300,7 @@ impl SubnetClient {
             prev_cert_id,
             source_subnet_id,
             state_root,
+            tx_root,
             receipt_root,
             target_subnets,
             verifier,
