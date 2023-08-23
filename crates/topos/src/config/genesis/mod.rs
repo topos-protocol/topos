@@ -44,4 +44,12 @@ impl Genesis {
             None => Vec::default(),
         }
     }
+
+    #[cfg(test)]
+    pub fn extra_data(&self) -> String {
+        self.json["genesis"]["extraData"]
+            .as_str()
+            .unwrap()
+            .to_string()
+    }
 }
