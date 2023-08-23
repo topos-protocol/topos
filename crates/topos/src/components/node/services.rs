@@ -104,7 +104,7 @@ pub(crate) fn spawn_tce_process(
         api_addr: config.grpc_api_addr,
         graphql_api_addr: config.graphql_api_addr,
         metrics_api_addr: config.metrics_api_addr,
-        storage: StorageConfiguration::RocksDB(PathBuf::from_str(&config.db_path).ok()),
+        storage: StorageConfiguration::RocksDB(Some(config.db_path)),
         network_bootstrap_timeout: Duration::from_secs(10),
         minimum_cluster_size: config
             .minimum_tce_cluster_size

@@ -165,7 +165,7 @@ pub(crate) async fn handle_command(
             let mut processes = FuturesUnordered::new();
 
             // Edge
-            let data_dir = node_path;
+            let data_dir = node_path.clone();
             processes.push(services::spawn_edge_process(
                 edge_path.join(BINARY_NAME),
                 data_dir,
@@ -184,8 +184,10 @@ pub(crate) async fn handle_command(
 
             // TCE
             if config.base.subnet_id == "topos" {
+                let mut tce_config = config.tce.clone().unwrap();
+                tce_config.db_path = node_path.join(tce_config.db_path);
                 processes.push(services::spawn_tce_process(
-                    config.tce.clone().unwrap(),
+                    tce_config,
                     keys,
                     genesis,
                     (shutdown_token.clone(), shutdown_sender.clone()),
