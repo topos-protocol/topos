@@ -832,8 +832,8 @@ async fn test_subnet_send_token_processing(
         .i_erc20_messaging
         .send_token(
             TARGET_SUBNET_ID_2.into(),
-            "00000000000000000000000000000000000000AA".parse()?,
             i_erc20.address(),
+            "00000000000000000000000000000000000000AA".parse()?,
             U256::from(2),
         )
         .legacy()
