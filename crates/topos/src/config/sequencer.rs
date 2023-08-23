@@ -9,6 +9,7 @@ use figment::{
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "kebab-case")]
 pub struct SequencerConfig {
     /// SubnetId of your Sequencer, hex encoded 32 bytes prefixed with 0x
     pub subnet_id: Option<String>,

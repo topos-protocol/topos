@@ -15,8 +15,8 @@ use crate::components::subnet::commands::Run;
 // TODO: Provides the default arguments here
 // Serde `flatten` and `default` doesn't work together yet
 // https://github.com/serde-rs/serde/issues/1626
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "kebab-case")]
 pub struct EdgeConfig {
     #[serde(flatten)]
     pub args: HashMap<String, String>,
