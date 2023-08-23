@@ -69,10 +69,9 @@ pub(crate) fn spawn_sequencer_process(
         public_key: keys.validator_pubkey(),
         subnet_jsonrpc_endpoint: config.subnet_jsonrpc_endpoint,
         subnet_contract_address: config.subnet_contract_address,
-        // TODO: Merge with or default to config.tce.tce_local_port?
-        base_tce_api_url: config.base_tce_api_url,
+        tce_grpc_endpoint: config.tce_grpc_endpoint,
         signing_key: keys.validator.clone().unwrap(),
-        verifier: config.verifier,
+        verifier: 0,
     };
 
     spawn(async move {

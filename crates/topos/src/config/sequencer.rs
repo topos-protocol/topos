@@ -10,37 +10,25 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SequencerConfig {
-    /// SubnetId of the local subnet node, hex encoded 32 bytes starting with 0x
+    /// SubnetId of your Sequencer, hex encoded 32 bytes prefixed with 0x
     pub subnet_id: Option<String>,
 
-    // Subnet endpoint in the form [ip address]:[port]
-    // Topos sequencer expects both websocket and http protocol available
-    // on this subnet endpoint
+    /// JSON-RPC endpoint of the Edge node, websocket and http support expected
     #[serde(default = "default_subnet_jsonrpc_endpoint")]
     pub subnet_jsonrpc_endpoint: String,
 
-    // Core contract address
+    /// Address where the Topos Core contract is deployed
     #[serde(default = "default_subnet_contract_address")]
     pub subnet_contract_address: String,
 
-    /// Base Uri of TCE node to call grpc service api
-    #[serde(default = "default_base_tce_api_url")]
-    pub base_tce_api_url: String,
+    /// gRPC API endpoint of one TCE process
+    #[serde(default = "default_tce_grpc_endpoint")]
+    pub tce_grpc_endpoint: String,
 
-    /// Polygon subnet node data dir, containing `consensus/validator.key`, e.g. `../test-chain-1`
-    #[serde(default = "default_subnet_data_dir")]
-    pub subnet_data_dir: PathBuf,
-
-    /// Verifier version
-    #[serde(default = "default_verifier")]
-    pub verifier: u32,
-
-    /// Socket of the opentelemetry agent endpoint
-    /// If not provided open telemetry will not be used
+    /// OTLP agent endpoint, not used if not provided
     pub otlp_agent: Option<String>,
 
-    /// Otlp service name
-    /// If not provided open telemetry will not be used
+    /// OTLP service name, not used if not provided
     pub otlp_service_name: Option<String>,
 }
 
@@ -52,16 +40,8 @@ fn default_subnet_contract_address() -> String {
     "0x0000000000000000000000000000000000000000".to_string()
 }
 
-fn default_base_tce_api_url() -> String {
+fn default_tce_grpc_endpoint() -> String {
     "http://[::1]:1340".to_string()
-}
-
-fn default_subnet_data_dir() -> PathBuf {
-    PathBuf::from("../test-chain-1")
-}
-
-fn default_verifier() -> u32 {
-    0
 }
 
 impl Config for SequencerConfig {

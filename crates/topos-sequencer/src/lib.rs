@@ -22,7 +22,7 @@ pub struct SequencerConfiguration {
     pub public_key: Option<Vec<u8>>,
     pub subnet_jsonrpc_endpoint: String,
     pub subnet_contract_address: String,
-    pub base_tce_api_url: String,
+    pub tce_grpc_endpoint: String,
     pub signing_key: SecretKey,
     pub verifier: u32,
 }
@@ -98,7 +98,7 @@ pub async fn launch(
     // TODO: Revise this approach?
     let (tce_proxy_worker, source_head_certificate_id) = match TceProxyWorker::new(TceProxyConfig {
         subnet_id,
-        base_tce_api_url: config.base_tce_api_url.clone(),
+        base_tce_api_url: config.tce_grpc_endpoint.clone(),
         positions: target_subnet_stream_positions,
     })
     .await
