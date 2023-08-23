@@ -3,6 +3,7 @@ use crate::config::sequencer::SequencerConfig;
 use crate::config::tce::TceConfig;
 use crate::edge::{CommandConfig, BINARY_NAME};
 use opentelemetry::global;
+use std::collections::HashMap;
 use std::error::Error;
 use std::future::Future;
 use std::path::{Path, PathBuf};
@@ -41,6 +42,8 @@ pub fn generate_edge_config(
     config_path: PathBuf,
 ) -> JoinHandle<Result<(), Errors>> {
     // Create the Polygon Edge config
+    info!("Generating the configuration at {config_path:?}");
+    info!("Polygon-edge binary located at: {edge_path:?}");
     spawn(async move {
         match CommandConfig::new(edge_path)
             .init(&config_path)
@@ -121,10 +124,11 @@ pub fn spawn_edge_process(
     edge_path: PathBuf,
     data_dir: PathBuf,
     genesis_path: PathBuf,
+    edge_args: HashMap<String, String>,
 ) -> JoinHandle<Result<(), Errors>> {
     spawn(async move {
         match CommandConfig::new(edge_path)
-            .server(&data_dir, &genesis_path)
+            .server(&data_dir, &genesis_path, edge_args)
             .spawn()
             .await
         {

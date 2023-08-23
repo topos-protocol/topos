@@ -52,7 +52,7 @@ async fn test_handle_command_init() -> Result<(), Box<dyn std::error::Error>> {
 
     assert!(config_contents.contains("[base]"));
     assert!(config_contents.contains("name = \"default\""));
-    assert!(config_contents.contains("[subnet]"));
+    assert!(config_contents.contains("[edge]"));
     assert!(config_contents.contains("[tce]"));
 
     std::fs::remove_dir_all(temporary_test_folder)?;

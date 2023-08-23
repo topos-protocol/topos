@@ -27,7 +27,6 @@ pub(crate) struct NodeConfig {
     pub(crate) base: BaseConfig,
     pub(crate) tce: Option<TceConfig>,
     pub(crate) sequencer: Option<SequencerConfig>,
-    #[serde(rename = "subnet")]
     pub(crate) edge: Option<EdgeConfig>,
 }
 

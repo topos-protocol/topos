@@ -76,8 +76,8 @@ pub(crate) fn load_config<T: Config>(node_path: &Path, command: Option<T::Comman
             println!("Missing field: {}", name);
             std::process::exit(1);
         }
-        _ => {
-            println!("Failed to load config");
+        Err(e) => {
+            println!("Failed to load config: {e}");
             std::process::exit(1);
         }
     }

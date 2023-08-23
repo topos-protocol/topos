@@ -1,4 +1,7 @@
-use std::path::{Path, PathBuf};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 
 use crate::config::Config;
 use figment::{
@@ -9,34 +12,14 @@ use serde::{Deserialize, Serialize};
 
 use crate::components::subnet::commands::Run;
 
+// TODO: Provides the default arguments here
+// Serde `flatten` and `default` doesn't work together yet
+// https://github.com/serde-rs/serde/issues/1626
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct EdgeConfig {
-    /// SubnetId of the local subnet node, hex encoded 32 bytes starting with 0x
-    pub subnet_id: Option<String>,
-
-    // Core contract address
-    #[serde(default = "default_subnet_contract_address")]
-    pub subnet_contract_address: String,
-
-    /// Base Uri of TCE node to call grpc service api
-    #[serde(default = "default_base_tce_api_url")]
-    pub base_tce_api_url: String,
-
-    /// Polygon subnet node data dir, containing `consensus/validator.key`, e.g. `../test-chain-1`
-    #[serde(default = "default_subnet_data_dir")]
-    pub subnet_data_dir: PathBuf,
-}
-
-fn default_subnet_contract_address() -> String {
-    "0x0000000000000000000000000000000000000000".to_string()
-}
-
-fn default_base_tce_api_url() -> String {
-    "http://[::1]:1340".to_string()
-}
-
-fn default_subnet_data_dir() -> PathBuf {
-    PathBuf::from("./test-chain-1")
+    #[serde(flatten)]
+    pub args: HashMap<String, String>,
 }
 
 impl Config for EdgeConfig {

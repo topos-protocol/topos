@@ -133,7 +133,7 @@ pub(crate) async fn handle_command(
 
             // FIXME: Handle properly the `cmd`
             let config = NodeConfig::new(&node_path, None);
-
+            println!("EdgeConfig: {:?}", config.edge);
             info!(
                 "⚙️ Reading the configuration from {}/{}/config.toml",
                 home.display(),
@@ -153,8 +153,6 @@ pub(crate) async fn handle_command(
                 None => SecretManager::from_fs(node_path.clone()),
             };
 
-            let data_dir = node_path.join(config.edge.clone().unwrap().subnet_data_dir);
-
             info!(
                 "🧢 New joiner: {} for the \"{}\" subnet as {:?}",
                 config.base.name, config.base.subnet_id, config.base.role
@@ -167,10 +165,12 @@ pub(crate) async fn handle_command(
             let mut processes = FuturesUnordered::new();
 
             // Edge
+            let data_dir = node_path;
             processes.push(services::spawn_edge_process(
                 edge_path.join(BINARY_NAME),
                 data_dir,
                 genesis.path.clone(),
+                config.edge.unwrap().args,
             ));
 
             // Sequencer
