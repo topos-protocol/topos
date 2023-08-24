@@ -24,7 +24,7 @@ use tokio::{
 use tokio_util::sync::CancellationToken;
 use topos_p2p::config::NetworkConfig;
 use topos_tce_transport::ReliableBroadcastParams;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 use self::commands::{NodeCommand, NodeCommands};
@@ -133,7 +133,6 @@ pub(crate) async fn handle_command(
 
             // FIXME: Handle properly the `cmd`
             let config = NodeConfig::new(&node_path, None);
-            println!("EdgeConfig: {:?}", config.edge);
             info!(
                 "⚙️ Reading the configuration from {}/{}/config.toml",
                 home.display(),
@@ -184,10 +183,8 @@ pub(crate) async fn handle_command(
 
             // TCE
             if config.base.subnet_id == "topos" {
-                let mut tce_config = config.tce.clone().unwrap();
-                tce_config.db_path = node_path.join(tce_config.db_path);
                 processes.push(services::spawn_tce_process(
-                    tce_config,
+                    config.tce.clone().unwrap(),
                     keys,
                     genesis,
                     (shutdown_token.clone(), shutdown_sender.clone()),

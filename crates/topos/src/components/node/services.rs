@@ -23,7 +23,7 @@ use topos_sequencer::SequencerConfiguration;
 use topos_tce::config::{AuthKey, StorageConfiguration, TceConfiguration};
 use topos_tce_transport::ReliableBroadcastParams;
 use topos_wallet::SecretManager;
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
 use crate::config::genesis::Genesis;
 
@@ -77,6 +77,7 @@ pub(crate) fn spawn_sequencer_process(
         verifier: 0,
     };
 
+    debug!("Sequencer args: {config:?}");
     spawn(async move {
         topos_sequencer::run(config, shutdown).await.map_err(|e| {
             error!("Failure on the Sequencer: {e:?}");
@@ -112,6 +113,7 @@ pub(crate) fn spawn_tce_process(
         version: env!("TOPOS_VERSION"),
     };
 
+    debug!("TCE args: {tce_config:?}");
     spawn(async move {
         topos_tce::run(&tce_config, shutdown).await.map_err(|e| {
             error!("TCE process terminated: {e:?}");
@@ -126,6 +128,7 @@ pub fn spawn_edge_process(
     genesis_path: PathBuf,
     edge_args: HashMap<String, String>,
 ) -> JoinHandle<Result<(), Errors>> {
+    debug!("Edge args: {edge_args:?}");
     spawn(async move {
         match CommandConfig::new(edge_path)
             .server(&data_dir, &genesis_path, edge_args)
