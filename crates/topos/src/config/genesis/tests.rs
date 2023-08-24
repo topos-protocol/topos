@@ -33,35 +33,7 @@ pub fn test_parse_bootnodes(genesis: &Genesis) {
 
 #[rstest]
 pub fn test_extract_validators(genesis: &Genesis) {
-    let extra_data = genesis.extra_data();
-
-    let bytes = hex::decode(&extra_data[2..]).expect("Decoding failed");
-
-    // Define sizes
-    const VANITY_SIZE: usize = 32;
-    const VALIDATOR_SIZE: usize = 20;
-
-    // Split into vanity, RLP encoded validators, and seal sections
-    let (_vanity, remaining) = bytes.split_at(VANITY_SIZE);
-
-    let rlp = rlp::Rlp::new(remaining);
-    let validator_bytes = rlp
-        .at(0)
-        .expect("Failed to get RLP list")
-        .data()
-        .expect("Failed to get RLP data");
-
-    // Expected number of validators
-    let num_validators = validator_bytes.len() / VALIDATOR_SIZE;
-
-    // Extract validators
-    let mut validators: Vec<String> = Vec::new();
-    for i in 0..num_validators {
-        validators.push(format!(
-            "0x{}",
-            hex::encode(&validator_bytes[i * VALIDATOR_SIZE..(i + 1) * VALIDATOR_SIZE])
-        ));
-    }
+    let validators = genesis.validators();
 
     assert_eq!(14, validators.len());
 }
