@@ -5,5 +5,8 @@ ignore = [
 
     # Waiting for the libp2p-noise release bump to 0.43.1
     # https://github.com/libp2p/rust-libp2p/pull/4358
-    "RUSTSEC-2022-0093"
+    "RUSTSEC-2022-0093",
+
+    # Waiting for webpki 0.22.0 to be fixed - no fixed upgrade is available!
+    "RUSTSEC-2023-0052"
 ]

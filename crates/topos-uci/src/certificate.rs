@@ -39,6 +39,10 @@ impl Debug for Certificate {
                 &("0x".to_string() + &hex::encode(self.tx_root_hash)),
             )
             .field(
+                "receipts_root_hash",
+                &("0x".to_string() + &hex::encode(self.receipts_root_hash)),
+            )
+            .field(
                 "target_subnets",
                 &self
                     .target_subnets
