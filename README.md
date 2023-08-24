@@ -21,7 +21,7 @@ topos is the unified command line interface to the <a href="https://docs.toposwa
 [![codecov](https://codecov.io/gh/topos-protocol/topos/branch/main/graph/badge.svg?token=FOH2B2GRL9&style=flat)](https://codecov.io/gh/topos-protocol/topos)
 ![Test workflow](https://github.com/topos-protocol/topos/actions/workflows/test.yml/badge.svg)
 ![Quality workflow](https://github.com/topos-protocol/topos/actions/workflows/quality.yml/badge.svg)
-![MSRV](https://img.shields.io/badge/MSRV-1.64-blue?labelColor=1C2C2E&logo=Rust&style=flat-square)
+![MSRV](https://img.shields.io/badge/MSRV-1.71.1-blue?labelColor=1C2C2E&logo=Rust&style=flat-square)
 
 ## Getting Started
 

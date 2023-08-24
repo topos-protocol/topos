@@ -41,6 +41,11 @@ pub fn generate_edge_config(
     config_path: PathBuf,
 ) -> JoinHandle<Result<(), Errors>> {
     // Create the Polygon Edge config
+    println!(
+        "Current dir: {}",
+        std::env::current_dir().expect("").display()
+    );
+    println!("Creating Polygon Edge config: {}", edge_path.display());
     spawn(async move {
         match CommandConfig::new(edge_path)
             .init(&config_path)
@@ -52,7 +57,7 @@ pub fn generate_edge_config(
                 Ok(())
             }
             Err(e) => {
-                println!("Edge process terminatedas: {e:?}");
+                println!("Failed to run the edge binary: {e:?}");
                 Err(Errors::EdgeTerminated(e))
             }
         }
