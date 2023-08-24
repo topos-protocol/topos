@@ -32,7 +32,7 @@ pub fn test_parse_bootnodes(genesis: &Genesis) {
 }
 
 #[rstest]
-pub fn test_parse_extra_data(genesis: &Genesis) {
+pub fn test_extract_validators(genesis: &Genesis) {
     let extra_data = genesis.extra_data();
 
     let bytes = hex::decode(&extra_data[2..]).expect("Decoding failed");
@@ -42,7 +42,7 @@ pub fn test_parse_extra_data(genesis: &Genesis) {
     const VALIDATOR_SIZE: usize = 20;
 
     // Split into vanity, RLP encoded validators, and seal sections
-    let (_, remaining) = bytes.split_at(VANITY_SIZE);
+    let (_vanity, remaining) = bytes.split_at(VANITY_SIZE);
 
     let rlp = rlp::Rlp::new(remaining);
     let validator_bytes = rlp
