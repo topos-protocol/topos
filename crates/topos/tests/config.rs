@@ -16,12 +16,12 @@ fn polygon_edge_path() -> String {
     let current_dir = std::env::current_dir().expect("Failed to get current dir");
     let binary_path = current_dir.join(BINARY_FOLDER).join("polygon-edge");
 
-    if PathBuf::from(binary_path).exists() {
-        info!("polygob-edge binary already downloaded");
+    if binary_path.exists() {
+        info!("polygon-edge binary already downloaded");
         return BINARY_FOLDER.to_string();
     } else {
         info!("Downloading polygon-edge binary");
-        std::fs::create_dir_all(&current_dir.join(BINARY_FOLDER))
+        std::fs::create_dir_all(current_dir.join(BINARY_FOLDER))
             .expect("Failed to create binary folder");
     }
 
@@ -50,7 +50,9 @@ fn polygon_edge_path() -> String {
         .expect("Cannot unpack archive");
 
     // Removing the archive file
-    std::fs::remove_file(&archive_download_path).expect("Failed to remove archive file");
+    if archive_download_path.exists() {
+        std::fs::remove_file(&archive_download_path).expect("Failed to remove archive file");
+    }
 
     // Returning the path to the binary
     BINARY_FOLDER.to_string()
