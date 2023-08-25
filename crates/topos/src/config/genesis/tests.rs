@@ -1,7 +1,3 @@
-use std::io::Read;
-use std::path::PathBuf;
-
-use libp2p::PeerId;
 use rstest::fixture;
 use rstest::rstest;
 
