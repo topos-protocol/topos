@@ -4,9 +4,9 @@ use tracing::{error, info};
 
 use crate::tracing::setup_tracing;
 
-pub(crate) mod commands;
+use topos::{install_polygon_edge, list_polygon_edge_releases};
 
-mod subnet;
+pub(crate) mod commands;
 
 pub(crate) async fn handle_command(
     SetupCommand {
@@ -24,7 +24,7 @@ pub(crate) async fn handle_command(
                         "Retrieving release version list from repository: {}",
                         &cmd.repository
                     );
-                    if let Err(e) = subnet::installer::list_polygon_edge_releases(cmd).await {
+                    if let Err(e) = list_polygon_edge_releases(cmd.repository).await {
                         error!("Error listing Polygon Edge release versions: {e}");
                         std::process::exit(1);
                     } else {
@@ -35,7 +35,9 @@ pub(crate) async fn handle_command(
                         "Starting installation of Polygon Edge binary to target path: {}",
                         &cmd.path.display()
                     );
-                    if let Err(e) = subnet::installer::install_polygon_edge(cmd).await {
+                    if let Err(e) =
+                        install_polygon_edge(cmd.repository, cmd.release, cmd.path.as_path()).await
+                    {
                         error!("Error installing Polygon Edge: {e}");
                         std::process::exit(1);
                     } else {
