@@ -40,7 +40,6 @@ pub fn generate_edge_config(
     edge_path: PathBuf,
     config_path: PathBuf,
 ) -> JoinHandle<Result<(), Errors>> {
-    println!("Running the binary from: {}", edge_path.display());
     // Create the Polygon Edge config
     spawn(async move {
         match CommandConfig::new(edge_path)
