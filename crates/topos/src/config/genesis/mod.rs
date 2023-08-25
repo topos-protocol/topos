@@ -45,6 +45,9 @@ impl Genesis {
         }
     }
 
+    /// Parse the validators from the `extraData` field of the genesis file.
+    /// The `extraData` is patted with 32 bytes, and the validators are RLP encoded.
+    /// Each validator is 20 bytes, with a SEAL at the end of the whole list (8 bytes)
     #[allow(dead_code)]
     pub fn validators(&self) -> Vec<String> {
         let extra_data = self.json["genesis"]["extraData"]
