@@ -548,44 +548,77 @@ async fn test_subnet_certificate_push_call(
     let source_subnet_id_1 =
         topos_crypto::keys::derive_public_key(test_private_key.as_slice()).unwrap();
 
-    let mut mock_cert = Certificate {
-        source_subnet_id: SubnetId::from_array(
-            TryInto::<[u8; SUBNET_ID_LENGTH]>::try_into(&source_subnet_id_1[1..33]).unwrap(),
-        ),
-        id: CERTIFICATE_ID_1,
-        prev_id: PREV_CERTIFICATE_ID_1,
-        target_subnets: vec![SOURCE_SUBNET_ID_1],
-        ..Default::default()
+    let mut certs = Vec::new();
+
+    let new_cert = |id, prev_id| {
+        let mut mock_cert = Certificate {
+            source_subnet_id: SubnetId::from_array(
+                TryInto::<[u8; SUBNET_ID_LENGTH]>::try_into(&source_subnet_id_1[1..33]).unwrap(),
+            ),
+            id,
+            prev_id,
+            target_subnets: vec![SOURCE_SUBNET_ID_1],
+            receipts_root_hash: *id.as_array(), // just to have different receipt root
+            ..Default::default()
+        };
+        mock_cert
+            .update_signature(test_private_key.as_slice())
+            .expect("valid signature update");
+
+        mock_cert
     };
-    mock_cert
-        .update_signature(test_private_key.as_slice())
-        .expect("valid signature update");
+
+    certs.push(new_cert(CERTIFICATE_ID_1, PREV_CERTIFICATE_ID_1));
+    certs.push(new_cert(CERTIFICATE_ID_2, PREV_CERTIFICATE_ID_2));
+    certs.push(new_cert(CERTIFICATE_ID_15, CERTIFICATE_ID_14));
 
     info!("Sending mock certificate to subnet smart contract...");
-    if let Err(e) = runtime_proxy_worker
-        .eval(SubnetRuntimeProxyCommand::OnNewDeliveredCertificate {
-            certificate: mock_cert.clone(),
-            position: 0,
-            ctx: Span::current().context(),
-        })
-        .await
-    {
-        error!("Failed to send OnNewDeliveredTxns command: {}", e);
-        return Err(Box::from(e));
+
+    // Multiple push
+    for (idx, mock_cert) in certs.iter().enumerate() {
+        info!(
+            "Push #{idx} for the Certificate: {:?}, Receipt root: {:?}",
+            mock_cert.id, mock_cert.receipts_root_hash
+        );
+        if let Err(e) = runtime_proxy_worker
+            .eval(SubnetRuntimeProxyCommand::OnNewDeliveredCertificate {
+                certificate: mock_cert.clone(),
+                position: idx as u64,
+                ctx: Span::current().context(),
+            })
+            .await
+        {
+            error!("Failed to send OnNewDeliveredTxns command: {}", e);
+            return Err(Box::from(e));
+        }
     }
 
     info!("Waiting for CrossSubnetMessageSent event");
-    tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+    tokio::time::sleep(tokio::time::Duration::from_secs(15)).await;
     let provider = Provider::<Http>::try_from(format!("http://127.0.0.1:{}", context.port))?;
     let client = Arc::new(provider);
     let filter = Filter::new()
         .address(context.i_topos_core.address())
         .event("CertStored(bytes32,bytes32)")
         .from_block(0);
+
     let logs = client.get_logs(&filter).await?;
-    if logs.is_empty() {
-        panic!("Missing event");
-    }
+    info!("ALL LOGS: {:?}", logs);
+
+    let expected_logs = certs
+        .iter()
+        .map(|c| {
+            let mut log = c.id.as_array().to_vec();
+            log.extend_from_slice(&c.receipts_root_hash);
+            log
+        })
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        logs.len(),
+        expected_logs.len(),
+        "should have as much logs as pushed Certificates"
+    );
 
     for log in logs {
         info!(
@@ -593,9 +626,10 @@ async fn test_subnet_certificate_push_call(
             log.block_number, log.address
         );
         assert_eq!(hex::encode(log.address), subnet_smart_contract_address[2..]);
-        let mut expected_data = mock_cert.id.as_array().to_vec();
-        expected_data.extend_from_slice(&mock_cert.tx_root_hash);
-        assert_eq!(log.data.0, expected_data);
+        assert!(
+            expected_logs.iter().any(|l| *l == log.data.0),
+            "discrepencies in the logs"
+        );
     }
 
     info!("Shutting down context...");
