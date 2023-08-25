@@ -17,7 +17,7 @@ async fn polygon_edge_path(path: &str) -> String {
         install_polygon_edge(
             "topos-protocol/polygon-edge".to_string(),
             None,
-            PathBuf::from(installation_path.clone()).as_path(),
+            installation_path.clone().as_path(),
         )
         .await
         .expect("Cannot install Polygon Edge binary");
