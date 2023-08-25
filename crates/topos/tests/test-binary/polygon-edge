@@ -1,6 +1,0 @@
-#!/bin/sh
-echo "This is a fake binary."
-
-if [ "$1" = "--version" ]; then
-    echo "Fake Binary v1.0.0"
-fi

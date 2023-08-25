@@ -66,9 +66,8 @@ crates/topos-sequencer-subnet-runtime/tests/temp
 
 artifacts/
 
-/polygon-edge
-# Allow
-!crates/topos/tests/test-binary/polygon-edge
+**/polygon-edge
+test-binary/
 
 # macOS directory attributes
 **/.DS_Store

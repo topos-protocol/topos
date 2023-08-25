@@ -1,19 +1,64 @@
 use assert_cmd::prelude::*;
+use rstest::{fixture, rstest};
+use std::io::Write;
 use std::path::PathBuf;
 use std::process::Command;
+use tar::Archive;
 
+const POLYGON_EDGE_URI: &str = " https://github.com/topos-protocol/polygon-edge/releases/download/v0.8.0-develop-20230503/polygon-edge_0.8.0-develop-20230503_darwin_arm64.tar.gz";
+const POLYGON_EDGE_ARCHIVE_NAME: &str = "polygon-edge_0.8.0-develop-20230503_darwin_arm64.tar.gz";
+const BINARY_FOLDER: &str = "./tests/test-binary";
+
+#[fixture]
+fn polygon_edge_path() -> String {
+    let current_dir = std::env::current_dir().expect("Failed to get current dir");
+    let binary_path = current_dir.join(BINARY_FOLDER).join("polygon-edge");
+
+    if PathBuf::from(binary_path).exists() {
+        println!("polygob-edge binary already downloaded");
+        return BINARY_FOLDER.to_string();
+    }
+
+    let response =
+        reqwest::blocking::get(POLYGON_EDGE_URI).expect("Failed to download polygon edge binary");
+
+    let archive_download_path = current_dir
+        .join(BINARY_FOLDER)
+        .join(POLYGON_EDGE_ARCHIVE_NAME);
+
+    // Creating the archive file
+    let mut archive_file =
+        std::fs::File::create(&archive_download_path).expect("Failed to create archive file");
+
+    // Filling it with the downloaded data
+    archive_file
+        .write_all(response.bytes().expect("Failed to read response").as_ref())
+        .expect("Failed to write archive file");
+
+    // Decompressing the archive
+    let archive_file =
+        std::fs::File::open(&archive_download_path).expect("Failed to open archive file");
+    let mut archive = Archive::new(flate2::read::GzDecoder::new(archive_file));
+    archive
+        .unpack(current_dir.join(BINARY_FOLDER))
+        .expect("Cannot unpack archive");
+
+    // Removing the archive file
+    std::fs::remove_file(&archive_download_path).expect("Failed to remove archive file");
+
+    // Returning the path to the binary
+    BINARY_FOLDER.to_string()
+}
+
+#[rstest]
 #[test]
-fn test_handle_command_init() -> Result<(), Box<dyn std::error::Error>> {
+fn test_handle_command_init(polygon_edge_path: String) -> Result<(), Box<dyn std::error::Error>> {
     let temporary_test_folder = "/tmp/topos/handle_command_init";
-    let edge_path = std::env::current_dir()
-        .unwrap()
-        .join("tests")
-        .join("test-binary");
 
     let mut cmd = Command::cargo_bin("topos")?;
     cmd.arg("node")
         .arg("--edge-path")
-        .arg(edge_path)
+        .arg(polygon_edge_path)
         .arg("init")
         .arg("--home")
         .arg(temporary_test_folder);
@@ -68,19 +113,18 @@ fn test_nothing_written_if_failure() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+#[rstest]
 #[test]
-fn test_handle_command_init_with_custom_name() -> Result<(), Box<dyn std::error::Error>> {
+fn test_handle_command_init_with_custom_name(
+    polygon_edge_path: String,
+) -> Result<(), Box<dyn std::error::Error>> {
     let temporary_test_folder = "/tmp/topos/test_handle_command_init_with_custom_name";
     let node_name = "TEST_NODE";
-    let edge_path = std::env::current_dir()
-        .unwrap()
-        .join("tests")
-        .join("test-binary");
 
     let mut cmd = Command::cargo_bin("topos")?;
     cmd.arg("node")
         .arg("--edge-path")
-        .arg(edge_path)
+        .arg(polygon_edge_path)
         .arg("init")
         .arg("--home")
         .arg(temporary_test_folder)
