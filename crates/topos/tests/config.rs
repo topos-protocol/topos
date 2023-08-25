@@ -5,6 +5,8 @@ use std::path::PathBuf;
 use std::process::Command;
 use tar::Archive;
 
+use tracing::info;
+
 const POLYGON_EDGE_URI: &str = " https://github.com/topos-protocol/polygon-edge/releases/download/v0.8.0-develop-20230503/polygon-edge_0.8.0-develop-20230503_darwin_arm64.tar.gz";
 const POLYGON_EDGE_ARCHIVE_NAME: &str = "polygon-edge_0.8.0-develop-20230503_darwin_arm64.tar.gz";
 const BINARY_FOLDER: &str = "./tests/test-binary";
@@ -15,8 +17,12 @@ fn polygon_edge_path() -> String {
     let binary_path = current_dir.join(BINARY_FOLDER).join("polygon-edge");
 
     if PathBuf::from(binary_path).exists() {
-        println!("polygob-edge binary already downloaded");
+        info!("polygob-edge binary already downloaded");
         return BINARY_FOLDER.to_string();
+    } else {
+        info!("Downloading polygon-edge binary");
+        std::fs::create_dir_all(&current_dir.join(BINARY_FOLDER))
+            .expect("Failed to create binary folder");
     }
 
     let response =
