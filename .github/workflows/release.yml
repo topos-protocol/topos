@@ -43,7 +43,7 @@ jobs:
           name: topos-binaries-${{ matrix.target }}
           if-no-files-found: error
           path: |
-            ./target/release/topos-${{{ env.arch }}}.tgz
+            ./target/release/topos-${{ env.arch }}.tgz
 
       - name: Publish binaries for ${{ matrix.target }} release
         uses: softprops/action/gb/release@v1
