@@ -39,7 +39,7 @@ pub(crate) async fn get_block_events(
                 target_subnet_id: f.target_subnet_id.into(),
             })
         } else {
-            // Ignored for now other events UpgradedFilter, CertStoredFilter
+            // Ignored for now other events Upgraded, CertStored
         }
     }
 

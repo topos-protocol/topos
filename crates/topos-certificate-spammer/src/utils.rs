@@ -35,6 +35,7 @@ pub fn generate_test_certificate(
         source_subnet.source_subnet_id,
         generate_random_32b_array(),
         generate_random_32b_array(),
+        generate_random_32b_array(),
         target_subnet_ids,
         0,
         STARK_BLOB.clone(),

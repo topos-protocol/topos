@@ -113,26 +113,15 @@ async fn subscribing_to_one_target_with_position() -> Result<(), Box<dyn std::er
 async fn receive_expected_certificate_from_zero() -> Result<(), Box<dyn std::error::Error>> {
     let (mut tx, stream, mut context) = StreamBuilder::default().build();
 
-    let first = Certificate::new(
+    let first = Certificate::new_with_default_fields(
         PREV_CERTIFICATE_ID,
         SOURCE_SUBNET_ID_2,
-        Default::default(),
-        Default::default(),
         &[TARGET_SUBNET_ID_1],
-        0,
-        Default::default(),
     )
     .unwrap();
-    let second = Certificate::new(
-        first.id,
-        SOURCE_SUBNET_ID_2,
-        Default::default(),
-        Default::default(),
-        &[TARGET_SUBNET_ID_1],
-        0,
-        Default::default(),
-    )
-    .unwrap();
+    let second =
+        Certificate::new_with_default_fields(first.id, SOURCE_SUBNET_ID_2, &[TARGET_SUBNET_ID_1])
+            .unwrap();
 
     let expected_certificates = vec![first, second];
 
