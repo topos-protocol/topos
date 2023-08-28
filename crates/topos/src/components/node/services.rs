@@ -90,7 +90,7 @@ pub(crate) fn spawn_tce_process(
         boot_peers: genesis
             .boot_peers()
             .into_iter()
-            .chain(config.parse_boot_peers().into_iter())
+            .chain(config.parse_boot_peers())
             .collect::<Vec<_>>(),
         auth_key: keys.network.map(AuthKey::PrivateKey),
         tce_addr: "/ip4/0.0.0.0".into(), // FIXME: to remove, no need to be exposed
