@@ -8,5 +8,5 @@ ignore = [
     "RUSTSEC-2022-0093",
 
     # Waiting for webpki 0.22.0 to be fixed - no fixed upgrade is available!
-    "RUSTSEC-2023-0052"
+    "RUSTSEC-2023-0052",
 ]
