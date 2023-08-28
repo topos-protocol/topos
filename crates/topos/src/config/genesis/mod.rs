@@ -13,21 +13,6 @@ pub struct Genesis {
     pub json: Value,
 }
 
-#[derive(Debug)]
-pub struct EdgeExtraData(Vec<Vec<u8>>);
-
-impl Decodable for EdgeExtraData {
-    fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
-        let mut validators = Vec::new();
-        let mut i = 0;
-        while let Ok(validator) = rlp.val_at::<Vec<u8>>(i) {
-            validators.push(validator);
-            i += 1;
-        }
-        Ok(Self(validators))
-    }
-}
-
 impl Genesis {
     pub fn new(path: PathBuf) -> Self {
         let genesis_file = fs::File::open(&path).expect("opened file");
