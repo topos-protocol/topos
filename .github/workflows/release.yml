@@ -1,0 +1,52 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  CARGO_NET_RETRY: 10
+  RUSTUP_MAX_RETRIES: 10
+  RUST_BACKTRACE: short
+
+jobs:
+  release-build:
+    timeout-minutes: 30
+    runs-on: ubuntu-latest-16-core
+    strategy:
+      matrix:
+        target: [ aarch64-unknown-linux-gnu ]
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/install-rust
+        with:
+          target: ${{ matrix.target }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.ROBOT_AWS_ACCESS_KEY_ID}}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.ROBOT_AWS_SECRET_ACCESS_KEY}}
+
+      - name: cargo build (release) for ${{ matrix.target }}
+        run: cargo build --release --target=${{ matrix.target }}
+
+      - name: Rename binary
+        shell: bash
+        run: |
+          export arch=$(echo ${{ matrix.target }} | cut -d- -f1)
+          echo "arch=${arch}" >> $GITHUB_ENV
+          mv ./target/release/topos ./target/release/topos-${arch}
+          tar -czvf ./target/release/topos-${ arch }.tgz ./target/release/topos-${arch}
+
+      - name: Upload release artifacts for ${{ matrix.target }} architecture
+        uses: actions/upload-artifact@v3
+        with:
+          name: topos-binaries-${{ matrix.target }}
+          if-no-files-found: error
+          path: |
+            ./target/release/topos-${{{ env.arch }}}.tgz
+
+      - name: Publish binaries for ${{ matrix.target }} release
+        uses: softprops/action/gb/release@v1
+        with:
+          files: |
+            ./target/release/topos-${{ env.arch }}.tgz
