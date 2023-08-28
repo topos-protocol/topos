@@ -61,16 +61,6 @@ impl Certification {
                     } => {
                         target_subnets.push(*target_subnet_id);
                     }
-                    SubnetEvent::ContractCall {
-                        target_subnet_id, ..
-                    } => {
-                        target_subnets.push(*target_subnet_id);
-                    }
-                    SubnetEvent::ContractCallWithToken {
-                        target_subnet_id, ..
-                    } => {
-                        target_subnets.push(*target_subnet_id);
-                    }
                 }
             }
 
@@ -91,6 +81,7 @@ impl Certification {
                 subnet_id,
                 block_info.state_root,
                 block_info.tx_root_hash,
+                block_info.receipts_root_hash,
                 &target_subnets,
                 self.verifier,
                 proof,

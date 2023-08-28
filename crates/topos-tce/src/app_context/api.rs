@@ -88,6 +88,7 @@ impl AppContext {
                             source_subnet_id: subnet_id,
                             state_root: Default::default(),
                             tx_root_hash: Default::default(),
+                            receipts_root_hash: Default::default(),
                             target_subnets: vec![],
                             verifier: 0,
                             id: AppContext::DUMMY_INITIAL_CERTIFICATE_ID,

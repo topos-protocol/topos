@@ -150,7 +150,7 @@ pub(crate) async fn handle_command(
                 None => SecretManager::from_fs(node_path.clone()),
             };
 
-            let data_dir = node_path.join(config.edge.clone().unwrap().subnet_data_dir.clone());
+            let data_dir = node_path.join(config.edge.clone().unwrap().subnet_data_dir);
 
             info!(
                 "🧢 New joiner: {} for the \"{}\" subnet as {:?}",

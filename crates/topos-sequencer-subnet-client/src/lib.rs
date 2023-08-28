@@ -18,8 +18,8 @@ use std::sync::Arc;
 use std::time::Duration;
 use topos_core::api::grpc::checkpoints::TargetStreamPosition;
 pub use topos_core::uci::{
-    Address, Certificate, CertificateId, StateRoot, SubnetId, TxRootHash, CERTIFICATE_ID_LENGTH,
-    SUBNET_ID_LENGTH,
+    Address, Certificate, CertificateId, ReceiptsRootHash, StateRoot, SubnetId, TxRootHash,
+    CERTIFICATE_ID_LENGTH, SUBNET_ID_LENGTH,
 };
 use tracing::{error, info};
 
@@ -32,25 +32,7 @@ pub type Hash = String;
 /// Event collected from the sending subnet
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SubnetEvent {
-    CrossSubnetMessageSent {
-        target_subnet_id: SubnetId,
-    },
-    ContractCall {
-        source_subnet_id: SubnetId,
-        source_contract_addr: Address,
-        target_subnet_id: SubnetId,
-        target_contract_addr: Address,
-        payload: Vec<u8>,
-    },
-    ContractCallWithToken {
-        source_subnet_id: SubnetId,
-        source_contract_addr: Address,
-        target_subnet_id: SubnetId,
-        target_contract_addr: Address,
-        payload: Vec<u8>,
-        symbol: String,
-        amount: U256,
-    },
+    CrossSubnetMessageSent { target_subnet_id: SubnetId },
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -65,6 +47,8 @@ pub struct BlockInfo {
     pub state_root: StateRoot,
     /// tx root hash
     pub tx_root_hash: TxRootHash,
+    /// receipts root hash
+    pub receipts_root_hash: ReceiptsRootHash,
     /// Subnet events collected in this block
     pub events: Vec<SubnetEvent>,
 }
@@ -195,6 +179,7 @@ impl SubnetClientListener {
             number: block_number.to_owned().as_u64(),
             state_root: block.state_root.0,
             tx_root_hash: block.transactions_root.0,
+            receipts_root_hash: block.receipts_root.0,
             events,
         };
         info!("Fetched new finalized block: {:?}", block_info.number);
@@ -299,6 +284,7 @@ impl SubnetClient {
         let source_subnet_id: Token = Token::FixedBytes(cert.source_subnet_id.into());
         let state_root: Token = Token::FixedBytes(cert.state_root.to_vec());
         let tx_root: Token = Token::FixedBytes(cert.tx_root_hash.to_vec());
+        let receipt_root: Token = Token::FixedBytes(cert.receipts_root_hash.to_vec());
         let target_subnets: Token = Token::Array(
             cert.target_subnets
                 .iter()
@@ -315,6 +301,7 @@ impl SubnetClient {
             source_subnet_id,
             state_root,
             tx_root,
+            receipt_root,
             target_subnets,
             verifier,
             cert_id,

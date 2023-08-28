@@ -30,6 +30,10 @@ impl TryFrom<proto_v1::Certificate> for topos_uci::Certificate {
                 .tx_root_hash
                 .try_into()
                 .expect("valid transaction root hash with correct length"),
+            receipts_root_hash: certificate
+                .receipts_root_hash
+                .try_into()
+                .expect("valid receipts root hash with correct length"),
             target_subnets: certificate
                 .target_subnets
                 .into_iter()
@@ -59,6 +63,7 @@ impl From<topos_uci::Certificate> for proto_v1::Certificate {
             }),
             state_root: certificate.state_root.to_vec(),
             tx_root_hash: certificate.tx_root_hash.to_vec(),
+            receipts_root_hash: certificate.receipts_root_hash.to_vec(),
             verifier: certificate.verifier,
             target_subnets: certificate
                 .target_subnets

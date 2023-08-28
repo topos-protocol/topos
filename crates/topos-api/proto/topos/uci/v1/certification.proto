@@ -13,11 +13,12 @@ message Certificate {
   topos.shared.v1.SubnetId source_subnet_id = 2;
   bytes state_root = 3;
   bytes tx_root_hash = 4;
-  repeated topos.shared.v1.SubnetId target_subnets = 5;
-  uint32 verifier = 6;
-  topos.shared.v1.CertificateId id = 7;
-  topos.shared.v1.StarkProof proof = 8;
-  topos.shared.v1.Frost signature = 9;
+  bytes receipts_root_hash = 5;
+  repeated topos.shared.v1.SubnetId target_subnets = 6;
+  uint32 verifier = 7;
+  topos.shared.v1.CertificateId id = 8;
+  topos.shared.v1.StarkProof proof = 9;
+  topos.shared.v1.Frost signature = 10;
 }
 
 

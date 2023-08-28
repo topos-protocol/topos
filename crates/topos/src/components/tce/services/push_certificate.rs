@@ -61,14 +61,10 @@ pub(crate) async fn check_delivery(
             .try_into()
             .map_err(|_| vec![format!("Unable to parse the peer address")])?;
 
-        let pushed_certificate = Certificate::new(
+        let pushed_certificate = Certificate::new_with_default_fields(
             [0u8; CERTIFICATE_ID_LENGTH],
             [1u8; SUBNET_ID_LENGTH].into(),
-            Default::default(),
-            Default::default(),
             &[[2u8; SUBNET_ID_LENGTH].into()],
-            0,
-            Default::default(),
         )
         .map_err(|_| vec![format!("Unable to create the certificate")])?;
 
