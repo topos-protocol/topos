@@ -31,5 +31,5 @@ pub fn test_parse_bootnodes(genesis: &Genesis) {
 pub fn test_extract_validators(genesis: &Genesis) {
     let validators = genesis.validators();
 
-    assert_eq!(14, validators.len());
+    assert_eq!(4, validators.len());
 }

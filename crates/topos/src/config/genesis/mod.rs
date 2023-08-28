@@ -1,3 +1,4 @@
+use rlp::{Decodable, DecoderError, Rlp};
 use std::{fs, path::PathBuf};
 
 use serde_json::Value;
@@ -10,6 +11,21 @@ pub(crate) mod tests;
 pub struct Genesis {
     pub path: PathBuf,
     pub json: Value,
+}
+
+#[derive(Debug)]
+pub struct EdgeExtraData(Vec<Vec<u8>>);
+
+impl Decodable for EdgeExtraData {
+    fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
+        let mut validators = Vec::new();
+        let mut i = 0;
+        while let Ok(validator) = rlp.val_at::<Vec<u8>>(i) {
+            validators.push(validator);
+            i += 1;
+        }
+        Ok(Self(validators))
+    }
 }
 
 impl Genesis {
@@ -55,34 +71,34 @@ impl Genesis {
             .unwrap()
             .to_string();
 
-        let bytes = hex::decode(&extra_data[2..]).expect("Decoding failed");
-
-        // Define sizes
+        // Define constants for the prefix size and validator size
         const VANITY_SIZE: usize = 32;
-        const VALIDATOR_SIZE: usize = 20;
 
-        // Split into vanity, RLP encoded validators, and seal sections
-        let (_vanity, remaining) = bytes.split_at(VANITY_SIZE);
+        // Remove the "0x" prefix from the hex string
+        let hex_string = &extra_data[2..];
 
-        let rlp = rlp::Rlp::new(remaining);
-        let validator_bytes = rlp
-            .at(0)
-            .expect("Failed to get RLP list")
-            .data()
-            .expect("Failed to get RLP data");
+        // Convert the hex string to bytes
+        let bytes = hex::decode(hex_string).expect("Failed to decode hex string");
 
-        // Expected number of validators
-        let num_validators = validator_bytes.len() / VALIDATOR_SIZE;
+        // Slice the bytes to get the validators data
+        let validators_data = &bytes[VANITY_SIZE..];
 
-        // Extract validators
-        let mut validators: Vec<String> = Vec::new();
-        for i in 0..num_validators {
-            validators.push(format!(
-                "0x{}",
-                hex::encode(&validator_bytes[i * VALIDATOR_SIZE..(i + 1) * VALIDATOR_SIZE])
-            ));
+        // Create an Rlp object from the validators data
+        let rlp = Rlp::new(validators_data);
+
+        // Get the first Rlp item (index 0) and iterate over its items
+        let first_item = rlp.at(0).expect("Failed to get first RLP item");
+        let mut validator_public_keys = Vec::new();
+
+        for i in 0..first_item.item_count().unwrap() {
+            let validator_data = first_item.at(i).expect("Failed to get RLP item").data();
+            if let Ok(validator_data) = validator_data {
+                let public_key = validator_data.to_vec();
+                let address = format!("0x{}", hex::encode(&public_key[1..=20]));
+                validator_public_keys.push(address);
+            }
         }
 
-        validators
+        validator_public_keys
     }
 }
