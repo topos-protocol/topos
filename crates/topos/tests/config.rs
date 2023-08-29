@@ -4,13 +4,10 @@ use std::process::Command;
 use topos::install_polygon_edge;
 
 async fn polygon_edge_path(path: &str) -> String {
-    println!("Getting or initializing polygon edge path");
-    // Otherwise, download and store the path
     let installation_path = std::env::current_dir().unwrap().join(path);
     let binary_path = installation_path.join("polygon-edge");
 
     if !binary_path.exists() {
-        println!("Creating a folder here: {}", installation_path.display());
         std::fs::create_dir_all(installation_path.clone())
             .expect("Cannot create test binary folder");
 
@@ -29,7 +26,6 @@ async fn polygon_edge_path(path: &str) -> String {
 #[tokio::test]
 async fn test_handle_command_init() -> Result<(), Box<dyn std::error::Error>> {
     let temporary_test_folder = "/tmp/topos/handle_command_init";
-    println!("command inmit get path");
     let path = polygon_edge_path(temporary_test_folder).await;
 
     let mut cmd = Command::cargo_bin("topos")?;
@@ -94,7 +90,6 @@ fn test_nothing_written_if_failure() -> Result<(), Box<dyn std::error::Error>> {
 async fn test_handle_command_init_with_custom_name() -> Result<(), Box<dyn std::error::Error>> {
     let temporary_test_folder = "/tmp/topos/test_handle_command_init_with_custom_name";
     let node_name = "TEST_NODE";
-    println!("Custom name get path");
     let path = polygon_edge_path(temporary_test_folder).await;
 
     let mut cmd = Command::cargo_bin("topos")?;
