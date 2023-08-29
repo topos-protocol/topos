@@ -1,5 +1,5 @@
-use std::net::SocketAddr;
 use std::path::Path;
+use std::{net::SocketAddr, path::PathBuf};
 
 use figment::{
     providers::{Format, Serialized, Toml},
@@ -12,10 +12,11 @@ use crate::config::Config;
 use topos_p2p::{Multiaddr, PeerId};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "kebab-case")]
 pub struct TceConfig {
     /// Storage database path, if not set RAM storage is used
     #[serde(default = "default_db_path")]
-    pub db_path: String,
+    pub db_path: PathBuf,
     /// Array of extra boot nodes to connect to
     pub extra_boot_peers: Option<String>,
     /// Ip for the p2p Multiaddr
@@ -43,8 +44,8 @@ pub struct TceConfig {
     pub otlp_service_name: Option<String>,
 }
 
-fn default_db_path() -> String {
-    "./default_db/".to_string()
+fn default_db_path() -> PathBuf {
+    PathBuf::from("./tce_rocksdb")
 }
 
 fn default_grpc_api_addr() -> SocketAddr {

@@ -27,7 +27,6 @@ pub(crate) struct NodeConfig {
     pub(crate) base: BaseConfig,
     pub(crate) tce: Option<TceConfig>,
     pub(crate) sequencer: Option<SequencerConfig>,
-    #[serde(rename = "subnet")]
     pub(crate) edge: Option<EdgeConfig>,
 }
 
@@ -35,7 +34,7 @@ impl NodeConfig {
     pub fn new(from: &Path, cmd: Option<node::commands::Init>) -> Self {
         let base = load_config::<BaseConfig>(from, cmd);
 
-        Self {
+        let mut config = NodeConfig {
             base: base.clone(),
             sequencer: base
                 .need_sequencer()
@@ -46,7 +45,14 @@ impl NodeConfig {
             edge: base
                 .need_edge()
                 .then(|| load_config::<EdgeConfig>(from, None)),
+        };
+
+        // Make the TCE DB path relative to the folder
+        if let Some(config) = config.tce.as_mut() {
+            config.db_path = from.join(&config.db_path);
         }
+
+        config
     }
 }
 

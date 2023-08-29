@@ -11,6 +11,7 @@ use crate::config::node::NodeRole;
 use crate::config::Config;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "kebab-case")]
 pub struct BaseConfig {
     #[serde(default = "default_name")]
     pub name: String,

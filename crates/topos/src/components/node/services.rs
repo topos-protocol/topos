@@ -3,6 +3,7 @@ use crate::config::sequencer::SequencerConfig;
 use crate::config::tce::TceConfig;
 use crate::edge::{CommandConfig, BINARY_NAME};
 use opentelemetry::global;
+use std::collections::HashMap;
 use std::error::Error;
 use std::future::Future;
 use std::path::{Path, PathBuf};
@@ -22,7 +23,7 @@ use topos_sequencer::SequencerConfiguration;
 use topos_tce::config::{AuthKey, StorageConfiguration, TceConfiguration};
 use topos_tce_transport::ReliableBroadcastParams;
 use topos_wallet::SecretManager;
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
 use crate::config::genesis::Genesis;
 
@@ -41,6 +42,8 @@ pub fn generate_edge_config(
     config_path: PathBuf,
 ) -> JoinHandle<Result<(), Errors>> {
     // Create the Polygon Edge config
+    info!("Generating the configuration at {config_path:?}");
+    info!("Polygon-edge binary located at: {edge_path:?}");
     spawn(async move {
         match CommandConfig::new(edge_path)
             .init(&config_path)
@@ -69,12 +72,12 @@ pub(crate) fn spawn_sequencer_process(
         public_key: keys.validator_pubkey(),
         subnet_jsonrpc_endpoint: config.subnet_jsonrpc_endpoint,
         subnet_contract_address: config.subnet_contract_address,
-        // TODO: Merge with or default to config.tce.tce_local_port?
-        base_tce_api_url: config.base_tce_api_url,
+        tce_grpc_endpoint: config.tce_grpc_endpoint,
         signing_key: keys.validator.clone().unwrap(),
-        verifier: config.verifier,
+        verifier: 0,
     };
 
+    debug!("Sequencer args: {config:?}");
     spawn(async move {
         topos_sequencer::run(config, shutdown).await.map_err(|e| {
             error!("Failure on the Sequencer: {e:?}");
@@ -102,7 +105,7 @@ pub(crate) fn spawn_tce_process(
         api_addr: config.grpc_api_addr,
         graphql_api_addr: config.graphql_api_addr,
         metrics_api_addr: config.metrics_api_addr,
-        storage: StorageConfiguration::RocksDB(PathBuf::from_str(&config.db_path).ok()),
+        storage: StorageConfiguration::RocksDB(Some(config.db_path)),
         network_bootstrap_timeout: Duration::from_secs(10),
         minimum_cluster_size: config
             .minimum_tce_cluster_size
@@ -110,6 +113,7 @@ pub(crate) fn spawn_tce_process(
         version: env!("TOPOS_VERSION"),
     };
 
+    debug!("TCE args: {tce_config:?}");
     spawn(async move {
         topos_tce::run(&tce_config, shutdown).await.map_err(|e| {
             error!("TCE process terminated: {e:?}");
@@ -122,10 +126,12 @@ pub fn spawn_edge_process(
     edge_path: PathBuf,
     data_dir: PathBuf,
     genesis_path: PathBuf,
+    edge_args: HashMap<String, String>,
 ) -> JoinHandle<Result<(), Errors>> {
+    debug!("Edge args: {edge_args:?}");
     spawn(async move {
         match CommandConfig::new(edge_path)
-            .server(&data_dir, &genesis_path)
+            .server(&data_dir, &genesis_path, edge_args)
             .spawn()
             .await
         {

@@ -44,13 +44,23 @@ impl CommandConfig {
         self
     }
 
-    pub fn server(mut self, data_dir: &Path, genesis_path: &Path) -> Self {
+    pub fn server(
+        mut self,
+        data_dir: &Path,
+        genesis_path: &Path,
+        edge_args: HashMap<String, String>,
+    ) -> Self {
         self.args.push("server".into());
         self.args.push("--data-dir".into());
         self.args.push(format!("{}", data_dir.display()));
         self.args.push("--chain".into());
         self.args.push(format!("{}", genesis_path.display()));
         self.args.push("--json".into());
+
+        for (k, v) in &edge_args {
+            self.args.push(format!("--{k}"));
+            self.args.push(v.to_string());
+        }
 
         self
     }
