@@ -226,7 +226,7 @@ impl SubnetRuntimeProxy {
                 tokio::select! {
                     // Poll runtime proxy commands channel
                     cmd = command_rcv.recv() => {
-                        Self::on_command(&config, &mut subnet_client.take().unwrap(), cmd).await;
+                        Self::on_command(&config, subnet_client.as_mut().unwrap(), cmd).await;
                     },
                     shutdown = command_task_shutdown.recv() => {
                         break shutdown;

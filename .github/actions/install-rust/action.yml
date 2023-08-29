@@ -7,6 +7,10 @@ inputs:
     description: 'Default toolchain to install'
     required: false
     default: 'stable'
+  target:
+    description: 'Default target to add'
+    required: false
+    default: 'aarch64-unknown-linux-gnu'
   msrv:
     description: 'Enable rust-toolchain version for msrv'
     required: false
@@ -39,6 +43,7 @@ runs:
     - name: Environment
       shell: bash
       run: |
+        rustup target add ${{ inputs.target }}
         if ${{ inputs.msrv }}; then
           rustup override unset
           rustup show

@@ -73,14 +73,10 @@ async fn runtime_can_dispatch_a_cert(
     // Wait for client to be ready
     tokio::time::sleep(Duration::from_millis(10)).await;
 
-    let cert = topos_core::uci::Certificate::new(
+    let cert = topos_core::uci::Certificate::new_with_default_fields(
         PREV_CERTIFICATE_ID,
         SOURCE_SUBNET_ID_1,
-        Default::default(),
-        Default::default(),
         &[TARGET_SUBNET_ID_1],
-        0,
-        Vec::new(),
     )
     .unwrap();
 
@@ -153,14 +149,10 @@ async fn can_catchup_with_old_certs(
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     let last = certificates.last().map(|c| c.id).unwrap();
-    let cert = topos_core::uci::Certificate::new(
+    let cert = topos_core::uci::Certificate::new_with_default_fields(
         last,
         SOURCE_SUBNET_ID_1,
-        Default::default(),
-        Default::default(),
         &[TARGET_SUBNET_ID_1],
-        0,
-        Vec::new(),
     )
     .unwrap();
 
@@ -277,14 +269,10 @@ async fn can_catchup_with_old_certs_with_position() {
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     let last = certificates.last().map(|c| c.id).unwrap();
-    let cert = topos_core::uci::Certificate::new(
+    let cert = topos_core::uci::Certificate::new_with_default_fields(
         last,
         SOURCE_SUBNET_ID_1,
-        Default::default(),
-        Default::default(),
         &[TARGET_SUBNET_ID_1],
-        0,
-        Vec::new(),
     )
     .unwrap();
 
@@ -505,14 +493,10 @@ async fn can_query_graphql_endpoint_for_certificates() {
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     let last = certificates.last().map(|c| c.id).unwrap();
-    let cert = topos_core::uci::Certificate::new(
+    let cert = topos_core::uci::Certificate::new_with_default_fields(
         last,
         SOURCE_SUBNET_ID_1,
-        Default::default(),
-        Default::default(),
         &[TARGET_SUBNET_ID_1],
-        0,
-        Vec::new(),
     )
     .unwrap();
 

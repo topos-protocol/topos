@@ -11,6 +11,7 @@ pub struct Certificate {
     pub source_subnet_id: SubnetId,
     pub state_root: StateRoot,
     pub tx_root_hash: TxRootHash,
+    pub receipts_root_hash: ReceiptsRootHash,
     pub target_subnets: Vec<SubnetId>,
     pub verifier: u32,
     pub proof: StarkProof,
@@ -38,6 +39,10 @@ impl Debug for Certificate {
                 &("0x".to_string() + &hex::encode(self.tx_root_hash)),
             )
             .field(
+                "receipts_root_hash",
+                &("0x".to_string() + &hex::encode(self.receipts_root_hash)),
+            )
+            .field(
                 "target_subnets",
                 &self
                     .target_subnets
@@ -56,24 +61,49 @@ impl Debug for Certificate {
 }
 
 impl Certificate {
+    #[allow(clippy::too_many_arguments)]
     pub fn new<P: Into<CertificateId>>(
-        prev: P,
+        prev_id: P,
         source_subnet_id: SubnetId,
         state_root: StateRoot,
         tx_root_hash: TxRootHash,
+        receipts_root_hash: ReceiptsRootHash,
         target_subnets: &[SubnetId],
         verifier: u32,
         proof: Vec<u8>,
     ) -> Result<Certificate, Box<dyn std::error::Error>> {
         let mut cert = Certificate {
             id: [0; CERTIFICATE_ID_LENGTH].into(),
-            prev_id: prev.into(),
+            prev_id: prev_id.into(),
             source_subnet_id,
             state_root,
             tx_root_hash,
+            receipts_root_hash,
             target_subnets: target_subnets.into(),
             verifier,
             proof,
+            signature: Default::default(),
+        };
+
+        cert.id = Self::calculate_cert_id(&cert)?.into();
+        Ok(cert)
+    }
+
+    pub fn new_with_default_fields<P: Into<CertificateId>>(
+        prev_id: P,
+        source_subnet_id: SubnetId,
+        target_subnets: &[SubnetId],
+    ) -> Result<Certificate, Box<dyn std::error::Error>> {
+        let mut cert = Certificate {
+            id: [0; CERTIFICATE_ID_LENGTH].into(),
+            prev_id: prev_id.into(),
+            source_subnet_id,
+            state_root: Default::default(),
+            tx_root_hash: Default::default(),
+            receipts_root_hash: Default::default(),
+            target_subnets: target_subnets.into(),
+            verifier: 0,
+            proof: Default::default(),
             signature: Default::default(),
         };
 
@@ -107,6 +137,7 @@ impl Certificate {
         buffer.extend_from_slice(self.source_subnet_id.as_array().as_ref());
         buffer.extend_from_slice(self.state_root.as_ref());
         buffer.extend_from_slice(self.tx_root_hash.as_ref());
+        buffer.extend_from_slice(self.receipts_root_hash.as_ref());
         for target_subnet in &self.target_subnets {
             buffer.extend_from_slice(target_subnet.as_array().as_ref());
         }
@@ -123,6 +154,7 @@ impl Certificate {
         buffer.extend_from_slice(certificate.source_subnet_id.as_array().as_ref());
         buffer.extend_from_slice(certificate.state_root.as_ref());
         buffer.extend_from_slice(certificate.tx_root_hash.as_ref());
+        buffer.extend_from_slice(certificate.receipts_root_hash.as_ref());
         for target_subnet in &certificate.target_subnets {
             buffer.extend_from_slice(target_subnet.as_array().as_ref());
         }
@@ -141,6 +173,7 @@ mod tests {
     const TARGET_SUBNET_ID: SubnetId = SubnetId::from_array([3u8; SUBNET_ID_LENGTH]);
     const STATE_ROOT: StateRoot = [4u8; 32];
     const TX_ROOT_HASH: TxRootHash = [5u8; 32];
+    const RECEIPTS_ROOT_HASH: ReceiptsRootHash = [6u8; 32];
     const PRIVATE_TEST_KEY: &str =
         "5fb92d6e98884f76de468fa3f6278f8807c48bebc13595d45af5bdc4da702133";
 
@@ -154,6 +187,7 @@ mod tests {
             source_subnet_id.into(),
             STATE_ROOT,
             TX_ROOT_HASH,
+            RECEIPTS_ROOT_HASH,
             &[TARGET_SUBNET_ID],
             2,
             Default::default(),

@@ -140,16 +140,9 @@ async fn reach_delivery_threshold(double_echo: &mut DoubleEcho, cert: &Certifica
 async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams) {
     let (mut double_echo, mut ctx) = create_context(params).await;
 
-    let dummy_cert = Certificate::new(
-        PREV_CERTIFICATE_ID,
-        SOURCE_SUBNET_ID_1,
-        Default::default(),
-        Default::default(),
-        &[],
-        0,
-        Default::default(),
-    )
-    .expect("Dummy certificate");
+    let dummy_cert =
+        Certificate::new_with_default_fields(PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID_1, &[])
+            .expect("Dummy certificate");
 
     // Trigger Echo upon dispatching
     double_echo.broadcast(dummy_cert.clone(), true).await;
@@ -198,16 +191,9 @@ async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams)
 async fn trigger_ready_when_reached_enough_ready(#[case] params: TceParams) {
     let (mut double_echo, mut ctx) = create_context(params).await;
 
-    let dummy_cert = Certificate::new(
-        PREV_CERTIFICATE_ID,
-        SOURCE_SUBNET_ID_1,
-        Default::default(),
-        Default::default(),
-        &[],
-        0,
-        Default::default(),
-    )
-    .expect("Dummy certificate");
+    let dummy_cert =
+        Certificate::new_with_default_fields(PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID_1, &[])
+            .expect("Dummy certificate");
 
     // Trigger Echo upon dispatching
     double_echo.broadcast(dummy_cert.clone(), true).await;
