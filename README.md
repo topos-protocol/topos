@@ -9,19 +9,21 @@
 <br />
 
 <p align="center">
-topos is the unified command line interface to the <a href="https://docs.toposware.com/general-overview">Topos</a> protocol.
+<b>topos</b> is the unified command line interface to the <a href="https://docs.topos.technology/">Topos</a> protocol.
 </p>
+</div>
 
 <br />
 
-</div>
+<div align="center">
 
-<!-- **`topos` is the unified command line interface to the [Topos](https://docs.toposware.com/general-overview) network.** -->
-
-[![codecov](https://codecov.io/gh/topos-protocol/topos/branch/main/graph/badge.svg?token=FOH2B2GRL9&style=flat)](https://codecov.io/gh/topos-protocol/topos)
 ![Test workflow](https://github.com/topos-protocol/topos/actions/workflows/test.yml/badge.svg)
 ![Quality workflow](https://github.com/topos-protocol/topos/actions/workflows/quality.yml/badge.svg)
-![MSRV](https://img.shields.io/badge/MSRV-1.71.1-blue?labelColor=1C2C2E&logo=Rust&style=flat-square)
+[![codecov](https://codecov.io/gh/topos-protocol/topos/branch/main/graph/badge.svg?token=FOH2B2GRL9)](https://codecov.io/gh/topos-protocol/topos)
+![MSRV](https://img.shields.io/badge/MSRV-1.71.1-blue?labelColor=1C2C2E&logo=Rust)
+[![](https://dcbadge.vercel.app/api/server/7HZ8F8ykBT?style=flat)](https://discord.gg/7HZ8F8ykBT)
+
+</div>
 
 ## Getting Started
 
@@ -41,7 +43,7 @@ cargo install topos --git https://github.com/topos-protocol/topos
 topos --help
 ```
 
-Find more about how topos works in the [documentation](https://docs.toposware.com/).
+Find more about how topos works in the [documentation](https://docs.topos.technology/).
 
 ## Development
 
@@ -51,11 +53,12 @@ Running a minimal local setup with docker compose is described [here](./tools/RE
 ## Support
 
 Feel free to [open an issue](https://github.com/topos-protocol/topos/issues/new) if you have any feature request or bug report.<br />
+If you have any questions, do not hesitate to reach us on [Discord](https://discord.gg/7HZ8F8ykBT)!
 
 ## Resources
 
 - Website: <https://toposware.com>
-- Technical Documentation: <https://docs.toposware.com>
+- Technical Documentation: <https://docs.topos.technology/>
 - Medium: <https://toposware.medium.com>
 - Whitepaper: [Topos: A Secure, Trustless, and Decentralized
   Interoperability Protocol](https://arxiv.org/pdf/2206.03481.pdf)
