@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest-16-core
     strategy:
       matrix:
-        target: [ aarch64-unknown-linux-gnu ]
+        target: [ x86_64-unknown-linux-gnu ]
     steps:
       - uses: actions/checkout@v3
       - uses: ./.github/actions/install-rust
@@ -33,20 +33,33 @@ jobs:
         shell: bash
         run: |
           export arch=$(echo ${{ matrix.target }} | cut -d- -f1)
+          export version=${GITHUB_REF#refs/*/}
           echo "arch=${arch}" >> $GITHUB_ENV
-          mv ./target/release/topos ./target/release/topos-${arch}
-          tar -czvf ./target/release/topos-${ arch }.tgz ./target/release/topos-${arch}
+          echo "version=${version}" >> $GITHUB_ENV
+          mv ./target/${{ matrix.target }}/release/topos topos-${version}-${arch}
+          tar -czvf topos-${version}-${arch}.tgz topos-${version}-${arch}
 
       - name: Upload release artifacts for ${{ matrix.target }} architecture
         uses: actions/upload-artifact@v3
         with:
-          name: topos-binaries-${{ matrix.target }}
+          name: topos-${{ matrix.target }}
           if-no-files-found: error
           path: |
-            ./target/release/topos-${{ env.arch }}.tgz
+            topos-${{ env.version }}-${{ env.arch }}.tgz
 
       - name: Publish binaries for ${{ matrix.target }} release
-        uses: softprops/action/gb/release@v1
+        uses: softprops/action-gh-release@v1
         with:
           files: |
-            ./target/release/topos-${{ env.arch }}.tgz
+            topos-${{ env.version }}-${{ env.arch }}.tgz
+
+      - name: Send Slack notification
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "repository": "${{ github.repository }}",
+              "version": "${{ github.ref }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ vars.RELEASE_PIPELINE_SLACK_WEBHOOK_URL }}
