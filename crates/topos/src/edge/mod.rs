@@ -21,6 +21,14 @@ pub struct CommandConfig {
 
 impl CommandConfig {
     pub fn new(binary_path: PathBuf) -> Self {
+        let binary_path = if binary_path == PathBuf::from(".") {
+            std::env::current_dir()
+                .expect("Cannot get the current directory")
+                .join(BINARY_NAME)
+        } else {
+            binary_path
+        };
+
         CommandConfig {
             binary_path,
             args: Vec::new(),
@@ -66,7 +74,6 @@ impl CommandConfig {
             .stderr
             .take()
             .expect("child did not have a handle to stdout");
-
         let mut reader = BufReader::new(stdout).lines();
 
         let running = async { child.wait().await };

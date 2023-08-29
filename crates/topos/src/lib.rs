@@ -1,14 +1,10 @@
-use crate::components::setup::commands::Subnet;
 use flate2::read::GzDecoder;
-use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::Write;
-use std::path::{Path, PathBuf};
-use std::str::FromStr;
+use std::path::Path;
 use tar::Archive;
-use tokio::{signal, spawn};
 use tracing::{error, info};
 
 const GITHUB_REPO_API: &str = "https://api.github.com/repos/";
@@ -185,9 +181,13 @@ async fn get_release(
     Err(Error::NoValidRelease)
 }
 
-pub async fn install_polygon_edge(cmd: Box<Subnet>) -> Result<(), Error> {
+pub async fn install_polygon_edge(
+    repository: String,
+    release: Option<String>,
+    path: &Path,
+) -> Result<(), Error> {
     // Select release for installation
-    let release = get_release(cmd.repository.as_str(), &cmd.release).await?;
+    let release = get_release(repository.as_str(), &release).await?;
 
     info!(
         "Selected release: {} from {}",
@@ -195,7 +195,7 @@ pub async fn install_polygon_edge(cmd: Box<Subnet>) -> Result<(), Error> {
     );
 
     // Download and install Polygon Edge binary
-    if let Err(e) = download_binary(&release.binary, &release.download_url, &cmd.path).await {
+    if let Err(e) = download_binary(&release.binary, &release.download_url, path).await {
         error!("Unable to install Polygon Edge binary {e}");
         return Err(e);
     }
@@ -203,9 +203,9 @@ pub async fn install_polygon_edge(cmd: Box<Subnet>) -> Result<(), Error> {
     Ok(())
 }
 
-pub async fn list_polygon_edge_releases(cmd: Box<Subnet>) -> Result<(), Error> {
+pub async fn list_polygon_edge_releases(repository: String) -> Result<(), Error> {
     // Retrieve list of available releases from the Github repository
-    let releases = get_available_releases(&cmd.repository).await?;
+    let releases = get_available_releases(&repository).await?;
     println!("Available Polygon Edge releases:");
     releases
         .into_iter()

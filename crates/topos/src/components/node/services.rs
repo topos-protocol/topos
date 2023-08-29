@@ -51,7 +51,10 @@ pub fn generate_edge_config(
                 info!("Edge process terminated: {status:?}");
                 Ok(())
             }
-            Err(e) => Err(Errors::EdgeTerminated(e)),
+            Err(e) => {
+                println!("Failed to run the edge binary: {e:?}");
+                Err(Errors::EdgeTerminated(e))
+            }
         }
     })
 }

@@ -12,7 +12,7 @@ use std::pin::Pin;
 use std::process::{ExitStatus, Stdio};
 use std::time::Duration;
 use std::{
-    fs::{create_dir_all, File, OpenOptions},
+    fs::{create_dir_all, remove_dir_all, File, OpenOptions},
     io::Write,
     str::FromStr,
 };
@@ -82,8 +82,15 @@ pub(crate) async fn handle_command(
             let mut config_toml = toml::Table::new();
 
             // Generate the Edge configuration
-            let handle =
-                services::generate_edge_config(edge_path.join(BINARY_NAME), node_path.clone());
+            if let Ok(result) =
+                generate_edge_config(edge_path.join(BINARY_NAME), node_path.clone()).await
+            {
+                if result.is_err() {
+                    println!("Failed to generate edge config");
+                    remove_dir_all(node_path).expect("failed to remove config folder");
+                    std::process::exit(1);
+                }
+            }
 
             let node_config = NodeConfig::new(&node_path, Some(cmd));
 
@@ -106,10 +113,6 @@ pub(crate) async fn handle_command(
                 "Created node config file at {}/config.toml",
                 node_path.display()
             );
-
-            if let Err(e) = handle.await.unwrap() {
-                error!("Failed to init: {e}");
-            }
 
             Ok(())
         }
