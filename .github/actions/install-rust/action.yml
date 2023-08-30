@@ -10,7 +10,7 @@ inputs:
   target:
     description: 'Default target to add'
     required: false
-    default: 'aarch64-unknown-linux-gnu'
+    default: 'x86_64-unknown-linux-gnu'
   msrv:
     description: 'Enable rust-toolchain version for msrv'
     required: false
