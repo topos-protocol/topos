@@ -31,6 +31,7 @@ jobs:
     env:
       CARGO_TERM_COLOR: always
       RUSTFLAGS: -Dwarnings
+      RUSTC_WRAPPER: ""
       RUST_BACKTRACE: 1
     steps:
       - name: Checkout topos repo
