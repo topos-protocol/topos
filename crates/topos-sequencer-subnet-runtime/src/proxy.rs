@@ -104,7 +104,9 @@ impl SubnetRuntimeProxy {
             tokio::spawn(async move {
                 {
                     // To start producing certificates, we need to know latest delivered or pending certificate id from TCE
-                    // It could be also genesis certificate (also retrievable from TCE)
+                    // It could be also genesis certificate (also retrievable from TCE). As currently subnet registration is
+                    // not yet implemented on topos subnet, if TCE returns empty certificate history we start getting
+                    // blocks and producing certificates from block 0 (genesis) of the subnet
                     // Lock certification component and wait until we acquire first certificate id for this network
                     let mut certification = certification.lock().await;
                     if certification.last_certificate_id.is_none() {
@@ -142,10 +144,11 @@ impl SubnetRuntimeProxy {
                     }
                 };
 
-                let mut interval = time::interval(SUBNET_BLOCK_TIME);
-
                 let mut subnet_listener = subnet_listener.expect("subnet listener");
 
+                //TODO: synchronize here as fast as I can until current block
+
+                let mut interval = time::interval(SUBNET_BLOCK_TIME);
                 let shutdowned: Option<oneshot::Sender<()>> = loop {
                     tokio::select! {
                         _ = interval.tick() => {

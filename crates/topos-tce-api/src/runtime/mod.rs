@@ -333,7 +333,7 @@ impl Runtime {
             } => {
                 async move {
                     info!(
-                        "A certificate has been submitted to the TCE {}",
+                        "A certificate has been submitted to the TCE id={}",
                         certificate.id
                     );
                     if let Err(error) = self

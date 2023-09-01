@@ -34,7 +34,7 @@ impl TceProxyWorker {
 
         // Get pending certificates from the TCE node. Source head certificate
         // is latest pending certificate for this subnet
-        let mut source_last_pending_certificate: Option<Certificate> = match tce_client
+        let mut source_last_certificate: Option<Certificate> = match tce_client
             .get_last_pending_certificates(vec![tce_client.get_subnet_id()])
             .await
         {
@@ -47,11 +47,11 @@ impl TceProxyWorker {
             }
         };
 
-        if source_last_pending_certificate.is_none() {
+        if source_last_certificate.is_none() {
             // There are no pending certificates on the TCE
             // Retrieve source head from TCE node (latest delivered certificate), so that
             // we know from where to start creating certificates
-            source_last_pending_certificate = match tce_client.get_source_head().await {
+            source_last_certificate = match tce_client.get_source_head().await {
                 Ok(certificate) => Some(certificate),
                 Err(Error::SourceHeadEmpty { subnet_id: _ }) => {
                     // This is also OK, TCE node does not have any data about certificates
@@ -131,7 +131,7 @@ impl TceProxyWorker {
                 events: evt_rcv,
                 config,
             },
-            source_last_pending_certificate,
+            source_last_certificate,
         ))
     }
 

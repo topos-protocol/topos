@@ -149,6 +149,10 @@ impl SubnetClientListener {
             .get_block_number()
             .await
             .map_err(Error::EthersProviderError)?;
+
+        println!(">>>>>>>>>>>>>>>>> Latest block is {:?} next wanted block number: {} latest subnet block: {}",
+                 self.latest_block, next_block_number, latest_block_number.as_u64());
+
         if latest_block_number.as_u64() < next_block_number {
             return Err(Error::BlockNotAvailable(next_block_number));
         }
