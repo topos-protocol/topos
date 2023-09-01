@@ -44,12 +44,16 @@ pub async fn run(
 
     let addr: Multiaddr = format!("/ip4/0.0.0.0/tcp/{}", config.tce_local_port).parse()?;
 
+    // Remove myself from the bootnode list
+    let mut boot_peers = config.boot_peers.clone();
+    boot_peers.retain(|(p, _)| *p != peer_id);
+
     let (network_client, event_stream, unbootstrapped_runtime) = topos_p2p::network::builder()
         .peer_key(key)
         .listen_addr(addr)
         .minimum_cluster_size(config.minimum_cluster_size)
         .exposed_addresses(external_addr)
-        .known_peers(&config.boot_peers)
+        .known_peers(&boot_peers)
         .build()
         .await?;
 
