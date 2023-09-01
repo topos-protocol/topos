@@ -1,3 +1,5 @@
+#![allow(unknown_lints)]
+#![allow(hidden_glob_reexports)]
 use dockertest::{
     Composition, DockerTest, Image, LogAction, LogOptions, LogPolicy, LogSource, PullPolicy, Source,
 };

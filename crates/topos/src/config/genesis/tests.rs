@@ -22,7 +22,7 @@ pub fn test_correct_validator_count(genesis: &Genesis) {
 
 #[rstest]
 pub fn test_parse_bootnodes(genesis: &Genesis) {
-    let bootnodes = genesis.boot_peers();
+    let bootnodes = genesis.boot_peers(None);
 
     assert_eq!(4, bootnodes.len());
 }
