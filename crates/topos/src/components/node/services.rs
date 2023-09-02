@@ -94,19 +94,19 @@ pub(crate) fn spawn_tce_process(
 ) -> JoinHandle<Result<(), Errors>> {
     let tce_config = TceConfiguration {
         boot_peers: genesis
-            .boot_peers()
+            .boot_peers(Some(topos_p2p::constant::TCE_BOOTNODE_PORT))
             .into_iter()
             .chain(config.parse_boot_peers())
             .collect::<Vec<_>>(),
         auth_key: keys.network.map(AuthKey::PrivateKey),
-        tce_addr: "/ip4/0.0.0.0".into(), // FIXME: to remove, no need to be exposed
-        tce_local_port: 0,               // FIXME: to remove, no need to be exposed
+        tce_addr: format!("/ip4/{}", config.libp2p_api_addr.ip()),
+        tce_local_port: config.libp2p_api_addr.port(),
         tce_params: ReliableBroadcastParams::new(genesis.validator_count()),
         api_addr: config.grpc_api_addr,
         graphql_api_addr: config.graphql_api_addr,
         metrics_api_addr: config.metrics_api_addr,
         storage: StorageConfiguration::RocksDB(Some(config.db_path)),
-        network_bootstrap_timeout: Duration::from_secs(10),
+        network_bootstrap_timeout: Duration::from_secs(180),
         minimum_cluster_size: config
             .minimum_tce_cluster_size
             .unwrap_or(NetworkConfig::MINIMUM_CLUSTER_SIZE),

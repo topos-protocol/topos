@@ -32,13 +32,21 @@ impl Genesis {
     }
 
     // TODO: parse directly with serde
-    pub fn boot_peers(&self) -> Vec<(PeerId, Multiaddr)> {
+    pub fn boot_peers(&self, port: Option<u16>) -> Vec<(PeerId, Multiaddr)> {
         match self.json["bootnodes"].as_array() {
             Some(v) => v
                 .iter()
                 .map(|bootnode| {
                     let (multiaddr, peerid) =
                         bootnode.as_str().unwrap().rsplit_once("/p2p/").unwrap();
+
+                    // Extract the Edge port from the genesis file
+                    let (multiaddr, edge_port) = multiaddr.rsplit_once('/').unwrap();
+
+                    // Use the given port instead if any
+                    let port = port.map_or(edge_port.to_string(), |p| p.to_string());
+
+                    let multiaddr = format!("{multiaddr}/{port}");
                     (peerid.parse().unwrap(), multiaddr.parse().unwrap())
                 })
                 .collect::<Vec<_>>(),

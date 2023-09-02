@@ -28,6 +28,9 @@ pub struct TceConfig {
     /// Connection degree for the GossipSub overlay
     pub minimum_tce_cluster_size: Option<usize>,
     /// gRPC API Addr
+    #[serde(default = "default_libp2p_api_addr")]
+    pub libp2p_api_addr: SocketAddr,
+    /// gRPC API Addr
     #[serde(default = "default_grpc_api_addr")]
     pub grpc_api_addr: SocketAddr,
     /// GraphQL API Addr
@@ -46,6 +49,12 @@ pub struct TceConfig {
 
 fn default_db_path() -> PathBuf {
     PathBuf::from("./tce_rocksdb")
+}
+
+fn default_libp2p_api_addr() -> SocketAddr {
+    "0.0.0.0:9090"
+        .parse()
+        .expect("Cannot parse address to SocketAddr")
 }
 
 fn default_grpc_api_addr() -> SocketAddr {
