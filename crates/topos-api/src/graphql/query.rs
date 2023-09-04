@@ -1,4 +1,4 @@
-use crate::graphql::certificate::Certificate;
+use crate::graphql::certificate::{Certificate, CertificateId};
 use crate::graphql::checkpoint::SourceCheckpoint;
 use crate::graphql::errors::GraphQLServerError;
 
@@ -12,4 +12,9 @@ pub trait CertificateQuery {
         from_source_checkpoint: SourceCheckpoint,
         first: usize,
     ) -> Result<Vec<Certificate>, GraphQLServerError>;
+
+    async fn certificate_by_id(
+        ctx: &Context<'_>,
+        certificate_id: CertificateId,
+    ) -> Result<Certificate, GraphQLServerError>;
 }

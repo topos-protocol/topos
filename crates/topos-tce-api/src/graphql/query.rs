@@ -2,7 +2,9 @@ use async_graphql::{Context, EmptyMutation, EmptySubscription, Object, Schema};
 use async_trait::async_trait;
 use topos_api::graphql::errors::GraphQLServerError;
 use topos_api::graphql::{
-    certificate::Certificate, checkpoint::SourceCheckpoint, query::CertificateQuery,
+    certificate::{Certificate, CertificateId},
+    checkpoint::SourceCheckpoint,
+    query::CertificateQuery,
 };
 use topos_tce_storage::{CertificateSourceStreamPosition, FetchCertificatesFilter, StorageClient};
 
@@ -50,6 +52,23 @@ impl CertificateQuery for QueryRoot {
         }
 
         Ok(certificates)
+    }
+
+    async fn certificate_by_id(
+        ctx: &Context<'_>,
+        certificate_id: CertificateId,
+    ) -> Result<Certificate, GraphQLServerError> {
+        let storage = ctx.data::<StorageClient>().map_err(|_| {
+            tracing::error!("Failed to get storage client from context");
+
+            GraphQLServerError::ParseDataConnector
+        })?;
+
+        storage
+            .get_certificate(certificate_id.into())
+            .await
+            .map_err(|_| GraphQLServerError::StorageError)
+            .map(|c| c.into())
     }
 }
 
