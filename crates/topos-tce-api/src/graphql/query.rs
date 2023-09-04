@@ -65,7 +65,7 @@ impl CertificateQuery for QueryRoot {
         })?;
 
         storage
-            .get_certificate(certificate_id.into())
+            .get_certificate(certificate_id.value.into())
             .await
             .map_err(|_| GraphQLServerError::StorageError)
             .map(|c| c.into())
