@@ -7160,12 +7160,29 @@ dependencies = [
  "tokio-util",
  "topos-core",
  "topos-crypto",
+ "topos-sequencer-storage",
  "topos-sequencer-subnet-runtime",
  "topos-tce-proxy",
  "topos-wallet",
  "tracing",
  "tracing-opentelemetry",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "topos-sequencer-storage"
+version = "0.1.0"
+dependencies = [
+ "async-stream",
+ "async-trait",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tokio-stream",
+ "topos-commands",
+ "topos-core",
+ "tracing",
 ]
 
 [[package]]
@@ -7374,6 +7391,7 @@ dependencies = [
  "tokio-stream",
  "tonic 0.9.2",
  "topos-core",
+ "topos-sequencer-storage",
  "topos-tce",
  "topos-tce-storage",
  "topos-tce-transport",

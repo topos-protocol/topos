@@ -1,4 +1,6 @@
 use self::commands::{SequencerCommand, SequencerCommands};
+use std::path::PathBuf;
+use std::str::FromStr;
 use tokio::{signal, spawn, sync::mpsc};
 use tokio_util::sync::CancellationToken;
 use topos_sequencer::{self, SequencerConfiguration};
@@ -26,6 +28,8 @@ pub(crate) async fn handle_command(
                 tce_grpc_endpoint: cmd.base_tce_api_url,
                 signing_key: keys.validator.clone().unwrap(),
                 verifier: cmd.verifier,
+                db_path: PathBuf::from_str(cmd.db_path.as_str())
+                    .expect("Valid path for sequencer db"),
             };
 
             // Setup instrumentation if both otlp agent and otlp service name are provided as arguments

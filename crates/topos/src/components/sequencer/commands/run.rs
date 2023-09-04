@@ -48,6 +48,14 @@ pub struct Run {
     /// If not provided open telemetry will not be used
     #[arg(long, env = "TOPOS_OTLP_SERVICE_NAME")]
     pub otlp_service_name: Option<String>,
+
+    /// Sequencer db path
+    #[clap(
+        long,
+        default_value = "./default_sequencer_db/",
+        env = "SEQUENCER_DB_PATH"
+    )]
+    pub db_path: String,
 }
 
 impl Run {}

@@ -5,6 +5,7 @@ pub mod client;
 pub mod worker;
 
 use opentelemetry::Context;
+use std::path::PathBuf;
 use tonic::transport::channel;
 use topos_core::api::grpc::checkpoints::TargetStreamPosition;
 use topos_core::{
@@ -57,6 +58,7 @@ pub enum TceProxyCommand {
     /// Submit a newly created certificate to the TCE
     SubmitCertificate {
         cert: Box<Certificate>,
+        block_number: u64,
         ctx: Context,
     },
 
@@ -80,6 +82,7 @@ pub struct TceProxyConfig {
     pub subnet_id: SubnetId,
     pub base_tce_api_url: String,
     pub positions: Vec<TargetStreamPosition>,
+    pub db_path: PathBuf,
 }
 
 async fn connect_to_tce_service_with_retry(

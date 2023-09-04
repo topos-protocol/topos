@@ -31,6 +31,10 @@ pub struct SequencerConfig {
 
     /// OTLP service name, not used if not provided
     pub otlp_service_name: Option<String>,
+
+    /// Sequencer db path
+    #[serde(default = "default_sequencer_db_path")]
+    pub db_path: PathBuf,
 }
 
 fn default_subnet_jsonrpc_endpoint() -> String {
@@ -43,6 +47,10 @@ fn default_subnet_contract_address() -> String {
 
 fn default_tce_grpc_endpoint() -> String {
     "http://[::1]:1340".to_string()
+}
+
+fn default_sequencer_db_path() -> PathBuf {
+    PathBuf::from("./sequencer_db")
 }
 
 impl Config for SequencerConfig {

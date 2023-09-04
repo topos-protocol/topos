@@ -79,6 +79,7 @@ pub struct SubnetRuntimeProxyConfig {
     pub subnet_contract_address: String,
     pub source_head_certificate_id: Option<CertificateId>,
     pub verifier: u32,
+    pub latest_subnet_block_number: u64,
 }
 
 /// Thread safe client to the protocol aggregate

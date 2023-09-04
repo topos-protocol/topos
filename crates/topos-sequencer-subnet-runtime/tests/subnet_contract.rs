@@ -509,6 +509,7 @@ async fn test_create_runtime() -> Result<(), Box<dyn std::error::Error>> {
             subnet_contract_address: "0x0000000000000000000000000000000000000000".to_string(),
             verifier: 0,
             source_head_certificate_id: None,
+            latest_subnet_block_number: 0,
         },
         test_private_key,
     )
@@ -540,6 +541,7 @@ async fn test_subnet_certificate_push_call(
             subnet_contract_address: subnet_smart_contract_address.clone(),
             verifier: 0,
             source_head_certificate_id: None,
+            latest_subnet_block_number: 0,
         },
         admin_key.clone(),
     )
@@ -827,6 +829,7 @@ async fn test_subnet_send_token_processing(
             subnet_contract_address: subnet_smart_contract_address.clone(),
             verifier: 0,
             source_head_certificate_id: None,
+            latest_subnet_block_number: 0,
         },
         test_private_key.clone(),
     )

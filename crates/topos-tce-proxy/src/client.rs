@@ -3,6 +3,7 @@ use base64::Engine;
 use futures::stream::FuturesUnordered;
 use opentelemetry::trace::FutureExt;
 use std::collections::HashMap;
+use std::path::PathBuf;
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::StreamExt;
 
@@ -42,6 +43,7 @@ pub(crate) enum TceClientCommand {
     // Send generated certificate to the TCE node
     SendCertificate {
         cert: Box<Certificate>,
+        block_number: u64,
         span: tracing::Span,
     },
     Shutdown,
@@ -66,10 +68,15 @@ impl TceClient {
             .map_err(|_| Error::InvalidChannelError)?;
         Ok(())
     }
-    pub async fn send_certificate(&mut self, cert: Certificate) -> Result<(), Error> {
+    pub async fn send_certificate(
+        &mut self,
+        cert: Certificate,
+        block_number: u64,
+    ) -> Result<(), Error> {
         self.command_sender
             .send(TceClientCommand::SendCertificate {
                 cert: Box::new(cert),
+                block_number,
                 span: tracing::Span::current(),
             })
             .with_current_context()
@@ -131,6 +138,7 @@ pub struct TceClientBuilder {
     tce_endpoint: Option<String>,
     subnet_id: Option<SubnetId>,
     tce_proxy_event_sender: Option<mpsc::Sender<TceProxyEvent>>,
+    db_path: PathBuf,
 }
 
 impl TceClientBuilder {
@@ -149,6 +157,11 @@ impl TceClientBuilder {
         tce_proxy_event_sender: mpsc::Sender<TceProxyEvent>,
     ) -> Self {
         self.tce_proxy_event_sender = Some(tce_proxy_event_sender);
+        self
+    }
+
+    pub fn set_db_path(mut self, db_path: PathBuf) -> Self {
+        self.db_path = db_path;
         self
     }
 
@@ -339,7 +352,7 @@ impl TceClientBuilder {
                     }
                     command = tce_command_receiver.recv() => {
                         match command {
-                           Some(TceClientCommand::SendCertificate {cert, span}) =>  {
+                           Some(TceClientCommand::SendCertificate {cert, block_number, span}) =>  {
                                 let cert_id = cert.id;
                                 let previous_cert_id = cert.prev_id;
                                 let span = info_span!(parent: &span, "SendCertificate", %cert_id, %previous_cert_id, %tce_endpoint);
@@ -355,6 +368,7 @@ impl TceClientBuilder {
 
                                 let tce_endpoint = tce_endpoint.clone();
                                 let mut tce_grpc_client = tce_grpc_client.clone();
+                                let db_path = self.db_path.clone();
                                 certificate_to_send.push(async move {
                                     match tce_grpc_client
                                         .submit_certificate(request)
@@ -364,6 +378,10 @@ impl TceClientBuilder {
                                         .map(|r| r.into_inner()) {
                                             Ok(_response)=> {
                                                 info!("Successfully sent the Certificate {} (previous: {}) to the TCE at {}", &cert_id, &previous_cert_id, &tce_endpoint);
+                                                // Mark to my database that block with particular height is delivered
+                                                if let Err(e) = topos_sequencer_storage::db_write_subnet_block_number(&db_path, block_number).await {
+                                                    error!("Failed to write block number {} to the database: {}", block_number, e);
+                                                }
                                             }
                                             Err(e) => {
                                                 error!("Failed to submit the Certificate to the TCE at {}: {e}", &tce_endpoint);

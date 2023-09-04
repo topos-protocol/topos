@@ -27,6 +27,7 @@ impl TceProxyWorker {
             .set_subnet_id(config.subnet_id)
             .set_tce_endpoint(&config.base_tce_api_url)
             .set_proxy_event_sender(evt_sender.clone())
+            .set_db_path(config.db_path.clone())
             .build_and_launch(shutdown_receiver)
             .await?;
 
@@ -74,12 +75,12 @@ impl TceProxyWorker {
                     // process TCE proxy commands received from application
                     Some(cmd) = command_rcv.recv() => {
                         match cmd {
-                            TceProxyCommand::SubmitCertificate{cert, ctx} => {
+                            TceProxyCommand::SubmitCertificate{cert, block_number, ctx} => {
                                 let span = info_span!("Sequencer TCE Proxy");
                                 span.set_parent(ctx);
                                 async {
                                     info!("Submitting new certificate to the TCE network: {}", &cert.id);
-                                    if let Err(e) = tce_client.send_certificate(*cert).await {
+                                    if let Err(e) = tce_client.send_certificate(*cert, block_number).await {
                                         error!("Failure on the submission of the Certificate to the TCE client: {e}");
                                     }
                                 }

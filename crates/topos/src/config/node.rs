@@ -52,6 +52,11 @@ impl NodeConfig {
             config.db_path = from.join(&config.db_path);
         }
 
+        // Make the Sequencer DB path relative to the folder
+        if let Some(config) = config.sequencer.as_mut() {
+            config.db_path = from.join(&config.db_path);
+        }
+
         config
     }
 }

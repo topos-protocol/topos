@@ -1,5 +1,6 @@
 use crate::app_context::AppContext;
 use std::io::ErrorKind::InvalidInput;
+use std::path::PathBuf;
 use tokio::{
     spawn,
     sync::{
@@ -9,6 +10,7 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 use topos_core::uci::SubnetId;
+use topos_sequencer_storage::{db_create_if_not_exists, db_read_subnet_block_number};
 use topos_sequencer_subnet_runtime::{SubnetRuntimeProxyConfig, SubnetRuntimeProxyWorker};
 use topos_tce_proxy::{worker::TceProxyWorker, TceProxyConfig};
 use topos_wallet::SecretKey;
@@ -25,6 +27,7 @@ pub struct SequencerConfiguration {
     pub tce_grpc_endpoint: String,
     pub signing_key: SecretKey,
     pub verifier: u32,
+    pub db_path: PathBuf,
 }
 
 pub async fn launch(
@@ -64,6 +67,18 @@ pub async fn launch(
         }
     };
 
+    // Check for existing db data (specifically last block number that was retrieved from the subnet)
+    if let Err(e) = db_create_if_not_exists(&config.db_path).await {
+        panic!("Unable to create db file {e}");
+    }
+    let latest_subnet_block_number = match db_read_subnet_block_number(&config.db_path).await {
+        Ok(block_number) => block_number,
+        Err(e) => {
+            panic!("Unable to read last block number {e}");
+        }
+    };
+    info!("Last block number retrieved from the database: {latest_subnet_block_number}");
+
     // Instantiate subnet runtime proxy, handling interaction with subnet node
     let subnet_runtime_proxy_worker = match SubnetRuntimeProxyWorker::new(
         SubnetRuntimeProxyConfig {
@@ -72,6 +87,7 @@ pub async fn launch(
             subnet_contract_address: config.subnet_contract_address.clone(),
             source_head_certificate_id: None, // Must be acquired later after TCE proxy is connected
             verifier: config.verifier,
+            latest_subnet_block_number,
         },
         config.signing_key.clone(),
     )
@@ -100,6 +116,7 @@ pub async fn launch(
         subnet_id,
         base_tce_api_url: config.tce_grpc_endpoint.clone(),
         positions: target_subnet_stream_positions,
+        db_path: config.db_path.clone(),
     })
     .await
     {

@@ -155,22 +155,22 @@ async fn close_target_node_connections(
 }
 
 /// Submit the certificate to the TCE node
-async fn submit_cert_to_tce(node: &TargetNodeConnection, cert: Certificate) {
+async fn submit_cert_to_tce(node: &TargetNodeConnection, cert: Certificate, block_number: u64) {
     let client = node.client.clone();
     let span = Span::current();
     span.record("certificate_id", cert.id.to_string());
     span.record("source_subnet_id", cert.source_subnet_id.to_string());
 
     let mut tce_client = client.lock().await;
-    send_new_certificate(&mut tce_client, cert)
+    send_new_certificate(&mut tce_client, cert, block_number)
         .with_context(span.context())
         .instrument(span)
         .await
 }
 
-async fn send_new_certificate(tce_client: &mut TceClient, cert: Certificate) {
+async fn send_new_certificate(tce_client: &mut TceClient, cert: Certificate, block_number: u64) {
     if let Err(e) = tce_client
-        .send_certificate(cert)
+        .send_certificate(cert, block_number)
         .with_current_context()
         .instrument(Span::current())
         .await
@@ -182,12 +182,12 @@ async fn send_new_certificate(tce_client: &mut TceClient, cert: Certificate) {
     }
 }
 
-async fn dispatch(cert: Certificate, target_node: &TargetNodeConnection) {
+async fn dispatch(cert: Certificate, target_node: &TargetNodeConnection, block_number: u64) {
     info!(
-        "Sending cert id={:?} prev_cert_id= {:?} subnet_id={:?} to tce node {}",
-        &cert.id, &cert.prev_id, &cert.source_subnet_id, target_node.address
+        "Sending cert id={:?} prev_cert_id= {:?} subnet_id={:?} block_number = {} to tce node {}",
+        &cert.id, &cert.prev_id, &cert.source_subnet_id, block_number, target_node.address
     );
-    submit_cert_to_tce(target_node, cert).await
+    submit_cert_to_tce(target_node, cert, block_number).await
 }
 
 pub async fn run(
@@ -256,6 +256,7 @@ pub async fn run(
     let number_of_peer_nodes = target_nodes.len();
     let mut batch_interval = time::interval(Duration::from_millis(args.batch_interval));
     let mut batch_number: u64 = 0;
+    let mut block_number: u64 = 0;
 
     let shutdown_sender = loop {
         let should_send_batch = tokio::select! {
@@ -321,16 +322,18 @@ pub async fn run(
                                 continue;
                             }
                         };
+
                     debug!("New cert number {b} in batch {batch_number} generated");
                     batch.push(new_cert);
                 }
 
                 // Dispatch certs in this batch
                 for cert in batch {
+                    block_number += 1;
                     // Randomly choose target tce node for every certificate from related source_subnet_id connection list
                     let target_node_connection = &target_node_connections[&cert.source_subnet_id]
                         [rand::random::<usize>() % target_nodes.len()];
-                    dispatch(cert, target_node_connection)
+                    dispatch(cert, target_node_connection, block_number)
                         .instrument(Span::current())
                         .with_current_context()
                         .await;

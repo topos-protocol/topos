@@ -74,13 +74,18 @@ impl AppContext {
     async fn on_subnet_runtime_proxy_event(&mut self, evt: SubnetRuntimeProxyEvent) {
         debug!("on_subnet_runtime_proxy_event : {:?}", &evt);
         match evt {
-            SubnetRuntimeProxyEvent::NewCertificate { cert, ctx } => {
+            SubnetRuntimeProxyEvent::NewCertificate {
+                cert,
+                block_number,
+                ctx,
+            } => {
                 let span = info_span!("Sequencer app context");
                 span.set_parent(ctx);
                 if let Err(e) = self
                     .tce_proxy_worker
                     .send_command(TceProxyCommand::SubmitCertificate {
                         cert,
+                        block_number,
                         ctx: span.context(),
                     })
                     .with_context(span.context())
@@ -131,6 +136,7 @@ impl AppContext {
                         subnet_id: config.subnet_id,
                         base_tce_api_url: config.base_tce_api_url.clone(),
                         positions: Vec::new(), // TODO: acquire from subnet
+                        db_path: config.db_path.clone(),
                     },
                 )
                 .await
