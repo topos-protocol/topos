@@ -83,4 +83,12 @@ impl QueryRoot {
     ) -> Result<Vec<Certificate>, GraphQLServerError> {
         Self::certificates_per_subnet(ctx, from_source_checkpoint, first).await
     }
+
+    async fn certificate(
+        &self,
+        ctx: &Context<'_>,
+        certificate_id: CertificateId,
+    ) -> Result<Certificate, GraphQLServerError> {
+        Self::certificate_by_id(ctx, certificate_id).await
+    }
 }
