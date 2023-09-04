@@ -89,7 +89,8 @@ impl CertificateId {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::CertificateId;
+
     const CERTIFICATE_ID_WITH_PREFIX: &str =
         "0x11db8713a79c41625f4bb2221bd43ac4766fff23e78f82212f48713a6768e76a";
     const CERTIFICATE_ID_WITHOUT_PREFIX: &str =
