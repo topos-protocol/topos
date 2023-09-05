@@ -105,7 +105,7 @@ impl AppContext {
                 mut subnet_ids,
                 sender,
             } => {
-                let mut last_pending_certificates: HashMap<SubnetId, Option<Certificate>> =
+                let mut last_pending_certificates: HashMap<SubnetId, Option<(Certificate, u64)>> =
                     subnet_ids
                         .iter()
                         .map(|subnet_id| (*subnet_id, None))
@@ -114,12 +114,18 @@ impl AppContext {
                 if let Ok(pending_certificates) =
                     self.pending_storage.get_pending_certificates().await
                 {
+                    // Count number of pending certificates for every subnet
+                    let mut indexes: HashMap<SubnetId, u64> = HashMap::new();
+                    for (_pending_certificate_id, cert) in pending_certificates.iter() {
+                        *indexes.entry(cert.source_subnet_id).or_insert(0) += 1;
+                    }
+
                     // Iterate through pending certificates and determine last one for every subnet
                     // Last certificate in the subnet should be one with the highest index
                     for (_pending_certificate_id, cert) in pending_certificates.into_iter().rev() {
                         if let Some(subnet_id) = subnet_ids.take(&cert.source_subnet_id) {
                             *last_pending_certificates.entry(subnet_id).or_insert(None) =
-                                Some(cert);
+                                Some((cert, indexes[&subnet_id]));
                         }
                         if subnet_ids.is_empty() {
                             break;

@@ -24,6 +24,8 @@ pub enum RuntimeEvent {
 
     GetLastPendingCertificates {
         subnet_ids: HashSet<SubnetId>,
-        sender: oneshot::Sender<Result<HashMap<SubnetId, Option<Certificate>>, RuntimeError>>,
+        #[allow(clippy::type_complexity)]
+        sender:
+            oneshot::Sender<Result<HashMap<SubnetId, Option<(Certificate, u64)>>, RuntimeError>>,
     },
 }

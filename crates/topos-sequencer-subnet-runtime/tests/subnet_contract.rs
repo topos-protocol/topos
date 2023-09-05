@@ -836,7 +836,7 @@ async fn test_subnet_send_token_processing(
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
     info!("Set source head certificate to 0");
     if let Err(e) = runtime_proxy_worker
-        .set_source_head_certificate_id(Some(CERTIFICATE_ID_1))
+        .set_source_head_certificate_id(Some((CERTIFICATE_ID_1, 0)))
         .await
     {
         panic!("Unable to set source head certificate id: {e}");

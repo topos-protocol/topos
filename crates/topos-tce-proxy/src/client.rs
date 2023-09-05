@@ -8,7 +8,9 @@ use tokio_stream::StreamExt;
 
 use tonic::IntoRequest;
 use topos_core::api::grpc::checkpoints::{TargetCheckpoint, TargetStreamPosition};
-use topos_core::api::grpc::tce::v1::{GetLastPendingCertificatesRequest, GetSourceHeadRequest};
+use topos_core::api::grpc::tce::v1::{
+    GetLastPendingCertificatesRequest, GetSourceHeadRequest, GetSourceHeadResponse,
+};
 use topos_core::{
     api::grpc::tce::v1::{
         watch_certificates_request, watch_certificates_response, SubmitCertificateRequest,
@@ -27,12 +29,13 @@ pub(crate) enum TceClientCommand {
     // Get head certificate that was sent to the TCE node for this subnet
     GetSourceHead {
         subnet_id: SubnetId,
-        sender: oneshot::Sender<Result<Certificate, Error>>,
+        sender: oneshot::Sender<Result<(Certificate, u64), Error>>,
     },
     // Get map of subnet id->last pending certificate
     GetLastPendingCertificates {
         subnet_ids: Vec<SubnetId>,
-        sender: oneshot::Sender<Result<HashMap<SubnetId, Option<Certificate>>, Error>>,
+        #[allow(clippy::type_complexity)]
+        sender: oneshot::Sender<Result<HashMap<SubnetId, Option<(Certificate, u64)>>, Error>>,
     },
     // Open the stream to the TCE node
     // Mark the position from which TCE node certificates should be retrieved
@@ -86,11 +89,12 @@ impl TceClient {
         Ok(())
     }
 
-    pub async fn get_source_head(&mut self) -> Result<Certificate, Error> {
+    // Return source head and position of the certificate
+    pub async fn get_source_head(&mut self) -> Result<(Certificate, u64), Error> {
         #[allow(clippy::type_complexity)]
         let (sender, receiver): (
-            oneshot::Sender<Result<Certificate, Error>>,
-            oneshot::Receiver<Result<Certificate, Error>>,
+            oneshot::Sender<Result<(Certificate, u64), Error>>,
+            oneshot::Receiver<Result<(Certificate, u64), Error>>,
         ) = oneshot::channel();
         self.command_sender
             .send(TceClientCommand::GetSourceHead {
@@ -106,7 +110,7 @@ impl TceClient {
     pub async fn get_last_pending_certificates(
         &mut self,
         subnet_ids: Vec<SubnetId>,
-    ) -> Result<HashMap<SubnetId, Option<Certificate>>, Error> {
+    ) -> Result<HashMap<SubnetId, Option<(Certificate, u64)>>, Error> {
         #[allow(clippy::type_complexity)]
         let (sender, receiver) = oneshot::channel();
         self.command_sender
@@ -400,20 +404,26 @@ impl TceClientBuilder {
                                 break;
                             }
                             Some(TceClientCommand::GetSourceHead {subnet_id, sender}) =>  {
-                                    let result: Result<Certificate, Error> = match tce_grpc_client
+                                    let result: Result<(Certificate, u64), Error> = match tce_grpc_client
                                     .get_source_head(GetSourceHeadRequest {
                                         subnet_id: Some(subnet_id.into())
                                     })
                                     .await
-                                    .map(|r| r.into_inner().certificate) {
-                                        Ok(Some(certificate)) => Ok(certificate.try_into().map_err(|_| Error::InvalidCertificate)?),
-                                        Ok(None) => {
+                                    .map(|r| r.into_inner()) {
+                                        Ok(GetSourceHeadResponse {
+                                            position: Some(pos),
+                                            certificate: Some(cert),
+                                        }) => {
+                                            Ok((cert.try_into().map_err(|_| Error::InvalidCertificate)?,
+                                                pos.position))
+                                        },
+                                        Ok(_) => {
                                             Err(Error::SourceHeadEmpty{subnet_id})
                                         },
                                         Err(e) => {
                                             Err(Error::UnableToGetSourceHeadCertificate{subnet_id, details: e.to_string()})
-                                    },
-                                };
+                                        }
+                                    };
 
                                 if sender.send(result).is_err() {
                                     error!("Unable to pass result of the source head, channel failed");
@@ -440,10 +450,12 @@ impl TceClientBuilder {
                                                     )
                                                     .map_err(|_| Error::InvalidSubnetId)?;
 
-                                                    let certificate: Option<Certificate> =
+                                                    let index: u64 = last_pending_certificate.index as u64;
+                                                    let certificate_and_index: Option<(Certificate, u64)> =
                                                         match last_pending_certificate.value {
                                                             Some(certificate) => Some(
                                                                 Certificate::try_from(certificate)
+                                                                .map(|certificate| (certificate, index))
                                                                 .map_err(
                                                                     |e| Error::UnableToGetLastPendingCertificates {
                                                                         details: e.to_string(),
@@ -454,12 +466,13 @@ impl TceClientBuilder {
                                                             None => None,
                                                         };
 
+
                                                     Ok((
                                                         subnet_id,
-                                                        certificate,
+                                                        certificate_and_index
                                                     ))
                                                 })
-                                                .collect::<Result<HashMap<SubnetId, Option<Certificate>>, Error>>()?;
+                                                .collect::<Result<HashMap<SubnetId, Option<(Certificate, u64)>>, Error>>()?;
                                             Ok(result)
                                         }
                                         Err(e) => Err(Error::UnableToGetLastPendingCertificates {
