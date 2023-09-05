@@ -62,8 +62,8 @@ impl TryFrom<Vec<u8>> for CertificateId {
 
 impl From<String> for CertificateId {
     fn from(input: String) -> Self {
-        let id = if input.starts_with("0x") {
-            hex::decode(&input[2..]).unwrap_or_else(|_| vec![0u8; CERTIFICATE_ID_LENGTH])
+        let id = if let Some(stripped) = input.strip_prefix("0x") {
+            hex::decode(stripped).unwrap_or_else(|_| vec![0u8; CERTIFICATE_ID_LENGTH])
         } else {
             hex::decode(&input).unwrap_or_else(|_| vec![0u8; CERTIFICATE_ID_LENGTH])
         };
@@ -71,7 +71,7 @@ impl From<String> for CertificateId {
         let id_array: [u8; CERTIFICATE_ID_LENGTH] = id
             .as_slice()
             .try_into()
-            .unwrap_or_else(|_| [0u8; CERTIFICATE_ID_LENGTH]);
+            .unwrap_or([0u8; CERTIFICATE_ID_LENGTH]);
 
         CertificateId { id: id_array }
     }
