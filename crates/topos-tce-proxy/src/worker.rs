@@ -48,7 +48,7 @@ impl TceProxyWorker {
         };
 
         info!(
-            "Last pending certificate is: {:?}",
+            "Last certificate is pending certificate is: {:?}",
             source_last_generated_certificate
         );
 
@@ -66,7 +66,12 @@ impl TceProxyWorker {
                 Err(e) => {
                     return Err(e);
                 }
-            }
+            };
+
+            info!(
+                "Last certificate is delivered certificate: {:?}",
+                source_last_generated_certificate
+            );
         }
 
         tokio::spawn(async move {
