@@ -25,13 +25,27 @@ pub(crate) async fn get_block_events(
     contract: &IToposCore<Provider<Ws>>,
     block_number: U64,
 ) -> Result<Vec<crate::SubnetEvent>, Error> {
+    println!(">>>>>>>>>>>>> Checkpoint 0");
     let events = contract.events().from_block(block_number);
+    println!(">>>>>>>>>>>>> Checkpoint 1 {:?}", events);
     let topos_core_events = events
         .query()
-        .await
-        .map_err(|e| Error::ContractError(e.to_string()))?;
-    let mut result = Vec::new();
+        .await;
+    println!(">>>>>>>>>>>>> Checkpoint 2");
 
+    let topos_core_events = match topos_core_events {
+        Ok(events) =>{
+            println!(">>>>>>>>>>>>> OK {:?}", events);
+            events
+        },
+        Err(e) => {
+            println!(">>>>>>>>>>>>> ERROR {:?}", e);
+            return Err(Error::ContractError(e.to_string()));
+        },
+    };
+
+
+    let mut result = Vec::new();
     for event in topos_core_events {
         if let IToposCoreEvents::CrossSubnetMessageSentFilter(f) = event {
             info!("Received CrossSubnetMessageSentFilter event: {f:?}");

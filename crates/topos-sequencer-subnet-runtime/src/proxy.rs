@@ -217,7 +217,7 @@ impl SubnetRuntimeProxy {
                                 next_block_number
                             ).await {
                                 match e {
-                                    Error::SubnetError { source: topos_sequencer_subnet_client::Error::BlockNotAvailable(block_number) } => {
+                                    Error::SubnetError { source: topos_sequencer_subnet_client::Error::BlockNotAvailable(_) } => {
                                         continue;
                                     }
                                     _ => {
