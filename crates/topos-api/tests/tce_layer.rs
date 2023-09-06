@@ -14,10 +14,10 @@ use topos_api::grpc::tce::v1::api_service_server::{ApiService, ApiServiceServer}
 use topos_api::grpc::tce::v1::watch_certificates_request::{Command, OpenStream};
 use topos_api::grpc::tce::v1::{
     GetLastPendingCertificatesRequest, GetLastPendingCertificatesResponse, GetSourceHeadRequest,
-    GetSourceHeadResponse, SourceStreamPosition, SubmitCertificateRequest,
+    GetSourceHeadResponse, LastPendingCertificate, SourceStreamPosition, SubmitCertificateRequest,
     SubmitCertificateResponse, WatchCertificatesRequest, WatchCertificatesResponse,
 };
-use topos_api::grpc::uci::v1::{Certificate, OptionalCertificate};
+use topos_api::grpc::uci::v1::Certificate;
 use uuid::Uuid;
 
 use topos_test_sdk::constants::*;
@@ -76,7 +76,7 @@ async fn create_tce_layer() {
             for subnet_id in subnet_ids {
                 map.insert(
                     base64::engine::general_purpose::STANDARD.encode(&subnet_id.value),
-                    OptionalCertificate {
+                    LastPendingCertificate {
                         value: Some(Certificate {
                             source_subnet_id: subnet_id.into(),
                             id: Some(return_certificate_id.clone()),
@@ -84,6 +84,7 @@ async fn create_tce_layer() {
                             target_subnets: Vec::new(),
                             ..Default::default()
                         }),
+                        index: 0,
                     },
                 );
             }
@@ -200,8 +201,9 @@ async fn create_tce_layer() {
     let mut expected_last_pending_certificate_ids = HashMap::new();
     expected_last_pending_certificate_ids.insert(
         base64::engine::general_purpose::STANDARD.encode(&source_subnet_id.value),
-        OptionalCertificate {
+        LastPendingCertificate {
             value: Some(original_certificate.clone()),
+            index: 0,
         },
     );
 

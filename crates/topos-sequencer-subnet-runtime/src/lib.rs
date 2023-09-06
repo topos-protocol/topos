@@ -144,7 +144,7 @@ impl SubnetRuntimeProxyWorker {
 
     pub async fn set_source_head_certificate_id(
         &self,
-        source_head_certificate_id: Option<CertificateId>,
+        source_head_certificate_id: Option<(CertificateId, u64)>,
     ) -> Result<(), Error> {
         let mut runtime_proxy = self.runtime_proxy.lock().await;
         runtime_proxy

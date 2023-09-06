@@ -4,13 +4,13 @@ use std::pin::Pin;
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::{Request, Response, Status, Streaming};
+use topos_api::grpc::tce::v1::LastPendingCertificate;
 use topos_core::api::grpc::tce::v1::{
     api_service_server::ApiService, GetLastPendingCertificatesRequest,
     GetLastPendingCertificatesResponse, GetSourceHeadRequest, GetSourceHeadResponse,
     SubmitCertificateRequest, SubmitCertificateResponse, WatchCertificatesRequest,
     WatchCertificatesResponse,
 };
-use topos_core::api::grpc::uci::v1::OptionalCertificate;
 use topos_core::uci::SubnetId;
 use topos_metrics::API_GRPC_CERTIFICATE_RECEIVED_TOTAL;
 use tracing::{error, info, Span};
@@ -223,12 +223,21 @@ impl ApiService for TceGrpcService {
                 Ok(Ok(map)) => Ok(Response::new(GetLastPendingCertificatesResponse {
                     last_pending_certificate: map
                         .into_iter()
-                        .map(|(subnet_id, cert)| {
+                        .map(|(subnet_id, last_pending_certificate)| {
                             (
                                 base64::engine::general_purpose::STANDARD
                                     .encode(subnet_id.as_array()),
-                                OptionalCertificate {
-                                    value: cert.map(Into::into),
+                                {
+                                    LastPendingCertificate {
+                                        index: last_pending_certificate
+                                            .as_ref()
+                                            .map(|(_cert, index)| *index)
+                                            .unwrap_or_default()
+                                            as i32,
+                                        value: last_pending_certificate
+                                            .map(|(cert, _index)| cert)
+                                            .map(Into::into),
+                                    }
                                 },
                             )
                         })

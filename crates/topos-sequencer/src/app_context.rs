@@ -138,7 +138,7 @@ impl AppContext {
                     Ok((tce_proxy_worker, source_head_certificate)) => {
                         info!("TCE proxy client is restarted for the source subnet {:?} from the head {:?}",config.subnet_id, source_head_certificate);
                         let source_head_certificate_id =
-                            source_head_certificate.map(|cert| cert.id);
+                            source_head_certificate.map(|cert| cert.0.id);
                         (tce_proxy_worker, source_head_certificate_id)
                     }
                     Err(e) => {

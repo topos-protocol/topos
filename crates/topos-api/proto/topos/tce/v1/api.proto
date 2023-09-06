@@ -7,6 +7,7 @@ import "topos/shared/v1/subnet.proto";
 import "topos/shared/v1/uuid.proto";
 import "topos/tce/v1/synchronization.proto";
 import "topos/uci/v1/certification.proto";
+import "topos/shared/v1/certificate.proto";
 
 
 service APIService {
@@ -44,10 +45,16 @@ message GetLastPendingCertificatesRequest {
   repeated topos.shared.v1.SubnetId subnet_ids = 1;
 }
 
+message LastPendingCertificate {
+  topos.uci.v1.Certificate value = 1;
+  // Pending certificate index (effectively total number of pending certificates)
+  int32 index = 2;
+}
+
 message GetLastPendingCertificatesResponse {
   // Bytes and array types (SubnetId) could not be key in the map type according to specifications,
   // so we use SubnetId hex encoded string with 0x prefix as key
-  map<string, topos.uci.v1.OptionalCertificate> last_pending_certificate = 1;
+  map<string, LastPendingCertificate> last_pending_certificate = 1;
 }
 
 message WatchCertificatesRequest {

@@ -108,7 +108,8 @@ pub async fn launch(
                 "TCE proxy client is starting for the source subnet {:?} from the head {:?}",
                 subnet_id, source_head_certificate
             );
-            let source_head_certificate_id = source_head_certificate.map(|cert| cert.id);
+            let source_head_certificate_id =
+                source_head_certificate.map(|(cert, position)| (cert.id, position));
             (tce_proxy_worker, source_head_certificate_id)
         }
         Err(e) => {

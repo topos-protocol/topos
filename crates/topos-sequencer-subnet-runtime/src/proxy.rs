@@ -51,7 +51,7 @@ pub struct SubnetRuntimeProxy {
     pub certification: Arc<Mutex<Certification>>,
     command_task_shutdown: mpsc::Sender<oneshot::Sender<()>>,
     block_task_shutdown: mpsc::Sender<oneshot::Sender<()>>,
-    source_head_certificate_id_sender: Option<oneshot::Sender<Option<CertificateId>>>,
+    source_head_certificate_id_sender: Option<oneshot::Sender<Option<(CertificateId, u64)>>>,
 }
 
 impl Debug for SubnetRuntimeProxy {
@@ -111,13 +111,14 @@ impl SubnetRuntimeProxy {
                         info!("Waiting for the source head certificate id to continue with certificate generation");
                         // Wait for last_certificate_id retrieved on TCE component setup
                         match source_head_certificate_id_received.await {
-                            Ok(last_certificate_id) => {
+                            Ok(certificate_and_position) => {
                                 info!(
                                     "Source head certificate id received {:?}",
-                                    last_certificate_id.map(|id| id.to_string())
+                                    certificate_and_position
                                 );
+                                let cert_id = certificate_and_position.map(|(id, _position)| id);
                                 // Certificate generation is now ready to run
-                                certification.last_certificate_id = last_certificate_id;
+                                certification.last_certificate_id = cert_id;
                             }
                             Err(e) => {
                                 panic!("Failed to get source head certificate, unable to proceed with certificate generation: {e}")
@@ -396,7 +397,7 @@ impl SubnetRuntimeProxy {
 
     pub async fn set_source_head_certificate_id(
         &mut self,
-        source_head_certificate_id: Option<CertificateId>,
+        source_head_certificate_id: Option<(CertificateId, u64)>,
     ) -> Result<(), Error> {
         self.source_head_certificate_id_sender
             .take()
