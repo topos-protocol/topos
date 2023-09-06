@@ -17,6 +17,7 @@ mod certificate_id;
 mod subnet_id;
 
 pub const CERTIFICATE_ID_LENGTH: usize = 32;
+pub const HEX_CERTIFICATE_ID_LENGTH: usize = 64;
 pub const SUBNET_ID_LENGTH: usize = 32;
 
 pub type StarkProof = Vec<u8>;

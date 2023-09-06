@@ -65,7 +65,13 @@ impl CertificateQuery for QueryRoot {
         })?;
 
         storage
-            .get_certificate(certificate_id.value.into())
+            .get_certificate(
+                certificate_id
+                    .value
+                    .as_bytes()
+                    .try_into()
+                    .expect("Cannot convert String to CertificateId"),
+            )
             .await
             .map_err(|_| GraphQLServerError::StorageError)
             .map(|c| c.into())

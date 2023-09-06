@@ -13,6 +13,7 @@ impl TryFrom<proto_v1::Certificate> for topos_uci::Certificate {
                 .prev_id
                 .expect("valid previous certificate id")
                 .value
+                .as_slice()
                 .try_into()
                 .expect("valid previous certificate id with correct length"),
             source_subnet_id: certificate
@@ -44,6 +45,7 @@ impl TryFrom<proto_v1::Certificate> for topos_uci::Certificate {
                 .id
                 .expect("valid certificate id")
                 .value
+                .as_slice()
                 .try_into()
                 .expect("valid certificate id with correct length"),
             proof: certificate.proof.expect("valid proof").value,

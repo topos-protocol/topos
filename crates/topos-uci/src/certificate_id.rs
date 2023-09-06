@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display};
 use std::hash::Hash;
 
-use crate::{Error, CERTIFICATE_ID_LENGTH};
+use crate::{Error, CERTIFICATE_ID_LENGTH, HEX_CERTIFICATE_ID_LENGTH};
 
 #[derive(Serialize, Hash, Deserialize, Default, PartialEq, Eq, Clone, Copy)]
 pub struct CertificateId {
@@ -45,35 +45,33 @@ impl From<CertificateId> for Vec<u8> {
     }
 }
 
-impl TryFrom<Vec<u8>> for CertificateId {
+impl TryFrom<&[u8]> for CertificateId {
     type Error = Error;
 
-    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-        if value.len() != CERTIFICATE_ID_LENGTH {
-            return Err(Error::ValidationError);
-        }
-        let mut id = [0; CERTIFICATE_ID_LENGTH];
-
-        id.copy_from_slice(value.as_slice());
-
-        Ok(Self { id })
-    }
-}
-
-impl From<String> for CertificateId {
-    fn from(input: String) -> Self {
-        let id = if let Some(stripped) = input.strip_prefix("0x") {
-            hex::decode(stripped).unwrap_or_else(|_| vec![0u8; CERTIFICATE_ID_LENGTH])
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        let value = if value.starts_with(b"0x") {
+            &value[2..]
         } else {
-            hex::decode(&input).unwrap_or_else(|_| vec![0u8; CERTIFICATE_ID_LENGTH])
+            value
         };
 
-        let id_array: [u8; CERTIFICATE_ID_LENGTH] = id
-            .as_slice()
-            .try_into()
-            .unwrap_or([0u8; CERTIFICATE_ID_LENGTH]);
+        let length = value.len();
 
-        CertificateId { id: id_array }
+        if length != CERTIFICATE_ID_LENGTH && length != HEX_CERTIFICATE_ID_LENGTH {
+            return Err(Error::ValidationError);
+        }
+
+        let mut id = [0; CERTIFICATE_ID_LENGTH];
+
+        if length == HEX_CERTIFICATE_ID_LENGTH {
+            let value = hex::decode(value).map_err(|_| Error::ValidationError)?;
+
+            id.copy_from_slice(&value[..])
+        } else {
+            id.copy_from_slice(value);
+        }
+
+        Ok(Self { id })
     }
 }
 
@@ -99,10 +97,12 @@ mod tests {
 
     #[test]
     fn convert_cert_id_string_with_prefix() {
-        let certificate_id1: CertificateId = CERTIFICATE_ID_WITH_PREFIX.to_string().into();
+        let certificate_id: CertificateId =
+            CertificateId::try_from(CERTIFICATE_ID_WITH_PREFIX.as_bytes())
+                .expect("Cannot convert to CertificateID");
 
         assert_eq!(
-            &certificate_id1.id[..],
+            &certificate_id.id[..],
             &[
                 0x11, 0xdb, 0x87, 0x13, 0xa7, 0x9c, 0x41, 0x62, 0x5f, 0x4b, 0xb2, 0x22, 0x1b, 0xd4,
                 0x3a, 0xc4, 0x76, 0x6f, 0xff, 0x23, 0xe7, 0x8f, 0x82, 0x21, 0x2f, 0x48, 0x71, 0x3a,
@@ -113,10 +113,12 @@ mod tests {
 
     #[test]
     fn convert_cert_id_string_without_prefix() {
-        let certificate_id1: CertificateId = CERTIFICATE_ID_WITHOUT_PREFIX.to_string().into();
+        let certificate_id: CertificateId =
+            CertificateId::try_from(MALFORMATTED_CERTIFICATE_ID.as_bytes())
+                .expect("Cannot convert to CertificateID");
 
         assert_eq!(
-            &certificate_id1.id[..],
+            &certificate_id.id[..],
             &[
                 0x11, 0xdb, 0x87, 0x13, 0xa7, 0x9c, 0x41, 0x62, 0x5f, 0x4b, 0xb2, 0x22, 0x1b, 0xd4,
                 0x3a, 0xc4, 0x76, 0x6f, 0xff, 0x23, 0xe7, 0x8f, 0x82, 0x21, 0x2f, 0x48, 0x71, 0x3a,
@@ -126,16 +128,10 @@ mod tests {
     }
 
     #[test]
+    #[should_panic]
     fn malformatted_cert_id() {
-        let certificate_id3: CertificateId = MALFORMATTED_CERTIFICATE_ID.to_string().into();
+        let certificate_id = CertificateId::try_from(CERTIFICATE_ID_WITHOUT_PREFIX.as_bytes());
 
-        assert_eq!(
-            &certificate_id3.id[..],
-            &[
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00,
-            ][..]
-        )
+        assert!(certificate_id.is_err());
     }
 }

@@ -38,7 +38,7 @@ impl From<topos_uci::Certificate> for Certificate {
                 .map(SubnetId::from)
                 .collect(),
             tx_root_hash: hex::encode(uci_cert.tx_root_hash),
-            receipts_root_hash: "0x".to_string() + &hex::encode(uci_cert.receipts_root_hash),
+            receipts_root_hash: format!("0x{}", hex::encode(uci_cert.receipts_root_hash)),
             verifier: uci_cert.verifier,
         }
     }
