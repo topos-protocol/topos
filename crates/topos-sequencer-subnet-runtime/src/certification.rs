@@ -1,5 +1,5 @@
 use crate::Error;
-use std::collections::LinkedList;
+use std::collections::{HashSet, LinkedList};
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -53,13 +53,13 @@ impl Certification {
         // This will change after MVP
         for block_info in &self.finalized_blocks {
             // Parse target subnets from events
-            let mut target_subnets: Vec<SubnetId> = Vec::new();
+            let mut target_subnets: HashSet<SubnetId> = HashSet::new();
             for event in &block_info.events {
                 match event {
                     SubnetEvent::CrossSubnetMessageSent {
                         target_subnet_id, ..
                     } => {
-                        target_subnets.push(*target_subnet_id);
+                        target_subnets.insert(*target_subnet_id);
                     }
                 }
             }
@@ -82,7 +82,7 @@ impl Certification {
                 block_info.state_root,
                 block_info.tx_root_hash,
                 block_info.receipts_root_hash,
-                &target_subnets,
+                &target_subnets.into_iter().collect::<Vec<_>>(),
                 self.verifier,
                 proof,
             )
