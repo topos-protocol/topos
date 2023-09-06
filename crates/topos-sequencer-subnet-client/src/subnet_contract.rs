@@ -1,5 +1,6 @@
 use crate::{Error, SubnetEvent};
 use ethers::abi::ethabi::ethereum_types::{H160, U64};
+use ethers::contract::ContractError;
 use ethers::prelude::LocalWallet;
 use ethers::{
     prelude::abigen,
@@ -25,16 +26,28 @@ pub(crate) async fn get_block_events(
     contract: &IToposCore<Provider<Ws>>,
     block_number: U64,
 ) -> Result<Vec<crate::SubnetEvent>, Error> {
-    let events = contract.events().from_block(block_number);
-    let topos_core_events = events
-        .query()
-        .await
-        .map_err(|e| Error::ContractError(e.to_string()))?;
-    let mut result = Vec::new();
+    let events = contract
+        .events()
+        .from_block(block_number)
+        .to_block(block_number + 1);
+    let topos_core_events = events.query_with_meta().await.map_err(|e| {
+        match e {
+            ContractError::DecodingError(e) => {
+                // WARN: events have decoding error in the blocks before contract is deployed
+                // TODO fix this in the future
+                Error::EventDecodingError(e.to_string())
+            }
+            _ => Error::ContractError(e.to_string()),
+        }
+    })?;
 
+    let mut result = Vec::new();
     for event in topos_core_events {
-        if let IToposCoreEvents::CrossSubnetMessageSentFilter(f) = event {
-            info!("Received CrossSubnetMessageSentFilter event: {f:?}");
+        if let (IToposCoreEvents::CrossSubnetMessageSentFilter(f), meta) = event {
+            info!(
+                "Received CrossSubnetMessageSentFilter event: {f:?}, meta {:?}",
+                meta
+            );
             result.push(SubnetEvent::CrossSubnetMessageSent {
                 target_subnet_id: f.target_subnet_id.into(),
             })

@@ -21,6 +21,7 @@ pub use topos_core::uci::{
     Address, Certificate, CertificateId, ReceiptsRootHash, StateRoot, SubnetId, TxRootHash,
     CERTIFICATE_ID_LENGTH, SUBNET_ID_LENGTH,
 };
+use tracing::log::warn;
 use tracing::{error, info};
 
 const PUSH_CERTIFICATE_GAS_LIMIT: u64 = 1000000;
@@ -78,6 +79,8 @@ pub enum Error {
     EthersProviderError(ProviderError),
     #[error("ethereum contract error: {0}")]
     ContractError(String),
+    #[error("event decoding error: {0}")]
+    EventDecodingError(String),
     #[error("ethereum event error: {0}")]
     EventError(String),
     #[error("invalid argument: {message}")]
@@ -103,7 +106,6 @@ pub enum Error {
 
 // Subnet client for listening events from subnet node
 pub struct SubnetClientListener {
-    latest_block: Option<u64>,
     contract: subnet_contract::IToposCore<Provider<Ws>>,
     provider: Arc<Provider<Ws>>,
 }
@@ -123,33 +125,26 @@ impl SubnetClientListener {
         // Initialize Topos Core Contract from json abi
         let contract = create_topos_core_contract_from_json(contract_address, provider.clone())?;
 
-        // TODO Implementation of history and appropriate synchronization
-        // So far, start receiving blocks from current one
-        let block_number = provider
-            .get_block_number()
-            .await
-            .map_err(Error::EthersProviderError)?;
-
-        Ok(SubnetClientListener {
-            latest_block: Some(block_number.as_u64() - 1),
-            contract,
-            provider,
-        })
+        Ok(SubnetClientListener { contract, provider })
     }
 
     /// Subscribe and listen to runtime finalized blocks
-    pub async fn get_next_finalized_block(&mut self) -> Result<BlockInfo, Error> {
-        let next_block_number = if let Some(block_number) = self.latest_block {
-            block_number + 1
-        } else {
-            0
-        };
-        let latest_block_number = self
+    pub async fn get_finalized_block(
+        &mut self,
+        next_block_number: u64,
+    ) -> Result<BlockInfo, Error> {
+        let latest_subnet_block_number = self
             .provider
             .get_block_number()
             .await
             .map_err(Error::EthersProviderError)?;
-        if latest_block_number.as_u64() < next_block_number {
+
+        info!(
+            "Next wanted block number: {} latest subnet block number: {}",
+            next_block_number, next_block_number
+        );
+
+        if latest_subnet_block_number.as_u64() < next_block_number {
             return Err(Error::BlockNotAvailable(next_block_number));
         }
 
@@ -162,16 +157,26 @@ impl SubnetClientListener {
         let block_number = block
             .number
             .ok_or(Error::InvalidBlockNumber(next_block_number))?;
-        let events: Vec<SubnetEvent> = get_block_events(&self.contract, block_number)
-            .await
-            .map_err(|e| {
+        let events = match get_block_events(&self.contract, block_number).await {
+            Ok(events) => events,
+            Err(Error::EventDecodingError(e)) => {
+                // WARN: Happens in block before subnet contract is deployed, seems like bug in ethers
+                warn!(
+                    "Unable to parse events from block {}, error: {}",
+                    block_number, e
+                );
+                Vec::new()
+            }
+            Err(e) => {
                 error!(
                     "Unable to parse events from block {}, error: {}",
                     block_number,
                     e.to_string()
                 );
-                e
-            })?;
+                return Err(e);
+            }
+        };
+
         // Make block info result from all collected info
         let block_info = BlockInfo {
             hash: block.hash.unwrap_or_default().to_string(),
@@ -182,9 +187,20 @@ impl SubnetClientListener {
             receipts_root_hash: block.receipts_root.0,
             events,
         };
-        info!("Fetched new finalized block: {:?}", block_info.number);
-        self.latest_block = Some(block_number.as_u64());
+        info!(
+            "Fetched new finalized block from subnet: {:?}",
+            block_info.number
+        );
         Ok(block_info)
+    }
+
+    /// Subscribe and listen to runtime finalized blocks
+    pub async fn get_subnet_block_number(&mut self) -> Result<u64, Error> {
+        self.provider
+            .get_block_number()
+            .await
+            .map(|block_number| block_number.as_u64())
+            .map_err(Error::EthersProviderError)
     }
 }
 

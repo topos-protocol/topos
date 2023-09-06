@@ -475,7 +475,7 @@ async fn test_subnet_node_get_block_info(
     )
     .await
     {
-        Ok(mut subnet_client) => match subnet_client.get_next_finalized_block().await {
+        Ok(mut subnet_client) => match subnet_client.get_finalized_block(6).await {
             Ok(block_info) => {
                 info!(
                     "Block info successfully retrieved for block {}",
@@ -883,7 +883,12 @@ async fn test_subnet_send_token_processing(
     info!("Waiting for certificate with send token transaction...");
     let assertion = async move {
         while let Ok(event) = runtime_proxy_worker.next_event().await {
-            if let SubnetRuntimeProxyEvent::NewCertificate { cert, ctx: _ } = event {
+            if let SubnetRuntimeProxyEvent::NewCertificate {
+                cert,
+                block_number: _,
+                ctx: _,
+            } = event
+            {
                 info!(
                     "New certificate event received, cert id: {} target subnets: {:?}",
                     cert.id, cert.target_subnets
