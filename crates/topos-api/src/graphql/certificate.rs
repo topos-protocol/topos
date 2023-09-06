@@ -19,6 +19,7 @@ pub struct Certificate {
     pub state_root: String,
     pub target_subnets: Vec<SubnetId>,
     pub tx_root_hash: String,
+    pub receipts_root_hash: String,
     pub verifier: u32,
 }
 
@@ -37,6 +38,7 @@ impl From<topos_uci::Certificate> for Certificate {
                 .map(SubnetId::from)
                 .collect(),
             tx_root_hash: hex::encode(uci_cert.tx_root_hash),
+            receipts_root_hash: "0x".to_string() + &hex::encode(uci_cert.receipts_root_hash),
             verifier: uci_cert.verifier,
         }
     }
@@ -47,5 +49,30 @@ impl From<topos_uci::SubnetId> for SubnetId {
         SubnetId {
             value: uci_id.to_string(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::CertificateId;
+
+    const CERTIFICATE_ID_WITH_PREFIX: &str =
+        "0x11db8713a79c41625f4bb2221bd43ac4766fff23e78f82212f48713a6768e76a";
+    const CERTIFICATE_ID_WITHOUT_PREFIX: &str =
+        "11db8713a79c41625f4bb2221bd43ac4766fff23e78f82212f48713a6768e76a";
+    const MALFORMATTED_CERTIFICATE_ID: &str = "invalid_hex_string";
+
+    #[test]
+    fn convert_cert_id_string_with_prefix() {
+        let certificate_id1: CertificateId = CERTIFICATE_ID_WITH_PREFIX.to_string().into();
+
+        assert_eq!(
+            &certificate_id1.id[..],
+            &[
+                0x11, 0xdb, 0x87, 0x13, 0xa7, 0x9c, 0x41, 0x62, 0x5f, 0x4b, 0xb2, 0x22, 0x1b, 0xd4,
+                0x3a, 0xc4, 0x76, 0x6f, 0xff, 0x23, 0xe7, 0x8f, 0x82, 0x21, 0x2f, 0x48, 0x71, 0x3a,
+                0x67, 0x68, 0xe7, 0x6a
+            ][..]
+        )
     }
 }
