@@ -70,7 +70,7 @@ impl CertificateQuery for QueryRoot {
                     .value
                     .as_bytes()
                     .try_into()
-                    .expect("Cannot convert String to CertificateId"),
+                    .map_err(|_| GraphQLServerError::ParseCertificateId)?,
             )
             .await
             .map_err(|_| GraphQLServerError::StorageError)
