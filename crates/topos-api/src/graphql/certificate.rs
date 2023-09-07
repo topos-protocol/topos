@@ -19,6 +19,7 @@ pub struct Certificate {
     pub state_root: String,
     pub target_subnets: Vec<SubnetId>,
     pub tx_root_hash: String,
+    pub receipts_root_hash: String,
     pub verifier: u32,
 }
 
@@ -37,6 +38,7 @@ impl From<topos_uci::Certificate> for Certificate {
                 .map(SubnetId::from)
                 .collect(),
             tx_root_hash: hex::encode(uci_cert.tx_root_hash),
+            receipts_root_hash: format!("0x{}", hex::encode(uci_cert.receipts_root_hash)),
             verifier: uci_cert.verifier,
         }
     }
