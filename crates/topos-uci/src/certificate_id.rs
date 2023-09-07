@@ -97,40 +97,41 @@ mod tests {
 
     #[test]
     fn convert_cert_id_string_with_prefix() {
-        let certificate_id: CertificateId =
-            CertificateId::try_from(CERTIFICATE_ID_WITH_PREFIX.as_bytes())
-                .expect("Cannot convert to CertificateID");
+        let certificate_id: CertificateId = CERTIFICATE_ID_WITH_PREFIX
+            .as_bytes()
+            .try_into()
+            .expect("Cannot convert to CertificateID");
 
-        assert_eq!(
-            &certificate_id.id[..],
-            &[
-                0x11, 0xdb, 0x87, 0x13, 0xa7, 0x9c, 0x41, 0x62, 0x5f, 0x4b, 0xb2, 0x22, 0x1b, 0xd4,
-                0x3a, 0xc4, 0x76, 0x6f, 0xff, 0x23, 0xe7, 0x8f, 0x82, 0x21, 0x2f, 0x48, 0x71, 0x3a,
-                0x67, 0x68, 0xe7, 0x6a
-            ][..]
-        )
+        let expected_bytes: &[u8] = &[
+            0x11, 0xdb, 0x87, 0x13, 0xa7, 0x9c, 0x41, 0x62, 0x5f, 0x4b, 0xb2, 0x22, 0x1b, 0xd4,
+            0x3a, 0xc4, 0x76, 0x6f, 0xff, 0x23, 0xe7, 0x8f, 0x82, 0x21, 0x2f, 0x48, 0x71, 0x3a,
+            0x67, 0x68, 0xe7, 0x6a,
+        ];
+
+        assert_eq!(certificate_id.id.as_slice(), expected_bytes)
     }
 
     #[test]
     fn convert_cert_id_string_without_prefix() {
-        let certificate_id: CertificateId =
-            CertificateId::try_from(MALFORMATTED_CERTIFICATE_ID.as_bytes())
-                .expect("Cannot convert to CertificateID");
+        let certificate_id: &[u8] =
+            &hex::decode(CERTIFICATE_ID_WITHOUT_PREFIX).expect("Cannot convert to CertificateI");
 
-        assert_eq!(
-            &certificate_id.id[..],
-            &[
-                0x11, 0xdb, 0x87, 0x13, 0xa7, 0x9c, 0x41, 0x62, 0x5f, 0x4b, 0xb2, 0x22, 0x1b, 0xd4,
-                0x3a, 0xc4, 0x76, 0x6f, 0xff, 0x23, 0xe7, 0x8f, 0x82, 0x21, 0x2f, 0x48, 0x71, 0x3a,
-                0x67, 0x68, 0xe7, 0x6a
-            ][..]
-        )
+        let certificate_id: CertificateId = certificate_id
+            .try_into()
+            .expect("Cannot transform bytes to CertificateId");
+
+        let expected_bytes: &[u8] = &[
+            0x11, 0xdb, 0x87, 0x13, 0xa7, 0x9c, 0x41, 0x62, 0x5f, 0x4b, 0xb2, 0x22, 0x1b, 0xd4,
+            0x3a, 0xc4, 0x76, 0x6f, 0xff, 0x23, 0xe7, 0x8f, 0x82, 0x21, 0x2f, 0x48, 0x71, 0x3a,
+            0x67, 0x68, 0xe7, 0x6a,
+        ];
+
+        assert_eq!(certificate_id.id.as_slice(), expected_bytes)
     }
 
     #[test]
-    #[should_panic]
     fn malformatted_cert_id() {
-        let certificate_id = CertificateId::try_from(CERTIFICATE_ID_WITHOUT_PREFIX.as_bytes());
+        let certificate_id = CertificateId::try_from(MALFORMATTED_CERTIFICATE_ID.as_bytes());
 
         assert!(certificate_id.is_err());
     }
