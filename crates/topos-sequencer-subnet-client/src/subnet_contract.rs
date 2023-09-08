@@ -26,10 +26,11 @@ pub(crate) async fn get_block_events(
     contract: &IToposCore<Provider<Ws>>,
     block_number: U64,
 ) -> Result<Vec<crate::SubnetEvent>, Error> {
+    // Parse only event from this particular block
     let events = contract
         .events()
         .from_block(block_number)
-        .to_block(block_number + 1);
+        .to_block(block_number);
     let topos_core_events = events.query_with_meta().await.map_err(|e| {
         match e {
             ContractError::DecodingError(e) => {

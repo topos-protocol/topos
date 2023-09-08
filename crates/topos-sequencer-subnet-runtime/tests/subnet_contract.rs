@@ -458,7 +458,7 @@ async fn test_subnet_node_contract_deployment(
     Ok(())
 }
 
-// /// Test subnet client RPC connection to subnet
+// Test subnet client RPC connection to subnet
 #[rstest]
 #[test(tokio::test)]
 #[serial]
@@ -482,7 +482,7 @@ async fn test_subnet_node_get_block_info(
                     block_info.number
                 );
                 // Blocks must have been mined while we deployed contracts
-                assert!(block_info.number > 5);
+                assert!(block_info.number == 6);
             }
             Err(e) => {
                 panic!("Error getting next finalized block: {e}");

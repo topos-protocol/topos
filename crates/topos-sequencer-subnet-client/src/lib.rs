@@ -21,7 +21,7 @@ pub use topos_core::uci::{
     Address, Certificate, CertificateId, ReceiptsRootHash, StateRoot, SubnetId, TxRootHash,
     CERTIFICATE_ID_LENGTH, SUBNET_ID_LENGTH,
 };
-use tracing::{error, info, warn};
+use tracing::{error, info};
 
 const PUSH_CERTIFICATE_GAS_LIMIT: u64 = 1000000;
 
@@ -159,18 +159,12 @@ impl SubnetClientListener {
         let events = match get_block_events(&self.contract, block_number).await {
             Ok(events) => events,
             Err(Error::EventDecodingError(e)) => {
-                // WARN: Happens in block before subnet contract is deployed, seems like bug in ethers
-                warn!(
-                    "Unable to parse events from block {}, error: {e}",
-                    block_number
-                );
+                // FIXME: Happens in block before subnet contract is deployed, seems like bug in ethers
+                error!("Unable to parse events from block {}: {e}", block_number);
                 Vec::new()
             }
             Err(e) => {
-                error!(
-                    "Unable to parse events from block {}, error: {e}",
-                    block_number
-                );
+                error!("Unable to parse events from block {}: {e}", block_number);
                 return Err(e);
             }
         };

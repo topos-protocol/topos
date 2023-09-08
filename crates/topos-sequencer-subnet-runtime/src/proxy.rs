@@ -107,9 +107,6 @@ impl SubnetRuntimeProxy {
 
                 {
                     // To start producing certificates, we need to know latest delivered or pending certificate id from TCE
-                    // It could be also genesis certificate (also retrievable from TCE). As currently subnet registration is
-                    // not yet implemented on topos subnet, if TCE returns empty certificate history we start getting
-                    // blocks and producing certificates from block 0 (genesis) of the subnet
                     // Lock certification component and wait until we acquire first certificate id for this network
                     let mut certification = certification.lock().await;
                     if certification.last_certificate_id.is_none() {
