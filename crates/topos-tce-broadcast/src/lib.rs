@@ -16,7 +16,6 @@ use tokio::sync::{mpsc, oneshot};
 
 use double_echo::DoubleEcho;
 use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
-
 use topos_core::uci::{Certificate, CertificateId};
 use topos_metrics::DOUBLE_ECHO_COMMAND_CHANNEL_CAPACITY_TOTAL;
 use topos_p2p::PeerId;
@@ -82,13 +81,17 @@ pub enum DoubleEchoCommand {
     /// When echo reply received
     Echo {
         from_peer: PeerId,
+        source: AuthorityId,
         certificate_id: CertificateId,
+        signature: Signature,
     },
 
     /// When ready reply received
     Ready {
         from_peer: PeerId,
+        source: AuthorityId,
         certificate_id: CertificateId,
+        signature: Signature,
     },
 }
 
@@ -107,7 +110,6 @@ impl ReliableBroadcastClient {
     /// Aggregate is spawned as new task.
     pub async fn new(
         config: ReliableBroadcastConfig,
-        _local_peer_id: String,
         storage: StorageClient,
     ) -> (Self, impl Stream<Item = ProtocolEvents>) {
         let (subscriptions_view_sender, subscriptions_view_receiver) =
@@ -120,19 +122,12 @@ impl ReliableBroadcastClient {
         let (task_manager_message_sender, task_manager_message_receiver) =
             mpsc::channel(*constant::BROADCAST_TASK_MANAGER_CHANNEL_SIZE);
 
-        let pending_certificate_count = storage
-            .get_pending_certificates()
-            .await
-            .map(|v| v.len())
-            .unwrap_or(0) as u64;
-
         let double_echo = DoubleEcho::new(
             config.tce_params,
             task_manager_message_sender,
             command_receiver,
             event_sender,
             double_echo_shutdown_receiver,
-            pending_certificate_count,
         );
 
         spawn(double_echo.run(subscriptions_view_receiver, task_manager_message_receiver));

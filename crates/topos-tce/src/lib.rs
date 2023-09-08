@@ -92,7 +92,6 @@ pub async fn run(
         ReliableBroadcastConfig {
             tce_params: config.tce_params.clone(),
         },
-        peer_id.to_string(),
         storage_client.clone(),
     )
     .await;

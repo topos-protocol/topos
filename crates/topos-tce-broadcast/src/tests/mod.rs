@@ -60,7 +60,6 @@ async fn create_context(params: TceParams) -> (DoubleEcho, Context) {
         cmd_receiver,
         event_sender,
         double_echo_shutdown_receiver,
-        0,
     );
 
     // List of peers

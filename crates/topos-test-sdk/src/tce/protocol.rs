@@ -13,7 +13,7 @@ pub async fn create_reliable_broadcast_client(
 ) {
     let config = ReliableBroadcastConfig { tce_params };
 
-    ReliableBroadcastClient::new(config, peer_id, storage).await
+    ReliableBroadcastClient::new(config, storage).await
 }
 
 pub fn create_reliable_broadcast_params(number_of_nodes: usize) -> ReliableBroadcastParams {

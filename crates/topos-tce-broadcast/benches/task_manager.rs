@@ -44,7 +44,6 @@ pub async fn processing_double_echo(n: u64) {
         cmd_receiver,
         event_sender,
         double_echo_shutdown_receiver,
-        0,
     );
 
     // List of peers

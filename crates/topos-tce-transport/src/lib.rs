@@ -1,6 +1,7 @@
 //! implementation of Topos Network Transport
 //!
 use clap::Parser;
+use secp256k1::{ecdsa::Signature, PublicKey};
 use serde::{Deserialize, Serialize};
 use topos_core::uci::{Certificate, CertificateId};
 use topos_p2p::PeerId;
@@ -30,6 +31,8 @@ impl ReliableBroadcastParams {
         }
     }
 }
+
+pub type AuthorityId = PublicKey;
 
 /// Protocol commands
 #[derive(Clone, Debug, Serialize, Deserialize)]

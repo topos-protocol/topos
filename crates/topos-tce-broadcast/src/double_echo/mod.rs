@@ -1,5 +1,6 @@
-use crate::TaskStatus;
+use crate::{AuthorityId, TaskStatus};
 use crate::{DoubleEchoCommand, SubscriptionsView};
+use secp256k1::ecdsa::Signature;
 use std::collections::HashSet;
 use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
 use tokio::sync::{mpsc, oneshot};
@@ -37,7 +38,6 @@ impl DoubleEcho {
         command_receiver: mpsc::Receiver<DoubleEchoCommand>,
         event_sender: mpsc::Sender<ProtocolEvents>,
         shutdown: mpsc::Receiver<oneshot::Sender<()>>,
-        _pending_certificate_count: u64,
     ) -> Self {
         Self {
             params,
@@ -133,8 +133,16 @@ impl DoubleEcho {
 
                         command if self.subscriptions.is_some() => {
                             match command {
-                                DoubleEchoCommand::Echo { from_peer, certificate_id } => self.handle_echo(from_peer, certificate_id).await,
-                                DoubleEchoCommand::Ready { from_peer, certificate_id } => self.handle_ready(from_peer, certificate_id).await,
+                                DoubleEchoCommand::Echo { from_peer, certificate_id, source, signature } => {
+                                    // Check if signature is valid
+                                    // Check if source is part of known_validators
+                                    self.handle_echo(from_peer, certificate_id, source, signature).await
+                                },
+                                DoubleEchoCommand::Ready { from_peer, certificate_id, source, signature } => {
+                                    // Check if signature is valid
+                                    // Check if source is part of known_validators
+                                    self.handle_ready(from_peer, certificate_id, source, signature).await
+                                },
                                 _ => {}
                             }
 
@@ -248,25 +256,41 @@ impl DoubleEcho {
 }
 
 impl DoubleEcho {
-    pub async fn handle_echo(&mut self, from_peer: PeerId, certificate_id: CertificateId) {
+    pub async fn handle_echo(
+        &mut self,
+        from_peer: PeerId,
+        certificate_id: CertificateId,
+        source: AuthorityId,
+        signature: Signature,
+    ) {
         if self.delivered_certificates.get(&certificate_id).is_none() {
             let _ = self
                 .task_manager_message_sender
                 .send(DoubleEchoCommand::Echo {
                     from_peer,
+                    source,
                     certificate_id,
+                    signature,
                 })
                 .await;
         }
     }
 
-    pub async fn handle_ready(&mut self, from_peer: PeerId, certificate_id: CertificateId) {
+    pub async fn handle_ready(
+        &mut self,
+        from_peer: PeerId,
+        certificate_id: CertificateId,
+        source: AuthorityId,
+        signature: Signature,
+    ) {
         if self.delivered_certificates.get(&certificate_id).is_none() {
             let _ = self
                 .task_manager_message_sender
                 .send(DoubleEchoCommand::Ready {
                     from_peer,
+                    source,
                     certificate_id,
+                    signature,
                 })
                 .await;
         }
