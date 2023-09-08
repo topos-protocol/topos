@@ -33,8 +33,7 @@ pub(crate) async fn get_block_events(
     let topos_core_events = events.query_with_meta().await.map_err(|e| {
         match e {
             ContractError::DecodingError(e) => {
-                // WARN: events have decoding error in the blocks before contract is deployed
-                // TODO fix this in the future
+                // FIXME: events have decoding error in the blocks before contract is deployed
                 Error::EventDecodingError(e.to_string())
             }
             _ => Error::ContractError(e.to_string()),
