@@ -5,8 +5,10 @@ use topos_core::uci::{CertificateId, SubnetId};
 
 use crate::{
     errors::StorageError,
+    rocks::TargetStreamPositionKey,
     types::{CertificateDelivered, SourceStreamPositionKey},
-    CertificatePositions, CertificateSourceStreamPosition, SourceHead,
+    CertificatePositions, CertificateSourceStreamPosition, CertificateTargetStreamPosition,
+    SourceHead,
 };
 
 #[async_trait]
@@ -25,6 +27,7 @@ pub trait WriteStore: Send {
 }
 
 pub trait ReadStore: Send {
+    fn get_source_head(&self, subnet_id: &SubnetId) -> Result<Option<SourceHead>, StorageError>;
     /// Try to get a Certificate
     fn get_certificate(
         &self,
@@ -52,4 +55,15 @@ pub trait ReadStore: Send {
         from: SourceStreamPositionKey,
         limit: usize,
     ) -> Result<Vec<(CertificateDelivered, CertificateSourceStreamPosition)>, StorageError>;
+
+    fn get_target_stream_certificates_from_position(
+        &self,
+        position: TargetStreamPositionKey,
+        limit: usize,
+    ) -> Result<Vec<(CertificateDelivered, CertificateTargetStreamPosition)>, StorageError>;
+
+    fn get_target_source_subnet_list(
+        &self,
+        target_subnet_id: &SubnetId,
+    ) -> Result<Vec<SubnetId>, StorageError>;
 }

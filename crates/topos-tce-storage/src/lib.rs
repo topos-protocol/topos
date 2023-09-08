@@ -19,11 +19,8 @@ pub mod validator;
 
 // v1
 pub mod client;
-pub(crate) mod command;
-pub(crate) mod connection;
 mod constant;
 pub mod errors;
-pub mod events;
 
 #[cfg(feature = "rocksdb")]
 pub(crate) mod rocks;
@@ -32,8 +29,6 @@ pub(crate) mod rocks;
 mod tests;
 
 pub use client::StorageClient;
-pub use connection::Connection;
-pub use connection::ConnectionBuilder;
 
 #[cfg(feature = "rocksdb")]
 pub use rocks::RocksDBStorage;
@@ -86,6 +81,16 @@ pub struct CertificateTargetStreamPosition {
     pub target_subnet_id: SubnetId,
     pub source_subnet_id: SubnetId,
     pub position: Position,
+}
+
+impl From<TargetStreamPositionKey> for CertificateTargetStreamPosition {
+    fn from(value: TargetStreamPositionKey) -> Self {
+        Self {
+            target_subnet_id: value.0,
+            source_subnet_id: value.1,
+            position: value.2,
+        }
+    }
 }
 
 #[derive(Debug)]

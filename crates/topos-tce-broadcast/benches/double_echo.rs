@@ -9,7 +9,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         .build()
         .unwrap();
 
-    let (_, store) = runtime.block_on(async { create_validator_store("benchmarks", vec![]).await });
+    let store = runtime.block_on(async { create_validator_store::partial_1(vec![]).await });
 
     c.bench_function("double_echo", |b| {
         b.to_async(FuturesExecutor).iter(|| async {

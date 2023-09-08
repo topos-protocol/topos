@@ -14,10 +14,11 @@ use tokio::{
 use tonic_health::server::HealthReporter;
 use topos_core::api::grpc::checkpoints::TargetStreamPosition;
 use topos_core::api::grpc::tce::v1::api_service_server::ApiServiceServer;
-use topos_core::uci::{Certificate, SubnetId};
+use topos_core::uci::SubnetId;
 use topos_tce_storage::{
-    types::CertificateDeliveredWithPositions, CertificateTargetStreamPosition,
-    FetchCertificatesFilter, FetchCertificatesPosition, StorageClient,
+    types::{CertificateDelivered, CertificateDeliveredWithPositions},
+    CertificateTargetStreamPosition, FetchCertificatesFilter, FetchCertificatesPosition,
+    StorageClient,
 };
 
 use tracing::{debug, error, info};
@@ -275,10 +276,12 @@ impl Runtime {
                     // TODO: Refactor this using a better handle, FuturesUnordered + Killswitch
                     let task = spawn(async move {
                         info!("Sync task started for stream {}", stream_id);
-                        let mut collector: Vec<(Certificate, FetchCertificatesPosition)> =
+                        let mut collector: Vec<(CertificateDelivered, FetchCertificatesPosition)> =
                             Vec::new();
 
                         for (target_subnet_id, mut source) in target_subnet_stream_positions {
+                            // return list of subnet that target this subnet
+                            // get_source_subnet_for_target_subnet
                             let source_subnet_list = storage.targeted_by(target_subnet_id).await;
 
                             info!(
@@ -324,7 +327,7 @@ impl Runtime {
                             }
                         }
 
-                        for (certificate, position) in collector {
+                        for (CertificateDelivered { certificate, .. }, position) in collector {
                             info!(
                                 "Stream sync task for {} is sending {}",
                                 stream_id, certificate.id

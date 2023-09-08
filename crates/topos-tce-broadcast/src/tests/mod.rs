@@ -47,8 +47,8 @@ struct Context {
     broadcast_receiver: broadcast::Receiver<CertificateDeliveredWithPositions>,
 }
 
-async fn create_context(params: TceParams, folder_name: &'static str) -> (DoubleEcho, Context) {
-    let (_, validator_store) = create_validator_store(folder_name, vec![]).await;
+async fn create_context(params: TceParams) -> (DoubleEcho, Context) {
+    let validator_store = create_validator_store::partial_1(vec![]).await;
     let (subscriptions_view_sender, subscriptions_view_receiver) = mpsc::channel(CHANNEL_SIZE);
 
     let (_cmd_sender, cmd_receiver) = mpsc::channel(CHANNEL_SIZE);
@@ -193,8 +193,7 @@ async fn reach_delivery_threshold(double_echo: &mut DoubleEcho, cert: &Certifica
 #[trace]
 #[timeout(Duration::from_secs(10))]
 async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams) {
-    let (mut double_echo, mut ctx) =
-        create_context(params, "trigger_success_path_upon_reaching_threshold").await;
+    let (mut double_echo, mut ctx) = create_context(params).await;
 
     let dummy_cert =
         Certificate::new_with_default_fields(PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID_1, &[])
@@ -246,8 +245,7 @@ async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams)
 #[trace]
 #[timeout(Duration::from_secs(4))]
 async fn trigger_ready_when_reached_enough_ready(#[case] params: TceParams) {
-    let (mut double_echo, mut ctx) =
-        create_context(params, "trigger_ready_when_reached_enough_ready").await;
+    let (mut double_echo, mut ctx) = create_context(params).await;
 
     let dummy_cert =
         Certificate::new_with_default_fields(PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID_1, &[])

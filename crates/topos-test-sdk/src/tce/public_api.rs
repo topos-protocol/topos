@@ -1,4 +1,3 @@
-use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -42,10 +41,10 @@ pub fn broadcast_stream() -> broadcast::Receiver<CertificateDeliveredWithPositio
 pub async fn create_public_api(
     #[future] storage_client: StorageClient,
     broadcast_stream: broadcast::Receiver<CertificateDeliveredWithPositions>,
-    #[future] create_fullnode_store: (PathBuf, Arc<FullNodeStore>),
+    #[future] create_fullnode_store: Arc<FullNodeStore>,
 ) -> (PublicApiContext, impl Stream<Item = RuntimeEvent>) {
     let storage_client = storage_client.await;
-    let (_, store) = create_fullnode_store.await;
+    let store = create_fullnode_store.await;
     let grpc_addr = get_available_addr();
     let graphql_addr = get_available_addr();
     let metrics_addr = get_available_addr();

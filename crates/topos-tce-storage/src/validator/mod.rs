@@ -7,10 +7,11 @@ use tracing::{debug, info, instrument};
 use crate::{
     errors::StorageError,
     fullnode::FullNodeStore,
-    rocks::map::Map,
+    rocks::{map::Map, TargetStreamPositionKey},
     store::{ReadStore, WriteStore},
     types::{CertificateDelivered, ProofOfDelivery, SourceStreamPositionKey},
-    CertificatePositions, CertificateSourceStreamPosition, SourceHead,
+    CertificatePositions, CertificateSourceStreamPosition, CertificateTargetStreamPosition,
+    PendingCertificateId, SourceHead,
 };
 
 pub(crate) use self::tables::ValidatorPendingTables;
@@ -39,6 +40,11 @@ impl ValidatorStore {
     }
     pub fn count_pending_certificates(&self) -> Result<usize, StorageError> {
         Ok(self.pending_tables.pending_pool.iter()?.count())
+    }
+    pub fn get_pending_certificates(
+        &self,
+    ) -> Result<Vec<(PendingCertificateId, Certificate)>, StorageError> {
+        Ok(self.pending_tables.pending_pool.iter()?.collect())
     }
 
     #[instrument(skip(self, proofs))]
@@ -177,6 +183,10 @@ impl ValidatorStore {
     }
 }
 impl ReadStore for ValidatorStore {
+    fn get_source_head(&self, subnet_id: &SubnetId) -> Result<Option<SourceHead>, StorageError> {
+        self.full_node_store.get_source_head(subnet_id)
+    }
+
     fn get_certificate(
         &self,
         certificate_id: &CertificateId,
@@ -217,6 +227,23 @@ impl ReadStore for ValidatorStore {
     ) -> Result<Vec<(CertificateDelivered, CertificateSourceStreamPosition)>, StorageError> {
         self.full_node_store
             .get_source_stream_certificates_from_position(from, limit)
+    }
+
+    fn get_target_stream_certificates_from_position(
+        &self,
+        position: TargetStreamPositionKey,
+        limit: usize,
+    ) -> Result<Vec<(CertificateDelivered, CertificateTargetStreamPosition)>, StorageError> {
+        self.full_node_store
+            .get_target_stream_certificates_from_position(position, limit)
+    }
+
+    fn get_target_source_subnet_list(
+        &self,
+        target_subnet_id: &SubnetId,
+    ) -> Result<Vec<SubnetId>, StorageError> {
+        self.full_node_store
+            .get_target_source_subnet_list(target_subnet_id)
     }
 }
 

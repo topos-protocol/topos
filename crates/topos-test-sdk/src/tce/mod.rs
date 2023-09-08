@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::error::Error;
-use std::future::IntoFuture;
 
 use futures::future::join_all;
 use futures::Stream;
@@ -24,11 +23,12 @@ use topos_p2p::{error::P2PError, Client, Event, Runtime};
 use topos_tce::{events::Events, AppContext};
 use topos_tce_api::RuntimeContext;
 use topos_tce_storage::types::CertificateDelivered;
+use topos_tce_storage::StorageClient;
 use tracing::{info, warn};
 
 use crate::p2p::local_peer;
 use crate::storage::create_fullnode_store;
-use crate::storage::{create_rocksdb, create_validator_store};
+use crate::storage::create_validator_store;
 use crate::wait_for_event;
 
 use self::gatekeeper::create_gatekeeper;
@@ -54,7 +54,6 @@ pub struct TceContext {
     pub console_grpc_client: ConsoleServiceClient<Channel>, // Console TCE GRPC Client for this peer (tce node)
     pub runtime_join_handle: JoinHandle<Result<(), ()>>,
     pub app_join_handle: JoinHandle<()>,
-    pub storage_join_handle: JoinHandle<Result<(), topos_tce_storage::errors::StorageError>>,
     pub gatekeeper_join_handle: JoinHandle<Result<(), topos_tce_gatekeeper::GatekeeperError>>,
     pub synchronizer_join_handle: JoinHandle<Result<(), topos_tce_synchronizer::SynchronizerError>>,
     pub connected_subnets: Option<Vec<SubnetId>>, // Particular subnet clients (topos nodes) connected to this tce node
@@ -65,7 +64,6 @@ impl Drop for TceContext {
     fn drop(&mut self) {
         self.app_join_handle.abort();
         self.runtime_join_handle.abort();
-        self.storage_join_handle.abort();
         self.gatekeeper_join_handle.abort();
         self.synchronizer_join_handle.abort();
     }
@@ -159,7 +157,6 @@ pub async fn start_node(
     peers: &[NodeConfig],
 ) -> TceContext {
     let peer_id = config.keypair.public().to_peer_id();
-    let peer_id_str = peer_id.to_base58();
 
     let (network_client, network_stream, runtime_join_handle) = bootstrap_network(
         config.seed,
@@ -170,15 +167,14 @@ pub async fn start_node(
     )
     .await
     .expect("Unable to bootstrap tce network");
+    let full_node_store = create_fullnode_store(vec![]).await;
+    let validator_store = create_validator_store(
+        certificates,
+        futures::future::ready(full_node_store.clone()),
+    )
+    .await;
 
-    let (_, (storage, storage_client, storage_stream)) =
-        create_rocksdb(&peer_id_str, certificates.clone()).await;
-
-    let (_, validator_store) = create_validator_store(&peer_id_str, certificates.clone()).await;
-    let full_node_store = create_fullnode_store(&peer_id_str, certificates).await;
-
-    let storage_join_handle = spawn(storage.into_future());
-
+    let storage_client = StorageClient::new(validator_store.clone());
     let (sender, receiver) = broadcast::channel(100);
     let (tce_cli, tce_stream) = create_reliable_broadcast_client(
         create_reliable_broadcast_params(peers.len()),
@@ -224,7 +220,6 @@ pub async fn start_node(
         network_stream,
         tce_stream,
         api_stream,
-        storage_stream,
         synchronizer_stream,
         BroadcastStream::new(receiver).filter_map(|v| futures::future::ready(v.ok())),
         (shutdown_token, shutdown_sender),
@@ -240,7 +235,6 @@ pub async fn start_node(
         console_grpc_client: api_context.console_client,
         runtime_join_handle,
         app_join_handle,
-        storage_join_handle,
         gatekeeper_join_handle,
         synchronizer_join_handle,
         connected_subnets: None,

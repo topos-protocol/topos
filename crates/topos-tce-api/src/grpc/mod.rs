@@ -5,7 +5,6 @@ use tokio::sync::{mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::{Request, Response, Status, Streaming};
 use topos_api::grpc::tce::v1::LastPendingCertificate;
-use topos_core::api::grpc::shared::v1::positions;
 use topos_core::api::grpc::tce::v1::{
     api_service_server::ApiService, GetLastPendingCertificatesRequest,
     GetLastPendingCertificatesResponse, GetSourceHeadRequest, GetSourceHeadResponse,
@@ -138,8 +137,7 @@ impl ApiService for TceGrpcService {
     ) -> Result<Response<GetSourceHeadResponse>, Status> {
         let data = request.into_inner();
         if let Some(subnet_id) = data.subnet_id {
-            let (sender, receiver) =
-                oneshot::channel::<Result<(u64, topos_core::uci::Certificate), _>>();
+            let (sender, receiver) = oneshot::channel();
 
             let subnet_id = match subnet_id.try_into() {
                 Ok(id) => id,
@@ -161,20 +159,28 @@ impl ApiService for TceGrpcService {
             }
 
             receiver
-                .map(|value| {
+                .map(|value| 
                     match value {
-                        Ok(Ok((position, ref certificate))) => {
-                            Ok(Response::new(GetSourceHeadResponse {
-                                certificate: Some(certificate.clone().into()),
-                                position: Some(positions::SourceStreamPosition {
+
+                    Ok(Ok(response)) => Ok(match response {
+                        Some((position, certificate)) => Response::new(GetSourceHeadResponse {
+                            certificate: Some(certificate.clone().into()),
+                            position: Some(
+                                topos_core::api::grpc::shared::v1::positions::SourceStreamPosition {
                                     source_subnet_id: Some(certificate.source_subnet_id.into()),
                                     certificate_id: Some((*certificate.id.as_array()).into()),
                                     position,
-                                }),
-                            }))
-                        }
 
-                        Ok(Err(crate::RuntimeError::UnknownSubnet(subnet_id))) =>
+                                },
+                            ),
+                        }),
+                        None => Response::new(GetSourceHeadResponse {
+                            certificate: None,
+                            position: None
+                        })
+                    }),
+
+                    Ok(Err(crate::RuntimeError::UnknownSubnet(subnet_id))) => 
                         // Tce does not have Position::Zero certificate associated
                         {
                             Err(Status::internal(format!(
@@ -182,7 +188,7 @@ impl ApiService for TceGrpcService {
                                  {}",
                                 &subnet_id
                             )))
-                        }
+                        },
 
                         Ok(Err(e)) => Err(Status::internal(format!(
                             "Can't get source head certificate position: {e}"
@@ -191,8 +197,8 @@ impl ApiService for TceGrpcService {
                         Err(e) => Err(Status::internal(format!(
                             "Can't get source head certificate position: {e}"
                         ))),
-                    }
-                })
+                    },
+                )
                 .await
         } else {
             Err(Status::invalid_argument("Certificate is malformed"))

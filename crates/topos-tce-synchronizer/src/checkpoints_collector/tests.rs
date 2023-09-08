@@ -60,7 +60,9 @@ use test_log::test;
 #[test(tokio::test)]
 async fn can_initiate_a_sync() {
     let peer_id = PeerId::random();
-    let (_, validator_store) = create_validator_store("can_initiate_a_sync", vec![]).await;
+
+    let validator_store = create_validator_store::default().await;
+
     let subnet = topos_test_sdk::constants::SOURCE_SUBNET_ID_1;
     let certificates: Vec<CertificateDelivered> =
         create_certificate_chain(subnet, &[topos_test_sdk::constants::TARGET_SUBNET_ID_1], 1);

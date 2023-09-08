@@ -135,6 +135,12 @@ impl WriteStore for FullNodeStore {
         // Adding certificate to target_streams
         // TODO: Add expected position instead of calculating on the go
         let mut targets = Vec::new();
+        let source_list_per_target: Vec<_> = certificate
+            .certificate
+            .target_subnets
+            .iter()
+            .map(|target_subnet| ((*target_subnet, subnet_id), true))
+            .collect();
 
         for target_subnet_id in &certificate.certificate.target_subnets {
             let target = if let Some((TargetStreamPositionKey(target, source, position), _)) = self
@@ -185,6 +191,10 @@ impl WriteStore for FullNodeStore {
 
         index_batch = index_batch.insert_batch(&self.index_tables.target_streams, targets)?;
 
+        index_batch = index_batch.insert_batch(
+            &self.index_tables.source_list_per_target,
+            source_list_per_target,
+        )?;
         batch.write()?;
         index_batch.write()?;
 
@@ -211,6 +221,18 @@ impl WriteStore for FullNodeStore {
 }
 
 impl ReadStore for FullNodeStore {
+    fn get_source_head(&self, subnet_id: &SubnetId) -> Result<Option<SourceHead>, StorageError> {
+        Ok(self
+            .index_tables
+            .source_list
+            .get(subnet_id)?
+            .map(|(certificate_id, position)| SourceHead {
+                certificate_id,
+                subnet_id: *subnet_id,
+                position,
+            }))
+    }
+
     fn get_certificate(
         &self,
         certificate_id: &CertificateId,
@@ -291,6 +313,54 @@ impl ReadStore for FullNodeStore {
                     .filter(|c| c.certificate.id == certificate_id)
                     .map(|cert| (cert, position))
             })
+            .collect())
+    }
+
+    fn get_target_stream_certificates_from_position(
+        &self,
+        position: TargetStreamPositionKey,
+        limit: usize,
+    ) -> Result<Vec<(CertificateDelivered, CertificateTargetStreamPosition)>, StorageError> {
+        let starting_position = position.2;
+        let x: Vec<(CertificateId, CertificateTargetStreamPosition)> = self
+            .index_tables
+            .target_streams
+            .prefix_iter(&(position.0, position.1))?
+            .skip((starting_position.0).try_into().map_err(|_| {
+                StorageError::InternalStorage(InternalStorageError::InvalidQueryArgument(
+                    "Unable to parse Position",
+                ))
+            })?)
+            .take(limit)
+            .map(|(k, v)| (v, k.into()))
+            .collect();
+
+        let certificate_ids: Vec<_> = x.iter().map(|(k, _)| k).cloned().collect();
+
+        let certificates = self
+            .perpetual_tables
+            .certificates
+            .multi_get(&certificate_ids[..])?;
+
+        Ok(x.into_iter()
+            .zip(certificates.into_iter())
+            .filter_map(|((certificate_id, position), certificate)| {
+                certificate
+                    .filter(|c| c.certificate.id == certificate_id)
+                    .map(|cert| (cert, position))
+            })
+            .collect())
+    }
+
+    fn get_target_source_subnet_list(
+        &self,
+        target_subnet_id: &SubnetId,
+    ) -> Result<Vec<SubnetId>, StorageError> {
+        Ok(self
+            .index_tables
+            .source_list_per_target
+            .prefix_iter(target_subnet_id)?
+            .map(|((_, source_subnet_id), _)| source_subnet_id)
             .collect())
     }
 }

@@ -1,7 +1,6 @@
 use futures::Stream;
 use rstest::rstest;
 use serde::Deserialize;
-use std::future::IntoFuture;
 use std::time::Duration;
 use test_log::test;
 use tokio::sync::{broadcast, mpsc};
@@ -22,10 +21,11 @@ use topos_core::{
 };
 use topos_tce_api::{Runtime, RuntimeEvent};
 use topos_tce_storage::types::{CertificateDelivered, CertificateDeliveredWithPositions};
+use topos_tce_storage::StorageClient;
 use topos_test_sdk::certificates::create_certificate_chain;
 use topos_test_sdk::constants::*;
 use topos_test_sdk::networking::get_available_addr;
-use topos_test_sdk::storage::{create_fullnode_store, storage_client};
+use topos_test_sdk::storage::{create_fullnode_store, create_validator_store, storage_client};
 use topos_test_sdk::tce::public_api::{broadcast_stream, create_public_api, PublicApiContext};
 
 #[rstest]
@@ -205,24 +205,19 @@ async fn can_catchup_with_old_certs_with_position(
     // launch data store
     let certificates = create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], 15);
 
-    let (_, store) = create_fullnode_store(
-        "can_catchup_with_old_certs_with_position",
+    let fullnode_store = create_fullnode_store::default().await;
+    let store = create_validator_store(
         certificates.clone(),
+        futures::future::ready(fullnode_store.clone()),
     )
     .await;
 
-    let (_, (storage, storage_client, _storage_stream)) = topos_test_sdk::storage::create_rocksdb(
-        "can_catchup_with_old_certs_with_position",
-        certificates.clone(),
-    )
-    .await;
-
-    let _storage_join_handle = spawn(storage.into_future());
+    let storage_client = StorageClient::new(store);
 
     let (runtime_client, _launcher, _ctx) = Runtime::builder()
         .with_broadcast_stream(broadcast_stream)
         .storage(storage_client)
-        .store(store)
+        .store(fullnode_store)
         .serve_grpc_addr(addr)
         .serve_graphql_addr(graphql_addr)
         .serve_metrics_addr(metrics_addr)
@@ -335,20 +330,17 @@ async fn boots_healthy_graphql_server(
     // launch data store
     let certificates = create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], 15);
 
-    let (_, store) =
-        create_fullnode_store("boots_healthy_graphql_server", certificates.clone()).await;
-    let (_, (storage, storage_client, _storage_stream)) = topos_test_sdk::storage::create_rocksdb(
-        "boots_healthy_graphql_server",
+    let full_node_store = create_fullnode_store::default().await;
+    let store = create_validator_store(
         certificates.clone(),
+        futures::future::ready(full_node_store.clone()),
     )
     .await;
-
-    let _storage_join_handle = spawn(storage.into_future());
-
+    let storage_client = StorageClient::new(store);
     let (_runtime_client, _launcher, _ctx) = Runtime::builder()
         .with_broadcast_stream(broadcast_stream)
         .storage(storage_client)
-        .store(store)
+        .store(full_node_store)
         .serve_grpc_addr(addr)
         .serve_graphql_addr(graphql_addr)
         .serve_metrics_addr(metrics_addr)
@@ -381,21 +373,19 @@ async fn graphql_server_enables_cors(
     // launch data store
     let certificates = create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], 15);
 
-    let (_, store) =
-        create_fullnode_store("graphql_server_enables_cors", certificates.clone()).await;
-
-    let (_, (storage, storage_client, _storage_stream)) = topos_test_sdk::storage::create_rocksdb(
-        "graphql_server_enables_cors",
+    let full_node_store = create_fullnode_store::default().await;
+    let store = create_validator_store(
         certificates.clone(),
+        futures::future::ready(full_node_store.clone()),
     )
     .await;
 
-    let _storage_join_handle = spawn(storage.into_future());
+    let storage_client = StorageClient::new(store);
 
     let (_runtime_client, _launcher, _ctx) = Runtime::builder()
         .with_broadcast_stream(broadcast_stream)
         .storage(storage_client)
-        .store(store)
+        .store(full_node_store)
         .serve_grpc_addr(addr)
         .serve_graphql_addr(graphql_addr)
         .serve_metrics_addr(metrics_addr)
@@ -452,24 +442,20 @@ async fn can_query_graphql_endpoint_for_certificates(
     // launch data store
     let certificates = create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], 15);
 
-    let (_, store) = create_fullnode_store(
-        "can_query_graphql_endpoint_for_certificates",
+    let full_node_store = create_fullnode_store::default().await;
+
+    let store = create_validator_store(
         certificates.clone(),
+        futures::future::ready(full_node_store.clone()),
     )
     .await;
 
-    let (_, (storage, storage_client, _storage_stream)) = topos_test_sdk::storage::create_rocksdb(
-        "can_query_graphql_endpoint_for_certificates",
-        certificates.clone(),
-    )
-    .await;
-
-    let _storage_join_handle = spawn(storage.into_future());
+    let storage_client = StorageClient::new(store);
 
     let (runtime_client, _launcher, _ctx) = Runtime::builder()
         .with_broadcast_stream(broadcast_stream)
         .storage(storage_client)
-        .store(store)
+        .store(full_node_store)
         .serve_grpc_addr(addr)
         .serve_graphql_addr(graphql_addr)
         .serve_metrics_addr(metrics_addr)
