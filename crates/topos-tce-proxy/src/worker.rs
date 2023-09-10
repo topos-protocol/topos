@@ -34,7 +34,7 @@ impl TceProxyWorker {
 
         // Get pending certificates from the TCE node. Source head certificate
         // is latest pending certificate for this subnet
-        let mut source_last_generated_certificate: Option<(Certificate, u64)> = match tce_client
+        let source_last_pending_certificate: Option<(Certificate, u64)> = match tce_client
             .get_last_pending_certificates(vec![tce_client.get_subnet_id()])
             .await
         {
@@ -46,33 +46,40 @@ impl TceProxyWorker {
                 return Err(e);
             }
         };
-
         info!(
-            "Last certificate is pending certificate is: {:?}",
-            source_last_generated_certificate
+            "Last pending certificate: {:?}",
+            source_last_pending_certificate
         );
 
-        if source_last_generated_certificate.is_none() {
-            // There are no pending certificates on the TCE
-            // Retrieve source head from TCE node (latest delivered certificate), so that
-            // we know from where to start creating certificates
-            source_last_generated_certificate = match tce_client.get_source_head().await {
-                Ok(certificate) => Some(certificate),
-                Err(Error::SourceHeadEmpty { subnet_id: _ }) => {
-                    // This is also OK, TCE node does not have any data about certificates
-                    // We should start certificate production from scratch
-                    None
-                }
-                Err(e) => {
-                    return Err(e);
-                }
-            };
+        let source_last_delivered_certificate = match tce_client.get_source_head().await {
+            Ok(certificate) => Some(certificate),
+            Err(Error::SourceHeadEmpty { subnet_id: _ }) => {
+                // This is also OK, TCE node does not have any data about certificates
+                // We should start certificate production from scratch
+                None
+            }
+            Err(e) => {
+                return Err(e);
+            }
+        };
+        info!(
+            "Last delivered certificate: {:?}",
+            source_last_delivered_certificate
+        );
 
-            info!(
-                "Last certificate is delivered certificate: {:?}",
-                source_last_generated_certificate
-            );
-        }
+        let source_last_certificate = if source_last_pending_certificate.is_none() {
+            // There are no pending certificates on the TCE
+            // Block height to get next from subnet is position +1
+            source_last_delivered_certificate
+        } else {
+            // Last generated is pending certificate
+            // Block height to get next from subnet is position of the last delivered certificate + index of the pending certificate
+            let delivered_certificate_position = source_last_delivered_certificate
+                .map(|(_cert, position)| position)
+                .unwrap_or_default();
+            source_last_pending_certificate
+                .map(|(cert, index)| (cert, delivered_certificate_position + index))
+        };
 
         tokio::spawn(async move {
             info!(
@@ -141,7 +148,7 @@ impl TceProxyWorker {
                 events: evt_rcv,
                 config,
             },
-            source_last_generated_certificate,
+            source_last_certificate,
         ))
     }
 
