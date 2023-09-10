@@ -458,7 +458,7 @@ async fn test_subnet_node_contract_deployment(
     Ok(())
 }
 
-// /// Test subnet client RPC connection to subnet
+// Test subnet client RPC connection to subnet
 #[rstest]
 #[test(tokio::test)]
 #[serial]
@@ -475,14 +475,14 @@ async fn test_subnet_node_get_block_info(
     )
     .await
     {
-        Ok(mut subnet_client) => match subnet_client.get_next_finalized_block().await {
+        Ok(mut subnet_client) => match subnet_client.get_finalized_block(6).await {
             Ok(block_info) => {
                 info!(
                     "Block info successfully retrieved for block {}",
                     block_info.number
                 );
                 // Blocks must have been mined while we deployed contracts
-                assert!(block_info.number > 5);
+                assert!(block_info.number == 6);
             }
             Err(e) => {
                 panic!("Error getting next finalized block: {e}");
@@ -883,7 +883,12 @@ async fn test_subnet_send_token_processing(
     info!("Waiting for certificate with send token transaction...");
     let assertion = async move {
         while let Ok(event) = runtime_proxy_worker.next_event().await {
-            if let SubnetRuntimeProxyEvent::NewCertificate { cert, ctx: _ } = event {
+            if let SubnetRuntimeProxyEvent::NewCertificate {
+                cert,
+                block_number: _,
+                ctx: _,
+            } = event
+            {
                 info!(
                     "New certificate event received, cert id: {} target subnets: {:?}",
                     cert.id, cert.target_subnets

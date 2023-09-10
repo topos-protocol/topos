@@ -74,7 +74,11 @@ impl AppContext {
     async fn on_subnet_runtime_proxy_event(&mut self, evt: SubnetRuntimeProxyEvent) {
         debug!("on_subnet_runtime_proxy_event : {:?}", &evt);
         match evt {
-            SubnetRuntimeProxyEvent::NewCertificate { cert, ctx } => {
+            SubnetRuntimeProxyEvent::NewCertificate {
+                cert,
+                block_number: _,
+                ctx,
+            } => {
                 let span = info_span!("Sequencer app context");
                 span.set_parent(ctx);
                 if let Err(e) = self

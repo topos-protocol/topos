@@ -28,6 +28,7 @@ pub enum SubnetRuntimeProxyEvent {
     /// New certificate is generated
     NewCertificate {
         cert: Box<Certificate>,
+        block_number: u64,
         ctx: Context,
     },
     /// New set of authorities in charge of the threshold signature
@@ -102,9 +103,10 @@ impl SubnetRuntimeProxy {
             let runtime_proxy = runtime_proxy.clone();
             let subnet_contract_address = subnet_contract_address.clone();
             tokio::spawn(async move {
+                let mut latest_acquired_subnet_block_number = 0;
+
                 {
                     // To start producing certificates, we need to know latest delivered or pending certificate id from TCE
-                    // It could be also genesis certificate (also retrievable from TCE)
                     // Lock certification component and wait until we acquire first certificate id for this network
                     let mut certification = certification.lock().await;
                     if certification.last_certificate_id.is_none() {
@@ -117,8 +119,12 @@ impl SubnetRuntimeProxy {
                                     certificate_and_position
                                 );
                                 let cert_id = certificate_and_position.map(|(id, _position)| id);
+                                let position = certificate_and_position
+                                    .map(|(_id, position)| position)
+                                    .unwrap_or_default();
                                 // Certificate generation is now ready to run
                                 certification.last_certificate_id = cert_id;
+                                latest_acquired_subnet_block_number = position;
                             }
                             Err(e) => {
                                 panic!("Failed to get source head certificate, unable to proceed with certificate generation: {e}")
@@ -142,51 +148,88 @@ impl SubnetRuntimeProxy {
                         }
                     }
                 };
-
-                let mut interval = time::interval(SUBNET_BLOCK_TIME);
-
                 let mut subnet_listener = subnet_listener.expect("subnet listener");
 
+                // Sync missing blocks
+                loop {
+                    let current_subnet_block_number: Option<u64> = loop {
+                        tokio::select! {
+                            block_number = subnet_listener.get_subnet_block_number() => {
+                                match block_number {
+                                    Ok(block_number) => {
+                                        break Some(block_number);
+                                    }
+                                    Err(e) => {
+                                        error!("Failed to get subnet block number: {:?}", e);
+                                        break None;
+                                    }
+                                }
+                            }
+                            _ = block_task_shutdown.recv() => {
+                                break None;
+                            }
+                        }
+                    };
+                    let current_subnet_block_number = current_subnet_block_number
+                        .expect("need valid subnet block number to start syncing");
+
+                    if latest_acquired_subnet_block_number == current_subnet_block_number {
+                        info!(
+                            "Finished synchronization of blocks, latest block received is {}",
+                            latest_acquired_subnet_block_number
+                        );
+                        break;
+                    }
+
+                    info!(
+                        "Latest retrieved subnet block is {}, current subnet block is {}",
+                        latest_acquired_subnet_block_number, current_subnet_block_number
+                    );
+                    // Sync historical blocks
+                    while latest_acquired_subnet_block_number < current_subnet_block_number {
+                        let next_block_number = latest_acquired_subnet_block_number + 1;
+                        info!("Retrieving historical block {}", next_block_number);
+                        if let Err(e) = SubnetRuntimeProxy::process_next_block(
+                            runtime_proxy.clone(),
+                            &mut subnet_listener,
+                            certification.clone(),
+                            next_block_number,
+                        )
+                        .await
+                        {
+                            panic!("Unable to perform subnet block sync: {}, closing", e);
+                        } else {
+                            latest_acquired_subnet_block_number = next_block_number;
+                        }
+
+                        // Give it a little rest for other threads to do their job
+                        tokio::time::sleep(Duration::from_millis(20)).await;
+                    }
+                }
+
+                // Go to standard mode of listening for new blocks
+                let mut interval = time::interval(SUBNET_BLOCK_TIME);
                 let shutdowned: Option<oneshot::Sender<()>> = loop {
                     tokio::select! {
                         _ = interval.tick() => {
-
-                            match subnet_listener
-                                .get_next_finalized_block()
-                                .await
-                            {
-                                Ok(block_info) => {
-                                    let block_number = block_info.number;
-                                    info!("Successfully fetched the finalized block {block_number} from the subnet runtime");
-
-                                    let mut certification = certification.lock().await;
-
-                                    // Update certificate block history
-                                    certification.append_blocks(vec![block_info]);
-
-                                    let new_certificates = match certification.generate_certificates().await {
-                                        Ok(certificates) => certificates,
-                                        Err(e) => {
-                                            error!("Unable to generate certificates: {e}");
-                                            break None;
-                                        }
-                                    };
-
-                                    debug!("Generated new certificates {new_certificates:?}");
-
-                                    for cert in new_certificates {
-                                        Self::send_new_certificate(runtime_proxy.clone(), cert).await
+                            let next_block_number = latest_acquired_subnet_block_number + 1;
+                            if let Err(e) = SubnetRuntimeProxy::process_next_block(
+                                runtime_proxy.clone(),
+                                &mut subnet_listener,
+                                certification.clone(),
+                                next_block_number
+                            ).await {
+                                match e {
+                                    Error::SubnetError { source: topos_sequencer_subnet_client::Error::BlockNotAvailable(_) } => {
+                                        continue;
+                                    }
+                                    _ => {
+                                        error!("Failed to process next block: {}", e);
+                                        break None;
                                     }
                                 }
-                                Err(topos_sequencer_subnet_client::Error::BlockNotAvailable(block_number)) => {
-                                    error!("New block {block_number} not yet available, trying again soon");
-                                }
-                                Err(e) => {
-                                    // TODO: Determine if task should end on some type of error
-                                    error!("Failed to fetch the new finalized block: {e}");
-                                    break None;
-                                }
                             }
+                            latest_acquired_subnet_block_number = next_block_number;
                         },
                         shutdown = block_task_shutdown.recv() => {
                             break shutdown;
@@ -246,11 +289,58 @@ impl SubnetRuntimeProxy {
         Ok(runtime_proxy)
     }
 
+    async fn process_next_block(
+        subnet_runtime_proxy: Arc<Mutex<SubnetRuntimeProxy>>,
+        subnet_listener: &mut SubnetClientListener,
+        certification: Arc<Mutex<Certification>>,
+        next_block: u64,
+    ) -> Result<(), Error> {
+        match subnet_listener.get_finalized_block(next_block).await {
+            Ok(block_info) => {
+                let block_number = block_info.number;
+                info!("Successfully fetched the finalized block {block_number} from the subnet runtime");
+
+                let mut certification = certification.lock().await;
+
+                // Update certificate block history
+                certification.append_blocks(vec![block_info]);
+
+                let new_certificates = match certification.generate_certificates().await {
+                    Ok(certificates) => certificates,
+                    Err(e) => {
+                        error!("Unable to generate certificates: {e}");
+                        return Err(e);
+                    }
+                };
+
+                debug!("Generated new certificates {new_certificates:?}");
+
+                for cert in new_certificates {
+                    Self::send_new_certificate(subnet_runtime_proxy.clone(), cert, next_block).await
+                }
+                info!("Block {} processed", next_block);
+                Ok(())
+            }
+            Err(topos_sequencer_subnet_client::Error::BlockNotAvailable(block_number)) => {
+                error!("New block {block_number} not yet available, trying again soon");
+                Err(Error::SubnetError {
+                    source: topos_sequencer_subnet_client::Error::BlockNotAvailable(block_number),
+                })
+            }
+            Err(e) => {
+                // TODO: Determine if task should end on some type of error
+                error!("Failed to fetch the new finalized block: {e}");
+                Err(Error::SubnetError { source: e })
+            }
+        }
+    }
+
     /// Dispatch newly generated certificate to TCE client
     #[instrument(name = "NewCertificate", fields(certification = field::Empty, source_subnet_id = field::Empty, certificate_id = field::Empty))]
     async fn send_new_certificate(
         subnet_runtime_proxy: Arc<Mutex<SubnetRuntimeProxy>>,
         cert: Certificate,
+        block_number: u64,
     ) {
         let mut runtime_proxy = subnet_runtime_proxy.lock().await;
         Span::current().record("certificate_id", cert.id.to_string());
@@ -259,6 +349,7 @@ impl SubnetRuntimeProxy {
         runtime_proxy
             .send_out_event(SubnetRuntimeProxyEvent::NewCertificate {
                 cert: Box::new(cert),
+                block_number,
                 ctx: Span::current().context(),
             })
             .with_current_context()
