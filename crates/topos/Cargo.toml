@@ -73,6 +73,3 @@ network = ["topos-certificate-spammer"]
 node = ["tce", "sequencer"]
 setup = []
 subnet = []
-
-[profile.release]
-strip = true

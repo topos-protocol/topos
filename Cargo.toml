@@ -4,6 +4,9 @@ members = [
     "crates/*"
 ]
 
+[profile.release]
+strip = true
+
 [workspace.dependencies]
 topos-core = { path = "./crates/topos-core", default-features = false }
 topos-crypto = { path = "./crates/topos-crypto", default-features = false }

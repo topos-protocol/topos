@@ -127,7 +127,7 @@ impl<'a> NetworkBuilder<'a> {
         let (command_sender, command_receiver) = mpsc::channel(*COMMAND_STREAM_BUFFER_SIZE);
         let (event_sender, event_receiver) = mpsc::channel(*EVENT_STREAM_BUFFER);
 
-        let gossipsub = gossip::Behaviour::new(peer_key.clone());
+        let gossipsub = gossip::Behaviour::new(peer_key.clone()).await;
         let behaviour = Behaviour {
             gossipsub,
             peer_info: PeerInfoBehaviour::new(PEER_INFO_PROTOCOL, &peer_key),
