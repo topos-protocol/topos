@@ -12,6 +12,11 @@ pub struct Run {
     #[arg(long, default_value = "", env = "TCE_BOOT_PEERS")]
     pub boot_peers: String,
 
+    /// Validator nodes to connect to, list of Ethereum addresses, space separated,
+    /// quoted list like --validators='0xfd530a60b4b4cf799d74'
+    #[arg(long, default_value = "", env = "TCE_BOOT_PEERS")]
+    pub validators: String,
+
     /// Advertised (externally visible) <host>,
     /// if empty this machine ip address(es) are used
     #[arg(long, env = "TCE_EXT_HOST", default_value = "/ip4/0.0.0.0")]
@@ -92,7 +97,7 @@ impl Run {
     }
 
     pub fn parse_validators(&self) -> Vec<String> {
-        self.boot_peers
+        self.validators
             .split(&[',', ' '])
             .map(|s| s.to_string())
             .collect::<Vec<String>>()
