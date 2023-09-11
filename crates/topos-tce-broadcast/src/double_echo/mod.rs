@@ -1,7 +1,7 @@
 use crate::TaskStatus;
 use crate::{DoubleEchoCommand, SubscriptionsView};
 use std::collections::HashSet;
-use tce_transport::{AuthorityId, DoubleEchoSignature, ProtocolEvents, ReliableBroadcastParams};
+use tce_transport::{AuthorityId, ProtocolEvents, ReliableBroadcastParams};
 use tokio::sync::{mpsc, oneshot};
 use topos_core::uci::{Certificate, CertificateId};
 
@@ -25,6 +25,10 @@ pub struct DoubleEcho {
     task_manager_message_sender: mpsc::Sender<DoubleEchoCommand>,
     /// The overview of the network, which holds echo and ready subscriptions and the network size
     pub subscriptions: SubscriptionsView,
+    /// Public ETH address
+    pub authority_id: AuthorityId,
+    /// Known and approved validators in the network
+    pub validators: Vec<String>,
 }
 
 impl DoubleEcho {
@@ -42,6 +46,8 @@ impl DoubleEcho {
     ) -> Self {
         Self {
             params,
+            authority_id,
+            validators,
             task_manager_message_sender,
             command_receiver,
             event_sender,
@@ -64,6 +70,7 @@ impl DoubleEcho {
             task_completion_sender,
             subscriptions_view_receiver,
             self.event_sender.clone(),
+            self.authority_id.clone(),
             self.params.clone(),
         );
 
@@ -85,6 +92,7 @@ impl DoubleEcho {
             task_completion_sender,
             subscriptions_view_receiver,
             self.event_sender.clone(),
+            self.authority_id.clone(),
             self.params.clone(),
         );
 
@@ -137,17 +145,18 @@ impl DoubleEcho {
                                 DoubleEchoCommand::Echo { from_peer, certificate_id, authority_id, signature } => {
                                     // Check if signature is valid
                                     // Check if source is part of known_validators
-                                    if !validators.contains(authority_id) {
-                                        error!("ECHO message comes from non-validator: {authority_id}");
+                                    if !self.validators.contains(&authority_id.to_hex()) {
+                                        error!("ECHO message comes from non-validator: {}", authority_id.to_hex());
                                     }
 
                                     self.handle_echo(from_peer, certificate_id, authority_id, signature).await
                                 },
                                 DoubleEchoCommand::Ready { from_peer, certificate_id, authority_id, signature } => {
                                     // Check if signature is valid
+
                                     // Check if source is part of known_validators
-                                    if !validators.contains(authority_id) {
-                                        error!("READY message comes from non-validator: {authority_id}");
+                                    if !self.validators.contains(&authority_id.to_hex()) {
+                                        error!("READY message comes from non-validator: {}", authority_id.to_hex());
                                     }
                                     self.handle_ready(from_peer, certificate_id, authority_id, signature).await
                                 },
@@ -269,7 +278,7 @@ impl DoubleEcho {
         from_peer: PeerId,
         certificate_id: CertificateId,
         authority_id: AuthorityId,
-        signature: DoubleEchoSignature,
+        signature: Vec<u8>,
     ) {
         if self.delivered_certificates.get(&certificate_id).is_none() {
             let _ = self
@@ -289,7 +298,7 @@ impl DoubleEcho {
         from_peer: PeerId,
         certificate_id: CertificateId,
         authority_id: AuthorityId,
-        signature: DoubleEchoSignature,
+        signature: Vec<u8>,
     ) {
         if self.delivered_certificates.get(&certificate_id).is_none() {
             let _ = self

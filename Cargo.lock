@@ -7438,6 +7438,7 @@ dependencies = [
  "secp256k1",
  "serde",
  "topos-core",
+ "topos-crypto",
  "topos-p2p",
  "tracing",
 ]

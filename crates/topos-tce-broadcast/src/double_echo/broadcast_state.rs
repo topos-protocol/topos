@@ -1,6 +1,6 @@
 use std::time;
 
-use tce_transport::{AuthorityId, ProtocolEvents, DoubleEchoSignature};
+use tce_transport::{AuthorityId, ProtocolEvents};
 use tokio::sync::mpsc;
 use topos_core::uci::Certificate;
 use topos_metrics::DOUBLE_ECHO_BROADCAST_FINISHED_TOTAL;
@@ -82,7 +82,7 @@ impl BroadcastState {
         if let Status::Pending = self.status {
             _ = self.event_sender.try_send(ProtocolEvents::Echo {
                 certificate_id: self.certificate.id,
-                signature: (),
+                signature: vec![],
                 authority_id: self.authority_id.clone(),
             });
 
@@ -102,7 +102,7 @@ impl BroadcastState {
         if !self.status.is_ready_sent() && self.reached_ready_threshold() {
             let event = ProtocolEvents::Ready {
                 certificate_id: self.certificate.id,
-                signature: DoubleEchoSignature::,
+                signature: vec![],
                 authority_id: self.authority_id.clone(),
             };
             if let Err(e) = self.event_sender.try_send(event) {

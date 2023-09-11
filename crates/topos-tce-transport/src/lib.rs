@@ -1,7 +1,6 @@
 //! implementation of Topos Network Transport
 //!
 use clap::Parser;
-use secp256k1::ecdsa::Signature;
 use serde::{Deserialize, Serialize};
 use topos_core::uci::{Certificate, CertificateId};
 use topos_p2p::PeerId;
@@ -55,26 +54,6 @@ impl AuthorityId {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct DoubleEchoSignature {
-    signature: Vec<u8>,
-}
-
-impl From<Signature> for DoubleEchoSignature {
-    fn from(signature: Signature) -> Self {
-        let signature_bytes = signature.serialize_der().to_vec();
-        DoubleEchoSignature {
-            signature: signature_bytes,
-        }
-    }
-}
-
-impl Into<Signature> for DoubleEchoSignature {
-    fn into(self) -> Signature {
-        Signature::from_der(&self.signature).expect("Failed to deserialize Signature")
-    }
-}
-
 /// Protocol commands
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum TceCommands {
@@ -101,13 +80,13 @@ pub enum TceCommands {
     /// When echo reply received
     OnEcho {
         certificate_id: CertificateId,
-        signature: DoubleEchoSignature,
+        signature: Vec<u8>,
         authority_id: AuthorityId,
     },
     /// When ready reply received
     OnReady {
         certificate_id: CertificateId,
-        signature: DoubleEchoSignature,
+        signature: Vec<u8>,
         authority_id: AuthorityId,
     },
     /// Given peer replied ok to the double echo request
@@ -153,13 +132,13 @@ pub enum ProtocolEvents {
     /// Indicates that 'echo' message broadcasting is required
     Echo {
         certificate_id: CertificateId,
-        signature: DoubleEchoSignature,
+        signature: Vec<u8>,
         authority_id: AuthorityId,
     },
     /// Indicates that 'ready' message broadcasting is required
     Ready {
         certificate_id: CertificateId,
-        signature: DoubleEchoSignature,
+        signature: Vec<u8>,
         authority_id: AuthorityId,
     },
     /// For simulation purpose, for now only caused by ill-formed sampling

@@ -33,6 +33,10 @@ pub struct Run {
     #[clap(long, env = "TCE_LOCAL_KS")]
     pub local_key_seed: Option<String>,
 
+    /// Local peer secret key seed (optional, used for testing)
+    #[clap(long, env = "TCE_LOCAL_VKS")]
+    pub local_validator_key_seed: Option<String>,
+
     /// Storage database path, if not set RAM storage is used
     #[clap(long, default_value = "./default_db/", env = "TCE_DB_PATH")]
     pub db_path: Option<String>,

@@ -4,7 +4,7 @@ use futures::StreamExt;
 use std::collections::HashMap;
 use std::future::IntoFuture;
 use std::pin::Pin;
-use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
+use tce_transport::{AuthorityId, ProtocolEvents, ReliableBroadcastParams};
 use tokio::{spawn, sync::mpsc};
 use topos_core::uci::CertificateId;
 use topos_metrics::CERTIFICATE_PROCESSING_FROM_API_TOTAL;
@@ -37,6 +37,7 @@ pub struct TaskManager {
     >,
     pub buffered_messages: HashMap<CertificateId, Vec<DoubleEchoCommand>>,
     pub thresholds: ReliableBroadcastParams,
+    pub authority_id: AuthorityId,
     pub shutdown_sender: mpsc::Sender<()>,
 }
 
@@ -46,6 +47,7 @@ impl TaskManager {
         task_completion_sender: mpsc::Sender<(CertificateId, TaskStatus)>,
         subscription_view_receiver: mpsc::Receiver<SubscriptionsView>,
         event_sender: mpsc::Sender<ProtocolEvents>,
+        authority_id: AuthorityId,
         thresholds: ReliableBroadcastParams,
     ) -> (Self, mpsc::Receiver<()>) {
         let (shutdown_sender, shutdown_receiver) = mpsc::channel(1);
@@ -60,6 +62,7 @@ impl TaskManager {
                 tasks: HashMap::new(),
                 running_tasks: FuturesUnordered::new(),
                 buffered_messages: Default::default(),
+                authority_id,
                 thresholds,
                 shutdown_sender,
             },
@@ -93,6 +96,7 @@ impl TaskManager {
                                 std::collections::hash_map::Entry::Vacant(entry) => {
                                     let broadcast_state = BroadcastState::new(
                                         cert.clone(),
+                                        self.authority_id.clone(),
                                         self.thresholds.echo_threshold,
                                         self.thresholds.ready_threshold,
                                         self.thresholds.delivery_threshold,

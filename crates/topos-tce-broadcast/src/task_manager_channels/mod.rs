@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use tokio::{spawn, sync::mpsc};
 
-use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
+use tce_transport::{AuthorityId, ProtocolEvents, ReliableBroadcastParams};
 use topos_core::uci::CertificateId;
 use tracing::warn;
 
@@ -29,6 +29,7 @@ pub struct TaskManager {
     pub event_sender: mpsc::Sender<ProtocolEvents>,
     pub tasks: HashMap<CertificateId, TaskContext>,
     pub buffered_messages: HashMap<CertificateId, Vec<DoubleEchoCommand>>,
+    pub authority_id: AuthorityId,
     pub thresholds: ReliableBroadcastParams,
     pub shutdown_sender: mpsc::Sender<()>,
 }
@@ -39,6 +40,7 @@ impl TaskManager {
         notify_task_completion: mpsc::Sender<(CertificateId, TaskStatus)>,
         subscription_view_receiver: mpsc::Receiver<SubscriptionsView>,
         event_sender: mpsc::Sender<ProtocolEvents>,
+        authority_id: AuthorityId,s
         thresholds: ReliableBroadcastParams,
     ) -> (Self, mpsc::Receiver<()>) {
         let (task_completion_sender, task_completion_receiver) =
@@ -56,6 +58,7 @@ impl TaskManager {
                 event_sender,
                 tasks: HashMap::new(),
                 buffered_messages: Default::default(),
+                authority_id,
                 thresholds,
                 shutdown_sender,
             },
@@ -86,6 +89,7 @@ impl TaskManager {
                                 std::collections::hash_map::Entry::Vacant(entry) => {
                                     let broadcast_state = BroadcastState::new(
                                         cert.clone(),
+                                        self.authority_id.clone(),
                                         self.thresholds.echo_threshold,
                                         self.thresholds.ready_threshold,
                                         self.thresholds.delivery_threshold,

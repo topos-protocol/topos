@@ -15,11 +15,10 @@ use tokio::sync::mpsc::Sender;
 use tokio::sync::{mpsc, oneshot};
 
 use double_echo::DoubleEcho;
-use tce_transport::{AuthorityId, DoubleEchoSignature, ProtocolEvents, ReliableBroadcastParams};
+use tce_transport::{AuthorityId, ProtocolEvents, ReliableBroadcastParams};
 use topos_core::uci::{Certificate, CertificateId};
 use topos_metrics::DOUBLE_ECHO_COMMAND_CHANNEL_CAPACITY_TOTAL;
 use topos_p2p::PeerId;
-use topos_tce_storage::StorageClient;
 use tracing::{debug, error, info};
 
 pub use topos_core::uci;
@@ -85,7 +84,7 @@ pub enum DoubleEchoCommand {
         from_peer: PeerId,
         authority_id: AuthorityId,
         certificate_id: CertificateId,
-        signature: DoubleEchoSignature,
+        signature: Vec<u8>,
     },
 
     /// When ready reply received
@@ -93,7 +92,7 @@ pub enum DoubleEchoCommand {
         from_peer: PeerId,
         authority_id: AuthorityId,
         certificate_id: CertificateId,
-        signature: DoubleEchoSignature,
+        signature: Vec<u8>,
     },
 }
 
@@ -112,7 +111,6 @@ impl ReliableBroadcastClient {
     /// Aggregate is spawned as new task.
     pub async fn new(
         config: ReliableBroadcastConfig,
-        storage: StorageClient,
     ) -> (Self, impl Stream<Item = ProtocolEvents>) {
         let (subscriptions_view_sender, subscriptions_view_receiver) =
             mpsc::channel::<SubscriptionsView>(*constant::SUBSCRIPTION_VIEW_CHANNEL_SIZE);

@@ -33,14 +33,8 @@ pub async fn run(
         None => local_key_pair(None),
     };
 
-    let validator_key = match config.signing_key.as_ref() {
-        Some(AuthKey::Seed(seed)) => local_key_pair_from_slice(seed),
-        Some(AuthKey::PrivateKey(pk)) => topos_p2p::utils::keypair_from_protobuf_encoding(pk),
-        None => local_key_pair(None),
-    };
-
     let peer_id = key.public().to_peer_id();
-    let authority_id = AuthorityId::new(&key.public().try_into_secp256k1()?[..=20])?;
+    let authority_id = AuthorityId::new(&key.public().try_into_secp256k1()?.to_bytes()[0..=20])?;
 
     warn!("I am {}", peer_id);
 
@@ -95,14 +89,11 @@ pub async fn run(
     debug!("Storage started");
 
     debug!("Starting reliable broadcast");
-    let (tce_cli, tce_stream) = ReliableBroadcastClient::new(
-        ReliableBroadcastConfig {
-            tce_params: config.tce_params.clone(),
-            authority_id,
-            validators: config.validators.clone(),
-        },
-        storage_client.clone(),
-    )
+    let (tce_cli, tce_stream) = ReliableBroadcastClient::new(ReliableBroadcastConfig {
+        tce_params: config.tce_params.clone(),
+        authority_id,
+        validators: config.validators.clone(),
+    })
     .await;
     debug!("Reliable broadcast started");
 
