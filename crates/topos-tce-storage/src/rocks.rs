@@ -5,6 +5,7 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
+use topos_core::types::stream::SourceStreamPositionKey;
 use topos_core::uci::{Certificate, CertificateId, CERTIFICATE_ID_LENGTH};
 use tracing::warn;
 
@@ -388,24 +389,5 @@ impl Storage for RocksDBStorage {
             .prefix_iter(&target)?
             .map(|(TargetSourceListKey(_, k), _)| k)
             .collect())
-    }
-}
-
-#[cfg(test)]
-impl RocksDBStorage {
-    pub(crate) fn pending_certificates_column(&self) -> PendingCertificatesColumn {
-        self.pending_certificates.clone()
-    }
-
-    pub(crate) fn certificates_column(&self) -> CertificatesColumn {
-        self.certificates.clone()
-    }
-
-    pub(crate) fn source_streams_column(&self) -> SourceStreamsColumn {
-        self.source_streams.clone()
-    }
-
-    pub(crate) fn target_streams_column(&self) -> TargetStreamsColumn {
-        self.target_streams.clone()
     }
 }

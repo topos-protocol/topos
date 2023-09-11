@@ -11,6 +11,7 @@ use tonic::transport::Uri;
 use topos_core::api::graphql::certificate::Certificate as GraphQLCertificate;
 use topos_core::api::grpc::shared::v1::checkpoints::TargetCheckpoint;
 use topos_core::api::grpc::shared::v1::positions::TargetStreamPosition;
+use topos_core::types::CertificateDelivered;
 use topos_core::{
     api::grpc::tce::v1::{
         api_service_client::ApiServiceClient,
@@ -20,7 +21,7 @@ use topos_core::{
     uci::Certificate,
 };
 use topos_tce_api::{Runtime, RuntimeEvent};
-use topos_tce_storage::types::{CertificateDelivered, CertificateDeliveredWithPositions};
+use topos_tce_storage::types::CertificateDeliveredWithPositions;
 use topos_tce_storage::StorageClient;
 use topos_test_sdk::certificates::create_certificate_chain;
 use topos_test_sdk::constants::*;

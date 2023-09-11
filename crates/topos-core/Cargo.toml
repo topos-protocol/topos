@@ -9,6 +9,8 @@ workspace = true
 [dependencies]
 topos-uci = { path = "../topos-uci", optional = true }
 topos-api = { path = "../topos-api", optional = true }
+serde.workspace = true
+thiserror.workspace = true
 
 [features]
 default = []

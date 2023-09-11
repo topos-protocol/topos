@@ -1,14 +1,12 @@
 use rstest::rstest;
 use test_log::test;
+use topos_core::types::stream::SourceStreamPositionKey;
 use topos_core::uci::Certificate;
 use topos_test_sdk::constants::SOURCE_SUBNET_ID_1;
 
 use crate::tests::{PREV_CERTIFICATE_ID, SOURCE_STORAGE_SUBNET_ID};
 use crate::{
-    rocks::{
-        map::Map, CertificatesColumn, PendingCertificatesColumn, SourceStreamPositionKey,
-        SourceStreamsColumn,
-    },
+    rocks::{map::Map, CertificatesColumn, PendingCertificatesColumn, SourceStreamsColumn},
     Position,
 };
 

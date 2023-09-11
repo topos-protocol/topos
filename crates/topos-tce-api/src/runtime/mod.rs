@@ -12,13 +12,14 @@ use tokio::{
     task::JoinHandle,
 };
 use tonic_health::server::HealthReporter;
-use topos_core::api::grpc::checkpoints::TargetStreamPosition;
-use topos_core::api::grpc::tce::v1::api_service_server::ApiServiceServer;
 use topos_core::uci::SubnetId;
+use topos_core::{api::grpc::checkpoints::TargetStreamPosition, types::CertificateDelivered};
+use topos_core::{
+    api::grpc::tce::v1::api_service_server::ApiServiceServer, types::stream::Position,
+};
 use topos_tce_storage::{
-    types::{CertificateDelivered, CertificateDeliveredWithPositions},
-    CertificateTargetStreamPosition, FetchCertificatesFilter, FetchCertificatesPosition,
-    StorageClient,
+    types::CertificateDeliveredWithPositions, CertificateTargetStreamPosition,
+    FetchCertificatesFilter, FetchCertificatesPosition, StorageClient,
 };
 
 use tracing::{debug, error, info};
@@ -316,7 +317,7 @@ impl Runtime {
                                         target_stream_position: CertificateTargetStreamPosition {
                                             target_subnet_id,
                                             source_subnet_id,
-                                            position: topos_tce_storage::Position(position),
+                                            position: Position(position),
                                         },
                                         limit: 100,
                                     })

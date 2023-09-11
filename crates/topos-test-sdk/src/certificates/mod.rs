@@ -1,13 +1,13 @@
+use rstest::*;
 use std::collections::HashMap;
 
-use topos_core::uci::Certificate;
-use topos_core::uci::SubnetId;
-use topos_tce_storage::types::CertificateDelivered;
-use topos_tce_storage::types::ProofOfDelivery;
-use topos_tce_storage::types::SourceStreamPositionKey;
-use topos_tce_storage::Position;
-
-use rstest::*;
+use topos_core::{
+    types::{
+        stream::{Position, SourceStreamPositionKey},
+        CertificateDelivered, ProofOfDelivery,
+    },
+    uci::{Certificate, SubnetId},
+};
 
 use crate::constants::PREV_CERTIFICATE_ID;
 use crate::constants::SOURCE_SUBNET_ID_1;

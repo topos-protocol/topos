@@ -14,15 +14,17 @@ use tokio_stream::wrappers::BroadcastStream;
 use tokio_util::sync::CancellationToken;
 use tonic::transport::Channel;
 use tonic::Response;
+
 use topos_core::api::grpc::tce::v1::{
     api_service_client::ApiServiceClient, console_service_client::ConsoleServiceClient,
 };
+
 use topos_core::api::grpc::tce::v1::{PushPeerListRequest, StatusRequest, StatusResponse};
+use topos_core::types::CertificateDelivered;
 use topos_core::uci::SubnetId;
 use topos_p2p::{error::P2PError, Client, Event, Runtime};
 use topos_tce::{events::Events, AppContext};
 use topos_tce_api::RuntimeContext;
-use topos_tce_storage::types::CertificateDelivered;
 use topos_tce_storage::StorageClient;
 use tracing::{info, warn};
 

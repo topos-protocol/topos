@@ -1,7 +1,10 @@
 use std::path::PathBuf;
 
 use rocksdb::ColumnFamilyDescriptor;
-use topos_core::uci::{CertificateId, SubnetId};
+use topos_core::{
+    types::stream::Position,
+    uci::{CertificateId, SubnetId},
+};
 
 use crate::{
     rocks::{
@@ -11,7 +14,6 @@ use crate::{
         TargetSourceListKey, TargetStreamPositionKey,
     },
     types::CertificateSequenceNumber,
-    Position,
 };
 
 #[allow(unused)]

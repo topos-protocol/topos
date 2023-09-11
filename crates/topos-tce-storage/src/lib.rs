@@ -1,11 +1,12 @@
-use errors::{InternalStorageError, PositionError};
-use rocks::SourceStreamPositionKey;
+use errors::InternalStorageError;
 use rocks::{iterator::ColumnIterator, TargetStreamPositionKey};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fmt;
 
-use topos_core::uci::{Certificate, CertificateId, SubnetId};
+use topos_core::{
+    types::stream::{Position, SourceStreamPositionKey},
+    uci::{Certificate, CertificateId, SubnetId},
+};
 
 // v2
 /// Epoch related store
@@ -19,7 +20,6 @@ pub mod validator;
 
 // v1
 pub mod client;
-mod constant;
 pub mod errors;
 
 #[cfg(feature = "rocksdb")]
@@ -36,30 +36,6 @@ pub use rocks::RocksDBStorage;
 pub mod store;
 
 pub type PendingCertificateId = u64;
-
-/// Certificate index in the history of the source subnet
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Copy)]
-pub struct Position(pub u64);
-
-impl fmt::Display for Position {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl Position {
-    const ZERO: Self = Self(0);
-
-    pub fn increment(self) -> Result<Self, PositionError> {
-        match self {
-            Self::ZERO => Ok(Self(1)),
-            Self(value) => value
-                .checked_add(1)
-                .ok_or(PositionError::MaximumPositionReached)
-                .map(Self),
-        }
-    }
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CertificateSourceStreamPosition {

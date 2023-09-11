@@ -8,10 +8,11 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use topos_core::types::CertificateDelivered;
 use topos_tce_storage::{
     epoch::EpochValidatorsStore, epoch::ValidatorPerEpochStore, fullnode::FullNodeStore,
-    index::IndexTables, store::WriteStore, types::CertificateDelivered,
-    validator::ValidatorPerpetualTables, validator::ValidatorStore, StorageClient,
+    index::IndexTables, store::WriteStore, validator::ValidatorPerpetualTables,
+    validator::ValidatorStore, StorageClient,
 };
 
 #[fixture]

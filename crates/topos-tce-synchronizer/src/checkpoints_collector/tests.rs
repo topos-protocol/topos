@@ -4,18 +4,19 @@ use futures::FutureExt;
 use libp2p::{request_response::ResponseChannel, PeerId};
 use mockall::mock;
 use rstest::rstest;
-use topos_core::api::grpc::tce::v1::{
-    CheckpointMapFieldEntry, CheckpointRequest, CheckpointResponse, FetchCertificatesRequest,
-    FetchCertificatesResponse,
+use topos_core::{
+    api::grpc::tce::v1::{
+        CheckpointMapFieldEntry, CheckpointRequest, CheckpointResponse, FetchCertificatesRequest,
+        FetchCertificatesResponse,
+    },
+    types::{stream::Position, CertificateDelivered},
 };
 use topos_p2p::{
     constant::SYNCHRONIZER_PROTOCOL, error::CommandExecutionError, NetworkClient, RetryPolicy,
     TransmissionResponse,
 };
 use topos_tce_gatekeeper::{GatekeeperClient, GatekeeperError};
-use topos_tce_storage::{
-    store::ReadStore, types::CertificateDelivered, CertificateSourceStreamPosition, Position,
-};
+use topos_tce_storage::{store::ReadStore, CertificateSourceStreamPosition};
 use topos_test_sdk::{
     certificates::create_certificate_chain,
     storage::create_validator_store,
@@ -137,7 +138,7 @@ async fn can_initiate_a_sync() {
         value,
         CertificateSourceStreamPosition {
             source_subnet_id: subnet,
-            position: Position(0)
+            position: Position::ZERO
         }
     );
 

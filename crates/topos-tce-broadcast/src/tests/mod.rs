@@ -234,7 +234,7 @@ async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams)
     let x = ctx.broadcast_receiver.recv().await;
     assert!(matches!(
             x,
-        Ok(CertificateDeliveredWithPositions(topos_tce_storage::types::CertificateDelivered { certificate, .. }, _)) if certificate == dummy_cert
+        Ok(CertificateDeliveredWithPositions(topos_core::types::CertificateDelivered { certificate, .. }, _)) if certificate == dummy_cert
     ));
 }
 

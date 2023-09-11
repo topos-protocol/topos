@@ -2,7 +2,14 @@ use std::{collections::HashMap, sync::Arc};
 
 use arc_swap::ArcSwap;
 use async_trait::async_trait;
-use topos_core::uci::{CertificateId, SubnetId};
+
+use topos_core::{
+    types::{
+        stream::{Position, SourceStreamPositionKey},
+        CertificateDelivered,
+    },
+    uci::{CertificateId, SubnetId},
+};
 use tracing::{error, info};
 
 use crate::{
@@ -11,10 +18,9 @@ use crate::{
     index::IndexTables,
     rocks::{map::Map, TargetSourceListKey, TargetStreamPositionKey},
     store::{ReadStore, WriteStore},
-    types::{CertificateDelivered, SourceStreamPositionKey},
     validator::ValidatorPerpetualTables,
     CertificatePositions, CertificateSourceStreamPosition, CertificateTargetStreamPosition,
-    Position, SourceHead,
+    SourceHead,
 };
 
 use self::locking::LockGuards;

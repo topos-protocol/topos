@@ -7182,6 +7182,8 @@ dependencies = [
 name = "topos-core"
 version = "0.1.0"
 dependencies = [
+ "serde",
+ "thiserror",
  "topos-api",
  "topos-uci",
 ]

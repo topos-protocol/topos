@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 
 use async_trait::async_trait;
-use topos_core::uci::{CertificateId, SubnetId};
+use topos_core::{
+    types::{stream::SourceStreamPositionKey, CertificateDelivered},
+    uci::{CertificateId, SubnetId},
+};
 
 use crate::{
-    errors::StorageError,
-    rocks::TargetStreamPositionKey,
-    types::{CertificateDelivered, SourceStreamPositionKey},
-    CertificatePositions, CertificateSourceStreamPosition, CertificateTargetStreamPosition,
-    SourceHead,
+    errors::StorageError, rocks::TargetStreamPositionKey, CertificatePositions,
+    CertificateSourceStreamPosition, CertificateTargetStreamPosition, SourceHead,
 };
 
 #[async_trait]

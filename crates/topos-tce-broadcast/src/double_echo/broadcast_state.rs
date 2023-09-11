@@ -3,14 +3,16 @@ use std::sync::Arc;
 use std::{collections::HashSet, time};
 use tce_transport::{ProtocolEvents, ValidatorId};
 use tokio::sync::mpsc;
-use topos_core::uci::Certificate;
+use topos_core::{
+    types::{
+        stream::{Position, SourceStreamPositionKey},
+        CertificateDelivered, ProofOfDelivery, Ready,
+    },
+    uci::Certificate,
+};
 use topos_crypto::messages::MessageSigner;
 use topos_metrics::DOUBLE_ECHO_BROADCAST_FINISHED_TOTAL;
 use topos_p2p::PeerId;
-use topos_tce_storage::{
-    types::{CertificateDelivered, ProofOfDelivery, Ready, SourceStreamPositionKey},
-    Position,
-};
 use tracing::{debug, info, warn};
 mod status;
 

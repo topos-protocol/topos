@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
+use topos_core::types::CertificateDelivered;
 use topos_core::uci::{Certificate, SubnetId};
 
 use crate::rocks::TargetStreamPositionKey;
 use crate::store::ReadStore;
-use crate::types::CertificateDelivered;
 use crate::validator::ValidatorStore;
 use crate::{
     errors::StorageError, FetchCertificatesFilter, FetchCertificatesPosition, PendingCertificateId,

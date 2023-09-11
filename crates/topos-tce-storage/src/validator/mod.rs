@@ -1,7 +1,18 @@
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{
+    collections::HashMap,
+    path::PathBuf,
+    sync::{atomic::Ordering, Arc},
+};
 
 use async_trait::async_trait;
-use topos_core::uci::{Certificate, CertificateId, SubnetId};
+
+use topos_core::{
+    types::{
+        stream::{Position, SourceStreamPositionKey},
+        CertificateDelivered, ProofOfDelivery,
+    },
+    uci::{Certificate, CertificateId, SubnetId},
+};
 use tracing::{debug, info, instrument};
 
 use crate::{
@@ -9,7 +20,6 @@ use crate::{
     fullnode::FullNodeStore,
     rocks::{map::Map, TargetStreamPositionKey},
     store::{ReadStore, WriteStore},
-    types::{CertificateDelivered, ProofOfDelivery, SourceStreamPositionKey},
     CertificatePositions, CertificateSourceStreamPosition, CertificateTargetStreamPosition,
     PendingCertificateId, SourceHead,
 };
@@ -21,8 +31,8 @@ mod tables;
 
 /// Contains all persistent data about the validator
 pub struct ValidatorStore {
-    pending_tables: ValidatorPendingTables,
-    full_node_store: Arc<FullNodeStore>,
+    pub(crate) pending_tables: ValidatorPendingTables,
+    pub(crate) full_node_store: Arc<FullNodeStore>,
 }
 
 impl ValidatorStore {
@@ -45,6 +55,54 @@ impl ValidatorStore {
         &self,
     ) -> Result<Vec<(PendingCertificateId, Certificate)>, StorageError> {
         Ok(self.pending_tables.pending_pool.iter()?.collect())
+    }
+
+    pub fn multi_insert_pending_certificate(
+        &self,
+        certificates: &[Certificate],
+    ) -> Result<Vec<PendingCertificateId>, StorageError> {
+        let id = self
+            .pending_tables
+            .next_pending_id
+            .fetch_add(certificates.len() as u64, Ordering::Relaxed);
+
+        let mut batch = self.pending_tables.pending_pool.batch();
+
+        let values: Vec<_> = certificates
+            .iter()
+            .enumerate()
+            .map(|(index, cert)| (id + index as u64, cert))
+            .collect();
+
+        let ids = values.iter().map(|(id, _)| *id).collect();
+        let index = values
+            .iter()
+            .map(|(id, cert)| (cert.id.clone(), *id))
+            .collect::<Vec<_>>();
+
+        batch = batch.insert_batch(&self.pending_tables.pending_pool, values)?;
+        batch = batch.insert_batch(&self.pending_tables.pending_pool_index, index)?;
+
+        batch.write()?;
+
+        Ok(ids)
+    }
+
+    pub fn insert_pending_certificate(
+        &self,
+        certificate: &Certificate,
+    ) -> Result<PendingCertificateId, StorageError> {
+        let id = self
+            .pending_tables
+            .next_pending_id
+            .fetch_add(1, Ordering::Relaxed);
+
+        self.pending_tables.pending_pool.insert(&id, certificate)?;
+        self.pending_tables
+            .pending_pool_index
+            .insert(&certificate.id, &id)?;
+
+        Ok(id)
     }
 
     #[instrument(skip(self, proofs))]
@@ -130,7 +188,7 @@ impl ValidatorStore {
             .collect();
 
         // Request the local head checkpoint
-        let subnets: HashMap<SubnetId, crate::Position> = self
+        let subnets: HashMap<SubnetId, Position> = self
             .full_node_store
             .index_tables
             .source_list
@@ -180,6 +238,25 @@ impl ValidatorStore {
         }
 
         Ok(from_positions)
+    }
+    pub fn delete_pending_certificate(
+        &self,
+        pending_id: &PendingCertificateId,
+    ) -> Result<Certificate, StorageError> {
+        if let Some(certificate) = self.pending_tables.pending_pool.get(pending_id)? {
+            self.pending_tables.pending_pool.delete(pending_id)?;
+            self.pending_tables
+                .pending_pool_index
+                .delete(&certificate.id)?;
+
+            Ok(certificate)
+        } else {
+            Err(StorageError::InternalStorage(
+                crate::errors::InternalStorageError::InvalidQueryArgument(
+                    "No certificate for pending_id",
+                ),
+            ))
+        }
     }
 }
 impl ReadStore for ValidatorStore {

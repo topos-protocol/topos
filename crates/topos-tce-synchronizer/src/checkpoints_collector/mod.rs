@@ -17,19 +17,17 @@ use topos_core::{
             FetchCertificatesResponse,
         },
     },
+    types::{
+        stream::{Position, SourceStreamPositionKey},
+        ProofOfDelivery,
+    },
     uci::{Certificate, CertificateId, SubnetId},
 };
 use topos_p2p::{
     constant::SYNCHRONIZER_PROTOCOL, error::CommandExecutionError, NetworkClient, RetryPolicy,
 };
 use topos_tce_gatekeeper::GatekeeperClient;
-use topos_tce_storage::{
-    errors::StorageError,
-    store::ReadStore,
-    types::{ProofOfDelivery, SourceStreamPositionKey},
-    validator::ValidatorStore,
-    Position,
-};
+use topos_tce_storage::{errors::StorageError, store::ReadStore, validator::ValidatorStore};
 use tracing::{debug, warn};
 use uuid::Uuid;
 
