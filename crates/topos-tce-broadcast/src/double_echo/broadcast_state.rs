@@ -1,6 +1,6 @@
 use std::time;
 
-use tce_transport::ProtocolEvents;
+use tce_transport::{AuthorityId, ProtocolEvents, DoubleEchoSignature};
 use tokio::sync::mpsc;
 use topos_core::uci::Certificate;
 use topos_metrics::DOUBLE_ECHO_BROADCAST_FINISHED_TOTAL;
@@ -18,6 +18,7 @@ pub struct BroadcastState {
     subscriptions_view: SubscriptionsView,
     status: Status,
     certificate: Certificate,
+    authority_id: AuthorityId,
     echo_threshold: usize,
     ready_threshold: usize,
     delivery_threshold: usize,
@@ -28,6 +29,7 @@ pub struct BroadcastState {
 impl BroadcastState {
     pub fn new(
         certificate: Certificate,
+        authority_id: AuthorityId,
         echo_threshold: usize,
         ready_threshold: usize,
         delivery_threshold: usize,
@@ -39,6 +41,7 @@ impl BroadcastState {
             subscriptions_view,
             status: Status::Pending,
             certificate,
+            authority_id,
             echo_threshold,
             ready_threshold,
             delivery_threshold,
@@ -80,7 +83,7 @@ impl BroadcastState {
             _ = self.event_sender.try_send(ProtocolEvents::Echo {
                 certificate_id: self.certificate.id,
                 signature: (),
-                authority_id: (),
+                authority_id: self.authority_id.clone(),
             });
 
             self.status = Status::EchoSent;
@@ -99,6 +102,8 @@ impl BroadcastState {
         if !self.status.is_ready_sent() && self.reached_ready_threshold() {
             let event = ProtocolEvents::Ready {
                 certificate_id: self.certificate.id,
+                signature: DoubleEchoSignature::,
+                authority_id: self.authority_id.clone(),
             };
             if let Err(e) = self.event_sender.try_send(event) {
                 warn!("Error sending Ready message: {}", e);

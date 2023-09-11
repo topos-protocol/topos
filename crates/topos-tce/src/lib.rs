@@ -99,6 +99,7 @@ pub async fn run(
         ReliableBroadcastConfig {
             tce_params: config.tce_params.clone(),
             authority_id,
+            validators: config.validators.clone(),
         },
         storage_client.clone(),
     )

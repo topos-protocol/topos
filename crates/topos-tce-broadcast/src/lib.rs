@@ -52,6 +52,7 @@ pub enum TaskStatus {
 pub struct ReliableBroadcastConfig {
     pub tce_params: ReliableBroadcastParams,
     pub authority_id: AuthorityId,
+    pub validators: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -126,6 +127,7 @@ impl ReliableBroadcastClient {
         let double_echo = DoubleEcho::new(
             config.tce_params,
             config.authority_id,
+            config.validators,
             task_manager_message_sender,
             command_receiver,
             event_sender,

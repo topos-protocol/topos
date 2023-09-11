@@ -19,6 +19,7 @@ pub struct TceConfiguration {
     pub signing_key: Option<AuthKey>,
     pub tce_params: ReliableBroadcastParams,
     pub boot_peers: Vec<(PeerId, Multiaddr)>,
+    pub validators: Vec<String>,
     pub api_addr: SocketAddr,
     pub graphql_api_addr: SocketAddr,
     pub metrics_api_addr: SocketAddr,

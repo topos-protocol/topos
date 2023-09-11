@@ -34,6 +34,7 @@ impl DoubleEcho {
     pub fn new(
         params: ReliableBroadcastParams,
         authority_id: AuthorityId,
+        validators: Vec<String>,
         task_manager_message_sender: mpsc::Sender<DoubleEchoCommand>,
         command_receiver: mpsc::Receiver<DoubleEchoCommand>,
         event_sender: mpsc::Sender<ProtocolEvents>,
@@ -136,11 +137,18 @@ impl DoubleEcho {
                                 DoubleEchoCommand::Echo { from_peer, certificate_id, authority_id, signature } => {
                                     // Check if signature is valid
                                     // Check if source is part of known_validators
+                                    if !validators.contains(authority_id) {
+                                        error!("ECHO message comes from non-validator: {authority_id}");
+                                    }
+
                                     self.handle_echo(from_peer, certificate_id, authority_id, signature).await
                                 },
                                 DoubleEchoCommand::Ready { from_peer, certificate_id, authority_id, signature } => {
                                     // Check if signature is valid
                                     // Check if source is part of known_validators
+                                    if !validators.contains(authority_id) {
+                                        error!("READY message comes from non-validator: {authority_id}");
+                                    }
                                     self.handle_ready(from_peer, certificate_id, authority_id, signature).await
                                 },
                                 _ => {}
