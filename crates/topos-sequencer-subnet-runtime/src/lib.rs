@@ -70,12 +70,16 @@ pub enum Error {
 
     #[error("Unable to send command: {0}")]
     CommandEvalChannelError(String),
+
+    #[error("Invalid endpooint: {0}")]
+    InvalidEndpoint(String),
 }
 
 #[derive(Debug, Clone)]
 pub struct SubnetRuntimeProxyConfig {
     pub subnet_id: SubnetId,
-    pub endpoint: String,
+    pub http_endpoint: String,
+    pub ws_endpoint: String,
     pub subnet_contract_address: String,
     pub source_head_certificate_id: Option<CertificateId>,
     pub verifier: u32,
@@ -138,8 +142,11 @@ impl SubnetRuntimeProxyWorker {
         runtime_proxy.get_checkpoints().await
     }
 
-    pub async fn get_subnet_id(endpoint: &str, contract_address: &str) -> Result<SubnetId, Error> {
-        SubnetRuntimeProxy::get_subnet_id(endpoint, contract_address).await
+    pub async fn get_subnet_id(
+        http_endpoint: &str,
+        contract_address: &str,
+    ) -> Result<SubnetId, Error> {
+        SubnetRuntimeProxy::get_subnet_id(http_endpoint, contract_address).await
     }
 
     pub async fn set_source_head_certificate_id(
@@ -151,6 +158,27 @@ impl SubnetRuntimeProxyWorker {
             .set_source_head_certificate_id(source_head_certificate_id)
             .await
     }
+}
+
+pub fn derive_endpoints(endpoint: &str) -> Result<(String, String), Error> {
+    let http_endpoint: String;
+    let ws_endpoint: String;
+
+    if endpoint.starts_with("http") {
+        // Use http endpoint as it is
+        // Derive ws endpoint
+        http_endpoint = endpoint.to_string();
+        ws_endpoint = http_endpoint.replace("http", "ws") + "/ws";
+    } else if endpoint.starts_with("https") {
+        // Use https endpoint as it is
+        // Derive wss endpoint
+        http_endpoint = endpoint.to_string();
+        ws_endpoint = http_endpoint.replace("https", "wss") + "/ws";
+    } else {
+        http_endpoint = format!("http://{}", endpoint);
+        ws_endpoint = format!("ws://{}/ws", endpoint);
+    }
+    Ok((http_endpoint, ws_endpoint))
 }
 
 pub mod testing {

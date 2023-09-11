@@ -48,8 +48,17 @@ pub async fn launch(
     // Get subnet id from the subnet node if not provided via the command line argument
     // It will retry using backoff algorithm, but if it fails (default max backoff elapsed time is 15 min) we can not proceed
     else {
+        let http_endpoint =
+            topos_sequencer_subnet_runtime::derive_endpoints(&config.subnet_jsonrpc_endpoint)
+                .map_err(|e| {
+                    Box::new(std::io::Error::new(
+                        InvalidInput,
+                        format!("Invalid subnet endpoint: {}", e.to_string()),
+                    ))
+                })?
+                .0;
         match SubnetRuntimeProxyWorker::get_subnet_id(
-            config.subnet_jsonrpc_endpoint.as_str(),
+            &http_endpoint,
             config.subnet_contract_address.as_str(),
         )
         .await
@@ -64,11 +73,16 @@ pub async fn launch(
         }
     };
 
+    // TODO Here determine if websocket endpoint is provided or should be derived from http endpoint
+    let (http_endpoint, ws_endpoint) =
+        topos_sequencer_subnet_runtime::derive_endpoints(&config.subnet_jsonrpc_endpoint)?;
+
     // Instantiate subnet runtime proxy, handling interaction with subnet node
     let subnet_runtime_proxy_worker = match SubnetRuntimeProxyWorker::new(
         SubnetRuntimeProxyConfig {
             subnet_id,
-            endpoint: config.subnet_jsonrpc_endpoint.clone(),
+            http_endpoint,
+            ws_endpoint,
             subnet_contract_address: config.subnet_contract_address.clone(),
             source_head_certificate_id: None, // Must be acquired later after TCE proxy is connected
             verifier: config.verifier,
