@@ -90,4 +90,11 @@ impl Run {
             })
             .collect()
     }
+
+    pub fn parse_validators(&self) -> Vec<String> {
+        self.boot_peers
+            .split(&[',', ' '])
+            .map(|s| s.to_string())
+            .collect::<Vec<String>>()
+    }
 }
