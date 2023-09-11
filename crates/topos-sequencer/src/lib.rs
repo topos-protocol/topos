@@ -53,7 +53,7 @@ pub async fn launch(
                 .map_err(|e| {
                     Box::new(std::io::Error::new(
                         InvalidInput,
-                        format!("Invalid subnet endpoint: {}", e.to_string()),
+                        format!("Invalid subnet endpoint: {e}"),
                     ))
                 })?
                 .0;
