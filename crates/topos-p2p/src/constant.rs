@@ -6,6 +6,8 @@ use tokio::sync::Mutex;
 
 lazy_static! {
     /// Metric Registry used to register all the metrics from libp2p::gossipsub
+    // NOTE: During tests, if multiple instances are started, they will all point to the same
+    // registry.
     pub static ref METRIC_REGISTRY: Mutex<Registry> = Mutex::new(<Registry>::with_prefix("topos"));
     pub static ref EVENT_STREAM_BUFFER: usize = env::var("TCE_EVENT_STREAM_BUFFER")
         .ok()

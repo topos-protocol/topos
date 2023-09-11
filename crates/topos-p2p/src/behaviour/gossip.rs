@@ -63,7 +63,7 @@ impl Behaviour {
         Ok(())
     }
 
-    pub fn new(peer_key: Keypair) -> Self {
+    pub async fn new(peer_key: Keypair) -> Self {
         let batch_size = env::var("TOPOS_GOSSIP_BATCH_SIZE")
             .map(|v| v.parse::<usize>())
             .unwrap_or(Ok(10))
@@ -78,8 +78,8 @@ impl Behaviour {
             MessageAuthenticity::Signed(peer_key),
             gossipsub,
             constant::METRIC_REGISTRY
-                .try_lock()
-                .expect("Failed to lock metric registry during gossipsub creation")
+                .lock()
+                .await
                 .sub_registry_with_prefix("libp2p_gossipsub"),
             Default::default(),
         )
