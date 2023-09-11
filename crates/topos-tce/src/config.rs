@@ -16,6 +16,7 @@ pub enum AuthKey {
 #[derive(Debug)]
 pub struct TceConfiguration {
     pub auth_key: Option<AuthKey>,
+    pub signing_key: Option<AuthKey>,
     pub tce_params: ReliableBroadcastParams,
     pub boot_peers: Vec<(PeerId, Multiaddr)>,
     pub api_addr: SocketAddr,

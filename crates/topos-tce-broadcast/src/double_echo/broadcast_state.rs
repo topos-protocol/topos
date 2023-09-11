@@ -79,6 +79,8 @@ impl BroadcastState {
         if let Status::Pending = self.status {
             _ = self.event_sender.try_send(ProtocolEvents::Echo {
                 certificate_id: self.certificate.id,
+                signature: (),
+                authority_id: (),
             });
 
             self.status = Status::EchoSent;

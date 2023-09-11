@@ -1,7 +1,7 @@
 //! implementation of Topos Network Transport
 //!
 use clap::Parser;
-use secp256k1::{ecdsa::Signature, PublicKey};
+use secp256k1::ecdsa::Signature;
 use serde::{Deserialize, Serialize};
 use topos_core::uci::{Certificate, CertificateId};
 use topos_p2p::PeerId;
@@ -32,7 +32,48 @@ impl ReliableBroadcastParams {
     }
 }
 
-pub type AuthorityId = PublicKey;
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct AuthorityId([u8; 20]);
+
+impl AuthorityId {
+    pub fn new(bytes: &[u8]) -> Result<Self, &'static str> {
+        if bytes.len() == 20 {
+            let mut array = [0u8; 20];
+            array.copy_from_slice(bytes);
+            Ok(AuthorityId(array))
+        } else {
+            Err("Invalid byte slice length for AuthorityId")
+        }
+    }
+
+    pub fn as_bytes(&self) -> &[u8; 20] {
+        &self.0
+    }
+
+    pub fn to_hex(&self) -> String {
+        format!("0x{}", hex::encode(&self.0))
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct DoubleEchoSignature {
+    signature: Vec<u8>,
+}
+
+impl From<Signature> for DoubleEchoSignature {
+    fn from(signature: Signature) -> Self {
+        let signature_bytes = signature.serialize_der().to_vec();
+        DoubleEchoSignature {
+            signature: signature_bytes,
+        }
+    }
+}
+
+impl Into<Signature> for DoubleEchoSignature {
+    fn into(self) -> Signature {
+        Signature::from_der(&self.signature).expect("Failed to deserialize Signature")
+    }
+}
 
 /// Protocol commands
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -58,9 +99,17 @@ pub enum TceCommands {
     /// Received G-set message
     OnGossip { cert: Certificate },
     /// When echo reply received
-    OnEcho { certificate_id: CertificateId },
+    OnEcho {
+        certificate_id: CertificateId,
+        signature: DoubleEchoSignature,
+        authority_id: AuthorityId,
+    },
     /// When ready reply received
-    OnReady { certificate_id: CertificateId },
+    OnReady {
+        certificate_id: CertificateId,
+        signature: DoubleEchoSignature,
+        authority_id: AuthorityId,
+    },
     /// Given peer replied ok to the double echo request
     OnDoubleEchoOk {},
 }
@@ -104,10 +153,14 @@ pub enum ProtocolEvents {
     /// Indicates that 'echo' message broadcasting is required
     Echo {
         certificate_id: CertificateId,
+        signature: DoubleEchoSignature,
+        authority_id: AuthorityId,
     },
     /// Indicates that 'ready' message broadcasting is required
     Ready {
         certificate_id: CertificateId,
+        signature: DoubleEchoSignature,
+        authority_id: AuthorityId,
     },
     /// For simulation purpose, for now only caused by ill-formed sampling
     Die,

@@ -1,8 +1,7 @@
-use crate::{AuthorityId, TaskStatus};
+use crate::TaskStatus;
 use crate::{DoubleEchoCommand, SubscriptionsView};
-use secp256k1::ecdsa::Signature;
 use std::collections::HashSet;
-use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
+use tce_transport::{AuthorityId, DoubleEchoSignature, ProtocolEvents, ReliableBroadcastParams};
 use tokio::sync::{mpsc, oneshot};
 use topos_core::uci::{Certificate, CertificateId};
 
@@ -34,6 +33,7 @@ impl DoubleEcho {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         params: ReliableBroadcastParams,
+        authority_id: AuthorityId,
         task_manager_message_sender: mpsc::Sender<DoubleEchoCommand>,
         command_receiver: mpsc::Receiver<DoubleEchoCommand>,
         event_sender: mpsc::Sender<ProtocolEvents>,
@@ -133,15 +133,15 @@ impl DoubleEcho {
 
                         command if self.subscriptions.is_some() => {
                             match command {
-                                DoubleEchoCommand::Echo { from_peer, certificate_id, source, signature } => {
+                                DoubleEchoCommand::Echo { from_peer, certificate_id, authority_id, signature } => {
                                     // Check if signature is valid
                                     // Check if source is part of known_validators
-                                    self.handle_echo(from_peer, certificate_id, source, signature).await
+                                    self.handle_echo(from_peer, certificate_id, authority_id, signature).await
                                 },
-                                DoubleEchoCommand::Ready { from_peer, certificate_id, source, signature } => {
+                                DoubleEchoCommand::Ready { from_peer, certificate_id, authority_id, signature } => {
                                     // Check if signature is valid
                                     // Check if source is part of known_validators
-                                    self.handle_ready(from_peer, certificate_id, source, signature).await
+                                    self.handle_ready(from_peer, certificate_id, authority_id, signature).await
                                 },
                                 _ => {}
                             }
@@ -260,15 +260,15 @@ impl DoubleEcho {
         &mut self,
         from_peer: PeerId,
         certificate_id: CertificateId,
-        source: AuthorityId,
-        signature: Signature,
+        authority_id: AuthorityId,
+        signature: DoubleEchoSignature,
     ) {
         if self.delivered_certificates.get(&certificate_id).is_none() {
             let _ = self
                 .task_manager_message_sender
                 .send(DoubleEchoCommand::Echo {
                     from_peer,
-                    source,
+                    authority_id,
                     certificate_id,
                     signature,
                 })
@@ -280,15 +280,15 @@ impl DoubleEcho {
         &mut self,
         from_peer: PeerId,
         certificate_id: CertificateId,
-        source: AuthorityId,
-        signature: Signature,
+        authority_id: AuthorityId,
+        signature: DoubleEchoSignature,
     ) {
         if self.delivered_certificates.get(&certificate_id).is_none() {
             let _ = self
                 .task_manager_message_sender
                 .send(DoubleEchoCommand::Ready {
                     from_peer,
-                    source,
+                    authority_id,
                     certificate_id,
                     signature,
                 })

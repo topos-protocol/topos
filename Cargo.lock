@@ -7316,7 +7316,6 @@ dependencies = [
  "rand",
  "rand_core 0.6.4",
  "rstest",
- "secp256k1",
  "serde",
  "test-log",
  "thiserror",
@@ -7435,6 +7434,8 @@ name = "topos-tce-transport"
 version = "0.1.0"
 dependencies = [
  "clap 4.4.0",
+ "hex",
+ "secp256k1",
  "serde",
  "topos-core",
  "topos-p2p",

@@ -2,6 +2,7 @@ use std::future::IntoFuture;
 
 use config::TceConfiguration;
 use opentelemetry::global;
+use tce_transport::AuthorityId;
 use tokio::{spawn, sync::mpsc};
 use tokio_util::sync::CancellationToken;
 use topos_p2p::{
@@ -11,7 +12,6 @@ use topos_p2p::{
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
 use topos_tce_storage::{Connection, RocksDBStorage};
 use tracing::{debug, warn};
-
 mod app_context;
 pub mod config;
 pub mod events;
@@ -33,7 +33,14 @@ pub async fn run(
         None => local_key_pair(None),
     };
 
+    let validator_key = match config.signing_key.as_ref() {
+        Some(AuthKey::Seed(seed)) => local_key_pair_from_slice(seed),
+        Some(AuthKey::PrivateKey(pk)) => topos_p2p::utils::keypair_from_protobuf_encoding(pk),
+        None => local_key_pair(None),
+    };
+
     let peer_id = key.public().to_peer_id();
+    let authority_id = AuthorityId::new(&key.public().try_into_secp256k1()?[..=20])?;
 
     warn!("I am {}", peer_id);
 
@@ -91,6 +98,7 @@ pub async fn run(
     let (tce_cli, tce_stream) = ReliableBroadcastClient::new(
         ReliableBroadcastConfig {
             tce_params: config.tce_params.clone(),
+            authority_id,
         },
         storage_client.clone(),
     )

@@ -15,7 +15,7 @@ use tokio::sync::mpsc::Sender;
 use tokio::sync::{mpsc, oneshot};
 
 use double_echo::DoubleEcho;
-use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
+use tce_transport::{AuthorityId, DoubleEchoSignature, ProtocolEvents, ReliableBroadcastParams};
 use topos_core::uci::{Certificate, CertificateId};
 use topos_metrics::DOUBLE_ECHO_COMMAND_CHANNEL_CAPACITY_TOTAL;
 use topos_p2p::PeerId;
@@ -51,6 +51,7 @@ pub enum TaskStatus {
 /// Configuration of TCE implementation
 pub struct ReliableBroadcastConfig {
     pub tce_params: ReliableBroadcastParams,
+    pub authority_id: AuthorityId,
 }
 
 #[derive(Debug)]
@@ -81,17 +82,17 @@ pub enum DoubleEchoCommand {
     /// When echo reply received
     Echo {
         from_peer: PeerId,
-        source: AuthorityId,
+        authority_id: AuthorityId,
         certificate_id: CertificateId,
-        signature: Signature,
+        signature: DoubleEchoSignature,
     },
 
     /// When ready reply received
     Ready {
         from_peer: PeerId,
-        source: AuthorityId,
+        authority_id: AuthorityId,
         certificate_id: CertificateId,
-        signature: Signature,
+        signature: DoubleEchoSignature,
     },
 }
 
@@ -124,6 +125,7 @@ impl ReliableBroadcastClient {
 
         let double_echo = DoubleEcho::new(
             config.tce_params,
+            config.authority_id,
             task_manager_message_sender,
             command_receiver,
             event_sender,

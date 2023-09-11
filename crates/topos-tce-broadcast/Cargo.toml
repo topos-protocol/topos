@@ -10,7 +10,6 @@ lazy_static.workspace = true
 rand.workspace = true
 rand_core.workspace = true
 serde.workspace = true
-secp256k1.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full"] }
 tokio-stream = { workspace = true, features = ["sync"] }

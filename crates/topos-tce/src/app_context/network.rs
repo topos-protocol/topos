@@ -38,13 +38,19 @@ impl AppContext {
                         });
                     }
 
-                    TceCommands::OnEcho { certificate_id } => {
+                    TceCommands::OnEcho {
+                        certificate_id,
+                        signature,
+                        authority_id,
+                    } => {
                         let channel = self.tce_cli.get_double_echo_channel();
                         spawn(async move {
                             if let Err(e) = channel
                                 .send(DoubleEchoCommand::Echo {
                                     from_peer: from,
+                                    signature,
                                     certificate_id,
+                                    authority_id,
                                 })
                                 .await
                             {
@@ -52,13 +58,19 @@ impl AppContext {
                             }
                         });
                     }
-                    TceCommands::OnReady { certificate_id } => {
+                    TceCommands::OnReady {
+                        certificate_id,
+                        authority_id,
+                        signature,
+                    } => {
                         let channel = self.tce_cli.get_double_echo_channel();
                         spawn(async move {
                             if let Err(e) = channel
                                 .send(DoubleEchoCommand::Ready {
                                     from_peer: from,
+                                    authority_id,
                                     certificate_id,
+                                    signature,
                                 })
                                 .await
                             {
