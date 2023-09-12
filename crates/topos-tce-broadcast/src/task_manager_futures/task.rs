@@ -57,13 +57,13 @@ impl IntoFuture for Task {
                 tokio::select! {
                     Some(msg) = self.message_receiver.recv() => {
                         match msg {
-                            DoubleEchoCommand::Echo { authority_id, keypair, signature, .. } => {
-                                if let Some(Status::DeliveredWithReadySent) = self.broadcast_state.apply_echo(authority_id, keypair) {
+                            DoubleEchoCommand::Echo { authority_id, .. } => {
+                                if let Some(Status::DeliveredWithReadySent) = self.broadcast_state.apply_echo(authority_id) {
                                     return (self.certificate_id, TaskStatus::Success);
                                 }
                             }
-                            DoubleEchoCommand::Ready { authority_id, keypair, signature, .. } => {
-                                if let Some(Status::DeliveredWithReadySent) = self.broadcast_state.apply_ready(authority_id, keypair) {
+                            DoubleEchoCommand::Ready { authority_id, .. } => {
+                                if let Some(Status::DeliveredWithReadySent) = self.broadcast_state.apply_ready(authority_id) {
                                     return (self.certificate_id, TaskStatus::Success);
                                 }
                             }

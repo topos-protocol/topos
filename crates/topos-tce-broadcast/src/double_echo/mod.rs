@@ -1,7 +1,6 @@
 use crate::TaskStatus;
 use crate::{DoubleEchoCommand, SubscriptionsView};
 use libp2p::identity::secp256k1::Keypair;
-use libp2p::identity::SigningError;
 use std::collections::HashSet;
 use tce_transport::{AuthorityId, ProtocolEvents, ReliableBroadcastParams};
 use tokio::sync::{mpsc, oneshot};
@@ -73,6 +72,7 @@ impl DoubleEcho {
             self.event_sender.clone(),
             self.authority_id.clone(),
             self.params.clone(),
+            self.signing_key.clone(),
         );
 
         tokio::spawn(task_manager.run(shutdown_receiver));
@@ -154,9 +154,7 @@ impl DoubleEcho {
                                         error!("ECHO message comes from non-validator: {}", authority_id.to_hex());
                                     }
 
-                                    if let Err(err) = self.handle_echo(from_peer, certificate_id, authority_id, self.signing_key.clone()).await {
-                                        error!("Not able to sign ECHO message: {}", err);
-                                    }
+                                    self.handle_echo(from_peer, certificate_id, authority_id, self.signing_key.clone()).await
                                 },
                                 DoubleEchoCommand::Ready { from_peer, certificate_id, authority_id, signature } => {
                                     // Check if signature is valid
@@ -168,9 +166,7 @@ impl DoubleEcho {
                                         error!("READY message comes from non-validator: {}", authority_id.to_hex());
                                     }
 
-                                    if let Err(err) = self.handle_ready(from_peer, certificate_id, authority_id, self.signing_key.clone()).await {
-                                        error!("Not able to sign READY message: {}", err);
-                                    }
+                                    self.handle_ready(from_peer, certificate_id, authority_id, self.signing_key.clone()).await
                                 },
                                 _ => {}
                             }
@@ -291,9 +287,9 @@ impl DoubleEcho {
         certificate_id: CertificateId,
         authority_id: AuthorityId,
         keypair: Keypair,
-    ) -> Result<(), SigningError> {
+    ) {
         if self.delivered_certificates.get(&certificate_id).is_none() {
-            let signature = keypair.sign(&certificate_id.as_array().as_slice())?;
+            let signature = keypair.secret().sign(&certificate_id.as_array().as_slice());
             let _ = self
                 .task_manager_message_sender
                 .send(DoubleEchoCommand::Echo {
@@ -304,8 +300,6 @@ impl DoubleEcho {
                 })
                 .await;
         }
-
-        Ok(())
     }
 
     pub async fn handle_ready(
@@ -314,9 +308,9 @@ impl DoubleEcho {
         certificate_id: CertificateId,
         authority_id: AuthorityId,
         keypair: Keypair,
-    ) -> Result<(), SigningError> {
+    ) {
         if self.delivered_certificates.get(&certificate_id).is_none() {
-            let signature = keypair.sign(&certificate_id.as_array().as_slice())?;
+            let signature = keypair.secret().sign(&certificate_id.as_array().as_slice());
             let _ = self
                 .task_manager_message_sender
                 .send(DoubleEchoCommand::Ready {
@@ -327,7 +321,5 @@ impl DoubleEcho {
                 })
                 .await;
         }
-
-        Ok(())
     }
 }

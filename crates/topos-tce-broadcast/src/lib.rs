@@ -12,7 +12,7 @@ use tokio_stream::wrappers::ReceiverStream;
 
 use double_echo::DoubleEcho;
 use futures::Stream;
-use libp2p::identity::Keypair;
+use libp2p::identity::secp256k1::Keypair;
 use tce_transport::{AuthorityId, ProtocolEvents, ReliableBroadcastParams};
 use tokio::sync::mpsc::Sender;
 use tokio::sync::{mpsc, oneshot};

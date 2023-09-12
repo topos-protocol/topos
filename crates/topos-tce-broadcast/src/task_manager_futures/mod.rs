@@ -66,8 +66,8 @@ impl TaskManager {
                 running_tasks: FuturesUnordered::new(),
                 buffered_messages: Default::default(),
                 authority_id,
-                thresholds,
                 keypair,
+                thresholds,
                 shutdown_sender,
             },
             shutdown_receiver,
@@ -107,6 +107,7 @@ impl TaskManager {
                                         self.event_sender.clone(),
                                         self.subscriptions.clone(),
                                         need_gossip,
+                                        self.keypair.clone(),
                                     );
 
                                     let (task, task_context) = Task::new(cert.id, broadcast_state);

@@ -22,6 +22,7 @@ pub struct BroadcastState {
     echo_threshold: usize,
     ready_threshold: usize,
     delivery_threshold: usize,
+    keypair: Keypair,
     event_sender: mpsc::Sender<ProtocolEvents>,
     delivery_time: time::Instant,
 }
@@ -46,6 +47,7 @@ impl BroadcastState {
             echo_threshold,
             ready_threshold,
             delivery_threshold,
+            keypair,
             event_sender,
             delivery_time: time::Instant::now(),
         };
@@ -61,29 +63,30 @@ impl BroadcastState {
             });
         }
 
-        state.update_status(keypair);
+        state.update_status();
 
         state
     }
 
-    pub fn apply_echo(&mut self, authority_id: AuthorityId, keypair: Keypair) -> Option<Status> {
+    pub fn apply_echo(&mut self, authority_id: AuthorityId) -> Option<Status> {
         self.subscriptions_view.echo.remove(&authority_id);
-        self.update_status(keypair)
+        self.update_status()
     }
 
-    pub fn apply_ready(&mut self, authority_id: AuthorityId, keypair: Keypair) -> Option<Status> {
+    pub fn apply_ready(&mut self, authority_id: AuthorityId) -> Option<Status> {
         self.subscriptions_view.ready.remove(&authority_id);
-        self.update_status(keypair)
+        self.update_status()
     }
 
-    fn update_status(&mut self, keypair: Keypair) -> Option<Status> {
+    fn update_status(&mut self) -> Option<Status> {
         // Nothing happened yet, we're in the initial state and didn't Procced
         // any Echo or Ready messages
         // Sending our Echo message
         if let Status::Pending = self.status {
             _ = self.event_sender.try_send(ProtocolEvents::Echo {
                 certificate_id: self.certificate.id,
-                signature: keypair
+                signature: self
+                    .keypair
                     .secret()
                     .sign(&self.certificate.id.as_array().as_slice()),
                 authority_id: self.authority_id.clone(),
@@ -105,7 +108,8 @@ impl BroadcastState {
         if !self.status.is_ready_sent() && self.reached_ready_threshold() {
             let event = ProtocolEvents::Ready {
                 certificate_id: self.certificate.id,
-                signature: keypair
+                signature: self
+                    .keypair
                     .secret()
                     .sign(&self.certificate.id.as_array().as_slice()),
                 authority_id: self.authority_id.clone(),
