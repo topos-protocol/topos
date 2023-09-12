@@ -1,8 +1,9 @@
 use clap::Args;
 use serde::Serialize;
+use std::collections::HashSet;
 use std::net::SocketAddr;
 use topos_p2p::{Multiaddr, PeerId};
-use topos_tce_transport::ReliableBroadcastParams;
+use topos_tce_transport::{AuthorityId, ReliableBroadcastParams};
 
 #[derive(Args, Debug, Serialize)]
 #[command(about = "Run a full TCE instance")]
@@ -92,6 +93,17 @@ impl Run {
                 } else {
                     None
                 }
+            })
+            .collect()
+    }
+
+    pub fn parse_validators(&self) -> HashSet<AuthorityId> {
+        self.validators
+            .split(&[',', ' '])
+            .map(|s| {
+                let authority_id_str = s.to_string(); // Convert the &str to String
+                AuthorityId::new(authority_id_str.as_bytes()) // Convert String to &[u8] for AuthorityId::new
+                    .expect("Cannot form AuthorityId")
             })
             .collect()
     }

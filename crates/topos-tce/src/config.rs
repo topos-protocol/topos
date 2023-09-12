@@ -1,8 +1,9 @@
+use std::collections::HashSet;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use tce_transport::ReliableBroadcastParams;
+use tce_transport::{AuthorityId, ReliableBroadcastParams};
 use topos_p2p::{Multiaddr, PeerId};
 
 pub use crate::AppContext;
@@ -19,7 +20,7 @@ pub struct TceConfiguration {
     pub signing_key: Option<AuthKey>,
     pub tce_params: ReliableBroadcastParams,
     pub boot_peers: Vec<(PeerId, Multiaddr)>,
-    pub validators: Vec<String>,
+    pub validators: HashSet<AuthorityId>,
     pub api_addr: SocketAddr,
     pub graphql_api_addr: SocketAddr,
     pub metrics_api_addr: SocketAddr,

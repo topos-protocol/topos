@@ -1,8 +1,10 @@
 use rlp::{Decodable, DecoderError, Rlp};
+use std::collections::HashSet;
 use std::{fs, path::PathBuf};
 
 use serde_json::Value;
 use topos_p2p::{Multiaddr, PeerId};
+use topos_tce_transport::AuthorityId;
 
 #[cfg(test)]
 pub(crate) mod tests;
@@ -58,7 +60,7 @@ impl Genesis {
     /// The `extraData` is patted with 32 bytes, and the validators are RLP encoded.
     /// Each validator is 20 bytes, with a SEAL at the end of the whole list (8 bytes)
     #[allow(dead_code)]
-    pub fn validators(&self) -> Vec<String> {
+    pub fn validators(&self) -> HashSet<AuthorityId> {
         let extra_data = self.json["genesis"]["extraData"]
             .as_str()
             .unwrap()
@@ -81,14 +83,15 @@ impl Genesis {
 
         // Get the first Rlp item (index 0) and iterate over its items
         let first_item = rlp.at(0).expect("Failed to get first RLP item");
-        let mut validator_public_keys = Vec::new();
+        let mut validator_public_keys = HashSet::new();
 
         for i in 0..first_item.item_count().unwrap() {
             let validator_data = first_item.at(i).expect("Failed to get RLP item").data();
             if let Ok(validator_data) = validator_data {
                 let public_key = validator_data.to_vec();
-                let address = format!("0x{}", hex::encode(&public_key[1..=20]));
-                validator_public_keys.push(address);
+                let address = AuthorityId::new(&public_key[1..=20])
+                    .expect("Failed to create AuthorityId from public key bytes");
+                validator_public_keys.insert(address);
             }
         }
 

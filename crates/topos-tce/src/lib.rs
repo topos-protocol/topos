@@ -103,8 +103,9 @@ pub async fn run(
         authority_id,
         validators: config
             .validators
-            .iter()
-            .map(|a| AuthorityId::new(&a[0..=20].as_bytes()?))
+            .clone()
+            .into_iter()
+            .map(|a| AuthorityId::new(a.as_bytes().as_slice()).expect("Cannot form AuthorityId"))
             .collect(),
         signing_key: signing_key.try_into_secp256k1()?,
     })
