@@ -80,8 +80,9 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=ref,event=branch,suffix=${{ inputs.features != env.DEFAULT_FEATURES && format('-{0}', inputs.features) || '' }}
-            type=ref,event=tag,suffix=${{ inputs.features != env.DEFAULT_FEATURES && format('-{0}', inputs.features) || '' }}
             type=ref,event=pr,suffix=${{ inputs.features != env.DEFAULT_FEATURES && format('-{0}', inputs.features) || '' }}
+            type=semver,suffix=${{ inputs.features != env.DEFAULT_FEATURES && format('-{0}', inputs.features) || '' }},pattern={{version}}
+            type=semver,suffix=${{ inputs.features != env.DEFAULT_FEATURES && format('-{0}', inputs.features) || '' }},pattern={{major}}.{{minor}}
 
       - name: Push to GitHub Container Registry
         uses: docker/build-push-action@v3
