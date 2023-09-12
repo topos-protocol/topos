@@ -10,12 +10,12 @@ use thiserror::Error;
 use tokio::spawn;
 use tokio_stream::wrappers::ReceiverStream;
 
+use double_echo::DoubleEcho;
 use futures::Stream;
+use libp2p::identity::Keypair;
+use tce_transport::{AuthorityId, ProtocolEvents, ReliableBroadcastParams};
 use tokio::sync::mpsc::Sender;
 use tokio::sync::{mpsc, oneshot};
-
-use double_echo::DoubleEcho;
-use tce_transport::{AuthorityId, ProtocolEvents, ReliableBroadcastParams};
 use topos_core::uci::{Certificate, CertificateId};
 use topos_metrics::DOUBLE_ECHO_COMMAND_CHANNEL_CAPACITY_TOTAL;
 use topos_p2p::PeerId;
@@ -52,6 +52,7 @@ pub struct ReliableBroadcastConfig {
     pub tce_params: ReliableBroadcastParams,
     pub authority_id: AuthorityId,
     pub validators: Vec<String>,
+    pub signing_key: Keypair,
 }
 
 #[derive(Debug)]
@@ -126,6 +127,7 @@ impl ReliableBroadcastClient {
             config.tce_params,
             config.authority_id,
             config.validators,
+            config.signing_key,
             task_manager_message_sender,
             command_receiver,
             event_sender,

@@ -1,10 +1,10 @@
 use crate::TaskStatus;
 use crate::{DoubleEchoCommand, SubscriptionsView};
+use libp2p::identity::{Keypair, SigningError};
 use std::collections::HashSet;
 use tce_transport::{AuthorityId, ProtocolEvents, ReliableBroadcastParams};
 use tokio::sync::{mpsc, oneshot};
 use topos_core::uci::{Certificate, CertificateId};
-
 use topos_p2p::PeerId;
 use tracing::{error, info, warn};
 
@@ -27,8 +27,8 @@ pub struct DoubleEcho {
     pub subscriptions: SubscriptionsView,
     /// Public ETH address
     pub authority_id: AuthorityId,
-    /// Known and approved validators in the network
-    pub validators: Vec<String>,
+    /// Keypair to sign and verify ECHO and READY messages
+    pub signing_key: Keypair,
 }
 
 impl DoubleEcho {
@@ -38,7 +38,7 @@ impl DoubleEcho {
     pub fn new(
         params: ReliableBroadcastParams,
         authority_id: AuthorityId,
-        validators: Vec<String>,
+        signing_key: Keypair,
         task_manager_message_sender: mpsc::Sender<DoubleEchoCommand>,
         command_receiver: mpsc::Receiver<DoubleEchoCommand>,
         event_sender: mpsc::Sender<ProtocolEvents>,
@@ -47,7 +47,7 @@ impl DoubleEcho {
         Self {
             params,
             authority_id,
-            validators,
+            signing_key,
             task_manager_message_sender,
             command_receiver,
             event_sender,
@@ -144,21 +144,31 @@ impl DoubleEcho {
                             match command {
                                 DoubleEchoCommand::Echo { from_peer, certificate_id, authority_id, signature } => {
                                     // Check if signature is valid
+                                    if !self.signing_key.public().verify(certificate_id.as_array().as_slice(), &signature) {
+                                        error!("ECHO message not properly signed");
+                                    }
                                     // Check if source is part of known_validators
-                                    if !self.validators.contains(&authority_id.to_hex()) {
+                                    if !self.subscriptions.echo.contains(&authority_id.to_hex()) {
                                         error!("ECHO message comes from non-validator: {}", authority_id.to_hex());
                                     }
 
-                                    self.handle_echo(from_peer, certificate_id, authority_id, signature).await
+                                    if let Err(err) = self.handle_echo(from_peer, certificate_id, authority_id, self.signing_key.clone()).await {
+                                        error!("Not able to sign ECHO message: {}", err);
+                                    }
                                 },
                                 DoubleEchoCommand::Ready { from_peer, certificate_id, authority_id, signature } => {
                                     // Check if signature is valid
-
+                                  if !self.signing_key.public().verify(certificate_id.as_array().as_slice(), &signature) {
+                                        error!("READY message not properly signed");
+                                    }
                                     // Check if source is part of known_validators
-                                    if !self.validators.contains(&authority_id.to_hex()) {
+                                    if !self.subscriptions.ready.contains(&authority_id.to_hex()) {
                                         error!("READY message comes from non-validator: {}", authority_id.to_hex());
                                     }
-                                    self.handle_ready(from_peer, certificate_id, authority_id, signature).await
+
+                                    if let Err(err) = self.handle_ready(from_peer, certificate_id, authority_id, self.signing_key.clone()).await {
+                                        error!("Not able to sign READY message: {}", err);
+                                    }
                                 },
                                 _ => {}
                             }
@@ -278,9 +288,10 @@ impl DoubleEcho {
         from_peer: PeerId,
         certificate_id: CertificateId,
         authority_id: AuthorityId,
-        signature: Vec<u8>,
-    ) {
+        keypair: Keypair,
+    ) -> Result<(), SigningError> {
         if self.delivered_certificates.get(&certificate_id).is_none() {
+            let signature = keypair.sign(&certificate_id.as_array().as_slice())?;
             let _ = self
                 .task_manager_message_sender
                 .send(DoubleEchoCommand::Echo {
@@ -291,6 +302,8 @@ impl DoubleEcho {
                 })
                 .await;
         }
+
+        Ok(())
     }
 
     pub async fn handle_ready(
@@ -298,9 +311,10 @@ impl DoubleEcho {
         from_peer: PeerId,
         certificate_id: CertificateId,
         authority_id: AuthorityId,
-        signature: Vec<u8>,
-    ) {
+        keypair: Keypair,
+    ) -> Result<(), SigningError> {
         if self.delivered_certificates.get(&certificate_id).is_none() {
+            let signature = keypair.sign(&certificate_id.as_array().as_slice())?;
             let _ = self
                 .task_manager_message_sender
                 .send(DoubleEchoCommand::Ready {
@@ -311,5 +325,7 @@ impl DoubleEcho {
                 })
                 .await;
         }
+
+        Ok(())
     }
 }

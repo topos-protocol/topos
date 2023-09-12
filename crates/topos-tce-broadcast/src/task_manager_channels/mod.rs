@@ -40,7 +40,7 @@ impl TaskManager {
         notify_task_completion: mpsc::Sender<(CertificateId, TaskStatus)>,
         subscription_view_receiver: mpsc::Receiver<SubscriptionsView>,
         event_sender: mpsc::Sender<ProtocolEvents>,
-        authority_id: AuthorityId,s
+        authority_id: AuthorityId,
         thresholds: ReliableBroadcastParams,
     ) -> (Self, mpsc::Receiver<()>) {
         let (task_completion_sender, task_completion_receiver) =

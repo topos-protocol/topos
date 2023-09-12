@@ -33,10 +33,19 @@ pub async fn run(
         None => local_key_pair(None),
     };
 
-    let peer_id = key.public().to_peer_id();
-    let authority_id = AuthorityId::new(&key.public().try_into_secp256k1()?.to_bytes()[0..=20])?;
+    //TODO: The wrong way of getting the key for the signing key here?
+    let signing_key = match config.signing_key.as_ref() {
+        Some(AuthKey::Seed(seed)) => local_key_pair_from_slice(seed),
+        Some(AuthKey::PrivateKey(pk)) => topos_p2p::utils::keypair_from_protobuf_encoding(pk),
+        None => local_key_pair(None),
+    };
 
-    warn!("I am {}", peer_id);
+    let peer_id = key.public().to_peer_id();
+    let authority_id =
+        AuthorityId::new(&signing_key.public().try_into_secp256k1()?.to_bytes()[0..=20])?;
+
+    warn!("I am {peer_id}");
+    warn!("My public ETH address: {authority_id}");
 
     tracing::Span::current().record("peer_id", &peer_id.to_string());
 
@@ -93,6 +102,7 @@ pub async fn run(
         tce_params: config.tce_params.clone(),
         authority_id,
         validators: config.validators.clone(),
+        signing_key,
     })
     .await;
     debug!("Reliable broadcast started");

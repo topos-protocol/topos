@@ -2,6 +2,7 @@
 //!
 use clap::Parser;
 use serde::{Deserialize, Serialize};
+use std::fmt::Display;
 use topos_core::uci::{Certificate, CertificateId};
 use topos_p2p::PeerId;
 
@@ -51,6 +52,12 @@ impl AuthorityId {
 
     pub fn to_hex(&self) -> String {
         format!("0x{}", hex::encode(&self.0))
+    }
+}
+
+impl Display for AuthorityId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "0x{}", self.to_hex())
     }
 }
 

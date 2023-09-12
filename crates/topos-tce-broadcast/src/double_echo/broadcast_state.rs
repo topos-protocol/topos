@@ -1,3 +1,4 @@
+use libp2p::identity::secp256k1::Keypair;
 use std::time;
 
 use tce_transport::{AuthorityId, ProtocolEvents};
@@ -65,24 +66,26 @@ impl BroadcastState {
         state
     }
 
-    pub fn apply_echo(&mut self, peer_id: PeerId) -> Option<Status> {
+    pub fn apply_echo(&mut self, peer_id: PeerId, keypair: Keypair) -> Option<Status> {
         self.subscriptions_view.echo.remove(&peer_id);
-        self.update_status()
+        self.update_status(keypair)
     }
 
-    pub fn apply_ready(&mut self, peer_id: PeerId) -> Option<Status> {
+    pub fn apply_ready(&mut self, peer_id: PeerId, keypair: Keypair) -> Option<Status> {
         self.subscriptions_view.ready.remove(&peer_id);
-        self.update_status()
+        self.update_status(keypair)
     }
 
-    fn update_status(&mut self) -> Option<Status> {
+    fn update_status(&mut self, keypair: Keypair) -> Option<Status> {
         // Nothing happened yet, we're in the initial state and didn't Procced
         // any Echo or Ready messages
         // Sending our Echo message
         if let Status::Pending = self.status {
             _ = self.event_sender.try_send(ProtocolEvents::Echo {
                 certificate_id: self.certificate.id,
-                signature: vec![],
+                signature: keypair
+                    .secret()
+                    .sign(&self.certificate.id.as_array().as_slice()),
                 authority_id: self.authority_id.clone(),
             });
 
@@ -102,7 +105,9 @@ impl BroadcastState {
         if !self.status.is_ready_sent() && self.reached_ready_threshold() {
             let event = ProtocolEvents::Ready {
                 certificate_id: self.certificate.id,
-                signature: vec![],
+                signature: keypair
+                    .secret()
+                    .sign(&self.certificate.id.as_array().as_slice()),
                 authority_id: self.authority_id.clone(),
             };
             if let Err(e) = self.event_sender.try_send(event) {

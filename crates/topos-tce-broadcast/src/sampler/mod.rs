@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use tce_transport::AuthorityId;
 use topos_p2p::PeerId;
 
 /// Categorize what we expect from which peer for the broadcast
@@ -19,9 +20,9 @@ pub enum SampleType {
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct SubscriptionsView {
     /// Set of Peer from which we listen Echo
-    pub echo: HashSet<PeerId>,
+    pub echo: HashSet<AuthorityId>,
     /// Set of Peer from which we listen Ready
-    pub ready: HashSet<PeerId>,
+    pub ready: HashSet<AuthorityId>,
     /// Size of the network
     pub network_size: usize,
 }
@@ -33,16 +34,5 @@ impl SubscriptionsView {
 
     pub fn is_none(&self) -> bool {
         self.echo.is_empty() && self.ready.is_empty()
-    }
-
-    /// Current view of subscriptions of the node, which is initially the whole network
-    pub fn get_subscriptions(&self) -> Vec<PeerId> {
-        self.echo
-            .iter()
-            .chain(self.ready.iter())
-            .cloned()
-            .collect::<HashSet<_>>()
-            .into_iter()
-            .collect()
     }
 }
