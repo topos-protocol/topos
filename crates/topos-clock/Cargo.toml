@@ -1,0 +1,11 @@
+[package]
+name = "topos-clock"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio.workspace = true
+futures.workspace = true
+thiserror.workspace = true
+chrono = {version = "0.4", default-features = false, features = ["clock"]}
+tracing.workspace = true
