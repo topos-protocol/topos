@@ -29,6 +29,8 @@ pub struct DoubleEcho {
     pub authority_id: AuthorityId,
     /// Keypair to sign and verify ECHO and READY messages
     pub signing_key: Keypair,
+    /// List of approved validators through smart contract and/or genesis
+    pub validators: HashSet<AuthorityId>,
 }
 
 impl DoubleEcho {
@@ -39,6 +41,7 @@ impl DoubleEcho {
         params: ReliableBroadcastParams,
         authority_id: AuthorityId,
         signing_key: Keypair,
+        validators: HashSet<AuthorityId>,
         task_manager_message_sender: mpsc::Sender<DoubleEchoCommand>,
         command_receiver: mpsc::Receiver<DoubleEchoCommand>,
         event_sender: mpsc::Sender<ProtocolEvents>,
@@ -48,6 +51,7 @@ impl DoubleEcho {
             params,
             authority_id,
             signing_key,
+            validators,
             task_manager_message_sender,
             command_receiver,
             event_sender,
@@ -150,7 +154,7 @@ impl DoubleEcho {
                                         error!("ECHO message not properly signed");
                                     }
                                     // Check if source is part of known_validators
-                                    if !self.subscriptions.echo.contains(&authority_id) {
+                                    if !self.validators.contains(&authority_id) {
                                         error!("ECHO message comes from non-validator: {}", authority_id.to_hex());
                                     }
 
@@ -162,7 +166,7 @@ impl DoubleEcho {
                                         error!("READY message not properly signed");
                                     }
                                     // Check if source is part of known_validators
-                                    if !self.subscriptions.ready.contains(&authority_id) {
+                                    if !self.validators.contains(&authority_id) {
                                         error!("READY message comes from non-validator: {}", authority_id.to_hex());
                                     }
 

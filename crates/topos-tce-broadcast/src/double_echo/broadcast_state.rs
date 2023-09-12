@@ -12,6 +12,7 @@ use crate::sampler::SubscriptionsView;
 mod status;
 
 pub use status::Status;
+use topos_p2p::PeerId;
 
 #[derive(Debug)]
 pub struct BroadcastState {
@@ -68,13 +69,13 @@ impl BroadcastState {
         state
     }
 
-    pub fn apply_echo(&mut self, authority_id: AuthorityId) -> Option<Status> {
-        self.subscriptions_view.echo.remove(&authority_id);
+    pub fn apply_echo(&mut self, from_peer: PeerId) -> Option<Status> {
+        self.subscriptions_view.echo.remove(&from_peer);
         self.update_status()
     }
 
-    pub fn apply_ready(&mut self, authority_id: AuthorityId) -> Option<Status> {
-        self.subscriptions_view.ready.remove(&authority_id);
+    pub fn apply_ready(&mut self, from_peer: PeerId) -> Option<Status> {
+        self.subscriptions_view.ready.remove(&from_peer);
         self.update_status()
     }
 

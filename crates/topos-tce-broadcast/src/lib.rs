@@ -51,7 +51,7 @@ pub enum TaskStatus {
 pub struct ReliableBroadcastConfig {
     pub tce_params: ReliableBroadcastParams,
     pub authority_id: AuthorityId,
-    pub validators: Vec<String>,
+    pub validators: HashSet<AuthorityId>,
     pub signing_key: Keypair,
 }
 
@@ -127,6 +127,7 @@ impl ReliableBroadcastClient {
             config.tce_params,
             config.authority_id,
             config.signing_key,
+            config.validators,
             task_manager_message_sender,
             command_receiver,
             event_sender,

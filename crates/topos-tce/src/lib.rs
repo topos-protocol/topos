@@ -101,7 +101,11 @@ pub async fn run(
     let (tce_cli, tce_stream) = ReliableBroadcastClient::new(ReliableBroadcastConfig {
         tce_params: config.tce_params.clone(),
         authority_id,
-        validators: config.validators.clone(),
+        validators: config
+            .validators
+            .iter()
+            .map(|a| AuthorityId::new(&a[0..=20].as_bytes()?))
+            .collect(),
         signing_key: signing_key.try_into_secp256k1()?,
     })
     .await;

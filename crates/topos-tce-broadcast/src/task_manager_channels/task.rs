@@ -49,9 +49,9 @@ impl Task {
             tokio::select! {
                 Some(msg) = self.message_receiver.recv() => {
                     match msg {
-                        DoubleEchoCommand::Echo { authority_id, .. } => {
+                        DoubleEchoCommand::Echo { from_peer, .. } => {
                             if let Some(Status::DeliveredWithReadySent) =
-                                self.broadcast_state.apply_echo(authority_id)
+                                self.broadcast_state.apply_echo(from_peer)
                             {
                                 let _ = self
                                     .completion_sender
@@ -61,9 +61,9 @@ impl Task {
                                 break;
                             }
                         }
-                        DoubleEchoCommand::Ready { authority_id, .. } => {
+                        DoubleEchoCommand::Ready { from_peer, .. } => {
                             if let Some(Status::DeliveredWithReadySent) =
-                                self.broadcast_state.apply_ready(authority_id)
+                                self.broadcast_state.apply_ready(from_peer)
                             {
                                 let _ = self
                                     .completion_sender
