@@ -102,7 +102,7 @@ pub async fn run(
         tce_params: config.tce_params.clone(),
         authority_id,
         validators: config.validators.clone(),
-        signing_key,
+        signing_key: signing_key.try_into_secp256k1()?,
     })
     .await;
     debug!("Reliable broadcast started");

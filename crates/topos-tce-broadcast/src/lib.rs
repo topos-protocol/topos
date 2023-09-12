@@ -145,7 +145,7 @@ impl ReliableBroadcastClient {
         )
     }
 
-    pub async fn peer_changed(&self, peers: Vec<AuthorityId>) -> Result<(), ()> {
+    pub async fn peer_changed(&self, peers: Vec<PeerId>) -> Result<(), ()> {
         let set = peers.into_iter().collect::<HashSet<_>>();
         self.subscriptions_view_sender
             .send(SubscriptionsView {
