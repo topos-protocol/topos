@@ -333,7 +333,7 @@ impl SubnetRuntimeProxy {
                 Ok(())
             }
             Err(topos_sequencer_subnet_client::Error::BlockNotAvailable(block_number)) => {
-                error!("New block {block_number} not yet available, trying again soon");
+                warn!("New block {block_number} not yet available, trying again soon");
                 Err(Error::SubnetError {
                     source: topos_sequencer_subnet_client::Error::BlockNotAvailable(block_number),
                 })
