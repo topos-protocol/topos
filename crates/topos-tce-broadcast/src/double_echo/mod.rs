@@ -1,6 +1,7 @@
 use crate::TaskStatus;
 use crate::{DoubleEchoCommand, SubscriptionsView};
-use libp2p::identity::{Keypair, SigningError};
+use libp2p::identity::secp256k1::Keypair;
+use libp2p::identity::SigningError;
 use std::collections::HashSet;
 use tce_transport::{AuthorityId, ProtocolEvents, ReliableBroadcastParams};
 use tokio::sync::{mpsc, oneshot};
@@ -93,6 +94,7 @@ impl DoubleEcho {
             subscriptions_view_receiver,
             self.event_sender.clone(),
             self.authority_id.clone(),
+            self.signing_key.clone(),
             self.params.clone(),
         );
 
@@ -148,7 +150,7 @@ impl DoubleEcho {
                                         error!("ECHO message not properly signed");
                                     }
                                     // Check if source is part of known_validators
-                                    if !self.subscriptions.echo.contains(&authority_id.to_hex()) {
+                                    if !self.subscriptions.echo.contains(&authority_id) {
                                         error!("ECHO message comes from non-validator: {}", authority_id.to_hex());
                                     }
 
@@ -162,7 +164,7 @@ impl DoubleEcho {
                                         error!("READY message not properly signed");
                                     }
                                     // Check if source is part of known_validators
-                                    if !self.subscriptions.ready.contains(&authority_id.to_hex()) {
+                                    if !self.subscriptions.ready.contains(&authority_id) {
                                         error!("READY message comes from non-validator: {}", authority_id.to_hex());
                                     }
 

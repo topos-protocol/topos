@@ -1,7 +1,7 @@
+use libp2p::identity::secp256k1::Keypair;
 use std::collections::HashMap;
-use tokio::{spawn, sync::mpsc};
-
 use tce_transport::{AuthorityId, ProtocolEvents, ReliableBroadcastParams};
+use tokio::{spawn, sync::mpsc};
 use topos_core::uci::CertificateId;
 use tracing::warn;
 
@@ -30,6 +30,7 @@ pub struct TaskManager {
     pub tasks: HashMap<CertificateId, TaskContext>,
     pub buffered_messages: HashMap<CertificateId, Vec<DoubleEchoCommand>>,
     pub authority_id: AuthorityId,
+    pub keypair: Keypair,
     pub thresholds: ReliableBroadcastParams,
     pub shutdown_sender: mpsc::Sender<()>,
 }
@@ -41,6 +42,7 @@ impl TaskManager {
         subscription_view_receiver: mpsc::Receiver<SubscriptionsView>,
         event_sender: mpsc::Sender<ProtocolEvents>,
         authority_id: AuthorityId,
+        keypair: Keypair,
         thresholds: ReliableBroadcastParams,
     ) -> (Self, mpsc::Receiver<()>) {
         let (task_completion_sender, task_completion_receiver) =
@@ -59,6 +61,7 @@ impl TaskManager {
                 tasks: HashMap::new(),
                 buffered_messages: Default::default(),
                 authority_id,
+                keypair,
                 thresholds,
                 shutdown_sender,
             },

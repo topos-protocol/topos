@@ -32,7 +32,7 @@ impl ReliableBroadcastParams {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct AuthorityId([u8; 20]);
 
 impl AuthorityId {

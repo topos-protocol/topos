@@ -5,7 +5,6 @@ use tce_transport::{AuthorityId, ProtocolEvents};
 use tokio::sync::mpsc;
 use topos_core::uci::Certificate;
 use topos_metrics::DOUBLE_ECHO_BROADCAST_FINISHED_TOTAL;
-use topos_p2p::PeerId;
 use tracing::{debug, info, warn};
 
 use crate::sampler::SubscriptionsView;
@@ -37,6 +36,7 @@ impl BroadcastState {
         event_sender: mpsc::Sender<ProtocolEvents>,
         subscriptions_view: SubscriptionsView,
         need_gossip: bool,
+        keypair: Keypair,
     ) -> Self {
         let mut state = Self {
             subscriptions_view,
@@ -61,18 +61,18 @@ impl BroadcastState {
             });
         }
 
-        state.update_status();
+        state.update_status(keypair);
 
         state
     }
 
-    pub fn apply_echo(&mut self, peer_id: PeerId, keypair: Keypair) -> Option<Status> {
-        self.subscriptions_view.echo.remove(&peer_id);
+    pub fn apply_echo(&mut self, authority_id: AuthorityId, keypair: Keypair) -> Option<Status> {
+        self.subscriptions_view.echo.remove(&authority_id);
         self.update_status(keypair)
     }
 
-    pub fn apply_ready(&mut self, peer_id: PeerId, keypair: Keypair) -> Option<Status> {
-        self.subscriptions_view.ready.remove(&peer_id);
+    pub fn apply_ready(&mut self, authority_id: AuthorityId, keypair: Keypair) -> Option<Status> {
+        self.subscriptions_view.ready.remove(&authority_id);
         self.update_status(keypair)
     }
 

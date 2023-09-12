@@ -1,10 +1,9 @@
-use tokio::sync::{mpsc, oneshot};
-use topos_core::uci::SubnetId;
-use topos_p2p::PeerId;
-
 use crate::{
     GatekeeperCommand, GatekeeperError, GetAllPeers, GetAllSubnets, GetRandomPeers, PushPeerList,
 };
+use tokio::sync::{mpsc, oneshot};
+use topos_core::uci::SubnetId;
+use topos_p2p::PeerId;
 
 #[derive(Clone)]
 pub struct GatekeeperClient {

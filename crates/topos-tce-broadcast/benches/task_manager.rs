@@ -51,7 +51,7 @@ pub async fn processing_double_echo(n: u64) {
     for i in 0..params.nb_peers {
         let peer = topos_p2p::utils::local_key_pair(Some(i as u8))
             .public()
-            .to_peer_id();
+            .try_into_secp256k1()?;
         peers.insert(peer);
     }
 

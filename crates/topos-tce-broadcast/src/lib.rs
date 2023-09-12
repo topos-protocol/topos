@@ -126,7 +126,6 @@ impl ReliableBroadcastClient {
         let double_echo = DoubleEcho::new(
             config.tce_params,
             config.authority_id,
-            config.validators,
             config.signing_key,
             task_manager_message_sender,
             command_receiver,
@@ -146,7 +145,7 @@ impl ReliableBroadcastClient {
         )
     }
 
-    pub async fn peer_changed(&self, peers: Vec<PeerId>) -> Result<(), ()> {
+    pub async fn peer_changed(&self, peers: Vec<AuthorityId>) -> Result<(), ()> {
         let set = peers.into_iter().collect::<HashSet<_>>();
         self.subscriptions_view_sender
             .send(SubscriptionsView {

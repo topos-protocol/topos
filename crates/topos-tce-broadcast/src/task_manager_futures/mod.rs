@@ -1,6 +1,7 @@
 use futures::stream::FuturesUnordered;
 use futures::Future;
 use futures::StreamExt;
+use libp2p::identity::secp256k1::Keypair;
 use std::collections::HashMap;
 use std::future::IntoFuture;
 use std::pin::Pin;
@@ -31,6 +32,7 @@ pub struct TaskManager {
     pub subscriptions: SubscriptionsView,
     pub event_sender: mpsc::Sender<ProtocolEvents>,
     pub tasks: HashMap<CertificateId, TaskContext>,
+    pub keypair: Keypair,
     #[allow(clippy::type_complexity)]
     pub running_tasks: FuturesUnordered<
         Pin<Box<dyn Future<Output = (CertificateId, TaskStatus)> + Send + 'static>>,
@@ -49,6 +51,7 @@ impl TaskManager {
         event_sender: mpsc::Sender<ProtocolEvents>,
         authority_id: AuthorityId,
         thresholds: ReliableBroadcastParams,
+        keypair: Keypair,
     ) -> (Self, mpsc::Receiver<()>) {
         let (shutdown_sender, shutdown_receiver) = mpsc::channel(1);
 
@@ -64,6 +67,7 @@ impl TaskManager {
                 buffered_messages: Default::default(),
                 authority_id,
                 thresholds,
+                keypair,
                 shutdown_sender,
             },
             shutdown_receiver,
