@@ -151,11 +151,11 @@ impl DoubleEcho {
                                 DoubleEchoCommand::Echo { from_peer, certificate_id, validator_id, signature } => {
                                     // Check if signature is valid
                                     if !self.signing_key.public().verify(certificate_id.as_array().as_slice(), &signature) {
-                                        error!("ECHO message not properly signed");
+                                        return error!("ECHO message not properly signed");
                                     }
                                     // Check if source is part of known_validators
                                     if !self.validators.contains(&validator_id) {
-                                        error!("ECHO message comes from non-validator: {}", validator_id);
+                                        return error!("ECHO message comes from non-validator: {}", validator_id);
                                     }
 
                                     self.handle_echo(from_peer, certificate_id, validator_id, self.signing_key.clone()).await
@@ -163,11 +163,11 @@ impl DoubleEcho {
                                 DoubleEchoCommand::Ready { from_peer, certificate_id, validator_id, signature } => {
                                     // Check if signature is valid
                                   if !self.signing_key.public().verify(certificate_id.as_array().as_slice(), &signature) {
-                                        error!("READY message not properly signed");
+                                        return error!("READY message not properly signed");
                                     }
                                     // Check if source is part of known_validators
                                     if !self.validators.contains(&validator_id) {
-                                        error!("READY message comes from non-validator: {}", validator_id);
+                                        return error!("READY message comes from non-validator: {}", validator_id);
                                     }
 
                                     self.handle_ready(from_peer, certificate_id, validator_id, self.signing_key.clone()).await

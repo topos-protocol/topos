@@ -5,14 +5,14 @@ use tce_transport::{ProtocolEvents, ValidatorId};
 use tokio::sync::mpsc;
 use topos_core::uci::Certificate;
 use topos_metrics::DOUBLE_ECHO_BROADCAST_FINISHED_TOTAL;
-use tracing::{debug, info, warn};
+use topos_p2p::PeerId;
+use tracing::{debug, error, info, warn};
 
 use crate::sampler::SubscriptionsView;
 
 mod status;
 
 pub use status::Status;
-use topos_p2p::PeerId;
 
 #[derive(Debug)]
 pub struct BroadcastState {
@@ -70,13 +70,13 @@ impl BroadcastState {
         state
     }
 
-    pub fn apply_echo(&mut self, from_peer: PeerId) -> Option<Status> {
-        self.subscriptions_view.echo.remove(&from_peer);
+    pub fn apply_echo(&mut self, peer_id: PeerId) -> Option<Status> {
+        self.subscriptions_view.echo.remove(&peer_id);
         self.update_status()
     }
 
-    pub fn apply_ready(&mut self, from_peer: PeerId) -> Option<Status> {
-        self.subscriptions_view.ready.remove(&from_peer);
+    pub fn apply_ready(&mut self, peer_id: PeerId) -> Option<Status> {
+        self.subscriptions_view.ready.remove(&peer_id);
         self.update_status()
     }
 
@@ -85,6 +85,7 @@ impl BroadcastState {
         // any Echo or Ready messages
         // Sending our Echo message
         if let Status::Pending = self.status {
+            error!("SEND SIGNED ECHO MESSAGE");
             _ = self.event_sender.try_send(ProtocolEvents::Echo {
                 certificate_id: self.certificate.id,
                 signature: self
