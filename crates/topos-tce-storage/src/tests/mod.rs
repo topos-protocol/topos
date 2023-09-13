@@ -1,6 +1,5 @@
-use std::sync::Arc;
-
 use rstest::rstest;
+use std::sync::Arc;
 use test_log::test;
 use topos_core::{
     types::{
@@ -550,4 +549,42 @@ async fn get_pending_certificates(store: Arc<ValidatorStore>) {
         pending_certificates.len()
     );
     assert_eq!(expected_pending_certificates, pending_certificates);
+}
+
+#[rstest]
+#[tokio::test]
+async fn fetch_source_subnet_certificates_in_order(store: Arc<ValidatorStore>) {
+    let certificates_for_source_subnet_1 =
+        create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_2], 10);
+    // Persist the first 10 Cert of each Subnets
+    store
+        .insert_certificates_delivered(&certificates_for_source_subnet_1[..10])
+        .await
+        .unwrap();
+
+    let res = store
+        .get_source_stream_certificates_from_position(
+            crate::CertificateSourceStreamPosition {
+                subnet_id: SOURCE_SUBNET_ID_1,
+                position: Position::ZERO,
+            },
+            100,
+        )
+        .unwrap();
+
+    let mut prev = PREV_CERTIFICATE_ID;
+
+    for (index, (cert, position)) in res.iter().enumerate() {
+        let cert = &cert.certificate;
+        assert_eq!(cert.prev_id, prev);
+        assert!(matches!(
+            position,
+            CertificateSourceStreamPosition {
+                subnet_id: SOURCE_SUBNET_ID_1,
+                position: current_pos
+            } if **current_pos == index as u64
+        ));
+
+        prev = cert.id;
+    }
 }
