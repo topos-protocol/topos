@@ -7367,7 +7367,6 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "topos-core",
- "topos-crypto",
  "topos-metrics",
  "topos-p2p",
  "topos-tce-storage",
@@ -7479,9 +7478,9 @@ dependencies = [
 name = "topos-tce-transport"
 version = "0.1.0"
 dependencies = [
+ "clap 4.4.2",
  "hex",
  "secp256k1",
- "clap 4.4.2",
  "serde",
  "topos-core",
  "topos-crypto",
