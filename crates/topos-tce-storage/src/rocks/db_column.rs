@@ -131,7 +131,7 @@ where
 
     pub(crate) fn multi_get(&self, keys: &[K]) -> Result<Vec<Option<V>>, InternalStorageError> {
         let keys: Result<Vec<_>, InternalStorageError> =
-            keys.iter().map(|k| be_fix_int_ser(k.borrow())).collect();
+            keys.iter().map(|k| be_fix_int_ser(k)).collect();
 
         let results: Result<Vec<_>, InternalStorageError> = self
             .rocksdb

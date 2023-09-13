@@ -285,7 +285,7 @@ impl ReadStore for FullNodeStore {
             .multi_get(&certificate_ids[..])?;
 
         Ok(x.into_iter()
-            .zip(certificates.into_iter())
+            .zip(certificates)
             .filter_map(|((certificate_id, position), certificate)| {
                 certificate
                     .filter(|c| c.certificate.id == certificate_id)
