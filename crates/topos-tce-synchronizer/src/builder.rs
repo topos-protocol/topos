@@ -5,7 +5,7 @@ use tokio::{spawn, sync::mpsc, sync::oneshot};
 use tokio_stream::wrappers::ReceiverStream;
 use topos_p2p::Client as NetworkClient;
 use topos_tce_gatekeeper::Client as GatekeeperClient;
-use topos_tce_storage::authority::AuthorityStore;
+use topos_tce_storage::validator::ValidatorStore;
 
 use crate::{
     checkpoints_collector::CheckpointSynchronizer, client::SynchronizerClient, Synchronizer,
@@ -15,7 +15,7 @@ use crate::{
 pub struct SynchronizerBuilder {
     gatekeeper_client: Option<GatekeeperClient>,
     network_client: Option<NetworkClient>,
-    store: Option<Arc<AuthorityStore>>,
+    store: Option<Arc<ValidatorStore>>,
     sync_interval_seconds: u64,
 }
 
@@ -75,7 +75,7 @@ impl IntoFuture for SynchronizerBuilder {
 }
 
 impl SynchronizerBuilder {
-    pub fn with_store(mut self, store: Arc<AuthorityStore>) -> Self {
+    pub fn with_store(mut self, store: Arc<ValidatorStore>) -> Self {
         self.store = Some(store);
 
         self

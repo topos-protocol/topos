@@ -16,9 +16,9 @@ use topos_tce_api::RuntimeClient as ApiClient;
 use topos_tce_api::RuntimeEvent as ApiEvent;
 use topos_tce_broadcast::ReliableBroadcastClient;
 use topos_tce_gatekeeper::Client as GatekeeperClient;
-use topos_tce_storage::authority::AuthorityStore;
 use topos_tce_storage::events::StorageEvent;
 use topos_tce_storage::types::CertificateDeliveredWithPositions;
+use topos_tce_storage::validator::ValidatorStore;
 use topos_tce_storage::StorageClient;
 use topos_tce_synchronizer::{SynchronizerClient, SynchronizerEvent};
 use tracing::{error, info, warn};
@@ -46,7 +46,7 @@ pub struct AppContext {
 
     pub delivery_latency: HashMap<CertificateId, HistogramTimer>,
 
-    pub authority_store: Arc<AuthorityStore>,
+    pub authority_store: Arc<ValidatorStore>,
 }
 
 impl AppContext {
@@ -63,7 +63,7 @@ impl AppContext {
         api_client: ApiClient,
         gatekeeper: GatekeeperClient,
         synchronizer: SynchronizerClient,
-        authority_store: Arc<AuthorityStore>,
+        authority_store: Arc<ValidatorStore>,
     ) -> (Self, mpsc::Receiver<Events>) {
         let (events, receiver) = mpsc::channel(100);
         (

@@ -48,10 +48,10 @@ pub struct CheckpointSummary {
     sequence_number: usize,
     checkpoint_data: Vec<SourceStreamPosition>,
 }
-pub struct VerifiedCheckpointSummary(CheckpointSummary, AuthorityQuorumSignatureInfo);
+pub struct VerifiedCheckpointSummary(CheckpointSummary, ValidatorQuorumSignatureInfo);
 
 #[allow(unused)]
-pub struct AuthorityQuorumSignatureInfo {
+pub struct ValidatorQuorumSignatureInfo {
     epoch: EpochId,
     signature: [u8; 32],
 }

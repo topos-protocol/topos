@@ -7,8 +7,8 @@ use tokio::sync::{broadcast, mpsc, oneshot};
 use topos_core::uci::{Certificate, CertificateId};
 
 use topos_p2p::PeerId;
-use topos_tce_storage::authority::AuthorityStore;
 use topos_tce_storage::types::CertificateDeliveredWithPositions;
+use topos_tce_storage::validator::ValidatorStore;
 use tracing::{error, info, warn};
 
 pub mod broadcast_state;
@@ -28,7 +28,7 @@ pub struct DoubleEcho {
     task_manager_message_sender: mpsc::Sender<DoubleEchoCommand>,
     /// The overview of the network, which holds echo and ready subscriptions and the network size
     pub subscriptions: SubscriptionsView,
-    pub authority_store: Arc<AuthorityStore>,
+    pub authority_store: Arc<ValidatorStore>,
     pub broadcast_sender: broadcast::Sender<CertificateDeliveredWithPositions>,
 }
 
@@ -43,7 +43,7 @@ impl DoubleEcho {
         event_sender: mpsc::Sender<ProtocolEvents>,
         shutdown: mpsc::Receiver<oneshot::Sender<()>>,
         _pending_certificate_count: usize,
-        authority_store: Arc<AuthorityStore>,
+        authority_store: Arc<ValidatorStore>,
         broadcast_sender: broadcast::Sender<CertificateDeliveredWithPositions>,
     ) -> Self {
         Self {

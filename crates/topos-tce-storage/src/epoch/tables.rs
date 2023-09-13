@@ -30,7 +30,7 @@ impl EpochParticipantsTables {
 }
 
 /// Epoch contextualized data - can be purged at some point
-pub struct AuthorityPerEpochTables {
+pub struct ValidatorPerEpochTables {
     #[allow(unused)]
     epoch_summary: DBColumn<EpochSummaryKey, EpochSummaryValue>,
     #[allow(unused)]
@@ -39,7 +39,7 @@ pub struct AuthorityPerEpochTables {
     participants: Vec<Participants>,
 }
 
-impl AuthorityPerEpochTables {
+impl ValidatorPerEpochTables {
     pub(crate) fn open(epoch_id: EpochId, mut path: PathBuf) -> Self {
         path.push("epochs");
         path.push(epoch_id.to_string());

@@ -21,8 +21,8 @@ use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
 use topos_core::uci::{Certificate, CertificateId};
 use topos_metrics::DOUBLE_ECHO_COMMAND_CHANNEL_CAPACITY_TOTAL;
 use topos_p2p::PeerId;
-use topos_tce_storage::authority::AuthorityStore;
 use topos_tce_storage::types::CertificateDeliveredWithPositions;
+use topos_tce_storage::validator::ValidatorStore;
 use tracing::{debug, error, info};
 
 pub use topos_core::uci;
@@ -110,7 +110,7 @@ impl ReliableBroadcastClient {
     pub async fn new(
         config: ReliableBroadcastConfig,
         _local_peer_id: String,
-        authority_store: Arc<AuthorityStore>,
+        authority_store: Arc<ValidatorStore>,
         broadcast_sender: broadcast::Sender<CertificateDeliveredWithPositions>,
     ) -> (Self, impl Stream<Item = ProtocolEvents>) {
         let (subscriptions_view_sender, subscriptions_view_receiver) =

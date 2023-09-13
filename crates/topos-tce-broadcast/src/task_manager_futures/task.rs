@@ -4,10 +4,10 @@ use std::sync::Arc;
 use tokio::sync::{broadcast, mpsc};
 
 use topos_core::uci::CertificateId;
-use topos_tce_storage::authority::AuthorityStore;
 use topos_tce_storage::errors::StorageError;
 use topos_tce_storage::store::{ReadStore, WriteStore};
 use topos_tce_storage::types::CertificateDeliveredWithPositions;
+use topos_tce_storage::validator::ValidatorStore;
 use topos_tce_storage::Position;
 use tracing::warn;
 
@@ -21,7 +21,7 @@ pub struct TaskContext {
 }
 
 pub struct Task {
-    pub authority_store: Arc<AuthorityStore>,
+    pub authority_store: Arc<ValidatorStore>,
     pub message_receiver: mpsc::Receiver<DoubleEchoCommand>,
     pub certificate_id: CertificateId,
     pub broadcast_state: BroadcastState,
@@ -33,7 +33,7 @@ impl Task {
     pub fn new(
         certificate_id: CertificateId,
         broadcast_state: BroadcastState,
-        authority_store: Arc<AuthorityStore>,
+        authority_store: Arc<ValidatorStore>,
         broadcast_sender: broadcast::Sender<CertificateDeliveredWithPositions>,
     ) -> (Task, TaskContext) {
         let (message_sender, message_receiver) = mpsc::channel(10_024);

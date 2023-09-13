@@ -5,9 +5,9 @@ use crate::double_echo::broadcast_state::{BroadcastState, Status};
 use crate::DoubleEchoCommand;
 use crate::TaskStatus;
 use topos_core::uci::CertificateId;
-use topos_tce_storage::authority::AuthorityStore;
 use topos_tce_storage::errors::StorageError;
 use topos_tce_storage::store::WriteStore;
+use topos_tce_storage::validator::ValidatorStore;
 use topos_tce_storage::CertificatePositions;
 
 #[derive(Debug, Clone)]
@@ -17,7 +17,7 @@ pub struct TaskContext {
 }
 
 pub struct Task {
-    pub authority_store: Arc<AuthorityStore>,
+    pub authority_store: Arc<ValidatorStore>,
     pub message_receiver: mpsc::Receiver<DoubleEchoCommand>,
     pub certificate_id: CertificateId,
     pub completion_sender: mpsc::Sender<(CertificateId, TaskStatus)>,
@@ -30,7 +30,7 @@ impl Task {
         certificate_id: CertificateId,
         completion_sender: mpsc::Sender<(CertificateId, TaskStatus)>,
         broadcast_state: BroadcastState,
-        authority_store: Arc<AuthorityStore>,
+        authority_store: Arc<ValidatorStore>,
     ) -> (Self, TaskContext) {
         let (message_sender, message_receiver) = mpsc::channel(1024);
         let (shutdown_sender, shutdown_receiver) = mpsc::channel(1);

@@ -5,7 +5,7 @@ use tokio::{spawn, task::JoinHandle};
 
 use topos_p2p::Client as NetworkClient;
 use topos_tce_gatekeeper::Client as GatekeeperClient;
-use topos_tce_storage::authority::AuthorityStore;
+use topos_tce_storage::validator::ValidatorStore;
 use topos_tce_synchronizer::SynchronizerClient;
 use topos_tce_synchronizer::SynchronizerError;
 use topos_tce_synchronizer::SynchronizerEvent;
@@ -13,7 +13,7 @@ use topos_tce_synchronizer::SynchronizerEvent;
 pub async fn create_synchronizer(
     gatekeeper_client: GatekeeperClient,
     network_client: NetworkClient,
-    store: Arc<AuthorityStore>,
+    store: Arc<ValidatorStore>,
 ) -> (
     SynchronizerClient,
     impl Stream<Item = SynchronizerEvent>,

@@ -15,7 +15,7 @@ use crate::{
 };
 
 /// Volatile and pending data
-pub struct AuthorityPendingTables {
+pub struct ValidatorPendingTables {
     pub(crate) pending_pool: DBColumn<PendingCertificateId, Certificate>,
     pub(crate) pending_pool_index: DBColumn<CertificateId, PendingCertificateId>,
     #[allow(unused)]
@@ -23,7 +23,7 @@ pub struct AuthorityPendingTables {
     #[allow(unused)]
     expiration_tracker: (), // Unknown
 }
-impl AuthorityPendingTables {
+impl ValidatorPendingTables {
     pub fn open(mut path: PathBuf) -> Self {
         path.push("pending");
 
@@ -45,7 +45,7 @@ impl AuthorityPendingTables {
 }
 
 /// Data that shouldn't be purged at all.
-pub struct AuthorityPerpetualTables {
+pub struct ValidatorPerpetualTables {
     pub(crate) certificates: DBColumn<CertificateId, CertificateDelivered>,
     pub(crate) streams: DBColumn<SourceStreamPositionKey, CertificateId>,
     #[allow(unused)]
@@ -53,7 +53,7 @@ pub struct AuthorityPerpetualTables {
     pub(crate) unverified: DBColumn<CertificateId, ProofOfDelivery>,
 }
 
-impl AuthorityPerpetualTables {
+impl ValidatorPerpetualTables {
     pub fn open(mut path: PathBuf) -> Self {
         path.push("perpetual");
         let mut options_stream = default_options();

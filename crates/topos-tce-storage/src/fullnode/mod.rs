@@ -6,13 +6,13 @@ use topos_core::uci::{CertificateId, SubnetId};
 use tracing::{error, info};
 
 use crate::{
-    authority::AuthorityPerpetualTables,
-    epoch::{AuthorityPerEpochStore, EpochParticipantsStore},
+    epoch::{EpochParticipantsStore, ValidatorPerEpochStore},
     errors::{InternalStorageError, StorageError},
     index::IndexTables,
     rocks::{map::Map, TargetSourceListKey, TargetStreamPositionKey},
     store::{ReadStore, WriteStore},
     types::{CertificateDelivered, SourceStreamPositionKey},
+    validator::ValidatorPerpetualTables,
     CertificatePositions, CertificateSourceStreamPosition, CertificateTargetStreamPosition,
     Position, SourceHead,
 };
@@ -25,18 +25,18 @@ pub struct FullNodeStore {
     certificate_lock_guards: LockGuards<CertificateId>,
     subnet_lock_guards: LockGuards<SubnetId>,
     #[allow(unused)]
-    epoch_store: ArcSwap<AuthorityPerEpochStore>,
+    epoch_store: ArcSwap<ValidatorPerEpochStore>,
     #[allow(unused)]
     participants_store: Arc<EpochParticipantsStore>,
-    pub(crate) perpetual_tables: Arc<AuthorityPerpetualTables>,
+    pub(crate) perpetual_tables: Arc<ValidatorPerpetualTables>,
     pub(crate) index_tables: Arc<IndexTables>,
 }
 
 impl FullNodeStore {
     pub fn open(
-        epoch_store: ArcSwap<AuthorityPerEpochStore>,
+        epoch_store: ArcSwap<ValidatorPerEpochStore>,
         participants_store: Arc<EpochParticipantsStore>,
-        perpetual_tables: Arc<AuthorityPerpetualTables>,
+        perpetual_tables: Arc<ValidatorPerpetualTables>,
         index_tables: Arc<IndexTables>,
     ) -> Result<Arc<Self>, StorageError> {
         Ok(Arc::new(Self {

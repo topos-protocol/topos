@@ -4,7 +4,7 @@ use tce_transport::ReliableBroadcastParams;
 use tokio::sync::{broadcast, mpsc, oneshot};
 use topos_tce_broadcast::double_echo::DoubleEcho;
 use topos_tce_broadcast::sampler::SubscriptionsView;
-use topos_tce_storage::authority::AuthorityStore;
+use topos_tce_storage::validator::ValidatorStore;
 use topos_test_sdk::certificates::create_certificate_chain;
 use topos_test_sdk::constants::{SOURCE_SUBNET_ID_1, TARGET_SUBNET_ID_1};
 
@@ -15,7 +15,7 @@ struct TceParams {
     broadcast_params: ReliableBroadcastParams,
 }
 
-pub async fn processing_double_echo(n: u64, authority_store: Arc<AuthorityStore>) {
+pub async fn processing_double_echo(n: u64, authority_store: Arc<ValidatorStore>) {
     let (subscriptions_view_sender, subscriptions_view_receiver) = mpsc::channel(CHANNEL_SIZE);
 
     let (_cmd_sender, cmd_receiver) = mpsc::channel(CHANNEL_SIZE);

@@ -18,7 +18,7 @@ use topos_metrics::{
     CERTIFICATE_PROCESSING_FROM_API_TOTAL, CERTIFICATE_PROCESSING_FROM_GOSSIP_TOTAL,
     CERTIFICATE_PROCESSING_TOTAL,
 };
-use topos_tce_storage::authority::AuthorityStore;
+use topos_tce_storage::validator::ValidatorStore;
 
 /// The TaskManager is responsible for receiving messages from the network and distributing them
 /// among tasks. These tasks are either created if none for a certain CertificateID exists yet,
@@ -35,7 +35,7 @@ pub struct TaskManager {
     pub buffered_messages: HashMap<CertificateId, Vec<DoubleEchoCommand>>,
     pub thresholds: ReliableBroadcastParams,
     pub shutdown_sender: mpsc::Sender<()>,
-    pub authority_store: Arc<AuthorityStore>,
+    pub authority_store: Arc<ValidatorStore>,
 }
 
 impl TaskManager {
@@ -45,7 +45,7 @@ impl TaskManager {
         subscription_view_receiver: mpsc::Receiver<SubscriptionsView>,
         event_sender: mpsc::Sender<ProtocolEvents>,
         thresholds: ReliableBroadcastParams,
-        authority_store: Arc<AuthorityStore>,
+        authority_store: Arc<ValidatorStore>,
     ) -> (Self, mpsc::Receiver<()>) {
         let (task_completion_sender, task_completion_receiver) =
             mpsc::channel(*constant::BROADCAST_TASK_COMPLETION_CHANNEL_SIZE);

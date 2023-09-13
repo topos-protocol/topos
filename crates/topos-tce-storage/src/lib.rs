@@ -8,14 +8,14 @@ use std::fmt;
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
 
 // v2
-/// Everything that is needed to participate to the protocol
-pub mod authority;
 /// Epoch related store
 pub mod epoch;
 /// Fullnode store
 pub mod fullnode;
 pub mod index;
 pub mod types;
+/// Everything that is needed to participate to the protocol
+pub mod validator;
 
 // v1
 pub mod client;

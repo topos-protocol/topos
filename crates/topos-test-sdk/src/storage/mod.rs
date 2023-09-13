@@ -11,10 +11,10 @@ use std::{
 use tokio::spawn;
 
 use topos_tce_storage::{
-    authority::AuthorityPerpetualTables, authority::AuthorityStore, epoch::AuthorityPerEpochStore,
-    epoch::EpochParticipantsStore, events::StorageEvent, fullnode::FullNodeStore,
-    index::IndexTables, store::WriteStore, types::CertificateDelivered, Connection,
-    ConnectionBuilder, RocksDBStorage, Storage, StorageClient,
+    epoch::EpochParticipantsStore, epoch::ValidatorPerEpochStore, events::StorageEvent,
+    fullnode::FullNodeStore, index::IndexTables, store::WriteStore, types::CertificateDelivered,
+    validator::ValidatorPerpetualTables, validator::ValidatorStore, Connection, ConnectionBuilder,
+    RocksDBStorage, Storage, StorageClient,
 };
 
 #[fixture]
@@ -67,10 +67,10 @@ pub fn create_folder(folder_name: &str) -> PathBuf {
 pub async fn create_authority_store(
     folder_name: &str,
     certificates: Vec<CertificateDelivered>,
-) -> (PathBuf, Arc<AuthorityStore>) {
+) -> (PathBuf, Arc<ValidatorStore>) {
     let (temp_dir, full_node_store) = create_fullnode_store(folder_name, certificates).await;
 
-    let store = AuthorityStore::open(temp_dir.clone(), full_node_store)
+    let store = ValidatorStore::open(temp_dir.clone(), full_node_store)
         .expect("Unable to create authority store");
 
     (temp_dir, store)
@@ -83,14 +83,14 @@ pub async fn create_fullnode_store(
 ) -> (PathBuf, Arc<FullNodeStore>) {
     let temp_dir = create_folder(folder_name);
 
-    let perpetual_tables = Arc::new(AuthorityPerpetualTables::open(temp_dir.clone()));
+    let perpetual_tables = Arc::new(ValidatorPerpetualTables::open(temp_dir.clone()));
     let index_tables = Arc::new(IndexTables::open(temp_dir.clone()));
 
     let participants_store =
         EpochParticipantsStore::new(temp_dir.clone()).expect("Unable to create Participant store");
 
     let epoch_store =
-        AuthorityPerEpochStore::new(0, temp_dir.clone()).expect("Unable to create Per epoch store");
+        ValidatorPerEpochStore::new(0, temp_dir.clone()).expect("Unable to create Per epoch store");
 
     let store = FullNodeStore::open(
         epoch_store,

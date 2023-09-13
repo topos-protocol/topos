@@ -7,24 +7,24 @@ use arc_swap::ArcSwap;
 use crate::errors::StorageError;
 use crate::types::{EpochId, Participants};
 
-pub(crate) use self::tables::AuthorityPerEpochTables;
 pub(crate) use self::tables::EpochParticipantsTables;
+pub(crate) use self::tables::ValidatorPerEpochTables;
 
 mod tables;
 
 /// Epoch contextualized data - can be purged at some point
-pub struct AuthorityPerEpochStore {
+pub struct ValidatorPerEpochStore {
     #[allow(unused)]
     epoch_id: EpochId,
     #[allow(unused)]
     participants: RwLock<Vec<Participants>>,
     #[allow(unused)]
-    tables: AuthorityPerEpochTables,
+    tables: ValidatorPerEpochTables,
 }
 
-impl AuthorityPerEpochStore {
+impl ValidatorPerEpochStore {
     pub fn new(epoch_id: EpochId, path: PathBuf) -> Result<ArcSwap<Self>, StorageError> {
-        let tables: AuthorityPerEpochTables = AuthorityPerEpochTables::open(epoch_id, path);
+        let tables: ValidatorPerEpochTables = ValidatorPerEpochTables::open(epoch_id, path);
         let store = ArcSwap::from(Arc::new(Self {
             epoch_id,
             participants: RwLock::new(Vec::new()),

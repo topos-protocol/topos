@@ -13,23 +13,23 @@ use crate::{
     CertificatePositions, CertificateSourceStreamPosition, SourceHead,
 };
 
-pub(crate) use self::tables::AuthorityPendingTables;
-pub use self::tables::AuthorityPerpetualTables;
+pub(crate) use self::tables::ValidatorPendingTables;
+pub use self::tables::ValidatorPerpetualTables;
 
 mod tables;
 
 /// Contains all persistent data about the authority
-pub struct AuthorityStore {
-    pending_tables: AuthorityPendingTables,
+pub struct ValidatorStore {
+    pending_tables: ValidatorPendingTables,
     full_node_store: Arc<FullNodeStore>,
 }
 
-impl AuthorityStore {
+impl ValidatorStore {
     pub fn open(
         path: PathBuf,
         full_node_store: Arc<FullNodeStore>,
     ) -> Result<Arc<Self>, StorageError> {
-        let pending_tables: AuthorityPendingTables = AuthorityPendingTables::open(path);
+        let pending_tables: ValidatorPendingTables = ValidatorPendingTables::open(path);
         let store = Arc::new(Self {
             pending_tables,
             full_node_store,
@@ -198,7 +198,7 @@ impl AuthorityStore {
         Ok(from_positions)
     }
 }
-impl ReadStore for AuthorityStore {
+impl ReadStore for ValidatorStore {
     fn get_certificate(
         &self,
         certificate_id: &CertificateId,
@@ -243,7 +243,7 @@ impl ReadStore for AuthorityStore {
 }
 
 #[async_trait]
-impl WriteStore for AuthorityStore {
+impl WriteStore for ValidatorStore {
     async fn insert_certificate_delivered(
         &self,
         certificate: &CertificateDelivered,

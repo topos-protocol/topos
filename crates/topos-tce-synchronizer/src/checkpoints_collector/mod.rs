@@ -24,10 +24,10 @@ use topos_p2p::{
 };
 use topos_tce_gatekeeper::GatekeeperClient;
 use topos_tce_storage::{
-    authority::AuthorityStore,
     errors::StorageError,
     store::ReadStore,
     types::{ProofOfDelivery, SourceStreamPositionKey},
+    validator::ValidatorStore,
     Position,
 };
 use tracing::{debug, warn};
@@ -50,7 +50,7 @@ pub struct CheckpointSynchronizer<G: GatekeeperClient, N: NetworkClient> {
     pub(crate) network: N,
     pub(crate) gatekeeper: G,
     #[allow(unused)]
-    pub(crate) store: Arc<AuthorityStore>,
+    pub(crate) store: Arc<ValidatorStore>,
 
     current_request_id: Option<APIUuid>,
 

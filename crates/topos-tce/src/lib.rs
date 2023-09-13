@@ -15,10 +15,10 @@ use topos_p2p::{
 };
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
 use topos_tce_storage::{
-    authority::{AuthorityPerpetualTables, AuthorityStore},
-    epoch::{AuthorityPerEpochStore, EpochParticipantsStore},
+    epoch::{EpochParticipantsStore, ValidatorPerEpochStore},
     fullnode::FullNodeStore,
     index::IndexTables,
+    validator::{ValidatorPerpetualTables, ValidatorStore},
     Connection, RocksDBStorage,
 };
 use tracing::{debug, warn};
@@ -95,14 +95,14 @@ pub async fn run(
         )));
     };
 
-    let perpetual_tables = Arc::new(AuthorityPerpetualTables::open(path.clone()));
+    let perpetual_tables = Arc::new(ValidatorPerpetualTables::open(path.clone()));
     let index_tables = Arc::new(IndexTables::open(path.clone()));
 
     let participants_store =
         EpochParticipantsStore::new(path.clone()).expect("Unable to create Participant store");
 
     let epoch_store =
-        AuthorityPerEpochStore::new(0, path.clone()).expect("Unable to create Per epoch store");
+        ValidatorPerEpochStore::new(0, path.clone()).expect("Unable to create Per epoch store");
 
     let full_node_store = FullNodeStore::open(
         epoch_store,
@@ -112,7 +112,7 @@ pub async fn run(
     )
     .expect("Unable to create full node store");
 
-    let authority_store = AuthorityStore::open(path.clone(), full_node_store.clone())
+    let authority_store = ValidatorStore::open(path.clone(), full_node_store.clone())
         .expect("Unable to create authority store");
 
     let (broadcast_sender, broadcast_receiver) = broadcast::channel(10000);
