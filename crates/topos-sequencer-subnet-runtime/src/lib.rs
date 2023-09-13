@@ -71,7 +71,7 @@ pub enum Error {
     #[error("Unable to send command: {0}")]
     CommandEvalChannelError(String),
 
-    #[error("Invalid endpooint: {0}")]
+    #[error("Invalid endpoint: {0}")]
     InvalidEndpoint(String),
 }
 
