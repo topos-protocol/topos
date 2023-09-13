@@ -5,16 +5,20 @@ use crate::events::Events;
 use futures::{Stream, StreamExt};
 use prometheus::HistogramTimer;
 use std::collections::HashMap;
+use std::sync::Arc;
 use tce_transport::ProtocolEvents;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use topos_core::uci::CertificateId;
+use topos_metrics::CERTIFICATE_DELIVERED_TOTAL;
 use topos_p2p::{Client as NetworkClient, Event as NetEvent};
 use topos_tce_api::RuntimeClient as ApiClient;
 use topos_tce_api::RuntimeEvent as ApiEvent;
 use topos_tce_broadcast::ReliableBroadcastClient;
-use topos_tce_gatekeeper::GatekeeperClient;
+use topos_tce_gatekeeper::Client as GatekeeperClient;
+use topos_tce_storage::authority::AuthorityStore;
 use topos_tce_storage::events::StorageEvent;
+use topos_tce_storage::types::CertificateDeliveredWithPositions;
 use topos_tce_storage::StorageClient;
 use topos_tce_synchronizer::{SynchronizerClient, SynchronizerEvent};
 use tracing::{error, info, warn};
@@ -41,6 +45,8 @@ pub struct AppContext {
     pub synchronizer: SynchronizerClient,
 
     pub delivery_latency: HashMap<CertificateId, HistogramTimer>,
+
+    pub authority_store: Arc<AuthorityStore>,
 }
 
 impl AppContext {
@@ -57,6 +63,7 @@ impl AppContext {
         api_client: ApiClient,
         gatekeeper: GatekeeperClient,
         synchronizer: SynchronizerClient,
+        authority_store: Arc<AuthorityStore>,
     ) -> (Self, mpsc::Receiver<Events>) {
         let (events, receiver) = mpsc::channel(100);
         (
@@ -69,12 +76,14 @@ impl AppContext {
                 gatekeeper,
                 synchronizer,
                 delivery_latency: Default::default(),
+                authority_store,
             },
             receiver,
         )
     }
 
     /// Main processing loop
+    #[allow(clippy::too_many_arguments)]
     pub async fn run(
         mut self,
         mut network_stream: impl Stream<Item = NetEvent> + Unpin,
@@ -82,10 +91,21 @@ impl AppContext {
         mut api_stream: impl Stream<Item = ApiEvent> + Unpin,
         mut storage_stream: impl Stream<Item = StorageEvent> + Unpin,
         mut synchronizer_stream: impl Stream<Item = SynchronizerEvent> + Unpin,
+        mut broadcast_stream: impl Stream<Item = CertificateDeliveredWithPositions> + Unpin,
         shutdown: (CancellationToken, mpsc::Sender<()>),
     ) {
         loop {
             tokio::select! {
+
+                Some(delivery) = broadcast_stream.next() => {
+                    let certificate_id = delivery.0.certificate.id;
+                    CERTIFICATE_DELIVERED_TOTAL.inc();
+
+                    if let Some(timer) = self.delivery_latency.remove(&certificate_id) {
+                        let duration = timer.stop_and_record();
+                        warn!("Certificate delivered {} in {}s", certificate_id, duration);
+                    }
+                }
 
                 // protocol
                 Some(evt) = tce_stream.next() => {

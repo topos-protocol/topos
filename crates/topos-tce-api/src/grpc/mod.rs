@@ -160,15 +160,18 @@ impl ApiService for TceGrpcService {
             }
 
             receiver
-                .map(|value| match value {
+                .map(|value| {
+                    match value {
                     Ok(Ok((position, ref certificate))) => {
                         Ok(Response::new(GetSourceHeadResponse {
                             certificate: Some(certificate.clone().into()),
-                            position: Some(topos_core::api::grpc::tce::v1::SourceStreamPosition {
-                                subnet_id: Some(certificate.source_subnet_id.into()),
-                                certificate_id: Some((*certificate.id.as_array()).into()),
-                                position,
-                            }),
+                            position: Some(
+                                topos_core::api::grpc::shared::v1::positions::SourceStreamPosition {
+                                    source_subnet_id: Some(certificate.source_subnet_id.into()),
+                                    certificate_id: Some((*certificate.id.as_array()).into()),
+                                    position,
+                                },
+                            ),
                         }))
                     }
                     Ok(Err(crate::RuntimeError::UnknownSubnet(subnet_id))) => {
@@ -184,6 +187,7 @@ impl ApiService for TceGrpcService {
                     Err(e) => Err(Status::internal(format!(
                         "Can't get source head certificate position: {e}"
                     ))),
+                }
                 })
                 .await
         } else {

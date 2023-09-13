@@ -1,11 +1,14 @@
 use crate::TaskStatus;
 use crate::{DoubleEchoCommand, SubscriptionsView};
 use std::collections::HashSet;
+use std::sync::Arc;
 use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::{broadcast, mpsc, oneshot};
 use topos_core::uci::{Certificate, CertificateId};
 
 use topos_p2p::PeerId;
+use topos_tce_storage::authority::AuthorityStore;
+use topos_tce_storage::types::CertificateDeliveredWithPositions;
 use tracing::{error, info, warn};
 
 pub mod broadcast_state;
@@ -25,6 +28,8 @@ pub struct DoubleEcho {
     task_manager_message_sender: mpsc::Sender<DoubleEchoCommand>,
     /// The overview of the network, which holds echo and ready subscriptions and the network size
     pub subscriptions: SubscriptionsView,
+    pub authority_store: Arc<AuthorityStore>,
+    pub broadcast_sender: broadcast::Sender<CertificateDeliveredWithPositions>,
 }
 
 impl DoubleEcho {
@@ -37,7 +42,9 @@ impl DoubleEcho {
         command_receiver: mpsc::Receiver<DoubleEchoCommand>,
         event_sender: mpsc::Sender<ProtocolEvents>,
         shutdown: mpsc::Receiver<oneshot::Sender<()>>,
-        _pending_certificate_count: u64,
+        _pending_certificate_count: usize,
+        authority_store: Arc<AuthorityStore>,
+        broadcast_sender: broadcast::Sender<CertificateDeliveredWithPositions>,
     ) -> Self {
         Self {
             params,
@@ -47,6 +54,8 @@ impl DoubleEcho {
             subscriptions: SubscriptionsView::default(),
             shutdown,
             delivered_certificates: Default::default(),
+            authority_store,
+            broadcast_sender,
         }
     }
 
@@ -64,6 +73,8 @@ impl DoubleEcho {
             subscriptions_view_receiver,
             self.event_sender.clone(),
             self.params.clone(),
+            self.authority_store.clone(),
+            self.broadcast_sender.clone(),
         );
 
         tokio::spawn(task_manager.run(shutdown_receiver));
@@ -85,6 +96,7 @@ impl DoubleEcho {
             subscriptions_view_receiver,
             self.event_sender.clone(),
             self.params.clone(),
+            self.authority_store.clone(),
         );
 
         tokio::spawn(task_manager.run(shutdown_receiver));
@@ -146,7 +158,7 @@ impl DoubleEcho {
                 }
 
                 Some((certificate_id, status)) = task_completion.recv() => {
-                    if status == TaskStatus::Success {
+                    if let TaskStatus::Success = status {
                         self.delivered_certificates.insert(certificate_id);
                     }
                 }

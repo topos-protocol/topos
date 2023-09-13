@@ -1,12 +1,14 @@
 use futures::Stream;
-use std::{collections::HashMap, net::SocketAddr};
+use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use tokio::{
     spawn,
-    sync::{mpsc, oneshot, RwLock},
+    sync::{broadcast, mpsc, oneshot, RwLock},
 };
 use tokio_stream::wrappers::ReceiverStream;
 use topos_core::api::grpc::tce::v1::StatusResponse;
-use topos_tce_storage::StorageClient;
+use topos_tce_storage::{
+    fullnode::FullNodeStore, types::CertificateDeliveredWithPositions, StorageClient,
+};
 
 use crate::{
     graphql::builder::ServerBuilder as GraphQLBuilder, grpc::builder::ServerBuilder,
@@ -16,6 +18,8 @@ use crate::{
 #[derive(Default)]
 pub struct RuntimeBuilder {
     storage: Option<StorageClient>,
+    store: Option<Arc<FullNodeStore>>,
+    broadcast_stream: Option<broadcast::Receiver<CertificateDeliveredWithPositions>>,
     local_peer_id: String,
     grpc_socket_addr: Option<SocketAddr>,
     graphql_socket_addr: Option<SocketAddr>,
@@ -24,6 +28,15 @@ pub struct RuntimeBuilder {
 }
 
 impl RuntimeBuilder {
+    pub fn with_broadcast_stream(
+        mut self,
+        stream: broadcast::Receiver<CertificateDeliveredWithPositions>,
+    ) -> Self {
+        self.broadcast_stream = Some(stream);
+
+        self
+    }
+
     pub fn with_peer_id(mut self, local_peer_id: String) -> Self {
         self.local_peer_id = local_peer_id;
 
@@ -50,6 +63,12 @@ impl RuntimeBuilder {
 
     pub fn tce_status(mut self, status: RwLock<StatusResponse>) -> Self {
         self.status = Some(status);
+
+        self
+    }
+
+    pub fn store(mut self, store: Arc<FullNodeStore>) -> Self {
+        self.store = Some(store);
 
         self
     }
@@ -86,7 +105,7 @@ impl RuntimeBuilder {
             tracing::info!("Serving GraphQL on {}", graphql_addr);
 
             let graphql = GraphQLBuilder::default()
-                .storage(self.storage.clone())
+                .store(self.store.take().unwrap())
                 .serve_addr(Some(graphql_addr))
                 .build();
             spawn(graphql.await)
@@ -113,6 +132,7 @@ impl RuntimeBuilder {
 
         let runtime = Runtime {
             sync_tasks: HashMap::new(),
+            broadcast_stream: self.broadcast_stream.unwrap(),
             // TODO: remove unwrap
             storage: self.storage.take().unwrap(),
             active_streams: HashMap::new(),

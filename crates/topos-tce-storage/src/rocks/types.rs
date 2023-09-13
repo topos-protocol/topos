@@ -23,12 +23,13 @@ pub(crate) struct TargetSourceListKey(
     pub(crate) SubnetId,
 );
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub(crate) struct SourceStreamPositionKey(
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+// TODO: Make it private with UCI
+pub struct SourceStreamPositionKey(
     // Source subnet id
-    pub(crate) SubnetId,
+    pub SubnetId,
     // Source certificate position
-    pub(crate) Position,
+    pub Position,
 );
 
 /// Column that keeps certificates that are not yet delivered

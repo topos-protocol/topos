@@ -7,7 +7,7 @@ use checkpoints_collector::{
 use futures::{future::BoxFuture, FutureExt};
 use thiserror::Error;
 use tokio::sync::{
-    mpsc::{self, error::SendError},
+    mpsc,
     oneshot::{self, error::RecvError},
 };
 use tokio_stream::StreamExt;
@@ -22,7 +22,6 @@ use tracing::{info, warn};
 
 pub struct Synchronizer {
     pub(crate) shutdown: mpsc::Receiver<oneshot::Sender<()>>,
-    pub(crate) commands: mpsc::Receiver<SynchronizerCommand>,
     #[allow(dead_code)]
     pub(crate) events: mpsc::Sender<SynchronizerEvent>,
 
@@ -40,10 +39,10 @@ impl IntoFuture for Synchronizer {
         async move {
             let shutdowned: Option<oneshot::Sender<()>> = loop {
                 tokio::select! {
+
                     shutdown = self.shutdown.recv() => {
                         break shutdown;
                     }
-                    Some(command) = self.commands.recv() => self.handle_command(command).await?,
                     _checkpoint_event = self.checkpoints_collector_stream.next() => {}
                 }
             };
@@ -66,24 +65,6 @@ impl Synchronizer {
     pub fn builder() -> SynchronizerBuilder {
         SynchronizerBuilder::default()
     }
-
-    async fn handle_command(
-        &mut self,
-        command: SynchronizerCommand,
-    ) -> Result<(), SynchronizerError> {
-        match command {
-            SynchronizerCommand::Start { response_channel } => {
-                if self.checkpoints_collector.start().await.is_err() {
-                    _ = response_channel.send(Err(SynchronizerError::UnableToStart));
-
-                    return Err(SynchronizerError::UnableToStart);
-                }
-                _ = response_channel.send(Ok(()));
-            }
-        }
-
-        Ok(())
-    }
 }
 
 #[derive(Error, Debug)]
@@ -103,18 +84,8 @@ pub enum SynchronizerError {
     #[error(transparent)]
     OneshotCommunicationChannel(#[from] RecvError),
 
-    #[error(transparent)]
-    InternalCommunicationChannel(#[from] SendError<SynchronizerCommand>),
-
     #[error("Unable to execute shutdown on the Synchronizer: {0}")]
     ShutdownCommunication(mpsc::error::SendError<oneshot::Sender<()>>),
-}
-
-#[derive(Debug)]
-pub enum SynchronizerCommand {
-    Start {
-        response_channel: oneshot::Sender<Result<(), SynchronizerError>>,
-    },
 }
 
 pub enum SynchronizerEvent {}

@@ -4,18 +4,21 @@ use rstest::*;
 use std::collections::HashMap;
 use test_log::test;
 use tokio::time::Duration;
+use topos_core::api::grpc::shared::v1::positions::SourceStreamPosition;
 use topos_core::api::grpc::shared::v1::{
     checkpoints::TargetCheckpoint, positions::TargetStreamPosition,
 };
 use topos_core::api::grpc::shared::v1::{CertificateId, StarkProof, SubnetId};
+use topos_core::api::grpc::tce::v1::LastPendingCertificate;
 use topos_core::api::grpc::tce::v1::{
     watch_certificates_request, watch_certificates_response,
     watch_certificates_response::CertificatePushed, GetLastPendingCertificatesRequest,
     GetLastPendingCertificatesResponse, GetSourceHeadRequest, GetSourceHeadResponse,
-    LastPendingCertificate, SourceStreamPosition, SubmitCertificateRequest,
+    SubmitCertificateRequest,
 };
 use topos_core::api::grpc::uci::v1::Certificate;
-use topos_core::uci::{self, SUBNET_ID_LENGTH};
+use topos_core::uci::SUBNET_ID_LENGTH;
+use topos_tce_storage::types::CertificateDelivered;
 use tracing::{debug, error, info};
 
 use topos_test_sdk::{
@@ -173,7 +176,7 @@ async fn test_tce_get_source_head_certificate(
     let expected_response = GetSourceHeadResponse {
         certificate: Some(expected_default_genesis_certificate.clone()),
         position: Some(SourceStreamPosition {
-            subnet_id: Some(source_subnet_id.clone()),
+            source_subnet_id: Some(source_subnet_id.clone()),
             certificate_id: expected_default_genesis_certificate.id.clone(),
             position: 0,
         }),
@@ -227,7 +230,7 @@ async fn test_tce_get_source_head_certificate(
     let expected_response = GetSourceHeadResponse {
         certificate: Some(expected_default_genesis_certificate.clone()),
         position: Some(SourceStreamPosition {
-            subnet_id: Some(source_subnet_id.clone()),
+            source_subnet_id: Some(source_subnet_id.clone()),
             certificate_id: expected_default_genesis_certificate.id,
             position: 0,
         }),
@@ -280,7 +283,7 @@ async fn test_tce_get_last_pending_certificates(
         match context
             .api_grpc_client
             .submit_certificate(SubmitCertificateRequest {
-                certificate: Some(cert.clone().into()),
+                certificate: Some(cert.certificate.clone().into()),
             })
             .await
             .map(|r| r.into_inner())
@@ -308,7 +311,15 @@ async fn test_tce_get_last_pending_certificates(
     let expected_last_pending_certificates = vec![(
         base64::engine::general_purpose::STANDARD.encode(&source_subnet_id.value),
         LastPendingCertificate {
-            value: Some(certificates.iter().last().unwrap().clone().into()),
+            value: Some(
+                certificates
+                    .iter()
+                    .last()
+                    .unwrap()
+                    .clone()
+                    .certificate
+                    .into(),
+            ),
             index: 0,
         },
     )]
@@ -329,7 +340,7 @@ async fn test_tce_get_last_pending_certificates(
 #[test(tokio::test)]
 #[timeout(Duration::from_secs(300))]
 async fn test_tce_open_stream_with_checkpoint(
-    input_certificates: Vec<uci::Certificate>,
+    input_certificates: Vec<CertificateDelivered>,
     #[with(input_certificates.clone())]
     #[future]
     start_node: TceContext,
@@ -362,13 +373,23 @@ async fn test_tce_open_stream_with_checkpoint(
                 source_subnet_id: source_subnet_id_1.clone().into(),
                 target_subnet_id: target_subnet_id.clone().into(),
                 position: source_subnet_id_1_stream_position,
-                certificate_id: Some(source_subnet_id_1_prefilled_certificates[3].id.into()),
+                certificate_id: Some(
+                    source_subnet_id_1_prefilled_certificates[3]
+                        .certificate
+                        .id
+                        .into(),
+                ),
             },
             TargetStreamPosition {
                 source_subnet_id: source_subnet_id_2.clone().into(),
                 target_subnet_id: target_subnet_id.clone().into(),
                 position: source_subnet_id_2_stream_position,
-                certificate_id: Some(source_subnet_id_2_prefilled_certificates[1].id.into()),
+                certificate_id: Some(
+                    source_subnet_id_2_prefilled_certificates[1]
+                        .certificate
+                        .id
+                        .into(),
+                ),
             },
         ],
     };
@@ -376,15 +397,17 @@ async fn test_tce_open_stream_with_checkpoint(
     // Make list of expected certificate, first received certificate for every source subnet and its position
     let mut expected_certs = HashMap::<SubnetId, (Certificate, u64)>::new();
     expected_certs.insert(
-        input_certificates[4].source_subnet_id.into(),
-        (input_certificates[4].clone().into(), 4),
+        input_certificates[4].certificate.source_subnet_id.into(),
+        (input_certificates[4].certificate.clone().into(), 4),
     );
     expected_certs.insert(
         input_certificates[SOURCE_SUBNET_ID_1_NUMBER_OF_PREFILLED_CERTIFICATES + 2]
+            .certificate
             .source_subnet_id
             .into(),
         (
             input_certificates[SOURCE_SUBNET_ID_1_NUMBER_OF_PREFILLED_CERTIFICATES + 2]
+                .certificate
                 .clone()
                 .into(),
             2,
@@ -395,7 +418,7 @@ async fn test_tce_open_stream_with_checkpoint(
     let mut index = -1;
     input_certificates
         .iter()
-        .map(|c| c.id)
+        .map(|c| c.certificate.id)
         .collect::<Vec<_>>()
         .iter()
         .for_each(|id| {
@@ -492,7 +515,7 @@ async fn test_tce_open_stream_with_checkpoint(
 }
 
 #[fixture]
-fn input_certificates() -> Vec<uci::Certificate> {
+fn input_certificates() -> Vec<CertificateDelivered> {
     let mut certificates = Vec::new();
     certificates.append(&mut create_certificate_chain(
         SOURCE_SUBNET_ID_1,

@@ -1,4 +1,4 @@
-use std::net::SocketAddr;
+use std::{net::SocketAddr, sync::Arc};
 
 use async_graphql::{EmptyMutation, EmptySubscription, Schema};
 use axum::{extract::Extension, routing::get, Router, Server};
@@ -10,17 +10,17 @@ use crate::graphql::{
     query::{QueryRoot, ServiceSchema},
     routes::{graphql_handler, graphql_playground, health},
 };
-use topos_tce_storage::StorageClient;
+use topos_tce_storage::fullnode::FullNodeStore;
 
 #[derive(Default)]
 pub struct ServerBuilder {
-    storage: Option<StorageClient>,
+    store: Option<Arc<FullNodeStore>>,
     serve_addr: Option<SocketAddr>,
 }
 
 impl ServerBuilder {
-    pub(crate) fn storage(mut self, storage: Option<StorageClient>) -> Self {
-        self.storage = storage;
+    pub(crate) fn store(mut self, store: Arc<FullNodeStore>) -> Self {
+        self.store = Some(store);
 
         self
     }
@@ -42,13 +42,13 @@ impl ServerBuilder {
             // allow requests from any origin
             .allow_origin(Any);
 
-        let storage = self
-            .storage
+        let store = self
+            .store
             .take()
-            .expect("Cannot build GraphQL server without a storage client");
+            .expect("Cannot build GraphQL server without a FullNode store");
 
         let schema: ServiceSchema = Schema::build(QueryRoot, EmptyMutation, EmptySubscription)
-            .data(storage)
+            .data(store)
             .finish();
 
         let app = Router::new()

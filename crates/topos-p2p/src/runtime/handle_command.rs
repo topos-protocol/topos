@@ -2,6 +2,7 @@ use std::collections::hash_map::Entry;
 
 use crate::{
     behaviour::transmission::codec::{TransmissionRequest, TransmissionResponse},
+    constant::SYNCHRONIZER_PROTOCOL,
     error::P2PError,
     Command, Runtime,
 };
@@ -116,12 +117,24 @@ impl Runtime {
                 }
             }
 
-            Command::TransmissionReq { to, data, sender } => {
-                let request_id = self
-                    .swarm
-                    .behaviour_mut()
-                    .transmission
-                    .send_request(&to, TransmissionRequest(data));
+            Command::TransmissionReq {
+                to,
+                data,
+                sender,
+                protocol,
+            } => {
+                let request_id = match protocol {
+                    SYNCHRONIZER_PROTOCOL => self
+                        .swarm
+                        .behaviour_mut()
+                        .synchronizer
+                        .send_request(&to, TransmissionRequest::Synchronizer(data)),
+                    _ => self
+                        .swarm
+                        .behaviour_mut()
+                        .transmission
+                        .send_request(&to, TransmissionRequest::Transmission(data)),
+                };
 
                 info!("Created a transmission request {request_id:?} for {to}");
 
@@ -130,12 +143,28 @@ impl Runtime {
                 }
             }
 
-            Command::TransmissionResponse { data, channel } => {
-                _ = self
-                    .swarm
-                    .behaviour_mut()
-                    .transmission
-                    .send_response(channel, TransmissionResponse(data));
+            Command::TransmissionResponse {
+                data,
+                channel,
+                protocol,
+            } => {
+                match protocol {
+                    SYNCHRONIZER_PROTOCOL => {
+                        _ = self
+                            .swarm
+                            .behaviour_mut()
+                            .synchronizer
+                            .send_response(channel, data.map(TransmissionResponse::Synchronizer))
+                    }
+
+                    _ => {
+                        _ = self
+                            .swarm
+                            .behaviour_mut()
+                            .transmission
+                            .send_response(channel, data.map(TransmissionResponse::Transmission))
+                    }
+                };
             }
 
             Command::Gossip { topic, data } => {

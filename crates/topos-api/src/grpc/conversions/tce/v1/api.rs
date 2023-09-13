@@ -1,9 +1,7 @@
-use prost::{bytes::Bytes, Message};
-
-use super::v1::{
+use crate::grpc::tce::v1::{
     watch_certificates_request::{Command, OpenStream},
     watch_certificates_response::{CertificatePushed, Event, StreamOpened},
-    CheckpointRequest, CheckpointResponse, WatchCertificatesRequest, WatchCertificatesResponse,
+    WatchCertificatesRequest, WatchCertificatesResponse,
 };
 
 macro_rules! impl_command_conversion {
@@ -36,16 +34,3 @@ impl_command_conversion!(OpenStream);
 
 impl_event_conversion!(StreamOpened);
 impl_event_conversion!(CertificatePushed);
-
-impl From<CheckpointRequest> for Vec<u8> {
-    fn from(val: CheckpointRequest) -> Self {
-        val.encode_to_vec()
-    }
-}
-
-impl From<Vec<u8>> for CheckpointResponse {
-    fn from(input: Vec<u8>) -> Self {
-        let bytes = Bytes::from(input);
-        prost::Message::decode(bytes).unwrap()
-    }
-}

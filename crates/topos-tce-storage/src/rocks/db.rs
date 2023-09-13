@@ -11,14 +11,29 @@ use super::constants;
 pub(crate) static DB: OnceCell<RocksDB> = OnceCell::new();
 pub(crate) type RocksDB = Arc<rocksdb::DBWithThreadMode<MultiThreaded>>;
 
+pub(crate) fn init_with_cfs(
+    path: &PathBuf,
+    mut options: rocksdb::Options,
+    cfs: Vec<ColumnFamilyDescriptor>,
+) -> Result<RocksDB, InternalStorageError> {
+    options.create_missing_column_families(true);
+
+    Ok(Arc::new(
+        rocksdb::DBWithThreadMode::<MultiThreaded>::open_cf_descriptors(&options, path, cfs)?,
+    ))
+}
+pub(crate) fn default_options() -> rocksdb::Options {
+    let mut options = Options::default();
+    options.create_if_missing(true);
+
+    options
+}
+
 pub(crate) fn init_db(
     path: &PathBuf,
-    options: &mut rocksdb::Options,
+    options: rocksdb::Options,
 ) -> Result<RocksDB, InternalStorageError> {
-    let default_rocksdb_options = rocksdb::Options::default();
-
-    let mut options_source = Options::default();
-    options_source.create_if_missing(true);
+    let mut options_source = default_options();
     options_source.set_prefix_extractor(rocksdb::SliceTransform::create_fixed_prefix(
         constants::SOURCE_STREAMS_PREFIX_SIZE,
     ));
@@ -28,24 +43,13 @@ pub(crate) fn init_db(
     options_target.set_prefix_extractor(rocksdb::SliceTransform::create_fixed_prefix(
         constants::TARGET_STREAMS_PREFIX_SIZE,
     ));
+    let cfs = vec![
+        ColumnFamilyDescriptor::new(constants::PENDING_CERTIFICATES, default_options()),
+        ColumnFamilyDescriptor::new(constants::CERTIFICATES, rocksdb::Options::default()),
+        ColumnFamilyDescriptor::new(constants::SOURCE_STREAMS, options_source),
+        ColumnFamilyDescriptor::new(constants::TARGET_STREAMS, options_target),
+        ColumnFamilyDescriptor::new(constants::TARGET_SOURCES, default_options()),
+    ];
 
-    Ok(Arc::new(
-        rocksdb::DBWithThreadMode::<MultiThreaded>::open_cf_descriptors(
-            options,
-            path,
-            vec![
-                ColumnFamilyDescriptor::new(
-                    constants::PENDING_CERTIFICATES,
-                    default_rocksdb_options.clone(),
-                ),
-                ColumnFamilyDescriptor::new(
-                    constants::CERTIFICATES,
-                    default_rocksdb_options.clone(),
-                ),
-                ColumnFamilyDescriptor::new(constants::SOURCE_STREAMS, options_source),
-                ColumnFamilyDescriptor::new(constants::TARGET_STREAMS, options_target),
-                ColumnFamilyDescriptor::new(constants::TARGET_SOURCES, default_rocksdb_options),
-            ],
-        )?,
-    ))
+    init_with_cfs(path, options, cfs)
 }

@@ -1,16 +1,19 @@
 use futures::Stream;
 use std::future::IntoFuture;
+use std::sync::Arc;
 use tokio::{spawn, task::JoinHandle};
 
-use topos_p2p::Client;
-use topos_tce_gatekeeper::GatekeeperClient;
+use topos_p2p::Client as NetworkClient;
+use topos_tce_gatekeeper::Client as GatekeeperClient;
+use topos_tce_storage::authority::AuthorityStore;
 use topos_tce_synchronizer::SynchronizerClient;
 use topos_tce_synchronizer::SynchronizerError;
 use topos_tce_synchronizer::SynchronizerEvent;
 
 pub async fn create_synchronizer(
     gatekeeper_client: GatekeeperClient,
-    network_client: Client,
+    network_client: NetworkClient,
+    store: Arc<AuthorityStore>,
 ) -> (
     SynchronizerClient,
     impl Stream<Item = SynchronizerEvent>,
@@ -18,6 +21,7 @@ pub async fn create_synchronizer(
 ) {
     let (synchronizer_client, synchronizer_runtime, synchronizer_stream) =
         topos_tce_synchronizer::Synchronizer::builder()
+            .with_store(store)
             .with_gatekeeper_client(gatekeeper_client.clone())
             .with_network_client(network_client.clone())
             .await

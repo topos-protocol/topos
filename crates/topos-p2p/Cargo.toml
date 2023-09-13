@@ -16,7 +16,7 @@ tokio-stream.workspace = true
 tracing = { workspace = true, features = ["attributes"] }
 libp2p = { workspace = true, features = ["macros", "gossipsub", "tcp", "dns", "tokio", "request-response", "identify", "kad", "serde", "yamux", "secp256k1"] }
 hex.workspace = true
-
+unsigned-varint = { version = "0.7.1", features = ["futures", "asynchronous_codec"] }
 void = "1"
 
 topos-metrics = { path = "../topos-metrics/" }
@@ -27,5 +27,4 @@ test-log.workspace = true
 env_logger.workspace = true
 rstest = { workspace = true, features = ["async-timeout"] }
 tracing-subscriber.workspace = true
-
 topos-test-sdk = { path = "../topos-test-sdk/", features = ["tce"] }

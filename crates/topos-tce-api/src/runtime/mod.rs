@@ -8,7 +8,7 @@ use std::{
 use tokio::{
     spawn,
     sync::mpsc::{self, Receiver, Sender},
-    sync::oneshot,
+    sync::{broadcast, oneshot},
     task::JoinHandle,
 };
 use tonic_health::server::HealthReporter;
@@ -16,8 +16,8 @@ use topos_core::api::grpc::checkpoints::TargetStreamPosition;
 use topos_core::api::grpc::tce::v1::api_service_server::ApiServiceServer;
 use topos_core::uci::{Certificate, SubnetId};
 use topos_tce_storage::{
-    CertificateTargetStreamPosition, FetchCertificatesFilter, FetchCertificatesPosition,
-    StorageClient,
+    types::CertificateDeliveredWithPositions, CertificateTargetStreamPosition,
+    FetchCertificatesFilter, FetchCertificatesPosition, StorageClient,
 };
 
 use tracing::{debug, error, info};
@@ -52,6 +52,8 @@ pub(crate) type Streams =
 pub struct Runtime {
     pub(crate) sync_tasks: HashMap<Uuid, JoinHandle<()>>,
 
+    pub(crate) broadcast_stream: broadcast::Receiver<CertificateDeliveredWithPositions>,
+
     pub(crate) storage: StorageClient,
     /// Streams that are currently active (with a valid handshake)
     pub(crate) active_streams: HashMap<Uuid, Sender<StreamCommand>>,
@@ -85,8 +87,38 @@ impl Runtime {
                 shutdown = self.shutdown.recv() => {
                     break shutdown;
                 },
+
                 _ = health_update.tick() => {
                     self.health_reporter.set_serving::<ApiServiceServer<TceGrpcService>>().await;
+                }
+
+                Ok(certificate_delivered) = self.broadcast_stream.recv() => {
+                    let certificate = certificate_delivered.0.certificate;
+                    let certificate_id = certificate.id;
+                    let positions = certificate_delivered.1;
+                    let cmd = RuntimeCommand::DispatchCertificate {
+                        certificate,
+                        positions: positions
+                            .targets
+                            .into_iter()
+                            .map(|(subnet_id, certificate_target_stream_position)| {
+                                (
+                                    subnet_id,
+                                    TargetStreamPosition {
+                                        target_subnet_id:
+                                            certificate_target_stream_position.target_subnet_id,
+                                        source_subnet_id:
+                                            certificate_target_stream_position.source_subnet_id,
+                                        position: certificate_target_stream_position.position.0,
+                                        certificate_id: Some(certificate_id),
+                                    },
+                                )
+                            })
+                        .collect::<HashMap<SubnetId, TargetStreamPosition>>()
+                    };
+
+                    self.handle_runtime_command(cmd).await;
+
                 }
 
                 Some(result) = self.streams.next() => {
@@ -242,7 +274,7 @@ impl Runtime {
 
                     // TODO: Refactor this using a better handle, FuturesUnordered + Killswitch
                     let task = spawn(async move {
-                        info!("Sync task started for sequencer stream {}", stream_id);
+                        info!("Sync task started for stream {}", stream_id);
                         let mut collector: Vec<(Certificate, FetchCertificatesPosition)> =
                             Vec::new();
 
@@ -250,7 +282,7 @@ impl Runtime {
                             let source_subnet_list = storage.targeted_by(target_subnet_id).await;
 
                             info!(
-                                "Sequencer sync task detected {:?} as source list",
+                                "Stream sync task detected {:?} as source list",
                                 source_subnet_list
                             );
                             if let Ok(source_subnet_list) = source_subnet_list {
@@ -294,7 +326,7 @@ impl Runtime {
 
                         for (certificate, position) in collector {
                             info!(
-                                "Sequencer sync task for {} is sending {}",
+                                "Stream sync task for {} is sending {}",
                                 stream_id, certificate.id
                             );
                             // TODO: catch error on send

@@ -13,8 +13,10 @@ mod tests;
 
 use std::str::FromStr;
 
+pub use behaviour::transmission::codec::TransmissionResponse;
 pub(crate) use behaviour::Behaviour;
 pub use client::Client;
+pub use client::NetworkClient;
 pub use client::RetryPolicy;
 pub(crate) use command::Command;
 pub use command::NotReadyMessage;

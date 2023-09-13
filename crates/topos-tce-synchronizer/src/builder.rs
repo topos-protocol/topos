@@ -1,20 +1,33 @@
-use std::future::IntoFuture;
+use std::{future::IntoFuture, sync::Arc};
 
 use futures::{future::BoxFuture, FutureExt, TryFutureExt};
 use tokio::{spawn, sync::mpsc, sync::oneshot};
 use tokio_stream::wrappers::ReceiverStream;
 use topos_p2p::Client as NetworkClient;
-use topos_tce_gatekeeper::GatekeeperClient;
+use topos_tce_gatekeeper::Client as GatekeeperClient;
+use topos_tce_storage::authority::AuthorityStore;
 
 use crate::{
-    checkpoints_collector::CheckpointsCollector, client::SynchronizerClient, Synchronizer,
+    checkpoints_collector::CheckpointSynchronizer, client::SynchronizerClient, Synchronizer,
     SynchronizerError, SynchronizerEvent,
 };
 
-#[derive(Default)]
 pub struct SynchronizerBuilder {
     gatekeeper_client: Option<GatekeeperClient>,
     network_client: Option<NetworkClient>,
+    store: Option<Arc<AuthorityStore>>,
+    sync_interval_seconds: u64,
+}
+
+impl Default for SynchronizerBuilder {
+    fn default() -> Self {
+        Self {
+            gatekeeper_client: None,
+            network_client: None,
+            store: None,
+            sync_interval_seconds: 1,
+        }
+    }
 }
 
 impl IntoFuture for SynchronizerBuilder {
@@ -31,12 +44,13 @@ impl IntoFuture for SynchronizerBuilder {
 
     fn into_future(mut self) -> Self::IntoFuture {
         let (shutdown_channel, shutdown) = mpsc::channel::<oneshot::Sender<()>>(1);
-        let (commands, commands_recv) = mpsc::channel(100);
         let (events, events_recv) = mpsc::channel(100);
 
-        CheckpointsCollector::builder()
+        CheckpointSynchronizer::builder()
             .set_gatekeeper_client(self.gatekeeper_client.take())
             .set_network_client(self.network_client.take())
+            .set_sync_interval_seconds(self.sync_interval_seconds)
+            .set_store(self.store)
             .into_future()
             .map_err(Into::into)
             .and_then(
@@ -44,14 +58,11 @@ impl IntoFuture for SynchronizerBuilder {
                     spawn(runtime.into_future());
 
                     futures::future::ok((
-                        SynchronizerClient {
-                            shutdown_channel,
-                            commands,
-                        },
+                        SynchronizerClient { shutdown_channel },
                         Synchronizer {
                             shutdown,
-                            commands: commands_recv,
                             events,
+
                             checkpoints_collector,
                             checkpoints_collector_stream,
                         },
@@ -64,6 +75,12 @@ impl IntoFuture for SynchronizerBuilder {
 }
 
 impl SynchronizerBuilder {
+    pub fn with_store(mut self, store: Arc<AuthorityStore>) -> Self {
+        self.store = Some(store);
+
+        self
+    }
+
     pub fn with_gatekeeper_client(mut self, gatekeeper_client: GatekeeperClient) -> Self {
         self.gatekeeper_client = Some(gatekeeper_client);
 
@@ -72,6 +89,12 @@ impl SynchronizerBuilder {
 
     pub fn with_network_client(mut self, network_client: NetworkClient) -> Self {
         self.network_client = Some(network_client);
+
+        self
+    }
+
+    pub fn with_sync_interval_seconds(mut self, sync_interval_seconds: u64) -> Self {
+        self.sync_interval_seconds = sync_interval_seconds;
 
         self
     }

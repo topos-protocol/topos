@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use async_graphql::{Context, EmptyMutation, EmptySubscription, Object, Schema};
 use async_trait::async_trait;
 use topos_api::graphql::errors::GraphQLServerError;
@@ -6,7 +8,10 @@ use topos_api::graphql::{
     checkpoint::SourceCheckpoint,
     query::CertificateQuery,
 };
-use topos_tce_storage::{CertificateSourceStreamPosition, FetchCertificatesFilter, StorageClient};
+use topos_tce_storage::fullnode::FullNodeStore;
+use topos_tce_storage::store::ReadStore;
+use topos_tce_storage::types::SourceStreamPositionKey;
+use topos_tce_storage::StorageClient;
 
 use tracing::debug;
 
@@ -20,8 +25,8 @@ impl CertificateQuery for QueryRoot {
         from_source_checkpoint: SourceCheckpoint,
         first: usize,
     ) -> Result<Vec<Certificate>, GraphQLServerError> {
-        let storage = ctx.data::<StorageClient>().map_err(|_| {
-            tracing::error!("Failed to get storage client from context");
+        let store = ctx.data::<Arc<FullNodeStore>>().map_err(|_| {
+            tracing::error!("Failed to get store from context");
 
             GraphQLServerError::ParseDataConnector
         })?;
@@ -29,25 +34,24 @@ impl CertificateQuery for QueryRoot {
         let mut certificates = Vec::default();
 
         for (index, _) in from_source_checkpoint.source_subnet_ids.iter().enumerate() {
-            let certificates_with_position = storage
-                .fetch_certificates(FetchCertificatesFilter::Source {
-                    source_stream_position: CertificateSourceStreamPosition {
-                        source_subnet_id: topos_core::uci::SubnetId::try_from(
-                            &from_source_checkpoint.positions[index].source_subnet_id,
-                        )?,
-                        position: topos_tce_storage::Position(
-                            from_source_checkpoint.positions[index].position,
-                        ),
-                    },
-                    limit: first,
-                })
-                .await
+            let subnet_id = topos_core::uci::SubnetId::try_from(
+                &from_source_checkpoint.positions[index].source_subnet_id,
+            )?;
+            let position =
+                topos_tce_storage::Position(from_source_checkpoint.positions[index].position);
+
+            let certificates_with_position = store
+                .get_source_stream_certificates_from_position(
+                    SourceStreamPositionKey(subnet_id, position),
+                    first,
+                )
                 .map_err(|_| GraphQLServerError::StorageError)?;
+
             debug!("Returned from storage: {certificates_with_position:?}");
             certificates.extend(
                 certificates_with_position
                     .into_iter()
-                    .map(|(c, _)| c.into()),
+                    .map(|(c, _)| c.certificate.into()),
             );
         }
 

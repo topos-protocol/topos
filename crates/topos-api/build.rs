@@ -5,9 +5,42 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tonic_build::configure()
         .file_descriptor_set_path(descriptor_path)
-        .type_attribute(".topos.shared.v1.UUID", "#[derive(Copy)]")
-        .type_attribute(".topos.shared.v1.SubnetId", "#[derive(Eq, Hash)]")
-        .type_attribute(".topos.shared.v1.CertificateId", "#[derive(Eq, Hash)]")
+        .type_attribute(
+            ".topos.shared.v1.UUID",
+            "#[derive(Copy, serde::Deserialize, serde::Serialize)]",
+        )
+        .type_attribute(
+            ".topos.shared.v1.SubnetId",
+            "#[derive(Eq, Hash, serde::Deserialize, serde::Serialize)]",
+        )
+        .type_attribute(
+            ".topos.shared.v1.CertificateId",
+            "#[derive(Eq, Hash, serde::Deserialize, serde::Serialize)]",
+        )
+        .type_attribute(
+            ".topos.tce.v1.SignedReady",
+            "#[derive(serde::Deserialize, serde::Serialize)]",
+        )
+        .type_attribute(
+            ".topos.shared.v1.Positions.SourceStreamPosition",
+            "#[derive(serde::Deserialize, serde::Serialize)]",
+        )
+        .type_attribute(
+            ".topos.tce.v1.ProofOfDelivery",
+            "#[derive(serde::Deserialize, serde::Serialize)]",
+        )
+        .type_attribute(
+            ".topos.tce.v1.CheckpointResponse",
+            "#[derive(serde::Deserialize, serde::Serialize)]",
+        )
+        .type_attribute(
+            ".topos.tce.v1.CheckpointRequest",
+            "#[derive(serde::Deserialize, serde::Serialize)]",
+        )
+        .type_attribute(
+            ".topos.tce.v1.CheckpointMapFieldEntry",
+            "#[derive(serde::Deserialize, serde::Serialize)]",
+        )
         .out_dir("src/grpc/generated")
         .compile(
             &[

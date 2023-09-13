@@ -1,13 +1,15 @@
 use super::{Behaviour, Client, Event, Runtime};
 use crate::{
     behaviour::{
-        discovery::DiscoveryBehaviour, gossip, peer_info::PeerInfoBehaviour,
-        transmission::TransmissionBehaviour,
+        discovery::DiscoveryBehaviour,
+        gossip,
+        peer_info::PeerInfoBehaviour,
+        transmission::{codec::TransmissionCodec, TransmissionBehaviour},
     },
     config::{DiscoveryConfig, NetworkConfig},
     constant::{
         COMMAND_STREAM_BUFFER_SIZE, DISCOVERY_PROTOCOL, EVENT_STREAM_BUFFER, PEER_INFO_PROTOCOL,
-        TRANSMISSION_PROTOCOL,
+        SYNCHRONIZER_PROTOCOL, TRANSMISSION_PROTOCOL,
     },
     error::P2PError,
     TOPOS_ECHO, TOPOS_GOSSIP, TOPOS_READY,
@@ -22,7 +24,7 @@ use libp2p::{
     noise,
     swarm::{keep_alive, SwarmBuilder},
     tcp::{tokio::Transport, Config},
-    Multiaddr, PeerId, Transport as TransportTrait,
+    Multiaddr, PeerId, StreamProtocol, Transport as TransportTrait,
 };
 use std::{
     borrow::Cow,
@@ -128,6 +130,7 @@ impl<'a> NetworkBuilder<'a> {
         let (event_sender, event_receiver) = mpsc::channel(*EVENT_STREAM_BUFFER);
 
         let gossipsub = gossip::Behaviour::new(peer_key.clone()).await;
+
         let behaviour = Behaviour {
             gossipsub,
             peer_info: PeerInfoBehaviour::new(PEER_INFO_PROTOCOL, &peer_key),
@@ -143,7 +146,8 @@ impl<'a> NetworkBuilder<'a> {
                 self.known_peers,
                 false,
             ),
-            transmission: TransmissionBehaviour::create(),
+            transmission: TransmissionBehaviour::create(StreamProtocol::new(TRANSMISSION_PROTOCOL)),
+            synchronizer: TransmissionBehaviour::create(StreamProtocol::new(SYNCHRONIZER_PROTOCOL)),
             keep_alive: keep_alive::Behaviour,
         };
 
@@ -179,7 +183,7 @@ impl<'a> NetworkBuilder<'a> {
             Runtime {
                 swarm,
                 config: self.config,
-                peer_set: HashSet::new(),
+                peer_set: self.known_peers.iter().map(|(p, _)| *p).collect(),
                 is_boot_node: self.known_peers.is_empty(),
                 command_receiver,
                 event_sender,

@@ -4,13 +4,17 @@ use futures::StreamExt;
 use std::collections::HashMap;
 use std::future::IntoFuture;
 use std::pin::Pin;
+use std::sync::Arc;
 use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
+use tokio::sync::broadcast;
 use tokio::{spawn, sync::mpsc};
 use topos_core::uci::CertificateId;
 use topos_metrics::CERTIFICATE_PROCESSING_FROM_API_TOTAL;
 use topos_metrics::CERTIFICATE_PROCESSING_FROM_GOSSIP_TOTAL;
 use topos_metrics::CERTIFICATE_PROCESSING_TOTAL;
 use topos_metrics::DOUBLE_ECHO_ACTIVE_TASKS_COUNT;
+use topos_tce_storage::authority::AuthorityStore;
+use topos_tce_storage::types::CertificateDeliveredWithPositions;
 use tracing::warn;
 
 pub mod task;
@@ -38,6 +42,8 @@ pub struct TaskManager {
     pub buffered_messages: HashMap<CertificateId, Vec<DoubleEchoCommand>>,
     pub thresholds: ReliableBroadcastParams,
     pub shutdown_sender: mpsc::Sender<()>,
+    pub authority_store: Arc<AuthorityStore>,
+    pub broadcast_sender: broadcast::Sender<CertificateDeliveredWithPositions>,
 }
 
 impl TaskManager {
@@ -47,6 +53,8 @@ impl TaskManager {
         subscription_view_receiver: mpsc::Receiver<SubscriptionsView>,
         event_sender: mpsc::Sender<ProtocolEvents>,
         thresholds: ReliableBroadcastParams,
+        authority_store: Arc<AuthorityStore>,
+        broadcast_sender: broadcast::Sender<CertificateDeliveredWithPositions>,
     ) -> (Self, mpsc::Receiver<()>) {
         let (shutdown_sender, shutdown_receiver) = mpsc::channel(1);
 
@@ -62,6 +70,8 @@ impl TaskManager {
                 buffered_messages: Default::default(),
                 thresholds,
                 shutdown_sender,
+                authority_store,
+                broadcast_sender,
             },
             shutdown_receiver,
         )
@@ -101,7 +111,12 @@ impl TaskManager {
                                         need_gossip,
                                     );
 
-                                    let (task, task_context) = Task::new(cert.id, broadcast_state);
+                                    let (task, task_context) = Task::new(
+                                        cert.id,
+                                        broadcast_state,
+                                        self.authority_store.clone(),
+                                        self.broadcast_sender.clone()
+                                    );
 
                                     self.running_tasks.push(task.into_future());
 
@@ -133,7 +148,7 @@ impl TaskManager {
 
 
                 Some((certificate_id, status)) = self.running_tasks.next() => {
-                    if status == TaskStatus::Success {
+                    if let TaskStatus::Success = status {
                         self.tasks.remove(&certificate_id);
                         DOUBLE_ECHO_ACTIVE_TASKS_COUNT.dec();
                         let _ = self.task_completion_sender.send((certificate_id, status)).await;

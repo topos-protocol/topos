@@ -1,10 +1,22 @@
 use errors::{InternalStorageError, PositionError};
+use rocks::SourceStreamPositionKey;
 use rocks::{iterator::ColumnIterator, TargetStreamPositionKey};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
 
+// v2
+/// Everything that is needed to participate to the protocol
+pub mod authority;
+/// Epoch related store
+pub mod epoch;
+/// Fullnode store
+pub mod fullnode;
+pub mod index;
+pub mod types;
+
+// v1
 pub mod client;
 pub(crate) mod command;
 pub(crate) mod connection;
@@ -24,6 +36,8 @@ pub use connection::ConnectionBuilder;
 
 #[cfg(feature = "rocksdb")]
 pub use rocks::RocksDBStorage;
+
+pub mod store;
 
 pub type PendingCertificateId = u64;
 
@@ -45,13 +59,22 @@ impl Position {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CertificateSourceStreamPosition {
     pub source_subnet_id: SubnetId,
     pub position: Position,
 }
 
-#[derive(Debug)]
+impl From<SourceStreamPositionKey> for CertificateSourceStreamPosition {
+    fn from(value: SourceStreamPositionKey) -> Self {
+        CertificateSourceStreamPosition {
+            source_subnet_id: value.0,
+            position: value.1,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct CertificateTargetStreamPosition {
     pub target_subnet_id: SubnetId,
     pub source_subnet_id: SubnetId,
@@ -77,6 +100,7 @@ pub enum FetchCertificatesPosition {
     Target(CertificateTargetStreamPosition),
 }
 
+#[derive(Debug, Clone)]
 pub struct CertificatePositions {
     pub targets: HashMap<SubnetId, CertificateTargetStreamPosition>,
     pub source: CertificateSourceStreamPosition,
@@ -88,11 +112,11 @@ pub struct CertificatePositions {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SourceHead {
     /// Certificate id of the head
-    cert_id: CertificateId,
+    pub certificate_id: CertificateId,
     /// Subnet id of the head
-    subnet_id: SubnetId,
+    pub subnet_id: SubnetId,
     /// Position of the Certificate
-    position: Position,
+    pub position: Position,
 }
 
 /// Define possible status of a certificate
