@@ -67,8 +67,7 @@ impl SubnetRuntimeProxy {
         signing_key: Vec<u8>,
     ) -> Result<Arc<Mutex<SubnetRuntimeProxy>>, crate::Error> {
         info!(
-            "Spawning new runtime proxy, http endpoint: {}, ws endpoint {} ethereum contract \
-             address: {}, ",
+            "Spawning new runtime proxy, http endpoint: {}, ws endpoint {} ethereum contract address: {}, ",
             &config.http_endpoint, &config.ws_endpoint, &config.subnet_contract_address
         );
         let (command_sender, mut command_rcv) = mpsc::channel::<SubnetRuntimeProxyCommand>(256);
