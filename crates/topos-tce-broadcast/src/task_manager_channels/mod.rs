@@ -1,6 +1,6 @@
 use libp2p::identity::secp256k1::Keypair;
 use std::collections::HashMap;
-use tce_transport::{AuthorityId, ProtocolEvents, ReliableBroadcastParams};
+use tce_transport::{ProtocolEvents, ReliableBroadcastParams, ValidatorId};
 use tokio::{spawn, sync::mpsc};
 use topos_core::uci::CertificateId;
 use tracing::warn;
@@ -29,7 +29,7 @@ pub struct TaskManager {
     pub event_sender: mpsc::Sender<ProtocolEvents>,
     pub tasks: HashMap<CertificateId, TaskContext>,
     pub buffered_messages: HashMap<CertificateId, Vec<DoubleEchoCommand>>,
-    pub authority_id: AuthorityId,
+    pub validator_id: ValidatorId,
     pub keypair: Keypair,
     pub thresholds: ReliableBroadcastParams,
     pub shutdown_sender: mpsc::Sender<()>,
@@ -41,7 +41,7 @@ impl TaskManager {
         notify_task_completion: mpsc::Sender<(CertificateId, TaskStatus)>,
         subscription_view_receiver: mpsc::Receiver<SubscriptionsView>,
         event_sender: mpsc::Sender<ProtocolEvents>,
-        authority_id: AuthorityId,
+        validator_id: ValidatorId,
         keypair: Keypair,
         thresholds: ReliableBroadcastParams,
     ) -> (Self, mpsc::Receiver<()>) {
@@ -60,7 +60,7 @@ impl TaskManager {
                 event_sender,
                 tasks: HashMap::new(),
                 buffered_messages: Default::default(),
-                authority_id,
+                validator_id,
                 keypair,
                 thresholds,
                 shutdown_sender,
@@ -92,13 +92,14 @@ impl TaskManager {
                                 std::collections::hash_map::Entry::Vacant(entry) => {
                                     let broadcast_state = BroadcastState::new(
                                         cert.clone(),
-                                        self.authority_id.clone(),
+                                        self.validator_id.clone(),
                                         self.thresholds.echo_threshold,
                                         self.thresholds.ready_threshold,
                                         self.thresholds.delivery_threshold,
                                         self.event_sender.clone(),
                                         self.subscriptions.clone(),
                                         need_gossip,
+                                        self.keypair.clone(),
                                     );
 
                                     let (task, task_context) = Task::new(cert.id, self.task_completion_sender.clone(), broadcast_state);

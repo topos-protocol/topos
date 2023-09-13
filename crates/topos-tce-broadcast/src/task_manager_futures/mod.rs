@@ -5,7 +5,7 @@ use libp2p::identity::secp256k1::Keypair;
 use std::collections::HashMap;
 use std::future::IntoFuture;
 use std::pin::Pin;
-use tce_transport::{AuthorityId, ProtocolEvents, ReliableBroadcastParams};
+use tce_transport::{ProtocolEvents, ReliableBroadcastParams, ValidatorId};
 use tokio::{spawn, sync::mpsc};
 use topos_core::uci::CertificateId;
 use topos_metrics::CERTIFICATE_PROCESSING_FROM_API_TOTAL;
@@ -39,7 +39,7 @@ pub struct TaskManager {
     >,
     pub buffered_messages: HashMap<CertificateId, Vec<DoubleEchoCommand>>,
     pub thresholds: ReliableBroadcastParams,
-    pub authority_id: AuthorityId,
+    pub validator_id: ValidatorId,
     pub shutdown_sender: mpsc::Sender<()>,
 }
 
@@ -49,7 +49,7 @@ impl TaskManager {
         task_completion_sender: mpsc::Sender<(CertificateId, TaskStatus)>,
         subscription_view_receiver: mpsc::Receiver<SubscriptionsView>,
         event_sender: mpsc::Sender<ProtocolEvents>,
-        authority_id: AuthorityId,
+        validator_id: ValidatorId,
         thresholds: ReliableBroadcastParams,
         keypair: Keypair,
     ) -> (Self, mpsc::Receiver<()>) {
@@ -65,7 +65,7 @@ impl TaskManager {
                 tasks: HashMap::new(),
                 running_tasks: FuturesUnordered::new(),
                 buffered_messages: Default::default(),
-                authority_id,
+                validator_id,
                 keypair,
                 thresholds,
                 shutdown_sender,
@@ -100,7 +100,7 @@ impl TaskManager {
                                 std::collections::hash_map::Entry::Vacant(entry) => {
                                     let broadcast_state = BroadcastState::new(
                                         cert.clone(),
-                                        self.authority_id.clone(),
+                                        self.validator_id.clone(),
                                         self.thresholds.echo_threshold,
                                         self.thresholds.ready_threshold,
                                         self.thresholds.delivery_threshold,

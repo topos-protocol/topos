@@ -1,7 +1,7 @@
 use libp2p::identity::secp256k1::Keypair;
 use std::time;
 
-use tce_transport::{AuthorityId, ProtocolEvents};
+use tce_transport::{ProtocolEvents, ValidatorId};
 use tokio::sync::mpsc;
 use topos_core::uci::Certificate;
 use topos_metrics::DOUBLE_ECHO_BROADCAST_FINISHED_TOTAL;
@@ -19,7 +19,7 @@ pub struct BroadcastState {
     subscriptions_view: SubscriptionsView,
     status: Status,
     certificate: Certificate,
-    authority_id: AuthorityId,
+    validator_id: ValidatorId,
     echo_threshold: usize,
     ready_threshold: usize,
     delivery_threshold: usize,
@@ -29,9 +29,10 @@ pub struct BroadcastState {
 }
 
 impl BroadcastState {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         certificate: Certificate,
-        authority_id: AuthorityId,
+        validator_id: ValidatorId,
         echo_threshold: usize,
         ready_threshold: usize,
         delivery_threshold: usize,
@@ -44,7 +45,7 @@ impl BroadcastState {
             subscriptions_view,
             status: Status::Pending,
             certificate,
-            authority_id,
+            validator_id,
             echo_threshold,
             ready_threshold,
             delivery_threshold,
@@ -89,8 +90,8 @@ impl BroadcastState {
                 signature: self
                     .keypair
                     .secret()
-                    .sign(&self.certificate.id.as_array().as_slice()),
-                authority_id: self.authority_id.clone(),
+                    .sign(self.certificate.id.as_array().as_slice()),
+                validator_id: self.validator_id.clone(),
             });
 
             self.status = Status::EchoSent;
@@ -112,8 +113,8 @@ impl BroadcastState {
                 signature: self
                     .keypair
                     .secret()
-                    .sign(&self.certificate.id.as_array().as_slice()),
-                authority_id: self.authority_id.clone(),
+                    .sign(self.certificate.id.as_array().as_slice()),
+                validator_id: self.validator_id.clone(),
             };
             if let Err(e) = self.event_sender.try_send(event) {
                 warn!("Error sending Ready message: {}", e);

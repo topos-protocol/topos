@@ -104,13 +104,13 @@ impl AppContext {
             ProtocolEvents::Echo {
                 certificate_id,
                 signature,
-                authority_id,
+                validator_id,
             } => {
                 // Send echo message
                 let data = NetworkMessage::from(TceCommands::OnEcho {
                     certificate_id,
                     signature,
-                    authority_id,
+                    validator_id,
                 });
 
                 if let Err(e) = self
@@ -125,12 +125,12 @@ impl AppContext {
             ProtocolEvents::Ready {
                 certificate_id,
                 signature,
-                authority_id,
+                validator_id,
             } => {
                 let data = NetworkMessage::from(TceCommands::OnReady {
                     certificate_id,
                     signature,
-                    authority_id,
+                    validator_id,
                 });
 
                 if let Err(e) = self

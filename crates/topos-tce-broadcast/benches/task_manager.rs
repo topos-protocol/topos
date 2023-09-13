@@ -1,5 +1,6 @@
+use libp2p::identity::secp256k1::Keypair;
 use std::collections::HashSet;
-use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
+use tce_transport::{ProtocolEvents, ReliableBroadcastParams, ValidatorId};
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::{mpsc, oneshot};
 use topos_tce_broadcast::double_echo::DoubleEcho;
@@ -37,9 +38,17 @@ pub async fn processing_double_echo(n: u64) {
     };
 
     let mut ctx = Context { event_receiver };
+    let mut validators = HashSet::new();
+    let validator_id = ValidatorId::from("0x100d617e4392c02b31bdce650b26b6c0c3e04f95");
+    validators.insert(validator_id.clone());
+
+    let signing_key = Keypair::generate();
 
     let mut double_echo = DoubleEcho::new(
         params.broadcast_params,
+        validator_id.clone(),
+        signing_key.clone(),
+        validators,
         task_manager_message_sender.clone(),
         cmd_receiver,
         event_sender,
@@ -51,7 +60,7 @@ pub async fn processing_double_echo(n: u64) {
     for i in 0..params.nb_peers {
         let peer = topos_p2p::utils::local_key_pair(Some(i as u8))
             .public()
-            .try_into_secp256k1()?;
+            .to_peer_id();
         peers.insert(peer);
     }
 
@@ -95,11 +104,15 @@ pub async fn processing_double_echo(n: u64) {
 
     for cert in &certificates {
         for p in &double_echo_selected_echo {
-            double_echo.handle_echo(*p, cert.id).await;
+            double_echo
+                .handle_echo(*p, cert.id, validator_id.clone(), signing_key.clone())
+                .await;
         }
 
         for p in &double_echo_selected_ready {
-            double_echo.handle_ready(*p, cert.id).await;
+            double_echo
+                .handle_ready(*p, cert.id, validator_id.clone(), signing_key.clone())
+                .await;
         }
     }
 

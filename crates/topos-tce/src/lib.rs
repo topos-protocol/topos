@@ -2,7 +2,7 @@ use std::future::IntoFuture;
 
 use config::TceConfiguration;
 use opentelemetry::global;
-use tce_transport::AuthorityId;
+use tce_transport::ValidatorId;
 use tokio::{spawn, sync::mpsc};
 use tokio_util::sync::CancellationToken;
 use topos_p2p::{
@@ -41,11 +41,14 @@ pub async fn run(
     };
 
     let peer_id = key.public().to_peer_id();
-    let authority_id =
-        AuthorityId::new(&signing_key.public().try_into_secp256k1()?.to_bytes()[0..=20])?;
+
+    let public_key_bytes = signing_key.public().try_into_secp256k1()?.to_bytes();
+    let mut validator_id_bytes = [0u8; 20];
+    validator_id_bytes.copy_from_slice(&public_key_bytes[0..=20]);
+    let validator_id = ValidatorId::new(&validator_id_bytes);
 
     warn!("I am {peer_id}");
-    warn!("My public ETH address: {authority_id}");
+    warn!("My public ETH address: {validator_id}");
 
     tracing::Span::current().record("peer_id", &peer_id.to_string());
 
@@ -100,13 +103,8 @@ pub async fn run(
     debug!("Starting reliable broadcast");
     let (tce_cli, tce_stream) = ReliableBroadcastClient::new(ReliableBroadcastConfig {
         tce_params: config.tce_params.clone(),
-        authority_id,
-        validators: config
-            .validators
-            .clone()
-            .into_iter()
-            .map(|a| AuthorityId::new(a.as_bytes().as_slice()).expect("Cannot form AuthorityId"))
-            .collect(),
+        validator_id,
+        validators: config.validators.clone(),
         signing_key: signing_key.try_into_secp256k1()?,
     })
     .await;

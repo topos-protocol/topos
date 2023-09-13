@@ -171,12 +171,8 @@ pub async fn start_node(
 
     let storage_join_handle = spawn(storage.into_future());
 
-    let (tce_cli, tce_stream) = create_reliable_broadcast_client(
-        create_reliable_broadcast_params(peers.len()),
-        config.keypair.public().to_peer_id().to_string(),
-        storage_client.clone(),
-    )
-    .await;
+    let (tce_cli, tce_stream) =
+        create_reliable_broadcast_client(create_reliable_broadcast_params(peers.len())).await;
 
     let api_storage_client = storage_client.clone();
 

@@ -4,7 +4,7 @@ use std::{fs, path::PathBuf};
 
 use serde_json::Value;
 use topos_p2p::{Multiaddr, PeerId};
-use topos_tce_transport::AuthorityId;
+use topos_tce_transport::ValidatorId;
 
 #[cfg(test)]
 pub(crate) mod tests;
@@ -60,7 +60,7 @@ impl Genesis {
     /// The `extraData` is patted with 32 bytes, and the validators are RLP encoded.
     /// Each validator is 20 bytes, with a SEAL at the end of the whole list (8 bytes)
     #[allow(dead_code)]
-    pub fn validators(&self) -> HashSet<AuthorityId> {
+    pub fn validators(&self) -> HashSet<ValidatorId> {
         let extra_data = self.json["genesis"]["extraData"]
             .as_str()
             .unwrap()
@@ -89,9 +89,8 @@ impl Genesis {
             let validator_data = first_item.at(i).expect("Failed to get RLP item").data();
             if let Ok(validator_data) = validator_data {
                 let public_key = validator_data.to_vec();
-                let address = AuthorityId::new(&public_key[1..=20])
-                    .expect("Failed to create AuthorityId from public key bytes");
-                validator_public_keys.insert(address);
+                let address = format!("0x{}", hex::encode(&public_key[1..=20]));
+                validator_public_keys.insert(ValidatorId::from(address.as_str()));
             }
         }
 

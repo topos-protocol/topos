@@ -33,31 +33,37 @@ impl ReliableBroadcastParams {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
-pub struct AuthorityId([u8; 20]);
+pub struct ValidatorId([u8; 20]);
 
-impl AuthorityId {
-    pub fn new(bytes: &[u8]) -> Result<Self, &'static str> {
-        if bytes.len() == 20 {
-            let mut array = [0u8; 20];
-            array.copy_from_slice(bytes);
-            Ok(AuthorityId(array))
-        } else {
-            Err("Invalid byte slice length for AuthorityId")
-        }
-    }
-
-    pub fn as_bytes(&self) -> &[u8; 20] {
-        &self.0
-    }
-
-    pub fn to_hex(&self) -> String {
-        format!("0x{}", hex::encode(&self.0))
+impl ValidatorId {
+    // Constructor to create a ValidatorId from a &[u8; 20]
+    pub fn new(bytes: &[u8; 20]) -> Self {
+        ValidatorId(*bytes)
     }
 }
 
-impl Display for AuthorityId {
+// Implement From<&str> for ValidatorId
+impl From<&str> for ValidatorId {
+    fn from(address: &str) -> Self {
+        // Remove the "0x" prefix from the address
+        let address_without_prefix = &address[2..];
+
+        // Convert the hexadecimal address to bytes
+        let bytes = hex::decode(address_without_prefix).expect("Failed to decode hex string");
+
+        // Ensure the bytes have the correct length (20 bytes)
+        if bytes.len() != 20 {
+            panic!("Invalid address length");
+        }
+
+        // Create a ValidatorId from the bytes
+        ValidatorId::new(&bytes.try_into().expect("Invalid byte slice length"))
+    }
+}
+
+impl Display for ValidatorId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "0x{}", self.to_hex())
+        write!(f, "0x{}", hex::encode(self.0))
     }
 }
 
@@ -88,13 +94,13 @@ pub enum TceCommands {
     OnEcho {
         certificate_id: CertificateId,
         signature: Vec<u8>,
-        authority_id: AuthorityId,
+        validator_id: ValidatorId,
     },
     /// When ready reply received
     OnReady {
         certificate_id: CertificateId,
         signature: Vec<u8>,
-        authority_id: AuthorityId,
+        validator_id: ValidatorId,
     },
     /// Given peer replied ok to the double echo request
     OnDoubleEchoOk {},
@@ -140,13 +146,13 @@ pub enum ProtocolEvents {
     Echo {
         certificate_id: CertificateId,
         signature: Vec<u8>,
-        authority_id: AuthorityId,
+        validator_id: ValidatorId,
     },
     /// Indicates that 'ready' message broadcasting is required
     Ready {
         certificate_id: CertificateId,
         signature: Vec<u8>,
-        authority_id: AuthorityId,
+        validator_id: ValidatorId,
     },
     /// For simulation purpose, for now only caused by ill-formed sampling
     Die,

@@ -109,7 +109,7 @@ impl CommandHandler<GetRandomPeers> for Gatekeeper {
 
         for index in iterator {
             if let Some(peer) = self.peer_list.get(*index as usize) {
-                peers.push(peer.clone());
+                peers.push(*peer);
             }
         }
 

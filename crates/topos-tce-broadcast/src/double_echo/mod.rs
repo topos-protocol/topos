@@ -2,7 +2,7 @@ use crate::TaskStatus;
 use crate::{DoubleEchoCommand, SubscriptionsView};
 use libp2p::identity::secp256k1::Keypair;
 use std::collections::HashSet;
-use tce_transport::{AuthorityId, ProtocolEvents, ReliableBroadcastParams};
+use tce_transport::{ProtocolEvents, ReliableBroadcastParams, ValidatorId};
 use tokio::sync::{mpsc, oneshot};
 use topos_core::uci::{Certificate, CertificateId};
 use topos_p2p::PeerId;
@@ -26,11 +26,11 @@ pub struct DoubleEcho {
     /// The overview of the network, which holds echo and ready subscriptions and the network size
     pub subscriptions: SubscriptionsView,
     /// Public ETH address
-    pub authority_id: AuthorityId,
+    pub validator_id: ValidatorId,
     /// Keypair to sign and verify ECHO and READY messages
     pub signing_key: Keypair,
     /// List of approved validators through smart contract and/or genesis
-    pub validators: HashSet<AuthorityId>,
+    pub validators: HashSet<ValidatorId>,
 }
 
 impl DoubleEcho {
@@ -39,9 +39,9 @@ impl DoubleEcho {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         params: ReliableBroadcastParams,
-        authority_id: AuthorityId,
+        validator_id: ValidatorId,
         signing_key: Keypair,
-        validators: HashSet<AuthorityId>,
+        validators: HashSet<ValidatorId>,
         task_manager_message_sender: mpsc::Sender<DoubleEchoCommand>,
         command_receiver: mpsc::Receiver<DoubleEchoCommand>,
         event_sender: mpsc::Sender<ProtocolEvents>,
@@ -49,7 +49,7 @@ impl DoubleEcho {
     ) -> Self {
         Self {
             params,
-            authority_id,
+            validator_id,
             signing_key,
             validators,
             task_manager_message_sender,
@@ -74,7 +74,7 @@ impl DoubleEcho {
             task_completion_sender,
             subscriptions_view_receiver,
             self.event_sender.clone(),
-            self.authority_id.clone(),
+            self.validator_id.clone(),
             self.params.clone(),
             self.signing_key.clone(),
         );
@@ -97,7 +97,7 @@ impl DoubleEcho {
             task_completion_sender,
             subscriptions_view_receiver,
             self.event_sender.clone(),
-            self.authority_id.clone(),
+            self.validator_id.clone(),
             self.signing_key.clone(),
             self.params.clone(),
         );
@@ -148,29 +148,29 @@ impl DoubleEcho {
 
                         command if self.subscriptions.is_some() => {
                             match command {
-                                DoubleEchoCommand::Echo { from_peer, certificate_id, authority_id, signature } => {
+                                DoubleEchoCommand::Echo { from_peer, certificate_id, validator_id, signature } => {
                                     // Check if signature is valid
                                     if !self.signing_key.public().verify(certificate_id.as_array().as_slice(), &signature) {
                                         error!("ECHO message not properly signed");
                                     }
                                     // Check if source is part of known_validators
-                                    if !self.validators.contains(&authority_id) {
-                                        error!("ECHO message comes from non-validator: {}", authority_id.to_hex());
+                                    if !self.validators.contains(&validator_id) {
+                                        error!("ECHO message comes from non-validator: {}", validator_id);
                                     }
 
-                                    self.handle_echo(from_peer, certificate_id, authority_id, self.signing_key.clone()).await
+                                    self.handle_echo(from_peer, certificate_id, validator_id, self.signing_key.clone()).await
                                 },
-                                DoubleEchoCommand::Ready { from_peer, certificate_id, authority_id, signature } => {
+                                DoubleEchoCommand::Ready { from_peer, certificate_id, validator_id, signature } => {
                                     // Check if signature is valid
                                   if !self.signing_key.public().verify(certificate_id.as_array().as_slice(), &signature) {
                                         error!("READY message not properly signed");
                                     }
                                     // Check if source is part of known_validators
-                                    if !self.validators.contains(&authority_id) {
-                                        error!("READY message comes from non-validator: {}", authority_id.to_hex());
+                                    if !self.validators.contains(&validator_id) {
+                                        error!("READY message comes from non-validator: {}", validator_id);
                                     }
 
-                                    self.handle_ready(from_peer, certificate_id, authority_id, self.signing_key.clone()).await
+                                    self.handle_ready(from_peer, certificate_id, validator_id, self.signing_key.clone()).await
                                 },
                                 _ => {}
                             }
@@ -289,16 +289,16 @@ impl DoubleEcho {
         &mut self,
         from_peer: PeerId,
         certificate_id: CertificateId,
-        authority_id: AuthorityId,
+        validator_id: ValidatorId,
         keypair: Keypair,
     ) {
         if self.delivered_certificates.get(&certificate_id).is_none() {
-            let signature = keypair.secret().sign(&certificate_id.as_array().as_slice());
+            let signature = keypair.secret().sign(certificate_id.as_array().as_slice());
             let _ = self
                 .task_manager_message_sender
                 .send(DoubleEchoCommand::Echo {
                     from_peer,
-                    authority_id,
+                    validator_id,
                     certificate_id,
                     signature,
                 })
@@ -310,16 +310,16 @@ impl DoubleEcho {
         &mut self,
         from_peer: PeerId,
         certificate_id: CertificateId,
-        authority_id: AuthorityId,
+        validator_id: ValidatorId,
         keypair: Keypair,
     ) {
         if self.delivered_certificates.get(&certificate_id).is_none() {
-            let signature = keypair.secret().sign(&certificate_id.as_array().as_slice());
+            let signature = keypair.secret().sign(certificate_id.as_array().as_slice());
             let _ = self
                 .task_manager_message_sender
                 .send(DoubleEchoCommand::Ready {
                     from_peer,
-                    authority_id,
+                    validator_id,
                     certificate_id,
                     signature,
                 })

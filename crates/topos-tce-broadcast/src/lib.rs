@@ -13,7 +13,7 @@ use tokio_stream::wrappers::ReceiverStream;
 use double_echo::DoubleEcho;
 use futures::Stream;
 use libp2p::identity::secp256k1::Keypair;
-use tce_transport::{AuthorityId, ProtocolEvents, ReliableBroadcastParams};
+use tce_transport::{ProtocolEvents, ReliableBroadcastParams, ValidatorId};
 use tokio::sync::mpsc::Sender;
 use tokio::sync::{mpsc, oneshot};
 use topos_core::uci::{Certificate, CertificateId};
@@ -50,8 +50,8 @@ pub enum TaskStatus {
 /// Configuration of TCE implementation
 pub struct ReliableBroadcastConfig {
     pub tce_params: ReliableBroadcastParams,
-    pub authority_id: AuthorityId,
-    pub validators: HashSet<AuthorityId>,
+    pub validator_id: ValidatorId,
+    pub validators: HashSet<ValidatorId>,
     pub signing_key: Keypair,
 }
 
@@ -83,7 +83,7 @@ pub enum DoubleEchoCommand {
     /// When echo reply received
     Echo {
         from_peer: PeerId,
-        authority_id: AuthorityId,
+        validator_id: ValidatorId,
         certificate_id: CertificateId,
         signature: Vec<u8>,
     },
@@ -91,7 +91,7 @@ pub enum DoubleEchoCommand {
     /// When ready reply received
     Ready {
         from_peer: PeerId,
-        authority_id: AuthorityId,
+        validator_id: ValidatorId,
         certificate_id: CertificateId,
         signature: Vec<u8>,
     },
@@ -125,7 +125,7 @@ impl ReliableBroadcastClient {
 
         let double_echo = DoubleEcho::new(
             config.tce_params,
-            config.authority_id,
+            config.validator_id,
             config.signing_key,
             config.validators,
             task_manager_message_sender,

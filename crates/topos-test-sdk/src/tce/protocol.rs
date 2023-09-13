@@ -1,19 +1,29 @@
 use futures::Stream;
+use libp2p::identity::secp256k1::Keypair;
+use std::collections::HashSet;
 
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
-use topos_tce_transport::{ProtocolEvents, ReliableBroadcastParams};
+use topos_tce_transport::{ProtocolEvents, ReliableBroadcastParams, ValidatorId};
 
 pub async fn create_reliable_broadcast_client(
     tce_params: ReliableBroadcastParams,
-    peer_id: String,
-    storage: topos_tce_storage::StorageClient,
 ) -> (
     ReliableBroadcastClient,
     impl Stream<Item = ProtocolEvents> + Unpin,
 ) {
-    let config = ReliableBroadcastConfig { tce_params };
+    let mut validators = HashSet::new();
+    let validator_id = ValidatorId::from("0xb4973cdb10894d1d1547673bd758589034c2bba5");
+    validators.insert(validator_id.clone());
+    let signing_key = Keypair::generate();
 
-    ReliableBroadcastClient::new(config, storage).await
+    let config = ReliableBroadcastConfig {
+        tce_params,
+        validator_id,
+        validators,
+        signing_key,
+    };
+
+    ReliableBroadcastClient::new(config).await
 }
 
 pub fn create_reliable_broadcast_params(number_of_nodes: usize) -> ReliableBroadcastParams {
