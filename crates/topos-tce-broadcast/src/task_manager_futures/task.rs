@@ -83,11 +83,15 @@ impl IntoFuture for Task {
             let expected_position = match self.authority_store.last_delivered_position_for_subnet(
                 &self.broadcast_state.certificate.source_subnet_id,
             ) {
-                Ok(Some(stream_position)) => stream_position.position,
+                Ok(Some(stream_position)) => stream_position.position.increment().unwrap(),
                 Ok(None) => Position(0),
                 Err(_) => return (self.certificate_id, TaskStatus::Failure),
             };
 
+            warn!(
+                "Expected position for {} is {:?}",
+                self.certificate_id, expected_position
+            );
             self.broadcast_state.expected_position = Some(expected_position);
 
             loop {

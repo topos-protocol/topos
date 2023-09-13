@@ -3,6 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use arc_swap::ArcSwap;
 use async_trait::async_trait;
 use topos_core::uci::{CertificateId, SubnetId};
+use tracing::{error, info};
 
 use crate::{
     authority::AuthorityPerpetualTables,
@@ -16,7 +17,13 @@ use crate::{
     Position, SourceHead,
 };
 
+use self::locking::LockGuards;
+
+mod locking;
+
 pub struct FullNodeStore {
+    certificate_lock_guards: LockGuards<CertificateId>,
+    subnet_lock_guards: LockGuards<SubnetId>,
     #[allow(unused)]
     epoch_store: ArcSwap<AuthorityPerEpochStore>,
     #[allow(unused)]
@@ -33,6 +40,8 @@ impl FullNodeStore {
         index_tables: Arc<IndexTables>,
     ) -> Result<Arc<Self>, StorageError> {
         Ok(Arc::new(Self {
+            certificate_lock_guards: LockGuards::new(),
+            subnet_lock_guards: LockGuards::new(),
             epoch_store,
             participants_store,
             perpetual_tables,
@@ -47,7 +56,18 @@ impl WriteStore for FullNodeStore {
         &self,
         certificate: &CertificateDelivered,
     ) -> Result<CertificatePositions, StorageError> {
-        // Lock resource for concurrency issues
+        // Lock resources for concurrency issues
+        let _cert_guard = self
+            .certificate_lock_guards
+            .get_lock(certificate.certificate.id)
+            .await
+            .lock_owned()
+            .await;
+
+        let _subnet_guard = self
+            .subnet_lock_guards
+            .get_lock(certificate.certificate.source_subnet_id)
+            .await;
 
         let subnet_id = certificate.certificate.source_subnet_id;
         let certificate_id = certificate.certificate.id;
@@ -55,6 +75,36 @@ impl WriteStore for FullNodeStore {
 
         let mut batch = self.perpetual_tables.certificates.batch();
         let mut index_batch = self.index_tables.target_streams.batch();
+
+        // Check position already taken
+        if let Some(delivered_at_position) =
+            self.perpetual_tables.streams.get(&expected_position)?
+        {
+            error!(
+                "Expected position {} already taken by {}",
+                expected_position, delivered_at_position
+            );
+
+            return Err(StorageError::InternalStorage(
+                InternalStorageError::CertificateAlreadyExistsAtPosition(
+                    expected_position.1 .0,
+                    expected_position.0,
+                ),
+            ));
+        }
+
+        let update_stream_position = self
+            .index_tables
+            .source_list
+            .get(&subnet_id)?
+            .and_then(|(_certificate, pos)| {
+                if expected_position.1 .0 > pos.0 {
+                    Some((certificate_id, expected_position.1))
+                } else {
+                    None
+                }
+            })
+            .or(Some((certificate_id, expected_position.1)));
 
         batch = batch.insert_batch(
             &self.perpetual_tables.certificates,
@@ -67,10 +117,14 @@ impl WriteStore for FullNodeStore {
             [(&expected_position, certificate_id)],
         )?;
 
-        index_batch = index_batch.insert_batch(
-            &self.index_tables.source_list,
-            [(&subnet_id, &(certificate_id, expected_position.1))],
-        )?;
+        index_batch = if let Some(current_source_position) = update_stream_position {
+            index_batch.insert_batch(
+                &self.index_tables.source_list,
+                [(&subnet_id, &current_source_position)],
+            )?
+        } else {
+            index_batch
+        };
 
         // Return list of new target stream positions of certificate that will be persisted
         // Information is needed by sequencer/subnet contract to know from
@@ -133,6 +187,11 @@ impl WriteStore for FullNodeStore {
 
         batch.write()?;
         index_batch.write()?;
+
+        info!(
+            "Certificate {} inserted at position {}",
+            certificate.certificate.id, expected_position
+        );
 
         Ok(CertificatePositions {
             targets: target_subnet_stream_positions,
@@ -198,6 +257,7 @@ impl ReadStore for FullNodeStore {
             })
             .collect())
     }
+
     fn get_source_stream_certificates_from_position(
         &self,
         from: SourceStreamPositionKey,

@@ -2,15 +2,15 @@ use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use async_trait::async_trait;
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
-use tracing::{debug, instrument};
+use tracing::{debug, info, instrument};
 
 use crate::{
     errors::StorageError,
     fullnode::FullNodeStore,
-    rocks::{map::Map, EMPTY_PREVIOUS_CERT_ID},
+    rocks::map::Map,
     store::{ReadStore, WriteStore},
     types::{CertificateDelivered, ProofOfDelivery, SourceStreamPositionKey},
-    CertificatePositions, CertificateSourceStreamPosition, Position, SourceHead,
+    CertificatePositions, CertificateSourceStreamPosition, SourceHead,
 };
 
 pub(crate) use self::tables::AuthorityPendingTables;
@@ -72,42 +72,29 @@ impl AuthorityStore {
         &self,
         certificate: Certificate,
     ) -> Result<(), StorageError> {
-        let expected_position = if certificate.prev_id.as_array() != &EMPTY_PREVIOUS_CERT_ID {
-            if let Ok(Some(CertificateDelivered {
-                proof_of_delivery:
-                    ProofOfDelivery {
-                        delivery_position: SourceStreamPositionKey(_, p),
-                        ..
-                    },
-                ..
-            })) = self.get_certificate(&certificate.prev_id)
-            {
-                Position(p.0 + 1)
-            } else {
-                return Err(StorageError::InternalStorage(
-                    crate::errors::InternalStorageError::InvalidQueryArgument(
-                        "Prev certificate not found",
-                    ),
-                ));
-            }
-        } else {
-            Position(0)
-        };
+        // let expected_position = if certificate.prev_id.as_array() != &EMPTY_PREVIOUS_CERT_ID {
+        //     if let Ok(Some(CertificateDelivered {
+        //         proof_of_delivery:
+        //             ProofOfDelivery {
+        //                 delivery_position: SourceStreamPositionKey(_, p),
+        //                 ..
+        //             },
+        //         ..
+        //     })) = self.get_certificate(&certificate.prev_id)
+        //     {
+        //         Position(p.0 + 1)
+        //     } else {
+        //         return Err(StorageError::InternalStorage(
+        //             crate::errors::InternalStorageError::InvalidQueryArgument(
+        //                 "Prev certificate not found",
+        //             ),
+        //         ));
+        //     }
+        // } else {
+        //     Position(0)
+        // };
 
-        debug!(
-            "Certificate Sync: Expected position is: {}",
-            expected_position.0
-        );
         if let Ok(Some(proof_of_delivery)) = self.get_unverified_proof(&certificate.id) {
-            if proof_of_delivery.delivery_position.1 != expected_position {
-                debug!(
-                    "Certificate Sync: Unexpected position for {}",
-                    certificate.id
-                );
-                return Err(StorageError::InternalStorage(
-                    crate::errors::InternalStorageError::InvalidQueryArgument("Proof not found"),
-                ));
-            }
             let certificate_id = certificate.id;
             debug!(
                 "Certificate Sync: certificate {} is now defined as delivered",
@@ -200,7 +187,7 @@ impl AuthorityStore {
                 .filter_map(|v| v.map(|c| c.proof_of_delivery))
                 .collect();
 
-            debug!(
+            info!(
                 "Certificate Sync: distance between from and head for {} subnet is {}",
                 subnet,
                 proofs.len()

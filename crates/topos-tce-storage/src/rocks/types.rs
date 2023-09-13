@@ -1,3 +1,5 @@
+use std::fmt;
+
 use serde::{Deserialize, Serialize};
 use topos_core::uci::{Certificate, CertificateId};
 
@@ -31,6 +33,12 @@ pub struct SourceStreamPositionKey(
     // Source certificate position
     pub Position,
 );
+
+impl fmt::Display for SourceStreamPositionKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}:{}", self.0, self.1)
+    }
+}
 
 /// Column that keeps certificates that are not yet delivered
 pub(crate) type PendingCertificatesColumn = DBColumn<u64, Certificate>;

@@ -11,7 +11,6 @@ use topos_api::graphql::{
 use topos_tce_storage::fullnode::FullNodeStore;
 use topos_tce_storage::store::ReadStore;
 use topos_tce_storage::types::SourceStreamPositionKey;
-use topos_tce_storage::StorageClient;
 
 use tracing::debug;
 
@@ -62,23 +61,23 @@ impl CertificateQuery for QueryRoot {
         ctx: &Context<'_>,
         certificate_id: CertificateId,
     ) -> Result<Certificate, GraphQLServerError> {
-        let storage = ctx.data::<StorageClient>().map_err(|_| {
+        let store = ctx.data::<Arc<FullNodeStore>>().map_err(|_| {
             tracing::error!("Failed to get storage client from context");
 
             GraphQLServerError::ParseDataConnector
         })?;
 
-        storage
+        store
             .get_certificate(
-                certificate_id
+                &certificate_id
                     .value
                     .as_bytes()
                     .try_into()
                     .map_err(|_| GraphQLServerError::ParseCertificateId)?,
             )
-            .await
-            .map_err(|_| GraphQLServerError::StorageError)
-            .map(|c| c.into())
+            .map_err(|_| GraphQLServerError::StorageError)?
+            .map(|c| c.certificate.into())
+            .ok_or(GraphQLServerError::CertificateNotFound)
     }
 }
 

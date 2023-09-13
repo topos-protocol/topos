@@ -43,6 +43,9 @@ pub enum InternalStorageError {
 
     #[error("Missing head certificate for source subnet id {0}")]
     MissingHeadForSubnet(SubnetId),
+
+    #[error("Certificate already exists at position {0} for subnet {1}")]
+    CertificateAlreadyExistsAtPosition(u64, SubnetId),
 }
 
 #[derive(Debug, Error)]
@@ -73,4 +76,6 @@ impl From<mpsc::error::SendError<StorageCommand>> for StorageError {
 pub enum PositionError {
     #[error("Maximum position reached for subnet")]
     MaximumPositionReached,
+    #[error("Invalid expected position")]
+    InvalidExpectedPosition,
 }

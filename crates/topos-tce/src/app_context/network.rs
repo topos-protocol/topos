@@ -1,3 +1,5 @@
+use std::collections::hash_map;
+
 use tce_transport::TceCommands;
 use tokio::spawn;
 use topos_core::api::grpc::shared::v1::positions::SourceStreamPosition;
@@ -6,6 +8,7 @@ use topos_core::api::grpc::tce::v1::{
     FetchCertificatesResponse, ProofOfDelivery, SignedReady,
 };
 use topos_core::uci::CertificateId;
+use topos_metrics::CERTIFICATE_DELIVERY_LATENCY;
 use topos_p2p::constant::SYNCHRONIZER_PROTOCOL;
 use topos_p2p::{Event as NetEvent, NetworkClient};
 use topos_tce_broadcast::DoubleEchoCommand;
@@ -31,6 +34,11 @@ impl AppContext {
                     match cmd {
                         TceCommands::OnGossip { cert } => {
                             let channel = self.tce_cli.get_double_echo_channel();
+                            if let hash_map::Entry::Vacant(entry) =
+                                self.delivery_latency.entry(cert.id)
+                            {
+                                entry.insert(CERTIFICATE_DELIVERY_LATENCY.start_timer());
+                            }
 
                             spawn(async move {
                                 info!("Send certificate to be broadcast");

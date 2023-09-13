@@ -3,6 +3,7 @@ use rocks::SourceStreamPositionKey;
 use rocks::{iterator::ColumnIterator, TargetStreamPositionKey};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fmt;
 
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
 
@@ -45,10 +46,16 @@ pub type PendingCertificateId = u64;
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Copy)]
 pub struct Position(pub u64);
 
+impl fmt::Display for Position {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 impl Position {
     const ZERO: Self = Self(0);
 
-    pub(crate) fn increment(self) -> Result<Self, PositionError> {
+    pub fn increment(self) -> Result<Self, PositionError> {
         match self {
             Self::ZERO => Ok(Self(1)),
             Self(value) => value

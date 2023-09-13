@@ -266,9 +266,10 @@ impl<G: GatekeeperClient, N: NetworkClient> CheckpointSynchronizer<G, N> {
                     let certificate: Result<Certificate, _> = certificate.try_into();
                     if let Ok(certificate) = certificate {
                         let certificate_id = certificate.id;
-                        let _ = store.synchronize_certificate(certificate).await;
-
-                        debug!("Certificate {} synchronized", certificate_id);
+                        match store.synchronize_certificate(certificate).await {
+                            Ok(_) => debug!("Certificate {} synchronized", certificate_id),
+                            Err(e) => tracing::error!("Failed to sync because of: {:?}", e),
+                        }
                     }
                 });
             }
