@@ -164,16 +164,16 @@ pub fn derive_endpoints(endpoint: &str) -> Result<(String, String), Error> {
     let http_endpoint: String;
     let ws_endpoint: String;
 
-    if endpoint.starts_with("http") {
-        // Use http endpoint as it is
-        // Derive ws endpoint
-        http_endpoint = endpoint.to_string();
-        ws_endpoint = http_endpoint.replace("http", "ws") + "/ws";
-    } else if endpoint.starts_with("https") {
+    if endpoint.starts_with("https") {
         // Use https endpoint as it is
         // Derive wss endpoint
         http_endpoint = endpoint.to_string();
         ws_endpoint = http_endpoint.replace("https", "wss") + "/ws";
+    } else if endpoint.starts_with("http") {
+        // Use http endpoint as it is
+        // Derive ws endpoint
+        http_endpoint = endpoint.to_string();
+        ws_endpoint = http_endpoint.replace("http", "ws") + "/ws";
     } else {
         http_endpoint = format!("http://{}", endpoint);
         ws_endpoint = format!("ws://{}/ws", endpoint);
