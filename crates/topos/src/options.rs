@@ -1,5 +1,4 @@
 use clap::{Parser, Subcommand};
-use serde::Serialize;
 use std::{ffi::OsString, path::PathBuf};
 
 #[cfg(feature = "sequencer")]

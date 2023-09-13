@@ -1,19 +1,11 @@
-use once_cell::sync::OnceCell;
-use opentelemetry::runtime;
 use opentelemetry::sdk::metrics::controllers::BasicController;
 use opentelemetry::sdk::trace::{BatchConfig, BatchSpanProcessor, SpanLimits};
-use opentelemetry::sdk::{
-    metrics::selectors,
-    propagation::TraceContextPropagator,
-    trace::{self, RandomIdGenerator, Sampler},
-    Resource,
-};
+use opentelemetry::sdk::{propagation::TraceContextPropagator, trace::Sampler, Resource};
 use opentelemetry::trace::TracerProvider;
 use opentelemetry::{global, KeyValue};
-use opentelemetry_otlp::{ExportConfig, Protocol, SpanExporterBuilder, WithExportConfig};
+use opentelemetry_otlp::{SpanExporterBuilder, WithExportConfig};
 use std::time::Duration;
 use tracing::Level;
-use tracing_subscriber::util::TryInitError;
 use tracing_subscriber::{
     prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer,
 };

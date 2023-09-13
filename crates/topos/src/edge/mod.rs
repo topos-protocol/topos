@@ -1,16 +1,13 @@
-use futures::stream::FuturesUnordered;
-use serde_json::{json, Value};
+use serde_json::Value;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::{ExitStatus, Stdio};
-use std::time::Duration;
-use std::{collections::HashMap, future::Future};
-use tokio::time::sleep;
 use tokio::{
-    io::{self, AsyncBufReadExt, BufReader},
-    process::{Child, Command},
+    io::{AsyncBufReadExt, BufReader},
+    process::Command,
 };
 use tracing::debug;
-use tracing::{error, event, info, warn, Level};
+use tracing::{error, info, warn};
 
 pub const BINARY_NAME: &str = "polygon-edge";
 

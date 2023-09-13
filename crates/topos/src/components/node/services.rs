@@ -1,29 +1,18 @@
-use crate::config::node::NodeConfig;
 use crate::config::sequencer::SequencerConfig;
 use crate::config::tce::TceConfig;
-use crate::edge::{CommandConfig, BINARY_NAME};
-use opentelemetry::global;
+use crate::edge::CommandConfig;
 use std::collections::HashMap;
-use std::error::Error;
-use std::future::Future;
-use std::path::{Path, PathBuf};
-use std::process::ExitStatus;
-use std::str::FromStr;
+use std::path::PathBuf;
 use std::time::Duration;
 use thiserror::Error;
-use tokio::process::Command;
-use tokio::{
-    signal, spawn,
-    sync::{mpsc, oneshot},
-    task::JoinHandle,
-};
+use tokio::{spawn, sync::mpsc, task::JoinHandle};
 use tokio_util::sync::CancellationToken;
 use topos_p2p::config::NetworkConfig;
 use topos_sequencer::SequencerConfiguration;
 use topos_tce::config::{AuthKey, StorageConfiguration, TceConfiguration};
 use topos_tce_transport::ReliableBroadcastParams;
 use topos_wallet::SecretManager;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info};
 
 use crate::config::genesis::Genesis;
 

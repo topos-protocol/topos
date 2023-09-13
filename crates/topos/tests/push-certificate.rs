@@ -27,7 +27,7 @@ fn help_display() -> Result<(), Box<dyn std::error::Error>> {
 #[timeout(Duration::from_secs(20))]
 // FIXME: This test is flaky, it fails sometimes because of sample failure
 async fn assert_delivery() -> Result<(), Box<dyn std::error::Error>> {
-    let mut peers_context = create_network(5).await;
+    let mut peers_context = create_network(5, vec![]).await;
 
     let mut status: Vec<bool> = Vec::new();
 
