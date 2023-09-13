@@ -67,12 +67,12 @@ impl SubnetRuntimeProxy {
         signing_key: Vec<u8>,
     ) -> Result<Arc<Mutex<SubnetRuntimeProxy>>, crate::Error> {
         info!(
-            "Spawning new runtime proxy, endpoint: {} ethereum contract address: {}, ",
-            &config.endpoint, &config.subnet_contract_address
+            "Spawning new runtime proxy, http endpoint: {}, ws endpoint {} ethereum contract address: {}, ",
+            &config.http_endpoint, &config.ws_endpoint, &config.subnet_contract_address
         );
         let (command_sender, mut command_rcv) = mpsc::channel::<SubnetRuntimeProxyCommand>(256);
-        let ws_runtime_endpoint = format!("ws://{}/ws", &config.endpoint);
-        let http_runtime_endpoint = format!("http://{}", &config.endpoint);
+        let ws_runtime_endpoint = config.ws_endpoint.clone();
+        let http_runtime_endpoint = config.http_endpoint.clone();
         let subnet_contract_address = Arc::new(config.subnet_contract_address.clone());
         let (command_task_shutdown_channel, mut command_task_shutdown) =
             mpsc::channel::<oneshot::Sender<()>>(1);
@@ -503,10 +503,10 @@ impl SubnetRuntimeProxy {
 
     pub async fn get_checkpoints(&self) -> Result<Vec<TargetStreamPosition>, Error> {
         info!("Connecting to subnet to query for checkpoints...");
-        let http_runtime_endpoint = format!("http://{}", &self.config.endpoint);
+        let http_runtime_endpoint = self.config.http_endpoint.as_ref();
         // Create subnet client
         let subnet_client = match topos_sequencer_subnet_client::connect_to_subnet_with_retry(
-            http_runtime_endpoint.as_ref(),
+            http_runtime_endpoint,
             None, // We do not need actual key here as we are just reading state
             self.config.subnet_contract_address.as_str(),
         )
@@ -515,7 +515,7 @@ impl SubnetRuntimeProxy {
             Ok(subnet_client) => {
                 info!(
                     "Connected to subnet node to acquire checkpoints {}",
-                    &http_runtime_endpoint
+                    http_runtime_endpoint
                 );
                 subnet_client
             }
@@ -540,12 +540,16 @@ impl SubnetRuntimeProxy {
         }
     }
 
-    pub async fn get_subnet_id(endpoint: &str, contract_address: &str) -> Result<SubnetId, Error> {
+    /// Get the particular subnet id (identifying subnet in the topos protocol)
+    /// from the subnet node smart contract
+    pub async fn get_subnet_id(
+        http_endpoint: &str,
+        contract_address: &str,
+    ) -> Result<SubnetId, Error> {
         info!("Connecting to subnet to query for subnet id...");
-        let http_runtime_endpoint = format!("http://{endpoint}");
         // Create subnet client
         let subnet_client = match topos_sequencer_subnet_client::connect_to_subnet_with_retry(
-            http_runtime_endpoint.as_ref(),
+            http_endpoint,
             None, // We do not need actual key here as we are just reading state
             contract_address,
         )
@@ -554,7 +558,7 @@ impl SubnetRuntimeProxy {
             Ok(subnet_client) => {
                 info!(
                     "Connected to subnet node to acquire subnet id {}",
-                    &http_runtime_endpoint
+                    http_endpoint
                 );
                 subnet_client
             }

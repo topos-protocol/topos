@@ -184,7 +184,7 @@ impl Context {
     }
 
     pub fn jsonrpc(&self) -> String {
-        format!("127.0.0.1:{}", self.port)
+        format!("http://127.0.0.1:{}", self.port)
     }
 
     pub fn jsonrpc_ws(&self) -> String {
@@ -507,7 +507,8 @@ async fn test_create_runtime() -> Result<(), Box<dyn std::error::Error>> {
     let runtime_proxy_worker = SubnetRuntimeProxyWorker::new(
         SubnetRuntimeProxyConfig {
             subnet_id: SOURCE_SUBNET_ID_1,
-            endpoint: format!("localhost:{SUBNET_RPC_PORT}"),
+            http_endpoint: format!("http://localhost:{SUBNET_RPC_PORT}"),
+            ws_endpoint: format!("ws://localhost:{SUBNET_RPC_PORT}/ws"),
             subnet_contract_address: "0x0000000000000000000000000000000000000000".to_string(),
             verifier: 0,
             source_head_certificate_id: None,
@@ -538,7 +539,8 @@ async fn test_subnet_certificate_push_call(
     let runtime_proxy_worker = SubnetRuntimeProxyWorker::new(
         SubnetRuntimeProxyConfig {
             subnet_id: SOURCE_SUBNET_ID_1,
-            endpoint: context.jsonrpc(),
+            http_endpoint: context.jsonrpc(),
+            ws_endpoint: context.jsonrpc_ws(),
             subnet_contract_address: subnet_smart_contract_address.clone(),
             verifier: 0,
             source_head_certificate_id: None,
@@ -652,7 +654,7 @@ async fn test_subnet_certificate_get_checkpoints_call(
     let context = context_running_subnet_node.await;
     let subnet_smart_contract_address =
         "0x".to_string() + &hex::encode(context.i_topos_core.address());
-    let subnet_jsonrpc_endpoint = "http://".to_string() + &context.jsonrpc();
+    let subnet_jsonrpc_endpoint = context.jsonrpc();
 
     // Get checkpoints when contract is empty
     let subnet_client = topos_sequencer_subnet_client::SubnetClient::new(
@@ -770,7 +772,7 @@ async fn test_subnet_id_call(
     let context = context_running_subnet_node.await;
     let subnet_smart_contract_address =
         "0x".to_string() + &hex::encode(context.i_topos_core.address());
-    let subnet_jsonrpc_endpoint = "http://".to_string() + &context.jsonrpc();
+    let subnet_jsonrpc_endpoint = context.jsonrpc();
 
     // Create subnet client
     let subnet_client = topos_sequencer_subnet_client::SubnetClient::new(
@@ -816,7 +818,7 @@ async fn test_subnet_send_token_processing(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let context = context_running_subnet_node.await;
     let test_private_key = hex::decode(TEST_SECRET_ETHEREUM_KEY).unwrap();
-    let subnet_jsonrpc_endpoint = "http://".to_string() + &context.jsonrpc();
+    let subnet_jsonrpc_endpoint = context.jsonrpc();
     let subnet_smart_contract_address =
         "0x".to_string() + &hex::encode(context.i_topos_core.address());
 
@@ -825,7 +827,8 @@ async fn test_subnet_send_token_processing(
     let mut runtime_proxy_worker = SubnetRuntimeProxyWorker::new(
         SubnetRuntimeProxyConfig {
             subnet_id: SOURCE_SUBNET_ID_1,
-            endpoint: context.jsonrpc(),
+            http_endpoint: context.jsonrpc(),
+            ws_endpoint: context.jsonrpc_ws(),
             subnet_contract_address: subnet_smart_contract_address.clone(),
             verifier: 0,
             source_head_certificate_id: None,

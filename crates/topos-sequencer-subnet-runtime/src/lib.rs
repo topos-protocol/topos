@@ -70,12 +70,16 @@ pub enum Error {
 
     #[error("Unable to send command: {0}")]
     CommandEvalChannelError(String),
+
+    #[error("Invalid endpoint: {0}")]
+    InvalidEndpoint(String),
 }
 
 #[derive(Debug, Clone)]
 pub struct SubnetRuntimeProxyConfig {
     pub subnet_id: SubnetId,
-    pub endpoint: String,
+    pub http_endpoint: String,
+    pub ws_endpoint: String,
     pub subnet_contract_address: String,
     pub source_head_certificate_id: Option<CertificateId>,
     pub verifier: u32,
@@ -138,8 +142,11 @@ impl SubnetRuntimeProxyWorker {
         runtime_proxy.get_checkpoints().await
     }
 
-    pub async fn get_subnet_id(endpoint: &str, contract_address: &str) -> Result<SubnetId, Error> {
-        SubnetRuntimeProxy::get_subnet_id(endpoint, contract_address).await
+    pub async fn get_subnet_id(
+        http_endpoint: &str,
+        contract_address: &str,
+    ) -> Result<SubnetId, Error> {
+        SubnetRuntimeProxy::get_subnet_id(http_endpoint, contract_address).await
     }
 
     pub async fn set_source_head_certificate_id(
@@ -153,6 +160,29 @@ impl SubnetRuntimeProxyWorker {
     }
 }
 
+/// From the user provided subnet node endpoint (could be ip:port, http://ip:port, https://ip:port)
+/// derive http and ws endpoints that will be used to communicate with the subnet
+pub fn derive_endpoints(endpoint: &str) -> Result<(String, String), Error> {
+    let http_endpoint: String;
+    let ws_endpoint: String;
+
+    if endpoint.starts_with("https") {
+        // Use https endpoint as it is
+        // Derive wss endpoint
+        http_endpoint = endpoint.to_string();
+        ws_endpoint = http_endpoint.replace("https", "wss") + "/ws";
+    } else if endpoint.starts_with("http") {
+        // Use http endpoint as it is
+        // Derive ws endpoint
+        http_endpoint = endpoint.to_string();
+        ws_endpoint = http_endpoint.replace("http", "ws") + "/ws";
+    } else {
+        http_endpoint = format!("http://{}", endpoint);
+        ws_endpoint = format!("ws://{}/ws", endpoint);
+    }
+    Ok((http_endpoint, ws_endpoint))
+}
+
 pub mod testing {
     use super::*;
 
@@ -160,5 +190,31 @@ pub mod testing {
         runtime_proxy_worker: &SubnetRuntimeProxyWorker,
     ) -> Arc<Mutex<SubnetRuntimeProxy>> {
         runtime_proxy_worker.runtime_proxy.clone()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_derive_endpoints() {
+        use super::derive_endpoints;
+        let (http_endpoint, ws_endpoint) = derive_endpoints("10.10.10.13:321").unwrap();
+        assert_eq!(
+            (http_endpoint.as_str(), ws_endpoint.as_str()),
+            ("http://10.10.10.13:321", "ws://10.10.10.13:321/ws")
+        );
+        let (http_endpoint, ws_endpoint) = derive_endpoints("http://www.example.com").unwrap();
+        assert_eq!(
+            (http_endpoint.as_str(), ws_endpoint.as_str()),
+            ("http://www.example.com", "ws://www.example.com/ws")
+        );
+        let (http_endpoint, ws_endpoint) = derive_endpoints("https://www.example.com:123").unwrap();
+        assert_eq!(
+            (http_endpoint.as_str(), ws_endpoint.as_str()),
+            (
+                "https://www.example.com:123",
+                "wss://www.example.com:123/ws"
+            )
+        );
     }
 }
