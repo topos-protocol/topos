@@ -67,6 +67,38 @@ services:
       - env/node.env
       - env/telemetry.env
 
+  sync:
+    image: ghcr.io/topos-protocol/topos:main
+    command: sync tce run
+    init: true
+    labels:
+      "autoheal": "true"
+    healthcheck:
+      test: ./topos tce push-peer-list --node http://localhost:1340 --format json /tmp/shared/peer_ids.json && ./topos tce status --node http://localhost:1340
+      interval: 5s
+    volumes:
+      - shared:/tmp/shared
+    build:
+      context: ../
+      args:
+        - TOOLCHAIN_VERSION=stable
+        - FEATURES=tce
+    depends_on:
+      autoheal:
+        condition: service_started
+      boot:
+        condition: service_started
+    ports:
+      - "9090"
+      - "1340"
+      - "3000"
+      - "4000"
+    env_file:
+      - env/base.env
+      - env/node.env
+      - env/telemetry.env
+
+
   spammer:
     container_name: spam
     command: network spam
