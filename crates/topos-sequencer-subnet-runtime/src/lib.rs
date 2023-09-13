@@ -183,6 +183,16 @@ pub fn derive_endpoints(endpoint: &str) -> Result<(String, String), Error> {
     Ok((http_endpoint, ws_endpoint))
 }
 
+pub mod testing {
+    use super::*;
+
+    pub fn get_runtime(
+        runtime_proxy_worker: &SubnetRuntimeProxyWorker,
+    ) -> Arc<Mutex<SubnetRuntimeProxy>> {
+        runtime_proxy_worker.runtime_proxy.clone()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
@@ -206,15 +216,5 @@ mod tests {
                 "wss://www.example.com:123/ws"
             )
         );
-    }
-}
-
-pub mod testing {
-    use super::*;
-
-    pub fn get_runtime(
-        runtime_proxy_worker: &SubnetRuntimeProxyWorker,
-    ) -> Arc<Mutex<SubnetRuntimeProxy>> {
-        runtime_proxy_worker.runtime_proxy.clone()
     }
 }
