@@ -73,7 +73,6 @@ pub async fn launch(
         }
     };
 
-    // TODO Here determine if websocket endpoint is provided or should be derived from http endpoint
     let (http_endpoint, ws_endpoint) =
         topos_sequencer_subnet_runtime::derive_endpoints(&config.subnet_jsonrpc_endpoint)?;
 

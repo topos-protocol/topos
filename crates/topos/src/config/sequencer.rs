@@ -15,7 +15,7 @@ pub struct SequencerConfig {
     pub subnet_id: Option<String>,
 
     /// JSON-RPC endpoint of the Edge node, websocket and http support expected
-    /// If endpoint address starts with `https`, ssl will be used with http/websocket
+    /// If the endpoint address starts with `https`, ssl will be used with http/websocket
     #[serde(default = "default_subnet_jsonrpc_endpoint")]
     pub subnet_jsonrpc_endpoint: String,
 

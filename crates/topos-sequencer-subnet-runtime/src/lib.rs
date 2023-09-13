@@ -160,6 +160,8 @@ impl SubnetRuntimeProxyWorker {
     }
 }
 
+/// From the user provided subnet node endpoint (could be ip:port, http://ip:port, https://ip:port)
+/// derive http and ws endpoints that will be used to communicate with the subnet
 pub fn derive_endpoints(endpoint: &str) -> Result<(String, String), Error> {
     let http_endpoint: String;
     let ws_endpoint: String;
@@ -179,6 +181,32 @@ pub fn derive_endpoints(endpoint: &str) -> Result<(String, String), Error> {
         ws_endpoint = format!("ws://{}/ws", endpoint);
     }
     Ok((http_endpoint, ws_endpoint))
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_derive_endpoints() {
+        use super::derive_endpoints;
+        let (http_endpoint, ws_endpoint) = derive_endpoints("10.10.10.13:321").unwrap();
+        assert_eq!(
+            (http_endpoint.as_str(), ws_endpoint.as_str()),
+            ("http://10.10.10.13:321", "ws://10.10.10.13:321/ws")
+        );
+        let (http_endpoint, ws_endpoint) = derive_endpoints("http://www.example.com").unwrap();
+        assert_eq!(
+            (http_endpoint.as_str(), ws_endpoint.as_str()),
+            ("http://www.example.com", "ws://www.example.com/ws")
+        );
+        let (http_endpoint, ws_endpoint) = derive_endpoints("https://www.example.com:123").unwrap();
+        assert_eq!(
+            (http_endpoint.as_str(), ws_endpoint.as_str()),
+            (
+                "https://www.example.com:123",
+                "wss://www.example.com:123/ws"
+            )
+        );
+    }
 }
 
 pub mod testing {

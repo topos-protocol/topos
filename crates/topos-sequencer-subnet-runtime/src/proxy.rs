@@ -540,6 +540,8 @@ impl SubnetRuntimeProxy {
         }
     }
 
+    /// Get the particular subnet id (identifying subnet in the topos protocol)
+    /// from the subnet node smart contract
     pub async fn get_subnet_id(
         http_endpoint: &str,
         contract_address: &str,
