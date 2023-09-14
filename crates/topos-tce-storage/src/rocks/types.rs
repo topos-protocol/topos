@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use topos_core::{
-    types::stream::{Position, SourceStreamPositionKey},
+    types::stream::{CertificateSourceStreamPosition, Position},
     uci::{Certificate, CertificateId},
 };
 
@@ -32,7 +32,7 @@ pub(crate) type PendingCertificatesColumn = DBColumn<u64, Certificate>;
 pub(crate) type CertificatesColumn = DBColumn<CertificateId, Certificate>;
 /// Column that keeps list of certificates received from particular subnet and
 /// maps (source subnet id, source certificate position) to certificate id
-pub(crate) type SourceStreamsColumn = DBColumn<SourceStreamPositionKey, CertificateId>;
+pub(crate) type SourceStreamsColumn = DBColumn<CertificateSourceStreamPosition, CertificateId>;
 /// Column that keeps list of certificates that are delivered to target subnet,
 /// and maps their target (target subnet, source subnet and position/count per source subnet)
 /// to certificate id

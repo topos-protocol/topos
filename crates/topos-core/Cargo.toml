@@ -10,6 +10,7 @@ workspace = true
 topos-uci = { path = "../topos-uci", optional = true }
 topos-api = { path = "../topos-api", optional = true }
 serde.workspace = true
+bincode.workspace = true
 thiserror.workspace = true
 
 [features]

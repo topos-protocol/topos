@@ -9,14 +9,17 @@ use topos_core::{
         CheckpointMapFieldEntry, CheckpointRequest, CheckpointResponse, FetchCertificatesRequest,
         FetchCertificatesResponse,
     },
-    types::{stream::Position, CertificateDelivered},
+    types::{
+        stream::{CertificateSourceStreamPosition, Position},
+        CertificateDelivered,
+    },
 };
 use topos_p2p::{
     constant::SYNCHRONIZER_PROTOCOL, error::CommandExecutionError, NetworkClient, RetryPolicy,
     TransmissionResponse,
 };
 use topos_tce_gatekeeper::{GatekeeperClient, GatekeeperError};
-use topos_tce_storage::{store::ReadStore, CertificateSourceStreamPosition};
+use topos_tce_storage::store::ReadStore;
 use topos_test_sdk::{
     certificates::create_certificate_chain,
     storage::create_validator_store,
@@ -137,7 +140,7 @@ async fn can_initiate_a_sync() {
     assert_eq!(
         value,
         CertificateSourceStreamPosition {
-            source_subnet_id: subnet,
+            subnet_id: subnet,
             position: Position::ZERO
         }
     );

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use topos_core::{
-    types::stream::{Position, SourceStreamPositionKey},
+    types::stream::{CertificateSourceStreamPosition, Position},
     uci::{Certificate, CertificateId, SubnetId},
 };
 
@@ -30,27 +30,9 @@ mod tests;
 
 pub use client::StorageClient;
 
-#[cfg(feature = "rocksdb")]
-pub use rocks::RocksDBStorage;
-
 pub mod store;
 
 pub type PendingCertificateId = u64;
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CertificateSourceStreamPosition {
-    pub source_subnet_id: SubnetId,
-    pub position: Position,
-}
-
-impl From<SourceStreamPositionKey> for CertificateSourceStreamPosition {
-    fn from(value: SourceStreamPositionKey) -> Self {
-        CertificateSourceStreamPosition {
-            source_subnet_id: value.0,
-            position: value.1,
-        }
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct CertificateTargetStreamPosition {

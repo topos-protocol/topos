@@ -1,24 +1,20 @@
 use std::collections::HashMap;
 use std::{
     fmt::Debug,
-    path::PathBuf,
     sync::atomic::{AtomicU64, Ordering},
 };
 
-use topos_core::types::stream::SourceStreamPositionKey;
+use topos_core::types::stream::CertificateSourceStreamPosition;
 use topos_core::uci::{Certificate, CertificateId, CERTIFICATE_ID_LENGTH};
 use tracing::warn;
 
 use crate::{
-    errors::InternalStorageError, CertificatePositions, CertificateSourceStreamPosition,
-    CertificateTargetStreamPosition, PendingCertificateId, Position, SourceHead, Storage, SubnetId,
+    errors::InternalStorageError, CertificatePositions, CertificateTargetStreamPosition,
+    PendingCertificateId, Position, SourceHead, Storage, SubnetId,
 };
 
-use self::{db::DB, db_column::DBColumn, iterator::ColumnIterator};
-use self::{
-    db::{init_db, RocksDB},
-    map::Map,
-};
+use self::iterator::ColumnIterator;
+use self::{db::RocksDB, map::Map};
 
 pub(crate) mod constants;
 pub(crate) mod db;
@@ -61,39 +57,6 @@ impl RocksDBStorage {
             next_pending_id,
         }
     }
-
-    pub fn with_isolation(path: &PathBuf) -> Result<Self, InternalStorageError> {
-        Self::setup(&create_and_init(path)?)
-    }
-
-    pub fn open(path: &PathBuf) -> Result<Self, InternalStorageError> {
-        Self::setup(DB.get_or_try_init(|| create_and_init(path))?)
-    }
-
-    fn setup(db: &RocksDB) -> Result<Self, InternalStorageError> {
-        let pending_certificates = DBColumn::reopen(db, constants::PENDING_CERTIFICATES);
-
-        let next_pending_id = match pending_certificates.iter()?.last() {
-            Some((pending_id, _)) => AtomicU64::new(pending_id),
-            None => AtomicU64::new(0),
-        };
-
-        Ok(Self {
-            pending_certificates,
-            certificates: DBColumn::reopen(db, constants::CERTIFICATES),
-            source_streams: DBColumn::reopen(db, constants::SOURCE_STREAMS),
-            target_streams: DBColumn::reopen(db, constants::TARGET_STREAMS),
-            target_source_list: DBColumn::reopen(db, constants::TARGET_SOURCES),
-            next_pending_id,
-        })
-    }
-}
-
-fn create_and_init(path: &PathBuf) -> Result<RocksDB, InternalStorageError> {
-    let mut options = rocksdb::Options::default();
-    options.create_if_missing(true);
-    options.create_missing_column_families(true);
-    init_db(path, options)
 }
 
 #[async_trait::async_trait]
@@ -156,7 +119,7 @@ impl Storage for RocksDBStorage {
 
         let source_subnet_position = if certificate.prev_id.as_array() == &EMPTY_PREVIOUS_CERT_ID {
             Position::ZERO
-        } else if let Some((SourceStreamPositionKey(_, position), _)) = self
+        } else if let Some((CertificateSourceStreamPosition { position, .. }, _)) = self
             .source_streams
             .prefix_iter(&certificate.source_subnet_id)?
             .last()
@@ -175,7 +138,7 @@ impl Storage for RocksDBStorage {
 
         // Return from function as info
         let source_subnet_stream_position = CertificateSourceStreamPosition {
-            source_subnet_id: certificate.source_subnet_id,
+            subnet_id: certificate.source_subnet_id,
             position: Position(source_subnet_position.0),
         };
 
@@ -183,7 +146,10 @@ impl Storage for RocksDBStorage {
         batch = batch.insert_batch(
             &self.source_streams,
             [(
-                SourceStreamPositionKey(certificate.source_subnet_id, source_subnet_position),
+                CertificateSourceStreamPosition {
+                    subnet_id: certificate.source_subnet_id,
+                    position: source_subnet_position,
+                },
                 certificate.id,
             )],
         )?;
@@ -283,7 +249,7 @@ impl Storage for RocksDBStorage {
                 .source_streams
                 .prefix_iter(&source_subnet_id)?
                 .last()
-                .map(|(source_stream_position, cert_id)| (source_stream_position.1, cert_id))
+                .map(|(source_stream_position, cert_id)| (source_stream_position.position, cert_id))
                 .ok_or(InternalStorageError::MissingHeadForSubnet(source_subnet_id))?;
             result.push(SourceHead {
                 position,

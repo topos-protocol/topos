@@ -9,3 +9,6 @@ pub use topos_uci as uci;
 pub use topos_api as api;
 
 pub mod types;
+
+#[cfg(test)]
+mod test;

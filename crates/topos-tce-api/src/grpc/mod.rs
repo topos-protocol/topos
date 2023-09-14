@@ -159,7 +159,7 @@ impl ApiService for TceGrpcService {
             }
 
             receiver
-                .map(|value| 
+                .map(|value| {
                     match value {
 
                     Ok(Ok(response)) => Ok(match response {
@@ -180,7 +180,7 @@ impl ApiService for TceGrpcService {
                         })
                     }),
 
-                    Ok(Err(crate::RuntimeError::UnknownSubnet(subnet_id))) => 
+                    Ok(Err(crate::RuntimeError::UnknownSubnet(subnet_id))) =>
                         // Tce does not have Position::Zero certificate associated
                         {
                             Err(Status::internal(format!(
@@ -197,8 +197,8 @@ impl ApiService for TceGrpcService {
                         Err(e) => Err(Status::internal(format!(
                             "Can't get source head certificate position: {e}"
                         ))),
-                    },
-                )
+                    }
+                })
                 .await
         } else {
             Err(Status::invalid_argument("Certificate is malformed"))

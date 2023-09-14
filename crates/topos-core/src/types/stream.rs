@@ -6,16 +6,25 @@ use thiserror::Error;
 use topos_uci::SubnetId;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-pub struct SourceStreamPositionKey(
+pub struct CertificateSourceStreamPosition {
     // Source subnet id
-    pub SubnetId,
+    pub subnet_id: SubnetId,
     // Source certificate position
-    pub Position,
-);
+    pub position: Position,
+}
 
-impl fmt::Display for SourceStreamPositionKey {
+impl fmt::Display for CertificateSourceStreamPosition {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}:{}", self.0, self.1)
+        write!(f, "{}:{}", self.subnet_id, self.position)
+    }
+}
+
+impl CertificateSourceStreamPosition {
+    pub fn new(subnet_id: SubnetId, position: Position) -> Self {
+        Self {
+            subnet_id,
+            position,
+        }
     }
 }
 

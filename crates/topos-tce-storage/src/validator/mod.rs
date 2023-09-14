@@ -8,7 +8,7 @@ use async_trait::async_trait;
 
 use topos_core::{
     types::{
-        stream::{Position, SourceStreamPositionKey},
+        stream::{CertificateSourceStreamPosition, Position},
         CertificateDelivered, ProofOfDelivery,
     },
     uci::{Certificate, CertificateId, SubnetId},
@@ -20,8 +20,7 @@ use crate::{
     fullnode::FullNodeStore,
     rocks::{map::Map, TargetStreamPositionKey},
     store::{ReadStore, WriteStore},
-    CertificatePositions, CertificateSourceStreamPosition, CertificateTargetStreamPosition,
-    PendingCertificateId, SourceHead,
+    CertificatePositions, CertificateTargetStreamPosition, PendingCertificateId, SourceHead,
 };
 
 pub(crate) use self::tables::ValidatorPendingTables;
@@ -77,7 +76,7 @@ impl ValidatorStore {
         let ids = values.iter().map(|(id, _)| *id).collect();
         let index = values
             .iter()
-            .map(|(id, cert)| (cert.id.clone(), *id))
+            .map(|(id, cert)| (cert.id, *id))
             .collect::<Vec<_>>();
 
         batch = batch.insert_batch(&self.pending_tables.pending_pool, values)?;
@@ -184,7 +183,7 @@ impl ValidatorStore {
         // Parse the from in order to extract the different position per subnets
         let mut from_positions: HashMap<SubnetId, Vec<ProofOfDelivery>> = from
             .into_iter()
-            .map(|v| (v.delivery_position.0, vec![v]))
+            .map(|v| (v.delivery_position.subnet_id, vec![v]))
             .collect();
 
         // Request the local head checkpoint
@@ -202,7 +201,7 @@ impl ValidatorStore {
             let entry = from_positions.entry(subnet).or_default();
 
             let certs: Vec<_> = if let Some(position) = entry.pop() {
-                if local_position.0 <= position.delivery_position.1 .0 {
+                if local_position.0 <= position.delivery_position.position.0 {
                     continue;
                 }
                 self.full_node_store
@@ -288,7 +287,7 @@ impl ReadStore for ValidatorStore {
             .source_list
             .get(subnet_id)?
             .map(|(_, position)| CertificateSourceStreamPosition {
-                source_subnet_id: *subnet_id,
+                subnet_id: *subnet_id,
                 position,
             }))
     }
@@ -299,7 +298,7 @@ impl ReadStore for ValidatorStore {
 
     fn get_source_stream_certificates_from_position(
         &self,
-        from: SourceStreamPositionKey,
+        from: CertificateSourceStreamPosition,
         limit: usize,
     ) -> Result<Vec<(CertificateDelivered, CertificateSourceStreamPosition)>, StorageError> {
         self.full_node_store

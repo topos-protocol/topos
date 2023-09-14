@@ -2,7 +2,7 @@ use std::{collections::BTreeSet, path::PathBuf, sync::atomic::AtomicU64};
 
 use rocksdb::ColumnFamilyDescriptor;
 use topos_core::{
-    types::{stream::SourceStreamPositionKey, CertificateDelivered, ProofOfDelivery},
+    types::{stream::CertificateSourceStreamPosition, CertificateDelivered, ProofOfDelivery},
     uci::{Certificate, CertificateId},
 };
 
@@ -56,7 +56,7 @@ impl ValidatorPendingTables {
 /// Data that shouldn't be purged at all.
 pub struct ValidatorPerpetualTables {
     pub(crate) certificates: DBColumn<CertificateId, CertificateDelivered>,
-    pub(crate) streams: DBColumn<SourceStreamPositionKey, CertificateId>,
+    pub(crate) streams: DBColumn<CertificateSourceStreamPosition, CertificateId>,
     #[allow(unused)]
     epoch_chain: DBColumn<EpochId, EpochSummary>,
     pub(crate) unverified: DBColumn<CertificateId, ProofOfDelivery>,

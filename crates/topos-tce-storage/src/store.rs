@@ -2,13 +2,13 @@ use std::collections::HashMap;
 
 use async_trait::async_trait;
 use topos_core::{
-    types::{stream::SourceStreamPositionKey, CertificateDelivered},
+    types::{stream::CertificateSourceStreamPosition, CertificateDelivered},
     uci::{CertificateId, SubnetId},
 };
 
 use crate::{
     errors::StorageError, rocks::TargetStreamPositionKey, CertificatePositions,
-    CertificateSourceStreamPosition, CertificateTargetStreamPosition, SourceHead,
+    CertificateTargetStreamPosition, SourceHead,
 };
 
 #[async_trait]
@@ -52,7 +52,7 @@ pub trait ReadStore: Send {
     /// Returns the certificates delivered by a source subnet from a position.
     fn get_source_stream_certificates_from_position(
         &self,
-        from: SourceStreamPositionKey,
+        from: CertificateSourceStreamPosition,
         limit: usize,
     ) -> Result<Vec<(CertificateDelivered, CertificateSourceStreamPosition)>, StorageError>;
 

@@ -18,7 +18,7 @@ use topos_core::{
         },
     },
     types::{
-        stream::{Position, SourceStreamPositionKey},
+        stream::{CertificateSourceStreamPosition, Position},
         ProofOfDelivery,
     },
     uci::{Certificate, CertificateId, SubnetId},
@@ -189,12 +189,15 @@ impl<G: GatekeeperClient, N: NetworkClient> CheckpointSynchronizer<G, N> {
                                 .certificate_id
                                 .map(TryInto::try_into)
                                 .ok_or(SyncError::GrpcMalformedType("position.certificate_id"))??,
-                            delivery_position: SourceStreamPositionKey(
-                                position.source_subnet_id.map(TryInto::try_into).ok_or(
-                                    SyncError::GrpcMalformedType("position.source_subnet_id"),
-                                )??,
-                                Position(position.position),
-                            ),
+                            delivery_position: CertificateSourceStreamPosition {
+                                subnet_id: position
+                                    .source_subnet_id
+                                    .map(TryInto::try_into)
+                                    .ok_or(SyncError::GrpcMalformedType(
+                                        "position.source_subnet_id",
+                                    ))??,
+                                position: Position(position.position),
+                            },
                             readies: v
                                 .readies
                                 .into_iter()

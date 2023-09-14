@@ -5,7 +5,7 @@ use async_trait::async_trait;
 
 use topos_core::{
     types::{
-        stream::{Position, SourceStreamPositionKey},
+        stream::{CertificateSourceStreamPosition, Position},
         CertificateDelivered,
     },
     uci::{CertificateId, SubnetId},
@@ -19,8 +19,7 @@ use crate::{
     rocks::{map::Map, TargetSourceListKey, TargetStreamPositionKey},
     store::{ReadStore, WriteStore},
     validator::ValidatorPerpetualTables,
-    CertificatePositions, CertificateSourceStreamPosition, CertificateTargetStreamPosition,
-    SourceHead,
+    CertificatePositions, CertificateTargetStreamPosition, SourceHead,
 };
 
 use self::locking::LockGuards;
@@ -93,8 +92,8 @@ impl WriteStore for FullNodeStore {
 
             return Err(StorageError::InternalStorage(
                 InternalStorageError::CertificateAlreadyExistsAtPosition(
-                    expected_position.1 .0,
-                    expected_position.0,
+                    expected_position.position.0,
+                    expected_position.subnet_id,
                 ),
             ));
         }
@@ -104,13 +103,13 @@ impl WriteStore for FullNodeStore {
             .source_list
             .get(&subnet_id)?
             .and_then(|(_certificate, pos)| {
-                if expected_position.1 .0 > pos.0 {
-                    Some((certificate_id, expected_position.1))
+                if expected_position.position.0 > pos.0 {
+                    Some((certificate_id, expected_position.position))
                 } else {
                     None
                 }
             })
-            .or(Some((certificate_id, expected_position.1)));
+            .or(Some((certificate_id, expected_position.position)));
 
         batch = batch.insert_batch(
             &self.perpetual_tables.certificates,
@@ -211,7 +210,7 @@ impl WriteStore for FullNodeStore {
 
         Ok(CertificatePositions {
             targets: target_subnet_stream_positions,
-            source: expected_position.into(),
+            source: expected_position,
         })
     }
 
@@ -265,7 +264,7 @@ impl ReadStore for FullNodeStore {
             .streams
             .prefix_iter(subnet_id)?
             .last()
-            .map(|(k, _)| k.into()))
+            .map(|(k, _)| k))
     }
 
     fn get_checkpoint(&self) -> Result<HashMap<SubnetId, SourceHead>, StorageError> {
@@ -288,21 +287,21 @@ impl ReadStore for FullNodeStore {
 
     fn get_source_stream_certificates_from_position(
         &self,
-        from: SourceStreamPositionKey,
+        from: CertificateSourceStreamPosition,
         limit: usize,
     ) -> Result<Vec<(CertificateDelivered, CertificateSourceStreamPosition)>, StorageError> {
-        let starting_position = from.1;
+        let starting_position = from.position;
         let x: Vec<(CertificateId, CertificateSourceStreamPosition)> = self
             .perpetual_tables
             .streams
-            .prefix_iter(&from.0)?
+            .prefix_iter(&from.subnet_id)?
             .skip((starting_position.0).try_into().map_err(|_| {
                 StorageError::InternalStorage(InternalStorageError::InvalidQueryArgument(
                     "Unable to parse Position",
                 ))
             })?)
             .take(limit)
-            .map(|(k, v)| (v, k.into()))
+            .map(|(k, v)| (v, k))
             .collect();
 
         let certificate_ids: Vec<_> = x.iter().map(|(k, _)| k).cloned().collect();
@@ -349,7 +348,7 @@ impl ReadStore for FullNodeStore {
             .multi_get(&certificate_ids[..])?;
 
         Ok(x.into_iter()
-            .zip(certificates.into_iter())
+            .zip(certificates)
             .filter_map(|((certificate_id, position), certificate)| {
                 certificate
                     .filter(|c| c.certificate.id == certificate_id)

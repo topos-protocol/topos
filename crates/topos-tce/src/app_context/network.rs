@@ -114,8 +114,10 @@ impl AppContext {
                                     .into_iter()
                                     .map(|v| ProofOfDelivery {
                                         delivery_position: Some(SourceStreamPosition {
-                                            source_subnet_id: Some(v.delivery_position.0.into()),
-                                            position: v.delivery_position.1 .0,
+                                            source_subnet_id: Some(
+                                                v.delivery_position.subnet_id.into(),
+                                            ),
+                                            position: v.delivery_position.position.0,
                                             certificate_id: Some(v.certificate_id.into()),
                                         }),
                                         readies: v

@@ -21,7 +21,7 @@ impl StorageClient {
         Self { store }
     }
 
-    pub async fn targeted_by(
+    pub async fn get_target_source_subnet_list(
         &self,
         target_subnet_id: SubnetId,
     ) -> Result<Vec<SubnetId>, StorageError> {

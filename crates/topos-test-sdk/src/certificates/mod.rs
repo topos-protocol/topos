@@ -3,8 +3,8 @@ use std::collections::HashMap;
 
 use topos_core::{
     types::{
-        stream::{Position, SourceStreamPositionKey},
-        CertificateDelivered, ProofOfDelivery,
+        stream::CertificateSourceStreamPosition, stream::Position, CertificateDelivered,
+        ProofOfDelivery,
     },
     uci::{Certificate, SubnetId},
 };
@@ -35,7 +35,10 @@ pub fn create_certificate_chain(
             certificate: cert,
             proof_of_delivery: ProofOfDelivery {
                 certificate_id: id,
-                delivery_position: SourceStreamPositionKey(source_subnet, Position(i as u64)),
+                delivery_position: CertificateSourceStreamPosition {
+                    subnet_id: source_subnet,
+                    position: Position(i as u64),
+                },
                 readies: Vec::new(),
                 threshold: 0,
             },

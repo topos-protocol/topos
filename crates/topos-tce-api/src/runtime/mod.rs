@@ -282,8 +282,9 @@ impl Runtime {
 
                         for (target_subnet_id, mut source) in target_subnet_stream_positions {
                             // return list of subnet that target this subnet
-                            // get_source_subnet_for_target_subnet
-                            let source_subnet_list = storage.targeted_by(target_subnet_id).await;
+                            let source_subnet_list = storage
+                                .get_target_source_subnet_list(target_subnet_id)
+                                .await;
 
                             info!(
                                 "Stream sync task detected {:?} as source list",
