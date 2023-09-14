@@ -1,8 +1,9 @@
 use crate::double_echo::*;
 use crate::*;
+use ethers::prelude::{LocalWallet, Signer};
+use ethers::utils::keccak256;
 use rstest::*;
 use std::collections::HashSet;
-use std::str::FromStr;
 use std::usize;
 use tce_transport::ReliableBroadcastParams;
 use tokio::sync::mpsc::Receiver;
@@ -53,16 +54,13 @@ async fn create_context(params: TceParams) -> (DoubleEcho, Context) {
         mpsc::channel::<oneshot::Sender<()>>(1);
     let (task_manager_message_sender, task_manager_message_receiver) = mpsc::channel(CHANNEL_SIZE);
 
-    // Create list of validators
-    let mut validators = HashSet::new();
-    let validator_id = ValidatorId::from("0x100d617e4392c02b31bdce650b26b6c0c3e04f95");
-    validators.insert(validator_id.clone());
+    let wallet: LocalWallet = "47d361f6becb933a77d7e01dee7b1c1859b656adbd8428bf7bf9519503e5d5d6"
+        .parse()
+        .unwrap();
 
-    // Create test wallet to sign and verify ECHO | READY messages
-    let hex_string =
-        hex::encode("47d361f6becb933a77d7e01dee7b1c1859b656adbd8428bf7bf9519503e5d5d6");
-    let bytes = hex_string.as_str();
-    let wallet: LocalWallet = bytes.parse().unwrap();
+    let mut validators = HashSet::new();
+    let validator_id = ValidatorId::from(wallet.address());
+    validators.insert(validator_id.clone());
 
     let mut double_echo = DoubleEcho::new(
         params.broadcast_params,
@@ -111,16 +109,23 @@ async fn reach_echo_threshold(double_echo: &mut DoubleEcho, cert: &Certificate) 
         .cloned()
         .collect::<Vec<_>>();
 
-    let validator_id = ValidatorId::from("0x100d617e4392c02b31bdce650b26b6c0c3e04f95");
+    let wallet: LocalWallet = "47d361f6becb933a77d7e01dee7b1c1859b656adbd8428bf7bf9519503e5d5d6"
+        .parse()
+        .unwrap();
+
+    let validator_id = ValidatorId::from(wallet.address());
+
+    let mut hash = Vec::new();
+    hash.extend(cert.id.as_array().iter().cloned());
+    hash.extend(validator_id.clone().as_bytes());
+
+    let hash = keccak256(hash);
+
+    let signature = wallet.sign_message(hash.as_slice()).await.unwrap();
 
     for p in selected {
         double_echo
-            .handle_echo(
-                p,
-                cert.id,
-                validator_id.clone(),
-                Signature::from_str("TEST").unwrap(),
-            )
+            .handle_echo(p, cert.id, validator_id.clone(), signature)
             .await;
     }
 }
@@ -134,16 +139,23 @@ async fn reach_ready_threshold(double_echo: &mut DoubleEcho, cert: &Certificate)
         .cloned()
         .collect::<Vec<_>>();
 
-    let validator_id = ValidatorId::from("0x100d617e4392c02b31bdce650b26b6c0c3e04f95");
+    let wallet: LocalWallet = "47d361f6becb933a77d7e01dee7b1c1859b656adbd8428bf7bf9519503e5d5d6"
+        .parse()
+        .unwrap();
+
+    let validator_id = ValidatorId::from(wallet.address());
+
+    let mut hash = Vec::new();
+    hash.extend(cert.id.as_array().iter().cloned());
+    hash.extend(validator_id.clone().as_bytes());
+
+    let hash = keccak256(hash);
+
+    let signature = wallet.sign_message(hash.as_slice()).await.unwrap();
 
     for p in selected {
         double_echo
-            .handle_ready(
-                p,
-                cert.id,
-                validator_id.clone(),
-                Signature::from_str("TEST").unwrap(),
-            )
+            .handle_ready(p, cert.id, validator_id.clone(), signature)
             .await;
     }
 }
@@ -157,16 +169,23 @@ async fn reach_delivery_threshold(double_echo: &mut DoubleEcho, cert: &Certifica
         .cloned()
         .collect::<Vec<_>>();
 
-    let validator_id = ValidatorId::from("0x100d617e4392c02b31bdce650b26b6c0c3e04f95");
+    let wallet: LocalWallet = "47d361f6becb933a77d7e01dee7b1c1859b656adbd8428bf7bf9519503e5d5d6"
+        .parse()
+        .unwrap();
+
+    let validator_id = ValidatorId::from(wallet.address());
+
+    let mut hash = Vec::new();
+    hash.extend(cert.id.as_array().iter().cloned());
+    hash.extend(validator_id.clone().as_bytes());
+
+    let hash = keccak256(hash);
+
+    let signature = wallet.sign_message(hash.as_slice()).await.unwrap();
 
     for p in selected {
         double_echo
-            .handle_ready(
-                p,
-                cert.id,
-                validator_id.clone(),
-                Signature::from_str("TEST").unwrap(),
-            )
+            .handle_ready(p, cert.id, validator_id.clone(), signature)
             .await;
     }
 }

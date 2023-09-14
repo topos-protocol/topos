@@ -8,7 +8,7 @@ use topos_p2p::{
     utils::{local_key_pair, local_key_pair_from_slice},
     Multiaddr,
 };
-use topos_tce_broadcast::{Errors, ReliableBroadcastClient, ReliableBroadcastConfig};
+use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
 use topos_tce_storage::{Connection, RocksDBStorage};
 use tracing::{debug, warn};
 mod app_context;
@@ -34,16 +34,17 @@ pub async fn run(
 
     let local_wallet: LocalWallet = match &config.signing_key {
         Some(AuthKey::PrivateKey(pk)) => {
-            let hex_string = hex::encode(pk);
-            let bytes = hex_string.as_str();
-            bytes.parse()?
+            let bytes = pk.to_vec();
+            let bytes_str = std::str::from_utf8(&bytes)?;
+            bytes_str.parse()?
         }
-        _ => return Err(Box::try_from(Errors::ProducePublicAddress).unwrap()),
+        _ => return Err(Box::try_from("Error, no singing key".to_string()).unwrap()),
     };
 
     let public_address = local_wallet.address();
 
-    //TODO: The wrong way of getting the key for the signing key here?
+    warn!("Public node address: {public_address}");
+
     let peer_id = key.public().to_peer_id();
 
     warn!("I am {peer_id}");

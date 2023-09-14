@@ -1,7 +1,7 @@
 //! implementation of Topos Network Transport
 //!
 use clap::Parser;
-use ethers::prelude::{SignatureError, Signer, WalletError};
+use ethers::prelude::{Address, SignatureError, Signer, WalletError};
 use ethers::signers::LocalWallet;
 use ethers::types::{Signature, H160};
 use ethers::utils::keccak256;
@@ -9,7 +9,6 @@ use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use topos_core::uci::{Certificate, CertificateId};
 use topos_p2p::PeerId;
-use tracing::error;
 
 #[derive(Parser, Clone, Debug, Default, Deserialize, Serialize)]
 #[command(name = "Parameters of the reliable broadcast")]
@@ -143,6 +142,10 @@ impl ValidatorId {
     pub fn as_bytes(&self) -> &[u8] {
         self.0.as_bytes()
     }
+
+    pub fn address(&self) -> Address {
+        Address::from_str(&format!("0x{}", hex::encode(self.0))).unwrap()
+    }
 }
 
 impl From<H160> for ValidatorId {
@@ -153,8 +156,7 @@ impl From<H160> for ValidatorId {
 
 impl From<&str> for ValidatorId {
     fn from(address: &str) -> Self {
-        let h160 = H160::from_str(address).expect("Failed to parse address");
-        ValidatorId(h160)
+        ValidatorId(H160::from_str(address).expect("Cannot transform to H160"))
     }
 }
 
@@ -174,22 +176,20 @@ pub async fn sign_message(
     hash.extend(validator_id.as_bytes());
 
     let hash = keccak256(hash);
-    error!("SIGN: hash: {hash:?} val_id: {validator_id} cert_id: {certificate_id}");
-    wallet.sign_message(hash).await
+
+    wallet.sign_message(hash.as_slice()).await
 }
 
 pub fn verify_signature(
     signature: Signature,
     validator_id: ValidatorId,
     certificate_id: CertificateId,
-    wallet: LocalWallet,
 ) -> Result<(), SignatureError> {
-    let public_key = wallet.address();
     let mut hash = Vec::new();
     hash.extend(certificate_id.as_array().iter().cloned());
     hash.extend(validator_id.as_bytes());
 
     let hash = keccak256(hash);
-    error!("VERIFY: hash: {hash:?} val_id: {validator_id} cert_id: {certificate_id} public_key: {public_key}");
-    signature.verify(hash, public_key)
+
+    signature.verify(hash.as_slice(), validator_id.address())
 }

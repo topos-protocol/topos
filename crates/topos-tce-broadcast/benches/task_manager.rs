@@ -1,4 +1,5 @@
-use libp2p::identity::secp256k1::Keypair;
+use ethers::prelude::{LocalWallet, Signer};
+use ethers::utils::keccak256;
 use std::collections::HashSet;
 use tce_transport::{ProtocolEvents, ReliableBroadcastParams, ValidatorId};
 use tokio::sync::mpsc::Receiver;
@@ -38,16 +39,18 @@ pub async fn processing_double_echo(n: u64) {
     };
 
     let mut ctx = Context { event_receiver };
-    let mut validators = HashSet::new();
-    let validator_id = ValidatorId::from("0x100d617e4392c02b31bdce650b26b6c0c3e04f95");
-    validators.insert(validator_id.clone());
+    let wallet: LocalWallet = "47d361f6becb933a77d7e01dee7b1c1859b656adbd8428bf7bf9519503e5d5d6"
+        .parse()
+        .unwrap();
 
-    let signing_key = Keypair::generate();
+    let mut validators = HashSet::new();
+    let validator_id = ValidatorId::from(wallet.address());
+    validators.insert(validator_id.clone());
 
     let mut double_echo = DoubleEcho::new(
         params.broadcast_params,
         validator_id.clone(),
-        signing_key.clone(),
+        wallet.clone(),
         validators,
         task_manager_message_sender.clone(),
         cmd_receiver,
@@ -104,14 +107,28 @@ pub async fn processing_double_echo(n: u64) {
 
     for cert in &certificates {
         for p in &double_echo_selected_echo {
+            let mut hash = Vec::new();
+            hash.extend(cert.id.as_array().iter().cloned());
+            hash.extend(validator_id.clone().as_bytes());
+
+            let hash = keccak256(hash);
+            let signature = wallet.sign_message(hash.as_slice()).await.unwrap();
+
             double_echo
-                .handle_echo(*p, cert.id, validator_id.clone(), signing_key.clone())
+                .handle_echo(*p, cert.id, validator_id.clone(), signature)
                 .await;
         }
 
         for p in &double_echo_selected_ready {
+            let mut hash = Vec::new();
+            hash.extend(cert.id.as_array().iter().cloned());
+            hash.extend(validator_id.clone().as_bytes());
+
+            let hash = keccak256(hash);
+            let signature = wallet.sign_message(hash.as_slice()).await.unwrap();
+
             double_echo
-                .handle_ready(*p, cert.id, validator_id.clone(), signing_key.clone())
+                .handle_ready(*p, cert.id, validator_id.clone(), signature)
                 .await;
         }
     }

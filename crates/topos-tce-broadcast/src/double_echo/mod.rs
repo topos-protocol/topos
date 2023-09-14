@@ -156,7 +156,7 @@ impl DoubleEcho {
                                         return error!("ECHO message comes from non-validator: {}", validator_id);
                                     }
 
-                                    if let Err(e) = verify_signature(signature.clone(), validator_id.clone(), certificate_id.clone(), self.wallet.clone()) {
+                                    if let Err(e) = verify_signature(signature, validator_id.clone(), certificate_id) {
                                         return error!("ECHO messag signature cannot be verified from: {}", e);
                                     }
 
@@ -168,7 +168,7 @@ impl DoubleEcho {
                                         return error!("READY message comes from non-validator: {}", validator_id);
                                     }
 
-                                    if let Err(e) = verify_signature(signature.clone(), validator_id.clone(), certificate_id.clone(), self.wallet.clone()) {
+                                    if let Err(e) = verify_signature(signature, validator_id.clone(), certificate_id) {
                                         return error!("ECHO messag signature cannot be verified from: {}", e);
                                     }
 

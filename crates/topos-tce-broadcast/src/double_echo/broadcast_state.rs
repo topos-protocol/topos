@@ -8,7 +8,6 @@ use topos_core::uci::Certificate;
 use topos_metrics::DOUBLE_ECHO_BROADCAST_FINISHED_TOTAL;
 use topos_p2p::PeerId;
 use tracing::{debug, info, warn};
-
 mod status;
 
 pub use status::Status;

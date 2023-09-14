@@ -1,4 +1,4 @@
-use ethers::prelude::LocalWallet;
+use ethers::prelude::{LocalWallet, Signer};
 use futures::Stream;
 use std::collections::HashSet;
 
@@ -11,13 +11,13 @@ pub async fn create_reliable_broadcast_client(
     ReliableBroadcastClient,
     impl Stream<Item = ProtocolEvents> + Unpin,
 ) {
-    let mut validators = HashSet::new();
-    let validator_id = ValidatorId::from("0xb4973cdb10894d1d1547673bd758589034c2bba5");
-    validators.insert(validator_id.clone());
-
-    let wallet: LocalWallet = "0x47d361f6becb933a77d7e01dee7b1c1859b656adbd8428bf7bf9519503e5d5d6"
+    let wallet: LocalWallet = "47d361f6becb933a77d7e01dee7b1c1859b656adbd8428bf7bf9519503e5d5d6"
         .parse()
         .unwrap();
+
+    let mut validators = HashSet::new();
+    let validator_id = ValidatorId::from(wallet.address());
+    validators.insert(validator_id.clone());
 
     let config = ReliableBroadcastConfig {
         tce_params,
