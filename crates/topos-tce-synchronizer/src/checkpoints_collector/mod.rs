@@ -5,9 +5,9 @@ use std::{
     sync::Arc,
 };
 
-use builder::CheckpointsCollectorBuilder;
 use futures::{future::BoxFuture, FutureExt};
 use tokio::sync::mpsc;
+use tokio_util::sync::CancellationToken;
 use topos_core::{
     api::grpc::{
         self,
@@ -17,7 +17,7 @@ use topos_core::{
             FetchCertificatesResponse,
         },
     },
-    types::{stream::CertificateSourceStreamPosition, ProofOfDelivery},
+    errors::GrpcParsingError,
     uci::{Certificate, CertificateId, SubnetId},
 };
 use topos_p2p::{
@@ -25,31 +25,28 @@ use topos_p2p::{
 };
 use topos_tce_gatekeeper::GatekeeperClient;
 use topos_tce_storage::{errors::StorageError, store::ReadStore, validator::ValidatorStore};
-use tracing::{debug, warn};
+use tracing::{debug, error, warn};
 use uuid::Uuid;
 
-mod builder;
-mod client;
 mod config;
 mod error;
 #[cfg(test)]
 mod tests;
 
-pub use client::CheckpointsCollectorClient;
 pub use config::CheckpointsCollectorConfig;
 pub use error::CheckpointsCollectorError;
 
 pub struct CheckpointSynchronizer<G: GatekeeperClient, N: NetworkClient> {
-    config: CheckpointsCollectorConfig,
+    pub(crate) config: CheckpointsCollectorConfig,
 
     pub(crate) network: N,
     pub(crate) gatekeeper: G,
     #[allow(unused)]
     pub(crate) store: Arc<ValidatorStore>,
 
-    current_request_id: Option<APIUuid>,
+    pub(crate) current_request_id: Option<APIUuid>,
 
-    pub(crate) shutdown: mpsc::Receiver<()>,
+    pub(crate) shutdown: CancellationToken,
 
     #[allow(dead_code)]
     pub(crate) events: mpsc::Sender<CheckpointsCollectorEvent>,
@@ -84,7 +81,7 @@ impl<G: GatekeeperClient, N: NetworkClient> IntoFuture for CheckpointSynchronize
                         }
                     }
 
-                    Some(_) = self.shutdown.recv() => { break; }
+                    _ = self.shutdown.cancelled() => { break; }
 
                 }
             }
@@ -106,8 +103,8 @@ enum SyncError {
     #[error("Gatekeeper returned no peer")]
     NoPeerAvailable,
 
-    #[error("Malformed gRPC object: {0}")]
-    GrpcMalformedType(&'static str),
+    #[error(transparent)]
+    GrpcParsingError(#[from] GrpcParsingError),
 
     #[error(transparent)]
     CertificateConversion(#[from] topos_core::api::grpc::shared::v1_conversions_certificate::Error),
@@ -177,32 +174,7 @@ impl<G: GatekeeperClient, N: NetworkClient> CheckpointSynchronizer<G, N> {
                 let proofs = v
                     .value
                     .into_iter()
-                    .map(|v| {
-                        let position = v
-                            .delivery_position
-                            .ok_or(SyncError::GrpcMalformedType("position"))?;
-                        Ok::<_, SyncError>(ProofOfDelivery {
-                            certificate_id: position
-                                .certificate_id
-                                .map(TryInto::try_into)
-                                .ok_or(SyncError::GrpcMalformedType("position.certificate_id"))??,
-                            delivery_position: CertificateSourceStreamPosition {
-                                subnet_id: position
-                                    .source_subnet_id
-                                    .map(TryInto::try_into)
-                                    .ok_or(SyncError::GrpcMalformedType(
-                                        "position.source_subnet_id",
-                                    ))??,
-                                position: position.position.into(),
-                            },
-                            readies: v
-                                .readies
-                                .into_iter()
-                                .map(|r| (r.ready, r.signature))
-                                .collect(),
-                            threshold: v.threshold,
-                        })
-                    })
+                    .map(TryInto::try_into)
                     .collect::<Result<Vec<_>, _>>()?;
                 Ok::<_, SyncError>((subnet, proofs))
             })
@@ -266,17 +238,13 @@ impl<G: GatekeeperClient, N: NetworkClient> CheckpointSynchronizer<G, N> {
                         let certificate_id = certificate.id;
                         match store.synchronize_certificate(certificate).await {
                             Ok(_) => debug!("Certificate {} synchronized", certificate_id),
-                            Err(e) => tracing::error!("Failed to sync because of: {:?}", e),
+                            Err(e) => error!("Failed to sync because of: {:?}", e),
                         }
                     }
                 });
             }
         }
         Ok(())
-    }
-
-    pub fn builder() -> CheckpointsCollectorBuilder<G, N> {
-        CheckpointsCollectorBuilder::default()
     }
 }
 

@@ -151,12 +151,13 @@ pub async fn run(
     debug!("Reliable broadcast started");
 
     debug!("Starting the Synchronizer");
-    let (synchronizer_client, synchronizer_runtime, synchronizer_stream) =
+    let (synchronizer_runtime, synchronizer_stream) =
         topos_tce_synchronizer::Synchronizer::builder()
+            .with_shutdown(shutdown.0.child_token())
             .with_store(validator_store.clone())
             .with_gatekeeper_client(gatekeeper_client.clone())
             .with_network_client(network_client.clone())
-            .await?;
+            .build()?;
 
     spawn(synchronizer_runtime.into_future());
     debug!("Synchronizer started");
@@ -181,7 +182,6 @@ pub async fn run(
         network_client,
         api_client,
         gatekeeper_client,
-        synchronizer_client,
         validator_store,
     );
 

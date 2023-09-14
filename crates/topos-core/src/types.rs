@@ -2,7 +2,9 @@ use topos_uci::{Certificate, CertificateId};
 
 use serde::{Deserialize, Serialize};
 
-use self::stream::CertificateSourceStreamPosition;
+use crate::errors::GrpcParsingError;
+
+use self::stream::{CertificateSourceStreamPosition, Position};
 use topos_api::grpc::{
     checkpoints::SourceStreamPosition,
     tce::v1::{ProofOfDelivery as GrpcProofOfDelivery, SignedReady},
@@ -56,20 +58,18 @@ impl From<SourceStreamPosition> for CertificateSourceStreamPosition {
 }
 
 impl TryFrom<GrpcProofOfDelivery> for ProofOfDelivery {
-    type Error = ConversionError;
-
+    type Error = GrpcParsingError;
     fn try_from(value: GrpcProofOfDelivery) -> Result<Self, Self::Error> {
         let position: SourceStreamPosition = value
             .delivery_position
-            .ok_or(ConversionError::MissingField("delivery_position"))?
-            .try_into()
-            .map_err(ConversionError::StreamConversion)?;
+            .ok_or(GrpcParsingError::GrpcMalformedType("position"))?
+            .try_into()?;
 
         Ok(Self {
             certificate_id: position
                 .certificate_id
-                .ok_or(ConversionError::MissingField(
-                    "delivery_position.certificate_id",
+                .ok_or(GrpcParsingError::GrpcMalformedType(
+                    "position.certificate_id",
                 ))?,
             delivery_position: position.into(),
             readies: value
@@ -81,6 +81,7 @@ impl TryFrom<GrpcProofOfDelivery> for ProofOfDelivery {
         })
     }
 }
+
 impl From<ProofOfDelivery> for GrpcProofOfDelivery {
     fn from(value: ProofOfDelivery) -> Self {
         Self {

@@ -196,7 +196,7 @@ pub async fn start_node(
 
     let (gatekeeper_client, gatekeeper_join_handle) = create_gatekeeper(peer_id).await.unwrap();
 
-    let (synchronizer_client, synchronizer_stream, synchronizer_join_handle) = create_synchronizer(
+    let (synchronizer_stream, synchronizer_join_handle) = create_synchronizer(
         gatekeeper_client.clone(),
         network_client.clone(),
         validator_store.clone(),
@@ -209,7 +209,6 @@ pub async fn start_node(
         network_client,
         api_context.client,
         gatekeeper_client,
-        synchronizer_client,
         validator_store,
     );
 

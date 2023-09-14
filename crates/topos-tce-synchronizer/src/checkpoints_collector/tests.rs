@@ -1,9 +1,11 @@
-use std::{future::IntoFuture, time::Duration};
+use std::time::Duration;
 
 use futures::FutureExt;
 use libp2p::{request_response::ResponseChannel, PeerId};
 use mockall::mock;
 use rstest::rstest;
+use tokio::sync::mpsc;
+use tokio_util::sync::CancellationToken;
 use topos_core::{
     api::grpc::tce::v1::{
         CheckpointMapFieldEntry, CheckpointRequest, CheckpointResponse, FetchCertificatesRequest,
@@ -27,6 +29,8 @@ use topos_test_sdk::{
 };
 use tracing::warn;
 use uuid::Uuid;
+
+use crate::checkpoints_collector::CheckpointsCollectorConfig;
 
 use super::CheckpointSynchronizer;
 
@@ -117,13 +121,17 @@ async fn can_initiate_a_sync() {
         .times(2)
         .returning(|_| Ok(vec![PeerId::random()]));
 
-    let (_, mut sync, _) = CheckpointSynchronizer::builder()
-        .set_network_client(Some(client))
-        .set_gatekeeper_client(Some(gatekeeper_client))
-        .set_store(Some(validator_store.clone()))
-        .into_future()
-        .await
-        .unwrap();
+    let (events, _) = mpsc::channel(100);
+    let shutdown = CancellationToken::new();
+    let mut sync = CheckpointSynchronizer {
+        config: CheckpointsCollectorConfig::default(),
+        current_request_id: None,
+        gatekeeper: gatekeeper_client,
+        network: client,
+        store: validator_store.clone(),
+        events,
+        shutdown,
+    };
 
     sync.initiate_request().await.unwrap();
 
