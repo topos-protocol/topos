@@ -921,3 +921,101 @@ async fn test_subnet_send_token_processing(
     context.shutdown().await?;
     Ok(())
 }
+
+/// Test sync of blocks and generating certificates from genesis block
+#[rstest]
+#[test(tokio::test)]
+#[timeout(std::time::Duration::from_secs(600))]
+#[serial]
+async fn test_sync_from_genesis(
+    #[with(8546)]
+    #[future]
+    context_running_subnet_node: Context,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let context = context_running_subnet_node.await;
+    let test_private_key = hex::decode(TEST_SECRET_ETHEREUM_KEY).unwrap();
+    let subnet_jsonrpc_endpoint = context.jsonrpc();
+    let subnet_smart_contract_address =
+        "0x".to_string() + &hex::encode(context.i_topos_core.address());
+
+    // Wait for some time to simulate network history
+    tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+
+    // Get block height
+    let http_provider = Provider::<Http>::try_from(subnet_jsonrpc_endpoint)?
+        .interval(std::time::Duration::from_millis(20u64));
+    let subnet_height = http_provider.get_block_number().await?.as_u64();
+
+    // Create runtime proxy worker
+    info!("Creating subnet runtime proxy");
+    let mut runtime_proxy_worker = SubnetRuntimeProxyWorker::new(
+        SubnetRuntimeProxyConfig {
+            subnet_id: SOURCE_SUBNET_ID_1,
+            http_endpoint: context.jsonrpc(),
+            ws_endpoint: context.jsonrpc_ws(),
+            subnet_contract_address: subnet_smart_contract_address.clone(),
+            verifier: 0,
+            source_head_certificate_id: None,
+        },
+        test_private_key.clone(),
+    )
+    .await?;
+    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+    info!("Manually set source head certificate to 0 as TCE is not available");
+    if let Err(e) = runtime_proxy_worker
+        .set_source_head_certificate_id(Some((CERTIFICATE_ID_1, 0)))
+        .await
+    {
+        panic!("Unable to set source head certificate id: {e}");
+    }
+
+    info!(
+        "Waiting for the certificates from zero until height {}...",
+        subnet_height
+    );
+    let mut receieved_certificate_block_heights = Vec::new();
+    let expected_blocks = (1..=subnet_height).collect::<Vec<_>>();
+    let assertion = async move {
+        while let Ok(event) = runtime_proxy_worker.next_event().await {
+            if let SubnetRuntimeProxyEvent::NewCertificate {
+                cert,
+                block_number,
+                ctx: _,
+            } = event
+            {
+                info!(
+                    "New certificate event received, block number: {} cert id: {} target subnets: {:?}",
+                    block_number, cert.id, cert.target_subnets
+                );
+                receieved_certificate_block_heights.push(block_number);
+
+                if receieved_certificate_block_heights
+                    .iter()
+                    .take(subnet_height as usize)
+                    .copied()
+                    .collect::<Vec<_>>()
+                    == expected_blocks
+                {
+                    info!(
+                        "Received all certificates for blocks from 0 to {}",
+                        subnet_height
+                    );
+                    return Ok::<(), Box<dyn std::error::Error>>(());
+                }
+            }
+        }
+        panic!("Expected event not received");
+    };
+
+    // Set big timeout to prevent flaky fails. Instead fail/panic early in the test to indicate actual error
+    if tokio::time::timeout(std::time::Duration::from_secs(60), assertion)
+        .await
+        .is_err()
+    {
+        panic!("Timeout waiting for command");
+    }
+
+    info!("Shutting down context...");
+    context.shutdown().await?;
+    Ok(())
+}
