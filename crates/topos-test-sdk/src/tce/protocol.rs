@@ -1,5 +1,5 @@
+use ethers::prelude::LocalWallet;
 use futures::Stream;
-use libp2p::identity::secp256k1::Keypair;
 use std::collections::HashSet;
 
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
@@ -14,13 +14,16 @@ pub async fn create_reliable_broadcast_client(
     let mut validators = HashSet::new();
     let validator_id = ValidatorId::from("0xb4973cdb10894d1d1547673bd758589034c2bba5");
     validators.insert(validator_id.clone());
-    let signing_key = Keypair::generate();
+
+    let wallet: LocalWallet = "0x47d361f6becb933a77d7e01dee7b1c1859b656adbd8428bf7bf9519503e5d5d6"
+        .parse()
+        .unwrap();
 
     let config = ReliableBroadcastConfig {
         tce_params,
         validator_id,
         validators,
-        signing_key,
+        wallet,
     };
 
     ReliableBroadcastClient::new(config).await

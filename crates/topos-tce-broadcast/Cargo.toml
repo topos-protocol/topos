@@ -8,6 +8,7 @@ byteorder.workspace = true
 futures.workspace = true
 lazy_static.workspace = true
 rand.workspace = true
+ethers.workspace = true
 rand_core.workspace = true
 serde.workspace = true
 thiserror.workspace = true
@@ -28,7 +29,7 @@ test-log.workspace = true
 env_logger.workspace = true
 rstest.workspace = true
 rand.workspace = true
-
+hex.workspace = true
 topos-test-sdk = { path = "../topos-test-sdk/" }
 
 [features]

@@ -1,14 +1,13 @@
-use libp2p::identity::secp256k1::Keypair;
+use crate::sampler::SubscriptionsView;
+use ethers::prelude::LocalWallet;
 use std::time;
-
+use tce_transport::sign_message;
 use tce_transport::{ProtocolEvents, ValidatorId};
 use tokio::sync::mpsc;
 use topos_core::uci::Certificate;
 use topos_metrics::DOUBLE_ECHO_BROADCAST_FINISHED_TOTAL;
 use topos_p2p::PeerId;
-use tracing::{debug, error, info, warn};
-
-use crate::sampler::SubscriptionsView;
+use tracing::{debug, info, warn};
 
 mod status;
 
@@ -23,14 +22,14 @@ pub struct BroadcastState {
     echo_threshold: usize,
     ready_threshold: usize,
     delivery_threshold: usize,
-    keypair: Keypair,
+    wallet: LocalWallet,
     event_sender: mpsc::Sender<ProtocolEvents>,
     delivery_time: time::Instant,
 }
 
 impl BroadcastState {
     #[allow(clippy::too_many_arguments)]
-    pub fn new(
+    pub async fn new(
         certificate: Certificate,
         validator_id: ValidatorId,
         echo_threshold: usize,
@@ -39,7 +38,7 @@ impl BroadcastState {
         event_sender: mpsc::Sender<ProtocolEvents>,
         subscriptions_view: SubscriptionsView,
         need_gossip: bool,
-        keypair: Keypair,
+        wallet: LocalWallet,
     ) -> Self {
         let mut state = Self {
             subscriptions_view,
@@ -49,7 +48,7 @@ impl BroadcastState {
             echo_threshold,
             ready_threshold,
             delivery_threshold,
-            keypair,
+            wallet,
             event_sender,
             delivery_time: time::Instant::now(),
         };
@@ -65,33 +64,35 @@ impl BroadcastState {
             });
         }
 
-        state.update_status();
+        state.update_status().await;
 
         state
     }
 
-    pub fn apply_echo(&mut self, peer_id: PeerId) -> Option<Status> {
+    pub async fn apply_echo(&mut self, peer_id: PeerId) -> Option<Status> {
         self.subscriptions_view.echo.remove(&peer_id);
-        self.update_status()
+        self.update_status().await
     }
 
-    pub fn apply_ready(&mut self, peer_id: PeerId) -> Option<Status> {
+    pub async fn apply_ready(&mut self, peer_id: PeerId) -> Option<Status> {
         self.subscriptions_view.ready.remove(&peer_id);
-        self.update_status()
+        self.update_status().await
     }
 
-    fn update_status(&mut self) -> Option<Status> {
+    async fn update_status(&mut self) -> Option<Status> {
         // Nothing happened yet, we're in the initial state and didn't Procced
         // any Echo or Ready messages
         // Sending our Echo message
         if let Status::Pending = self.status {
-            error!("SEND SIGNED ECHO MESSAGE");
             _ = self.event_sender.try_send(ProtocolEvents::Echo {
                 certificate_id: self.certificate.id,
-                signature: self
-                    .keypair
-                    .secret()
-                    .sign(self.certificate.id.as_array().as_slice()),
+                signature: sign_message(
+                    self.validator_id.clone(),
+                    self.certificate.id,
+                    self.wallet.clone(),
+                )
+                .await
+                .ok()?,
                 validator_id: self.validator_id.clone(),
             });
 
@@ -111,10 +112,13 @@ impl BroadcastState {
         if !self.status.is_ready_sent() && self.reached_ready_threshold() {
             let event = ProtocolEvents::Ready {
                 certificate_id: self.certificate.id,
-                signature: self
-                    .keypair
-                    .secret()
-                    .sign(self.certificate.id.as_array().as_slice()),
+                signature: sign_message(
+                    self.validator_id.clone(),
+                    self.certificate.id,
+                    self.wallet.clone(),
+                )
+                .await
+                .ok()?,
                 validator_id: self.validator_id.clone(),
             };
             if let Err(e) = self.event_sender.try_send(event) {

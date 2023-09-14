@@ -8,6 +8,7 @@ path = 'src/lib.rs'
 
 [dependencies]
 clap.workspace = true
+ethers.workspace = true
 serde = { workspace = true, features = ["rc"] }
 tracing.workspace = true
 secp256k1.workspace = true

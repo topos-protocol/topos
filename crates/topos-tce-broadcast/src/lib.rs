@@ -5,17 +5,16 @@
 
 use std::collections::HashSet;
 
+use double_echo::DoubleEcho;
+use ethers::prelude::{LocalWallet, Signature};
+use futures::Stream;
 use sampler::SampleType;
+use tce_transport::{ProtocolEvents, ReliableBroadcastParams, ValidatorId};
 use thiserror::Error;
 use tokio::spawn;
-use tokio_stream::wrappers::ReceiverStream;
-
-use double_echo::DoubleEcho;
-use futures::Stream;
-use libp2p::identity::secp256k1::Keypair;
-use tce_transport::{ProtocolEvents, ReliableBroadcastParams, ValidatorId};
 use tokio::sync::mpsc::Sender;
 use tokio::sync::{mpsc, oneshot};
+use tokio_stream::wrappers::ReceiverStream;
 use topos_core::uci::{Certificate, CertificateId};
 use topos_metrics::DOUBLE_ECHO_COMMAND_CHANNEL_CAPACITY_TOTAL;
 use topos_p2p::PeerId;
@@ -52,7 +51,7 @@ pub struct ReliableBroadcastConfig {
     pub tce_params: ReliableBroadcastParams,
     pub validator_id: ValidatorId,
     pub validators: HashSet<ValidatorId>,
-    pub signing_key: Keypair,
+    pub wallet: LocalWallet,
 }
 
 #[derive(Debug)]
@@ -85,7 +84,7 @@ pub enum DoubleEchoCommand {
         from_peer: PeerId,
         validator_id: ValidatorId,
         certificate_id: CertificateId,
-        signature: Vec<u8>,
+        signature: Signature,
     },
 
     /// When ready reply received
@@ -93,7 +92,7 @@ pub enum DoubleEchoCommand {
         from_peer: PeerId,
         validator_id: ValidatorId,
         certificate_id: CertificateId,
-        signature: Vec<u8>,
+        signature: Signature,
     },
 }
 
@@ -126,7 +125,7 @@ impl ReliableBroadcastClient {
         let double_echo = DoubleEcho::new(
             config.tce_params,
             config.validator_id,
-            config.signing_key,
+            config.wallet,
             config.validators,
             task_manager_message_sender,
             command_receiver,
@@ -220,6 +219,9 @@ pub enum Errors {
 
     #[error("Requested digest not found for certificate {0:?}")]
     DigestNotFound(CertificateId),
+
+    #[error("Cannot create public address from private key")]
+    ProducePublicAddress,
 
     #[error("Unable to execute shutdown for the reliable broadcast: {0}")]
     ShutdownCommunication(mpsc::error::SendError<oneshot::Sender<()>>),

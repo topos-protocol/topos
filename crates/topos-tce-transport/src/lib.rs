@@ -1,8 +1,12 @@
 //! implementation of Topos Network Transport
 //!
 use clap::Parser;
+use ethers::prelude::{SignatureError, Signer, WalletError};
+use ethers::signers::LocalWallet;
+use ethers::types::{Signature, H160};
+use ethers::utils::keccak256;
 use serde::{Deserialize, Serialize};
-use std::fmt::Display;
+use std::str::FromStr;
 use topos_core::uci::{Certificate, CertificateId};
 use topos_p2p::PeerId;
 
@@ -32,41 +36,6 @@ impl ReliableBroadcastParams {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
-pub struct ValidatorId([u8; 20]);
-
-impl ValidatorId {
-    // Constructor to create a ValidatorId from a &[u8; 20]
-    pub fn new(bytes: &[u8; 20]) -> Self {
-        ValidatorId(*bytes)
-    }
-}
-
-// Implement From<&str> for ValidatorId
-impl From<&str> for ValidatorId {
-    fn from(address: &str) -> Self {
-        // Remove the "0x" prefix from the address
-        let address_without_prefix = &address[2..];
-
-        // Convert the hexadecimal address to bytes
-        let bytes = hex::decode(address_without_prefix).expect("Failed to decode hex string");
-
-        // Ensure the bytes have the correct length (20 bytes)
-        if bytes.len() != 20 {
-            panic!("Invalid address length");
-        }
-
-        // Create a ValidatorId from the bytes
-        ValidatorId::new(&bytes.try_into().expect("Invalid byte slice length"))
-    }
-}
-
-impl Display for ValidatorId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "0x{}", hex::encode(self.0))
-    }
-}
-
 /// Protocol commands
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum TceCommands {
@@ -93,13 +62,13 @@ pub enum TceCommands {
     /// When echo reply received
     OnEcho {
         certificate_id: CertificateId,
-        signature: Vec<u8>,
+        signature: Signature,
         validator_id: ValidatorId,
     },
     /// When ready reply received
     OnReady {
         certificate_id: CertificateId,
-        signature: Vec<u8>,
+        signature: Signature,
         validator_id: ValidatorId,
     },
     /// Given peer replied ok to the double echo request
@@ -145,13 +114,13 @@ pub enum ProtocolEvents {
     /// Indicates that 'echo' message broadcasting is required
     Echo {
         certificate_id: CertificateId,
-        signature: Vec<u8>,
+        signature: Signature,
         validator_id: ValidatorId,
     },
     /// Indicates that 'ready' message broadcasting is required
     Ready {
         certificate_id: CertificateId,
-        signature: Vec<u8>,
+        signature: Signature,
         validator_id: ValidatorId,
     },
     /// For simulation purpose, for now only caused by ill-formed sampling
@@ -164,4 +133,64 @@ pub enum ProtocolEvents {
 
     /// Stable Sample
     StableSample,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
+pub struct ValidatorId(H160);
+
+impl ValidatorId {
+    pub fn as_bytes(&self) -> &[u8] {
+        self.0.as_bytes()
+    }
+}
+
+impl From<H160> for ValidatorId {
+    fn from(address: H160) -> Self {
+        ValidatorId(address)
+    }
+}
+
+impl From<&str> for ValidatorId {
+    fn from(address: &str) -> Self {
+        // Parse the address and create a ValidatorId
+        // You may need to add error handling here
+        let h160 = H160::from_str(address).expect("Failed to parse address");
+        ValidatorId(h160)
+    }
+}
+
+impl std::fmt::Display for ValidatorId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "0x{}", hex::encode(self.0))
+    }
+}
+
+pub async fn sign_message(
+    validator_id: ValidatorId,
+    certificate_id: CertificateId,
+    wallet: LocalWallet,
+) -> Result<Signature, WalletError> {
+    let mut hash = Vec::new();
+    hash.extend(certificate_id.as_array().iter().cloned());
+    hash.extend(validator_id.as_bytes());
+
+    let hash = keccak256(hash);
+
+    wallet.sign_message(hash).await
+}
+
+pub fn verify_signature(
+    signature: Signature,
+    validator_id: ValidatorId,
+    certificate_id: CertificateId,
+    wallet: LocalWallet,
+) -> Result<(), SignatureError> {
+    let public_key = wallet.address();
+    let mut hash = Vec::new();
+    hash.extend(certificate_id.as_array().iter().cloned());
+    hash.extend(validator_id.as_bytes());
+
+    let hash = keccak256(hash);
+
+    signature.verify(hash, public_key)
 }

@@ -1,7 +1,9 @@
 use crate::TaskStatus;
 use crate::{DoubleEchoCommand, SubscriptionsView};
-use libp2p::identity::secp256k1::Keypair;
+use ethers::prelude::LocalWallet;
+use ethers::types::Signature;
 use std::collections::HashSet;
+use tce_transport::verify_signature;
 use tce_transport::{ProtocolEvents, ReliableBroadcastParams, ValidatorId};
 use tokio::sync::{mpsc, oneshot};
 use topos_core::uci::{Certificate, CertificateId};
@@ -28,7 +30,7 @@ pub struct DoubleEcho {
     /// Public ETH address
     pub validator_id: ValidatorId,
     /// Keypair to sign and verify ECHO and READY messages
-    pub signing_key: Keypair,
+    pub wallet: LocalWallet,
     /// List of approved validators through smart contract and/or genesis
     pub validators: HashSet<ValidatorId>,
 }
@@ -40,7 +42,7 @@ impl DoubleEcho {
     pub fn new(
         params: ReliableBroadcastParams,
         validator_id: ValidatorId,
-        signing_key: Keypair,
+        wallet: LocalWallet,
         validators: HashSet<ValidatorId>,
         task_manager_message_sender: mpsc::Sender<DoubleEchoCommand>,
         command_receiver: mpsc::Receiver<DoubleEchoCommand>,
@@ -50,7 +52,7 @@ impl DoubleEcho {
         Self {
             params,
             validator_id,
-            signing_key,
+            wallet,
             validators,
             task_manager_message_sender,
             command_receiver,
@@ -76,7 +78,7 @@ impl DoubleEcho {
             self.event_sender.clone(),
             self.validator_id.clone(),
             self.params.clone(),
-            self.signing_key.clone(),
+            self.wallet.clone(),
         );
 
         tokio::spawn(task_manager.run(shutdown_receiver));
@@ -98,7 +100,7 @@ impl DoubleEcho {
             subscriptions_view_receiver,
             self.event_sender.clone(),
             self.validator_id.clone(),
-            self.signing_key.clone(),
+            self.wallet.clone(),
             self.params.clone(),
         );
 
@@ -149,28 +151,28 @@ impl DoubleEcho {
                         command if self.subscriptions.is_some() => {
                             match command {
                                 DoubleEchoCommand::Echo { from_peer, certificate_id, validator_id, signature } => {
-                                    // Check if signature is valid
-                                    if !self.signing_key.public().verify(certificate_id.as_array().as_slice(), &signature) {
-                                        return error!("ECHO message not properly signed");
-                                    }
                                     // Check if source is part of known_validators
                                     if !self.validators.contains(&validator_id) {
                                         return error!("ECHO message comes from non-validator: {}", validator_id);
                                     }
 
-                                    self.handle_echo(from_peer, certificate_id, validator_id, self.signing_key.clone()).await
+                                    if let Err(_) = verify_signature(signature.clone(), validator_id.clone(), certificate_id.clone(), self.wallet.clone()) {
+                                        return error!("ECHO messag signature cannot be verified from: {}", validator_id);
+                                    }
+
+                                    self.handle_echo(from_peer, certificate_id, validator_id, signature).await
                                 },
                                 DoubleEchoCommand::Ready { from_peer, certificate_id, validator_id, signature } => {
-                                    // Check if signature is valid
-                                  if !self.signing_key.public().verify(certificate_id.as_array().as_slice(), &signature) {
-                                        return error!("READY message not properly signed");
-                                    }
                                     // Check if source is part of known_validators
                                     if !self.validators.contains(&validator_id) {
                                         return error!("READY message comes from non-validator: {}", validator_id);
                                     }
 
-                                    self.handle_ready(from_peer, certificate_id, validator_id, self.signing_key.clone()).await
+                                    if let Err(_) = verify_signature(signature.clone(), validator_id.clone(), certificate_id.clone(), self.wallet.clone()) {
+                                        return error!("ECHO messag signature cannot be verified from: {}", validator_id);
+                                    }
+
+                                    self.handle_ready(from_peer, certificate_id, validator_id, signature).await
                                 },
                                 _ => {}
                             }
@@ -290,10 +292,9 @@ impl DoubleEcho {
         from_peer: PeerId,
         certificate_id: CertificateId,
         validator_id: ValidatorId,
-        keypair: Keypair,
+        signature: Signature,
     ) {
         if self.delivered_certificates.get(&certificate_id).is_none() {
-            let signature = keypair.secret().sign(certificate_id.as_array().as_slice());
             let _ = self
                 .task_manager_message_sender
                 .send(DoubleEchoCommand::Echo {
@@ -311,10 +312,9 @@ impl DoubleEcho {
         from_peer: PeerId,
         certificate_id: CertificateId,
         validator_id: ValidatorId,
-        keypair: Keypair,
+        signature: Signature,
     ) {
         if self.delivered_certificates.get(&certificate_id).is_none() {
-            let signature = keypair.secret().sign(certificate_id.as_array().as_slice());
             let _ = self
                 .task_manager_message_sender
                 .send(DoubleEchoCommand::Ready {

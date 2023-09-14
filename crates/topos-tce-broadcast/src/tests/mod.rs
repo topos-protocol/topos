@@ -1,12 +1,11 @@
 use crate::double_echo::*;
 use crate::*;
-use libp2p::identity::secp256k1::Keypair;
 use rstest::*;
 use std::collections::HashSet;
+use std::str::FromStr;
 use std::usize;
 use tce_transport::ReliableBroadcastParams;
 use tokio::sync::mpsc::Receiver;
-
 use topos_test_sdk::constants::*;
 
 const CHANNEL_SIZE: usize = 10;
@@ -53,15 +52,22 @@ async fn create_context(params: TceParams) -> (DoubleEcho, Context) {
     let (_double_echo_shutdown_sender, double_echo_shutdown_receiver) =
         mpsc::channel::<oneshot::Sender<()>>(1);
     let (task_manager_message_sender, task_manager_message_receiver) = mpsc::channel(CHANNEL_SIZE);
+
+    // Create list of validators
     let mut validators = HashSet::new();
     let validator_id = ValidatorId::from("0x100d617e4392c02b31bdce650b26b6c0c3e04f95");
-
     validators.insert(validator_id.clone());
+
+    // Create test wallet to sign and verify ECHO | READY messages
+    let hex_string =
+        hex::encode("47d361f6becb933a77d7e01dee7b1c1859b656adbd8428bf7bf9519503e5d5d6");
+    let bytes = hex_string.as_str();
+    let wallet: LocalWallet = bytes.parse().unwrap();
 
     let mut double_echo = DoubleEcho::new(
         params.broadcast_params,
         validator_id,
-        Keypair::generate(),
+        wallet,
         validators,
         task_manager_message_sender.clone(),
         cmd_receiver,
@@ -106,11 +112,15 @@ async fn reach_echo_threshold(double_echo: &mut DoubleEcho, cert: &Certificate) 
         .collect::<Vec<_>>();
 
     let validator_id = ValidatorId::from("0x100d617e4392c02b31bdce650b26b6c0c3e04f95");
-    let keypair = Keypair::generate();
 
     for p in selected {
         double_echo
-            .handle_echo(p, cert.id, validator_id.clone(), keypair.clone())
+            .handle_echo(
+                p,
+                cert.id,
+                validator_id.clone(),
+                Signature::from_str("TEST").unwrap(),
+            )
             .await;
     }
 }
@@ -125,11 +135,15 @@ async fn reach_ready_threshold(double_echo: &mut DoubleEcho, cert: &Certificate)
         .collect::<Vec<_>>();
 
     let validator_id = ValidatorId::from("0x100d617e4392c02b31bdce650b26b6c0c3e04f95");
-    let keypair = Keypair::generate();
 
     for p in selected {
         double_echo
-            .handle_ready(p, cert.id, validator_id.clone(), keypair.clone())
+            .handle_ready(
+                p,
+                cert.id,
+                validator_id.clone(),
+                Signature::from_str("TEST").unwrap(),
+            )
             .await;
     }
 }
@@ -144,11 +158,15 @@ async fn reach_delivery_threshold(double_echo: &mut DoubleEcho, cert: &Certifica
         .collect::<Vec<_>>();
 
     let validator_id = ValidatorId::from("0x100d617e4392c02b31bdce650b26b6c0c3e04f95");
-    let keypair = Keypair::generate();
 
     for p in selected {
         double_echo
-            .handle_ready(p, cert.id, validator_id.clone(), keypair.clone())
+            .handle_ready(
+                p,
+                cert.id,
+                validator_id.clone(),
+                Signature::from_str("TEST").unwrap(),
+            )
             .await;
     }
 }

@@ -1,7 +1,7 @@
+use ethers::prelude::LocalWallet;
 use futures::stream::FuturesUnordered;
 use futures::Future;
 use futures::StreamExt;
-use libp2p::identity::secp256k1::Keypair;
 use std::collections::HashMap;
 use std::future::IntoFuture;
 use std::pin::Pin;
@@ -32,7 +32,7 @@ pub struct TaskManager {
     pub subscriptions: SubscriptionsView,
     pub event_sender: mpsc::Sender<ProtocolEvents>,
     pub tasks: HashMap<CertificateId, TaskContext>,
-    pub keypair: Keypair,
+    pub wallet: LocalWallet,
     #[allow(clippy::type_complexity)]
     pub running_tasks: FuturesUnordered<
         Pin<Box<dyn Future<Output = (CertificateId, TaskStatus)> + Send + 'static>>,
@@ -51,7 +51,7 @@ impl TaskManager {
         event_sender: mpsc::Sender<ProtocolEvents>,
         validator_id: ValidatorId,
         thresholds: ReliableBroadcastParams,
-        keypair: Keypair,
+        wallet: LocalWallet,
     ) -> (Self, mpsc::Receiver<()>) {
         let (shutdown_sender, shutdown_receiver) = mpsc::channel(1);
 
@@ -66,7 +66,7 @@ impl TaskManager {
                 running_tasks: FuturesUnordered::new(),
                 buffered_messages: Default::default(),
                 validator_id,
-                keypair,
+                wallet,
                 thresholds,
                 shutdown_sender,
             },
@@ -107,8 +107,8 @@ impl TaskManager {
                                         self.event_sender.clone(),
                                         self.subscriptions.clone(),
                                         need_gossip,
-                                        self.keypair.clone(),
-                                    );
+                                        self.wallet.clone(),
+                                    ).await;
 
                                     let (task, task_context) = Task::new(cert.id, broadcast_state);
 

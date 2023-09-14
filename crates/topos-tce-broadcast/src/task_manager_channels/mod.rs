@@ -1,4 +1,4 @@
-use libp2p::identity::secp256k1::Keypair;
+use ethers::prelude::LocalWallet;
 use std::collections::HashMap;
 use tce_transport::{ProtocolEvents, ReliableBroadcastParams, ValidatorId};
 use tokio::{spawn, sync::mpsc};
@@ -30,7 +30,7 @@ pub struct TaskManager {
     pub tasks: HashMap<CertificateId, TaskContext>,
     pub buffered_messages: HashMap<CertificateId, Vec<DoubleEchoCommand>>,
     pub validator_id: ValidatorId,
-    pub keypair: Keypair,
+    pub wallet: LocalWallet,
     pub thresholds: ReliableBroadcastParams,
     pub shutdown_sender: mpsc::Sender<()>,
 }
@@ -42,7 +42,7 @@ impl TaskManager {
         subscription_view_receiver: mpsc::Receiver<SubscriptionsView>,
         event_sender: mpsc::Sender<ProtocolEvents>,
         validator_id: ValidatorId,
-        keypair: Keypair,
+        wallet: LocalWallet,
         thresholds: ReliableBroadcastParams,
     ) -> (Self, mpsc::Receiver<()>) {
         let (task_completion_sender, task_completion_receiver) =
@@ -61,7 +61,7 @@ impl TaskManager {
                 tasks: HashMap::new(),
                 buffered_messages: Default::default(),
                 validator_id,
-                keypair,
+                wallet,
                 thresholds,
                 shutdown_sender,
             },
@@ -99,8 +99,8 @@ impl TaskManager {
                                         self.event_sender.clone(),
                                         self.subscriptions.clone(),
                                         need_gossip,
-                                        self.keypair.clone(),
-                                    );
+                                        self.wallet.clone(),
+                                    ).await;
 
                                     let (task, task_context) = Task::new(cert.id, self.task_completion_sender.clone(), broadcast_state);
 

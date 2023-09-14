@@ -1,15 +1,14 @@
-use std::future::IntoFuture;
-
 use config::TceConfiguration;
+use ethers::prelude::{LocalWallet, Signer};
 use opentelemetry::global;
-use tce_transport::ValidatorId;
+use std::future::IntoFuture;
 use tokio::{spawn, sync::mpsc};
 use tokio_util::sync::CancellationToken;
 use topos_p2p::{
     utils::{local_key_pair, local_key_pair_from_slice},
     Multiaddr,
 };
-use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
+use topos_tce_broadcast::{Errors, ReliableBroadcastClient, ReliableBroadcastConfig};
 use topos_tce_storage::{Connection, RocksDBStorage};
 use tracing::{debug, warn};
 mod app_context;
@@ -33,22 +32,21 @@ pub async fn run(
         None => local_key_pair(None),
     };
 
-    //TODO: The wrong way of getting the key for the signing key here?
-    let signing_key = match config.signing_key.as_ref() {
-        Some(AuthKey::Seed(seed)) => local_key_pair_from_slice(seed),
-        Some(AuthKey::PrivateKey(pk)) => topos_p2p::utils::keypair_from_protobuf_encoding(pk),
-        None => local_key_pair(None),
+    let local_wallet: LocalWallet = match &config.signing_key {
+        Some(AuthKey::PrivateKey(pk)) => {
+            let hex_string = hex::encode(pk);
+            let bytes = hex_string.as_str();
+            bytes.parse()?
+        }
+        _ => return Err(Box::try_from(Errors::ProducePublicAddress).unwrap()),
     };
 
+    let public_address = local_wallet.address();
+
+    //TODO: The wrong way of getting the key for the signing key here?
     let peer_id = key.public().to_peer_id();
 
-    let public_key_bytes = signing_key.public().try_into_secp256k1()?.to_bytes();
-    let mut validator_id_bytes = [0u8; 20];
-    validator_id_bytes.copy_from_slice(&public_key_bytes[0..=20]);
-    let validator_id = ValidatorId::new(&validator_id_bytes);
-
     warn!("I am {peer_id}");
-    warn!("My public ETH address: {validator_id}");
 
     tracing::Span::current().record("peer_id", &peer_id.to_string());
 
@@ -103,9 +101,9 @@ pub async fn run(
     debug!("Starting reliable broadcast");
     let (tce_cli, tce_stream) = ReliableBroadcastClient::new(ReliableBroadcastConfig {
         tce_params: config.tce_params.clone(),
-        validator_id,
+        validator_id: public_address.into(),
         validators: config.validators.clone(),
-        signing_key: signing_key.try_into_secp256k1()?,
+        wallet: local_wallet,
     })
     .await;
     debug!("Reliable broadcast started");

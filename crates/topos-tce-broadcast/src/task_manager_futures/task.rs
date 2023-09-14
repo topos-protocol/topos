@@ -58,12 +58,12 @@ impl IntoFuture for Task {
                     Some(msg) = self.message_receiver.recv() => {
                         match msg {
                             DoubleEchoCommand::Echo { from_peer, .. } => {
-                                if let Some(Status::DeliveredWithReadySent) = self.broadcast_state.apply_echo(from_peer) {
+                                if let Some(Status::DeliveredWithReadySent) = self.broadcast_state.apply_echo(from_peer).await {
                                     return (self.certificate_id, TaskStatus::Success);
                                 }
                             }
                             DoubleEchoCommand::Ready { from_peer, .. } => {
-                                if let Some(Status::DeliveredWithReadySent) = self.broadcast_state.apply_ready(from_peer) {
+                                if let Some(Status::DeliveredWithReadySent) = self.broadcast_state.apply_ready(from_peer).await {
                                     return (self.certificate_id, TaskStatus::Success);
                                 }
                             }

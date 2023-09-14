@@ -7272,7 +7272,9 @@ dependencies = [
  "bincode",
  "clap 4.4.2",
  "cucumber",
+ "ethers",
  "futures",
+ "hex",
  "hyper",
  "libp2p",
  "opentelemetry",
@@ -7355,7 +7357,9 @@ dependencies = [
  "byteorder",
  "criterion",
  "env_logger 0.10.0",
+ "ethers",
  "futures",
+ "hex",
  "lazy_static",
  "libp2p",
  "rand",
@@ -7479,6 +7483,7 @@ name = "topos-tce-transport"
 version = "0.1.0"
 dependencies = [
  "clap 4.4.2",
+ "ethers",
  "hex",
  "secp256k1",
  "serde",
@@ -7503,7 +7508,9 @@ dependencies = [
 name = "topos-test-sdk"
 version = "0.1.0"
 dependencies = [
+ "ethers",
  "futures",
+ "hex",
  "lazy_static",
  "libp2p",
  "proc_macro_sdk",
