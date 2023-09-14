@@ -969,10 +969,7 @@ async fn test_sync_from_genesis(
         panic!("Unable to set source head certificate id: {e}");
     }
 
-    info!(
-        "Waiting for the certificates from zero until height {}...",
-        subnet_height
-    );
+    info!("Waiting for the certificates from zero until height {subnet_height}...");
     let mut receieved_certificate_block_heights = Vec::new();
     let expected_blocks = (1..=subnet_height).collect::<Vec<_>>();
     let assertion = async move {
@@ -997,7 +994,7 @@ async fn test_sync_from_genesis(
                     == expected_blocks
                 {
                     info!(
-                        "Received all certificates for blocks from 0 to {}",
+                        "Received all certificates for blocks from 1 to {}",
                         subnet_height
                     );
                     return Ok::<(), Box<dyn std::error::Error>>(());
