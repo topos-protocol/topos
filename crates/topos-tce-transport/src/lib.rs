@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use topos_core::uci::{Certificate, CertificateId};
 use topos_p2p::PeerId;
+use tracing::error;
 
 #[derive(Parser, Clone, Debug, Default, Deserialize, Serialize)]
 #[command(name = "Parameters of the reliable broadcast")]
@@ -152,8 +153,6 @@ impl From<H160> for ValidatorId {
 
 impl From<&str> for ValidatorId {
     fn from(address: &str) -> Self {
-        // Parse the address and create a ValidatorId
-        // You may need to add error handling here
         let h160 = H160::from_str(address).expect("Failed to parse address");
         ValidatorId(h160)
     }
@@ -175,7 +174,7 @@ pub async fn sign_message(
     hash.extend(validator_id.as_bytes());
 
     let hash = keccak256(hash);
-
+    error!("SIGN: hash: {hash:?} val_id: {validator_id} cert_id: {certificate_id}");
     wallet.sign_message(hash).await
 }
 
@@ -191,6 +190,6 @@ pub fn verify_signature(
     hash.extend(validator_id.as_bytes());
 
     let hash = keccak256(hash);
-
+    error!("VERIFY: hash: {hash:?} val_id: {validator_id} cert_id: {certificate_id} public_key: {public_key}");
     signature.verify(hash, public_key)
 }
