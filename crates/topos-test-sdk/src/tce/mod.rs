@@ -169,12 +169,9 @@ pub async fn start_node(
     )
     .await
     .expect("Unable to bootstrap tce network");
-    let full_node_store = create_fullnode_store(vec![]).await;
-    let validator_store = create_validator_store(
-        certificates,
-        futures::future::ready(full_node_store.clone()),
-    )
-    .await;
+    let fullnode_store = create_fullnode_store(vec![]).await;
+    let validator_store =
+        create_validator_store(certificates, futures::future::ready(fullnode_store.clone())).await;
 
     let storage_client = StorageClient::new(validator_store.clone());
     let (sender, receiver) = broadcast::channel(100);
@@ -190,7 +187,7 @@ pub async fn start_node(
     let (api_context, api_stream) = create_public_api(
         futures::future::ready(api_storage_client),
         receiver.resubscribe(),
-        futures::future::ready(full_node_store),
+        futures::future::ready(fullnode_store),
     )
     .await;
 

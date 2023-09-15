@@ -7,6 +7,7 @@ use topos_core::{
 };
 
 use crate::{
+    constant::cfs,
     rocks::{
         constants,
         db::{default_options, init_with_cfs},
@@ -37,11 +38,11 @@ impl IndexTables {
         ));
 
         let cfs = vec![
-            ColumnFamilyDescriptor::new("target_streams", options_stream),
-            ColumnFamilyDescriptor::new("target_source_list", default_options()),
-            ColumnFamilyDescriptor::new("source_list", default_options()),
+            ColumnFamilyDescriptor::new(cfs::TARGET_STREAMS, options_stream),
+            ColumnFamilyDescriptor::new(cfs::TARGET_SOURCE_LIST, default_options()),
+            ColumnFamilyDescriptor::new(cfs::SOURCE_LIST, default_options()),
             ColumnFamilyDescriptor::new(
-                "delivered_certificates_per_source_for_target",
+                cfs::DELIVERED_CERTIFICATES_PER_SOURCE_FOR_TARGET,
                 default_options(),
             ),
         ];
@@ -50,12 +51,12 @@ impl IndexTables {
             .unwrap_or_else(|_| panic!("Cannot open DB at {:?}", path));
 
         Self {
-            target_streams: DBColumn::reopen(&db, "target_streams"),
-            target_source_list: DBColumn::reopen(&db, "target_source_list"),
-            source_list: DBColumn::reopen(&db, "source_list"),
+            target_streams: DBColumn::reopen(&db, cfs::TARGET_STREAMS),
+            target_source_list: DBColumn::reopen(&db, cfs::TARGET_SOURCE_LIST),
+            source_list: DBColumn::reopen(&db, cfs::SOURCE_LIST),
             source_list_per_target: DBColumn::reopen(
                 &db,
-                "delivered_certificates_per_source_for_target",
+                cfs::DELIVERED_CERTIFICATES_PER_SOURCE_FOR_TARGET,
             ),
         }
     }

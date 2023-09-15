@@ -331,17 +331,17 @@ async fn boots_healthy_graphql_server(
     // launch data store
     let certificates = create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], 15);
 
-    let full_node_store = create_fullnode_store::default().await;
+    let fullnode_store = create_fullnode_store::default().await;
     let store = create_validator_store(
         certificates.clone(),
-        futures::future::ready(full_node_store.clone()),
+        futures::future::ready(fullnode_store.clone()),
     )
     .await;
     let storage_client = StorageClient::new(store);
     let (_runtime_client, _launcher, _ctx) = Runtime::builder()
         .with_broadcast_stream(broadcast_stream)
         .storage(storage_client)
-        .store(full_node_store)
+        .store(fullnode_store)
         .serve_grpc_addr(addr)
         .serve_graphql_addr(graphql_addr)
         .serve_metrics_addr(metrics_addr)
@@ -374,10 +374,10 @@ async fn graphql_server_enables_cors(
     // launch data store
     let certificates = create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], 15);
 
-    let full_node_store = create_fullnode_store::default().await;
+    let fullnode_store = create_fullnode_store::default().await;
     let store = create_validator_store(
         certificates.clone(),
-        futures::future::ready(full_node_store.clone()),
+        futures::future::ready(fullnode_store.clone()),
     )
     .await;
 
@@ -386,7 +386,7 @@ async fn graphql_server_enables_cors(
     let (_runtime_client, _launcher, _ctx) = Runtime::builder()
         .with_broadcast_stream(broadcast_stream)
         .storage(storage_client)
-        .store(full_node_store)
+        .store(fullnode_store)
         .serve_grpc_addr(addr)
         .serve_graphql_addr(graphql_addr)
         .serve_metrics_addr(metrics_addr)
@@ -443,11 +443,11 @@ async fn can_query_graphql_endpoint_for_certificates(
     // launch data store
     let certificates = create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], 15);
 
-    let full_node_store = create_fullnode_store::default().await;
+    let fullnode_store = create_fullnode_store::default().await;
 
     let store = create_validator_store(
         certificates.clone(),
-        futures::future::ready(full_node_store.clone()),
+        futures::future::ready(fullnode_store.clone()),
     )
     .await;
 
@@ -456,7 +456,7 @@ async fn can_query_graphql_endpoint_for_certificates(
     let (runtime_client, _launcher, _ctx) = Runtime::builder()
         .with_broadcast_stream(broadcast_stream)
         .storage(storage_client)
-        .store(full_node_store)
+        .store(fullnode_store)
         .serve_grpc_addr(addr)
         .serve_graphql_addr(graphql_addr)
         .serve_metrics_addr(metrics_addr)

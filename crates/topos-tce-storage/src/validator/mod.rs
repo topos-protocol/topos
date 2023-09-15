@@ -31,18 +31,18 @@ mod tables;
 /// Contains all persistent data about the validator
 pub struct ValidatorStore {
     pub(crate) pending_tables: ValidatorPendingTables,
-    pub(crate) full_node_store: Arc<FullNodeStore>,
+    pub(crate) fullnode_store: Arc<FullNodeStore>,
 }
 
 impl ValidatorStore {
     pub fn open(
         path: PathBuf,
-        full_node_store: Arc<FullNodeStore>,
+        fullnode_store: Arc<FullNodeStore>,
     ) -> Result<Arc<Self>, StorageError> {
         let pending_tables: ValidatorPendingTables = ValidatorPendingTables::open(path);
         let store = Arc::new(Self {
             pending_tables,
-            full_node_store,
+            fullnode_store,
         });
 
         Ok(store)
@@ -123,7 +123,7 @@ impl ValidatorStore {
             })
             .collect();
 
-        self.full_node_store
+        self.fullnode_store
             .perpetual_tables
             .unverified
             .multi_insert(unverified)?;
@@ -152,7 +152,7 @@ impl ValidatorStore {
                 "Certificate Sync: unverified proof as been removed for {}",
                 certificate_id
             );
-            self.full_node_store
+            self.fullnode_store
                 .perpetual_tables
                 .unverified
                 .delete(&certificate_id)?;
@@ -171,7 +171,7 @@ impl ValidatorStore {
         certificate_id: &CertificateId,
     ) -> Result<Option<ProofOfDelivery>, StorageError> {
         Ok(self
-            .full_node_store
+            .fullnode_store
             .perpetual_tables
             .unverified
             .get(certificate_id)?)
@@ -189,7 +189,7 @@ impl ValidatorStore {
 
         // Request the local head checkpoint
         let subnets: HashMap<SubnetId, Position> = self
-            .full_node_store
+            .fullnode_store
             .index_tables
             .source_list
             .iter()?
@@ -205,7 +205,7 @@ impl ValidatorStore {
                 if local_position <= position.delivery_position.position {
                     continue;
                 }
-                self.full_node_store
+                self.fullnode_store
                     .perpetual_tables
                     .streams
                     .prefix_iter_at(&subnet, &position)?
@@ -213,7 +213,7 @@ impl ValidatorStore {
                     .map(|(_, v)| v)
                     .collect()
             } else {
-                self.full_node_store
+                self.fullnode_store
                     .perpetual_tables
                     .streams
                     .prefix_iter(&subnet)?
@@ -263,14 +263,14 @@ impl ValidatorStore {
 }
 impl ReadStore for ValidatorStore {
     fn get_source_head(&self, subnet_id: &SubnetId) -> Result<Option<SourceHead>, StorageError> {
-        self.full_node_store.get_source_head(subnet_id)
+        self.fullnode_store.get_source_head(subnet_id)
     }
 
     fn get_certificate(
         &self,
         certificate_id: &CertificateId,
     ) -> Result<Option<CertificateDelivered>, StorageError> {
-        self.full_node_store.get_certificate(certificate_id)
+        self.fullnode_store.get_certificate(certificate_id)
     }
 
     fn get_certificates(
@@ -285,7 +285,7 @@ impl ReadStore for ValidatorStore {
         subnet_id: &SubnetId,
     ) -> Result<Option<CertificateSourceStreamPosition>, StorageError> {
         Ok(self
-            .full_node_store
+            .fullnode_store
             .index_tables
             .source_list
             .get(subnet_id)?
@@ -296,7 +296,7 @@ impl ReadStore for ValidatorStore {
     }
 
     fn get_checkpoint(&self) -> Result<HashMap<SubnetId, SourceHead>, StorageError> {
-        self.full_node_store.get_checkpoint()
+        self.fullnode_store.get_checkpoint()
     }
 
     fn get_source_stream_certificates_from_position(
@@ -304,7 +304,7 @@ impl ReadStore for ValidatorStore {
         from: CertificateSourceStreamPosition,
         limit: usize,
     ) -> Result<Vec<(CertificateDelivered, CertificateSourceStreamPosition)>, StorageError> {
-        self.full_node_store
+        self.fullnode_store
             .get_source_stream_certificates_from_position(from, limit)
     }
 
@@ -313,7 +313,7 @@ impl ReadStore for ValidatorStore {
         position: CertificateTargetStreamPosition,
         limit: usize,
     ) -> Result<Vec<(CertificateDelivered, CertificateTargetStreamPosition)>, StorageError> {
-        self.full_node_store
+        self.fullnode_store
             .get_target_stream_certificates_from_position(position, limit)
     }
 
@@ -321,7 +321,7 @@ impl ReadStore for ValidatorStore {
         &self,
         target_subnet_id: &SubnetId,
     ) -> Result<Vec<SubnetId>, StorageError> {
-        self.full_node_store
+        self.fullnode_store
             .get_target_source_subnet_list(target_subnet_id)
     }
 }
@@ -333,7 +333,7 @@ impl WriteStore for ValidatorStore {
         certificate: &CertificateDelivered,
     ) -> Result<CertificatePositions, StorageError> {
         let position = self
-            .full_node_store
+            .fullnode_store
             .insert_certificate_delivered(certificate)
             .await?;
 

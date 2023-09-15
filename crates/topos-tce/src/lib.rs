@@ -119,7 +119,7 @@ pub async fn run(
     let epoch_store =
         ValidatorPerEpochStore::new(0, path.clone()).expect("Unable to create Per epoch store");
 
-    let full_node_store = FullNodeStore::open(
+    let fullnode_store = FullNodeStore::open(
         epoch_store,
         validators_store,
         perpetual_tables,
@@ -127,7 +127,7 @@ pub async fn run(
     )
     .expect("Unable to create full node store");
 
-    let validator_store = ValidatorStore::open(path.clone(), full_node_store.clone())
+    let validator_store = ValidatorStore::open(path.clone(), fullnode_store.clone())
         .expect("Unable to create validator store");
 
     let (broadcast_sender, broadcast_receiver) = broadcast::channel(BROADCAST_CHANNEL_SIZE);
@@ -169,7 +169,7 @@ pub async fn run(
         .serve_grpc_addr(config.api_addr)
         .serve_graphql_addr(config.graphql_api_addr)
         .serve_metrics_addr(config.metrics_api_addr)
-        .store(full_node_store.clone())
+        .store(fullnode_store.clone())
         .storage(storage_client.clone())
         .build_and_launch()
         .await;

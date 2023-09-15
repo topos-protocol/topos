@@ -67,9 +67,9 @@ async fn can_persist_a_delivered_certificate(store: Arc<ValidatorStore>) {
         .await
         .unwrap();
 
-    let certificates_table = store.full_node_store.perpetual_tables.certificates.clone();
-    let streams_table = store.full_node_store.perpetual_tables.streams.clone();
-    let targets_streams_table = store.full_node_store.index_tables.target_streams.clone();
+    let certificates_table = store.fullnode_store.perpetual_tables.certificates.clone();
+    let streams_table = store.fullnode_store.perpetual_tables.streams.clone();
+    let targets_streams_table = store.fullnode_store.index_tables.target_streams.clone();
 
     assert!(certificates_table.get(&certificate.certificate.id).is_ok());
 
@@ -96,9 +96,9 @@ async fn can_persist_a_delivered_certificate(store: Arc<ValidatorStore>) {
 #[rstest]
 #[test(tokio::test)]
 async fn delivered_certificate_are_added_to_target_stream(store: Arc<ValidatorStore>) {
-    let certificates_column = store.full_node_store.perpetual_tables.certificates.clone();
-    let source_streams_column = store.full_node_store.perpetual_tables.streams.clone();
-    let target_streams_column = store.full_node_store.index_tables.target_streams.clone();
+    let certificates_column = store.fullnode_store.perpetual_tables.certificates.clone();
+    let source_streams_column = store.fullnode_store.perpetual_tables.streams.clone();
+    let target_streams_column = store.fullnode_store.index_tables.target_streams.clone();
 
     target_streams_column
         .insert(
