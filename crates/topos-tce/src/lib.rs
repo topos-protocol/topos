@@ -15,7 +15,7 @@ use topos_p2p::{
 };
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
 use topos_tce_storage::{
-    epoch::{EpochParticipantsStore, ValidatorPerEpochStore},
+    epoch::{EpochValidatorsStore, ValidatorPerEpochStore},
     fullnode::FullNodeStore,
     index::IndexTables,
     validator::{ValidatorPerpetualTables, ValidatorStore},
@@ -31,6 +31,8 @@ pub mod messages;
 pub use app_context::AppContext;
 
 use crate::config::{AuthKey, StorageConfiguration};
+
+const BROADCAST_CHANNEL_SIZE: usize = 10_000;
 
 pub async fn run(
     config: &TceConfiguration,
@@ -98,24 +100,24 @@ pub async fn run(
     let perpetual_tables = Arc::new(ValidatorPerpetualTables::open(path.clone()));
     let index_tables = Arc::new(IndexTables::open(path.clone()));
 
-    let participants_store =
-        EpochParticipantsStore::new(path.clone()).expect("Unable to create Participant store");
+    let validators_store =
+        EpochValidatorsStore::new(path.clone()).expect("Unable to create EpochValidators store");
 
     let epoch_store =
         ValidatorPerEpochStore::new(0, path.clone()).expect("Unable to create Per epoch store");
 
     let full_node_store = FullNodeStore::open(
         epoch_store,
-        participants_store,
+        validators_store,
         perpetual_tables,
         index_tables,
     )
     .expect("Unable to create full node store");
 
-    let authority_store = ValidatorStore::open(path.clone(), full_node_store.clone())
-        .expect("Unable to create authority store");
+    let validator_store = ValidatorStore::open(path.clone(), full_node_store.clone())
+        .expect("Unable to create validator store");
 
-    let (broadcast_sender, broadcast_receiver) = broadcast::channel(10000);
+    let (broadcast_sender, broadcast_receiver) = broadcast::channel(BROADCAST_CHANNEL_SIZE);
 
     let (storage, storage_client, storage_stream) =
         if let StorageConfiguration::RocksDB(Some(ref path)) = config.storage {
@@ -137,7 +139,7 @@ pub async fn run(
             tce_params: config.tce_params.clone(),
         },
         peer_id.to_string(),
-        authority_store.clone(),
+        validator_store.clone(),
         broadcast_sender,
     )
     .await;
@@ -146,7 +148,7 @@ pub async fn run(
     debug!("Starting the Synchronizer");
     let (synchronizer_client, synchronizer_runtime, synchronizer_stream) =
         topos_tce_synchronizer::Synchronizer::builder()
-            .with_store(authority_store.clone())
+            .with_store(validator_store.clone())
             .with_gatekeeper_client(gatekeeper_client.clone())
             .with_network_client(network_client.clone())
             .await?;
@@ -175,7 +177,7 @@ pub async fn run(
         api_client,
         gatekeeper_client,
         synchronizer_client,
-        authority_store,
+        validator_store,
     );
 
     app_context

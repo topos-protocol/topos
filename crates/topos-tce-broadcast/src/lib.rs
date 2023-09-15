@@ -110,7 +110,7 @@ impl ReliableBroadcastClient {
     pub async fn new(
         config: ReliableBroadcastConfig,
         _local_peer_id: String,
-        authority_store: Arc<ValidatorStore>,
+        validator_store: Arc<ValidatorStore>,
         broadcast_sender: broadcast::Sender<CertificateDeliveredWithPositions>,
     ) -> (Self, impl Stream<Item = ProtocolEvents>) {
         let (subscriptions_view_sender, subscriptions_view_receiver) =
@@ -123,7 +123,7 @@ impl ReliableBroadcastClient {
         let (task_manager_message_sender, task_manager_message_receiver) =
             mpsc::channel(*constant::BROADCAST_TASK_MANAGER_CHANNEL_SIZE);
 
-        let pending_certificate_count = authority_store.count_pending_certificates().unwrap_or(0);
+        let pending_certificate_count = validator_store.count_pending_certificates().unwrap_or(0);
 
         let double_echo = DoubleEcho::new(
             config.tce_params,
@@ -132,7 +132,7 @@ impl ReliableBroadcastClient {
             event_sender,
             double_echo_shutdown_receiver,
             pending_certificate_count,
-            authority_store.clone(),
+            validator_store.clone(),
             broadcast_sender,
         );
 

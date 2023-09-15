@@ -17,7 +17,7 @@ pub struct TaskContext {
 }
 
 pub struct Task {
-    pub authority_store: Arc<ValidatorStore>,
+    pub validator_store: Arc<ValidatorStore>,
     pub message_receiver: mpsc::Receiver<DoubleEchoCommand>,
     pub certificate_id: CertificateId,
     pub completion_sender: mpsc::Sender<(CertificateId, TaskStatus)>,
@@ -30,7 +30,7 @@ impl Task {
         certificate_id: CertificateId,
         completion_sender: mpsc::Sender<(CertificateId, TaskStatus)>,
         broadcast_state: BroadcastState,
-        authority_store: Arc<ValidatorStore>,
+        validator_store: Arc<ValidatorStore>,
     ) -> (Self, TaskContext) {
         let (message_sender, message_receiver) = mpsc::channel(1024);
         let (shutdown_sender, shutdown_receiver) = mpsc::channel(1);
@@ -46,7 +46,7 @@ impl Task {
             completion_sender,
             broadcast_state,
             shutdown_receiver,
-            authority_store,
+            validator_store,
         };
 
         (task, task_context)
@@ -55,7 +55,7 @@ impl Task {
     pub async fn persist(&self) -> Result<CertificatePositions, StorageError> {
         let certificate_delivered = self.broadcast_state.into_delivered();
 
-        self.authority_store
+        self.validator_store
             .insert_certificate_delivered(&certificate_delivered)
             .await
     }

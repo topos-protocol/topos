@@ -28,7 +28,7 @@ use tracing::{info, warn};
 
 use crate::p2p::local_peer;
 use crate::storage::create_fullnode_store;
-use crate::storage::{create_authority_store, create_rocksdb};
+use crate::storage::{create_rocksdb, create_validator_store};
 use crate::wait_for_event;
 
 use self::gatekeeper::create_gatekeeper;
@@ -174,7 +174,7 @@ pub async fn start_node(
     let (_, (storage, storage_client, storage_stream)) =
         create_rocksdb(&peer_id_str, certificates.clone()).await;
 
-    let (_, authority_store) = create_authority_store(&peer_id_str, certificates.clone()).await;
+    let (_, validator_store) = create_validator_store(&peer_id_str, certificates.clone()).await;
     let full_node_store = create_fullnode_store(&peer_id_str, certificates).await;
 
     let storage_join_handle = spawn(storage.into_future());
@@ -183,7 +183,7 @@ pub async fn start_node(
     let (tce_cli, tce_stream) = create_reliable_broadcast_client(
         create_reliable_broadcast_params(peers.len()),
         config.keypair.public().to_peer_id().to_string(),
-        authority_store.clone(),
+        validator_store.clone(),
         sender,
     )
     .await;
@@ -202,7 +202,7 @@ pub async fn start_node(
     let (synchronizer_client, synchronizer_stream, synchronizer_join_handle) = create_synchronizer(
         gatekeeper_client.clone(),
         network_client.clone(),
-        authority_store.clone(),
+        validator_store.clone(),
     )
     .await;
 
@@ -213,7 +213,7 @@ pub async fn start_node(
         api_context.client,
         gatekeeper_client,
         synchronizer_client,
-        authority_store,
+        validator_store,
     );
 
     let shutdown_token = CancellationToken::new();

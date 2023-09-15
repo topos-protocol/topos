@@ -15,12 +15,11 @@ pub type Ready = String;
 pub type Signature = String;
 pub type CertificateSequenceNumber = u64;
 pub type EpochId = u64;
-pub type Participants = Vec<String>;
+pub type Validators = Vec<String>;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct CertificateDelivered {
     pub certificate: Certificate,
-    // TODO: Remove option when implement ProofOfDelivery on api
     pub proof_of_delivery: ProofOfDelivery,
 }
 

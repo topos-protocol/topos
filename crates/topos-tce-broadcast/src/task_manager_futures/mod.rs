@@ -44,7 +44,7 @@ pub struct TaskManager {
     pub buffered_messages: HashMap<CertificateId, Vec<DoubleEchoCommand>>,
     pub thresholds: ReliableBroadcastParams,
     pub shutdown_sender: mpsc::Sender<()>,
-    pub authority_store: Arc<ValidatorStore>,
+    pub validator_store: Arc<ValidatorStore>,
     pub broadcast_sender: broadcast::Sender<CertificateDeliveredWithPositions>,
 
     pub precedence: HashMap<CertificateId, Task>,
@@ -57,7 +57,7 @@ impl TaskManager {
         subscription_view_receiver: mpsc::Receiver<SubscriptionsView>,
         event_sender: mpsc::Sender<ProtocolEvents>,
         thresholds: ReliableBroadcastParams,
-        authority_store: Arc<ValidatorStore>,
+        validator_store: Arc<ValidatorStore>,
         broadcast_sender: broadcast::Sender<CertificateDeliveredWithPositions>,
     ) -> (Self, mpsc::Receiver<()>) {
         let (shutdown_sender, shutdown_receiver) = mpsc::channel(1);
@@ -74,7 +74,7 @@ impl TaskManager {
                 buffered_messages: Default::default(),
                 thresholds,
                 shutdown_sender,
-                authority_store,
+                validator_store,
                 broadcast_sender,
                 precedence: HashMap::new(),
             },
@@ -119,14 +119,19 @@ impl TaskManager {
                                     let (task, task_context) = Task::new(
                                         cert.id,
                                         broadcast_state,
-                                        self.authority_store.clone(),
+                                        self.validator_store.clone(),
                                         self.broadcast_sender.clone()
                                     );
 
-                                    let prev = self.authority_store.get_certificate(&cert.prev_id);
+                                    let prev = self.validator_store.get_certificate(&cert.prev_id);
                                     if matches!(prev, Ok(Some(_))) || cert.prev_id == topos_core::uci::INITIAL_CERTIFICATE_ID  {
-                                        Self::start_task(&mut self.running_tasks, task, task_context.sink.clone(),
-                                        self.buffered_messages.remove(&cert.id), need_gossip);
+                                        Self::start_task(
+                                            &mut self.running_tasks,
+                                            task,
+                                            task_context.sink.clone(),
+                                            self.buffered_messages.remove(&cert.id),
+                                            need_gossip
+                                        );
                                     } else {
                                         self.precedence.insert(cert.prev_id, task);
                                     }

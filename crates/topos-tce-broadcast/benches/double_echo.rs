@@ -1,6 +1,6 @@
 use criterion::async_executor::FuturesExecutor;
 use criterion::{criterion_group, criterion_main, Criterion};
-use topos_test_sdk::storage::create_authority_store;
+use topos_test_sdk::storage::create_validator_store;
 mod task_manager;
 
 pub fn criterion_benchmark(c: &mut Criterion) {
@@ -9,7 +9,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         .build()
         .unwrap();
 
-    let (_, store) = runtime.block_on(async { create_authority_store("benchmarks", vec![]).await });
+    let (_, store) = runtime.block_on(async { create_validator_store("benchmarks", vec![]).await });
 
     c.bench_function("double_echo", |b| {
         b.to_async(FuturesExecutor).iter(|| async {

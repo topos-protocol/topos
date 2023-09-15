@@ -81,21 +81,15 @@ impl TimeClock {
     }
 
     fn compute_block(&mut self) {
-        let current = Utc::now();
-        let x = current
-            .naive_utc()
-            .signed_duration_since(self.genesis.naive_utc());
-
-        let blocks = x.num_seconds();
-
-        self.current_block.store(
-            if blocks.is_negative() {
-                0
-            } else {
-                blocks as u64
-            },
-            Ordering::SeqCst,
+        let blocks = std::cmp::max(
+            Utc::now()
+                .naive_utc()
+                .signed_duration_since(self.genesis.naive_utc())
+                .num_seconds() as u64,
+            0,
         );
+
+        self.current_block.store(blocks, Ordering::SeqCst);
     }
 
     fn compute_epoch(&mut self) {

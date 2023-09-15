@@ -6,7 +6,7 @@ use topos_core::uci::{CertificateId, SubnetId};
 use tracing::{error, info};
 
 use crate::{
-    epoch::{EpochParticipantsStore, ValidatorPerEpochStore},
+    epoch::{EpochValidatorsStore, ValidatorPerEpochStore},
     errors::{InternalStorageError, StorageError},
     index::IndexTables,
     rocks::{map::Map, TargetSourceListKey, TargetStreamPositionKey},
@@ -27,7 +27,7 @@ pub struct FullNodeStore {
     #[allow(unused)]
     epoch_store: ArcSwap<ValidatorPerEpochStore>,
     #[allow(unused)]
-    participants_store: Arc<EpochParticipantsStore>,
+    validators_store: Arc<EpochValidatorsStore>,
     pub(crate) perpetual_tables: Arc<ValidatorPerpetualTables>,
     pub(crate) index_tables: Arc<IndexTables>,
 }
@@ -35,7 +35,7 @@ pub struct FullNodeStore {
 impl FullNodeStore {
     pub fn open(
         epoch_store: ArcSwap<ValidatorPerEpochStore>,
-        participants_store: Arc<EpochParticipantsStore>,
+        validators_store: Arc<EpochValidatorsStore>,
         perpetual_tables: Arc<ValidatorPerpetualTables>,
         index_tables: Arc<IndexTables>,
     ) -> Result<Arc<Self>, StorageError> {
@@ -43,7 +43,7 @@ impl FullNodeStore {
             certificate_lock_guards: LockGuards::new(),
             subnet_lock_guards: LockGuards::new(),
             epoch_store,
-            participants_store,
+            validators_store,
             perpetual_tables,
             index_tables,
         }))

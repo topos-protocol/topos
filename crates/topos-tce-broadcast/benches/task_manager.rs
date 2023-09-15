@@ -15,7 +15,7 @@ struct TceParams {
     broadcast_params: ReliableBroadcastParams,
 }
 
-pub async fn processing_double_echo(n: u64, authority_store: Arc<ValidatorStore>) {
+pub async fn processing_double_echo(n: u64, validator_store: Arc<ValidatorStore>) {
     let (subscriptions_view_sender, subscriptions_view_receiver) = mpsc::channel(CHANNEL_SIZE);
 
     let (_cmd_sender, cmd_receiver) = mpsc::channel(CHANNEL_SIZE);
@@ -41,7 +41,7 @@ pub async fn processing_double_echo(n: u64, authority_store: Arc<ValidatorStore>
         event_sender,
         double_echo_shutdown_receiver,
         0,
-        authority_store,
+        validator_store,
         broadcast_sender,
     );
 

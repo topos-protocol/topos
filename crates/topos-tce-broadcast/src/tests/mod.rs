@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use std::time::Duration;
 use std::usize;
 use tce_transport::ReliableBroadcastParams;
-use topos_test_sdk::storage::create_authority_store;
+use topos_test_sdk::storage::create_validator_store;
 
 use tokio::sync::mpsc::Receiver;
 
@@ -49,7 +49,7 @@ struct Context {
 }
 
 async fn create_context(params: TceParams, folder_name: &'static str) -> (DoubleEcho, Context) {
-    let (_, authority_store) = create_authority_store(folder_name, vec![]).await;
+    let (_, validator_store) = create_validator_store(folder_name, vec![]).await;
     let (subscriptions_view_sender, subscriptions_view_receiver) = mpsc::channel(CHANNEL_SIZE);
 
     let (_cmd_sender, cmd_receiver) = mpsc::channel(CHANNEL_SIZE);
@@ -66,7 +66,7 @@ async fn create_context(params: TceParams, folder_name: &'static str) -> (Double
         event_sender,
         double_echo_shutdown_receiver,
         0,
-        authority_store,
+        validator_store,
         broadcast_sender,
     );
 

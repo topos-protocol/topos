@@ -35,7 +35,7 @@ pub struct TaskManager {
     pub buffered_messages: HashMap<CertificateId, Vec<DoubleEchoCommand>>,
     pub thresholds: ReliableBroadcastParams,
     pub shutdown_sender: mpsc::Sender<()>,
-    pub authority_store: Arc<ValidatorStore>,
+    pub validator_store: Arc<ValidatorStore>,
 }
 
 impl TaskManager {
@@ -45,7 +45,7 @@ impl TaskManager {
         subscription_view_receiver: mpsc::Receiver<SubscriptionsView>,
         event_sender: mpsc::Sender<ProtocolEvents>,
         thresholds: ReliableBroadcastParams,
-        authority_store: Arc<ValidatorStore>,
+        validator_store: Arc<ValidatorStore>,
     ) -> (Self, mpsc::Receiver<()>) {
         let (task_completion_sender, task_completion_receiver) =
             mpsc::channel(*constant::BROADCAST_TASK_COMPLETION_CHANNEL_SIZE);
@@ -64,7 +64,7 @@ impl TaskManager {
                 buffered_messages: Default::default(),
                 thresholds,
                 shutdown_sender,
-                authority_store,
+                validator_store,
             },
             shutdown_receiver,
         )
@@ -101,7 +101,7 @@ impl TaskManager {
                                         need_gossip,
                                     );
 
-                                    let (task, task_context) = Task::new(cert.id, self.task_completion_sender.clone(), broadcast_state, self.authority_store.clone());
+                                    let (task, task_context) = Task::new(cert.id, self.task_completion_sender.clone(), broadcast_state, self.validator_store.clone());
 
                                     spawn(task.run());
 

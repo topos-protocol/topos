@@ -18,7 +18,7 @@ pub use self::tables::ValidatorPerpetualTables;
 
 mod tables;
 
-/// Contains all persistent data about the authority
+/// Contains all persistent data about the validator
 pub struct ValidatorStore {
     pending_tables: ValidatorPendingTables,
     full_node_store: Arc<FullNodeStore>,
@@ -72,28 +72,6 @@ impl ValidatorStore {
         &self,
         certificate: Certificate,
     ) -> Result<(), StorageError> {
-        // let expected_position = if certificate.prev_id.as_array() != &EMPTY_PREVIOUS_CERT_ID {
-        //     if let Ok(Some(CertificateDelivered {
-        //         proof_of_delivery:
-        //             ProofOfDelivery {
-        //                 delivery_position: SourceStreamPositionKey(_, p),
-        //                 ..
-        //             },
-        //         ..
-        //     })) = self.get_certificate(&certificate.prev_id)
-        //     {
-        //         Position(p.0 + 1)
-        //     } else {
-        //         return Err(StorageError::InternalStorage(
-        //             crate::errors::InternalStorageError::InvalidQueryArgument(
-        //                 "Prev certificate not found",
-        //             ),
-        //         ));
-        //     }
-        // } else {
-        //     Position(0)
-        // };
-
         if let Ok(Some(proof_of_delivery)) = self.get_unverified_proof(&certificate.id) {
             let certificate_id = certificate.id;
             debug!(

@@ -78,7 +78,8 @@ impl BroadcastState {
                 delivery_position: SourceStreamPositionKey(
                     self.certificate.source_subnet_id,
                     // FIXME: Should never fails but need to find how to remove the unwrap
-                    self.expected_position.unwrap(),
+                    self.expected_position
+                        .expect("Expected position is not set, this is a bug"),
                 ),
                 readies: self
                     .readies
@@ -92,14 +93,20 @@ impl BroadcastState {
     }
 
     pub fn apply_echo(&mut self, peer_id: PeerId) -> Option<Status> {
-        self.subscriptions_view.echo.remove(&peer_id);
-        self.update_status()
+        if self.subscriptions_view.echo.remove(&peer_id) {
+            self.update_status()
+        } else {
+            None
+        }
     }
 
     pub fn apply_ready(&mut self, peer_id: PeerId) -> Option<Status> {
-        self.subscriptions_view.ready.remove(&peer_id);
-        self.readies.insert(peer_id.to_string());
-        self.update_status()
+        if self.subscriptions_view.ready.remove(&peer_id) {
+            self.readies.insert(peer_id.to_string());
+            self.update_status()
+        } else {
+            None
+        }
     }
 
     fn update_status(&mut self) -> Option<Status> {

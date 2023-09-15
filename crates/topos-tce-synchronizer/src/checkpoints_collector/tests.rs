@@ -18,7 +18,7 @@ use topos_tce_storage::{
 };
 use topos_test_sdk::{
     certificates::create_certificate_chain,
-    storage::create_authority_store,
+    storage::create_validator_store,
     tce::{create_network, NodeConfig},
 };
 use tracing::warn;
@@ -60,7 +60,7 @@ use test_log::test;
 #[test(tokio::test)]
 async fn can_initiate_a_sync() {
     let peer_id = PeerId::random();
-    let (_, authority_store) = create_authority_store("can_initiate_a_sync", vec![]).await;
+    let (_, validator_store) = create_validator_store("can_initiate_a_sync", vec![]).await;
     let subnet = topos_test_sdk::constants::SOURCE_SUBNET_ID_1;
     let certificates: Vec<CertificateDelivered> =
         create_certificate_chain(subnet, &[topos_test_sdk::constants::TARGET_SUBNET_ID_1], 1);
@@ -114,7 +114,7 @@ async fn can_initiate_a_sync() {
     let (_, mut sync, _) = CheckpointSynchronizer::builder()
         .set_network_client(Some(client))
         .set_gatekeeper_client(Some(gatekeeper_client))
-        .set_store(Some(authority_store.clone()))
+        .set_store(Some(validator_store.clone()))
         .into_future()
         .await
         .unwrap();
@@ -126,7 +126,7 @@ async fn can_initiate_a_sync() {
 
     tokio::time::sleep(Duration::from_millis(100)).await;
 
-    let value = authority_store
+    let value = validator_store
         .last_delivered_position_for_subnet(&subnet)
         .unwrap()
         .unwrap();
@@ -141,13 +141,13 @@ async fn can_initiate_a_sync() {
 
     assert_eq!(
         certificate,
-        authority_store
+        validator_store
             .get_certificate(&certificate_id)
             .unwrap()
             .unwrap()
     );
 
-    assert!(authority_store
+    assert!(validator_store
         .get_unverified_proof(&certificate_id)
         .unwrap()
         .is_none());

@@ -5,9 +5,9 @@ use std::{collections::HashMap, sync::RwLock};
 use arc_swap::ArcSwap;
 
 use crate::errors::StorageError;
-use crate::types::{EpochId, Participants};
+use crate::types::{EpochId, Validators};
 
-pub(crate) use self::tables::EpochParticipantsTables;
+pub(crate) use self::tables::EpochValidatorsTables;
 pub(crate) use self::tables::ValidatorPerEpochTables;
 
 mod tables;
@@ -17,7 +17,7 @@ pub struct ValidatorPerEpochStore {
     #[allow(unused)]
     epoch_id: EpochId,
     #[allow(unused)]
-    participants: RwLock<Vec<Participants>>,
+    validators: RwLock<Validators>,
     #[allow(unused)]
     tables: ValidatorPerEpochTables,
 }
@@ -27,23 +27,23 @@ impl ValidatorPerEpochStore {
         let tables: ValidatorPerEpochTables = ValidatorPerEpochTables::open(epoch_id, path);
         let store = ArcSwap::from(Arc::new(Self {
             epoch_id,
-            participants: RwLock::new(Vec::new()),
+            validators: RwLock::new(Vec::new()),
             tables,
         }));
 
         Ok(store)
     }
 }
-pub struct EpochParticipantsStore {
+pub struct EpochValidatorsStore {
     #[allow(unused)]
-    tables: EpochParticipantsTables,
+    tables: EpochValidatorsTables,
     #[allow(unused)]
-    caches: RwLock<HashMap<EpochId, Participants>>,
+    caches: RwLock<HashMap<EpochId, Validators>>,
 }
 
-impl EpochParticipantsStore {
+impl EpochValidatorsStore {
     pub fn new(path: PathBuf) -> Result<Arc<Self>, StorageError> {
-        let tables = EpochParticipantsTables::open(path);
+        let tables = EpochValidatorsTables::open(path);
         let store = Arc::new(Self {
             tables,
             caches: RwLock::new(HashMap::new()),

@@ -11,7 +11,7 @@ use std::{
 use tokio::spawn;
 
 use topos_tce_storage::{
-    epoch::EpochParticipantsStore, epoch::ValidatorPerEpochStore, events::StorageEvent,
+    epoch::EpochValidatorsStore, epoch::ValidatorPerEpochStore, events::StorageEvent,
     fullnode::FullNodeStore, index::IndexTables, store::WriteStore, types::CertificateDelivered,
     validator::ValidatorPerpetualTables, validator::ValidatorStore, Connection, ConnectionBuilder,
     RocksDBStorage, Storage, StorageClient,
@@ -64,14 +64,14 @@ pub fn create_folder(folder_name: &str) -> PathBuf {
 }
 
 #[fixture(certificates = Vec::new())]
-pub async fn create_authority_store(
+pub async fn create_validator_store(
     folder_name: &str,
     certificates: Vec<CertificateDelivered>,
 ) -> (PathBuf, Arc<ValidatorStore>) {
     let (temp_dir, full_node_store) = create_fullnode_store(folder_name, certificates).await;
 
     let store = ValidatorStore::open(temp_dir.clone(), full_node_store)
-        .expect("Unable to create authority store");
+        .expect("Unable to create validator store");
 
     (temp_dir, store)
 }
@@ -86,15 +86,15 @@ pub async fn create_fullnode_store(
     let perpetual_tables = Arc::new(ValidatorPerpetualTables::open(temp_dir.clone()));
     let index_tables = Arc::new(IndexTables::open(temp_dir.clone()));
 
-    let participants_store =
-        EpochParticipantsStore::new(temp_dir.clone()).expect("Unable to create Participant store");
+    let validators_store = EpochValidatorsStore::new(temp_dir.clone())
+        .expect("Unable to create EpochValidators store");
 
     let epoch_store =
         ValidatorPerEpochStore::new(0, temp_dir.clone()).expect("Unable to create Per epoch store");
 
     let store = FullNodeStore::open(
         epoch_store,
-        participants_store,
+        validators_store,
         perpetual_tables,
         index_tables,
     )

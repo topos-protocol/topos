@@ -46,7 +46,7 @@ pub struct AppContext {
 
     pub delivery_latency: HashMap<CertificateId, HistogramTimer>,
 
-    pub authority_store: Arc<ValidatorStore>,
+    pub validator_store: Arc<ValidatorStore>,
 }
 
 impl AppContext {
@@ -63,7 +63,7 @@ impl AppContext {
         api_client: ApiClient,
         gatekeeper: GatekeeperClient,
         synchronizer: SynchronizerClient,
-        authority_store: Arc<ValidatorStore>,
+        validator_store: Arc<ValidatorStore>,
     ) -> (Self, mpsc::Receiver<Events>) {
         let (events, receiver) = mpsc::channel(100);
         (
@@ -76,7 +76,7 @@ impl AppContext {
                 gatekeeper,
                 synchronizer,
                 delivery_latency: Default::default(),
-                authority_store,
+                validator_store,
             },
             receiver,
         )

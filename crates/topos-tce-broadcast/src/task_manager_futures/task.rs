@@ -21,7 +21,7 @@ pub struct TaskContext {
 }
 
 pub struct Task {
-    pub authority_store: Arc<ValidatorStore>,
+    pub validator_store: Arc<ValidatorStore>,
     pub message_receiver: mpsc::Receiver<DoubleEchoCommand>,
     pub certificate_id: CertificateId,
     pub broadcast_state: BroadcastState,
@@ -33,7 +33,7 @@ impl Task {
     pub fn new(
         certificate_id: CertificateId,
         broadcast_state: BroadcastState,
-        authority_store: Arc<ValidatorStore>,
+        validator_store: Arc<ValidatorStore>,
         broadcast_sender: broadcast::Sender<CertificateDeliveredWithPositions>,
     ) -> (Task, TaskContext) {
         let (message_sender, message_receiver) = mpsc::channel(10_024);
@@ -45,7 +45,7 @@ impl Task {
         };
 
         let task = Task {
-            authority_store,
+            validator_store,
             message_receiver,
             certificate_id,
             broadcast_state,
@@ -60,7 +60,7 @@ impl Task {
         let certificate_delivered = self.broadcast_state.into_delivered();
 
         let positions = self
-            .authority_store
+            .validator_store
             .insert_certificate_delivered(&certificate_delivered)
             .await?;
 
@@ -80,7 +80,7 @@ impl IntoFuture for Task {
         Box::pin(async move {
             // When the task starts, we need to gather information such as current stream position
             // for the source subnet in order to expect its position
-            let expected_position = match self.authority_store.last_delivered_position_for_subnet(
+            let expected_position = match self.validator_store.last_delivered_position_for_subnet(
                 &self.broadcast_state.certificate.source_subnet_id,
             ) {
                 Ok(Some(stream_position)) => stream_position.position.increment().unwrap(),

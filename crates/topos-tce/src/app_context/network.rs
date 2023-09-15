@@ -91,7 +91,7 @@ impl AppContext {
                 let msg: Result<CheckpointRequest, _> = data.clone().try_into();
                 if let Ok(msg) = msg {
                     let diff = if let Ok(diff) = self
-                        .authority_store
+                        .validator_store
                         .get_checkpoint_diff(msg.checkpoint.into_iter().map(|v| v.into()).collect())
                     {
                         diff.into_iter()
@@ -145,7 +145,7 @@ impl AppContext {
                             .collect();
 
                         if let Ok(certs) = self
-                            .authority_store
+                            .validator_store
                             .multi_get_certificate(&certificate_ids[..])
                         {
                             let certs: Vec<_> = certs

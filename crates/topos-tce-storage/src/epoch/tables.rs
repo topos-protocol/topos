@@ -8,23 +8,23 @@ use crate::{
         db::{default_options, init_db, init_with_cfs},
         db_column::DBColumn,
     },
-    types::{BroadcastState, EpochId, Participants, VerifiedCheckpointSummary},
+    types::{BroadcastState, EpochId, Validators, VerifiedCheckpointSummary},
 };
 
-pub struct EpochParticipantsTables {
+pub struct EpochValidatorsTables {
     #[allow(unused)]
-    participants_map: DBColumn<EpochId, Participants>,
+    validators_map: DBColumn<EpochId, Validators>,
 }
 
-impl EpochParticipantsTables {
+impl EpochValidatorsTables {
     pub(crate) fn open(mut path: PathBuf) -> Self {
-        path.push("participants");
+        path.push("validators");
         let mut options = rocksdb::Options::default();
         options.create_if_missing(true);
         let db = init_db(&path, options).unwrap_or_else(|_| panic!("Cannot open DB at {:?}", path));
 
         Self {
-            participants_map: DBColumn::reopen(&db, "participants"),
+            validators_map: DBColumn::reopen(&db, "validators"),
         }
     }
 }
@@ -36,7 +36,7 @@ pub struct ValidatorPerEpochTables {
     #[allow(unused)]
     broadcast_states: DBColumn<CertificateId, BroadcastState>,
     #[allow(unused)]
-    participants: Vec<Participants>,
+    validators: Vec<Validators>,
 }
 
 impl ValidatorPerEpochTables {
@@ -54,7 +54,7 @@ impl ValidatorPerEpochTables {
         Self {
             epoch_summary: DBColumn::reopen(&db, "epoch_summary"),
             broadcast_states: DBColumn::reopen(&db, "broadcast_states"),
-            participants: Vec::new(),
+            validators: Vec::new(),
         }
     }
 }
