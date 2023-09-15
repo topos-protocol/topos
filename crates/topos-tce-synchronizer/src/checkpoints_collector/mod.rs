@@ -18,10 +18,12 @@ use topos_core::{
         },
     },
     errors::GrpcParsingError,
+    types::ProofOfDelivery,
     uci::{Certificate, CertificateId, SubnetId},
 };
 use topos_p2p::{
-    constant::SYNCHRONIZER_PROTOCOL, error::CommandExecutionError, NetworkClient, RetryPolicy,
+    constant::SYNCHRONIZER_PROTOCOL, error::CommandExecutionError, NetworkClient, PeerId,
+    RetryPolicy,
 };
 use topos_tce_gatekeeper::GatekeeperClient;
 use topos_tce_storage::{errors::StorageError, store::ReadStore, validator::ValidatorStore};
@@ -120,16 +122,11 @@ enum SyncError {
 }
 
 impl<G: GatekeeperClient, N: NetworkClient> CheckpointSynchronizer<G, N> {
-    async fn initiate_request(&mut self) -> Result<(), SyncError> {
+    async fn ask_for_checkpoint(
+        &self,
+        peer: PeerId,
+    ) -> Result<HashMap<SubnetId, Vec<ProofOfDelivery>>, SyncError> {
         let request_id: APIUuid = Uuid::new_v4().into();
-
-        //  1. Ask a random peer for the diff between local and its latest checkpoint
-        let target_peer = self
-            .gatekeeper
-            .get_random_peers(1)
-            .await
-            .map_err(|_| SyncError::UnableToFetchTargetPeer)
-            .map(|peers| peers.last().cloned().ok_or(SyncError::NoPeerAvailable))??;
 
         let checkpoint: Vec<grpc::tce::v1::ProofOfDelivery> = {
             let certificate_ids = self
@@ -154,15 +151,10 @@ impl<G: GatekeeperClient, N: NetworkClient> CheckpointSynchronizer<G, N> {
             checkpoint,
         };
 
-        debug!("Asking {} for latest checkpoint", target_peer);
+        debug!("Asking {} for latest checkpoint", peer);
         let response: CheckpointResponse = self
             .network
-            .send_request(
-                target_peer,
-                req,
-                RetryPolicy::NoRetry,
-                SYNCHRONIZER_PROTOCOL,
-            )
+            .send_request(peer, req, RetryPolicy::NoRetry, SYNCHRONIZER_PROTOCOL)
             .await?;
 
         let diff = response
@@ -180,6 +172,13 @@ impl<G: GatekeeperClient, N: NetworkClient> CheckpointSynchronizer<G, N> {
             })
             .collect::<Result<HashMap<_, _>, _>>()?;
 
+        Ok(diff)
+    }
+
+    fn insert_unverified_proofs(
+        &self,
+        diff: HashMap<SubnetId, Vec<ProofOfDelivery>>,
+    ) -> Result<Vec<Vec<CertificateId>>, SyncError> {
         let mut certs: HashSet<CertificateId> = HashSet::new();
         for (_subnet, proofs) in diff {
             let len = proofs.len();
@@ -198,48 +197,78 @@ impl<G: GatekeeperClient, N: NetworkClient> CheckpointSynchronizer<G, N> {
             chunked_certs.push(certs.to_vec());
         }
 
-        for certificates in chunked_certs {
-            let target_peer = self
-                .gatekeeper
-                .get_random_peers(1)
-                .await
-                .map_err(|_| SyncError::UnableToFetchTargetPeer)
-                .map(|peers| peers.last().cloned().ok_or(SyncError::NoPeerAvailable))??;
+        Ok(chunked_certs)
+    }
 
-            let request_id: Option<APIUuid> = Some(Uuid::new_v4().into());
-            let certificate_ids: Vec<CertificateId> = certificates.to_vec();
-            let req = FetchCertificatesRequest {
-                request_id,
-                certificates: certificates.into_iter().map(Into::into).collect(),
-            };
+    async fn fetch_certificates(
+        &self,
+        certificate_ids: Vec<CertificateId>,
+    ) -> Result<Vec<Certificate>, SyncError> {
+        let target_peer = self
+            .gatekeeper
+            .get_random_peers(1)
+            .await
+            .map_err(|_| SyncError::UnableToFetchTargetPeer)
+            .map(|peers| peers.last().cloned().ok_or(SyncError::NoPeerAvailable))??;
 
-            debug!(
-                "Ask {} for certificates payload: {:?}",
-                target_peer, certificate_ids
-            );
-            let response = self
-                .network
-                .send_request::<_, FetchCertificatesResponse>(
-                    target_peer,
-                    req,
-                    RetryPolicy::NoRetry,
-                    SYNCHRONIZER_PROTOCOL,
-                )
-                .await?;
+        let request_id: Option<APIUuid> = Some(Uuid::new_v4().into());
+        let req = FetchCertificatesRequest {
+            request_id,
+            certificates: certificate_ids
+                .iter()
+                .map(|cert| (*cert.as_array()).into())
+                .collect(),
+        };
+
+        debug!(
+            "Ask {} for certificates payload: {:?}",
+            target_peer, certificate_ids
+        );
+        let response = self
+            .network
+            .send_request::<_, FetchCertificatesResponse>(
+                target_peer,
+                req,
+                RetryPolicy::NoRetry,
+                SYNCHRONIZER_PROTOCOL,
+            )
+            .await?;
+
+        let certificates: Result<Vec<Certificate>, _> = response
+            .certificates
+            .into_iter()
+            .map(TryInto::try_into)
+            .collect();
+
+        Ok(certificates?)
+    }
+
+    async fn initiate_request(&mut self) -> Result<(), SyncError> {
+        //  1. Ask a random peer for the diff between local and its latest checkpoint
+        let target_peer = self
+            .gatekeeper
+            .get_random_peers(1)
+            .await
+            .map_err(|_| SyncError::UnableToFetchTargetPeer)
+            .map(|peers| peers.last().cloned().ok_or(SyncError::NoPeerAvailable))??;
+
+        let diff = self.ask_for_checkpoint(target_peer).await?;
+
+        let certificates_to_catchup = self.insert_unverified_proofs(diff)?;
+
+        for certificates in certificates_to_catchup {
+            let certificates = self.fetch_certificates(certificates).await?;
 
             // TODO: verify every certificates
-            for certificate in response.certificates {
+            for certificate in certificates {
                 let store = self.store.clone();
                 tokio::spawn(async move {
                     // Validate
                     // Check precedence
-                    let certificate: Result<Certificate, _> = certificate.try_into();
-                    if let Ok(certificate) = certificate {
-                        let certificate_id = certificate.id;
-                        match store.synchronize_certificate(certificate).await {
-                            Ok(_) => debug!("Certificate {} synchronized", certificate_id),
-                            Err(e) => error!("Failed to sync because of: {:?}", e),
-                        }
+                    let certificate_id = certificate.id;
+                    match store.synchronize_certificate(certificate).await {
+                        Ok(_) => debug!("Certificate {} synchronized", certificate_id),
+                        Err(e) => error!("Failed to sync because of: {:?}", e),
                     }
                 });
             }
