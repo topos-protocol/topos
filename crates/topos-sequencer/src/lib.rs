@@ -118,8 +118,8 @@ pub async fn launch(
     {
         Ok((tce_proxy_worker, mut source_head_certificate)) => {
             // FIXME: If TCE returns all zeros for the source head certificate, it means that it does not have
-            // any information about the subnet. Until registration of the subnets with topos subnet is implemented,
-            // we get genesis block directly (and create genesis certificate) directly from the subnet block 0
+            // any information about the subnet. Until registration of the subnets with the topos subnet is implemented,
+            // we get genesis block (and create genesis certificate) directly from the subnet block 0
             if let Some((cert, _position)) = &mut source_head_certificate {
                 if cert.id == CertificateId::default() {
                     warn!("Tce has not provided source head certificate, starting from subnet genesis block...");
