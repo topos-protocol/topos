@@ -2,13 +2,52 @@ use rstest::*;
 use std::collections::HashMap;
 
 use topos_core::{
-    types::{stream::CertificateSourceStreamPosition, CertificateDelivered, ProofOfDelivery},
-    uci::{Certificate, SubnetId},
+    types::{
+        stream::CertificateSourceStreamPosition, stream::Position, CertificateDelivered,
+        ProofOfDelivery,
+    },
+    uci::{Certificate, CertificateId, SubnetId, INITIAL_CERTIFICATE_ID},
 };
 
 use crate::constants::PREV_CERTIFICATE_ID;
 use crate::constants::SOURCE_SUBNET_ID_1;
 use crate::constants::TARGET_SUBNET_ID_1;
+
+#[fixture]
+fn create_certificate(
+    #[default(SOURCE_SUBNET_ID_1)] source_subnet: SubnetId,
+    #[default(&[TARGET_SUBNET_ID_1])] target_subnets: &[SubnetId],
+    #[default(None)] previous_certificate_id: Option<CertificateId>,
+) -> Certificate {
+    Certificate::new_with_default_fields(
+        previous_certificate_id.unwrap_or(INITIAL_CERTIFICATE_ID),
+        source_subnet,
+        target_subnets,
+    )
+    .unwrap()
+}
+
+#[fixture]
+pub fn create_certificate_at_position(
+    #[default(Position::ZERO)] position: Position,
+    create_certificate: Certificate,
+) -> CertificateDelivered {
+    let certificate_id = create_certificate.id;
+    let subnet_id = create_certificate.source_subnet_id;
+
+    CertificateDelivered {
+        certificate: create_certificate,
+        proof_of_delivery: ProofOfDelivery {
+            certificate_id,
+            delivery_position: CertificateSourceStreamPosition {
+                subnet_id,
+                position,
+            },
+            readies: vec![],
+            threshold: 0,
+        },
+    }
+}
 
 #[fixture]
 pub fn create_certificate_chain(

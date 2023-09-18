@@ -24,11 +24,11 @@ pub struct ValidatorPendingTables {
     fetching_pool: BTreeSet<CertificateId>, // Not sure to keep it
     pub(crate) pending_pool: DBColumn<PendingCertificateId, Certificate>,
     pub(crate) pending_pool_index: DBColumn<CertificateId, PendingCertificateId>,
-    #[allow(unused)]
-    precedence_pool: DBColumn<CertificateId, Vec<Certificate>>,
+    pub(crate) precedence_pool: DBColumn<CertificateId, Certificate>,
     #[allow(unused)]
     expiration_tracker: (), // Unknown
 }
+
 impl ValidatorPendingTables {
     pub fn open(mut path: PathBuf) -> Self {
         path.push("pending");

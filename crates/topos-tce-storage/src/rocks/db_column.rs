@@ -119,7 +119,6 @@ where
             })
     }
 
-    #[allow(unused)]
     pub(crate) fn multi_insert(
         &self,
         key_value_pairs: impl IntoIterator<Item = (K, V)>,
@@ -149,6 +148,14 @@ where
                 None => Ok(None),
             })
             .collect()
+    }
+
+    #[allow(unused)]
+    pub(crate) fn merge(&self, key: &K, value: V) -> Result<(), InternalStorageError> {
+        let key_buf = be_fix_int_ser(key)?;
+        let value_buf = bincode::serialize(&value)?;
+
+        Ok(self.rocksdb.merge_cf(&self.cf()?, key_buf, value_buf)?)
     }
 
     pub(crate) fn batch(&self) -> DBBatch {

@@ -22,6 +22,7 @@ use topos_test_sdk::certificates::create_certificate_chain;
 use topos_test_sdk::constants::*;
 
 mod db_columns;
+mod pending_certificates;
 mod position;
 mod rocks;
 pub(crate) mod support;
@@ -176,7 +177,10 @@ async fn pending_certificate_are_removed_during_persist_action(store: Arc<Valida
     .unwrap();
 
     let certificate_id = certificate.id;
-    let pending_id = store.insert_pending_certificate(&certificate).unwrap();
+    let pending_id = store
+        .insert_pending_certificate(&certificate)
+        .unwrap()
+        .unwrap();
 
     let certificate = CertificateDelivered {
         certificate,
@@ -340,7 +344,10 @@ async fn pending_certificate_can_be_removed(store: Arc<ValidatorStore>) {
     )
     .unwrap();
 
-    let pending_id = store.insert_pending_certificate(&certificate).unwrap();
+    let pending_id = store
+        .insert_pending_certificate(&certificate)
+        .unwrap()
+        .unwrap();
 
     assert!(pending_column.get(&pending_id).is_ok());
     store.delete_pending_certificate(&pending_id).unwrap();
@@ -349,7 +356,10 @@ async fn pending_certificate_can_be_removed(store: Arc<ValidatorStore>) {
 
     let _ = store.insert_pending_certificate(&certificate).unwrap();
 
-    let pending_id = store.insert_pending_certificate(&certificate).unwrap();
+    let pending_id = store
+        .insert_pending_certificate(&certificate)
+        .unwrap()
+        .unwrap();
 
     assert!(pending_column.get(&pending_id).is_ok());
     store.delete_pending_certificate(&pending_id).unwrap();

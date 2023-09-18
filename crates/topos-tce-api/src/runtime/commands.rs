@@ -3,6 +3,7 @@ use tokio::sync::{mpsc::Sender, oneshot};
 use topos_core::api::grpc::checkpoints::TargetStreamPosition;
 use topos_core::uci::{Certificate, SubnetId};
 use topos_p2p::PeerId;
+use topos_tce_storage::types::PendingResult;
 use uuid::Uuid;
 
 use crate::stream::{Stream, StreamCommand};
@@ -42,7 +43,7 @@ pub(crate) enum InternalRuntimeCommand {
     /// This command will be used to trigger the DoubleEcho process.
     CertificateSubmitted {
         certificate: Box<Certificate>,
-        sender: oneshot::Sender<Result<(), RuntimeError>>,
+        sender: oneshot::Sender<Result<PendingResult, RuntimeError>>,
     },
 
     /// Push a new list of PeerId to be used by the Gatekeeper
