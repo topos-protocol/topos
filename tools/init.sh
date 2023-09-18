@@ -42,7 +42,7 @@ case "$1" in
 
         export TCE_LOCAL_KS=$HOSTNAME
         export TCE_LOCAL_VPK=122f3ae6ade1fd136b292cea4f6243c7811160352c8821528547a1fe7c459daf
-        export TCE_VALIDATORS="0xfa1dbe573e7ab7eb4fb772a349129cf0833f1154"
+        export TCE_VALIDATORS=0xfa1dbe573e7ab7eb4fb772a349129cf0833f1154
         export TCE_EXT_HOST
 
         exec "$TOPOS_BIN" "${@:2}"
