@@ -16,6 +16,13 @@ NODE_LIST_PATH=/tmp/shared/peer_nodes.json
 NODE="http://$HOSTNAME:1340"
 TCE_EXT_HOST="/dns4/$HOSTNAME"
 
+public_keys=(
+    "0xfa1dbe573e7ab7eb4fb772a349129cf0833f1154"
+    "0xfba339119da6dd78814055e50b5ae0ad4e880181"
+)
+
+TCE_VALIDATORS=$(IFS=,; echo "${public_keys[*]}")
+
 case "$1" in
 
     "boot")
@@ -42,7 +49,7 @@ case "$1" in
 
         export TCE_LOCAL_KS=$HOSTNAME
         export TCE_LOCAL_VPK=122f3ae6ade1fd136b292cea4f6243c7811160352c8821528547a1fe7c459daf
-        export TCE_VALIDATORS=0xfa1dbe573e7ab7eb4fb772a349129cf0833f1154
+        export TCE_VALIDATORS=$TCE_VALIDATORS
         export TCE_EXT_HOST
 
         exec "$TOPOS_BIN" "${@:2}"
@@ -76,7 +83,7 @@ case "$1" in
 
            export TCE_LOCAL_KS=$HOSTNAME
            export TCE_LOCAL_VPK=a2e33a9bad88f7b7568228f51d5274c471a9217162d46f1533b6a290f0be1baf
-           export TCE_VALIDATORS="0xfa1dbe573e7ab7eb4fb772a349129cf0833f1154"
+           export TCE_VALIDATORS=$TCE_VALIDATORS
            export TCE_EXT_HOST
 
            until [ -f "$NODE_LIST_PATH" ]
