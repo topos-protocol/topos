@@ -8,11 +8,11 @@ use tokio::{
     },
 };
 use tokio_util::sync::CancellationToken;
-use topos_core::uci::SubnetId;
+use topos_core::uci::{CertificateId, SubnetId};
 use topos_sequencer_subnet_runtime::{SubnetRuntimeProxyConfig, SubnetRuntimeProxyWorker};
 use topos_tce_proxy::{worker::TceProxyWorker, TceProxyConfig};
 use topos_wallet::SecretKey;
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 mod app_context;
 
@@ -116,7 +116,17 @@ pub async fn launch(
     })
     .await
     {
-        Ok((tce_proxy_worker, source_head_certificate)) => {
+        Ok((tce_proxy_worker, mut source_head_certificate)) => {
+            // FIXME: If TCE returns all zeros for the source head certificate, it means that it does not have
+            // any information about the subnet. Until registration of the subnets with topos subnet is implemented,
+            // we get genesis block directly (and create genesis certificate) directly from the subnet block 0
+            if let Some((cert, _position)) = &mut source_head_certificate {
+                if cert.id == CertificateId::default() {
+                    warn!("Tce has not provided source head certificate, starting from subnet genesis block...");
+                    source_head_certificate = None;
+                }
+            }
+
             info!(
                 "TCE proxy client is starting for the source subnet {:?} from the head {:?}",
                 subnet_id, source_head_certificate

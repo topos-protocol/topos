@@ -5,7 +5,6 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
 use topos_sequencer_subnet_client::{BlockInfo, SubnetEvent};
-use tracing::error;
 
 pub struct Certification {
     /// Last known certificate id for subnet
@@ -68,8 +67,9 @@ impl Certification {
             let previous_cert_id: CertificateId = match self.last_certificate_id {
                 Some(cert_id) => cert_id,
                 None => {
-                    error!("Ill-formed subnet history for {:?}", subnet_id);
-                    return Err(Error::IllFormedSubnetHistory);
+                    // FIXME: This is genesis certificate we are generating because we are unable
+                    // to retrieve one from TCE yet
+                    CertificateId::default()
                 }
             };
 
@@ -94,9 +94,19 @@ impl Certification {
         }
 
         // Check for inconsistencies
-        let last_known_certificate_id = self
-            .last_certificate_id
-            .ok_or(Error::InvalidPreviousCertificateId)?;
+        let is_genesis_certificate: bool = self
+            .finalized_blocks
+            .front()
+            .map(|b| b.number == 0)
+            .unwrap_or(false);
+        let last_known_certificate_id = if is_genesis_certificate {
+            // We are creating genesis certificate, there were no previous certificates
+            CertificateId::default()
+        } else {
+            self.last_certificate_id
+                .ok_or(Error::InvalidPreviousCertificateId)?
+        };
+
         for new_cert in &generated_certificates {
             if last_known_certificate_id == new_cert.id {
                 // This should not happen

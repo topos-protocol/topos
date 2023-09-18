@@ -103,7 +103,7 @@ impl SubnetRuntimeProxy {
             let runtime_proxy = runtime_proxy.clone();
             let subnet_contract_address = subnet_contract_address.clone();
             tokio::spawn(async move {
-                let mut latest_acquired_subnet_block_number = 0;
+                let mut latest_acquired_subnet_block_number: i128 = -1;
 
                 {
                     // To start producing certificates, we need to know latest delivered or pending certificate id from TCE
@@ -118,10 +118,11 @@ impl SubnetRuntimeProxy {
                                     "Source head certificate id received {:?}",
                                     certificate_and_position
                                 );
+                                // If the position is not provided, it should start form -1, so that first fetched is subnet genesis block
                                 let cert_id = certificate_and_position.map(|(id, _position)| id);
-                                let position = certificate_and_position
-                                    .map(|(_id, position)| position)
-                                    .unwrap_or_default();
+                                let position: i128 = certificate_and_position
+                                    .map(|(_id, position)| position as i128)
+                                    .unwrap_or(-1);
                                 // Certificate generation is now ready to run
                                 certification.last_certificate_id = cert_id;
                                 latest_acquired_subnet_block_number = position;
@@ -152,12 +153,12 @@ impl SubnetRuntimeProxy {
 
                 // Sync missing blocks
                 loop {
-                    let current_subnet_block_number: Option<u64> = loop {
+                    let current_subnet_block_number: Option<i128> = loop {
                         tokio::select! {
                             block_number = subnet_listener.get_subnet_block_number() => {
                                 match block_number {
                                     Ok(block_number) => {
-                                        break Some(block_number);
+                                        break Some(block_number as i128);
                                     }
                                     Err(e) => {
                                         error!("Failed to get subnet block number: {:?}", e);
@@ -193,7 +194,7 @@ impl SubnetRuntimeProxy {
                             runtime_proxy.clone(),
                             &mut subnet_listener,
                             certification.clone(),
-                            next_block_number,
+                            next_block_number as u64,
                         )
                         .await
                         {
@@ -217,7 +218,7 @@ impl SubnetRuntimeProxy {
                                 runtime_proxy.clone(),
                                 &mut subnet_listener,
                                 certification.clone(),
-                                next_block_number
+                                next_block_number as u64
                             ).await {
                                 match e {
                                     Error::SubnetError { source: topos_sequencer_subnet_client::Error::BlockNotAvailable(_) } => {

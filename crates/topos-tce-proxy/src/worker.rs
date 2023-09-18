@@ -69,7 +69,7 @@ impl TceProxyWorker {
 
         let source_last_certificate = if source_last_pending_certificate.is_none() {
             // There are no pending certificates on the TCE
-            // Block height to get next from subnet is position +1
+            // Block height to get next from subnet is position + 1
             source_last_delivered_certificate
         } else {
             // Last generated is pending certificate
