@@ -7,13 +7,13 @@ use tracing::{debug, error, info};
 use crate::command::{GetNextPendingCertificate, GetPendingCertificates};
 use crate::{
     command::{
-        AddPendingCertificate, CertificateDelivered, CheckPendingCertificateExists,
-        FetchCertificates, GetCertificate, GetSourceHead, RemovePendingCertificate, TargetedBy,
+        AddPendingCertificate, CheckPendingCertificateExists, FetchCertificates, GetCertificate,
+        GetSourceHead, RemovePendingCertificate, TargetedBy,
     },
     errors::StorageError,
-    CertificatePositions, CertificateSourceStreamPosition, CertificateTargetStreamPosition,
-    Connection, FetchCertificatesFilter, FetchCertificatesPosition, InternalStorageError,
-    PendingCertificateId, Position, Storage,
+    CertificateSourceStreamPosition, CertificateTargetStreamPosition, Connection,
+    FetchCertificatesFilter, FetchCertificatesPosition, InternalStorageError, PendingCertificateId,
+    Position, Storage,
 };
 
 /// Handle a AddPendingCertificate query
@@ -120,37 +120,6 @@ where
         Ok(pending_certificates)
     }
 }
-
-/// Handle a CertificateDelivered query
-#[async_trait]
-impl<S> CommandHandler<CertificateDelivered> for Connection<S>
-where
-    S: Storage,
-{
-    type Error = StorageError;
-
-    async fn handle(
-        &mut self,
-        command: CertificateDelivered,
-    ) -> Result<CertificatePositions, StorageError> {
-        let certificate_id = command.certificate_id;
-
-        let (pending_certificate_id, certificate) = if let Some(certificate) = command.certificate {
-            (None, certificate)
-        } else {
-            self.storage
-                .get_pending_certificate(certificate_id)
-                .await
-                .map(|(id, cert)| (Some(id), cert))?
-        };
-
-        Ok(self
-            .storage
-            .persist(&certificate, pending_certificate_id)
-            .await?)
-    }
-}
-
 /// Handle a GetCertificate query
 ///
 /// The GetCertificate query will just ask for delivered certificate
@@ -228,7 +197,9 @@ where
                     .storage
                     .get_certificates_by_target(target_subnet_id, source_subnet_id, position, limit)
                     .await?;
-                let certificates = self.storage.get_certificates(certificate_ids).await?;
+
+                let certificates = self.storage.get_certificates(certificate_ids).await;
+                let certificates = certificates?;
                 for (index, cert) in certificates.into_iter().enumerate() {
                     result.push((
                         cert,
@@ -272,14 +243,18 @@ where
         ))?;
         debug!(
             "Source head certificate for subnet id {subnet_id} is {}",
-            source_head.cert_id
+            source_head.certificate_id
         );
-        let certificate = match self.storage.get_certificate(source_head.cert_id).await {
+        let certificate = match self
+            .storage
+            .get_certificate(source_head.certificate_id)
+            .await
+        {
             Ok(certificate) => certificate,
             Err(e) => {
                 error!(
                     "Failure on the storage to get the source head Certificate {}",
-                    source_head.cert_id
+                    source_head.certificate_id
                 );
                 return Err(e.into());
             }

@@ -1,4 +1,4 @@
-use rlp::{Decodable, DecoderError, Rlp};
+use rlp::Rlp;
 use std::{fs, path::PathBuf};
 
 use serde_json::Value;

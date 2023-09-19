@@ -9,12 +9,13 @@ use tokio::sync::mpsc;
 use tonic::{transport::Server, Request, Response, Status, Streaming};
 use topos_api::grpc::shared;
 use topos_api::grpc::shared::v1::checkpoints::TargetCheckpoint;
+use topos_api::grpc::shared::v1::positions::SourceStreamPosition;
 use topos_api::grpc::shared::v1::{CertificateId, SubnetId};
 use topos_api::grpc::tce::v1::api_service_server::{ApiService, ApiServiceServer};
 use topos_api::grpc::tce::v1::watch_certificates_request::{Command, OpenStream};
 use topos_api::grpc::tce::v1::{
     GetLastPendingCertificatesRequest, GetLastPendingCertificatesResponse, GetSourceHeadRequest,
-    GetSourceHeadResponse, LastPendingCertificate, SourceStreamPosition, SubmitCertificateRequest,
+    GetSourceHeadResponse, LastPendingCertificate, SubmitCertificateRequest,
     SubmitCertificateResponse, WatchCertificatesRequest, WatchCertificatesResponse,
 };
 use topos_api::grpc::uci::v1::Certificate;
@@ -48,7 +49,7 @@ async fn create_tce_layer() {
             let return_prev_certificate_id: CertificateId = CERTIFICATE_ID_1.into();
             Ok(Response::new(GetSourceHeadResponse {
                 position: Some(SourceStreamPosition {
-                    subnet_id: request.subnet_id.clone(),
+                    source_subnet_id: request.subnet_id.clone(),
                     certificate_id: Some(return_certificate_id.clone()),
                     position: 0,
                 }),
@@ -182,7 +183,7 @@ async fn create_tce_layer() {
     let expected_response = GetSourceHeadResponse {
         certificate: Some(original_certificate.clone()),
         position: Some(SourceStreamPosition {
-            subnet_id: Some(source_subnet_id.clone()),
+            source_subnet_id: Some(source_subnet_id.clone()),
             certificate_id: original_certificate.id.clone(),
             position: 0,
         }),

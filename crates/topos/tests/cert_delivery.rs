@@ -37,7 +37,7 @@ fn get_subset_of_subnets(subnets: &[SubnetId], subset_size: usize) -> Vec<Subnet
 #[test(tokio::test)]
 #[timeout(Duration::from_secs(5))]
 async fn start_a_cluster() {
-    let mut peers_context = create_network(5).await;
+    let mut peers_context = create_network(5, vec![]).await;
 
     let mut status: Vec<bool> = Vec::new();
 
@@ -75,7 +75,11 @@ async fn cert_delivery() {
 
     // Generate certificates with respect to parameters
     let mut subnet_certificates =
-        create_certificate_chains(all_subnets.as_ref(), number_of_certificates_per_subnet);
+        create_certificate_chains(all_subnets.as_ref(), number_of_certificates_per_subnet)
+            .into_iter()
+            .map(|(s, v)| (s, v.into_iter().map(|v| v.certificate).collect::<Vec<_>>()))
+            .collect::<HashMap<_, _>>();
+
     debug!(
         "Generated certificates for distribution per subnet: {:#?}",
         &subnet_certificates
@@ -97,7 +101,7 @@ async fn cert_delivery() {
 
     warn!("Starting the cluster...");
     // List of peers (tce nodes) with their context
-    let mut peers_context = create_network(peer_number).await;
+    let mut peers_context = create_network(peer_number, vec![]).await;
 
     warn!("Cluster started, starting clients...");
     // Connected tce clients are passing received certificates to this mpsc::Receiver, collect all of them
@@ -215,7 +219,8 @@ async fn cert_delivery() {
                 match x {
                     Some((peer_id, target_subnet_id, cert)) => {
                         info!(
-                            "Delivered certificate on peer_Id: {} cert id: {} from source subnet id: {} to target subnet id {}",
+                            "Delivered certificate on peer_Id: {} cert id: {} from source subnet \
+                             id: {} to target subnet id {}",
                             &peer_id, cert.id, cert.source_subnet_id, target_subnet_id
                         );
                         // Send certificates from every peer to one delivery_rx receiver

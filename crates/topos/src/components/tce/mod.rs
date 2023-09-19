@@ -1,14 +1,9 @@
 use opentelemetry::global;
 use std::str::FromStr;
-use std::{
-    io::{self, Read},
-    path::PathBuf,
-    sync::Arc,
-    time::Duration,
-};
+use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio::{
     signal,
-    sync::{mpsc, oneshot, Mutex},
+    sync::{mpsc, Mutex},
 };
 use tokio_util::sync::CancellationToken;
 use tonic::transport::{Channel, Endpoint};

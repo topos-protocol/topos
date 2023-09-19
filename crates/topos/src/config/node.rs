@@ -1,7 +1,7 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use figment::{
-    providers::{Format, Serialized, Toml},
+    providers::{Format, Toml},
     Figment,
 };
 

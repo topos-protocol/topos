@@ -2,6 +2,10 @@ use std::collections::HashMap;
 
 use topos_core::uci::Certificate;
 use topos_core::uci::SubnetId;
+use topos_tce_storage::types::CertificateDelivered;
+use topos_tce_storage::types::ProofOfDelivery;
+use topos_tce_storage::types::SourceStreamPositionKey;
+use topos_tce_storage::Position;
 
 use rstest::*;
 
@@ -14,11 +18,11 @@ pub fn create_certificate_chain(
     #[default(SOURCE_SUBNET_ID_1)] source_subnet: topos_core::uci::SubnetId,
     #[default(&[TARGET_SUBNET_ID_1])] target_subnets: &[topos_core::uci::SubnetId],
     #[default(1)] number: usize,
-) -> Vec<Certificate> {
+) -> Vec<CertificateDelivered> {
     let mut certificates = Vec::new();
     let mut parent = None;
 
-    for _ in 0..number {
+    for i in 0..number {
         let cert = Certificate::new_with_default_fields(
             parent.take().unwrap_or(*PREV_CERTIFICATE_ID.as_array()),
             source_subnet,
@@ -26,7 +30,16 @@ pub fn create_certificate_chain(
         )
         .unwrap();
         parent = Some(*cert.id.as_array());
-        certificates.push(cert);
+        let id = cert.id;
+        certificates.push(CertificateDelivered {
+            certificate: cert,
+            proof_of_delivery: ProofOfDelivery {
+                certificate_id: id,
+                delivery_position: SourceStreamPositionKey(source_subnet, Position(i as u64)),
+                readies: Vec::new(),
+                threshold: 0,
+            },
+        });
     }
 
     certificates
@@ -37,8 +50,8 @@ pub fn create_certificate_chain(
 pub fn create_certificate_chains(
     subnets: &[SubnetId],
     number_of_certificates_per_subnet: usize,
-) -> HashMap<SubnetId, Vec<Certificate>> {
-    let mut result: HashMap<SubnetId, Vec<Certificate>> = HashMap::new();
+) -> HashMap<SubnetId, Vec<CertificateDelivered>> {
+    let mut result = HashMap::new();
 
     subnets.iter().for_each(|subnet| {
         let targets = subnets

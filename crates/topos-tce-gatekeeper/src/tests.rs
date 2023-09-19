@@ -5,7 +5,7 @@ use test_log::test;
 use tokio::spawn;
 use topos_p2p::PeerId;
 
-use crate::{Gatekeeper, GatekeeperClient};
+use crate::{client::Client, Gatekeeper, GatekeeperClient};
 
 #[test(tokio::test)]
 async fn can_start_and_stop() -> Result<(), Box<dyn std::error::Error>> {
@@ -25,10 +25,7 @@ async fn can_start_and_stop() -> Result<(), Box<dyn std::error::Error>> {
 
 #[rstest]
 #[test(tokio::test)]
-async fn can_push_a_peer_list(
-    #[future] gatekeeper: GatekeeperClient,
-    #[with(10)] peer_list: Vec<PeerId>,
-) {
+async fn can_push_a_peer_list(#[future] gatekeeper: Client, #[with(10)] peer_list: Vec<PeerId>) {
     let gatekeeper = gatekeeper.await;
 
     gatekeeper.push_peer_list(peer_list).await.unwrap();
@@ -39,7 +36,7 @@ async fn can_push_a_peer_list(
 #[rstest]
 #[test(tokio::test)]
 async fn can_fetch_full_or_partial_list(
-    #[future] gatekeeper: GatekeeperClient,
+    #[future] gatekeeper: Client,
     #[with(10)] peer_list: Vec<PeerId>,
 ) {
     let gatekeeper = gatekeeper.await;
@@ -58,7 +55,7 @@ async fn can_fetch_full_or_partial_list(
 }
 
 #[fixture]
-async fn gatekeeper() -> GatekeeperClient {
+async fn gatekeeper() -> Client {
     let peer_id = topos_p2p::utils::local_key_pair(Some(99))
         .public()
         .to_peer_id();

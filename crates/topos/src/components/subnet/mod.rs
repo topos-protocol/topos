@@ -1,8 +1,6 @@
-use self::commands::{Run, SubnetCommand, SubnetCommands};
-use clap::Parser;
+use self::commands::{SubnetCommand, SubnetCommands};
 use std::process::Stdio;
-use tokio::{io::AsyncReadExt, io::BufReader, process, process::Command};
-use tokio::{signal, spawn};
+use tokio::{process::Command, signal, spawn};
 use tracing::{error, info};
 
 use crate::tracing::setup_tracing;

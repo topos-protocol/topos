@@ -6,7 +6,8 @@ use std::path::Path;
 #[cfg(test)]
 use rocksdb::ColumnFamilyDescriptor;
 use rocksdb::{
-    BoundColumnFamily, DBRawIteratorWithThreadMode, DBWithThreadMode, MultiThreaded, WriteBatch,
+    BoundColumnFamily, DBRawIteratorWithThreadMode, DBWithThreadMode, MultiThreaded, ReadOptions,
+    WriteBatch,
 };
 
 use bincode::Options;
@@ -74,8 +75,8 @@ impl<K, V> DBColumn<K, V> {
 
 impl<K, V> DBColumn<K, V>
 where
-    K: DeserializeOwned + Serialize,
-    V: DeserializeOwned + Serialize,
+    K: DeserializeOwned + Serialize + std::fmt::Debug,
+    V: DeserializeOwned + Serialize + std::fmt::Debug,
 {
     /// Insert a record into the storage by passing a Key and a Value.
     ///
@@ -106,15 +107,48 @@ where
     /// Get a record from the storage by passing a Key
     ///
     /// Key are fixed length bincode serialized.
-    pub(crate) fn get(&self, key: &K) -> Result<V, InternalStorageError> {
+    pub(crate) fn get(&self, key: &K) -> Result<Option<V>, InternalStorageError> {
         let key_buf = be_fix_int_ser(key)?;
 
-        let data = self
-            .rocksdb
+        self.rocksdb
             .get_pinned_cf(&self.cf()?, key_buf)?
-            .ok_or(InternalStorageError::UnableToDeserializeValue)?;
+            .map_or(Ok(None), |v| {
+                bincode::deserialize::<V>(&v)
+                    .map(|r| Some(r))
+                    .map_err(|_| InternalStorageError::UnableToDeserializeValue)
+            })
+    }
 
-        Ok(bincode::deserialize(&data)?)
+    #[allow(unused)]
+    pub(crate) fn multi_insert(
+        &self,
+        key_value_pairs: impl IntoIterator<Item = (K, V)>,
+    ) -> Result<(), InternalStorageError> {
+        let batch = self.batch();
+
+        batch.insert_batch(self, key_value_pairs)?.write()
+    }
+
+    pub(crate) fn multi_get(&self, keys: &[K]) -> Result<Vec<Option<V>>, InternalStorageError> {
+        let keys: Result<Vec<_>, InternalStorageError> =
+            keys.iter().map(|k| be_fix_int_ser(k)).collect();
+
+        let results: Result<Vec<_>, InternalStorageError> = self
+            .rocksdb
+            .batched_multi_get_cf_opt(&self.cf()?, keys?, false, &ReadOptions::default())
+            .into_iter()
+            .map(|r| r.map_err(InternalStorageError::RocksDBError))
+            .collect();
+
+        results?
+            .into_iter()
+            .map(|e| match e {
+                Some(v) => bincode::deserialize(&v)
+                    .map_err(InternalStorageError::Bincode)
+                    .map(|v| Some(v)),
+                None => Ok(None),
+            })
+            .collect()
     }
 
     pub(crate) fn batch(&self) -> DBBatch {
@@ -159,8 +193,8 @@ impl DBBatch {
         values: impl IntoIterator<Item = (Key, Value)>,
     ) -> Result<Self, InternalStorageError>
     where
-        K: Serialize,
-        V: Serialize,
+        K: Serialize + std::fmt::Debug,
+        V: Serialize + std::fmt::Debug,
         Key: Borrow<K>,
         Value: Borrow<V>,
     {

@@ -112,7 +112,6 @@ impl<S: Storage> IntoFuture for Connection<S> {
                         }
                         HandleCommands!(
                             AddPendingCertificate,
-                            CertificateDelivered,
                             CheckPendingCertificateExists,
                             FetchCertificates,
                             GetCertificate,

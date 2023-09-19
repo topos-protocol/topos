@@ -1,6 +1,6 @@
 {
   "name": "@topos-protocol/topos-grpc-client-stub",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "JavaScript gRPC client stub for topos-api",
   "files": [
     "generated"

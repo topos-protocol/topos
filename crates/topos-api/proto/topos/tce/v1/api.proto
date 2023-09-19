@@ -37,7 +37,7 @@ message GetSourceHeadRequest {
 }
 
 message GetSourceHeadResponse {
-  topos.tce.v1.SourceStreamPosition position = 1;
+  topos.shared.v1.Positions.SourceStreamPosition position = 1;
   topos.uci.v1.Certificate certificate = 2;
 }
 

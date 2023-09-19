@@ -1,15 +1,8 @@
-#![allow(unused_imports)]
-use std::time::Duration;
-
-use clap::CommandFactory;
-use clap::{Args, Parser, Subcommand};
+use clap::Parser;
 
 pub(crate) mod components;
 pub(crate) mod options;
 mod tracing;
-
-#[cfg(feature = "tce")]
-use components::tce::commands::{TceCommand, TceCommands};
 
 #[cfg(feature = "node")]
 mod config;

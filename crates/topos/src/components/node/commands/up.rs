@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use clap::Args;
 use serde::Serialize;
 

@@ -67,7 +67,8 @@ impl SubnetRuntimeProxy {
         signing_key: Vec<u8>,
     ) -> Result<Arc<Mutex<SubnetRuntimeProxy>>, crate::Error> {
         info!(
-            "Spawning new runtime proxy, http endpoint: {}, ws endpoint {} ethereum contract address: {}, ",
+            "Spawning new runtime proxy, http endpoint: {}, ws endpoint {} ethereum contract \
+             address: {}, ",
             &config.http_endpoint, &config.ws_endpoint, &config.subnet_contract_address
         );
         let (command_sender, mut command_rcv) = mpsc::channel::<SubnetRuntimeProxyCommand>(256);
@@ -110,7 +111,10 @@ impl SubnetRuntimeProxy {
                     // Lock certification component and wait until we acquire first certificate id for this network
                     let mut certification = certification.lock().await;
                     if certification.last_certificate_id.is_none() {
-                        info!("Waiting for the source head certificate id to continue with certificate generation");
+                        info!(
+                            "Waiting for the source head certificate id to continue with \
+                             certificate generation"
+                        );
                         // Wait for last_certificate_id retrieved on TCE component setup
                         match source_head_certificate_id_received.await {
                             Ok(certificate_and_position) => {
@@ -128,7 +132,10 @@ impl SubnetRuntimeProxy {
                                 latest_acquired_subnet_block_number = position;
                             }
                             Err(e) => {
-                                panic!("Failed to get source head certificate, unable to proceed with certificate generation: {e}")
+                                panic!(
+                                    "Failed to get source head certificate, unable to proceed \
+                                     with certificate generation: {e}"
+                                )
                             }
                         }
                     }
@@ -299,7 +306,10 @@ impl SubnetRuntimeProxy {
         match subnet_listener.get_finalized_block(next_block).await {
             Ok(block_info) => {
                 let block_number = block_info.number;
-                info!("Successfully fetched the finalized block {block_number} from the subnet runtime");
+                info!(
+                    "Successfully fetched the finalized block {block_number} from the subnet \
+                     runtime"
+                );
 
                 let mut certification = certification.lock().await;
 
@@ -394,8 +404,8 @@ impl SubnetRuntimeProxy {
 
                     async {
                         info!(
-                        "Processing certificate received from TCE, cert_id={}",
-                        &certificate.id
+                            "Processing certificate received from TCE, cert_id={}",
+                            &certificate.id
                         );
 
                         // Verify certificate signature
@@ -428,20 +438,21 @@ impl SubnetRuntimeProxy {
                             &certificate,
                             position,
                         )
-                            .with_context(span_push_certificate.context())
-                            .instrument(span_push_certificate)
-                            .await
+                        .with_context(span_push_certificate.context())
+                        .instrument(span_push_certificate)
+                        .await
                         {
                             Ok(tx_hash) => {
                                 debug!(
-                                    "Successfully pushed the Certificate {} to target subnet with tx hash {:?}",
+                                    "Successfully pushed the Certificate {} to target subnet with \
+                                     tx hash {:?}",
                                     &certificate.id, &tx_hash
                                 );
                             }
                             Err(e) => {
                                 error!(
-                                "Failed to push the Certificate {} to target subnet: {e}",
-                                &certificate.id
+                                    "Failed to push the Certificate {} to target subnet: {e}",
+                                    &certificate.id
                                 );
                             }
                         }

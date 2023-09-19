@@ -1,9 +1,10 @@
 use std::collections::HashSet;
-use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
-use tokio::sync::mpsc::Receiver;
-use tokio::sync::{mpsc, oneshot};
+use std::sync::Arc;
+use tce_transport::ReliableBroadcastParams;
+use tokio::sync::{broadcast, mpsc, oneshot};
 use topos_tce_broadcast::double_echo::DoubleEcho;
 use topos_tce_broadcast::sampler::SubscriptionsView;
+use topos_tce_storage::validator::ValidatorStore;
 use topos_test_sdk::certificates::create_certificate_chain;
 use topos_test_sdk::constants::{SOURCE_SUBNET_ID_1, TARGET_SUBNET_ID_1};
 
@@ -14,15 +15,12 @@ struct TceParams {
     broadcast_params: ReliableBroadcastParams,
 }
 
-struct Context {
-    event_receiver: Receiver<ProtocolEvents>,
-}
-
-pub async fn processing_double_echo(n: u64) {
+pub async fn processing_double_echo(n: u64, validator_store: Arc<ValidatorStore>) {
     let (subscriptions_view_sender, subscriptions_view_receiver) = mpsc::channel(CHANNEL_SIZE);
 
     let (_cmd_sender, cmd_receiver) = mpsc::channel(CHANNEL_SIZE);
-    let (event_sender, event_receiver) = mpsc::channel(CHANNEL_SIZE);
+    let (event_sender, _event_receiver) = mpsc::channel(CHANNEL_SIZE);
+    let (broadcast_sender, mut broadcast_receiver) = broadcast::channel(CHANNEL_SIZE);
     let (_double_echo_shutdown_sender, double_echo_shutdown_receiver) =
         mpsc::channel::<oneshot::Sender<()>>(1);
     let (task_manager_message_sender, task_manager_message_receiver) = mpsc::channel(CHANNEL_SIZE);
@@ -36,8 +34,6 @@ pub async fn processing_double_echo(n: u64) {
         },
     };
 
-    let mut ctx = Context { event_receiver };
-
     let mut double_echo = DoubleEcho::new(
         params.broadcast_params,
         task_manager_message_sender.clone(),
@@ -45,6 +41,8 @@ pub async fn processing_double_echo(n: u64) {
         event_sender,
         double_echo_shutdown_receiver,
         0,
+        validator_store,
+        broadcast_sender,
     );
 
     // List of peers
@@ -91,28 +89,26 @@ pub async fn processing_double_echo(n: u64) {
         .collect::<Vec<_>>();
 
     for cert in &certificates {
-        double_echo.broadcast(cert.clone(), true).await;
+        double_echo.broadcast(cert.certificate.clone(), true).await;
     }
 
     for cert in &certificates {
         for p in &double_echo_selected_echo {
-            double_echo.handle_echo(*p, cert.id).await;
+            double_echo.handle_echo(*p, cert.certificate.id).await;
         }
 
         for p in &double_echo_selected_ready {
-            double_echo.handle_ready(*p, cert.id).await;
+            double_echo.handle_ready(*p, cert.certificate.id).await;
         }
     }
 
     let mut count = 0;
 
-    while let Some(event) = ctx.event_receiver.recv().await {
-        if let ProtocolEvents::CertificateDelivered { .. } = event {
-            count += 1;
+    while let Ok(_event) = broadcast_receiver.recv().await {
+        count += 1;
 
-            if count == n {
-                break;
-            }
+        if count == n {
+            break;
         }
     }
 }

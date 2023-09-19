@@ -20,7 +20,7 @@ The `Gatekeeper` can receive and respond to commands in order to provide informa
 
 ## Internal design
 
-The `Gatekeeper` isn't fully designed for now but a first iteration will be to expose a simple gRPC API to push update of the list of TCE participants.
+The `Gatekeeper` isn't fully designed for now but a first iteration will be to expose a simple gRPC API to push update of the list of TCE validators.
 
 In the future we'll need to find solution to fetch this information from the source of truth. The goal here is to expose methods that can be used by any components and in a near future, replace the internal implementation.
 

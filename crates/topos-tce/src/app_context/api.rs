@@ -37,7 +37,10 @@ impl AppContext {
                 spawn(async move {
                     match gatekeeper.push_peer_list(peers).await {
                         Ok(peers) => {
-                            info!("Gatekeeper has detected changes on the peer list, new sample in creation");
+                            info!(
+                                "Gatekeeper has detected changes on the peer list, new sample in \
+                                 creation"
+                            );
                             if sampler.peer_changed(peers).await.is_err() {
                                 _ = sender.send(Err(RuntimeError::UnableToPushPeerList));
                             } else {

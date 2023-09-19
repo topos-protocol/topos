@@ -42,6 +42,9 @@ pub enum P2PError {
 
 #[derive(Error, Debug)]
 pub enum CommandExecutionError {
+    #[error("Unable to parse message")]
+    ParsingError,
+
     #[error("Unable to send command {0}")]
     UnableToSendCommand(Command),
 

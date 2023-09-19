@@ -6,12 +6,11 @@ use crate::command::{GetNextPendingCertificate, GetPendingCertificates};
 use crate::constant;
 use crate::{
     command::{
-        AddPendingCertificate, CertificateDelivered, CheckPendingCertificateExists,
-        FetchCertificates, GetCertificate, GetSourceHead, RemovePendingCertificate, StorageCommand,
-        TargetedBy,
+        AddPendingCertificate, CheckPendingCertificateExists, FetchCertificates, GetCertificate,
+        GetSourceHead, RemovePendingCertificate, StorageCommand, TargetedBy,
     },
     errors::StorageError,
-    CertificatePositions, FetchCertificatesFilter, FetchCertificatesPosition, PendingCertificateId,
+    FetchCertificatesFilter, FetchCertificatesPosition, PendingCertificateId,
 };
 
 #[derive(Debug, Clone)]
@@ -96,20 +95,6 @@ impl StorageClient {
         &self,
     ) -> Result<Vec<(PendingCertificateId, Certificate)>, StorageError> {
         GetPendingCertificates {}.send_to(&self.sender).await
-    }
-
-    /// Ask the storage to tag this certificate as delivered.
-    pub async fn certificate_delivered(
-        &self,
-        certificate_id: CertificateId,
-        certificate: Option<Certificate>,
-    ) -> Result<CertificatePositions, StorageError> {
-        CertificateDelivered {
-            certificate_id,
-            certificate,
-        }
-        .send_to(&self.sender)
-        .await
     }
 
     pub async fn fetch_certificates(

@@ -8,7 +8,7 @@ use std::{
 use futures::FutureExt;
 use topos_core::api::grpc::tce::v1::StatusRequest;
 use tower::Service;
-use tracing::{debug, error, trace};
+use tracing::{debug, error};
 
 use crate::components::tce::{commands::Status, TCEService};
 

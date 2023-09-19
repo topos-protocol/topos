@@ -2,54 +2,52 @@ syntax = "proto3";
 
 package topos.tce.v1;
 
+import "topos/shared/v1/checkpoints.proto";
 import "topos/shared/v1/certificate.proto";
 import "topos/shared/v1/subnet.proto";
 import "topos/shared/v1/uuid.proto";
+import "topos/uci/v1/certification.proto";
 
 message CheckpointRequest {
   // Provide a request_id to track response
   topos.shared.v1.UUID request_id = 1;
 
-  // The type of request
-  oneof request_type {
-    // This type of request will ask for heads of subnets
-    Heads heads = 2;
-    // This type of request will ask for the same position for every subnet
-    SamePosition same_position = 3;
-    // This type of request will ask for the zero position for every subnets
-    Zero zero = 4;
-  }
-
-  // Heads defines a request for every head positions for the listed subnets
-  message Heads {
-    repeated topos.shared.v1.SubnetId subnet_ids = 1;
-  }
-
-  // SamePosition defines a request for the same position for the listed subnets
-  message SamePosition {
-    repeated topos.shared.v1.SubnetId subnet_ids = 1;
-    uint64 position = 2;
-  }
-
-  // Zero defines a request for the zero position for the listed subnets
-  message Zero {
-    repeated topos.shared.v1.SubnetId subnet_ids = 1;
-  }
+  repeated ProofOfDelivery checkpoint = 2;
 }
 
 message CheckpointResponse {
   // If the response is directly linked to a request this ID allow one to track it
   topos.shared.v1.UUID request_id = 1;
 
-  // Contains the positions returned by the peer, this can be empty if the peer
-  // doesn't have any position regarding the subnets list
-  repeated SourceStreamPosition positions = 2;
+  repeated CheckpointMapFieldEntry checkpoint_diff = 2;
 }
 
-// Type that represents a SourceStreamPosition, or position, it represents a
-// particular position in the stream of a subnet in a peer context.
-message SourceStreamPosition {
-  topos.shared.v1.SubnetId subnet_id = 1;
-  topos.shared.v1.CertificateId certificate_id = 2;
-  uint64 position = 3;
+message CheckpointMapFieldEntry {
+    string key = 1;
+    repeated ProofOfDelivery value = 2;
 }
+
+message FetchCertificatesRequest {
+  // Provide a request_id to track response
+  topos.shared.v1.UUID request_id = 1;
+
+  repeated topos.shared.v1.CertificateId certificates = 2;
+}
+
+message FetchCertificatesResponse {
+  // Provide a request_id to track response
+  topos.shared.v1.UUID request_id = 1;
+  repeated topos.uci.v1.Certificate certificates =2;
+}
+
+message ProofOfDelivery {
+  topos.shared.v1.Positions.SourceStreamPosition delivery_position = 1;
+  repeated SignedReady readies = 2;
+  uint64 threshold = 3;
+}
+
+message SignedReady {
+    string ready = 1;
+    string signature = 2;
+}
+

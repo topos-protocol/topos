@@ -17,6 +17,23 @@ use crate::{
     Command,
 };
 
+pub trait NetworkClient: Send + Sync + 'static {
+    fn send_request<T: std::fmt::Debug + Into<Vec<u8>> + 'static, R: TryFrom<Vec<u8>> + 'static>(
+        &self,
+        to: PeerId,
+        data: T,
+        retry_policy: RetryPolicy,
+        protocol: &'static str,
+    ) -> BoxFuture<'static, Result<R, CommandExecutionError>>;
+
+    fn respond_to_request<T: std::fmt::Debug + Into<Vec<u8>> + 'static>(
+        &self,
+        data: Result<T, ()>,
+        channel: ResponseChannel<Result<TransmissionResponse, ()>>,
+        protocol: &'static str,
+    ) -> BoxFuture<'static, Result<(), CommandExecutionError>>;
+}
+
 #[derive(Clone)]
 pub struct Client {
     pub retry_ttl: u64,
@@ -57,11 +74,61 @@ impl Client {
         Box::pin(async move { network.send(Command::Gossip { topic, data }).await })
     }
 
-    pub fn send_request<T: std::fmt::Debug + Into<Vec<u8>>, R: From<Vec<u8>>>(
+    async fn send_command_with_receiver<
+        T,
+        E: From<oneshot::error::RecvError> + From<CommandExecutionError>,
+    >(
+        sender: &mpsc::Sender<Command>,
+        command: Command,
+        receiver: oneshot::Receiver<Result<T, E>>,
+    ) -> Result<T, E> {
+        if let Err(SendError(command)) = sender.send(command).await {
+            return Err(CommandExecutionError::UnableToSendCommand(command).into());
+        }
+
+        receiver.await.unwrap_or_else(|error| Err(error.into()))
+    }
+
+    pub async fn shutdown(&self) -> Result<(), P2PError> {
+        let (sender, receiver) = oneshot::channel();
+        self.shutdown_channel
+            .send(sender)
+            .await
+            .map_err(P2PError::ShutdownCommunication)?;
+
+        Ok(receiver.await?)
+    }
+}
+
+impl NetworkClient for Client {
+    fn respond_to_request<T: std::fmt::Debug + Into<Vec<u8>>>(
+        &self,
+        data: Result<T, ()>,
+        channel: ResponseChannel<Result<TransmissionResponse, ()>>,
+        protocol: &'static str,
+    ) -> BoxFuture<'static, Result<(), CommandExecutionError>> {
+        let data = data.map(Into::into);
+
+        let sender = self.sender.clone();
+
+        Box::pin(async move {
+            sender
+                .send(Command::TransmissionResponse {
+                    data,
+                    channel,
+                    protocol,
+                })
+                .await
+                .map_err(Into::into)
+        })
+    }
+
+    fn send_request<T: std::fmt::Debug + Into<Vec<u8>>, R: TryFrom<Vec<u8>>>(
         &self,
         to: PeerId,
         data: T,
         retry_policy: RetryPolicy,
+        protocol: &'static str,
     ) -> BoxFuture<'static, Result<R, CommandExecutionError>> {
         let data = data.into();
         let network = self.sender.clone();
@@ -111,6 +178,7 @@ impl Client {
                     Command::TransmissionReq {
                         to,
                         data: data.clone(),
+                        protocol,
                         sender,
                     },
                     receiver,
@@ -135,53 +203,13 @@ impl Client {
                         tokio::time::sleep(Duration::from_millis(ttl)).await;
                     }
                     Ok(res) => {
-                        return Ok(res.into());
+                        return res
+                            .try_into()
+                            .map_err(|_| CommandExecutionError::ParsingError)
                     }
                 }
             }
         })
-    }
-
-    pub fn respond_to_request<T: Into<Vec<u8>>>(
-        &self,
-        data: T,
-        channel: ResponseChannel<TransmissionResponse>,
-    ) -> BoxFuture<'static, Result<(), CommandExecutionError>> {
-        let data = data.into();
-
-        let sender = self.sender.clone();
-
-        Box::pin(async move {
-            sender
-                .send(Command::TransmissionResponse { data, channel })
-                .await
-                .map_err(Into::into)
-        })
-    }
-
-    async fn send_command_with_receiver<
-        T,
-        E: From<oneshot::error::RecvError> + From<CommandExecutionError>,
-    >(
-        sender: &mpsc::Sender<Command>,
-        command: Command,
-        receiver: oneshot::Receiver<Result<T, E>>,
-    ) -> Result<T, E> {
-        if let Err(SendError(command)) = sender.send(command).await {
-            return Err(CommandExecutionError::UnableToSendCommand(command).into());
-        }
-
-        receiver.await.unwrap_or_else(|error| Err(error.into()))
-    }
-
-    pub async fn shutdown(&self) -> Result<(), P2PError> {
-        let (sender, receiver) = oneshot::channel();
-        self.shutdown_channel
-            .send(sender)
-            .await
-            .map_err(P2PError::ShutdownCommunication)?;
-
-        Ok(receiver.await?)
     }
 }
 

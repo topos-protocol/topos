@@ -1,19 +1,25 @@
+use std::sync::Arc;
+
 use futures::Stream;
 
+use tokio::sync::broadcast;
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
+use topos_tce_storage::types::CertificateDeliveredWithPositions;
+use topos_tce_storage::validator::ValidatorStore;
 use topos_tce_transport::{ProtocolEvents, ReliableBroadcastParams};
 
 pub async fn create_reliable_broadcast_client(
     tce_params: ReliableBroadcastParams,
     peer_id: String,
-    storage: topos_tce_storage::StorageClient,
+    storage: Arc<ValidatorStore>,
+    sender: broadcast::Sender<CertificateDeliveredWithPositions>,
 ) -> (
     ReliableBroadcastClient,
     impl Stream<Item = ProtocolEvents> + Unpin,
 ) {
     let config = ReliableBroadcastConfig { tce_params };
 
-    ReliableBroadcastClient::new(config, peer_id, storage).await
+    ReliableBroadcastClient::new(config, peer_id, storage, sender).await
 }
 
 pub fn create_reliable_broadcast_params(number_of_nodes: usize) -> ReliableBroadcastParams {

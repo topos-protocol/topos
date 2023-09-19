@@ -144,7 +144,7 @@ async fn pending_certificate_are_removed_during_persist_action(storage: RocksDBS
         .await
         .unwrap();
 
-    assert!(pending_column.get(&pending_id).is_err());
+    assert!(matches!(pending_column.get(&pending_id), Ok(None)));
 }
 
 #[rstest]
@@ -159,7 +159,10 @@ async fn fetch_certificates_for_subnets(storage: RocksDBStorage) {
 
     storage.persist(&other_certificate, None).await.unwrap();
     let mut expected_certificates =
-        create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], 10);
+        create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], 10)
+            .into_iter()
+            .map(|v| v.certificate)
+            .collect::<Vec<_>>();
 
     for cert in &expected_certificates {
         storage.persist(cert, None).await.unwrap();
@@ -236,7 +239,7 @@ async fn pending_certificate_can_be_removed(storage: RocksDBStorage) {
         .await
         .unwrap();
 
-    assert!(pending_column.get(&pending_id).is_err());
+    assert!(matches!(pending_column.get(&pending_id), Ok(None)));
 
     storage.remove_pending_certificate(1234).await.unwrap();
 
@@ -258,15 +261,21 @@ async fn pending_certificate_can_be_removed(storage: RocksDBStorage) {
 #[rstest]
 #[test(tokio::test)]
 async fn get_source_head_for_subnet(storage: RocksDBStorage) {
-    let expected_certificates_for_source_subnet_1 =
-        create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_2], 10);
+    let expected_certificates_for_source_subnet_1: Vec<_> =
+        create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_2], 10)
+            .into_iter()
+            .map(|v| v.certificate)
+            .collect();
 
     for cert in &expected_certificates_for_source_subnet_1 {
         storage.persist(cert, None).await.unwrap();
     }
 
     let expected_certificates_for_source_subnet_2 =
-        create_certificate_chain(SOURCE_SUBNET_ID_2, &[TARGET_SUBNET_ID_2], 10);
+        create_certificate_chain(SOURCE_SUBNET_ID_2, &[TARGET_SUBNET_ID_2], 10)
+            .into_iter()
+            .map(|v| v.certificate)
+            .collect::<Vec<_>>();
 
     for cert in &expected_certificates_for_source_subnet_2 {
         storage.persist(cert, None).await.unwrap();
@@ -289,12 +298,12 @@ async fn get_source_head_for_subnet(storage: RocksDBStorage) {
 
     assert_eq!(
         expected_certificates_for_source_subnet_1.last().unwrap().id,
-        last_certificate_source_subnet_1.cert_id
+        last_certificate_source_subnet_1.certificate_id
     );
     assert_eq!(9, last_certificate_source_subnet_1.position.0); //check position
     assert_eq!(
         expected_certificates_for_source_subnet_2.last().unwrap().id,
-        last_certificate_source_subnet_2.cert_id
+        last_certificate_source_subnet_2.certificate_id
     );
     assert_eq!(9, last_certificate_source_subnet_2.position.0); //check position
 
@@ -318,7 +327,7 @@ async fn get_source_head_for_subnet(storage: RocksDBStorage) {
         .clone();
     assert_eq!(
         new_certificate_source_subnet_1.id,
-        last_certificate_subnet_1.cert_id
+        last_certificate_subnet_1.certificate_id
     );
     assert_eq!(10, last_certificate_subnet_1.position.0); //check position
 
@@ -337,7 +346,10 @@ async fn get_source_head_for_subnet(storage: RocksDBStorage) {
         .last()
         .unwrap()
         .clone();
-    assert_eq!(other_certificate_2.id, last_certificate_subnet_2.cert_id);
+    assert_eq!(
+        other_certificate_2.id,
+        last_certificate_subnet_2.certificate_id
+    );
     assert_eq!(11, last_certificate_subnet_2.position.0); //check position
 }
 
@@ -348,9 +360,15 @@ async fn get_pending_certificates(storage: RocksDBStorage) {
     let mut expected_pending_certificates_count: u64 = 0;
 
     let certificates_for_source_subnet_1 =
-        create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_2], 15);
+        create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_2], 15)
+            .into_iter()
+            .map(|v| v.certificate)
+            .collect::<Vec<_>>();
     let certificates_for_source_subnet_2 =
-        create_certificate_chain(SOURCE_SUBNET_ID_2, &[TARGET_SUBNET_ID_2], 15);
+        create_certificate_chain(SOURCE_SUBNET_ID_2, &[TARGET_SUBNET_ID_2], 15)
+            .into_iter()
+            .map(|v| v.certificate)
+            .collect::<Vec<_>>();
 
     // Persist the first 10 Cert of each Subnets
     for cert in &certificates_for_source_subnet_1[0..10] {

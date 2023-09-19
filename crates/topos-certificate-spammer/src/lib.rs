@@ -246,12 +246,16 @@ pub async fn run(
         );
     }
 
-    target_node_connections.iter().flat_map(|(_, connections)| connections).for_each(|connection| {
-        info!(
-            "Certificate spammer target nodes address: {}, source_subnet_id: {}, target subnet ids {:?}",
-            connection.address, connection.source_subnet.source_subnet_id, target_subnet_ids
-        );
-    });
+    target_node_connections
+        .iter()
+        .flat_map(|(_, connections)| connections)
+        .for_each(|connection| {
+            info!(
+                "Certificate spammer target nodes address: {}, source_subnet_id: {}, target \
+                 subnet ids {:?}",
+                connection.address, connection.source_subnet.source_subnet_id, target_subnet_ids
+            );
+        });
 
     let number_of_peer_nodes = target_nodes.len();
     let mut batch_interval = time::interval(Duration::from_millis(args.batch_interval));

@@ -2,8 +2,10 @@ use crate::double_echo::*;
 use crate::*;
 use rstest::*;
 use std::collections::HashSet;
+use std::time::Duration;
 use std::usize;
 use tce_transport::ReliableBroadcastParams;
+use topos_test_sdk::storage::create_validator_store;
 
 use tokio::sync::mpsc::Receiver;
 
@@ -43,9 +45,11 @@ struct TceParams {
 
 struct Context {
     event_receiver: Receiver<ProtocolEvents>,
+    broadcast_receiver: broadcast::Receiver<CertificateDeliveredWithPositions>,
 }
 
-async fn create_context(params: TceParams) -> (DoubleEcho, Context) {
+async fn create_context(params: TceParams, folder_name: &'static str) -> (DoubleEcho, Context) {
+    let (_, validator_store) = create_validator_store(folder_name, vec![]).await;
     let (subscriptions_view_sender, subscriptions_view_receiver) = mpsc::channel(CHANNEL_SIZE);
 
     let (_cmd_sender, cmd_receiver) = mpsc::channel(CHANNEL_SIZE);
@@ -54,6 +58,7 @@ async fn create_context(params: TceParams) -> (DoubleEcho, Context) {
         mpsc::channel::<oneshot::Sender<()>>(1);
     let (task_manager_message_sender, task_manager_message_receiver) = mpsc::channel(CHANNEL_SIZE);
 
+    let (broadcast_sender, broadcast_receiver) = broadcast::channel(CHANNEL_SIZE);
     let mut double_echo = DoubleEcho::new(
         params.broadcast_params,
         task_manager_message_sender.clone(),
@@ -61,6 +66,8 @@ async fn create_context(params: TceParams) -> (DoubleEcho, Context) {
         event_sender,
         double_echo_shutdown_receiver,
         0,
+        validator_store,
+        broadcast_sender,
     );
 
     // List of peers
@@ -87,7 +94,13 @@ async fn create_context(params: TceParams) -> (DoubleEcho, Context) {
 
     double_echo.spawn_task_manager(subscriptions_view_receiver, task_manager_message_receiver);
 
-    (double_echo, Context { event_receiver })
+    (
+        double_echo,
+        Context {
+            event_receiver,
+            broadcast_receiver,
+        },
+    )
 }
 
 async fn reach_echo_threshold(double_echo: &mut DoubleEcho, cert: &Certificate) {
@@ -137,8 +150,10 @@ async fn reach_delivery_threshold(double_echo: &mut DoubleEcho, cert: &Certifica
 #[case(medium_config())]
 #[tokio::test]
 #[trace]
+#[timeout(Duration::from_secs(10))]
 async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams) {
-    let (mut double_echo, mut ctx) = create_context(params).await;
+    let (mut double_echo, mut ctx) =
+        create_context(params, "trigger_success_path_upon_reaching_threshold").await;
 
     let dummy_cert =
         Certificate::new_with_default_fields(PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID_1, &[])
@@ -176,10 +191,10 @@ async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams)
 
     // Trigger Delivery upon reaching the Delivery threshold
     reach_delivery_threshold(&mut double_echo, &dummy_cert).await;
-
+    let x = ctx.broadcast_receiver.recv().await;
     assert!(matches!(
-         ctx.event_receiver.recv().await,
-        Some(ProtocolEvents::CertificateDelivered { certificate }) if certificate == dummy_cert
+            x,
+        Ok(CertificateDeliveredWithPositions(topos_tce_storage::types::CertificateDelivered { certificate, .. }, _)) if certificate == dummy_cert
     ));
 }
 
@@ -188,8 +203,10 @@ async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams)
 #[case(medium_config())]
 #[tokio::test]
 #[trace]
+#[timeout(Duration::from_secs(1))]
 async fn trigger_ready_when_reached_enough_ready(#[case] params: TceParams) {
-    let (mut double_echo, mut ctx) = create_context(params).await;
+    let (mut double_echo, mut ctx) =
+        create_context(params, "trigger_ready_when_reached_enough_ready").await;
 
     let dummy_cert =
         Certificate::new_with_default_fields(PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID_1, &[])

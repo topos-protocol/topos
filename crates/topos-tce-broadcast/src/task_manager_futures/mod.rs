@@ -4,13 +4,18 @@ use futures::StreamExt;
 use std::collections::HashMap;
 use std::future::IntoFuture;
 use std::pin::Pin;
+use std::sync::Arc;
 use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
+use tokio::sync::broadcast;
 use tokio::{spawn, sync::mpsc};
 use topos_core::uci::CertificateId;
 use topos_metrics::CERTIFICATE_PROCESSING_FROM_API_TOTAL;
 use topos_metrics::CERTIFICATE_PROCESSING_FROM_GOSSIP_TOTAL;
 use topos_metrics::CERTIFICATE_PROCESSING_TOTAL;
 use topos_metrics::DOUBLE_ECHO_ACTIVE_TASKS_COUNT;
+use topos_tce_storage::store::ReadStore;
+use topos_tce_storage::types::CertificateDeliveredWithPositions;
+use topos_tce_storage::validator::ValidatorStore;
 use tracing::warn;
 
 pub mod task;
@@ -20,6 +25,9 @@ use crate::sampler::SubscriptionsView;
 use crate::DoubleEchoCommand;
 use crate::TaskStatus;
 use task::{Task, TaskContext};
+
+type RunningTasks =
+    FuturesUnordered<Pin<Box<dyn Future<Output = (CertificateId, TaskStatus)> + Send + 'static>>>;
 
 /// The TaskManager is responsible for receiving messages from the network and distributing them
 /// among tasks. These tasks are either created if none for a certain CertificateID exists yet,
@@ -32,12 +40,14 @@ pub struct TaskManager {
     pub event_sender: mpsc::Sender<ProtocolEvents>,
     pub tasks: HashMap<CertificateId, TaskContext>,
     #[allow(clippy::type_complexity)]
-    pub running_tasks: FuturesUnordered<
-        Pin<Box<dyn Future<Output = (CertificateId, TaskStatus)> + Send + 'static>>,
-    >,
+    pub running_tasks: RunningTasks,
     pub buffered_messages: HashMap<CertificateId, Vec<DoubleEchoCommand>>,
     pub thresholds: ReliableBroadcastParams,
     pub shutdown_sender: mpsc::Sender<()>,
+    pub validator_store: Arc<ValidatorStore>,
+    pub broadcast_sender: broadcast::Sender<CertificateDeliveredWithPositions>,
+
+    pub precedence: HashMap<CertificateId, Task>,
 }
 
 impl TaskManager {
@@ -47,6 +57,8 @@ impl TaskManager {
         subscription_view_receiver: mpsc::Receiver<SubscriptionsView>,
         event_sender: mpsc::Sender<ProtocolEvents>,
         thresholds: ReliableBroadcastParams,
+        validator_store: Arc<ValidatorStore>,
+        broadcast_sender: broadcast::Sender<CertificateDeliveredWithPositions>,
     ) -> (Self, mpsc::Receiver<()>) {
         let (shutdown_sender, shutdown_receiver) = mpsc::channel(1);
 
@@ -62,6 +74,9 @@ impl TaskManager {
                 buffered_messages: Default::default(),
                 thresholds,
                 shutdown_sender,
+                validator_store,
+                broadcast_sender,
+                precedence: HashMap::new(),
             },
             shutdown_receiver,
         )
@@ -101,28 +116,25 @@ impl TaskManager {
                                         need_gossip,
                                     );
 
-                                    let (task, task_context) = Task::new(cert.id, broadcast_state);
+                                    let (task, task_context) = Task::new(
+                                        cert.id,
+                                        broadcast_state,
+                                        self.validator_store.clone(),
+                                        self.broadcast_sender.clone()
+                                    );
 
-                                    self.running_tasks.push(task.into_future());
-
-                                    if let Some(messages) = self.buffered_messages.remove(&cert.id) {
-                                        let sink = task_context.sink.clone();
-                                        spawn(async move {
-                                            for msg in messages {
-                                                _ = sink.send(msg).await;
-                                            }
-                                        });
-                                    }
-
-                                    DOUBLE_ECHO_ACTIVE_TASKS_COUNT.inc();
-
-                                    CERTIFICATE_PROCESSING_TOTAL.inc();
-                                    if need_gossip {
-                                        CERTIFICATE_PROCESSING_FROM_API_TOTAL.inc();
+                                    let prev = self.validator_store.get_certificate(&cert.prev_id);
+                                    if matches!(prev, Ok(Some(_))) || cert.prev_id == topos_core::uci::INITIAL_CERTIFICATE_ID  {
+                                        Self::start_task(
+                                            &mut self.running_tasks,
+                                            task,
+                                            task_context.sink.clone(),
+                                            self.buffered_messages.remove(&cert.id),
+                                            need_gossip
+                                        );
                                     } else {
-                                        CERTIFICATE_PROCESSING_FROM_GOSSIP_TOTAL.inc();
+                                        self.precedence.insert(cert.prev_id, task);
                                     }
-
                                     entry.insert(task_context);
                                 }
                                 std::collections::hash_map::Entry::Occupied(_) => {},
@@ -133,10 +145,25 @@ impl TaskManager {
 
 
                 Some((certificate_id, status)) = self.running_tasks.next() => {
-                    if status == TaskStatus::Success {
+                    if let TaskStatus::Success = status {
                         self.tasks.remove(&certificate_id);
                         DOUBLE_ECHO_ACTIVE_TASKS_COUNT.dec();
                         let _ = self.task_completion_sender.send((certificate_id, status)).await;
+                        if let Some(task) = self.precedence.remove(&certificate_id) {
+                            if let Some(context) = self.tasks.get(&task.certificate_id) {
+
+                                let certificate_id= task.certificate_id;
+                                Self::start_task(
+                                    &mut self.running_tasks,
+                                    task,
+                                    context.sink.clone(),
+                                    self.buffered_messages.remove(&certificate_id),
+                                    false
+                                );
+                            }
+
+
+                        }
                     }
                 }
 
@@ -150,6 +177,33 @@ impl TaskManager {
                     break;
                 }
             }
+        }
+    }
+
+    fn start_task(
+        running_tasks: &mut RunningTasks,
+        task: Task,
+        sink: mpsc::Sender<DoubleEchoCommand>,
+        messages: Option<Vec<DoubleEchoCommand>>,
+        need_gossip: bool,
+    ) {
+        running_tasks.push(task.into_future());
+
+        if let Some(messages) = messages {
+            spawn(async move {
+                for msg in messages {
+                    _ = sink.send(msg).await;
+                }
+            });
+        }
+
+        DOUBLE_ECHO_ACTIVE_TASKS_COUNT.inc();
+
+        CERTIFICATE_PROCESSING_TOTAL.inc();
+        if need_gossip {
+            CERTIFICATE_PROCESSING_FROM_API_TOTAL.inc();
+        } else {
+            CERTIFICATE_PROCESSING_FROM_GOSSIP_TOTAL.inc();
         }
     }
 }

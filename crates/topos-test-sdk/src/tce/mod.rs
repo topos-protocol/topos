@@ -4,11 +4,14 @@ use std::future::IntoFuture;
 
 use futures::future::join_all;
 use futures::Stream;
+use futures::StreamExt;
 use libp2p::identity::Keypair;
 use libp2p::{Multiaddr, PeerId};
 use rstest::*;
 use tokio::spawn;
+use tokio::sync::broadcast;
 use tokio::{sync::mpsc, task::JoinHandle};
+use tokio_stream::wrappers::BroadcastStream;
 use tokio_util::sync::CancellationToken;
 use tonic::transport::Channel;
 use tonic::Response;
@@ -16,15 +19,16 @@ use topos_core::api::grpc::tce::v1::{
     api_service_client::ApiServiceClient, console_service_client::ConsoleServiceClient,
 };
 use topos_core::api::grpc::tce::v1::{PushPeerListRequest, StatusRequest, StatusResponse};
-use topos_core::uci::Certificate;
 use topos_core::uci::SubnetId;
 use topos_p2p::{error::P2PError, Client, Event, Runtime};
 use topos_tce::{events::Events, AppContext};
 use topos_tce_api::RuntimeContext;
+use topos_tce_storage::types::CertificateDelivered;
 use tracing::{info, warn};
 
 use crate::p2p::local_peer;
-use crate::storage::create_rocksdb;
+use crate::storage::create_fullnode_store;
+use crate::storage::{create_rocksdb, create_validator_store};
 use crate::wait_for_event;
 
 use self::gatekeeper::create_gatekeeper;
@@ -41,6 +45,7 @@ pub mod synchronizer;
 
 #[derive(Debug)]
 pub struct TceContext {
+    pub node_config: NodeConfig,
     pub event_stream: mpsc::Receiver<Events>,
     pub peer_id: PeerId, // P2P ID
     pub api_entrypoint: String,
@@ -149,7 +154,7 @@ impl NodeConfig {
 
 #[fixture(config = NodeConfig::default(), peers = &[], certificates = Vec::new())]
 pub async fn start_node(
-    certificates: Vec<Certificate>,
+    certificates: Vec<CertificateDelivered>,
     config: NodeConfig,
     peers: &[NodeConfig],
 ) -> TceContext {
@@ -167,26 +172,39 @@ pub async fn start_node(
     .expect("Unable to bootstrap tce network");
 
     let (_, (storage, storage_client, storage_stream)) =
-        create_rocksdb(&peer_id_str, certificates).await;
+        create_rocksdb(&peer_id_str, certificates.clone()).await;
+
+    let (_, validator_store) = create_validator_store(&peer_id_str, certificates.clone()).await;
+    let full_node_store = create_fullnode_store(&peer_id_str, certificates).await;
 
     let storage_join_handle = spawn(storage.into_future());
 
+    let (sender, receiver) = broadcast::channel(100);
     let (tce_cli, tce_stream) = create_reliable_broadcast_client(
         create_reliable_broadcast_params(peers.len()),
         config.keypair.public().to_peer_id().to_string(),
-        storage_client.clone(),
+        validator_store.clone(),
+        sender,
     )
     .await;
 
     let api_storage_client = storage_client.clone();
 
-    let (api_context, api_stream) =
-        create_public_api::partial_1(futures::future::ready(api_storage_client)).await;
+    let (api_context, api_stream) = create_public_api(
+        futures::future::ready(api_storage_client),
+        receiver.resubscribe(),
+        futures::future::ready(full_node_store),
+    )
+    .await;
 
     let (gatekeeper_client, gatekeeper_join_handle) = create_gatekeeper(peer_id).await.unwrap();
 
-    let (synchronizer_client, synchronizer_stream, synchronizer_join_handle) =
-        create_synchronizer(gatekeeper_client.clone(), network_client.clone()).await;
+    let (synchronizer_client, synchronizer_stream, synchronizer_join_handle) = create_synchronizer(
+        gatekeeper_client.clone(),
+        network_client.clone(),
+        validator_store.clone(),
+    )
+    .await;
 
     let (app, event_stream) = AppContext::new(
         storage_client,
@@ -195,6 +213,7 @@ pub async fn start_node(
         api_context.client,
         gatekeeper_client,
         synchronizer_client,
+        validator_store,
     );
 
     let shutdown_token = CancellationToken::new();
@@ -208,10 +227,12 @@ pub async fn start_node(
         api_stream,
         storage_stream,
         synchronizer_stream,
+        BroadcastStream::new(receiver).filter_map(|v| futures::future::ready(v.ok())),
         (shutdown_token, shutdown_sender),
     ));
 
     TceContext {
+        node_config: config,
         event_stream,
         peer_id,
         api_entrypoint: api_context.entrypoint,
@@ -239,7 +260,10 @@ fn build_peer_config_pool(peer_number: u8) -> Vec<NodeConfig> {
         .collect()
 }
 
-pub async fn start_pool(peer_number: u8) -> HashMap<PeerId, TceContext> {
+pub async fn start_pool(
+    peer_number: u8,
+    certificates: Vec<CertificateDelivered>,
+) -> HashMap<PeerId, TceContext> {
     let mut clients = HashMap::new();
     let peers = build_peer_config_pool(peer_number);
 
@@ -247,7 +271,7 @@ pub async fn start_pool(peer_number: u8) -> HashMap<PeerId, TceContext> {
 
     for config in &peers {
         let fut = async {
-            let client = start_node(vec![], config.clone(), &peers).await;
+            let client = start_node(certificates.clone(), config.clone(), &peers).await;
 
             (client.peer_id, client)
         };
@@ -262,9 +286,12 @@ pub async fn start_pool(peer_number: u8) -> HashMap<PeerId, TceContext> {
     clients
 }
 
-pub async fn create_network(peer_number: usize) -> HashMap<PeerId, TceContext> {
+pub async fn create_network(
+    peer_number: usize,
+    certificates: Vec<CertificateDelivered>,
+) -> HashMap<PeerId, TceContext> {
     // List of peers (tce nodes) with their context
-    let mut peers_context = start_pool(peer_number as u8).await;
+    let mut peers_context = start_pool(peer_number as u8, certificates).await;
     let all_peers: Vec<PeerId> = peers_context.keys().cloned().collect();
 
     warn!("Pool created, waiting for peers to connect...");

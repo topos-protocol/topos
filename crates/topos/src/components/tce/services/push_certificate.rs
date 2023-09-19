@@ -1,10 +1,4 @@
-use std::{
-    pin::Pin,
-    task::{Context, Poll},
-};
-
 use futures::{future::join_all, StreamExt};
-use futures::{Future, FutureExt};
 use rand::seq::SliceRandom;
 use serde::Deserialize;
 use std::time::Duration;
@@ -28,12 +22,9 @@ use topos_core::{
     },
     uci::{Certificate, CERTIFICATE_ID_LENGTH, SUBNET_ID_LENGTH},
 };
-use tracing::{debug, info, trace};
+use tracing::{debug, info};
 
-use crate::{
-    components::tce::{commands::PushCertificate, TCEService},
-    options::input_format::{InputFormat, Parser},
-};
+use crate::options::input_format::{InputFormat, Parser};
 
 pub(crate) async fn check_delivery(
     timeout_broadcast: u64,

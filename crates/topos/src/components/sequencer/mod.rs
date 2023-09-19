@@ -1,5 +1,5 @@
 use self::commands::{SequencerCommand, SequencerCommands};
-use tokio::{signal, spawn, sync::mpsc};
+use tokio::{signal, sync::mpsc};
 use tokio_util::sync::CancellationToken;
 use topos_sequencer::{self, SequencerConfiguration};
 use topos_wallet::SecretManager;

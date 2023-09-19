@@ -1,11 +1,8 @@
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-};
+use std::{collections::HashMap, path::Path};
 
 use crate::config::Config;
 use figment::{
-    providers::{Format, Serialized, Toml},
+    providers::{Format, Toml},
     Figment,
 };
 use serde::{Deserialize, Serialize};

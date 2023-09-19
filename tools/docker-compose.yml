@@ -33,6 +33,7 @@ services:
       - env/telemetry.env
     environment:
       - TCE_LOCAL_KS=1 # 12D3KooWRhFCXBhmsMnur3up3vJsDoqWh4c39PKXgSWwzAzDHNLn
+      - RUST_LOG=topos_tce_storage=info,topos_tce_synchronizer=info
 
   peer:
     image: ghcr.io/topos-protocol/topos:main
@@ -66,6 +67,42 @@ services:
       - env/base.env
       - env/node.env
       - env/telemetry.env
+    environment:
+      - RUST_LOG=topos_tce_storage=info,topos_tce_synchronizer=debug
+
+  sync:
+    image: ghcr.io/topos-protocol/topos:main
+    command: sync tce run
+    init: true
+    labels:
+      "autoheal": "true"
+    healthcheck:
+      test: ./topos tce push-peer-list --node http://localhost:1340 --format json /tmp/shared/peer_ids.json && ./topos tce status --node http://localhost:1340
+      interval: 5s
+    volumes:
+      - shared:/tmp/shared
+    build:
+      context: ../
+      args:
+        - TOOLCHAIN_VERSION=stable
+        - FEATURES=tce
+    depends_on:
+      autoheal:
+        condition: service_started
+      boot:
+        condition: service_started
+    ports:
+      - "9090"
+      - "1340"
+      - "3000"
+      - "4000"
+    env_file:
+      - env/base.env
+      - env/node.env
+      - env/telemetry.env
+    environment:
+      - RUST_LOG=topos=debug
+
 
   spammer:
     container_name: spam

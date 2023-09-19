@@ -2,8 +2,7 @@ use tokio::sync::{mpsc, oneshot};
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
 
 use crate::{
-    errors::StorageError, CertificatePositions, FetchCertificatesFilter, FetchCertificatesPosition,
-    PendingCertificateId,
+    errors::StorageError, FetchCertificatesFilter, FetchCertificatesPosition, PendingCertificateId,
 };
 
 use topos_commands::{Command, RegisterCommands};
@@ -14,7 +13,6 @@ RegisterCommands!(
     error = StorageError,
     commands = [
         AddPendingCertificate,
-        CertificateDelivered,
         CheckPendingCertificateExists,
         GetCertificate,
         GetPendingCertificates,
@@ -59,17 +57,6 @@ pub struct GetNextPendingCertificate {
 
 impl Command for GetNextPendingCertificate {
     type Result = Option<(PendingCertificateId, Certificate)>;
-}
-
-#[derive(Debug)]
-pub struct CertificateDelivered {
-    pub(crate) certificate_id: CertificateId,
-    pub(crate) certificate: Option<Certificate>,
-}
-
-impl Command for CertificateDelivered {
-    // Return target and source stream positions for newly persisted certificate
-    type Result = CertificatePositions;
 }
 
 #[derive(Debug)]

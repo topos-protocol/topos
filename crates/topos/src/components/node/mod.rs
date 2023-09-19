@@ -1,47 +1,22 @@
-use clap::{CommandFactory, Parser};
-use figment::error::Kind;
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
-use opentelemetry::global;
-use serde_json::{json, Value};
-use std::fs;
-use std::future::Future;
-use std::ops::Deref;
-use std::path::{Path, PathBuf};
-use std::pin::Pin;
-use std::process::{ExitStatus, Stdio};
-use std::time::Duration;
+use std::path::Path;
 use std::{
-    fs::{create_dir_all, remove_dir_all, File, OpenOptions},
+    fs::{create_dir_all, remove_dir_all, OpenOptions},
     io::Write,
-    str::FromStr,
 };
-use tokio::sync::broadcast;
-use tokio::{
-    signal, spawn,
-    sync::{mpsc, oneshot},
-};
+use tokio::{signal, sync::mpsc};
 use tokio_util::sync::CancellationToken;
-use topos_p2p::config::NetworkConfig;
-use topos_tce_transport::ReliableBroadcastParams;
-use tracing::{debug, error, info};
-use tracing_opentelemetry::OpenTelemetrySpanExt;
+use tracing::{error, info};
 
 use self::commands::{NodeCommand, NodeCommands};
-use crate::config::edge::EdgeConfig;
 use crate::config::genesis::Genesis;
-use crate::config::sequencer::SequencerConfig;
-use crate::config::tce::TceConfig;
-use crate::edge::{CommandConfig, BINARY_NAME};
+use crate::edge::BINARY_NAME;
 use crate::{
-    config::{
-        base::BaseConfig, insert_into_toml, load_config, node::NodeConfig, node::NodeRole, Config,
-    },
+    config::{insert_into_toml, node::NodeConfig, node::NodeRole},
     tracing::setup_tracing,
 };
 use services::*;
-use tokio::process::Command;
-use topos_tce::config::{StorageConfiguration, TceConfiguration};
 use topos_wallet::SecretManager;
 
 pub(crate) mod commands;
@@ -126,7 +101,8 @@ pub(crate) async fn handle_command(
 
             if !Path::new(&config_path).exists() {
                 println!(
-                    "Please run 'topos node init --name {name}' to create a config file first for {name}."
+                    "Please run 'topos node init --name {name}' to create a config file first for \
+                     {name}."
                 );
                 std::process::exit(1);
             }
