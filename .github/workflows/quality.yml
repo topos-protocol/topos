@@ -84,12 +84,13 @@ jobs:
       - uses: ./.github/actions/install-rust
         with:
           with_cache: false
+          toolchain: nightly
           components: rustfmt
           AWS_ACCESS_KEY_ID: ${{ secrets.ROBOT_AWS_ACCESS_KEY_ID}}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.ROBOT_AWS_SECRET_ACCESS_KEY}}
 
       - name: Cargo fmt
-        run: cargo fmt --all -- --check
+        run: cargo +nightly fmt --all -- --check
 
   msrv:
     name: Check - MSRV
