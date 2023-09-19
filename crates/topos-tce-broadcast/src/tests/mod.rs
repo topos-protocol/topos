@@ -10,6 +10,7 @@ use tce_transport::ReliableBroadcastParams;
 use tokio::sync::mpsc::Receiver;
 use topos_test_sdk::constants::*;
 use topos_test_sdk::storage::create_validator_store;
+use topos_test_sdk::storage::create_validator_store;
 
 const CHANNEL_SIZE: usize = 10;
 
@@ -67,7 +68,6 @@ async fn create_context(params: TceParams, folder_name: &'static str) -> (Double
     validators.insert(validator_id.clone());
 
     let (broadcast_sender, broadcast_receiver) = broadcast::channel(CHANNEL_SIZE);
-
     let mut double_echo = DoubleEcho::new(
         params.broadcast_params,
         validator_id,

@@ -990,8 +990,12 @@ async fn test_sync_from_genesis(
             } = event
             {
                 info!(
-                    "New certificate event received, block number: {} cert id: {} target subnets: {:?} state root {}",
-                    block_number, cert.id, cert.target_subnets, hex::encode(cert.state_root)
+                    "New certificate event received, block number: {} cert id: {} target subnets: \
+                     {:?} state root {}",
+                    block_number,
+                    cert.id,
+                    cert.target_subnets,
+                    hex::encode(cert.state_root)
                 );
                 let mut received_certificates = received_certificates.lock().await;
                 received_certificates.push((block_number, *cert));
