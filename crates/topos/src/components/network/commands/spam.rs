@@ -2,8 +2,9 @@ use clap::Args;
 
 #[derive(Args, Debug)]
 #[command(
-    about = "Run a test topos certificate spammer to send test certificates to the network, generating randomly among \
-the `nb_subnets` subnets the batch of `cert_per_batch` certificates at every `batch-interval`"
+    about = "Run a test topos certificate spammer to send test certificates to the network, \
+             generating randomly among the `nb_subnets` subnets the batch of `cert_per_batch` \
+             certificates at every `batch-interval`"
 )]
 pub struct Spam {
     /// The target node api endpoint.

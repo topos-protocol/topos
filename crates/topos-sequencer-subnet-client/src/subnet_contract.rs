@@ -10,7 +10,11 @@ use ethers::{
 use std::sync::Arc;
 use tracing::info;
 
-abigen!(IToposCore, "npm:@topos-protocol/topos-smart-contracts@latest/artifacts/contracts/interfaces/IToposCore.sol/IToposCore.json");
+abigen!(
+    IToposCore,
+    "npm:@topos-protocol/topos-smart-contracts@latest/artifacts/contracts/interfaces/IToposCore.\
+     sol/IToposCore.json"
+);
 
 pub(crate) fn create_topos_core_contract_from_json<T: Middleware>(
     contract_address: &str,

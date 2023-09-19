@@ -50,7 +50,10 @@ impl AppContext {
                                     .await
                                     .is_err()
                                 {
-                                    error!("Unable to send broadcast_new_certificate command, Receiver was dropped");
+                                    error!(
+                                        "Unable to send broadcast_new_certificate command, \
+                                         Receiver was dropped"
+                                    );
                                 }
                             });
                         }

@@ -204,8 +204,8 @@ impl Runtime {
                                     }
                                 } else {
                                     error!(
-                                        "Invalid target stream position for cert id {}, \
-                                        target subnet id {target_subnet_id}, dispatch failed",
+                                        "Invalid target stream position for cert id {}, target \
+                                         subnet id {target_subnet_id}, dispatch failed",
                                         &certificate.id
                                     );
                                 }

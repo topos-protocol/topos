@@ -24,6 +24,7 @@ pub trait Clock {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Event {
+    /// Notify an Epoch change with the associated epoch_number
     EpochChange(u64),
 }
 

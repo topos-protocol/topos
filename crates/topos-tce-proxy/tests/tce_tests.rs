@@ -480,7 +480,8 @@ async fn test_tce_open_stream_with_checkpoint(
                     );
                 } else {
                     debug!(
-                        "\n\nAdditional certificate received from the source subnet: {} source sid {}, target sid {}",
+                        "\n\nAdditional certificate received from the source subnet: {} source \
+                         sid {}, target sid {}",
                         received_certificate.id.as_ref().unwrap(),
                         received_certificate.source_subnet_id.as_ref().unwrap(),
                         received_certificate.target_subnets[0]

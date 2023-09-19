@@ -101,7 +101,8 @@ pub(crate) async fn handle_command(
 
             if !Path::new(&config_path).exists() {
                 println!(
-                    "Please run 'topos node init --name {name}' to create a config file first for {name}."
+                    "Please run 'topos node init --name {name}' to create a config file first for \
+                     {name}."
                 );
                 std::process::exit(1);
             }

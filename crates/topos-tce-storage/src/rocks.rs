@@ -137,7 +137,11 @@ impl Storage for RocksDBStorage {
                     batch = batch.delete(&self.pending_certificates, pending_id)?;
                 }
                 Ok(_) => {
-                    warn!("PendingCertificateId {} ignored during persist execution: Difference in certificates", pending_id);
+                    warn!(
+                        "PendingCertificateId {} ignored during persist execution: Difference in \
+                         certificates",
+                        pending_id
+                    );
                 }
 
                 _ => {

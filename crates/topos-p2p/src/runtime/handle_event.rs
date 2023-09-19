@@ -127,7 +127,8 @@ impl
                 reason,
             } => {
                 info!(
-                    "ListenerClosed {:?}: listener_id{listener_id:?} | addresses: {addresses:?} | reason: {reason:?}",
+                    "ListenerClosed {:?}: listener_id{listener_id:?} | addresses: {addresses:?} | \
+                     reason: {reason:?}",
                     *self.swarm.local_peer_id()
                 );
             }

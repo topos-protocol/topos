@@ -51,7 +51,10 @@ impl Runtime {
 
                     _ => {
                         if sender.send(Err(P2PError::AlreadyDialed(peer_id))).is_err() {
-                            warn!("Could not notify that {peer_id} was already dialed because initiator is dropped");
+                            warn!(
+                                "Could not notify that {peer_id} was already dialed because \
+                                 initiator is dropped"
+                            );
                         }
                     }
                 }

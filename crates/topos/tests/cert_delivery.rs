@@ -219,7 +219,8 @@ async fn cert_delivery() {
                 match x {
                     Some((peer_id, target_subnet_id, cert)) => {
                         info!(
-                            "Delivered certificate on peer_Id: {} cert id: {} from source subnet id: {} to target subnet id {}",
+                            "Delivered certificate on peer_Id: {} cert id: {} from source subnet \
+                             id: {} to target subnet id {}",
                             &peer_id, cert.id, cert.source_subnet_id, target_subnet_id
                         );
                         // Send certificates from every peer to one delivery_rx receiver

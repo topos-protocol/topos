@@ -105,7 +105,11 @@ impl RuntimeBuilder {
             tracing::info!("Serving GraphQL on {}", graphql_addr);
 
             let graphql = GraphQLBuilder::default()
-                .store(self.store.take().unwrap())
+                .store(
+                    self.store
+                        .take()
+                        .expect("Unable to build GraphQL Server, Store is missing"),
+                )
                 .serve_addr(Some(graphql_addr))
                 .build();
             spawn(graphql.await)
@@ -132,9 +136,13 @@ impl RuntimeBuilder {
 
         let runtime = Runtime {
             sync_tasks: HashMap::new(),
-            broadcast_stream: self.broadcast_stream.unwrap(),
-            // TODO: remove unwrap
-            storage: self.storage.take().unwrap(),
+            broadcast_stream: self
+                .broadcast_stream
+                .expect("Unable to build Runtime, Broadcast Stream is missing"),
+            storage: self
+                .storage
+                .take()
+                .expect("Unable to build Runtime, Storage is missing"),
             active_streams: HashMap::new(),
             pending_streams: HashMap::new(),
             subnet_subscriptions: HashMap::new(),

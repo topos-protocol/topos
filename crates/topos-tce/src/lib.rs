@@ -32,6 +32,7 @@ pub use app_context::AppContext;
 
 use crate::config::{AuthKey, StorageConfiguration};
 
+// TODO: Estimate on the max broadcast throughput, could need to be override by config
 const BROADCAST_CHANNEL_SIZE: usize = 10_000;
 
 pub async fn run(

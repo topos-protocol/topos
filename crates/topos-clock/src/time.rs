@@ -69,7 +69,7 @@ impl TimeClock {
         loop {
             interval.tick().await;
 
-            let _previous_block = self.current_block.fetch_add(1, Ordering::SeqCst);
+            let _previous_block = self.current_block.fetch_add(1, Ordering::Relaxed);
 
             if self.current_block.load(Ordering::Relaxed) % self.epoch_duration == 0 {
                 self.compute_epoch();
@@ -85,11 +85,11 @@ impl TimeClock {
             Utc::now()
                 .naive_utc()
                 .signed_duration_since(self.genesis.naive_utc())
-                .num_seconds() as u64,
+                .num_seconds(),
             0,
-        );
+        ) as u64;
 
-        self.current_block.store(blocks, Ordering::SeqCst);
+        self.current_block.store(blocks, Ordering::Relaxed);
     }
 
     fn compute_epoch(&mut self) {
