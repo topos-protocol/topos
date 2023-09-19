@@ -26,6 +26,12 @@ pub(crate) async fn get_block_events(
     contract: &IToposCore<Provider<Ws>>,
     block_number: U64,
 ) -> Result<Vec<crate::SubnetEvent>, Error> {
+    // FIXME: There is some ethers issue when parsing events
+    // from genesis block so skip it - we certainly don't expect any valid event here
+    if block_number.as_u64() == 0 {
+        return Ok(Vec::new());
+    }
+
     // Parse only event from this particular block
     let events = contract
         .events()

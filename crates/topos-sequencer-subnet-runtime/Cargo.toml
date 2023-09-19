@@ -30,7 +30,7 @@ topos-sequencer-subnet-client = { package = "topos-sequencer-subnet-client", pat
 topos-crypto = {package = "topos-crypto", path = "../topos-crypto"}
 
 [dev-dependencies]
-rstest.workspace = true
+rstest = { workspace = true, features = ["async-timeout"] }
 serde_json.workspace = true
 test-log.workspace = true
 env_logger.workspace = true
