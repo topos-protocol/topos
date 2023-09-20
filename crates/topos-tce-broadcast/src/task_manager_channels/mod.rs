@@ -40,6 +40,7 @@ pub struct TaskManager {
 }
 
 impl TaskManager {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         message_receiver: mpsc::Receiver<DoubleEchoCommand>,
         notify_task_completion: mpsc::Sender<(CertificateId, TaskStatus)>,
