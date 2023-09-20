@@ -4,6 +4,9 @@ description = "Implementation of the Topos protocol"
 version = "0.1.0"
 edition = "2021"
 
+[lints]
+workspace = true
+
 [dependencies]
 hex.workspace = true
 serde = { workspace = true, features = ["derive"] }

@@ -3,6 +3,9 @@ name = "topos-sequencer-subnet-client"
 version = "0.1.0"
 edition = "2021"
 
+[lints]
+workspace = true
+
 [dependencies]
 hex.workspace = true
 serde_json.workspace = true

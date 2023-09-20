@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2021"
 build = "build.rs"
 
+[lints]
+workspace = true
+
 [dependencies]
 topos-core = { workspace = true, features = ["uci"] }
 topos-p2p = { path = "../topos-p2p/" }

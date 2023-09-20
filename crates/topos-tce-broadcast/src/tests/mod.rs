@@ -3,7 +3,6 @@ use crate::*;
 use rstest::*;
 use std::collections::HashSet;
 use std::time::Duration;
-use std::usize;
 use tce_transport::ReliableBroadcastParams;
 use topos_test_sdk::storage::create_validator_store;
 

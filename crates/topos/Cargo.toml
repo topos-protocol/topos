@@ -3,6 +3,9 @@ name = "topos"
 version = "0.1.0"
 edition = "2021"
 
+[lints]
+workspace = true
+
 [dependencies]
 topos-tce = { path = "../topos-tce/", optional = true }
 topos-p2p = { path = "../topos-p2p" }

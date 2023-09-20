@@ -3,6 +3,9 @@ name = "topos-uci"
 version = "0.1.1"
 edition = "2021"
 
+[lints]
+workspace = true
+
 [dependencies]
 topos-crypto.workspace = true
 ethereum-types.workspace = true
