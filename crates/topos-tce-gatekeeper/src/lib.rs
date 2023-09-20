@@ -15,6 +15,7 @@ mod client;
 #[cfg(test)]
 mod tests;
 
+pub use client::Client;
 pub use client::GatekeeperClient;
 use topos_commands::{Command, CommandHandler, RegisterCommands};
 use topos_core::uci::SubnetId;

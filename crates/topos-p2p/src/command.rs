@@ -41,6 +41,7 @@ pub enum Command {
     TransmissionReq {
         to: PeerId,
         data: Vec<u8>,
+        protocol: &'static str,
         sender: oneshot::Sender<Result<Vec<u8>, CommandExecutionError>>,
     },
 
@@ -52,8 +53,9 @@ pub enum Command {
 
     /// Send a TransmissionReq to multiple nodes
     TransmissionResponse {
-        data: Vec<u8>,
-        channel: ResponseChannel<TransmissionResponse>,
+        data: Result<Vec<u8>, ()>,
+        protocol: &'static str,
+        channel: ResponseChannel<Result<TransmissionResponse, ()>>,
     },
 
     Gossip {

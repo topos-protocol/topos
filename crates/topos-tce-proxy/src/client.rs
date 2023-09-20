@@ -414,6 +414,7 @@ impl TceClientBuilder {
                                             position: Some(pos),
                                             certificate: Some(cert),
                                         }) => {
+                                            info!("Source head certificate acquired from tce, position: {}, certificate: {:?}", pos.position, &cert);
                                             Ok((cert.try_into().map_err(|_| Error::InvalidCertificate)?,
                                                 pos.position))
                                         },

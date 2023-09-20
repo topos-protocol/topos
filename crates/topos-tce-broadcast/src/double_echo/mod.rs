@@ -3,11 +3,14 @@ use crate::{DoubleEchoCommand, SubscriptionsView};
 use ethers::prelude::LocalWallet;
 use ethers::types::Signature;
 use std::collections::HashSet;
+use std::sync::Arc;
 use tce_transport::verify_signature;
 use tce_transport::{ProtocolEvents, ReliableBroadcastParams, ValidatorId};
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::{broadcast, mpsc, oneshot};
 use topos_core::uci::{Certificate, CertificateId};
 use topos_p2p::PeerId;
+use topos_tce_storage::types::CertificateDeliveredWithPositions;
+use topos_tce_storage::validator::ValidatorStore;
 use tracing::{error, info, warn};
 
 pub mod broadcast_state;
@@ -33,6 +36,8 @@ pub struct DoubleEcho {
     pub wallet: LocalWallet,
     /// List of approved validators through smart contract and/or genesis
     pub validators: HashSet<ValidatorId>,
+    pub validator_store: Arc<ValidatorStore>,
+    pub broadcast_sender: broadcast::Sender<CertificateDeliveredWithPositions>,
 }
 
 impl DoubleEcho {
@@ -48,6 +53,8 @@ impl DoubleEcho {
         command_receiver: mpsc::Receiver<DoubleEchoCommand>,
         event_sender: mpsc::Sender<ProtocolEvents>,
         shutdown: mpsc::Receiver<oneshot::Sender<()>>,
+        validator_store: Arc<ValidatorStore>,
+        broadcast_sender: broadcast::Sender<CertificateDeliveredWithPositions>,
     ) -> Self {
         Self {
             params,
@@ -60,6 +67,8 @@ impl DoubleEcho {
             subscriptions: SubscriptionsView::default(),
             shutdown,
             delivered_certificates: Default::default(),
+            validator_store,
+            broadcast_sender,
         }
     }
 
@@ -79,6 +88,8 @@ impl DoubleEcho {
             self.validator_id.clone(),
             self.params.clone(),
             self.wallet.clone(),
+            self.validator_store.clone(),
+            self.broadcast_sender.clone(),
         );
 
         tokio::spawn(task_manager.run(shutdown_receiver));
@@ -102,6 +113,7 @@ impl DoubleEcho {
             self.validator_id.clone(),
             self.wallet.clone(),
             self.params.clone(),
+            self.validator_store.clone(),
         );
 
         tokio::spawn(task_manager.run(shutdown_receiver));
@@ -185,17 +197,16 @@ impl DoubleEcho {
                 }
 
                 Some((certificate_id, status)) = task_completion.recv() => {
-                    if status == TaskStatus::Success {
+                    if let TaskStatus::Success = status {
                         self.delivered_certificates.insert(certificate_id);
                     }
                 }
-
 
                 else => {
                     warn!("Break the tokio loop for the double echo");
                     break None;
                 }
-            };
+            }
         };
 
         if let Some(sender) = shutdowned {

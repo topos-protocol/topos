@@ -24,35 +24,12 @@ pub trait Clock {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Event {
-    EpochChange,
+    /// Notify an Epoch change with the associated epoch_number
+    EpochChange(u64),
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("Unable to generate spawn date")]
     SpawnDateFailure,
-}
-
-#[cfg(test)]
-mod tests {
-    use chrono::{Duration, Utc};
-
-    use crate::{Clock, Event, TimeClock};
-
-    #[tokio::test]
-    async fn test_time_clock() {
-        let genesis = Utc::now()
-            .checked_sub_signed(Duration::seconds(30))
-            .unwrap();
-
-        let clock = TimeClock::new(genesis, 5).unwrap();
-        let current_block = clock.block_ref();
-        let current_epoch = clock.epoch_ref();
-
-        let mut recv = clock.spawn().unwrap();
-
-        assert_eq!(recv.recv().await, Ok(Event::EpochChange));
-        assert_eq!(current_epoch.load(std::sync::atomic::Ordering::Relaxed), 7);
-        assert_eq!(current_block.load(std::sync::atomic::Ordering::Relaxed), 30);
-    }
 }

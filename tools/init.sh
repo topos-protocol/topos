@@ -109,6 +109,40 @@ case "$1" in
        exec "$TOPOS_BIN" "${@:2}"
        ;;
 
+   "sync")
+       if [[ ${LOCAL_TEST_NET:-"false"} == "true" ]]; then
+
+           until [ -f "$BOOT_PEERS_PATH" ]
+           do
+               echo "Waiting 1s for boot_peers file $BOOT_PEERS_PATH to be created by boot container..."
+               sleep 1
+           done
+
+           export TCE_BOOT_PEERS=$(cat $BOOT_PEERS_PATH | $JQ -r '.|join(",")')
+
+           until [ -f "$PEER_LIST_PATH" ]
+           do
+               echo "Waiting 1s for peer_list file $PEER_LIST_PATH to be created by boot container..."
+               sleep 1
+           done
+
+           export TCE_LOCAL_KS=$HOSTNAME
+           export TCE_EXT_HOST
+
+           until [ -f "$NODE_LIST_PATH" ]
+           do
+               echo "Waiting 1s for node_list file $NODE_LIST_PATH to be created by boot container..."
+               sleep 1
+           done
+
+           echo "TCE_LOCAL_KS: $HOSTNAME"
+
+       fi
+
+       exec "$TOPOS_BIN" "${@:2}"
+       ;;
+
+
    *)
        exec "$TOPOS_BIN" "$@"
        ;;

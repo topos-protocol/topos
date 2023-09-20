@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use tce_transport::TceCommands;
+use topos_core::api::grpc::tce::v1::CheckpointRequest;
 
 /// Definition of networking payload.
 ///
@@ -10,6 +11,7 @@ use tce_transport::TceCommands;
 pub enum NetworkMessage {
     Cmd(TceCommands),
     Bulk(Vec<TceCommands>),
+    Sync(CheckpointRequest),
 
     NotReady(topos_p2p::NotReadyMessage),
 }

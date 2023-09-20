@@ -4,6 +4,9 @@ use std::hash::Hash;
 
 use crate::{Error, CERTIFICATE_ID_LENGTH, HEX_CERTIFICATE_ID_LENGTH};
 
+pub const INITIAL_CERTIFICATE_ID: CertificateId =
+    CertificateId::from_array([0u8; crate::CERTIFICATE_ID_LENGTH]);
+
 #[derive(Serialize, Hash, Deserialize, Default, PartialEq, Eq, Clone, Copy)]
 pub struct CertificateId {
     id: [u8; CERTIFICATE_ID_LENGTH],

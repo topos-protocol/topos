@@ -1,11 +1,13 @@
 use ethers::prelude::LocalWallet;
 use std::collections::HashMap;
+use std::sync::Arc;
 use tce_transport::{ProtocolEvents, ReliableBroadcastParams, ValidatorId};
 use tokio::{spawn, sync::mpsc};
 use topos_core::uci::CertificateId;
 use tracing::warn;
 
 pub mod task;
+
 use crate::double_echo::broadcast_state::BroadcastState;
 use crate::sampler::SubscriptionsView;
 use crate::TaskStatus;
@@ -15,6 +17,7 @@ use topos_metrics::{
     CERTIFICATE_PROCESSING_FROM_API_TOTAL, CERTIFICATE_PROCESSING_FROM_GOSSIP_TOTAL,
     CERTIFICATE_PROCESSING_TOTAL,
 };
+use topos_tce_storage::validator::ValidatorStore;
 
 /// The TaskManager is responsible for receiving messages from the network and distributing them
 /// among tasks. These tasks are either created if none for a certain CertificateID exists yet,
@@ -33,6 +36,7 @@ pub struct TaskManager {
     pub wallet: LocalWallet,
     pub thresholds: ReliableBroadcastParams,
     pub shutdown_sender: mpsc::Sender<()>,
+    pub validator_store: Arc<ValidatorStore>,
 }
 
 impl TaskManager {
@@ -44,6 +48,7 @@ impl TaskManager {
         validator_id: ValidatorId,
         wallet: LocalWallet,
         thresholds: ReliableBroadcastParams,
+        validator_store: Arc<ValidatorStore>,
     ) -> (Self, mpsc::Receiver<()>) {
         let (task_completion_sender, task_completion_receiver) =
             mpsc::channel(*constant::BROADCAST_TASK_COMPLETION_CHANNEL_SIZE);
@@ -64,6 +69,7 @@ impl TaskManager {
                 wallet,
                 thresholds,
                 shutdown_sender,
+                validator_store,
             },
             shutdown_receiver,
         )
@@ -102,7 +108,7 @@ impl TaskManager {
                                         self.wallet.clone(),
                                     ).await;
 
-                                    let (task, task_context) = Task::new(cert.id, self.task_completion_sender.clone(), broadcast_state);
+                                    let (task, task_context) = Task::new(cert.id, self.task_completion_sender.clone(), broadcast_state, self.validator_store.clone());
 
                                     spawn(task.run());
 

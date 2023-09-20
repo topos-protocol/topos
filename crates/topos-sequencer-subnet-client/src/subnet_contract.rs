@@ -10,7 +10,11 @@ use ethers::{
 use std::sync::Arc;
 use tracing::info;
 
-abigen!(IToposCore, "npm:@topos-protocol/topos-smart-contracts@latest/artifacts/contracts/interfaces/IToposCore.sol/IToposCore.json");
+abigen!(
+    IToposCore,
+    "npm:@topos-protocol/topos-smart-contracts@latest/artifacts/contracts/interfaces/IToposCore.\
+     sol/IToposCore.json"
+);
 
 pub(crate) fn create_topos_core_contract_from_json<T: Middleware>(
     contract_address: &str,
@@ -26,6 +30,12 @@ pub(crate) async fn get_block_events(
     contract: &IToposCore<Provider<Ws>>,
     block_number: U64,
 ) -> Result<Vec<crate::SubnetEvent>, Error> {
+    // FIXME: There is some ethers issue when parsing events
+    // from genesis block so skip it - we certainly don't expect any valid event here
+    if block_number.as_u64() == 0 {
+        return Ok(Vec::new());
+    }
+
     // Parse only event from this particular block
     let events = contract
         .events()

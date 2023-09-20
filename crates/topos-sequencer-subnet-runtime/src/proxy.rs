@@ -67,12 +67,13 @@ impl SubnetRuntimeProxy {
         signing_key: Vec<u8>,
     ) -> Result<Arc<Mutex<SubnetRuntimeProxy>>, crate::Error> {
         info!(
-            "Spawning new runtime proxy, endpoint: {} ethereum contract address: {}, ",
-            &config.endpoint, &config.subnet_contract_address
+            "Spawning new runtime proxy, http endpoint: {}, ws endpoint {} ethereum contract \
+             address: {}, ",
+            &config.http_endpoint, &config.ws_endpoint, &config.subnet_contract_address
         );
         let (command_sender, mut command_rcv) = mpsc::channel::<SubnetRuntimeProxyCommand>(256);
-        let ws_runtime_endpoint = format!("ws://{}/ws", &config.endpoint);
-        let http_runtime_endpoint = format!("http://{}", &config.endpoint);
+        let ws_runtime_endpoint = config.ws_endpoint.clone();
+        let http_runtime_endpoint = config.http_endpoint.clone();
         let subnet_contract_address = Arc::new(config.subnet_contract_address.clone());
         let (command_task_shutdown_channel, mut command_task_shutdown) =
             mpsc::channel::<oneshot::Sender<()>>(1);
@@ -103,14 +104,17 @@ impl SubnetRuntimeProxy {
             let runtime_proxy = runtime_proxy.clone();
             let subnet_contract_address = subnet_contract_address.clone();
             tokio::spawn(async move {
-                let mut latest_acquired_subnet_block_number = 0;
+                let mut latest_acquired_subnet_block_number: i128 = -1;
 
                 {
                     // To start producing certificates, we need to know latest delivered or pending certificate id from TCE
                     // Lock certification component and wait until we acquire first certificate id for this network
                     let mut certification = certification.lock().await;
                     if certification.last_certificate_id.is_none() {
-                        info!("Waiting for the source head certificate id to continue with certificate generation");
+                        info!(
+                            "Waiting for the source head certificate id to continue with \
+                             certificate generation"
+                        );
                         // Wait for last_certificate_id retrieved on TCE component setup
                         match source_head_certificate_id_received.await {
                             Ok(certificate_and_position) => {
@@ -118,16 +122,20 @@ impl SubnetRuntimeProxy {
                                     "Source head certificate id received {:?}",
                                     certificate_and_position
                                 );
+                                // If the position is not provided, it should start form -1, so that first fetched is subnet genesis block
                                 let cert_id = certificate_and_position.map(|(id, _position)| id);
-                                let position = certificate_and_position
-                                    .map(|(_id, position)| position)
-                                    .unwrap_or_default();
+                                let position: i128 = certificate_and_position
+                                    .map(|(_id, position)| position as i128)
+                                    .unwrap_or(-1);
                                 // Certificate generation is now ready to run
                                 certification.last_certificate_id = cert_id;
                                 latest_acquired_subnet_block_number = position;
                             }
                             Err(e) => {
-                                panic!("Failed to get source head certificate, unable to proceed with certificate generation: {e}")
+                                panic!(
+                                    "Failed to get source head certificate, unable to proceed \
+                                     with certificate generation: {e}"
+                                )
                             }
                         }
                     }
@@ -152,12 +160,12 @@ impl SubnetRuntimeProxy {
 
                 // Sync missing blocks
                 loop {
-                    let current_subnet_block_number: Option<u64> = loop {
+                    let current_subnet_block_number: Option<i128> = loop {
                         tokio::select! {
                             block_number = subnet_listener.get_subnet_block_number() => {
                                 match block_number {
                                     Ok(block_number) => {
-                                        break Some(block_number);
+                                        break Some(block_number as i128);
                                     }
                                     Err(e) => {
                                         error!("Failed to get subnet block number: {:?}", e);
@@ -193,7 +201,7 @@ impl SubnetRuntimeProxy {
                             runtime_proxy.clone(),
                             &mut subnet_listener,
                             certification.clone(),
-                            next_block_number,
+                            next_block_number as u64,
                         )
                         .await
                         {
@@ -217,7 +225,7 @@ impl SubnetRuntimeProxy {
                                 runtime_proxy.clone(),
                                 &mut subnet_listener,
                                 certification.clone(),
-                                next_block_number
+                                next_block_number as u64
                             ).await {
                                 match e {
                                     Error::SubnetError { source: topos_sequencer_subnet_client::Error::BlockNotAvailable(_) } => {
@@ -298,7 +306,10 @@ impl SubnetRuntimeProxy {
         match subnet_listener.get_finalized_block(next_block).await {
             Ok(block_info) => {
                 let block_number = block_info.number;
-                info!("Successfully fetched the finalized block {block_number} from the subnet runtime");
+                info!(
+                    "Successfully fetched the finalized block {block_number} from the subnet \
+                     runtime"
+                );
 
                 let mut certification = certification.lock().await;
 
@@ -393,8 +404,8 @@ impl SubnetRuntimeProxy {
 
                     async {
                         info!(
-                        "Processing certificate received from TCE, cert_id={}",
-                        &certificate.id
+                            "Processing certificate received from TCE, cert_id={}",
+                            &certificate.id
                         );
 
                         // Verify certificate signature
@@ -427,20 +438,21 @@ impl SubnetRuntimeProxy {
                             &certificate,
                             position,
                         )
-                            .with_context(span_push_certificate.context())
-                            .instrument(span_push_certificate)
-                            .await
+                        .with_context(span_push_certificate.context())
+                        .instrument(span_push_certificate)
+                        .await
                         {
                             Ok(tx_hash) => {
                                 debug!(
-                                    "Successfully pushed the Certificate {} to target subnet with tx hash {:?}",
+                                    "Successfully pushed the Certificate {} to target subnet with \
+                                     tx hash {:?}",
                                     &certificate.id, &tx_hash
                                 );
                             }
                             Err(e) => {
                                 error!(
-                                "Failed to push the Certificate {} to target subnet: {e}",
-                                &certificate.id
+                                    "Failed to push the Certificate {} to target subnet: {e}",
+                                    &certificate.id
                                 );
                             }
                         }
@@ -503,10 +515,10 @@ impl SubnetRuntimeProxy {
 
     pub async fn get_checkpoints(&self) -> Result<Vec<TargetStreamPosition>, Error> {
         info!("Connecting to subnet to query for checkpoints...");
-        let http_runtime_endpoint = format!("http://{}", &self.config.endpoint);
+        let http_runtime_endpoint = self.config.http_endpoint.as_ref();
         // Create subnet client
         let subnet_client = match topos_sequencer_subnet_client::connect_to_subnet_with_retry(
-            http_runtime_endpoint.as_ref(),
+            http_runtime_endpoint,
             None, // We do not need actual key here as we are just reading state
             self.config.subnet_contract_address.as_str(),
         )
@@ -515,7 +527,7 @@ impl SubnetRuntimeProxy {
             Ok(subnet_client) => {
                 info!(
                     "Connected to subnet node to acquire checkpoints {}",
-                    &http_runtime_endpoint
+                    http_runtime_endpoint
                 );
                 subnet_client
             }
@@ -540,12 +552,16 @@ impl SubnetRuntimeProxy {
         }
     }
 
-    pub async fn get_subnet_id(endpoint: &str, contract_address: &str) -> Result<SubnetId, Error> {
+    /// Get the particular subnet id (identifying subnet in the topos protocol)
+    /// from the subnet node smart contract
+    pub async fn get_subnet_id(
+        http_endpoint: &str,
+        contract_address: &str,
+    ) -> Result<SubnetId, Error> {
         info!("Connecting to subnet to query for subnet id...");
-        let http_runtime_endpoint = format!("http://{endpoint}");
         // Create subnet client
         let subnet_client = match topos_sequencer_subnet_client::connect_to_subnet_with_retry(
-            http_runtime_endpoint.as_ref(),
+            http_endpoint,
             None, // We do not need actual key here as we are just reading state
             contract_address,
         )
@@ -554,7 +570,7 @@ impl SubnetRuntimeProxy {
             Ok(subnet_client) => {
                 info!(
                     "Connected to subnet node to acquire subnet id {}",
-                    &http_runtime_endpoint
+                    http_endpoint
                 );
                 subnet_client
             }

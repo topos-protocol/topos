@@ -1,7 +1,10 @@
+use std::path::PathBuf;
 use std::str::FromStr;
+use std::sync::Arc;
 
 use futures::Stream;
 use rstest::*;
+use tokio::sync::broadcast;
 use tonic::transport::{channel, Channel};
 
 use topos_core::api::grpc::tce::v1::{
@@ -10,10 +13,13 @@ use topos_core::api::grpc::tce::v1::{
 use topos_tce_api::RuntimeClient;
 use topos_tce_api::RuntimeContext;
 use topos_tce_api::RuntimeEvent;
+use topos_tce_storage::fullnode::FullNodeStore;
+use topos_tce_storage::types::CertificateDeliveredWithPositions;
 use topos_tce_storage::StorageClient;
 use tracing::warn;
 
 use crate::networking::get_available_addr;
+use crate::storage::create_fullnode_store;
 use crate::storage::storage_client;
 use crate::PORT_MAPPING;
 
@@ -26,10 +32,20 @@ pub struct PublicApiContext {
 }
 
 #[fixture]
+pub fn broadcast_stream() -> broadcast::Receiver<CertificateDeliveredWithPositions> {
+    let (_, r) = broadcast::channel(1000);
+
+    r
+}
+
+#[fixture]
 pub async fn create_public_api(
     #[future] storage_client: StorageClient,
+    broadcast_stream: broadcast::Receiver<CertificateDeliveredWithPositions>,
+    #[future] create_fullnode_store: (PathBuf, Arc<FullNodeStore>),
 ) -> (PublicApiContext, impl Stream<Item = RuntimeEvent>) {
     let storage_client = storage_client.await;
+    let (_, store) = create_fullnode_store.await;
     let grpc_addr = get_available_addr();
     let graphql_addr = get_available_addr();
     let metrics_addr = get_available_addr();
@@ -43,9 +59,11 @@ pub async fn create_public_api(
     warn!("Metrics endpoint: {}", metrics_addr);
     warn!("PORT MAPPING: {:?}", PORT_MAPPING.lock().unwrap());
     let (client, stream, ctx) = topos_tce_api::Runtime::builder()
+        .with_broadcast_stream(broadcast_stream)
         .serve_grpc_addr(grpc_addr)
         .serve_graphql_addr(graphql_addr)
         .serve_metrics_addr(metrics_addr)
+        .store(store)
         .storage(storage_client)
         .build_and_launch()
         .await;

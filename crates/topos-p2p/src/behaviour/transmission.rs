@@ -19,17 +19,14 @@ pub type PendingRequests =
 pub(crate) struct TransmissionBehaviour {}
 
 impl TransmissionBehaviour {
-    pub fn create() -> Behaviour<TransmissionCodec> {
+    pub fn create(protocol: StreamProtocol) -> Behaviour<TransmissionCodec> {
         let mut cfg = Config::default();
         cfg.set_connection_keep_alive(Duration::from_secs(60));
         cfg.set_request_timeout(Duration::from_secs(30));
 
         Behaviour::with_codec(
             TransmissionCodec(),
-            iter::once((
-                StreamProtocol::new(TRANSMISSION_PROTOCOL),
-                ProtocolSupport::Full,
-            )),
+            [(protocol, ProtocolSupport::Full)],
             cfg,
         )
     }

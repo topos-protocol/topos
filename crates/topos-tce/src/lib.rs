@@ -1,15 +1,26 @@
 use config::TceConfiguration;
 use ethers::prelude::{LocalWallet, Signer};
+use futures::StreamExt;
 use opentelemetry::global;
-use std::future::IntoFuture;
-use tokio::{spawn, sync::mpsc};
+use std::{future::IntoFuture, sync::Arc};
+use tokio::{
+    spawn,
+    sync::{broadcast, mpsc},
+};
+use tokio_stream::wrappers::BroadcastStream;
 use tokio_util::sync::CancellationToken;
 use topos_p2p::{
     utils::{local_key_pair, local_key_pair_from_slice},
     Multiaddr,
 };
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
-use topos_tce_storage::{Connection, RocksDBStorage};
+use topos_tce_storage::{
+    epoch::{EpochValidatorsStore, ValidatorPerEpochStore},
+    fullnode::FullNodeStore,
+    index::IndexTables,
+    validator::{ValidatorPerpetualTables, ValidatorStore},
+    Connection, RocksDBStorage,
+};
 use tracing::{debug, warn};
 mod app_context;
 pub mod config;
@@ -19,6 +30,9 @@ pub mod messages;
 pub use app_context::AppContext;
 
 use crate::config::{AuthKey, StorageConfiguration};
+
+// TODO: Estimate on the max broadcast throughput, could need to be override by config
+const BROADCAST_CHANNEL_SIZE: usize = 10_000;
 
 pub async fn run(
     config: &TceConfiguration,
@@ -86,6 +100,38 @@ pub async fn run(
     debug!("Gatekeeper started");
 
     debug!("Starting the Storage");
+
+    let path = if let StorageConfiguration::RocksDB(Some(ref path)) = config.storage {
+        path
+    } else {
+        return Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("Unsupported storage type {:?}", config.storage),
+        )));
+    };
+
+    let perpetual_tables = Arc::new(ValidatorPerpetualTables::open(path.clone()));
+    let index_tables = Arc::new(IndexTables::open(path.clone()));
+
+    let validators_store =
+        EpochValidatorsStore::new(path.clone()).expect("Unable to create EpochValidators store");
+
+    let epoch_store =
+        ValidatorPerEpochStore::new(0, path.clone()).expect("Unable to create Per epoch store");
+
+    let full_node_store = FullNodeStore::open(
+        epoch_store,
+        validators_store,
+        perpetual_tables,
+        index_tables,
+    )
+    .expect("Unable to create full node store");
+
+    let validator_store = ValidatorStore::open(path.clone(), full_node_store.clone())
+        .expect("Unable to create validator store");
+
+    let (broadcast_sender, broadcast_receiver) = broadcast::channel(BROADCAST_CHANNEL_SIZE);
+
     let (storage, storage_client, storage_stream) =
         if let StorageConfiguration::RocksDB(Some(ref path)) = config.storage {
             let storage = RocksDBStorage::open(path)?;
@@ -96,22 +142,30 @@ pub async fn run(
                 format!("Unsupported storage type {:?}", config.storage),
             )));
         };
+
     spawn(storage.into_future());
     debug!("Storage started");
 
     debug!("Starting reliable broadcast");
-    let (tce_cli, tce_stream) = ReliableBroadcastClient::new(ReliableBroadcastConfig {
-        tce_params: config.tce_params.clone(),
-        validator_id: public_address.into(),
-        validators: config.validators.clone(),
-        wallet: local_wallet,
-    })
+
+    let (tce_cli, tce_stream) = ReliableBroadcastClient::new(
+        ReliableBroadcastConfig {
+            tce_params: config.tce_params.clone(),
+            validator_id: public_address.into(),
+            validators: config.validators.clone(),
+            wallet: local_wallet,
+        },
+        validator_store.clone(),
+        broadcast_sender,
+    )
     .await;
+
     debug!("Reliable broadcast started");
 
     debug!("Starting the Synchronizer");
     let (synchronizer_client, synchronizer_runtime, synchronizer_stream) =
         topos_tce_synchronizer::Synchronizer::builder()
+            .with_store(validator_store.clone())
             .with_gatekeeper_client(gatekeeper_client.clone())
             .with_network_client(network_client.clone())
             .await?;
@@ -122,9 +176,11 @@ pub async fn run(
     debug!("Starting gRPC api");
     let (api_client, api_stream, _ctx) = topos_tce_api::Runtime::builder()
         .with_peer_id(peer_id.to_string())
+        .with_broadcast_stream(broadcast_receiver.resubscribe())
         .serve_grpc_addr(config.api_addr)
         .serve_graphql_addr(config.graphql_api_addr)
         .serve_metrics_addr(config.metrics_api_addr)
+        .store(full_node_store.clone())
         .storage(storage_client.clone())
         .build_and_launch()
         .await;
@@ -138,6 +194,7 @@ pub async fn run(
         api_client,
         gatekeeper_client,
         synchronizer_client,
+        validator_store,
     );
 
     app_context
@@ -147,6 +204,7 @@ pub async fn run(
             api_stream,
             storage_stream,
             synchronizer_stream,
+            BroadcastStream::new(broadcast_receiver).filter_map(|v| futures::future::ready(v.ok())),
             shutdown,
         )
         .await;

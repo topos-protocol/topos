@@ -72,7 +72,7 @@ pub(crate) fn rocks_db(database_name: &'static str) -> Arc<RocksDB> {
             options.create_if_missing(true);
             options.create_missing_column_families(true);
 
-            Arc::new(init_db(&path, &mut options).unwrap())
+            Arc::new(init_db(&path, options).unwrap())
         })
         .clone()
 }

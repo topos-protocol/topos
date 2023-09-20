@@ -130,25 +130,28 @@ impl AppContext {
                 _ = self.tce_proxy_worker.shutdown().await;
 
                 // TODO: Retrieve subnet checkpoint from where to start receiving certificates, again
-                let (tce_proxy_worker, _source_head_certificate_id) = match TceProxyWorker::new(
-                    topos_tce_proxy::TceProxyConfig {
+                let (tce_proxy_worker, _source_head_certificate_id) =
+                    match TceProxyWorker::new(topos_tce_proxy::TceProxyConfig {
                         subnet_id: config.subnet_id,
                         base_tce_api_url: config.base_tce_api_url.clone(),
                         positions: Vec::new(), // TODO: acquire from subnet
-                    },
-                )
-                .await
-                {
-                    Ok((tce_proxy_worker, source_head_certificate)) => {
-                        info!("TCE proxy client is restarted for the source subnet {:?} from the head {:?}",config.subnet_id, source_head_certificate);
-                        let source_head_certificate_id =
-                            source_head_certificate.map(|cert| cert.0.id);
-                        (tce_proxy_worker, source_head_certificate_id)
-                    }
-                    Err(e) => {
-                        panic!("Unable to create TCE Proxy: {e}");
-                    }
-                };
+                    })
+                    .await
+                    {
+                        Ok((tce_proxy_worker, source_head_certificate)) => {
+                            info!(
+                                "TCE proxy client is restarted for the source subnet {:?} from \
+                                 the head {:?}",
+                                config.subnet_id, source_head_certificate
+                            );
+                            let source_head_certificate_id =
+                                source_head_certificate.map(|cert| cert.0.id);
+                            (tce_proxy_worker, source_head_certificate_id)
+                        }
+                        Err(e) => {
+                            panic!("Unable to create TCE Proxy: {e}");
+                        }
+                    };
 
                 self.tce_proxy_worker = tce_proxy_worker;
             }

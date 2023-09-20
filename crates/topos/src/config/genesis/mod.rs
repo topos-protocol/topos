@@ -1,4 +1,4 @@
-use rlp::{Decodable, DecoderError, Rlp};
+use rlp::Rlp;
 use std::collections::HashSet;
 use std::{fs, path::PathBuf};
 

@@ -21,7 +21,7 @@ async fn can_persist_a_pending_certificate(pending_column: PendingCertificatesCo
         Certificate::new_with_default_fields(PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID_1, &[]).unwrap();
 
     assert!(pending_column.insert(&0, &certificate).is_ok());
-    assert_eq!(pending_column.get(&0).unwrap(), certificate);
+    assert_eq!(pending_column.get(&0).unwrap(), Some(certificate));
 }
 
 #[rstest]
@@ -36,7 +36,7 @@ async fn can_persist_a_delivered_certificate(certificates_column: CertificatesCo
         .is_ok());
     assert_eq!(
         certificates_column.get(&certificate.id).unwrap(),
-        certificate
+        Some(certificate)
     );
 }
 

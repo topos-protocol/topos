@@ -126,11 +126,6 @@ pub enum ProtocolEvents {
     /// For simulation purpose, for now only caused by ill-formed sampling
     Die,
 
-    /// Certificate successfully delivered
-    CertificateDelivered {
-        certificate: Certificate,
-    },
-
     /// Stable Sample
     StableSample,
 }

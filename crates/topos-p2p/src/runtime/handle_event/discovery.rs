@@ -69,7 +69,10 @@ impl EventHandler<Box<KademliaEvent>> for Runtime {
 
                                     if sender.send(Ok(vec![addr.clone()])).is_err() {
                                         // TODO: Hash the QueryId
-                                        warn!("Could not notify Record query ({id:?}) response because initiator is dropped");
+                                        warn!(
+                                            "Could not notify Record query ({id:?}) response \
+                                             because initiator is dropped"
+                                        );
                                     }
                                 }
                                 self.swarm
@@ -90,7 +93,10 @@ impl EventHandler<Box<KademliaEvent>> for Runtime {
                             .is_err()
                         {
                             // TODO: Hash the QueryId
-                            warn!("Could not notify Record query ({id:?}) response because initiator is dropped");
+                            warn!(
+                                "Could not notify Record query ({id:?}) response because \
+                                 initiator is dropped"
+                            );
                         }
                     }
                     warn!("GetRecordError query_id: {id:?}, error: {error:?}");

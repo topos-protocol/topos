@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use crate::config::node::NodeRole;
 use clap::Args;
 use serde::Serialize;

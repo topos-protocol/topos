@@ -4,6 +4,7 @@
 //! Abstracted from actual storage implementation.
 
 use std::collections::HashSet;
+use std::sync::Arc;
 
 use double_echo::DoubleEcho;
 use ethers::prelude::{LocalWallet, Signature};
@@ -13,11 +14,14 @@ use tce_transport::{ProtocolEvents, ReliableBroadcastParams, ValidatorId};
 use thiserror::Error;
 use tokio::spawn;
 use tokio::sync::mpsc::Sender;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
 use topos_core::uci::{Certificate, CertificateId};
 use topos_metrics::DOUBLE_ECHO_COMMAND_CHANNEL_CAPACITY_TOTAL;
 use topos_p2p::PeerId;
+use topos_tce_storage::types::CertificateDeliveredWithPositions;
+use topos_tce_storage::validator::ValidatorStore;
+
 use tracing::{debug, error, info};
 
 pub use topos_core::uci;
@@ -38,7 +42,7 @@ mod tests;
 
 use crate::sampler::SubscriptionsView;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub enum TaskStatus {
     /// The task finished successfully and broadcasted the certificate + received ready
     Success,
@@ -99,9 +103,9 @@ pub enum DoubleEchoCommand {
 /// Thread safe client to the protocol aggregate
 #[derive(Clone, Debug)]
 pub struct ReliableBroadcastClient {
-    command_sender: mpsc::Sender<DoubleEchoCommand>,
-    pub(crate) subscriptions_view_sender: mpsc::Sender<SubscriptionsView>,
-    pub(crate) double_echo_shutdown_channel: mpsc::Sender<oneshot::Sender<()>>,
+    command_sender: Sender<DoubleEchoCommand>,
+    pub(crate) subscriptions_view_sender: Sender<SubscriptionsView>,
+    pub(crate) double_echo_shutdown_channel: Sender<oneshot::Sender<()>>,
 }
 
 impl ReliableBroadcastClient {
@@ -111,6 +115,8 @@ impl ReliableBroadcastClient {
     /// Aggregate is spawned as new task.
     pub async fn new(
         config: ReliableBroadcastConfig,
+        validator_store: Arc<ValidatorStore>,
+        broadcast_sender: broadcast::Sender<CertificateDeliveredWithPositions>,
     ) -> (Self, impl Stream<Item = ProtocolEvents>) {
         let (subscriptions_view_sender, subscriptions_view_receiver) =
             mpsc::channel::<SubscriptionsView>(*constant::SUBSCRIPTION_VIEW_CHANNEL_SIZE);
@@ -131,6 +137,8 @@ impl ReliableBroadcastClient {
             command_receiver,
             event_sender,
             double_echo_shutdown_receiver,
+            validator_store.clone(),
+            broadcast_sender,
         );
 
         spawn(double_echo.run(subscriptions_view_receiver, task_manager_message_receiver));

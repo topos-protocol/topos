@@ -1,12 +1,16 @@
 use crate::sampler::SubscriptionsView;
 use ethers::prelude::LocalWallet;
-use std::time;
+use std::{collections::HashSet, time};
 use tce_transport::sign_message;
 use tce_transport::{ProtocolEvents, ValidatorId};
 use tokio::sync::mpsc;
 use topos_core::uci::Certificate;
 use topos_metrics::DOUBLE_ECHO_BROADCAST_FINISHED_TOTAL;
 use topos_p2p::PeerId;
+use topos_tce_storage::{
+    types::{CertificateDelivered, ProofOfDelivery, Ready, SourceStreamPositionKey},
+    Position,
+};
 use tracing::{debug, info, warn};
 mod status;
 
@@ -16,7 +20,7 @@ pub use status::Status;
 pub struct BroadcastState {
     subscriptions_view: SubscriptionsView,
     status: Status,
-    certificate: Certificate,
+    pub(crate) certificate: Certificate,
     validator_id: ValidatorId,
     echo_threshold: usize,
     ready_threshold: usize,
@@ -24,6 +28,8 @@ pub struct BroadcastState {
     wallet: LocalWallet,
     event_sender: mpsc::Sender<ProtocolEvents>,
     delivery_time: time::Instant,
+    readies: HashSet<Ready>,
+    pub(crate) expected_position: Option<Position>,
 }
 
 impl BroadcastState {
@@ -50,6 +56,8 @@ impl BroadcastState {
             wallet,
             event_sender,
             delivery_time: time::Instant::now(),
+            readies: HashSet::new(),
+            expected_position: None,
         };
 
         _ = state.event_sender.try_send(ProtocolEvents::Broadcast {
@@ -68,14 +76,43 @@ impl BroadcastState {
         state
     }
 
+    pub fn into_delivered(&self) -> CertificateDelivered {
+        CertificateDelivered {
+            certificate: self.certificate.clone(),
+            proof_of_delivery: ProofOfDelivery {
+                certificate_id: self.certificate.id,
+                delivery_position: SourceStreamPositionKey(
+                    self.certificate.source_subnet_id,
+                    // FIXME: Should never fails but need to find how to remove the unwrap
+                    self.expected_position
+                        .expect("Expected position is not set, this is a bug"),
+                ),
+                readies: self
+                    .readies
+                    .iter()
+                    .cloned()
+                    .map(|r| (r, "signature".to_string()))
+                    .collect(),
+                threshold: self.delivery_threshold as u64,
+            },
+        }
+    }
+
     pub async fn apply_echo(&mut self, peer_id: PeerId) -> Option<Status> {
-        self.subscriptions_view.echo.remove(&peer_id);
-        self.update_status().await
+        if self.subscriptions_view.echo.remove(&peer_id) {
+            self.update_status().await
+        } else {
+            None
+        }
     }
 
     pub async fn apply_ready(&mut self, peer_id: PeerId) -> Option<Status> {
-        self.subscriptions_view.ready.remove(&peer_id);
-        self.update_status().await
+        if self.subscriptions_view.ready.remove(&peer_id) {
+            self.readies.insert(peer_id.to_string());
+            self.update_status().await
+        } else {
+            None
+        }
     }
 
     async fn update_status(&mut self) -> Option<Status> {
@@ -158,12 +195,6 @@ impl BroadcastState {
             );
 
             DOUBLE_ECHO_BROADCAST_FINISHED_TOTAL.inc();
-
-            _ = self
-                .event_sender
-                .try_send(ProtocolEvents::CertificateDelivered {
-                    certificate: self.certificate.clone(),
-                });
 
             return Some(self.status);
         }

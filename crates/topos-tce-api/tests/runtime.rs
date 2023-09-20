@@ -4,7 +4,7 @@ use serde::Deserialize;
 use std::future::IntoFuture;
 use std::time::Duration;
 use test_log::test;
-use tokio::sync::mpsc;
+use tokio::sync::{broadcast, mpsc};
 use tokio::{spawn, sync::oneshot};
 use tokio_stream::StreamExt;
 use tonic::transport::channel;
@@ -21,11 +21,12 @@ use topos_core::{
     uci::Certificate,
 };
 use topos_tce_api::{Runtime, RuntimeEvent};
+use topos_tce_storage::types::{CertificateDelivered, CertificateDeliveredWithPositions};
 use topos_test_sdk::certificates::create_certificate_chain;
 use topos_test_sdk::constants::*;
 use topos_test_sdk::networking::get_available_addr;
-use topos_test_sdk::storage::storage_client;
-use topos_test_sdk::tce::public_api::{create_public_api, PublicApiContext};
+use topos_test_sdk::storage::{create_fullnode_store, storage_client};
+use topos_test_sdk::tce::public_api::{broadcast_stream, create_public_api, PublicApiContext};
 
 #[rstest]
 #[timeout(Duration::from_secs(1))]
@@ -108,7 +109,7 @@ async fn runtime_can_dispatch_a_cert(
 async fn can_catchup_with_old_certs(
     #[with(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], 15)]
     #[from(create_certificate_chain)]
-    certificates: Vec<Certificate>,
+    certificates: Vec<CertificateDelivered>,
 ) {
     let storage_client = storage_client::partial_1(certificates.clone());
     let (mut api_context, _) = create_public_api::partial_1(storage_client).await;
@@ -148,7 +149,7 @@ async fn can_catchup_with_old_certs(
     // Wait for client to be ready
     tokio::time::sleep(Duration::from_millis(100)).await;
 
-    let last = certificates.last().map(|c| c.id).unwrap();
+    let last = certificates.last().map(|c| c.certificate.id).unwrap();
     let cert = topos_core::uci::Certificate::new_with_default_fields(
         last,
         SOURCE_SUBNET_ID_1,
@@ -179,7 +180,7 @@ async fn can_catchup_with_old_certs(
             .await
             .unwrap_or_else(|| panic!("Didn't received index {index}"));
         assert_eq!(
-            certificate, &certificate_received,
+            certificate.certificate, certificate_received,
             "Certificate at index {index} not received"
         );
     }
@@ -192,7 +193,9 @@ async fn can_catchup_with_old_certs(
 #[rstest]
 #[timeout(Duration::from_secs(2))]
 #[test(tokio::test)]
-async fn can_catchup_with_old_certs_with_position() {
+async fn can_catchup_with_old_certs_with_position(
+    broadcast_stream: broadcast::Receiver<CertificateDeliveredWithPositions>,
+) {
     let (tx, mut rx) = mpsc::channel::<Certificate>(16);
 
     let addr = get_available_addr();
@@ -201,6 +204,12 @@ async fn can_catchup_with_old_certs_with_position() {
 
     // launch data store
     let certificates = create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], 15);
+
+    let (_, store) = create_fullnode_store(
+        "can_catchup_with_old_certs_with_position",
+        certificates.clone(),
+    )
+    .await;
 
     let (_, (storage, storage_client, _storage_stream)) = topos_test_sdk::storage::create_rocksdb(
         "can_catchup_with_old_certs_with_position",
@@ -211,7 +220,9 @@ async fn can_catchup_with_old_certs_with_position() {
     let _storage_join_handle = spawn(storage.into_future());
 
     let (runtime_client, _launcher, _ctx) = Runtime::builder()
+        .with_broadcast_stream(broadcast_stream)
         .storage(storage_client)
+        .store(store)
         .serve_grpc_addr(addr)
         .serve_graphql_addr(graphql_addr)
         .serve_metrics_addr(metrics_addr)
@@ -268,7 +279,7 @@ async fn can_catchup_with_old_certs_with_position() {
     // Wait for client to be ready
     tokio::time::sleep(Duration::from_millis(100)).await;
 
-    let last = certificates.last().map(|c| c.id).unwrap();
+    let last = certificates.last().map(|c| c.certificate.id).unwrap();
     let cert = topos_core::uci::Certificate::new_with_default_fields(
         last,
         SOURCE_SUBNET_ID_1,
@@ -298,7 +309,7 @@ async fn can_catchup_with_old_certs_with_position() {
             .await
             .unwrap_or_else(|| panic!("Didn't received index {index}"));
         assert_eq!(
-            certificate, &certificate_received,
+            certificate.certificate, certificate_received,
             "Certificate at index {index} not received"
         );
     }
@@ -314,7 +325,9 @@ async fn can_listen_for_multiple_subnet_id() {}
 #[rstest]
 #[timeout(Duration::from_secs(2))]
 #[test(tokio::test)]
-async fn boots_healthy_graphql_server() {
+async fn boots_healthy_graphql_server(
+    broadcast_stream: broadcast::Receiver<CertificateDeliveredWithPositions>,
+) {
     let addr = get_available_addr();
     let graphql_addr = get_available_addr();
     let metrics_addr = get_available_addr();
@@ -322,8 +335,10 @@ async fn boots_healthy_graphql_server() {
     // launch data store
     let certificates = create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], 15);
 
+    let (_, store) =
+        create_fullnode_store("boots_healthy_graphql_server", certificates.clone()).await;
     let (_, (storage, storage_client, _storage_stream)) = topos_test_sdk::storage::create_rocksdb(
-        "can_catchup_with_old_certs_with_position",
+        "boots_healthy_graphql_server",
         certificates.clone(),
     )
     .await;
@@ -331,7 +346,9 @@ async fn boots_healthy_graphql_server() {
     let _storage_join_handle = spawn(storage.into_future());
 
     let (_runtime_client, _launcher, _ctx) = Runtime::builder()
+        .with_broadcast_stream(broadcast_stream)
         .storage(storage_client)
+        .store(store)
         .serve_grpc_addr(addr)
         .serve_graphql_addr(graphql_addr)
         .serve_metrics_addr(metrics_addr)
@@ -354,7 +371,9 @@ async fn boots_healthy_graphql_server() {
 #[rstest]
 #[timeout(Duration::from_secs(2))]
 #[test(tokio::test)]
-async fn graphql_server_enables_cors() {
+async fn graphql_server_enables_cors(
+    broadcast_stream: broadcast::Receiver<CertificateDeliveredWithPositions>,
+) {
     let addr = get_available_addr();
     let graphql_addr = get_available_addr();
     let metrics_addr = get_available_addr();
@@ -362,8 +381,11 @@ async fn graphql_server_enables_cors() {
     // launch data store
     let certificates = create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], 15);
 
+    let (_, store) =
+        create_fullnode_store("graphql_server_enables_cors", certificates.clone()).await;
+
     let (_, (storage, storage_client, _storage_stream)) = topos_test_sdk::storage::create_rocksdb(
-        "can_catchup_with_old_certs_with_position",
+        "graphql_server_enables_cors",
         certificates.clone(),
     )
     .await;
@@ -371,7 +393,9 @@ async fn graphql_server_enables_cors() {
     let _storage_join_handle = spawn(storage.into_future());
 
     let (_runtime_client, _launcher, _ctx) = Runtime::builder()
+        .with_broadcast_stream(broadcast_stream)
         .storage(storage_client)
+        .store(store)
         .serve_grpc_addr(addr)
         .serve_graphql_addr(graphql_addr)
         .serve_metrics_addr(metrics_addr)
@@ -416,7 +440,9 @@ async fn graphql_server_enables_cors() {
 #[rstest]
 #[timeout(Duration::from_secs(2))]
 #[test(tokio::test)]
-async fn can_query_graphql_endpoint_for_certificates() {
+async fn can_query_graphql_endpoint_for_certificates(
+    broadcast_stream: broadcast::Receiver<CertificateDeliveredWithPositions>,
+) {
     let (tx, mut rx) = mpsc::channel::<Certificate>(16);
 
     let addr = get_available_addr();
@@ -426,8 +452,14 @@ async fn can_query_graphql_endpoint_for_certificates() {
     // launch data store
     let certificates = create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], 15);
 
+    let (_, store) = create_fullnode_store(
+        "can_query_graphql_endpoint_for_certificates",
+        certificates.clone(),
+    )
+    .await;
+
     let (_, (storage, storage_client, _storage_stream)) = topos_test_sdk::storage::create_rocksdb(
-        "can_catchup_with_old_certs_with_position",
+        "can_query_graphql_endpoint_for_certificates",
         certificates.clone(),
     )
     .await;
@@ -435,7 +467,9 @@ async fn can_query_graphql_endpoint_for_certificates() {
     let _storage_join_handle = spawn(storage.into_future());
 
     let (runtime_client, _launcher, _ctx) = Runtime::builder()
+        .with_broadcast_stream(broadcast_stream)
         .storage(storage_client)
+        .store(store)
         .serve_grpc_addr(addr)
         .serve_graphql_addr(graphql_addr)
         .serve_metrics_addr(metrics_addr)
@@ -492,7 +526,7 @@ async fn can_query_graphql_endpoint_for_certificates() {
     // Wait for client to be ready
     tokio::time::sleep(Duration::from_millis(100)).await;
 
-    let last = certificates.last().map(|c| c.id).unwrap();
+    let last = certificates.last().map(|c| c.certificate.id).unwrap();
     let cert = topos_core::uci::Certificate::new_with_default_fields(
         last,
         SOURCE_SUBNET_ID_1,
@@ -522,7 +556,7 @@ async fn can_query_graphql_endpoint_for_certificates() {
             .await
             .unwrap_or_else(|| panic!("Didn't received index {index}"));
         assert_eq!(
-            certificate, &certificate_received,
+            certificate.certificate, certificate_received,
             "Certificate at index {index} not received"
         );
     }
@@ -568,7 +602,7 @@ async fn can_query_graphql_endpoint_for_certificates() {
         data: CertificatesResponse,
     }
 
-    #[derive(Deserialize)]
+    #[derive(Deserialize, Debug)]
     struct CertificatesResponse {
         certificates: Vec<GraphQLCertificate>,
     }

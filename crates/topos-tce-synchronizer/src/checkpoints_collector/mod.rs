@@ -1,78 +1,96 @@
-use std::future::IntoFuture;
+use std::{
+    collections::{HashMap, HashSet},
+    future::IntoFuture,
+    str::FromStr,
+    sync::Arc,
+};
 
 use builder::CheckpointsCollectorBuilder;
-use futures::{future::BoxFuture, stream::FuturesUnordered, FutureExt};
-use thiserror::Error;
-use tokio::sync::{
-    mpsc::{self, error::SendError},
-    oneshot::{self, error::RecvError},
+use futures::{future::BoxFuture, FutureExt};
+use tokio::sync::mpsc;
+use topos_core::{
+    api::grpc::{
+        self,
+        shared::v1::Uuid as APIUuid,
+        tce::v1::{
+            CheckpointRequest, CheckpointResponse, FetchCertificatesRequest,
+            FetchCertificatesResponse,
+        },
+    },
+    uci::{Certificate, CertificateId, SubnetId},
 };
-use tracing::error;
+use topos_p2p::{
+    constant::SYNCHRONIZER_PROTOCOL, error::CommandExecutionError, NetworkClient, RetryPolicy,
+};
+use topos_tce_gatekeeper::GatekeeperClient;
+use topos_tce_storage::{
+    errors::StorageError,
+    store::ReadStore,
+    types::{ProofOfDelivery, SourceStreamPositionKey},
+    validator::ValidatorStore,
+    Position,
+};
+use tracing::{debug, warn};
+use uuid::Uuid;
 
 mod builder;
 mod client;
+mod config;
+mod error;
+#[cfg(test)]
+mod tests;
 
 pub use client::CheckpointsCollectorClient;
-use tokio_stream::StreamExt;
-use topos_core::api::grpc::{
-    shared::v1::Uuid as APIUuid,
-    tce::v1::{
-        checkpoint_request::{self, RequestType},
-        CheckpointRequest, CheckpointResponse,
-    },
-};
-use topos_p2p::{error::CommandExecutionError, Client as NetworkClient, RetryPolicy};
-use topos_tce_gatekeeper::GatekeeperClient;
-use uuid::Uuid;
+pub use config::CheckpointsCollectorConfig;
+pub use error::CheckpointsCollectorError;
 
-pub struct CheckpointsCollectorConfig {
-    peer_number: usize,
-}
-
-impl CheckpointsCollectorConfig {
-    const DEFAULT_PEER_NUMBER: usize = 10;
-}
-
-impl Default for CheckpointsCollectorConfig {
-    fn default() -> Self {
-        Self {
-            peer_number: Self::DEFAULT_PEER_NUMBER,
-        }
-    }
-}
-
-pub struct CheckpointsCollector {
-    started: bool,
+pub struct CheckpointSynchronizer<G: GatekeeperClient, N: NetworkClient> {
     config: CheckpointsCollectorConfig,
-    #[allow(dead_code)]
-    network: NetworkClient,
+
+    pub(crate) network: N,
+    pub(crate) gatekeeper: G,
+    #[allow(unused)]
+    pub(crate) store: Arc<ValidatorStore>,
 
     current_request_id: Option<APIUuid>,
 
-    pending_checkpoint_requests:
-        FuturesUnordered<BoxFuture<'static, Result<CheckpointResponse, CommandExecutionError>>>,
-
     pub(crate) shutdown: mpsc::Receiver<()>,
-    pub(crate) commands: mpsc::Receiver<CheckpointsCollectorCommand>,
+
     #[allow(dead_code)]
     pub(crate) events: mpsc::Sender<CheckpointsCollectorEvent>,
-    pub(crate) gatekeeper: GatekeeperClient,
 }
 
-impl IntoFuture for CheckpointsCollector {
+impl<G: GatekeeperClient, N: NetworkClient> IntoFuture for CheckpointSynchronizer<G, N> {
     type Output = Result<(), CheckpointsCollectorError>;
 
     type IntoFuture = BoxFuture<'static, Self::Output>;
 
     fn into_future(mut self) -> Self::IntoFuture {
         async move {
+            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(
+                self.config.sync_interval_seconds,
+            ));
+
             loop {
                 tokio::select! {
-                    _ = self.shutdown.recv() => { break; }
-                    Some(response) = self.pending_checkpoint_requests.next() => {
-                        self.handle_checkpoint_response(response).await;
+                    _tick = interval.tick() => {
+                        // On every tick, checking if there is a pending synchronization
+                        // If there is, skip
+                        // If there is not,
+                        //  1. Ask a random peer for the diff between local and its latest checkpoint
+                        //  2. Validate the PoD diff, if fail, go back to 1
+                        //  3. Based on the diff, check if we already have some of the certs
+                        //      - Fetch every missing certs from one peer
+                        //      - Each certs triggers a precedence check
+                        if self.current_request_id.is_none() {
+                            if let Err(error) = self.initiate_request().await {
+                                warn!("Unsuccessful sync due to: {}", error);
+                            }
+                        }
                     }
-                    Some(command) = self.commands.recv() => self.handle(command).await?
+
+                    Some(_) = self.shutdown.recv() => { break; }
+
                 }
             }
 
@@ -82,108 +100,186 @@ impl IntoFuture for CheckpointsCollector {
     }
 }
 
-impl CheckpointsCollector {
-    pub fn builder() -> CheckpointsCollectorBuilder {
-        CheckpointsCollectorBuilder::default()
-    }
+#[derive(Debug, thiserror::Error)]
+enum SyncError {
+    #[error("Unable to fetch target peer from gatekeeper")]
+    UnableToFetchTargetPeer,
 
-    async fn handle_checkpoint_response(
-        &mut self,
-        response: Result<CheckpointResponse, CommandExecutionError>,
-    ) {
-        match response {
-            Ok(response) => {
-                if response.request_id != self.current_request_id {
-                    return;
-                }
-                // Handle the valid request here
-                let _heads = response.positions;
-            }
-            Err(_error) => {
-                // TODO: add context about the error
-                error!("Received a command execution error when dealing with checkpoint");
+    #[error("Unable to parse subnet id")]
+    UnableToParseSubnetId,
+
+    #[error("Gatekeeper returned no peer")]
+    NoPeerAvailable,
+
+    #[error("Malformed gRPC object: {0}")]
+    GrpcMalformedType(&'static str),
+
+    #[error(transparent)]
+    CertificateConversion(#[from] topos_core::api::grpc::shared::v1_conversions_certificate::Error),
+
+    #[error(transparent)]
+    SubnetConversion(#[from] topos_core::api::grpc::shared::v1_conversions_subnet::Error),
+
+    #[error(transparent)]
+    Network(#[from] CommandExecutionError),
+
+    #[error(transparent)]
+    Store(#[from] StorageError),
+}
+
+impl<G: GatekeeperClient, N: NetworkClient> CheckpointSynchronizer<G, N> {
+    async fn initiate_request(&mut self) -> Result<(), SyncError> {
+        let request_id: APIUuid = Uuid::new_v4().into();
+
+        //  1. Ask a random peer for the diff between local and its latest checkpoint
+        let target_peer = self
+            .gatekeeper
+            .get_random_peers(1)
+            .await
+            .map_err(|_| SyncError::UnableToFetchTargetPeer)
+            .map(|peers| peers.last().cloned().ok_or(SyncError::NoPeerAvailable))??;
+
+        let checkpoint: Vec<grpc::tce::v1::ProofOfDelivery> = {
+            let certificate_ids = self
+                .store
+                .get_checkpoint()?
+                .values()
+                .map(|head| head.certificate_id)
+                .collect::<Vec<_>>();
+
+            self.store
+                .multi_get_certificate(&certificate_ids[..])?
+                .into_iter()
+                .filter_map(|value| {
+                    value.map(|delivered_certificate| delivered_certificate.proof_of_delivery)
+                })
+                .map(Into::into)
+                .collect()
+        };
+
+        let req = CheckpointRequest {
+            request_id: Some(request_id),
+            checkpoint,
+        };
+
+        debug!("Asking {} for latest checkpoint", target_peer);
+        let response: CheckpointResponse = self
+            .network
+            .send_request(
+                target_peer,
+                req,
+                RetryPolicy::NoRetry,
+                SYNCHRONIZER_PROTOCOL,
+            )
+            .await?;
+
+        let diff = response
+            .checkpoint_diff
+            .into_iter()
+            .map(|v| {
+                let subnet =
+                    SubnetId::from_str(&v.key[..]).map_err(|_| SyncError::UnableToParseSubnetId)?;
+                let proofs = v
+                    .value
+                    .into_iter()
+                    .map(|v| {
+                        let position = v
+                            .delivery_position
+                            .ok_or(SyncError::GrpcMalformedType("position"))?;
+                        Ok::<_, SyncError>(ProofOfDelivery {
+                            certificate_id: position
+                                .certificate_id
+                                .map(TryInto::try_into)
+                                .ok_or(SyncError::GrpcMalformedType("position.certificate_id"))??,
+                            delivery_position: SourceStreamPositionKey(
+                                position.source_subnet_id.map(TryInto::try_into).ok_or(
+                                    SyncError::GrpcMalformedType("position.source_subnet_id"),
+                                )??,
+                                Position(position.position),
+                            ),
+                            readies: v
+                                .readies
+                                .into_iter()
+                                .map(|r| (r.ready, r.signature))
+                                .collect(),
+                            threshold: v.threshold,
+                        })
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok::<_, SyncError>((subnet, proofs))
+            })
+            .collect::<Result<HashMap<_, _>, _>>()?;
+
+        let mut certs: HashSet<CertificateId> = HashSet::new();
+        for (_subnet, proofs) in diff {
+            let len = proofs.len();
+            let unverified_certs = self.store.insert_unverified_proofs(proofs)?;
+
+            debug!("Persist {} unverified proofs", len);
+            certs.extend(&unverified_certs[..]);
+        }
+
+        // Chunk certs
+        let mut chunked_certs: Vec<Vec<CertificateId>> = vec![];
+
+        let certs = certs.into_iter().collect::<Vec<_>>();
+
+        for certs in certs.chunks(10) {
+            chunked_certs.push(certs.to_vec());
+        }
+
+        for certificates in chunked_certs {
+            let target_peer = self
+                .gatekeeper
+                .get_random_peers(1)
+                .await
+                .map_err(|_| SyncError::UnableToFetchTargetPeer)
+                .map(|peers| peers.last().cloned().ok_or(SyncError::NoPeerAvailable))??;
+
+            let request_id: Option<APIUuid> = Some(Uuid::new_v4().into());
+            let certificate_ids: Vec<CertificateId> = certificates.to_vec();
+            let req = FetchCertificatesRequest {
+                request_id,
+                certificates: certificates.into_iter().map(Into::into).collect(),
+            };
+
+            debug!(
+                "Ask {} for certificates payload: {:?}",
+                target_peer, certificate_ids
+            );
+            let response = self
+                .network
+                .send_request::<_, FetchCertificatesResponse>(
+                    target_peer,
+                    req,
+                    RetryPolicy::NoRetry,
+                    SYNCHRONIZER_PROTOCOL,
+                )
+                .await?;
+
+            // TODO: verify every certificates
+            for certificate in response.certificates {
+                let store = self.store.clone();
+                tokio::spawn(async move {
+                    // Validate
+                    // Check precedence
+                    let certificate: Result<Certificate, _> = certificate.try_into();
+                    if let Ok(certificate) = certificate {
+                        let certificate_id = certificate.id;
+                        match store.synchronize_certificate(certificate).await {
+                            Ok(_) => debug!("Certificate {} synchronized", certificate_id),
+                            Err(e) => tracing::error!("Failed to sync because of: {:?}", e),
+                        }
+                    }
+                });
             }
         }
-    }
-
-    async fn handle(
-        &mut self,
-        command: CheckpointsCollectorCommand,
-    ) -> Result<(), CheckpointsCollectorError> {
-        match command {
-            CheckpointsCollectorCommand::StartCollecting { response_channel } if !self.started => {
-                self.started = true;
-
-                _ = response_channel.send(Ok(()));
-
-                // Need to fetch random peers
-                let peers = match self
-                    .gatekeeper
-                    .get_random_peers(self.config.peer_number)
-                    .await
-                {
-                    Ok(peers) => peers,
-                    Err(_) => return Err(CheckpointsCollectorError::UnableToFetchRandomPeer),
-                };
-
-                self.current_request_id = Some(Uuid::new_v4().into());
-
-                // upon receiving random peers send network messages
-                for peer in peers {
-                    // Sending CheckpointRequest
-                    let req = CheckpointRequest {
-                        request_id: self.current_request_id,
-                        request_type: Some(RequestType::Heads(checkpoint_request::Heads {
-                            subnet_ids: vec![],
-                        })),
-                    };
-
-                    // TODO: Put rate limit on the futures pool
-                    self.pending_checkpoint_requests.push(
-                        self.network
-                            .send_request::<_, CheckpointResponse>(peer, req, RetryPolicy::NoRetry)
-                            .boxed(),
-                    );
-                }
-            }
-            CheckpointsCollectorCommand::StartCollecting { response_channel } => {
-                _ = response_channel.send(Err(CheckpointsCollectorError::AlreadyStarting));
-            }
-        }
-
         Ok(())
     }
-}
 
-#[derive(Error, Debug)]
-pub enum CheckpointsCollectorError {
-    #[error("Unable to start the CheckpointsCollector")]
-    UnableToStart,
-
-    #[error("Unable to start the CheckpointsCollector: No gatekeeper client provided")]
-    NoGatekeeperClient,
-
-    #[error("Unable to start the CheckpointsCollector: No network client provided")]
-    NoNetworkClient,
-
-    #[error("Error while dealing with Start command: already starting")]
-    AlreadyStarting,
-
-    #[error("Error while trying to fetch random peers")]
-    UnableToFetchRandomPeer,
-
-    #[error(transparent)]
-    OneshotCommunicationChannel(#[from] RecvError),
-
-    #[error(transparent)]
-    InternalCommunicationChannel(#[from] SendError<CheckpointsCollectorCommand>),
-}
-
-#[derive(Debug)]
-pub enum CheckpointsCollectorCommand {
-    StartCollecting {
-        response_channel: oneshot::Sender<Result<(), CheckpointsCollectorError>>,
-    },
+    pub fn builder() -> CheckpointsCollectorBuilder<G, N> {
+        CheckpointsCollectorBuilder::default()
+    }
 }
 
 pub enum CheckpointsCollectorEvent {}

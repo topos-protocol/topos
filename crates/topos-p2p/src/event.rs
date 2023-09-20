@@ -18,7 +18,7 @@ pub struct GossipEvent {
 #[derive(Debug)]
 pub enum ComposedEvent {
     Kademlia(Box<KademliaEvent>),
-    Transmission(RequestResponseEvent<TransmissionRequest, TransmissionResponse>),
+    Transmission(RequestResponseEvent<TransmissionRequest, Result<TransmissionResponse, ()>>),
     PeerInfo(Box<identify::Event>),
     Gossipsub(GossipEvent),
     Void,
@@ -36,8 +36,12 @@ impl From<identify::Event> for ComposedEvent {
     }
 }
 
-impl From<RequestResponseEvent<TransmissionRequest, TransmissionResponse>> for ComposedEvent {
-    fn from(event: RequestResponseEvent<TransmissionRequest, TransmissionResponse>) -> Self {
+impl From<RequestResponseEvent<TransmissionRequest, Result<TransmissionResponse, ()>>>
+    for ComposedEvent
+{
+    fn from(
+        event: RequestResponseEvent<TransmissionRequest, Result<TransmissionResponse, ()>>,
+    ) -> Self {
         Self::Transmission(event)
     }
 }
@@ -60,9 +64,14 @@ pub enum Event {
         from: PeerId,
         data: Vec<u8>,
     },
+    SynchronizerRequest {
+        from: PeerId,
+        data: Vec<u8>,
+        channel: ResponseChannel<Result<TransmissionResponse, ()>>,
+    },
     TransmissionOnReq {
         from: PeerId,
         data: Vec<u8>,
-        channel: ResponseChannel<TransmissionResponse>,
+        channel: ResponseChannel<Result<TransmissionResponse, ()>>,
     },
 }

@@ -5,6 +5,7 @@ use tokio::sync::{mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::{Request, Response, Status, Streaming};
 use topos_api::grpc::tce::v1::LastPendingCertificate;
+use topos_core::api::grpc::shared::v1::positions;
 use topos_core::api::grpc::tce::v1::{
     api_service_server::ApiService, GetLastPendingCertificatesRequest,
     GetLastPendingCertificatesResponse, GetSourceHeadRequest, GetSourceHeadResponse,
@@ -160,30 +161,37 @@ impl ApiService for TceGrpcService {
             }
 
             receiver
-                .map(|value| match value {
-                    Ok(Ok((position, ref certificate))) => {
-                        Ok(Response::new(GetSourceHeadResponse {
-                            certificate: Some(certificate.clone().into()),
-                            position: Some(topos_core::api::grpc::tce::v1::SourceStreamPosition {
-                                subnet_id: Some(certificate.source_subnet_id.into()),
-                                certificate_id: Some((*certificate.id.as_array()).into()),
-                                position,
-                            }),
-                        }))
-                    }
-                    Ok(Err(crate::RuntimeError::UnknownSubnet(subnet_id))) => {
+                .map(|value| {
+                    match value {
+                        Ok(Ok((position, ref certificate))) => {
+                            Ok(Response::new(GetSourceHeadResponse {
+                                certificate: Some(certificate.clone().into()),
+                                position: Some(positions::SourceStreamPosition {
+                                    source_subnet_id: Some(certificate.source_subnet_id.into()),
+                                    certificate_id: Some((*certificate.id.as_array()).into()),
+                                    position,
+                                }),
+                            }))
+                        }
+
+                        Ok(Err(crate::RuntimeError::UnknownSubnet(subnet_id))) =>
                         // Tce does not have Position::Zero certificate associated
-                        Err(Status::internal(format!(
-                            "Unknown subnet, no genesis certificate associated with subnet id {}",
-                            &subnet_id
-                        )))
+                        {
+                            Err(Status::internal(format!(
+                                "Unknown subnet, no genesis certificate associated with subnet id \
+                                 {}",
+                                &subnet_id
+                            )))
+                        }
+
+                        Ok(Err(e)) => Err(Status::internal(format!(
+                            "Can't get source head certificate position: {e}"
+                        ))),
+
+                        Err(e) => Err(Status::internal(format!(
+                            "Can't get source head certificate position: {e}"
+                        ))),
                     }
-                    Ok(Err(e)) => Err(Status::internal(format!(
-                        "Can't get source head certificate position: {e}"
-                    ))),
-                    Err(e) => Err(Status::internal(format!(
-                        "Can't get source head certificate position: {e}"
-                    ))),
                 })
                 .await
         } else {

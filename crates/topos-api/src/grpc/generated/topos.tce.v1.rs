@@ -1,81 +1,71 @@
+#[derive(serde::Deserialize, serde::Serialize)]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CheckpointRequest {
     /// Provide a request_id to track response
     #[prost(message, optional, tag = "1")]
     pub request_id: ::core::option::Option<super::super::shared::v1::Uuid>,
-    /// The type of request
-    #[prost(oneof = "checkpoint_request::RequestType", tags = "2, 3, 4")]
-    pub request_type: ::core::option::Option<checkpoint_request::RequestType>,
+    #[prost(message, repeated, tag = "2")]
+    pub checkpoint: ::prost::alloc::vec::Vec<ProofOfDelivery>,
 }
-/// Nested message and enum types in `CheckpointRequest`.
-pub mod checkpoint_request {
-    /// Heads defines a request for every head positions for the listed subnets
-    #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, PartialEq, ::prost::Message)]
-    pub struct Heads {
-        #[prost(message, repeated, tag = "1")]
-        pub subnet_ids: ::prost::alloc::vec::Vec<
-            super::super::super::shared::v1::SubnetId,
-        >,
-    }
-    /// SamePosition defines a request for the same position for the listed subnets
-    #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, PartialEq, ::prost::Message)]
-    pub struct SamePosition {
-        #[prost(message, repeated, tag = "1")]
-        pub subnet_ids: ::prost::alloc::vec::Vec<
-            super::super::super::shared::v1::SubnetId,
-        >,
-        #[prost(uint64, tag = "2")]
-        pub position: u64,
-    }
-    /// Zero defines a request for the zero position for the listed subnets
-    #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, PartialEq, ::prost::Message)]
-    pub struct Zero {
-        #[prost(message, repeated, tag = "1")]
-        pub subnet_ids: ::prost::alloc::vec::Vec<
-            super::super::super::shared::v1::SubnetId,
-        >,
-    }
-    /// The type of request
-    #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, PartialEq, ::prost::Oneof)]
-    pub enum RequestType {
-        /// This type of request will ask for heads of subnets
-        #[prost(message, tag = "2")]
-        Heads(Heads),
-        /// This type of request will ask for the same position for every subnet
-        #[prost(message, tag = "3")]
-        SamePosition(SamePosition),
-        /// This type of request will ask for the zero position for every subnets
-        #[prost(message, tag = "4")]
-        Zero(Zero),
-    }
-}
+#[derive(serde::Deserialize, serde::Serialize)]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CheckpointResponse {
     /// If the response is directly linked to a request this ID allow one to track it
     #[prost(message, optional, tag = "1")]
     pub request_id: ::core::option::Option<super::super::shared::v1::Uuid>,
-    /// Contains the positions returned by the peer, this can be empty if the peer
-    /// doesn't have any position regarding the subnets list
     #[prost(message, repeated, tag = "2")]
-    pub positions: ::prost::alloc::vec::Vec<SourceStreamPosition>,
+    pub checkpoint_diff: ::prost::alloc::vec::Vec<CheckpointMapFieldEntry>,
 }
-/// Type that represents a SourceStreamPosition, or position, it represents a
-/// particular position in the stream of a subnet in a peer context.
+#[derive(serde::Deserialize, serde::Serialize)]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct SourceStreamPosition {
+pub struct CheckpointMapFieldEntry {
+    #[prost(string, tag = "1")]
+    pub key: ::prost::alloc::string::String,
+    #[prost(message, repeated, tag = "2")]
+    pub value: ::prost::alloc::vec::Vec<ProofOfDelivery>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct FetchCertificatesRequest {
+    /// Provide a request_id to track response
     #[prost(message, optional, tag = "1")]
-    pub subnet_id: ::core::option::Option<super::super::shared::v1::SubnetId>,
-    #[prost(message, optional, tag = "2")]
-    pub certificate_id: ::core::option::Option<super::super::shared::v1::CertificateId>,
+    pub request_id: ::core::option::Option<super::super::shared::v1::Uuid>,
+    #[prost(message, repeated, tag = "2")]
+    pub certificates: ::prost::alloc::vec::Vec<super::super::shared::v1::CertificateId>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct FetchCertificatesResponse {
+    /// Provide a request_id to track response
+    #[prost(message, optional, tag = "1")]
+    pub request_id: ::core::option::Option<super::super::shared::v1::Uuid>,
+    #[prost(message, repeated, tag = "2")]
+    pub certificates: ::prost::alloc::vec::Vec<super::super::uci::v1::Certificate>,
+}
+#[derive(serde::Deserialize, serde::Serialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ProofOfDelivery {
+    #[prost(message, optional, tag = "1")]
+    pub delivery_position: ::core::option::Option<
+        super::super::shared::v1::positions::SourceStreamPosition,
+    >,
+    #[prost(message, repeated, tag = "2")]
+    pub readies: ::prost::alloc::vec::Vec<SignedReady>,
     #[prost(uint64, tag = "3")]
-    pub position: u64,
+    pub threshold: u64,
+}
+#[derive(serde::Deserialize, serde::Serialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SignedReady {
+    #[prost(string, tag = "1")]
+    pub ready: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub signature: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -96,7 +86,9 @@ pub struct GetSourceHeadRequest {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetSourceHeadResponse {
     #[prost(message, optional, tag = "1")]
-    pub position: ::core::option::Option<SourceStreamPosition>,
+    pub position: ::core::option::Option<
+        super::super::shared::v1::positions::SourceStreamPosition,
+    >,
     #[prost(message, optional, tag = "2")]
     pub certificate: ::core::option::Option<super::super::uci::v1::Certificate>,
 }

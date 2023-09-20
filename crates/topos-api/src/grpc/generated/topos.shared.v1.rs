@@ -1,4 +1,4 @@
-#[derive(Copy)]
+#[derive(Copy, serde::Deserialize, serde::Serialize)]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Uuid {
@@ -7,14 +7,14 @@ pub struct Uuid {
     #[prost(uint64, tag = "2")]
     pub least_significant_bits: u64,
 }
-#[derive(Eq, Hash)]
+#[derive(Eq, Hash, serde::Deserialize, serde::Serialize)]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SubnetId {
     #[prost(bytes = "vec", tag = "1")]
     pub value: ::prost::alloc::vec::Vec<u8>,
 }
-#[derive(Eq, Hash)]
+#[derive(Eq, Hash, serde::Deserialize, serde::Serialize)]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CertificateId {
@@ -55,6 +55,7 @@ pub struct Positions {}
 pub mod positions {
     /// SourceStreamPosition represents a single point in a source stream.
     /// It is defined by a source_subnet_id and a position, resolving to a certificate_id
+    #[derive(serde::Deserialize, serde::Serialize)]
     #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct SourceStreamPosition {

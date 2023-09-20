@@ -8,11 +8,11 @@ use tokio::{
     },
 };
 use tokio_util::sync::CancellationToken;
-use topos_core::uci::SubnetId;
+use topos_core::uci::{CertificateId, SubnetId};
 use topos_sequencer_subnet_runtime::{SubnetRuntimeProxyConfig, SubnetRuntimeProxyWorker};
 use topos_tce_proxy::{worker::TceProxyWorker, TceProxyConfig};
 use topos_wallet::SecretKey;
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 mod app_context;
 
@@ -48,8 +48,17 @@ pub async fn launch(
     // Get subnet id from the subnet node if not provided via the command line argument
     // It will retry using backoff algorithm, but if it fails (default max backoff elapsed time is 15 min) we can not proceed
     else {
+        let http_endpoint =
+            topos_sequencer_subnet_runtime::derive_endpoints(&config.subnet_jsonrpc_endpoint)
+                .map_err(|e| {
+                    Box::new(std::io::Error::new(
+                        InvalidInput,
+                        format!("Invalid subnet endpoint: {e}"),
+                    ))
+                })?
+                .0;
         match SubnetRuntimeProxyWorker::get_subnet_id(
-            config.subnet_jsonrpc_endpoint.as_str(),
+            &http_endpoint,
             config.subnet_contract_address.as_str(),
         )
         .await
@@ -64,11 +73,15 @@ pub async fn launch(
         }
     };
 
+    let (http_endpoint, ws_endpoint) =
+        topos_sequencer_subnet_runtime::derive_endpoints(&config.subnet_jsonrpc_endpoint)?;
+
     // Instantiate subnet runtime proxy, handling interaction with subnet node
     let subnet_runtime_proxy_worker = match SubnetRuntimeProxyWorker::new(
         SubnetRuntimeProxyConfig {
             subnet_id,
-            endpoint: config.subnet_jsonrpc_endpoint.clone(),
+            http_endpoint,
+            ws_endpoint,
             subnet_contract_address: config.subnet_contract_address.clone(),
             source_head_certificate_id: None, // Must be acquired later after TCE proxy is connected
             verifier: config.verifier,
@@ -103,7 +116,20 @@ pub async fn launch(
     })
     .await
     {
-        Ok((tce_proxy_worker, source_head_certificate)) => {
+        Ok((tce_proxy_worker, mut source_head_certificate)) => {
+            // FIXME: If TCE returns all zeros for the source head certificate, it means that it does not have
+            // any information about the subnet. Until registration of the subnets with the topos subnet is implemented,
+            // we get genesis block (and create genesis certificate) directly from the subnet block 0
+            if let Some((cert, _position)) = &mut source_head_certificate {
+                if cert.id == CertificateId::default() {
+                    warn!(
+                        "Tce has not provided source head certificate, starting from subnet \
+                         genesis block..."
+                    );
+                    source_head_certificate = None;
+                }
+            }
+
             info!(
                 "TCE proxy client is starting for the source subnet {:?} from the head {:?}",
                 subnet_id, source_head_certificate

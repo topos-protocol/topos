@@ -160,7 +160,10 @@ impl Runtime {
                                 stats,
                                 ..
                             } if Some(id) == addr_query_id && publish_retry == 0 => {
-                                debug!("QuorumFailure on DHT addr publication: key: {key:?}, success: {success:?}, quorum: {quorum:?}, stats: {stats:?}");
+                                debug!(
+                                    "QuorumFailure on DHT addr publication: key: {key:?}, \
+                                     success: {success:?}, quorum: {quorum:?}, stats: {stats:?}"
+                                );
                                 return Err(Box::new(P2PError::BootstrapError(
                                     "Unable to send the addr Record to DHT",
                                 )));
@@ -178,8 +181,14 @@ impl Runtime {
                                 step,
                             } if Some(id) == addr_query_id && publish_retry > 0 => {
                                 publish_retry -= 1;
-                                warn!("Failed to PutRecord in DHT, retry again, attempt number {publish_retry}");
-                                warn!("QuorumFailure on DHT addr publication: key: {key:?}, success: {success:?}, quorum: {quorum:?}, stats: {stats:?}");
+                                warn!(
+                                    "Failed to PutRecord in DHT, retry again, attempt number \
+                                     {publish_retry}"
+                                );
+                                warn!(
+                                    "QuorumFailure on DHT addr publication: key: {key:?}, \
+                                     success: {success:?}, quorum: {quorum:?}, stats: {stats:?}"
+                                );
                                 let key = Key::new(&self.local_peer_id.to_string());
                                 if let Ok(query_id_record) =
                                     self.swarm.behaviour_mut().discovery.inner.put_record(
@@ -217,7 +226,10 @@ impl Runtime {
                                 stats,
                                 step,
                             } => {
-                                debug!("OutboundQueryProgressed: {id:?}, {result:?}, {stats:?}, {step:?}");
+                                debug!(
+                                    "OutboundQueryProgressed: {id:?}, {result:?}, {stats:?}, \
+                                     {step:?}"
+                                );
                             }
 
                             KademliaEvent::InboundRequest { .. } => {}
@@ -254,7 +266,10 @@ impl Runtime {
                         error,
                         ..
                     } => {
-                        warn!("IncomingConnectionError: local_addr: {local_addr:?}, send_back_addr: {send_back_addr:?}, error: {error:?}");
+                        warn!(
+                            "IncomingConnectionError: local_addr: {local_addr:?}, send_back_addr: \
+                             {send_back_addr:?}, error: {error:?}"
+                        );
                     }
                     event => warn!("Unhandle event during Bootstrap: {event:?}"),
                 }

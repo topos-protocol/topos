@@ -13,11 +13,7 @@ pub(crate) mod genesis;
 
 use std::path::Path;
 
-use figment::{
-    error::Kind,
-    providers::{Format, Serialized, Toml},
-    Figment,
-};
+use figment::{error::Kind, providers::Serialized, Figment};
 use serde::Serialize;
 
 pub(crate) trait Config: Serialize {

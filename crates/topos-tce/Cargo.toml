@@ -19,11 +19,15 @@ serde.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true
+tokio-stream.workspace = true
 topos-core.workspace = true
 tracing-attributes.workspace = true
 tracing-opentelemetry.workspace = true
 tracing-subscriber = { workspace = true, default-features = false,  features = ["std", "env-filter", "fmt", "ansi"] }
 tracing.workspace = true
+tonic.workspace = true
+bytes.workspace = true
+prost.workspace = true
 
 tce_transport = { package = "topos-tce-transport", path = "../topos-tce-transport" }
 topos-p2p = { path = "../topos-p2p" }

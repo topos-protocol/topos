@@ -2,7 +2,7 @@ use std::path::Path;
 use std::{net::SocketAddr, path::PathBuf};
 
 use figment::{
-    providers::{Format, Serialized, Toml},
+    providers::{Format, Toml},
     Figment,
 };
 use serde::{Deserialize, Serialize};

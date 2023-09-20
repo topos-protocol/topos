@@ -12,7 +12,6 @@ use tokio::{
     sync::broadcast,
     time::{interval_at, Instant},
 };
-use tracing::info;
 
 use crate::{Clock, Error, Event, BROADCAST_CHANNEL_SIZE};
 
@@ -70,29 +69,27 @@ impl TimeClock {
         loop {
             interval.tick().await;
 
-            self.current_block.fetch_add(1, Ordering::Relaxed);
-            info!("current block: {:?}", self.current_block);
+            let _previous_block = self.current_block.fetch_add(1, Ordering::Relaxed);
 
             if self.current_block.load(Ordering::Relaxed) % self.epoch_duration == 0 {
                 self.compute_epoch();
-                _ = sender.send(Event::EpochChange);
+                _ = sender.send(Event::EpochChange(
+                    self.current_epoch.load(Ordering::Relaxed),
+                ));
             }
         }
     }
 
     fn compute_block(&mut self) {
-        let current = Utc::now();
-        let x = current
-            .naive_utc()
-            .signed_duration_since(self.genesis.naive_utc());
+        let blocks = std::cmp::max(
+            Utc::now()
+                .naive_utc()
+                .signed_duration_since(self.genesis.naive_utc())
+                .num_seconds(),
+            0,
+        ) as u64;
 
-        let blocks = x.num_seconds();
-
-        self.current_block = Arc::new(if blocks.is_negative() {
-            AtomicU64::new(0)
-        } else {
-            AtomicU64::new(blocks as u64)
-        });
+        self.current_block.store(blocks, Ordering::Relaxed);
     }
 
     fn compute_epoch(&mut self) {
@@ -100,5 +97,54 @@ impl TimeClock {
             self.current_block.load(Ordering::Relaxed) / self.epoch_duration,
             Ordering::Relaxed,
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono::{Duration, Utc};
+
+    use crate::{Clock, Event, TimeClock};
+
+    #[tokio::test]
+    async fn test_time_clock() {
+        let genesis = Utc::now()
+            .checked_sub_signed(Duration::seconds(30))
+            .unwrap();
+
+        let clock = TimeClock::new(genesis, 5).unwrap();
+        let current_block = clock.block_ref();
+        let current_epoch = clock.epoch_ref();
+
+        let mut recv = clock.spawn().unwrap();
+
+        assert_eq!(recv.recv().await, Ok(Event::EpochChange(7)));
+        assert_eq!(current_epoch.load(std::sync::atomic::Ordering::Relaxed), 7);
+        assert!(current_block.load(std::sync::atomic::Ordering::Relaxed) >= 30);
+    }
+
+    #[tokio::test]
+    async fn test_time_clock_catchup() {
+        let genesis = Utc::now()
+            .checked_sub_signed(Duration::seconds(30))
+            .unwrap();
+
+        let clock = TimeClock::new(genesis, 2).unwrap();
+        let current_block = clock.block_ref();
+        let current_epoch = clock.epoch_ref();
+
+        let mut recv = clock.spawn().unwrap();
+
+        assert_eq!(recv.recv().await, Ok(Event::EpochChange(16)));
+        assert!(recv.try_recv().is_err());
+        assert_eq!(current_epoch.load(std::sync::atomic::Ordering::Relaxed), 16);
+        assert!(current_block.load(std::sync::atomic::Ordering::Relaxed) >= 30);
+        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+
+        assert_eq!(recv.recv().await, Ok(Event::EpochChange(17)));
+        assert_eq!(recv.recv().await, Ok(Event::EpochChange(18)));
+
+        assert_eq!(current_epoch.load(std::sync::atomic::Ordering::Relaxed), 18);
+        assert!(current_block.load(std::sync::atomic::Ordering::Relaxed) >= 35);
     }
 }

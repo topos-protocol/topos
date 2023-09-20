@@ -47,7 +47,10 @@ impl
         SwarmEvent<
             ComposedEvent,
             Either<
-                Either<Either<Either<io::Error, io::Error>, void::Void>, void::Void>,
+                Either<
+                    Either<Either<Either<std::io::Error, std::io::Error>, void::Void>, void::Void>,
+                    void::Void,
+                >,
                 void::Void,
             >,
         >,
@@ -58,7 +61,10 @@ impl
         event: SwarmEvent<
             ComposedEvent,
             Either<
-                Either<Either<Either<io::Error, io::Error>, void::Void>, void::Void>,
+                Either<
+                    Either<Either<Either<std::io::Error, std::io::Error>, void::Void>, void::Void>,
+                    void::Void,
+                >,
                 void::Void,
             >,
         >,
@@ -121,7 +127,8 @@ impl
                 reason,
             } => {
                 info!(
-                    "ListenerClosed {:?}: listener_id{listener_id:?} | addresses: {addresses:?} | reason: {reason:?}",
+                    "ListenerClosed {:?}: listener_id{listener_id:?} | addresses: {addresses:?} | \
+                     reason: {reason:?}",
                     *self.swarm.local_peer_id()
                 );
             }

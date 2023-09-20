@@ -24,11 +24,11 @@ pub(crate) mod db;
 pub(crate) mod db_column;
 pub(crate) mod iterator;
 pub(crate) mod map;
-mod types;
+pub(crate) mod types;
 
 pub(crate) use types::*;
 
-const EMPTY_PREVIOUS_CERT_ID: [u8; CERTIFICATE_ID_LENGTH] = [0u8; CERTIFICATE_ID_LENGTH];
+pub const EMPTY_PREVIOUS_CERT_ID: [u8; CERTIFICATE_ID_LENGTH] = [0u8; CERTIFICATE_ID_LENGTH];
 
 #[derive(Debug)]
 pub struct RocksDBStorage {
@@ -92,7 +92,7 @@ fn create_and_init(path: &PathBuf) -> Result<RocksDB, InternalStorageError> {
     let mut options = rocksdb::Options::default();
     options.create_if_missing(true);
     options.create_missing_column_families(true);
-    init_db(path, &mut options)
+    init_db(path, options)
 }
 
 #[async_trait::async_trait]
@@ -133,11 +133,15 @@ impl Storage for RocksDBStorage {
 
         if let Some(pending_id) = pending_certificate_id {
             match self.pending_certificates.get(&pending_id) {
-                Ok(ref pending_certificate) if pending_certificate == certificate => {
+                Ok(Some(ref pending_certificate)) if pending_certificate == certificate => {
                     batch = batch.delete(&self.pending_certificates, pending_id)?;
                 }
                 Ok(_) => {
-                    warn!("PendingCertificateId {} ignored during persist execution: Difference in certificates", pending_id);
+                    warn!(
+                        "PendingCertificateId {} ignored during persist execution: Difference in \
+                         certificates",
+                        pending_id
+                    );
                 }
 
                 _ => {
@@ -274,7 +278,7 @@ impl Storage for RocksDBStorage {
     ) -> Result<Vec<crate::SourceHead>, InternalStorageError> {
         let mut result: Vec<crate::SourceHead> = Vec::new();
         for source_subnet_id in subnets {
-            let (position, cert_id) = self
+            let (position, certificate_id) = self
                 .source_streams
                 .prefix_iter(&source_subnet_id)?
                 .last()
@@ -282,7 +286,7 @@ impl Storage for RocksDBStorage {
                 .ok_or(InternalStorageError::MissingHeadForSubnet(source_subnet_id))?;
             result.push(SourceHead {
                 position,
-                cert_id,
+                certificate_id,
                 subnet_id: source_subnet_id,
             });
         }
@@ -306,7 +310,8 @@ impl Storage for RocksDBStorage {
         &self,
         certificate_id: CertificateId,
     ) -> Result<Certificate, InternalStorageError> {
-        self.certificates.get(&certificate_id)
+        let res = self.certificates.get(&certificate_id)?;
+        res.ok_or(InternalStorageError::CertificateNotFound(certificate_id))
     }
 
     async fn get_certificates_by_source(

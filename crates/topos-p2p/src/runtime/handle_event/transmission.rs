@@ -12,10 +12,12 @@ use crate::{
 use super::EventHandler;
 
 #[async_trait::async_trait]
-impl EventHandler<RequestResponseEvent<TransmissionRequest, TransmissionResponse>> for Runtime {
+impl EventHandler<RequestResponseEvent<TransmissionRequest, Result<TransmissionResponse, ()>>>
+    for Runtime
+{
     async fn handle(
         &mut self,
-        event: RequestResponseEvent<TransmissionRequest, TransmissionResponse>,
+        event: RequestResponseEvent<TransmissionRequest, Result<TransmissionResponse, ()>>,
     ) {
         match event {
             RequestResponseEvent::Message {
@@ -25,11 +27,20 @@ impl EventHandler<RequestResponseEvent<TransmissionRequest, TransmissionResponse
                         request, channel, ..
                     },
             } => {
-                _ = self.event_sender.try_send(Event::TransmissionOnReq {
-                    from: peer,
-                    data: request.0,
-                    channel,
-                });
+                let event = match request {
+                    TransmissionRequest::Synchronizer(data) => Event::SynchronizerRequest {
+                        from: peer,
+                        data,
+                        channel,
+                    },
+                    TransmissionRequest::Transmission(data) => Event::TransmissionOnReq {
+                        from: peer,
+                        data,
+                        channel,
+                    },
+                };
+
+                _ = self.event_sender.try_send(event);
             }
 
             RequestResponseEvent::Message {
@@ -40,9 +51,19 @@ impl EventHandler<RequestResponseEvent<TransmissionRequest, TransmissionResponse
                     },
                 peer,
             } => {
-                if let Some(sender) = self.pending_requests.remove(&request_id) {
-                    if sender.send(Ok(response.0)).is_err() {
-                        warn!("Could not send response to request {request_id} because initiator is dropped");
+                if let Ok(res) = response {
+                    if let Some(sender) = self.pending_requests.remove(&request_id) {
+                        let data = match res {
+                            TransmissionResponse::Transmission(data) => data,
+                            TransmissionResponse::Synchronizer(data) => data,
+                        };
+
+                        if sender.send(Ok(data)).is_err() {
+                            warn!(
+                                "Could not send response to request {request_id} because \
+                                 initiator is dropped"
+                            );
+                        }
                     }
                 }
             }
@@ -54,10 +75,17 @@ impl EventHandler<RequestResponseEvent<TransmissionRequest, TransmissionResponse
             } => {
                 if let Some(sender) = self.pending_requests.remove(&request_id) {
                     if sender.send(Err(error.into())).is_err() {
-                        warn!("Could not send RequestFailure for request {request_id} because initiator is dropped");
+                        warn!(
+                            "Could not send RequestFailure for request {request_id} because \
+                             initiator is dropped"
+                        );
                     }
                 } else {
-                    warn!("Received an OutboundRequest failure for an unknown request {request_id} from {peer} because of {:?}", error)
+                    warn!(
+                        "Received an OutboundRequest failure for an unknown request {request_id} \
+                         from {peer} because of {:?}",
+                        error
+                    )
                 }
             }
 
