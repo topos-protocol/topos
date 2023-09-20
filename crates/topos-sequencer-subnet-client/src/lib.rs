@@ -3,7 +3,7 @@ pub mod subnet_contract;
 use crate::subnet_contract::{create_topos_core_contract_from_json, get_block_events};
 use ethers::abi::ethabi::ethereum_types::{H160, U256};
 use ethers::core::k256::ecdsa::SigningKey;
-use ethers::prelude::Wallet;
+use ethers::signers::Wallet;
 use ethers::types::TransactionReceipt;
 use ethers::{
     abi::Token,

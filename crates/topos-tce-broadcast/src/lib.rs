@@ -15,7 +15,8 @@ use tokio::sync::mpsc::Sender;
 use tokio::sync::{broadcast, mpsc, oneshot};
 
 use double_echo::DoubleEcho;
-use ethers::prelude::{LocalWallet, Signature};
+use ethers::signers::LocalWallet;
+use ethers::types::Signature;
 use futures::Stream;
 use sampler::SampleType;
 use tce_transport::{ProtocolEvents, ReliableBroadcastParams, ValidatorId};

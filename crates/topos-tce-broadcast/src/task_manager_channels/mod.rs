@@ -1,4 +1,4 @@
-use ethers::prelude::LocalWallet;
+use ethers::signers::LocalWallet;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tce_transport::{ProtocolEvents, ReliableBroadcastParams, ValidatorId};

@@ -1,4 +1,4 @@
-use ethers::prelude::{LocalWallet, Signer};
+use ethers::signers::{LocalWallet, Signer};
 use futures::Stream;
 use std::collections::HashSet;
 use std::sync::Arc;

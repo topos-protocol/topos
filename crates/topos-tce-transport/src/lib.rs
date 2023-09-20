@@ -1,9 +1,9 @@
 //! implementation of Topos Network Transport
 //!
 use clap::Parser;
-use ethers::prelude::{Address, SignatureError, Signer, WalletError};
 use ethers::signers::LocalWallet;
-use ethers::types::{Signature, H160};
+use ethers::signers::{Signer, WalletError};
+use ethers::types::{Address, Signature, SignatureError, H160};
 use ethers::utils::keccak256;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
@@ -166,11 +166,11 @@ pub async fn sign_message(
     certificate_id: CertificateId,
     wallet: LocalWallet,
 ) -> Result<Signature, WalletError> {
-    let mut hash = Vec::new();
-    hash.extend(certificate_id.as_array().iter().cloned());
-    hash.extend(validator_id.as_bytes());
+    let mut preimg = Vec::new();
+    preimg.extend(certificate_id.as_array().iter().cloned());
+    preimg.extend(validator_id.as_bytes());
 
-    let hash = keccak256(hash);
+    let hash = keccak256(preimg);
 
     wallet.sign_message(hash.as_slice()).await
 }

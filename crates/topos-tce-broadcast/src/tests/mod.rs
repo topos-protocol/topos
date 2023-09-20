@@ -1,6 +1,6 @@
 use crate::double_echo::*;
 use crate::*;
-use ethers::prelude::{LocalWallet, Signer};
+use ethers::signers::{LocalWallet, Signer};
 use ethers::utils::keccak256;
 use rstest::*;
 use std::collections::HashSet;

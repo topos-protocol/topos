@@ -1,5 +1,5 @@
 use config::TceConfiguration;
-use ethers::prelude::{LocalWallet, Signer};
+use ethers::signers::{LocalWallet, Signer};
 use futures::StreamExt;
 use opentelemetry::global;
 use std::{future::IntoFuture, sync::Arc};

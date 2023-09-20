@@ -1,6 +1,6 @@
 use crate::TaskStatus;
 use crate::{DoubleEchoCommand, SubscriptionsView};
-use ethers::prelude::LocalWallet;
+use ethers::signers::LocalWallet;
 use ethers::types::Signature;
 use std::collections::HashSet;
 use std::sync::Arc;

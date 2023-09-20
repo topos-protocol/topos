@@ -1,5 +1,5 @@
 use crate::sampler::SubscriptionsView;
-use ethers::prelude::LocalWallet;
+use ethers::signers::LocalWallet;
 use std::{collections::HashSet, time};
 use tce_transport::sign_message;
 use tce_transport::{ProtocolEvents, ValidatorId};

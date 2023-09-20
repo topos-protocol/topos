@@ -3,7 +3,7 @@
 use dockertest::{
     Composition, DockerTest, Image, LogAction, LogOptions, LogPolicy, LogSource, PullPolicy, Source,
 };
-use ethers::prelude::Block;
+use ethers::signers::Block;
 use ethers::types::H256;
 use ethers::{
     abi::{ethabi::ethereum_types::U256, Address},

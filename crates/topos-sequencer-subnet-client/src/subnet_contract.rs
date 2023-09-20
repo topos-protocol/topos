@@ -1,7 +1,7 @@
 use crate::{Error, SubnetEvent};
 use ethers::abi::ethabi::ethereum_types::{H160, U64};
 use ethers::contract::ContractError;
-use ethers::prelude::LocalWallet;
+use ethers::signers::LocalWallet;
 use ethers::{
     prelude::abigen,
     providers::{Middleware, Provider, Ws},

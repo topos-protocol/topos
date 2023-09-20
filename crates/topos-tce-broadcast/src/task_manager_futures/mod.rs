@@ -1,4 +1,4 @@
-use ethers::prelude::LocalWallet;
+use ethers::signers::LocalWallet;
 use futures::stream::FuturesUnordered;
 use futures::Future;
 use futures::StreamExt;
