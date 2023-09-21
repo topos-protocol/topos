@@ -10,6 +10,7 @@ use topos_test_sdk::certificates::create_certificate_chain;
 use topos_test_sdk::constants::{SOURCE_SUBNET_ID_1, TARGET_SUBNET_ID_1};
 
 const CHANNEL_SIZE: usize = 256_000;
+const PRIVATE_KEY: &str = "47d361f6becb933a77d7e01dee7b1c1859b656adbd8428bf7bf9519503e5d5d6";
 
 struct TceParams {
     nb_peers: usize,
@@ -35,17 +36,15 @@ pub async fn processing_double_echo(n: u64, validator_store: Arc<ValidatorStore>
         },
     };
 
-    let wallet: LocalWallet = "47d361f6becb933a77d7e01dee7b1c1859b656adbd8428bf7bf9519503e5d5d6"
-        .parse()
-        .unwrap();
+    let wallet: LocalWallet = PRIVATE_KEY.parse().unwrap();
 
     let mut validators = HashSet::new();
     let validator_id = ValidatorId::from(wallet.address());
-    validators.insert(validator_id.clone());
+    validators.insert(validator_id);
 
     let mut double_echo = DoubleEcho::new(
         params.broadcast_params,
-        validator_id.clone(),
+        validator_id,
         wallet.clone(),
         validators,
         task_manager_message_sender.clone(),
@@ -107,24 +106,24 @@ pub async fn processing_double_echo(n: u64, validator_store: Arc<ValidatorStore>
         for p in &double_echo_selected_echo {
             let mut message = Vec::new();
             message.extend(cert.certificate.id.as_array().iter().cloned());
-            message.extend(validator_id.clone().as_bytes());
+            message.extend(validator_id.as_bytes());
 
             let signature = wallet.sign_message(message.as_slice()).await.unwrap();
 
             double_echo
-                .handle_echo(*p, cert.certificate.id, validator_id.clone(), signature)
+                .handle_echo(*p, cert.certificate.id, validator_id, signature)
                 .await;
         }
 
         for p in &double_echo_selected_ready {
             let mut message = Vec::new();
             message.extend(cert.certificate.id.as_array().iter().cloned());
-            message.extend(validator_id.clone().as_bytes());
+            message.extend(validator_id.as_bytes());
 
             let signature = wallet.sign_message(message.as_slice()).await.unwrap();
 
             double_echo
-                .handle_ready(*p, cert.certificate.id, validator_id.clone(), signature)
+                .handle_ready(*p, cert.certificate.id, validator_id, signature)
                 .await;
         }
     }

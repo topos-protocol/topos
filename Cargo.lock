@@ -7227,10 +7227,14 @@ version = "0.1.0"
 dependencies = [
  "byteorder",
  "eth-keystore",
+ "ethers",
  "hex",
  "keccak-hash",
+ "rstest",
  "secp256k1",
  "thiserror",
+ "topos-core",
+ "topos-tce-transport",
 ]
 
 [[package]]
@@ -7439,7 +7443,6 @@ dependencies = [
  "futures",
  "hex",
  "lazy_static",
- "libp2p",
  "rand",
  "rand_core 0.6.4",
  "rstest",
@@ -7449,6 +7452,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "topos-core",
+ "topos-crypto",
  "topos-metrics",
  "topos-p2p",
  "topos-tce-storage",

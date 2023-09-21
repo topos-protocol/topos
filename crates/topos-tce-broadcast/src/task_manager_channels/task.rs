@@ -67,7 +67,7 @@ impl Task {
                     match msg {
                         DoubleEchoCommand::Echo { from_peer, .. } => {
                             if let Some(Status::DeliveredWithReadySent) =
-                                self.broadcast_state.apply_echo(from_peer).await
+                                self.broadcast_state.apply_echo(from_peer)
                             {
                                 let _ = self
                                     .completion_sender
@@ -79,7 +79,7 @@ impl Task {
                         }
                         DoubleEchoCommand::Ready { from_peer, .. } => {
                             if let Some(Status::DeliveredWithReadySent) =
-                                self.broadcast_state.apply_ready(from_peer).await
+                                self.broadcast_state.apply_ready(from_peer)
                             {
                                 let _ = self
                                     .completion_sender

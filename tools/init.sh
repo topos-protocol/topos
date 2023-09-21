@@ -17,10 +17,12 @@ NODE="http://$HOSTNAME:1340"
 TCE_EXT_HOST="/dns4/$HOSTNAME"
 
 
-# Public keys of the validators, generated from random private keys
-# - 122f3ae6ade1fd136b292cea4f6243c7811160352c8821528547a1fe7c459daf
+# List of validator public keys
 public_keys=(
+    # public address for 122f3ae6ade1fd136b292cea4f6243c7811160352c8821528547a1fe7c459daf
     "0xfa1dbe573e7ab7eb4fb772a349129cf0833f1154"
+    # public address for a2e33a9bad88f7b7568228f51d5274c471a9217162d46f1533b6a290f0be1baf
+    "0xfba339119da6dd78814055e50b5ae0ad4e880181"
 )
 
 TCE_VALIDATORS=$(IFS=,; echo "${public_keys[*]}")

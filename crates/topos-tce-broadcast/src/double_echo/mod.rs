@@ -4,10 +4,10 @@ use ethers::signers::LocalWallet;
 use ethers::types::Signature;
 use std::collections::HashSet;
 use std::sync::Arc;
-use tce_transport::verify_signature;
 use tce_transport::{ProtocolEvents, ReliableBroadcastParams, ValidatorId};
 use tokio::sync::{broadcast, mpsc, oneshot};
 use topos_core::uci::{Certificate, CertificateId};
+use topos_crypto::messages::verify_signature;
 use topos_p2p::PeerId;
 use topos_tce_storage::types::CertificateDeliveredWithPositions;
 use topos_tce_storage::validator::ValidatorStore;
@@ -85,7 +85,7 @@ impl DoubleEcho {
             task_completion_sender,
             subscriptions_view_receiver,
             self.event_sender.clone(),
-            self.validator_id.clone(),
+            self.validator_id,
             self.params.clone(),
             self.wallet.clone(),
             self.validator_store.clone(),
@@ -110,7 +110,7 @@ impl DoubleEcho {
             task_completion_sender,
             subscriptions_view_receiver,
             self.event_sender.clone(),
-            self.validator_id.clone(),
+            self.validator_id,
             self.wallet.clone(),
             self.params.clone(),
             self.validator_store.clone(),
@@ -168,7 +168,7 @@ impl DoubleEcho {
                                         return error!("ECHO message comes from non-validator: {}", validator_id);
                                     }
 
-                                    if let Err(e) = verify_signature(signature, validator_id.clone(), certificate_id) {
+                                    if let Err(e) = verify_signature(signature, certificate_id.as_array(), validator_id.as_bytes(), validator_id.address()) {
                                         return error!("ECHO messag signature cannot be verified from: {}", e);
                                     }
 
@@ -180,8 +180,8 @@ impl DoubleEcho {
                                         return error!("READY message comes from non-validator: {}", validator_id);
                                     }
 
-                                    if let Err(e) = verify_signature(signature, validator_id.clone(), certificate_id) {
-                                        return error!("ECHO messag signature cannot be verified from: {}", e);
+                                    if let Err(e) = verify_signature(signature, certificate_id.as_array(), validator_id.as_bytes(), validator_id.address()) {
+                                        return error!("READY message signature cannot be verified from: {}", e);
                                     }
 
                                     self.handle_ready(from_peer, certificate_id, validator_id, signature).await

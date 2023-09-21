@@ -12,6 +12,7 @@ use topos_test_sdk::storage::create_validator_store;
 use topos_test_sdk::storage::create_validator_store;
 
 const CHANNEL_SIZE: usize = 10;
+const PRIVATE_KEY: &str = "47d361f6becb933a77d7e01dee7b1c1859b656adbd8428bf7bf9519503e5d5d6";
 
 #[fixture]
 fn small_config() -> TceParams {
@@ -58,13 +59,11 @@ async fn create_context(params: TceParams, folder_name: &'static str) -> (Double
         mpsc::channel::<oneshot::Sender<()>>(1);
     let (task_manager_message_sender, task_manager_message_receiver) = mpsc::channel(CHANNEL_SIZE);
 
-    let wallet: LocalWallet = "47d361f6becb933a77d7e01dee7b1c1859b656adbd8428bf7bf9519503e5d5d6"
-        .parse()
-        .unwrap();
+    let wallet: LocalWallet = PRIVATE_KEY.parse().unwrap();
 
     let mut validators = HashSet::new();
     let validator_id = ValidatorId::from(wallet.address());
-    validators.insert(validator_id.clone());
+    validators.insert(validator_id);
 
     let (broadcast_sender, broadcast_receiver) = broadcast::channel(CHANNEL_SIZE);
     let mut double_echo = DoubleEcho::new(
@@ -122,21 +121,19 @@ async fn reach_echo_threshold(double_echo: &mut DoubleEcho, cert: &Certificate) 
         .cloned()
         .collect::<Vec<_>>();
 
-    let wallet: LocalWallet = "47d361f6becb933a77d7e01dee7b1c1859b656adbd8428bf7bf9519503e5d5d6"
-        .parse()
-        .unwrap();
+    let wallet: LocalWallet = PRIVATE_KEY.parse().unwrap();
 
     let validator_id = ValidatorId::from(wallet.address());
 
     let mut message = Vec::new();
     message.extend(cert.id.as_array().iter().cloned());
-    message.extend(validator_id.clone().as_bytes());
+    message.extend(validator_id.as_bytes());
 
     let signature = wallet.sign_message(message.as_slice()).await.unwrap();
 
     for p in selected {
         double_echo
-            .handle_echo(p, cert.id, validator_id.clone(), signature)
+            .handle_echo(p, cert.id, validator_id, signature)
             .await;
     }
 }
@@ -150,21 +147,19 @@ async fn reach_ready_threshold(double_echo: &mut DoubleEcho, cert: &Certificate)
         .cloned()
         .collect::<Vec<_>>();
 
-    let wallet: LocalWallet = "47d361f6becb933a77d7e01dee7b1c1859b656adbd8428bf7bf9519503e5d5d6"
-        .parse()
-        .unwrap();
+    let wallet: LocalWallet = PRIVATE_KEY.parse().unwrap();
 
     let validator_id = ValidatorId::from(wallet.address());
 
     let mut message = Vec::new();
     message.extend(cert.id.as_array().iter().cloned());
-    message.extend(validator_id.clone().as_bytes());
+    message.extend(validator_id.as_bytes());
 
     let signature = wallet.sign_message(message.as_slice()).await.unwrap();
 
     for p in selected {
         double_echo
-            .handle_ready(p, cert.id, validator_id.clone(), signature)
+            .handle_ready(p, cert.id, validator_id, signature)
             .await;
     }
 }
@@ -178,21 +173,19 @@ async fn reach_delivery_threshold(double_echo: &mut DoubleEcho, cert: &Certifica
         .cloned()
         .collect::<Vec<_>>();
 
-    let wallet: LocalWallet = "47d361f6becb933a77d7e01dee7b1c1859b656adbd8428bf7bf9519503e5d5d6"
-        .parse()
-        .unwrap();
+    let wallet: LocalWallet = PRIVATE_KEY.parse().unwrap();
 
     let validator_id = ValidatorId::from(wallet.address());
 
     let mut message = Vec::new();
     message.extend(cert.id.as_array().iter().cloned());
-    message.extend(validator_id.clone().as_bytes());
+    message.extend(validator_id.as_bytes());
 
     let signature = wallet.sign_message(message.as_slice()).await.unwrap();
 
     for p in selected {
         double_echo
-            .handle_ready(p, cert.id, validator_id.clone(), signature)
+            .handle_ready(p, cert.id, validator_id, signature)
             .await;
     }
 }

@@ -115,7 +115,7 @@ impl TaskManager {
                                 std::collections::hash_map::Entry::Vacant(entry) => {
                                     let broadcast_state = BroadcastState::new(
                                         cert.clone(),
-                                        self.validator_id.clone(),
+                                        self.validator_id,
                                         self.thresholds.echo_threshold,
                                         self.thresholds.ready_threshold,
                                         self.thresholds.delivery_threshold,
@@ -123,7 +123,7 @@ impl TaskManager {
                                         self.subscriptions.clone(),
                                         need_gossip,
                                         self.wallet.clone(),
-                                    ).await;
+                                    );
 
                                     let (task, task_context) = Task::new(
                                         cert.id,

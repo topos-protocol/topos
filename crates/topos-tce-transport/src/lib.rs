@@ -1,10 +1,7 @@
 //! implementation of Topos Network Transport
 //!
 use clap::Parser;
-use ethers::signers::LocalWallet;
-use ethers::signers::{Signer, WalletError};
-use ethers::types::{Address, Signature, SignatureError, H160};
-use ethers::utils::keccak256;
+use ethers::types::{Address, Signature, H160};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use topos_core::uci::{Certificate, CertificateId};
@@ -130,10 +127,7 @@ pub enum ProtocolEvents {
     StableSample,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum Error {}
-
-#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct ValidatorId(H160);
 
 impl ValidatorId {
@@ -162,32 +156,4 @@ impl std::fmt::Display for ValidatorId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "0x{}", hex::encode(self.0))
     }
-}
-
-pub async fn sign_message(
-    validator_id: ValidatorId,
-    certificate_id: CertificateId,
-    wallet: LocalWallet,
-) -> Result<Signature, WalletError> {
-    let mut preimg = Vec::new();
-    preimg.extend(certificate_id.as_array().iter().cloned());
-    preimg.extend(validator_id.as_bytes());
-
-    let hash = keccak256(preimg);
-
-    wallet.sign_message(hash.as_slice()).await
-}
-
-pub fn verify_signature(
-    signature: Signature,
-    validator_id: ValidatorId,
-    certificate_id: CertificateId,
-) -> Result<(), SignatureError> {
-    let mut preimg = Vec::new();
-    preimg.extend(certificate_id.as_array().iter().cloned());
-    preimg.extend(validator_id.as_bytes());
-
-    let hash = keccak256(preimg);
-
-    signature.verify(hash.as_slice(), validator_id.address())
 }

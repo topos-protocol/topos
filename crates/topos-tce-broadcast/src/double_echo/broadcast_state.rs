@@ -1,10 +1,10 @@
 use crate::sampler::SubscriptionsView;
 use ethers::signers::LocalWallet;
 use std::{collections::HashSet, time};
-use tce_transport::sign_message;
 use tce_transport::{ProtocolEvents, ValidatorId};
 use tokio::sync::mpsc;
 use topos_core::uci::Certificate;
+use topos_crypto::messages::sign_message;
 use topos_metrics::DOUBLE_ECHO_BROADCAST_FINISHED_TOTAL;
 use topos_p2p::PeerId;
 use topos_tce_storage::{
@@ -34,7 +34,7 @@ pub struct BroadcastState {
 
 impl BroadcastState {
     #[allow(clippy::too_many_arguments)]
-    pub async fn new(
+    pub fn new(
         certificate: Certificate,
         validator_id: ValidatorId,
         echo_threshold: usize,
@@ -71,7 +71,7 @@ impl BroadcastState {
             });
         }
 
-        state.update_status().await;
+        state.update_status();
 
         state
     }
@@ -98,24 +98,24 @@ impl BroadcastState {
         }
     }
 
-    pub async fn apply_echo(&mut self, peer_id: PeerId) -> Option<Status> {
+    pub fn apply_echo(&mut self, peer_id: PeerId) -> Option<Status> {
         if self.subscriptions_view.echo.remove(&peer_id) {
-            self.update_status().await
+            self.update_status()
         } else {
             None
         }
     }
 
-    pub async fn apply_ready(&mut self, peer_id: PeerId) -> Option<Status> {
+    pub fn apply_ready(&mut self, peer_id: PeerId) -> Option<Status> {
         if self.subscriptions_view.ready.remove(&peer_id) {
             self.readies.insert(peer_id.to_string());
-            self.update_status().await
+            self.update_status()
         } else {
             None
         }
     }
 
-    async fn update_status(&mut self) -> Option<Status> {
+    fn update_status(&mut self) -> Option<Status> {
         // Nothing happened yet, we're in the initial state and didn't Procced
         // any Echo or Ready messages
         // Sending our Echo message
@@ -123,13 +123,12 @@ impl BroadcastState {
             _ = self.event_sender.try_send(ProtocolEvents::Echo {
                 certificate_id: self.certificate.id,
                 signature: sign_message(
-                    self.validator_id.clone(),
-                    self.certificate.id,
-                    self.wallet.clone(),
+                    self.certificate.id.as_array(),
+                    self.validator_id.as_bytes(),
+                    &self.wallet,
                 )
-                .await
                 .ok()?,
-                validator_id: self.validator_id.clone(),
+                validator_id: self.validator_id,
             });
 
             self.status = Status::EchoSent;
@@ -149,13 +148,12 @@ impl BroadcastState {
             let event = ProtocolEvents::Ready {
                 certificate_id: self.certificate.id,
                 signature: sign_message(
-                    self.validator_id.clone(),
-                    self.certificate.id,
-                    self.wallet.clone(),
+                    self.certificate.id.as_array(),
+                    self.validator_id.as_bytes(),
+                    &self.wallet,
                 )
-                .await
                 .ok()?,
-                validator_id: self.validator_id.clone(),
+                validator_id: self.validator_id,
             };
             if let Err(e) = self.event_sender.try_send(event) {
                 warn!("Error sending Ready message: {}", e);

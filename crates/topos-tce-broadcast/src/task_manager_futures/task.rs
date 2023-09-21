@@ -99,7 +99,7 @@ impl IntoFuture for Task {
                     Some(msg) = self.message_receiver.recv() => {
                         match msg {
                             DoubleEchoCommand::Echo { from_peer, .. } => {
-                                if let Some(Status::DeliveredWithReadySent) = self.broadcast_state.apply_echo(from_peer).await {
+                                if let Some(Status::DeliveredWithReadySent) = self.broadcast_state.apply_echo(from_peer) {
                                     match self.persist().await {
                                         Ok(delivered) => {
                                             _ = self.broadcast_sender.send(delivered);
@@ -115,7 +115,7 @@ impl IntoFuture for Task {
                                 }
                             }
                             DoubleEchoCommand::Ready { from_peer, .. } => {
-                                if let Some(Status::DeliveredWithReadySent) = self.broadcast_state.apply_ready(from_peer).await {
+                                if let Some(Status::DeliveredWithReadySent) = self.broadcast_state.apply_ready(from_peer) {
                                     match self.persist().await {
                                         Ok(delivered) => {
                                             _ = self.broadcast_sender.send(delivered);
