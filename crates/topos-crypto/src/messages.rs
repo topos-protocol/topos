@@ -14,8 +14,6 @@ pub fn sign_message(
 
     let hash = hash_message(message.as_slice());
 
-    println!("hash: {:#?}", hash);
-
     LocalWallet::sign_hash(wallet, hash)
 }
 
@@ -31,8 +29,6 @@ pub fn verify_signature(
     message.extend_from_slice(validator_id);
 
     let hash = hash_message(message.as_slice());
-
-    println!("hash: {:#?}", hash);
     let message: RecoveryMessage = hash.into();
 
     signature.verify(message, public_key)
