@@ -139,7 +139,7 @@ impl Storage for RocksDBStorage {
         // Return from function as info
         let source_subnet_stream_position = CertificateSourceStreamPosition {
             subnet_id: certificate.source_subnet_id,
-            position: Position(source_subnet_position.0),
+            position: source_subnet_position,
         };
 
         // Adding the certificate to the stream
@@ -215,7 +215,7 @@ impl Storage for RocksDBStorage {
                 &self.target_source_list,
                 [(
                     TargetSourceListKey(*target_subnet_id, certificate.source_subnet_id),
-                    position.0,
+                    **position,
                 )],
             )?;
             targets.push(target);
@@ -291,7 +291,7 @@ impl Storage for RocksDBStorage {
             .source_streams
             .prefix_iter(&source_subnet_id)?
             // TODO: Find a better way to convert u64 to usize
-            .skip(from.0.try_into().unwrap())
+            .skip(from.try_into().unwrap())
             .take(limit)
             .map(|(_, certificate_id)| certificate_id)
             .collect())
@@ -308,7 +308,7 @@ impl Storage for RocksDBStorage {
             .target_streams
             .prefix_iter(&(&target_subnet_id, &source_subnet_id))?
             // TODO: Find a better way to convert u64 to usize
-            .skip(from.0.try_into().unwrap())
+            .skip(from.try_into().unwrap())
             .take(limit)
             .map(|(_, certificate_id)| certificate_id)
             .collect())

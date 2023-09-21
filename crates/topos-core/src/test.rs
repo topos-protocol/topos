@@ -10,11 +10,18 @@ fn test_position() {
 
     assert_eq!(zero, deserialized);
 
-    let one = Position(1);
+    let one: u64 = 1;
 
     let serialized = bincode::serialize(&one).unwrap();
 
     let deserialized: Position = bincode::deserialize(&serialized).unwrap();
 
     assert_eq!(one, deserialized);
+}
+
+#[test]
+fn position_from_integer() {
+    let position: Position = (0u64).into();
+
+    assert_eq!(*position, 0);
 }

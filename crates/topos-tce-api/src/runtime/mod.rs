@@ -12,11 +12,9 @@ use tokio::{
     task::JoinHandle,
 };
 use tonic_health::server::HealthReporter;
+use topos_core::api::grpc::tce::v1::api_service_server::ApiServiceServer;
 use topos_core::uci::SubnetId;
 use topos_core::{api::grpc::checkpoints::TargetStreamPosition, types::CertificateDelivered};
-use topos_core::{
-    api::grpc::tce::v1::api_service_server::ApiServiceServer, types::stream::Position,
-};
 use topos_tce_storage::{
     types::CertificateDeliveredWithPositions, CertificateTargetStreamPosition,
     FetchCertificatesFilter, FetchCertificatesPosition, StorageClient,
@@ -111,7 +109,7 @@ impl Runtime {
                                             certificate_target_stream_position.target_subnet_id,
                                         source_subnet_id:
                                             certificate_target_stream_position.source_subnet_id,
-                                        position: certificate_target_stream_position.position.0,
+                                        position: *certificate_target_stream_position.position,
                                         certificate_id: Some(certificate_id),
                                     },
                                 )
@@ -318,7 +316,7 @@ impl Runtime {
                                         target_stream_position: CertificateTargetStreamPosition {
                                             target_subnet_id,
                                             source_subnet_id,
-                                            position: Position(position),
+                                            position: position.into(),
                                         },
                                         limit: 100,
                                     })
@@ -348,7 +346,7 @@ impl Runtime {
                                         positions: vec![TargetStreamPosition {
                                             target_subnet_id,
                                             source_subnet_id,
-                                            position: position.0,
+                                            position: *position,
                                             certificate_id: Some(certificate.id),
                                         }],
                                         certificate,

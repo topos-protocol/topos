@@ -54,7 +54,7 @@ async fn can_persist_a_delivered_certificate(store: Arc<ValidatorStore>) {
         proof_of_delivery: ProofOfDelivery {
             delivery_position: CertificateSourceStreamPosition::new(
                 SOURCE_SUBNET_ID_1,
-                Position(0),
+                Position::ZERO,
             ),
             readies: vec![],
             threshold: 0,
@@ -124,7 +124,7 @@ async fn delivered_certificate_are_added_to_target_stream(store: Arc<ValidatorSt
         proof_of_delivery: ProofOfDelivery {
             delivery_position: CertificateSourceStreamPosition::new(
                 SOURCE_SUBNET_ID_1,
-                Position(0),
+                Position::ZERO,
             ),
             readies: vec![],
             threshold: 0,
@@ -152,7 +152,7 @@ async fn delivered_certificate_are_added_to_target_stream(store: Arc<ValidatorSt
         .last()
         .unwrap();
 
-    assert_eq!(stream_element.0 .2, Position(1));
+    assert_eq!(*stream_element.0 .2, 1);
 
     let stream_element = target_streams_column
         .prefix_iter(&(&TARGET_STORAGE_SUBNET_ID_2, &SOURCE_STORAGE_SUBNET_ID))
@@ -184,7 +184,7 @@ async fn pending_certificate_are_removed_during_persist_action(store: Arc<Valida
             certificate_id,
             delivery_position: CertificateSourceStreamPosition::new(
                 SOURCE_SUBNET_ID_1,
-                Position(0),
+                Position::ZERO,
             ),
             readies: vec![],
             threshold: 0,
@@ -216,7 +216,7 @@ async fn fetch_certificates_for_subnets(store: Arc<ValidatorStore>) {
             certificate_id,
             delivery_position: CertificateSourceStreamPosition::new(
                 TARGET_SUBNET_ID_2,
-                Position(0),
+                Position::ZERO,
             ),
             readies: vec![],
             threshold: 0,
@@ -238,7 +238,7 @@ async fn fetch_certificates_for_subnets(store: Arc<ValidatorStore>) {
                     certificate_id: v.certificate.id,
                     delivery_position: CertificateSourceStreamPosition::new(
                         SOURCE_SUBNET_ID_1,
-                        Position(index as u64),
+                        index as u64,
                     ),
                     readies: vec![],
                     threshold: 0,
@@ -264,7 +264,7 @@ async fn fetch_certificates_for_subnets(store: Arc<ValidatorStore>) {
 
     let certificate_ids_second = store
         .get_source_stream_certificates_from_position(
-            CertificateSourceStreamPosition::new(SOURCE_STORAGE_SUBNET_ID, Position(5)),
+            CertificateSourceStreamPosition::new(SOURCE_STORAGE_SUBNET_ID, 5),
             5,
         )
         .unwrap()
@@ -389,7 +389,7 @@ async fn get_source_head_for_subnet(store: Arc<ValidatorStore>) {
             .id,
         last_certificate_source_subnet_1.certificate_id
     );
-    assert_eq!(9, last_certificate_source_subnet_1.position.0); //check position
+    assert_eq!(9, *last_certificate_source_subnet_1.position); //check position
     assert_eq!(
         expected_certificates_for_source_subnet_2
             .last()
@@ -398,7 +398,7 @@ async fn get_source_head_for_subnet(store: Arc<ValidatorStore>) {
             .id,
         last_certificate_source_subnet_2.certificate_id
     );
-    assert_eq!(9, last_certificate_source_subnet_2.position.0); //check position
+    assert_eq!(9, *last_certificate_source_subnet_2.position); //check position
 
     let certificate = Certificate::new_with_default_fields(
         expected_certificates_for_source_subnet_1
@@ -415,10 +415,7 @@ async fn get_source_head_for_subnet(store: Arc<ValidatorStore>) {
         certificate: certificate.clone(),
         proof_of_delivery: ProofOfDelivery {
             certificate_id: certificate.id,
-            delivery_position: CertificateSourceStreamPosition::new(
-                SOURCE_SUBNET_ID_1,
-                Position(10),
-            ),
+            delivery_position: CertificateSourceStreamPosition::new(SOURCE_SUBNET_ID_1, 10),
             readies: vec![],
             threshold: 0,
         },
@@ -435,7 +432,7 @@ async fn get_source_head_for_subnet(store: Arc<ValidatorStore>) {
         new_certificate_source_subnet_1.certificate.id,
         last_certificate_subnet_1.certificate_id
     );
-    assert_eq!(10, last_certificate_subnet_1.position.0); //check position
+    assert_eq!(10, *last_certificate_subnet_1.position); //check position
 
     let other_certificate_2 = Certificate::new_with_default_fields(
         new_certificate_source_subnet_1.certificate.id,
@@ -447,10 +444,7 @@ async fn get_source_head_for_subnet(store: Arc<ValidatorStore>) {
         certificate: other_certificate_2.clone(),
         proof_of_delivery: ProofOfDelivery {
             certificate_id: other_certificate_2.id,
-            delivery_position: CertificateSourceStreamPosition::new(
-                SOURCE_SUBNET_ID_1,
-                Position(11),
-            ),
+            delivery_position: CertificateSourceStreamPosition::new(SOURCE_SUBNET_ID_1, 11),
             readies: vec![],
             threshold: 0,
         },
@@ -466,7 +460,7 @@ async fn get_source_head_for_subnet(store: Arc<ValidatorStore>) {
         other_certificate_2.certificate.id,
         last_certificate_subnet_2.certificate_id
     );
-    assert_eq!(11, last_certificate_subnet_2.position.0); //check position
+    assert_eq!(11, *last_certificate_subnet_2.position); //check position
 }
 
 #[rstest]

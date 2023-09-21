@@ -2,7 +2,7 @@ use topos_uci::{Certificate, CertificateId};
 
 use serde::{Deserialize, Serialize};
 
-use self::stream::{CertificateSourceStreamPosition, Position};
+use self::stream::CertificateSourceStreamPosition;
 use topos_api::grpc::{
     checkpoints::SourceStreamPosition,
     tce::v1::{ProofOfDelivery as GrpcProofOfDelivery, SignedReady},
@@ -31,7 +31,7 @@ impl From<SourceStreamPosition> for CertificateSourceStreamPosition {
     fn from(value: SourceStreamPosition) -> Self {
         Self {
             subnet_id: value.source_subnet_id,
-            position: Position(value.position),
+            position: value.position.into(),
         }
     }
 }
@@ -57,7 +57,7 @@ impl From<ProofOfDelivery> for GrpcProofOfDelivery {
             delivery_position: Some(
                 SourceStreamPosition {
                     source_subnet_id: value.delivery_position.subnet_id,
-                    position: value.delivery_position.position.0,
+                    position: *value.delivery_position.position,
                     certificate_id: Some(value.certificate_id),
                 }
                 .into(),

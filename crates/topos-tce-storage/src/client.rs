@@ -78,7 +78,7 @@ impl StorageClient {
             self.store
                 .get_certificate(&head.certificate_id)
                 .ok()?
-                .map(|certificate| (head.position.0, certificate.certificate))
+                .map(|certificate| (*head.position, certificate.certificate))
         }))
     }
 }

@@ -92,7 +92,7 @@ impl WriteStore for FullNodeStore {
 
             return Err(StorageError::InternalStorage(
                 InternalStorageError::CertificateAlreadyExistsAtPosition(
-                    expected_position.position.0,
+                    *expected_position.position,
                     expected_position.subnet_id,
                 ),
             ));
@@ -103,7 +103,7 @@ impl WriteStore for FullNodeStore {
             .source_list
             .get(&subnet_id)?
             .and_then(|(_certificate, pos)| {
-                if expected_position.position.0 > pos.0 {
+                if expected_position.position > pos {
                     Some((certificate_id, expected_position.position))
                 } else {
                     None
@@ -295,7 +295,7 @@ impl ReadStore for FullNodeStore {
             .perpetual_tables
             .streams
             .prefix_iter(&from.subnet_id)?
-            .skip((starting_position.0).try_into().map_err(|_| {
+            .skip(starting_position.try_into().map_err(|_| {
                 StorageError::InternalStorage(InternalStorageError::InvalidQueryArgument(
                     "Unable to parse Position",
                 ))
@@ -331,7 +331,7 @@ impl ReadStore for FullNodeStore {
             .index_tables
             .target_streams
             .prefix_iter(&(position.0, position.1))?
-            .skip((starting_position.0).try_into().map_err(|_| {
+            .skip(starting_position.try_into().map_err(|_| {
                 StorageError::InternalStorage(InternalStorageError::InvalidQueryArgument(
                     "Unable to parse Position",
                 ))

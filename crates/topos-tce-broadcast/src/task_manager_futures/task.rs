@@ -84,7 +84,7 @@ impl IntoFuture for Task {
                 &self.broadcast_state.certificate.source_subnet_id,
             ) {
                 Ok(Some(stream_position)) => stream_position.position.increment().unwrap(),
-                Ok(None) => Position(0),
+                Ok(None) => Position::ZERO,
                 Err(_) => return (self.certificate_id, TaskStatus::Failure),
             };
 

@@ -90,10 +90,12 @@ async fn position_can_be_fetch_for_one_subnet(source_streams_column: SourceStrea
 
     assert!(source_streams_column
         .insert(
-            &CertificateSourceStreamPosition::new(SOURCE_STORAGE_SUBNET_ID, Position(1)),
+            &CertificateSourceStreamPosition::new(SOURCE_STORAGE_SUBNET_ID, 1),
             &certificate.id
         )
         .is_ok());
+
+    let expected_position: Position = 1.into();
 
     assert!(matches!(
         source_streams_column
@@ -102,11 +104,11 @@ async fn position_can_be_fetch_for_one_subnet(source_streams_column: SourceStrea
             .last(),
         Some((
             CertificateSourceStreamPosition {
-                position: Position(1),
+                position,
                 ..
             },
             _
-        ))
+        )) if expected_position == position
     ));
 }
 

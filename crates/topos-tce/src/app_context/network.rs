@@ -117,7 +117,7 @@ impl AppContext {
                                             source_subnet_id: Some(
                                                 v.delivery_position.subnet_id.into(),
                                             ),
-                                            position: v.delivery_position.position.0,
+                                            position: *v.delivery_position.position,
                                             certificate_id: Some(v.certificate_id.into()),
                                         }),
                                         readies: v

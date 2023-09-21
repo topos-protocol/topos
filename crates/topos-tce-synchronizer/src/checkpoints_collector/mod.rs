@@ -17,10 +17,7 @@ use topos_core::{
             FetchCertificatesResponse,
         },
     },
-    types::{
-        stream::{CertificateSourceStreamPosition, Position},
-        ProofOfDelivery,
-    },
+    types::{stream::CertificateSourceStreamPosition, ProofOfDelivery},
     uci::{Certificate, CertificateId, SubnetId},
 };
 use topos_p2p::{
@@ -196,7 +193,7 @@ impl<G: GatekeeperClient, N: NetworkClient> CheckpointSynchronizer<G, N> {
                                     .ok_or(SyncError::GrpcMalformedType(
                                         "position.source_subnet_id",
                                     ))??,
-                                position: Position(position.position),
+                                position: position.position.into(),
                             },
                             readies: v
                                 .readies

@@ -201,7 +201,7 @@ impl ValidatorStore {
             let entry = from_positions.entry(subnet).or_default();
 
             let certs: Vec<_> = if let Some(position) = entry.pop() {
-                if local_position.0 <= position.delivery_position.position.0 {
+                if local_position <= position.delivery_position.position {
                     continue;
                 }
                 self.full_node_store

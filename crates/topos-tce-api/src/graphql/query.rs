@@ -8,7 +8,7 @@ use topos_api::graphql::{
     checkpoint::SourceCheckpoint,
     query::CertificateQuery,
 };
-use topos_core::types::stream::{CertificateSourceStreamPosition, Position};
+use topos_core::types::stream::CertificateSourceStreamPosition;
 use topos_tce_storage::fullnode::FullNodeStore;
 use topos_tce_storage::store::ReadStore;
 
@@ -36,7 +36,7 @@ impl CertificateQuery for QueryRoot {
             let subnet_id = topos_core::uci::SubnetId::try_from(
                 &from_source_checkpoint.positions[index].source_subnet_id,
             )?;
-            let position = Position(from_source_checkpoint.positions[index].position);
+            let position = from_source_checkpoint.positions[index].position.into();
 
             let certificates_with_position = store
                 .get_source_stream_certificates_from_position(
