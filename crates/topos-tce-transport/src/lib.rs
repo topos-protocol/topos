@@ -168,9 +168,13 @@ pub async fn sign_message(
     certificate_id: CertificateId,
     wallet: LocalWallet,
 ) -> Result<Signature, WalletError> {
-    let mut message = Vec::new();
-    message.extend(certificate_id.as_array().iter().cloned());
-    message.extend(validator_id.as_bytes());
+    let certificate_bytes = certificate_id.as_array();
+    let validator_bytes = validator_id.as_bytes();
+
+    let mut message: Vec<u8> = Vec::with_capacity(certificate_bytes.len() + validator_bytes.len());
+
+    message.extend_from_slice(certificate_bytes);
+    message.extend_from_slice(validator_bytes);
 
     wallet.sign_message(message.as_slice()).await
 }
@@ -182,7 +186,13 @@ pub fn verify_signature(
 ) -> Result<(), SignatureError> {
     let mut message = Vec::new();
     message.extend(certificate_id.as_array().iter().cloned());
-    message.extend(validator_id.as_bytes());
+    let certificate_bytes = certificate_id.as_array();
+    let validator_bytes = validator_id.as_bytes();
+
+    let mut message: Vec<u8> = Vec::with_capacity(certificate_bytes.len() + validator_bytes.len());
+
+    message.extend_from_slice(certificate_bytes);
+    message.extend_from_slice(validator_bytes);
 
     signature.verify(message.as_slice(), validator_id.address())
 }
