@@ -1,7 +1,6 @@
 use crate::double_echo::*;
 use crate::*;
 use ethers::signers::{LocalWallet, Signer};
-use ethers::utils::keccak256;
 use rstest::*;
 use std::collections::HashSet;
 use std::time::Duration;
@@ -129,13 +128,11 @@ async fn reach_echo_threshold(double_echo: &mut DoubleEcho, cert: &Certificate) 
 
     let validator_id = ValidatorId::from(wallet.address());
 
-    let mut hash = Vec::new();
-    hash.extend(cert.id.as_array().iter().cloned());
-    hash.extend(validator_id.clone().as_bytes());
+    let mut message = Vec::new();
+    message.extend(cert.id.as_array().iter().cloned());
+    message.extend(validator_id.clone().as_bytes());
 
-    let hash = keccak256(hash);
-
-    let signature = wallet.sign_message(hash.as_slice()).await.unwrap();
+    let signature = wallet.sign_message(message.as_slice()).await.unwrap();
 
     for p in selected {
         double_echo
@@ -159,13 +156,11 @@ async fn reach_ready_threshold(double_echo: &mut DoubleEcho, cert: &Certificate)
 
     let validator_id = ValidatorId::from(wallet.address());
 
-    let mut hash = Vec::new();
-    hash.extend(cert.id.as_array().iter().cloned());
-    hash.extend(validator_id.clone().as_bytes());
+    let mut message = Vec::new();
+    message.extend(cert.id.as_array().iter().cloned());
+    message.extend(validator_id.clone().as_bytes());
 
-    let hash = keccak256(hash);
-
-    let signature = wallet.sign_message(hash.as_slice()).await.unwrap();
+    let signature = wallet.sign_message(message.as_slice()).await.unwrap();
 
     for p in selected {
         double_echo
@@ -189,13 +184,11 @@ async fn reach_delivery_threshold(double_echo: &mut DoubleEcho, cert: &Certifica
 
     let validator_id = ValidatorId::from(wallet.address());
 
-    let mut hash = Vec::new();
-    hash.extend(cert.id.as_array().iter().cloned());
-    hash.extend(validator_id.clone().as_bytes());
+    let mut message = Vec::new();
+    message.extend(cert.id.as_array().iter().cloned());
+    message.extend(validator_id.clone().as_bytes());
 
-    let hash = keccak256(hash);
-
-    let signature = wallet.sign_message(hash.as_slice()).await.unwrap();
+    let signature = wallet.sign_message(message.as_slice()).await.unwrap();
 
     for p in selected {
         double_echo

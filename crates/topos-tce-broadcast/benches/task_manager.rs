@@ -1,5 +1,4 @@
 use ethers::signers::{LocalWallet, Signer};
-use ethers::utils::keccak256;
 use std::collections::HashSet;
 use std::sync::Arc;
 use tce_transport::{ReliableBroadcastParams, ValidatorId};
