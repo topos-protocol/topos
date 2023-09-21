@@ -154,7 +154,7 @@ impl From<H160> for ValidatorId {
 
 impl From<&str> for ValidatorId {
     fn from(address: &str) -> Self {
-        ValidatorId(H160::from_str(address).expect("Cannot transform to H160"))
+        ValidatorId(H160::from_str(address).expect("Cannot parse address string as H160"))
     }
 }
 
