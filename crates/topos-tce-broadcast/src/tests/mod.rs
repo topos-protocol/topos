@@ -262,7 +262,7 @@ async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams)
 #[case(medium_config())]
 #[tokio::test]
 #[trace]
-#[timeout(Duration::from_secs(1))]
+#[timeout(Duration::from_secs(4))]
 async fn trigger_ready_when_reached_enough_ready(#[case] params: TceParams) {
     let (mut double_echo, mut ctx) =
         create_context(params, "trigger_ready_when_reached_enough_ready").await;

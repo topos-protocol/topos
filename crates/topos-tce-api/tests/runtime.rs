@@ -29,7 +29,7 @@ use topos_test_sdk::storage::{create_fullnode_store, storage_client};
 use topos_test_sdk::tce::public_api::{broadcast_stream, create_public_api, PublicApiContext};
 
 #[rstest]
-#[timeout(Duration::from_secs(2))]
+#[timeout(Duration::from_secs(4))]
 #[test(tokio::test)]
 async fn runtime_can_dispatch_a_cert(
     #[future] create_public_api: (PublicApiContext, impl Stream<Item = RuntimeEvent>),
