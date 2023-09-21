@@ -183,12 +183,11 @@ pub fn verify_signature(
     validator_id: ValidatorId,
     certificate_id: CertificateId,
 ) -> Result<(), SignatureError> {
-    let mut message = Vec::new();
     let mut preimg = Vec::new();
     preimg.extend(certificate_id.as_array().iter().cloned());
     preimg.extend(validator_id.as_bytes());
 
     let hash = keccak256(preimg);
 
-    signature.verify(message.as_slice(), validator_id.address())
+    signature.verify(hash.as_slice(), validator_id.address())
 }
