@@ -5,6 +5,14 @@ members = [
     "crates/*"
 ]
 
+[workspace.lints.rust]
+# Deny
+missing_docs = "allow"
+unused = "allow"
+
+# Warn
+deprecated-in-future = "warn"
+
 [profile.release]
 strip = true
 

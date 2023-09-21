@@ -4,7 +4,6 @@ use ethers::signers::{LocalWallet, Signer};
 use rstest::*;
 use std::collections::HashSet;
 use std::time::Duration;
-use std::usize;
 use tce_transport::ReliableBroadcastParams;
 use tokio::sync::mpsc::Receiver;
 use topos_test_sdk::constants::*;

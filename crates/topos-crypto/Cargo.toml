@@ -4,6 +4,9 @@ description = "Implementation of the Topos cryptography utility functions"
 version = "0.1.0"
 edition = "2021"
 
+[lints]
+workspace = true
+
 [dependencies]
 secp256k1.workspace = true
 byteorder.workspace = true

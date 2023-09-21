@@ -3,6 +3,9 @@ name = "topos-tce-broadcast"
 version = "0.1.0"
 edition = "2021"
 
+[lints]
+workspace = true
+
 [dependencies]
 byteorder.workspace = true
 futures.workspace = true

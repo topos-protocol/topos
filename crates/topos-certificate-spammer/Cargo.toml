@@ -3,6 +3,9 @@ name = "topos-certificate-spammer"
 version = "0.1.0"
 edition = "2021"
 
+[lints]
+workspace = true
+
 [dependencies]
 clap.workspace = true
 tokio-stream.workspace = true
