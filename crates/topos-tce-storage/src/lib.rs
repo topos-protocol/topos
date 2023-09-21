@@ -1,10 +1,10 @@
 use errors::InternalStorageError;
-use rocks::{iterator::ColumnIterator, TargetStreamPositionKey};
+use rocks::iterator::ColumnIterator;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use topos_core::{
-    types::stream::{CertificateSourceStreamPosition, Position},
+    types::stream::{CertificateSourceStreamPosition, CertificateTargetStreamPosition, Position},
     uci::{Certificate, CertificateId, SubnetId},
 };
 
@@ -33,23 +33,6 @@ pub use client::StorageClient;
 pub mod store;
 
 pub type PendingCertificateId = u64;
-
-#[derive(Debug, Clone)]
-pub struct CertificateTargetStreamPosition {
-    pub target_subnet_id: SubnetId,
-    pub source_subnet_id: SubnetId,
-    pub position: Position,
-}
-
-impl From<TargetStreamPositionKey> for CertificateTargetStreamPosition {
-    fn from(value: TargetStreamPositionKey) -> Self {
-        Self {
-            target_subnet_id: value.0,
-            source_subnet_id: value.1,
-            position: value.2,
-        }
-    }
-}
 
 #[derive(Debug)]
 pub enum FetchCertificatesFilter {
@@ -183,7 +166,10 @@ pub trait Storage: Sync + Send + 'static {
         target: SubnetId,
         source: SubnetId,
         position: Position,
-    ) -> Result<ColumnIterator<'_, TargetStreamPositionKey, CertificateId>, InternalStorageError>;
+    ) -> Result<
+        ColumnIterator<'_, CertificateTargetStreamPosition, CertificateId>,
+        InternalStorageError,
+    >;
 
     async fn get_source_list_by_target(
         &self,

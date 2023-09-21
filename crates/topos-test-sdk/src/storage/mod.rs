@@ -48,7 +48,6 @@ pub fn create_folder(folder_name: &str) -> PathBuf {
 }
 
 #[fixture(certificates = Vec::new())]
-
 pub async fn create_validator_store(
     certificates: Vec<CertificateDelivered>,
     #[future] create_fullnode_store: Arc<FullNodeStore>,
@@ -60,9 +59,9 @@ pub async fn create_validator_store(
         ValidatorStore::open(temp_dir, full_node_store).expect("Unable to create validator store");
 
     store
-        .multi_insert_certificates_delivered(&certificates)
+        .insert_certificates_delivered(&certificates)
         .await
-        .unwrap();
+        .expect("Unable to insert predefined certificates");
 
     store
 }
@@ -95,7 +94,7 @@ pub async fn create_fullnode_store(certificates: Vec<CertificateDelivered>) -> A
     .expect("Unable to create full node store");
 
     store
-        .multi_insert_certificates_delivered(&certificates[..])
+        .insert_certificates_delivered(&certificates[..])
         .await
         .unwrap();
 

@@ -143,7 +143,7 @@ impl<G: GatekeeperClient, N: NetworkClient> CheckpointSynchronizer<G, N> {
                 .collect::<Vec<_>>();
 
             self.store
-                .multi_get_certificate(&certificate_ids[..])?
+                .get_certificates(&certificate_ids[..])?
                 .into_iter()
                 .filter_map(|value| {
                     value.map(|delivered_certificate| delivered_certificate.proof_of_delivery)

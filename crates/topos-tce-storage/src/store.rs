@@ -7,8 +7,7 @@ use topos_core::{
 };
 
 use crate::{
-    errors::StorageError, rocks::TargetStreamPositionKey, CertificatePositions,
-    CertificateTargetStreamPosition, SourceHead,
+    errors::StorageError, CertificatePositions, CertificateTargetStreamPosition, SourceHead,
 };
 
 #[async_trait]
@@ -20,7 +19,7 @@ pub trait WriteStore: Send {
     ) -> Result<CertificatePositions, StorageError>;
 
     /// Insert multiple CertificateDelivered
-    async fn multi_insert_certificates_delivered(
+    async fn insert_certificates_delivered(
         &self,
         certificates: &[CertificateDelivered],
     ) -> Result<(), StorageError>;
@@ -35,7 +34,7 @@ pub trait ReadStore: Send {
     ) -> Result<Option<CertificateDelivered>, StorageError>;
 
     /// Try to get multiple certificates at once
-    fn multi_get_certificate(
+    fn get_certificates(
         &self,
         certificate_ids: &[CertificateId],
     ) -> Result<Vec<Option<CertificateDelivered>>, StorageError>;
@@ -58,7 +57,7 @@ pub trait ReadStore: Send {
 
     fn get_target_stream_certificates_from_position(
         &self,
-        position: TargetStreamPositionKey,
+        position: CertificateTargetStreamPosition,
         limit: usize,
     ) -> Result<Vec<(CertificateDelivered, CertificateTargetStreamPosition)>, StorageError>;
 

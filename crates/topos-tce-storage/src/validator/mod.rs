@@ -18,7 +18,7 @@ use tracing::{debug, info, instrument};
 use crate::{
     errors::StorageError,
     fullnode::FullNodeStore,
-    rocks::{map::Map, TargetStreamPositionKey},
+    rocks::map::Map,
     store::{ReadStore, WriteStore},
     CertificatePositions, CertificateTargetStreamPosition, PendingCertificateId, SourceHead,
 };
@@ -56,7 +56,7 @@ impl ValidatorStore {
         Ok(self.pending_tables.pending_pool.iter()?.collect())
     }
 
-    pub fn multi_insert_pending_certificate(
+    pub fn insert_pending_certificates(
         &self,
         certificates: &[Certificate],
     ) -> Result<Vec<PendingCertificateId>, StorageError> {
@@ -67,17 +67,18 @@ impl ValidatorStore {
 
         let mut batch = self.pending_tables.pending_pool.batch();
 
-        let values: Vec<_> = certificates
-            .iter()
-            .enumerate()
-            .map(|(index, cert)| (id + index as u64, cert))
-            .collect();
+        let (values, index, ids) = certificates.iter().enumerate().fold(
+            (Vec::new(), Vec::new(), Vec::new()),
+            |(mut values, mut index, mut ids), (idx, certificate)| {
+                let id = id + idx as u64;
 
-        let ids = values.iter().map(|(id, _)| *id).collect();
-        let index = values
-            .iter()
-            .map(|(id, cert)| (cert.id, *id))
-            .collect::<Vec<_>>();
+                index.push((certificate.id, id));
+                values.push((id, certificate));
+                ids.push(id);
+
+                (values, index, ids)
+            },
+        );
 
         batch = batch.insert_batch(&self.pending_tables.pending_pool, values)?;
         batch = batch.insert_batch(&self.pending_tables.pending_pool_index, index)?;
@@ -223,7 +224,7 @@ impl ValidatorStore {
 
             let proofs: Vec<_> = self
                 .full_node_store
-                .multi_get_certificate(&certs)?
+                .get_certificates(&certs)?
                 .into_iter()
                 .filter_map(|v| v.map(|c| c.proof_of_delivery))
                 .collect();
@@ -238,7 +239,9 @@ impl ValidatorStore {
 
         Ok(from_positions)
     }
-    pub fn delete_pending_certificate(
+
+    #[cfg(test)]
+    pub(crate) fn delete_pending_certificate(
         &self,
         pending_id: &PendingCertificateId,
     ) -> Result<Certificate, StorageError> {
@@ -270,11 +273,11 @@ impl ReadStore for ValidatorStore {
         self.full_node_store.get_certificate(certificate_id)
     }
 
-    fn multi_get_certificate(
+    fn get_certificates(
         &self,
         certificate_ids: &[CertificateId],
     ) -> Result<Vec<Option<CertificateDelivered>>, StorageError> {
-        self.full_node_store.multi_get_certificate(certificate_ids)
+        self.full_node_store.get_certificates(certificate_ids)
     }
 
     fn last_delivered_position_for_subnet(
@@ -307,7 +310,7 @@ impl ReadStore for ValidatorStore {
 
     fn get_target_stream_certificates_from_position(
         &self,
-        position: TargetStreamPositionKey,
+        position: CertificateTargetStreamPosition,
         limit: usize,
     ) -> Result<Vec<(CertificateDelivered, CertificateTargetStreamPosition)>, StorageError> {
         self.full_node_store
@@ -344,12 +347,12 @@ impl WriteStore for ValidatorStore {
         Ok(position)
     }
 
-    async fn multi_insert_certificates_delivered(
+    async fn insert_certificates_delivered(
         &self,
         certificates: &[CertificateDelivered],
     ) -> Result<(), StorageError> {
         self.full_node_store
-            .multi_insert_certificates_delivered(certificates)
+            .insert_certificates_delivered(certificates)
             .await
     }
 }

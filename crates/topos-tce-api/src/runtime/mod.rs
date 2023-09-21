@@ -12,12 +12,15 @@ use tokio::{
     task::JoinHandle,
 };
 use tonic_health::server::HealthReporter;
-use topos_core::api::grpc::tce::v1::api_service_server::ApiServiceServer;
 use topos_core::uci::SubnetId;
 use topos_core::{api::grpc::checkpoints::TargetStreamPosition, types::CertificateDelivered};
+use topos_core::{
+    api::grpc::tce::v1::api_service_server::ApiServiceServer,
+    types::stream::CertificateTargetStreamPosition,
+};
 use topos_tce_storage::{
-    types::CertificateDeliveredWithPositions, CertificateTargetStreamPosition,
-    FetchCertificatesFilter, FetchCertificatesPosition, StorageClient,
+    types::CertificateDeliveredWithPositions, FetchCertificatesFilter, FetchCertificatesPosition,
+    StorageClient,
 };
 
 use tracing::{debug, error, info};
@@ -279,7 +282,7 @@ impl Runtime {
                             Vec::new();
 
                         for (target_subnet_id, mut source) in target_subnet_stream_positions {
-                            // return list of subnet that target this subnet
+                            // return list of subnets that target this subnet
                             let source_subnet_list = storage
                                 .get_target_source_subnet_list(target_subnet_id)
                                 .await;

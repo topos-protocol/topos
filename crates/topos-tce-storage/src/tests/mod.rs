@@ -4,14 +4,14 @@ use rstest::rstest;
 use test_log::test;
 use topos_core::{
     types::{
-        stream::{CertificateSourceStreamPosition, Position},
+        stream::{CertificateSourceStreamPosition, CertificateTargetStreamPosition, Position},
         CertificateDelivered, ProofOfDelivery,
     },
     uci::{Certificate, SubnetId},
 };
 
 use crate::{
-    rocks::{map::Map, TargetStreamPositionKey},
+    rocks::map::Map,
     store::{ReadStore, WriteStore},
     validator::ValidatorStore,
 };
@@ -90,7 +90,7 @@ async fn can_persist_a_delivered_certificate(store: Arc<ValidatorStore>) {
         .last()
         .unwrap();
 
-    assert_eq!(stream_element.0 .2, Position::ZERO);
+    assert_eq!(stream_element.0.position, Position::ZERO);
 }
 
 #[rstest]
@@ -102,7 +102,7 @@ async fn delivered_certificate_are_added_to_target_stream(store: Arc<ValidatorSt
 
     target_streams_column
         .insert(
-            &TargetStreamPositionKey(
+            &CertificateTargetStreamPosition::new(
                 TARGET_STORAGE_SUBNET_ID_1,
                 SOURCE_STORAGE_SUBNET_ID,
                 Position::ZERO,
@@ -152,7 +152,7 @@ async fn delivered_certificate_are_added_to_target_stream(store: Arc<ValidatorSt
         .last()
         .unwrap();
 
-    assert_eq!(*stream_element.0 .2, 1);
+    assert_eq!(*stream_element.0.position, 1);
 
     let stream_element = target_streams_column
         .prefix_iter(&(&TARGET_STORAGE_SUBNET_ID_2, &SOURCE_STORAGE_SUBNET_ID))
@@ -160,7 +160,7 @@ async fn delivered_certificate_are_added_to_target_stream(store: Arc<ValidatorSt
         .last()
         .unwrap();
 
-    assert_eq!(stream_element.0 .2, Position::ZERO);
+    assert_eq!(stream_element.0.position, Position::ZERO);
 }
 
 #[rstest]
@@ -277,7 +277,7 @@ async fn fetch_certificates_for_subnets(store: Arc<ValidatorStore>) {
     certificate_ids.extend(certificate_ids_second.into_iter());
 
     let certificates = store
-        .multi_get_certificate(&certificate_ids[..])
+        .get_certificates(&certificate_ids[..])
         .unwrap()
         .into_iter()
         .flatten()
@@ -287,7 +287,7 @@ async fn fetch_certificates_for_subnets(store: Arc<ValidatorStore>) {
 
     let mut certificate_ids = store
         .get_target_stream_certificates_from_position(
-            TargetStreamPositionKey(
+            CertificateTargetStreamPosition::new(
                 TARGET_STORAGE_SUBNET_ID_1,
                 SOURCE_STORAGE_SUBNET_ID,
                 Position::ZERO,
@@ -302,7 +302,7 @@ async fn fetch_certificates_for_subnets(store: Arc<ValidatorStore>) {
     certificate_ids.extend(
         store
             .get_target_stream_certificates_from_position(
-                TargetStreamPositionKey(
+                CertificateTargetStreamPosition::new(
                     TARGET_STORAGE_SUBNET_ID_1,
                     TARGET_STORAGE_SUBNET_ID_2,
                     Position::ZERO,
@@ -317,7 +317,7 @@ async fn fetch_certificates_for_subnets(store: Arc<ValidatorStore>) {
     assert_eq!(11, certificate_ids.len());
 
     let certificates = store
-        .multi_get_certificate(&certificate_ids[..])
+        .get_certificates(&certificate_ids[..])
         .unwrap()
         .into_iter()
         .flatten()
@@ -364,7 +364,7 @@ async fn get_source_head_for_subnet(store: Arc<ValidatorStore>) {
         create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_2], 10);
 
     store
-        .multi_insert_certificates_delivered(&expected_certificates_for_source_subnet_1)
+        .insert_certificates_delivered(&expected_certificates_for_source_subnet_1)
         .await
         .unwrap();
 
@@ -372,7 +372,7 @@ async fn get_source_head_for_subnet(store: Arc<ValidatorStore>) {
         create_certificate_chain(SOURCE_SUBNET_ID_2, &[TARGET_SUBNET_ID_2], 10);
 
     store
-        .multi_insert_certificates_delivered(&expected_certificates_for_source_subnet_2)
+        .insert_certificates_delivered(&expected_certificates_for_source_subnet_2)
         .await
         .unwrap();
 
@@ -473,11 +473,11 @@ async fn get_pending_certificates(store: Arc<ValidatorStore>) {
 
     // Persist the first 10 Cert of each Subnets
     store
-        .multi_insert_certificates_delivered(&certificates_for_source_subnet_1[..10])
+        .insert_certificates_delivered(&certificates_for_source_subnet_1[..10])
         .await
         .unwrap();
     store
-        .multi_insert_certificates_delivered(&certificates_for_source_subnet_2[..10])
+        .insert_certificates_delivered(&certificates_for_source_subnet_2[..10])
         .await
         .unwrap();
 
@@ -502,7 +502,7 @@ async fn get_pending_certificates(store: Arc<ValidatorStore>) {
 
     // Add the last 5 cert of each Subnet as pending certificate
     store
-        .multi_insert_pending_certificate(
+        .insert_pending_certificates(
             &certificates_for_source_subnet_1[10..]
                 .iter()
                 .map(|certificate| certificate.certificate.clone())
@@ -511,7 +511,7 @@ async fn get_pending_certificates(store: Arc<ValidatorStore>) {
         .unwrap();
 
     store
-        .multi_insert_pending_certificate(
+        .insert_pending_certificates(
             &certificates_for_source_subnet_2[10..]
                 .iter()
                 .map(|certificate| certificate.certificate.clone())

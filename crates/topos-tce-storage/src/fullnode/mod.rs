@@ -5,7 +5,7 @@ use async_trait::async_trait;
 
 use topos_core::{
     types::{
-        stream::{CertificateSourceStreamPosition, Position},
+        stream::{CertificateSourceStreamPosition, CertificateTargetStreamPosition, Position},
         CertificateDelivered,
     },
     uci::{CertificateId, SubnetId},
@@ -16,10 +16,10 @@ use crate::{
     epoch::{EpochValidatorsStore, ValidatorPerEpochStore},
     errors::{InternalStorageError, StorageError},
     index::IndexTables,
-    rocks::{map::Map, TargetSourceListKey, TargetStreamPositionKey},
+    rocks::{map::Map, TargetSourceListKey},
     store::{ReadStore, WriteStore},
     validator::ValidatorPerpetualTables,
-    CertificatePositions, CertificateTargetStreamPosition, SourceHead,
+    CertificatePositions, SourceHead,
 };
 
 use self::locking::LockGuards;
@@ -148,50 +148,39 @@ impl WriteStore for FullNodeStore {
             .collect();
 
         for target_subnet_id in &certificate.certificate.target_subnets {
-            let target = if let Some((TargetStreamPositionKey(target, source, position), _)) = self
+            let target = match self
                 .index_tables
                 .target_streams
                 .prefix_iter(&TargetSourceListKey(*target_subnet_id, subnet_id))?
                 .last()
             {
-                let target_stream_position = TargetStreamPositionKey(
-                    target,
-                    source,
-                    position.increment().map_err(|error| {
+                None => CertificateTargetStreamPosition::new(
+                    *target_subnet_id,
+                    subnet_id,
+                    Position::ZERO,
+                ),
+                Some((mut target_stream_position, _)) => {
+                    target_stream_position.position = target_stream_position
+                        .position
+                        .increment()
+                        .map_err(|error| {
                         InternalStorageError::PositionError(error, subnet_id.into())
-                    })?,
-                );
-                target_subnet_stream_positions.insert(
-                    target_stream_position.0,
-                    CertificateTargetStreamPosition {
-                        target_subnet_id: target_stream_position.0,
-                        source_subnet_id: target_stream_position.1,
-                        position: target_stream_position.2,
-                    },
-                );
-                (target_stream_position, certificate_id)
-            } else {
-                let target_stream_position =
-                    TargetStreamPositionKey(*target_subnet_id, subnet_id, Position::ZERO);
-                target_subnet_stream_positions.insert(
-                    target_stream_position.0,
-                    CertificateTargetStreamPosition {
-                        target_subnet_id: target_stream_position.0,
-                        source_subnet_id: target_stream_position.1,
-                        position: target_stream_position.2,
-                    },
-                );
-
-                (target_stream_position, certificate_id)
+                    })?;
+                    target_stream_position
+                }
             };
 
-            let TargetStreamPositionKey(_, _, position) = &target.0;
+            target_subnet_stream_positions.insert(*target_subnet_id, target);
+
             index_batch = index_batch.insert_batch(
                 &self.index_tables.target_source_list,
-                [(TargetSourceListKey(*target_subnet_id, subnet_id), position)],
+                [(
+                    TargetSourceListKey(*target_subnet_id, subnet_id),
+                    target.position,
+                )],
             )?;
 
-            targets.push(target);
+            targets.push((target, certificate_id));
         }
 
         index_batch = index_batch.insert_batch(&self.index_tables.target_streams, targets)?;
@@ -214,7 +203,7 @@ impl WriteStore for FullNodeStore {
         })
     }
 
-    async fn multi_insert_certificates_delivered(
+    async fn insert_certificates_delivered(
         &self,
         certificates: &[CertificateDelivered],
     ) -> Result<(), StorageError> {
@@ -245,7 +234,7 @@ impl ReadStore for FullNodeStore {
         Ok(self.perpetual_tables.certificates.get(certificate_id)?)
     }
 
-    fn multi_get_certificate(
+    fn get_certificates(
         &self,
         certificate_ids: &[CertificateId],
     ) -> Result<Vec<Option<CertificateDelivered>>, StorageError> {
@@ -323,31 +312,38 @@ impl ReadStore for FullNodeStore {
 
     fn get_target_stream_certificates_from_position(
         &self,
-        position: TargetStreamPositionKey,
+        position: CertificateTargetStreamPosition,
         limit: usize,
     ) -> Result<Vec<(CertificateDelivered, CertificateTargetStreamPosition)>, StorageError> {
-        let starting_position = position.2;
-        let x: Vec<(CertificateId, CertificateTargetStreamPosition)> = self
+        let starting_position = position.position;
+        let prefix = TargetSourceListKey(position.target_subnet_id, position.source_subnet_id);
+
+        let certs_with_positions: Vec<(CertificateId, CertificateTargetStreamPosition)> = self
             .index_tables
             .target_streams
-            .prefix_iter(&(position.0, position.1))?
+            .prefix_iter(&prefix)?
             .skip(starting_position.try_into().map_err(|_| {
                 StorageError::InternalStorage(InternalStorageError::InvalidQueryArgument(
                     "Unable to parse Position",
                 ))
             })?)
             .take(limit)
-            .map(|(k, v)| (v, k.into()))
+            .map(|(k, v)| (v, k))
             .collect();
 
-        let certificate_ids: Vec<_> = x.iter().map(|(k, _)| k).cloned().collect();
+        let certificate_ids: Vec<_> = certs_with_positions
+            .iter()
+            .map(|(k, _)| k)
+            .cloned()
+            .collect();
 
         let certificates = self
             .perpetual_tables
             .certificates
             .multi_get(&certificate_ids[..])?;
 
-        Ok(x.into_iter()
+        Ok(certs_with_positions
+            .into_iter()
             .zip(certificates)
             .filter_map(|((certificate_id, position), certificate)| {
                 certificate

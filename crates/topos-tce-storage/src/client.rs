@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
+use topos_core::types::stream::CertificateTargetStreamPosition;
 use topos_core::types::CertificateDelivered;
 use topos_core::uci::{Certificate, SubnetId};
 
-use crate::rocks::TargetStreamPositionKey;
 use crate::store::ReadStore;
 use crate::validator::ValidatorStore;
 use crate::{
@@ -12,7 +12,7 @@ use crate::{
 
 #[derive(Clone)]
 pub struct StorageClient {
-    pub store: Arc<ValidatorStore>,
+    store: Arc<ValidatorStore>,
 }
 
 impl StorageClient {
@@ -21,6 +21,7 @@ impl StorageClient {
         Self { store }
     }
 
+    /// Return the list of all source subnets that targeted the given target subnet
     pub async fn get_target_source_subnet_list(
         &self,
         target_subnet_id: SubnetId,
@@ -49,7 +50,7 @@ impl StorageClient {
             } => self
                 .store
                 .get_target_stream_certificates_from_position(
-                    TargetStreamPositionKey(
+                    CertificateTargetStreamPosition::new(
                         target_stream_position.target_subnet_id,
                         target_stream_position.source_subnet_id,
                         target_stream_position.position,

@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use rocksdb::ColumnFamilyDescriptor;
 use topos_core::{
-    types::stream::Position,
+    types::stream::{CertificateTargetStreamPosition, Position},
     uci::{CertificateId, SubnetId},
 };
 
@@ -11,7 +11,7 @@ use crate::{
         constants,
         db::{default_options, init_with_cfs},
         db_column::DBColumn,
-        TargetSourceListKey, TargetStreamPositionKey,
+        TargetSourceListKey,
     },
     types::CertificateSequenceNumber,
 };
@@ -22,7 +22,7 @@ pub(crate) struct IndexStore {
 }
 
 pub struct IndexTables {
-    pub(crate) target_streams: DBColumn<TargetStreamPositionKey, CertificateId>,
+    pub(crate) target_streams: DBColumn<CertificateTargetStreamPosition, CertificateId>,
     pub(crate) target_source_list: DBColumn<TargetSourceListKey, Position>,
     pub(crate) source_list: DBColumn<SubnetId, (CertificateId, Position)>,
     pub(crate) source_list_per_target: DBColumn<(SubnetId, SubnetId), bool>,
