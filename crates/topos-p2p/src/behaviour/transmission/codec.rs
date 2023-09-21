@@ -40,10 +40,10 @@ impl Codec for TransmissionCodec {
         T: AsyncRead + Unpin + Send,
     {
         // Read the length.
-        let length = unsigned_varint::aio::read_usize(&mut io)
+        let length = unsigned_varint::aio::read_u64(&mut io)
             .await
             .map_err(|err| io::Error::new(io::ErrorKind::InvalidInput, err))?;
-        if length > usize::try_from(MAX_PACKET_SIZE).unwrap_or(usize::MAX) {
+        if length > MAX_PACKET_SIZE {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
                 format!(
@@ -54,7 +54,7 @@ impl Codec for TransmissionCodec {
         }
 
         // Read the payload.
-        let mut buffer = vec![0; length];
+        let mut buffer = vec![0; length as usize];
         io.read_exact(&mut buffer).await?;
 
         match protocol.as_ref() {
@@ -72,7 +72,7 @@ impl Codec for TransmissionCodec {
         T: AsyncRead + Unpin + Send,
     {
         // Read the length of the payload.
-        let length = match unsigned_varint::aio::read_usize(&mut io).await {
+        let length = match unsigned_varint::aio::read_u64(&mut io).await {
             Ok(l) => l,
             Err(unsigned_varint::io::ReadError::Io(err))
                 if matches!(err.kind(), io::ErrorKind::UnexpectedEof) =>
@@ -82,7 +82,7 @@ impl Codec for TransmissionCodec {
             Err(err) => return Err(io::Error::new(io::ErrorKind::InvalidInput, err)),
         };
 
-        if length > usize::try_from(MAX_PACKET_SIZE).unwrap_or(usize::MAX) {
+        if length > MAX_PACKET_SIZE {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
                 format!(
@@ -93,7 +93,7 @@ impl Codec for TransmissionCodec {
         }
 
         // Read the payload itself.
-        let mut buffer = vec![0; length];
+        let mut buffer = vec![0; length as usize];
         io.read_exact(&mut buffer).await?;
 
         let res = match protocol.as_ref() {
@@ -120,8 +120,8 @@ impl Codec for TransmissionCodec {
 
         {
             // Write the length first
-            let mut buffer = unsigned_varint::encode::usize_buffer();
-            io.write_all(unsigned_varint::encode::usize(req.len(), &mut buffer))
+            let mut buffer = unsigned_varint::encode::u64_buffer();
+            io.write_all(unsigned_varint::encode::u64(req.len() as u64, &mut buffer))
                 .await?;
         }
 
@@ -149,8 +149,8 @@ impl Codec for TransmissionCodec {
 
             {
                 // Write the length
-                let mut buffer = unsigned_varint::encode::usize_buffer();
-                io.write_all(unsigned_varint::encode::usize(res.len(), &mut buffer))
+                let mut buffer = unsigned_varint::encode::u64_buffer();
+                io.write_all(unsigned_varint::encode::u64(res.len() as u64, &mut buffer))
                     .await?;
             }
 
