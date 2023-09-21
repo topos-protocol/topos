@@ -3,6 +3,9 @@ name = "topos-tce-api"
 version = "0.1.0"
 edition = "2021"
 
+[lints]
+workspace = true
+
 [dependencies]
 topos-p2p = { path = "../topos-p2p" }
 topos-api = { path = "../topos-api", features = ["graphql"] }

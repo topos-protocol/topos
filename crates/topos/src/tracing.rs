@@ -16,7 +16,7 @@ fn verbose_to_level(verbose: u8) -> Level {
         1 => Level::WARN,
         2 => Level::INFO,
         3 => Level::DEBUG,
-        4..=std::u8::MAX => Level::TRACE,
+        _ => Level::TRACE,
     }
 }
 

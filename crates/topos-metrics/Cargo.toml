@@ -3,6 +3,9 @@ name = "topos-metrics"
 version = "0.1.0"
 edition = "2021"
 
+[lints]
+workspace = true
+
 [dependencies]
 lazy_static.workspace = true
 prometheus.workspace = true

@@ -3,6 +3,9 @@ name = "topos-sequencer-subnet-runtime"
 version = "0.1.0"
 edition = "2021"
 
+[lints]
+workspace = true
+
 [dependencies]
 byteorder.workspace = true
 hex.workspace = true

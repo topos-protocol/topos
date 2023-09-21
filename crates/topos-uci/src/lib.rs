@@ -2,8 +2,6 @@
 //!
 //! Data structures to support Certificates' exchange
 
-extern crate core;
-
 pub use certificate::Certificate;
 pub use certificate_id::CertificateId;
 pub use subnet_id::SubnetId;

@@ -1,4 +1,4 @@
-use std::{i8::MAX, io};
+use std::io;
 
 use crate::constant::{SYNCHRONIZER_PROTOCOL, TRANSMISSION_PROTOCOL};
 
