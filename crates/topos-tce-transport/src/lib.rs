@@ -4,7 +4,6 @@ use clap::Parser;
 use ethers::signers::LocalWallet;
 use ethers::signers::{Signer, WalletError};
 use ethers::types::{Address, Signature, SignatureError, H160};
-use ethers::utils::keccak256;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use topos_core::uci::{Certificate, CertificateId};
@@ -130,6 +129,9 @@ pub enum ProtocolEvents {
     StableSample,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum Error {}
+
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct ValidatorId(H160);
 
@@ -166,13 +168,11 @@ pub async fn sign_message(
     certificate_id: CertificateId,
     wallet: LocalWallet,
 ) -> Result<Signature, WalletError> {
-    let mut preimg = Vec::new();
-    preimg.extend(certificate_id.as_array().iter().cloned());
-    preimg.extend(validator_id.as_bytes());
+    let mut message = Vec::new();
+    message.extend(certificate_id.as_array().iter().cloned());
+    message.extend(validator_id.as_bytes());
 
-    let hash = keccak256(preimg);
-
-    wallet.sign_message(hash.as_slice()).await
+    wallet.sign_message(message.as_slice()).await
 }
 
 pub fn verify_signature(
@@ -180,11 +180,9 @@ pub fn verify_signature(
     validator_id: ValidatorId,
     certificate_id: CertificateId,
 ) -> Result<(), SignatureError> {
-    let mut hash = Vec::new();
-    hash.extend(certificate_id.as_array().iter().cloned());
-    hash.extend(validator_id.as_bytes());
+    let mut message = Vec::new();
+    message.extend(certificate_id.as_array().iter().cloned());
+    message.extend(validator_id.as_bytes());
 
-    let hash = keccak256(hash);
-
-    signature.verify(hash.as_slice(), validator_id.address())
+    signature.verify(message.as_slice(), validator_id.address())
 }

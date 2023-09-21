@@ -106,12 +106,11 @@ pub async fn processing_double_echo(n: u64, validator_store: Arc<ValidatorStore>
 
     for cert in &certificates {
         for p in &double_echo_selected_echo {
-            let mut hash = Vec::new();
-            hash.extend(cert.certificate.id.as_array().iter().cloned());
-            hash.extend(validator_id.clone().as_bytes());
+            let mut message = Vec::new();
+            message.extend(cert.certificate.id.as_array().iter().cloned());
+            message.extend(validator_id.clone().as_bytes());
 
-            let hash = keccak256(hash);
-            let signature = wallet.sign_message(hash.as_slice()).await.unwrap();
+            let signature = wallet.sign_message(message.as_slice()).await.unwrap();
 
             double_echo
                 .handle_echo(*p, cert.certificate.id, validator_id.clone(), signature)
@@ -119,12 +118,11 @@ pub async fn processing_double_echo(n: u64, validator_store: Arc<ValidatorStore>
         }
 
         for p in &double_echo_selected_ready {
-            let mut hash = Vec::new();
-            hash.extend(cert.certificate.id.as_array().iter().cloned());
-            hash.extend(validator_id.clone().as_bytes());
+            let mut message = Vec::new();
+            message.extend(cert.certificate.id.as_array().iter().cloned());
+            message.extend(validator_id.clone().as_bytes());
 
-            let hash = keccak256(hash);
-            let signature = wallet.sign_message(hash.as_slice()).await.unwrap();
+            let signature = wallet.sign_message(message.as_slice()).await.unwrap();
 
             double_echo
                 .handle_ready(*p, cert.certificate.id, validator_id.clone(), signature)
