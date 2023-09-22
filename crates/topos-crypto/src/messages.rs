@@ -1,6 +1,6 @@
 use ethers::signers::Signer;
 use ethers::signers::{LocalWallet, WalletError};
-use ethers::types::{Address, RecoveryMessage, Signature, SignatureError};
+use ethers::types::{Address, RecoveryMessage, Signature, SignatureError, H160};
 use ethers::utils::hash_message;
 use std::sync::Arc;
 
@@ -48,6 +48,8 @@ impl MessageSigner {
         let hash = hash_message(message.as_slice());
         let message: RecoveryMessage = hash.into();
 
-        signature.verify(message, self.public_address)
+        let public_address: Address = H160::from_slice(validator_id);
+
+        signature.verify(message, public_address)
     }
 }

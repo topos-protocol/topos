@@ -132,6 +132,8 @@ pub enum ProtocolEvents {
 pub enum ValidatorIdConversionError {
     #[error("Failed to parse address string as H160")]
     ParseError,
+    #[error("Failed to convert byte array into H160")]
+    InvalidByteLength,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
