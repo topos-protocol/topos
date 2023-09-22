@@ -8,15 +8,19 @@ use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 /// Proxy with the TCE
 ///
-/// 1) Fetch the delivered certificates from the TCE
-/// 2) Submit the new certificate to the TCE
+/// Performs two tasks:
+/// 1) Fetch the certificates that were delivered from the TCE
+/// 2) Submit the new certificates to the TCE
 pub struct TceProxyWorker {
+    /// The [`TceProxyConfig`] used to setup this worker.
     pub config: TceProxyConfig,
     commands: mpsc::Sender<TceProxyCommand>,
     events: mpsc::Receiver<TceProxyEvent>,
 }
 
 impl TceProxyWorker {
+    /// Construct a new [`TceProxyWorker`] with a 128 items deep channel to send commands to and receive events from a TCE node on the given subnet.
+    /// The worker holds a [`crate::client::TceClient`]
     pub async fn new(config: TceProxyConfig) -> Result<(Self, Option<(Certificate, u64)>), Error> {
         let (command_sender, mut command_rcv) = mpsc::channel::<TceProxyCommand>(128);
         let (evt_sender, evt_rcv) = mpsc::channel::<TceProxyEvent>(128);
@@ -25,7 +29,7 @@ impl TceProxyWorker {
 
         let (mut tce_client, mut receiving_certificate_stream) = TceClientBuilder::default()
             .set_subnet_id(config.subnet_id)
-            .set_tce_endpoint(&config.base_tce_api_url)
+            .set_tce_endpoint(&config.tce_endpoint)
             .set_proxy_event_sender(evt_sender.clone())
             .build_and_launch(shutdown_receiver)
             .await?;
