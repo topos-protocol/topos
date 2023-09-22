@@ -3,22 +3,19 @@
 //! Abstracted from actual transport implementation.
 //! Abstracted from actual storage implementation.
 
+use double_echo::DoubleEcho;
+use futures::Stream;
+use sampler::SampleType;
 use std::collections::HashSet;
 use std::sync::Arc;
-
-use sampler::SampleType;
+use tce_transport::{ProtocolEvents, ReliableBroadcastParams, ValidatorId};
 use thiserror::Error;
 use tokio::spawn;
-use tokio_stream::wrappers::ReceiverStream;
-
-use futures::Stream;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::{broadcast, mpsc, oneshot};
-
-use double_echo::DoubleEcho;
-use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
-
+use tokio_stream::wrappers::ReceiverStream;
 use topos_core::uci::{Certificate, CertificateId};
+use topos_crypto::messages::{MessageSigner, Signature};
 use topos_metrics::DOUBLE_ECHO_COMMAND_CHANNEL_CAPACITY_TOTAL;
 use topos_p2p::PeerId;
 use topos_tce_storage::types::CertificateDeliveredWithPositions;
@@ -54,6 +51,9 @@ pub enum TaskStatus {
 /// Configuration of TCE implementation
 pub struct ReliableBroadcastConfig {
     pub tce_params: ReliableBroadcastParams,
+    pub validator_id: ValidatorId,
+    pub validators: HashSet<ValidatorId>,
+    pub message_signer: Arc<MessageSigner>,
 }
 
 #[derive(Debug)]
@@ -84,22 +84,26 @@ pub enum DoubleEchoCommand {
     /// When echo reply received
     Echo {
         from_peer: PeerId,
+        validator_id: ValidatorId,
         certificate_id: CertificateId,
+        signature: Signature,
     },
 
     /// When ready reply received
     Ready {
         from_peer: PeerId,
+        validator_id: ValidatorId,
         certificate_id: CertificateId,
+        signature: Signature,
     },
 }
 
 /// Thread safe client to the protocol aggregate
 #[derive(Clone, Debug)]
 pub struct ReliableBroadcastClient {
-    command_sender: mpsc::Sender<DoubleEchoCommand>,
-    pub(crate) subscriptions_view_sender: mpsc::Sender<SubscriptionsView>,
-    pub(crate) double_echo_shutdown_channel: mpsc::Sender<oneshot::Sender<()>>,
+    command_sender: Sender<DoubleEchoCommand>,
+    pub(crate) subscriptions_view_sender: Sender<SubscriptionsView>,
+    pub(crate) double_echo_shutdown_channel: Sender<oneshot::Sender<()>>,
 }
 
 impl ReliableBroadcastClient {
@@ -109,7 +113,6 @@ impl ReliableBroadcastClient {
     /// Aggregate is spawned as new task.
     pub async fn new(
         config: ReliableBroadcastConfig,
-        _local_peer_id: String,
         validator_store: Arc<ValidatorStore>,
         broadcast_sender: broadcast::Sender<CertificateDeliveredWithPositions>,
     ) -> (Self, impl Stream<Item = ProtocolEvents>) {
@@ -123,15 +126,15 @@ impl ReliableBroadcastClient {
         let (task_manager_message_sender, task_manager_message_receiver) =
             mpsc::channel(*constant::BROADCAST_TASK_MANAGER_CHANNEL_SIZE);
 
-        let pending_certificate_count = validator_store.count_pending_certificates().unwrap_or(0);
-
         let double_echo = DoubleEcho::new(
             config.tce_params,
+            config.validator_id,
+            config.message_signer,
+            config.validators,
             task_manager_message_sender,
             command_receiver,
             event_sender,
             double_echo_shutdown_receiver,
-            pending_certificate_count,
             validator_store.clone(),
             broadcast_sender,
         );
@@ -222,6 +225,9 @@ pub enum Errors {
 
     #[error("Requested digest not found for certificate {0:?}")]
     DigestNotFound(CertificateId),
+
+    #[error("Cannot create public address from private key")]
+    ProducePublicAddress,
 
     #[error("Unable to execute shutdown for the reliable broadcast: {0}")]
     ShutdownCommunication(mpsc::error::SendError<oneshot::Sender<()>>),

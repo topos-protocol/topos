@@ -1,14 +1,14 @@
-use std::{future::IntoFuture, sync::Arc};
-
 use config::TceConfiguration;
 use futures::StreamExt;
 use opentelemetry::global;
+use std::{future::IntoFuture, sync::Arc};
 use tokio::{
     spawn,
     sync::{broadcast, mpsc},
 };
 use tokio_stream::wrappers::BroadcastStream;
 use tokio_util::sync::CancellationToken;
+use topos_crypto::messages::MessageSigner;
 use topos_p2p::{
     utils::{local_key_pair, local_key_pair_from_slice},
     Multiaddr,
@@ -22,7 +22,6 @@ use topos_tce_storage::{
     Connection, RocksDBStorage,
 };
 use tracing::{debug, warn};
-
 mod app_context;
 pub mod config;
 pub mod events;
@@ -47,9 +46,22 @@ pub async fn run(
         None => local_key_pair(None),
     };
 
+    let message_signer = match &config.signing_key {
+        Some(AuthKey::PrivateKey(pk)) => {
+            let bytes = pk.to_vec();
+            let bytes_str = std::str::from_utf8(&bytes)?;
+            MessageSigner::new(bytes_str)?
+        }
+        _ => return Err(Box::try_from("Error, no singing key".to_string()).unwrap()),
+    };
+
+    let public_address = message_signer.public_address.to_string();
+
+    warn!("Public node address: {public_address}");
+
     let peer_id = key.public().to_peer_id();
 
-    warn!("I am {}", peer_id);
+    warn!("I am {peer_id}");
 
     tracing::Span::current().record("peer_id", &peer_id.to_string());
 
@@ -135,15 +147,19 @@ pub async fn run(
     debug!("Storage started");
 
     debug!("Starting reliable broadcast");
+
     let (tce_cli, tce_stream) = ReliableBroadcastClient::new(
         ReliableBroadcastConfig {
             tce_params: config.tce_params.clone(),
+            validator_id: message_signer.public_address.into(),
+            validators: config.validators.clone(),
+            message_signer,
         },
-        peer_id.to_string(),
         validator_store.clone(),
         broadcast_sender,
     )
     .await;
+
     debug!("Reliable broadcast started");
 
     debug!("Starting the Synchronizer");

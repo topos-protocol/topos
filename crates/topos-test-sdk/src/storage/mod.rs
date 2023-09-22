@@ -54,7 +54,7 @@ pub fn create_folder(folder_name: &str) -> PathBuf {
     let mut rng = rand::thread_rng();
 
     temp_dir.push(format!(
-        "./{}/data_{}_{}/rocksdb",
+        "{}/data_{}_{}/rocksdb",
         folder_name,
         time.as_nanos(),
         rng.gen::<u64>()

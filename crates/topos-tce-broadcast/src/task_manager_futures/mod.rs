@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::future::IntoFuture;
 use std::pin::Pin;
 use std::sync::Arc;
-use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
+use tce_transport::{ProtocolEvents, ReliableBroadcastParams, ValidatorId};
 use tokio::sync::broadcast;
 use tokio::{spawn, sync::mpsc};
 use topos_core::uci::CertificateId;
@@ -25,6 +25,7 @@ use crate::sampler::SubscriptionsView;
 use crate::DoubleEchoCommand;
 use crate::TaskStatus;
 use task::{Task, TaskContext};
+use topos_crypto::messages::MessageSigner;
 
 type RunningTasks =
     FuturesUnordered<Pin<Box<dyn Future<Output = (CertificateId, TaskStatus)> + Send + 'static>>>;
@@ -39,10 +40,12 @@ pub struct TaskManager {
     pub subscriptions: SubscriptionsView,
     pub event_sender: mpsc::Sender<ProtocolEvents>,
     pub tasks: HashMap<CertificateId, TaskContext>,
+    pub message_signer: Arc<MessageSigner>,
     #[allow(clippy::type_complexity)]
     pub running_tasks: RunningTasks,
     pub buffered_messages: HashMap<CertificateId, Vec<DoubleEchoCommand>>,
     pub thresholds: ReliableBroadcastParams,
+    pub validator_id: ValidatorId,
     pub shutdown_sender: mpsc::Sender<()>,
     pub validator_store: Arc<ValidatorStore>,
     pub broadcast_sender: broadcast::Sender<CertificateDeliveredWithPositions>,
@@ -56,7 +59,9 @@ impl TaskManager {
         task_completion_sender: mpsc::Sender<(CertificateId, TaskStatus)>,
         subscription_view_receiver: mpsc::Receiver<SubscriptionsView>,
         event_sender: mpsc::Sender<ProtocolEvents>,
+        validator_id: ValidatorId,
         thresholds: ReliableBroadcastParams,
+        message_signer: Arc<MessageSigner>,
         validator_store: Arc<ValidatorStore>,
         broadcast_sender: broadcast::Sender<CertificateDeliveredWithPositions>,
     ) -> (Self, mpsc::Receiver<()>) {
@@ -72,6 +77,8 @@ impl TaskManager {
                 tasks: HashMap::new(),
                 running_tasks: FuturesUnordered::new(),
                 buffered_messages: Default::default(),
+                validator_id,
+                message_signer,
                 thresholds,
                 shutdown_sender,
                 validator_store,
@@ -108,12 +115,14 @@ impl TaskManager {
                                 std::collections::hash_map::Entry::Vacant(entry) => {
                                     let broadcast_state = BroadcastState::new(
                                         cert.clone(),
+                                        self.validator_id,
                                         self.thresholds.echo_threshold,
                                         self.thresholds.ready_threshold,
                                         self.thresholds.delivery_threshold,
                                         self.event_sender.clone(),
                                         self.subscriptions.clone(),
                                         need_gossip,
+                                        self.message_signer.clone(),
                                     );
 
                                     let (task, task_context) = Task::new(

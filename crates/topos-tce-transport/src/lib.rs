@@ -2,7 +2,10 @@
 //!
 use clap::Parser;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
+use thiserror::Error;
 use topos_core::uci::{Certificate, CertificateId};
+use topos_crypto::messages::{Address, Signature, H160};
 use topos_p2p::PeerId;
 
 #[derive(Parser, Clone, Debug, Default, Deserialize, Serialize)]
@@ -55,9 +58,17 @@ pub enum TceCommands {
     /// Received G-set message
     OnGossip { cert: Certificate },
     /// When echo reply received
-    OnEcho { certificate_id: CertificateId },
+    OnEcho {
+        certificate_id: CertificateId,
+        signature: Signature,
+        validator_id: ValidatorId,
+    },
     /// When ready reply received
-    OnReady { certificate_id: CertificateId },
+    OnReady {
+        certificate_id: CertificateId,
+        signature: Signature,
+        validator_id: ValidatorId,
+    },
     /// Given peer replied ok to the double echo request
     OnDoubleEchoOk {},
 }
@@ -101,14 +112,61 @@ pub enum ProtocolEvents {
     /// Indicates that 'echo' message broadcasting is required
     Echo {
         certificate_id: CertificateId,
+        signature: Signature,
+        validator_id: ValidatorId,
     },
     /// Indicates that 'ready' message broadcasting is required
     Ready {
         certificate_id: CertificateId,
+        signature: Signature,
+        validator_id: ValidatorId,
     },
     /// For simulation purpose, for now only caused by ill-formed sampling
     Die,
 
     /// Stable Sample
     StableSample,
+}
+
+#[derive(Debug, Error)]
+pub enum ValidatorIdConversionError {
+    #[error("Failed to parse address string as H160")]
+    ParseError,
+    #[error("Failed to convert byte array into H160")]
+    InvalidByteLength,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
+pub struct ValidatorId(H160);
+
+impl ValidatorId {
+    pub fn as_bytes(&self) -> &[u8] {
+        self.0.as_bytes()
+    }
+
+    pub fn address(&self) -> Address {
+        self.0
+    }
+}
+
+impl From<H160> for ValidatorId {
+    fn from(address: H160) -> Self {
+        ValidatorId(address)
+    }
+}
+
+impl TryFrom<&str> for ValidatorId {
+    type Error = ValidatorIdConversionError;
+
+    fn try_from(address: &str) -> Result<Self, Self::Error> {
+        H160::from_str(address)
+            .map_err(|_| ValidatorIdConversionError::ParseError)
+            .map(ValidatorId)
+    }
+}
+
+impl std::fmt::Display for ValidatorId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "0x{}", hex::encode(self.0))
+    }
 }

@@ -182,7 +182,6 @@ pub async fn start_node(
     let (sender, receiver) = broadcast::channel(100);
     let (tce_cli, tce_stream) = create_reliable_broadcast_client(
         create_reliable_broadcast_params(peers.len()),
-        config.keypair.public().to_peer_id().to_string(),
         validator_store.clone(),
         sender,
     )

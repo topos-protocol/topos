@@ -3,6 +3,7 @@ use thiserror::Error;
 pub mod hash;
 pub mod keys;
 pub mod keystore;
+pub mod messages;
 pub mod signatures;
 
 #[derive(Debug, Error)]

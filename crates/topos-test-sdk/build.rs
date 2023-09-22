@@ -6,7 +6,7 @@ fn main() {
     )
     .expect("Unable to build PathBuf for topos-test-sdk");
 
-    path.push("../../target/tmp/");
+    path.push("./../../target/tmp/");
     let path = path.as_path();
     println!(
         "cargo:rustc-env=TOPOS_TEST_SDK_TMP={}",

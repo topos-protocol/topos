@@ -7192,10 +7192,14 @@ version = "0.1.0"
 dependencies = [
  "byteorder",
  "eth-keystore",
+ "ethers",
  "hex",
  "keccak-hash",
+ "rstest",
  "secp256k1",
  "thiserror",
+ "topos-core",
+ "topos-tce-transport",
 ]
 
 [[package]]
@@ -7314,6 +7318,7 @@ dependencies = [
  "clap 4.4.4",
  "cucumber",
  "futures",
+ "hex",
  "hyper",
  "libp2p",
  "opentelemetry",
@@ -7331,6 +7336,7 @@ dependencies = [
  "tokio-util",
  "tonic 0.9.2",
  "topos-core",
+ "topos-crypto",
  "topos-metrics",
  "topos-p2p",
  "topos-tce-api",
@@ -7399,6 +7405,7 @@ dependencies = [
  "criterion",
  "env_logger 0.10.0",
  "futures",
+ "hex",
  "lazy_static",
  "rand",
  "rand_core 0.6.4",
@@ -7409,6 +7416,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "topos-core",
+ "topos-crypto",
  "topos-metrics",
  "topos-p2p",
  "topos-tce-storage",
@@ -7531,8 +7539,11 @@ name = "topos-tce-transport"
 version = "0.1.0"
 dependencies = [
  "clap 4.4.4",
+ "hex",
  "serde",
+ "thiserror",
  "topos-core",
+ "topos-crypto",
  "topos-p2p",
  "tracing",
 ]
@@ -7553,6 +7564,7 @@ name = "topos-test-sdk"
 version = "0.1.0"
 dependencies = [
  "futures",
+ "hex",
  "lazy_static",
  "libp2p",
  "proc_macro_sdk",
@@ -7563,6 +7575,7 @@ dependencies = [
  "tokio-util",
  "tonic 0.9.2",
  "topos-core",
+ "topos-crypto",
  "topos-p2p",
  "topos-tce",
  "topos-tce-api",

@@ -1,25 +1,37 @@
-use std::sync::Arc;
-
 use futures::Stream;
-
+use std::collections::HashSet;
+use std::sync::Arc;
 use tokio::sync::broadcast;
+use topos_crypto::messages::MessageSigner;
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
 use topos_tce_storage::types::CertificateDeliveredWithPositions;
 use topos_tce_storage::validator::ValidatorStore;
-use topos_tce_transport::{ProtocolEvents, ReliableBroadcastParams};
+use topos_tce_transport::{ProtocolEvents, ReliableBroadcastParams, ValidatorId};
+
+const PRIVATE_KEY: &str = "47d361f6becb933a77d7e01dee7b1c1859b656adbd8428bf7bf9519503e5d5d6";
 
 pub async fn create_reliable_broadcast_client(
     tce_params: ReliableBroadcastParams,
-    peer_id: String,
     storage: Arc<ValidatorStore>,
     sender: broadcast::Sender<CertificateDeliveredWithPositions>,
 ) -> (
     ReliableBroadcastClient,
     impl Stream<Item = ProtocolEvents> + Unpin,
 ) {
-    let config = ReliableBroadcastConfig { tce_params };
+    let message_signer = MessageSigner::new(PRIVATE_KEY).unwrap();
 
-    ReliableBroadcastClient::new(config, peer_id, storage, sender).await
+    let mut validators = HashSet::new();
+    let validator_id = ValidatorId::from(message_signer.public_address);
+    validators.insert(validator_id);
+
+    let config = ReliableBroadcastConfig {
+        tce_params,
+        validator_id,
+        validators,
+        message_signer,
+    };
+
+    ReliableBroadcastClient::new(config, storage, sender).await
 }
 
 pub fn create_reliable_broadcast_params(number_of_nodes: usize) -> ReliableBroadcastParams {

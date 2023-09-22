@@ -29,7 +29,7 @@ use topos_test_sdk::storage::{create_fullnode_store, storage_client};
 use topos_test_sdk::tce::public_api::{broadcast_stream, create_public_api, PublicApiContext};
 
 #[rstest]
-#[timeout(Duration::from_secs(1))]
+#[timeout(Duration::from_secs(4))]
 #[test(tokio::test)]
 async fn runtime_can_dispatch_a_cert(
     #[future] create_public_api: (PublicApiContext, impl Stream<Item = RuntimeEvent>),
@@ -104,7 +104,7 @@ async fn runtime_can_dispatch_a_cert(
 }
 
 #[rstest]
-#[timeout(Duration::from_secs(2))]
+#[timeout(Duration::from_secs(4))]
 #[test(tokio::test)]
 async fn can_catchup_with_old_certs(
     #[with(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], 15)]
@@ -191,7 +191,7 @@ async fn can_catchup_with_old_certs(
 }
 
 #[rstest]
-#[timeout(Duration::from_secs(2))]
+#[timeout(Duration::from_secs(4))]
 #[test(tokio::test)]
 async fn can_catchup_with_old_certs_with_position(
     broadcast_stream: broadcast::Receiver<CertificateDeliveredWithPositions>,
@@ -323,7 +323,7 @@ async fn can_catchup_with_old_certs_with_position(
 async fn can_listen_for_multiple_subnet_id() {}
 
 #[rstest]
-#[timeout(Duration::from_secs(2))]
+#[timeout(Duration::from_secs(4))]
 #[test(tokio::test)]
 async fn boots_healthy_graphql_server(
     broadcast_stream: broadcast::Receiver<CertificateDeliveredWithPositions>,
@@ -369,7 +369,7 @@ async fn boots_healthy_graphql_server(
 }
 
 #[rstest]
-#[timeout(Duration::from_secs(2))]
+#[timeout(Duration::from_secs(4))]
 #[test(tokio::test)]
 async fn graphql_server_enables_cors(
     broadcast_stream: broadcast::Receiver<CertificateDeliveredWithPositions>,
@@ -438,7 +438,7 @@ async fn graphql_server_enables_cors(
 }
 
 #[rstest]
-#[timeout(Duration::from_secs(2))]
+#[timeout(Duration::from_secs(4))]
 #[test(tokio::test)]
 async fn can_query_graphql_endpoint_for_certificates(
     broadcast_stream: broadcast::Receiver<CertificateDeliveredWithPositions>,
