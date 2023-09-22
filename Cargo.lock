@@ -7317,7 +7317,6 @@ dependencies = [
  "bytes",
  "clap 4.4.4",
  "cucumber",
- "ethers",
  "futures",
  "hex",
  "hyper",
@@ -7566,7 +7565,6 @@ dependencies = [
 name = "topos-test-sdk"
 version = "0.1.0"
 dependencies = [
- "ethers",
  "futures",
  "hex",
  "lazy_static",

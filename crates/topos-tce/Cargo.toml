@@ -12,7 +12,6 @@ workspace = true
 async-trait.workspace = true
 bincode.workspace = true
 clap.workspace = true
-ethers.workspace = true
 hex.workspace = true
 futures.workspace = true
 opentelemetry.workspace = true
