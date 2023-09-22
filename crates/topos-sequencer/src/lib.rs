@@ -122,10 +122,7 @@ pub async fn launch(
             // we get genesis block (and create genesis certificate) directly from the subnet block 0
             if let Some((cert, _position)) = &mut source_head_certificate {
                 if cert.id == CertificateId::default() {
-                    warn!(
-                        "Tce has not provided source head certificate, starting from subnet \
-                         genesis block..."
-                    );
+                    warn!("Tce has not provided source head certificate, starting from subnet genesis block...");
                     source_head_certificate = None;
                 }
             }
