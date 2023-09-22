@@ -36,7 +36,7 @@ pub async fn processing_double_echo(n: u64, validator_store: Arc<ValidatorStore>
         },
     };
 
-    let message_signer: Arc<MessageSigner> = MessageSigner::new(PRIVATE_KEY);
+    let message_signer: Arc<MessageSigner> = MessageSigner::new(PRIVATE_KEY).unwrap();
 
     let mut validators = HashSet::new();
     let validator_id = ValidatorId::from(message_signer.public_address);

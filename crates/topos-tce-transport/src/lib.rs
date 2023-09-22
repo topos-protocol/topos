@@ -1,11 +1,11 @@
 //! implementation of Topos Network Transport
 //!
 use clap::Parser;
-use ethers::types::{Address, Signature, H160};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use thiserror::Error;
 use topos_core::uci::{Certificate, CertificateId};
+use topos_crypto::messages::{Address, Signature, H160};
 use topos_p2p::PeerId;
 
 #[derive(Parser, Clone, Debug, Default, Deserialize, Serialize)]

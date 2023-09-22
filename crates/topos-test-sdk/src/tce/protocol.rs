@@ -18,7 +18,7 @@ pub async fn create_reliable_broadcast_client(
     ReliableBroadcastClient,
     impl Stream<Item = ProtocolEvents> + Unpin,
 ) {
-    let message_signer = MessageSigner::new(PRIVATE_KEY);
+    let message_signer = MessageSigner::new(PRIVATE_KEY).unwrap();
 
     let mut validators = HashSet::new();
     let validator_id = ValidatorId::from(message_signer.public_address);

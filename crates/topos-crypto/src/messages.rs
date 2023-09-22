@@ -1,8 +1,17 @@
 use ethers::signers::Signer;
 use ethers::signers::{LocalWallet, WalletError};
-use ethers::types::{Address, RecoveryMessage, Signature, SignatureError};
+use ethers::types::{RecoveryMessage, SignatureError};
 use ethers::utils::hash_message;
 use std::sync::Arc;
+use thiserror::Error;
+
+pub use ethers::types::{Address, Signature, H160};
+
+#[derive(Error, Debug)]
+pub enum MessageSignerError {
+    #[error("Unable to parse private key")]
+    PrivateKeyParsing,
+}
 
 #[derive(Debug)]
 pub struct MessageSigner {
@@ -11,14 +20,15 @@ pub struct MessageSigner {
 }
 
 impl MessageSigner {
-    pub fn new(private_key: &str) -> Arc<Self> {
+    pub fn new(private_key: &str) -> Result<Arc<Self>, MessageSignerError> {
         let wallet: LocalWallet = private_key
             .parse()
-            .expect("Cannot create wallet for private key");
-        Arc::new(Self {
+            .map_err(|_| MessageSignerError::PrivateKeyParsing)?;
+
+        Ok(Arc::new(Self {
             public_address: wallet.address(),
             wallet,
-        })
+        }))
     }
 
     pub fn sign_message(&self, payload: &[u8]) -> Result<Signature, WalletError> {

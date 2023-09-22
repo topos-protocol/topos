@@ -50,7 +50,7 @@ pub async fn run(
         Some(AuthKey::PrivateKey(pk)) => {
             let bytes = pk.to_vec();
             let bytes_str = std::str::from_utf8(&bytes)?;
-            MessageSigner::new(bytes_str)
+            MessageSigner::new(bytes_str)?
         }
         _ => return Err(Box::try_from("Error, no singing key".to_string()).unwrap()),
     };

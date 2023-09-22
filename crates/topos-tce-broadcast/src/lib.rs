@@ -15,7 +15,6 @@ use tokio::sync::mpsc::Sender;
 use tokio::sync::{broadcast, mpsc, oneshot};
 
 use double_echo::DoubleEcho;
-use ethers::types::Signature;
 use futures::Stream;
 use sampler::SampleType;
 use tce_transport::{ProtocolEvents, ReliableBroadcastParams, ValidatorId};
@@ -25,7 +24,7 @@ use tokio::sync::mpsc::Sender;
 use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
 use topos_core::uci::{Certificate, CertificateId};
-use topos_crypto::messages::MessageSigner;
+use topos_crypto::messages::{MessageSigner, Signature};
 use topos_metrics::DOUBLE_ECHO_COMMAND_CHANNEL_CAPACITY_TOTAL;
 use topos_p2p::PeerId;
 use topos_tce_storage::types::CertificateDeliveredWithPositions;
