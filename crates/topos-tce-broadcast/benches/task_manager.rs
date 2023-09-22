@@ -1,8 +1,8 @@
-use ethers::signers::{LocalWallet, Signer};
 use std::collections::HashSet;
 use std::sync::Arc;
 use tce_transport::{ReliableBroadcastParams, ValidatorId};
 use tokio::sync::{broadcast, mpsc, oneshot};
+use topos_crypto::messages::MessageSigner;
 use topos_tce_broadcast::double_echo::DoubleEcho;
 use topos_tce_broadcast::sampler::SubscriptionsView;
 use topos_tce_storage::validator::ValidatorStore;
@@ -36,16 +36,16 @@ pub async fn processing_double_echo(n: u64, validator_store: Arc<ValidatorStore>
         },
     };
 
-    let wallet: Arc<LocalWallet> = Arc::new(PRIVATE_KEY.parse().unwrap());
+    let message_signer: Arc<MessageSigner> = MessageSigner::new(PRIVATE_KEY);
 
     let mut validators = HashSet::new();
-    let validator_id = ValidatorId::from(wallet.address());
+    let validator_id = ValidatorId::from(message_signer.public_address);
     validators.insert(validator_id);
 
     let mut double_echo = DoubleEcho::new(
         params.broadcast_params,
         validator_id,
-        wallet.clone(),
+        message_signer.clone(),
         validators,
         task_manager_message_sender.clone(),
         cmd_receiver,
@@ -104,11 +104,9 @@ pub async fn processing_double_echo(n: u64, validator_store: Arc<ValidatorStore>
 
     for cert in &certificates {
         for p in &double_echo_selected_echo {
-            let mut message = Vec::new();
-            message.extend(cert.certificate.id.as_array().iter().cloned());
-            message.extend(validator_id.as_bytes());
-
-            let signature = wallet.sign_message(message.as_slice()).await.unwrap();
+            let signature = message_signer
+                .sign_message(cert.certificate.id.as_array(), validator_id.as_bytes())
+                .unwrap();
 
             double_echo
                 .handle_echo(*p, cert.certificate.id, validator_id, signature)
@@ -116,11 +114,9 @@ pub async fn processing_double_echo(n: u64, validator_store: Arc<ValidatorStore>
         }
 
         for p in &double_echo_selected_ready {
-            let mut message = Vec::new();
-            message.extend(cert.certificate.id.as_array().iter().cloned());
-            message.extend(validator_id.as_bytes());
-
-            let signature = wallet.sign_message(message.as_slice()).await.unwrap();
+            let signature = message_signer
+                .sign_message(cert.certificate.id.as_array(), validator_id.as_bytes())
+                .unwrap();
 
             double_echo
                 .handle_ready(*p, cert.certificate.id, validator_id, signature)

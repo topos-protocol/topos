@@ -1,4 +1,3 @@
-use ethers::signers::LocalWallet;
 use futures::stream::FuturesUnordered;
 use futures::Future;
 use futures::StreamExt;
@@ -26,6 +25,7 @@ use crate::sampler::SubscriptionsView;
 use crate::DoubleEchoCommand;
 use crate::TaskStatus;
 use task::{Task, TaskContext};
+use topos_crypto::messages::MessageSigner;
 
 type RunningTasks =
     FuturesUnordered<Pin<Box<dyn Future<Output = (CertificateId, TaskStatus)> + Send + 'static>>>;
@@ -40,7 +40,7 @@ pub struct TaskManager {
     pub subscriptions: SubscriptionsView,
     pub event_sender: mpsc::Sender<ProtocolEvents>,
     pub tasks: HashMap<CertificateId, TaskContext>,
-    pub wallet: Arc<LocalWallet>,
+    pub message_signer: Arc<MessageSigner>,
     #[allow(clippy::type_complexity)]
     pub running_tasks: RunningTasks,
     pub buffered_messages: HashMap<CertificateId, Vec<DoubleEchoCommand>>,
@@ -61,7 +61,7 @@ impl TaskManager {
         event_sender: mpsc::Sender<ProtocolEvents>,
         validator_id: ValidatorId,
         thresholds: ReliableBroadcastParams,
-        wallet: Arc<LocalWallet>,
+        message_signer: Arc<MessageSigner>,
         validator_store: Arc<ValidatorStore>,
         broadcast_sender: broadcast::Sender<CertificateDeliveredWithPositions>,
     ) -> (Self, mpsc::Receiver<()>) {
@@ -78,7 +78,7 @@ impl TaskManager {
                 running_tasks: FuturesUnordered::new(),
                 buffered_messages: Default::default(),
                 validator_id,
-                wallet,
+                message_signer,
                 thresholds,
                 shutdown_sender,
                 validator_store,
@@ -122,7 +122,7 @@ impl TaskManager {
                                         self.event_sender.clone(),
                                         self.subscriptions.clone(),
                                         need_gossip,
-                                        self.wallet.clone(),
+                                        self.message_signer.clone(),
                                     );
 
                                     let (task, task_context) = Task::new(

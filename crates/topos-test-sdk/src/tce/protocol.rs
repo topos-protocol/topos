@@ -1,9 +1,8 @@
-use ethers::signers::{LocalWallet, Signer};
 use futures::Stream;
 use std::collections::HashSet;
 use std::sync::Arc;
-
 use tokio::sync::broadcast;
+use topos_crypto::messages::MessageSigner;
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
 use topos_tce_storage::types::CertificateDeliveredWithPositions;
 use topos_tce_storage::validator::ValidatorStore;
@@ -19,17 +18,17 @@ pub async fn create_reliable_broadcast_client(
     ReliableBroadcastClient,
     impl Stream<Item = ProtocolEvents> + Unpin,
 ) {
-    let wallet: Arc<LocalWallet> = Arc::new(PRIVATE_KEY.parse().unwrap());
+    let message_signer = MessageSigner::new(PRIVATE_KEY);
 
     let mut validators = HashSet::new();
-    let validator_id = ValidatorId::from(wallet.address());
+    let validator_id = ValidatorId::from(message_signer.public_address);
     validators.insert(validator_id);
 
     let config = ReliableBroadcastConfig {
         tce_params,
         validator_id,
         validators,
-        wallet,
+        message_signer,
     };
 
     ReliableBroadcastClient::new(config, storage, sender).await

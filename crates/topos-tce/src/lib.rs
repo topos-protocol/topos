@@ -1,5 +1,4 @@
 use config::TceConfiguration;
-use ethers::signers::{LocalWallet, Signer};
 use futures::StreamExt;
 use opentelemetry::global;
 use std::{future::IntoFuture, sync::Arc};
@@ -9,6 +8,7 @@ use tokio::{
 };
 use tokio_stream::wrappers::BroadcastStream;
 use tokio_util::sync::CancellationToken;
+use topos_crypto::messages::MessageSigner;
 use topos_p2p::{
     utils::{local_key_pair, local_key_pair_from_slice},
     Multiaddr,
@@ -46,16 +46,16 @@ pub async fn run(
         None => local_key_pair(None),
     };
 
-    let local_wallet: Arc<LocalWallet> = match &config.signing_key {
+    let message_signer = match &config.signing_key {
         Some(AuthKey::PrivateKey(pk)) => {
             let bytes = pk.to_vec();
             let bytes_str = std::str::from_utf8(&bytes)?;
-            Arc::new(bytes_str.parse()?)
+            MessageSigner::new(bytes_str)
         }
         _ => return Err(Box::try_from("Error, no singing key".to_string()).unwrap()),
     };
 
-    let public_address = local_wallet.address();
+    let public_address = message_signer.public_address.to_string();
 
     warn!("Public node address: {public_address}");
 
@@ -151,9 +151,9 @@ pub async fn run(
     let (tce_cli, tce_stream) = ReliableBroadcastClient::new(
         ReliableBroadcastConfig {
             tce_params: config.tce_params.clone(),
-            validator_id: public_address.into(),
+            validator_id: message_signer.public_address.into(),
             validators: config.validators.clone(),
-            wallet: local_wallet,
+            message_signer,
         },
         validator_store.clone(),
         broadcast_sender,

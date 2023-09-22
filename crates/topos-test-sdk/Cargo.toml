@@ -12,6 +12,7 @@ topos-core = { workspace = true, features = ["uci"] }
 topos-p2p = { path = "../topos-p2p/" }
 topos-tce = { path = "../topos-tce/", optional = true }
 topos-tce-api = { path = "../topos-tce-api/", optional = true }
+topos-crypto = { path = "../topos-crypto/" }
 topos-tce-storage = { path = "../topos-tce-storage/" }
 topos-tce-gatekeeper = { path = "../topos-tce-gatekeeper/", optional = true }
 topos-tce-synchronizer = { path = "../topos-tce-synchronizer/", optional = true }

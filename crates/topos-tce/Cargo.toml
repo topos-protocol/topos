@@ -36,6 +36,7 @@ tce_transport = { package = "topos-tce-transport", path = "../topos-tce-transpor
 topos-p2p = { path = "../topos-p2p" }
 topos-metrics = { path = "../topos-metrics" }
 topos-tce-api = { path = "../topos-tce-api"}
+topos-crypto = { path = "../topos-crypto" }
 topos-tce-broadcast = { path = "../topos-tce-broadcast" }
 topos-tce-gatekeeper = { path = "../topos-tce-gatekeeper" }
 topos-tce-storage = { package = "topos-tce-storage", path = "../topos-tce-storage" }

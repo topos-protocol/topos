@@ -1,13 +1,12 @@
 use crate::TaskStatus;
 use crate::{DoubleEchoCommand, SubscriptionsView};
-use ethers::signers::LocalWallet;
 use ethers::types::Signature;
 use std::collections::HashSet;
 use std::sync::Arc;
 use tce_transport::{ProtocolEvents, ReliableBroadcastParams, ValidatorId};
 use tokio::sync::{broadcast, mpsc, oneshot};
 use topos_core::uci::{Certificate, CertificateId};
-use topos_crypto::messages::verify_signature;
+use topos_crypto::messages::MessageSigner;
 use topos_p2p::PeerId;
 use topos_tce_storage::types::CertificateDeliveredWithPositions;
 use topos_tce_storage::validator::ValidatorStore;
@@ -33,7 +32,7 @@ pub struct DoubleEcho {
     /// Public ETH address
     pub validator_id: ValidatorId,
     /// Keypair to sign and verify ECHO and READY messages
-    pub wallet: Arc<LocalWallet>,
+    pub message_signer: Arc<MessageSigner>,
     /// List of approved validators through smart contract and/or genesis
     pub validators: HashSet<ValidatorId>,
     pub validator_store: Arc<ValidatorStore>,
@@ -47,7 +46,7 @@ impl DoubleEcho {
     pub fn new(
         params: ReliableBroadcastParams,
         validator_id: ValidatorId,
-        wallet: Arc<LocalWallet>,
+        message_signer: Arc<MessageSigner>,
         validators: HashSet<ValidatorId>,
         task_manager_message_sender: mpsc::Sender<DoubleEchoCommand>,
         command_receiver: mpsc::Receiver<DoubleEchoCommand>,
@@ -59,7 +58,7 @@ impl DoubleEcho {
         Self {
             params,
             validator_id,
-            wallet,
+            message_signer,
             validators,
             task_manager_message_sender,
             command_receiver,
@@ -87,7 +86,7 @@ impl DoubleEcho {
             self.event_sender.clone(),
             self.validator_id,
             self.params.clone(),
-            self.wallet.clone(),
+            self.message_signer.clone(),
             self.validator_store.clone(),
             self.broadcast_sender.clone(),
         );
@@ -111,7 +110,7 @@ impl DoubleEcho {
             subscriptions_view_receiver,
             self.event_sender.clone(),
             self.validator_id,
-            self.wallet.clone(),
+            self.message_signer.clone(),
             self.params.clone(),
             self.validator_store.clone(),
         );
@@ -168,7 +167,7 @@ impl DoubleEcho {
                                         return error!("ECHO message comes from non-validator: {}", validator_id);
                                     }
 
-                                    if let Err(e) = verify_signature(signature, certificate_id.as_array(), validator_id.as_bytes(), validator_id.address()) {
+                                    if let Err(e) = self.message_signer.verify_signature(signature, certificate_id.as_array(), validator_id.as_bytes()) {
                                         return error!("ECHO messag signature cannot be verified from: {}", e);
                                     }
 
@@ -180,7 +179,7 @@ impl DoubleEcho {
                                         return error!("READY message comes from non-validator: {}", validator_id);
                                     }
 
-                                    if let Err(e) = verify_signature(signature, certificate_id.as_array(), validator_id.as_bytes(), validator_id.address()) {
+                                    if let Err(e) = self.message_signer.verify_signature(signature, certificate_id.as_array(), validator_id.as_bytes()) {
                                         return error!("READY message signature cannot be verified from: {}", e);
                                     }
 

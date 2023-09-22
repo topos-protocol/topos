@@ -15,7 +15,6 @@ use tokio::sync::mpsc::Sender;
 use tokio::sync::{broadcast, mpsc, oneshot};
 
 use double_echo::DoubleEcho;
-use ethers::signers::LocalWallet;
 use ethers::types::Signature;
 use futures::Stream;
 use sampler::SampleType;
@@ -26,6 +25,7 @@ use tokio::sync::mpsc::Sender;
 use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
 use topos_core::uci::{Certificate, CertificateId};
+use topos_crypto::messages::MessageSigner;
 use topos_metrics::DOUBLE_ECHO_COMMAND_CHANNEL_CAPACITY_TOTAL;
 use topos_p2p::PeerId;
 use topos_tce_storage::types::CertificateDeliveredWithPositions;
@@ -63,7 +63,7 @@ pub struct ReliableBroadcastConfig {
     pub tce_params: ReliableBroadcastParams,
     pub validator_id: ValidatorId,
     pub validators: HashSet<ValidatorId>,
-    pub wallet: Arc<LocalWallet>,
+    pub message_signer: Arc<MessageSigner>,
 }
 
 #[derive(Debug)]
@@ -139,7 +139,7 @@ impl ReliableBroadcastClient {
         let double_echo = DoubleEcho::new(
             config.tce_params,
             config.validator_id,
-            config.wallet,
+            config.message_signer,
             config.validators,
             task_manager_message_sender,
             command_receiver,

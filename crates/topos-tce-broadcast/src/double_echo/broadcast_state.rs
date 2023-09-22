@@ -1,11 +1,10 @@
 use crate::sampler::SubscriptionsView;
-use ethers::signers::LocalWallet;
 use std::sync::Arc;
 use std::{collections::HashSet, time};
 use tce_transport::{ProtocolEvents, ValidatorId};
 use tokio::sync::mpsc;
 use topos_core::uci::Certificate;
-use topos_crypto::messages::sign_message;
+use topos_crypto::messages::MessageSigner;
 use topos_metrics::DOUBLE_ECHO_BROADCAST_FINISHED_TOTAL;
 use topos_p2p::PeerId;
 use topos_tce_storage::{
@@ -26,7 +25,7 @@ pub struct BroadcastState {
     echo_threshold: usize,
     ready_threshold: usize,
     delivery_threshold: usize,
-    wallet: Arc<LocalWallet>,
+    message_signer: Arc<MessageSigner>,
     event_sender: mpsc::Sender<ProtocolEvents>,
     delivery_time: time::Instant,
     readies: HashSet<Ready>,
@@ -44,7 +43,7 @@ impl BroadcastState {
         event_sender: mpsc::Sender<ProtocolEvents>,
         subscriptions_view: SubscriptionsView,
         need_gossip: bool,
-        wallet: Arc<LocalWallet>,
+        message_signer: Arc<MessageSigner>,
     ) -> Self {
         let mut state = Self {
             subscriptions_view,
@@ -54,7 +53,7 @@ impl BroadcastState {
             echo_threshold,
             ready_threshold,
             delivery_threshold,
-            wallet,
+            message_signer,
             event_sender,
             delivery_time: time::Instant::now(),
             readies: HashSet::new(),
@@ -123,12 +122,10 @@ impl BroadcastState {
         if let Status::Pending = self.status {
             _ = self.event_sender.try_send(ProtocolEvents::Echo {
                 certificate_id: self.certificate.id,
-                signature: sign_message(
-                    self.certificate.id.as_array(),
-                    self.validator_id.as_bytes(),
-                    &self.wallet,
-                )
-                .ok()?,
+                signature: self
+                    .message_signer
+                    .sign_message(self.certificate.id.as_array(), self.validator_id.as_bytes())
+                    .ok()?,
                 validator_id: self.validator_id,
             });
 
@@ -148,12 +145,10 @@ impl BroadcastState {
         if !self.status.is_ready_sent() && self.reached_ready_threshold() {
             let event = ProtocolEvents::Ready {
                 certificate_id: self.certificate.id,
-                signature: sign_message(
-                    self.certificate.id.as_array(),
-                    self.validator_id.as_bytes(),
-                    &self.wallet,
-                )
-                .ok()?,
+                signature: self
+                    .message_signer
+                    .sign_message(self.certificate.id.as_array(), self.validator_id.as_bytes())
+                    .ok()?,
                 validator_id: self.validator_id,
             };
             if let Err(e) = self.event_sender.try_send(event) {
