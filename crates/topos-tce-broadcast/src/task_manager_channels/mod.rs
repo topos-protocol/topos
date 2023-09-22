@@ -1,9 +1,9 @@
-use ethers::signers::LocalWallet;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tce_transport::{ProtocolEvents, ReliableBroadcastParams, ValidatorId};
 use tokio::{spawn, sync::mpsc};
 use topos_core::uci::CertificateId;
+use topos_crypto::messages::MessageSigner;
 use tracing::warn;
 
 pub mod task;
@@ -33,7 +33,7 @@ pub struct TaskManager {
     pub tasks: HashMap<CertificateId, TaskContext>,
     pub buffered_messages: HashMap<CertificateId, Vec<DoubleEchoCommand>>,
     pub validator_id: ValidatorId,
-    pub wallet: Arc<LocalWallet>,
+    pub message_signer: Arc<MessageSigner>,
     pub thresholds: ReliableBroadcastParams,
     pub shutdown_sender: mpsc::Sender<()>,
     pub validator_store: Arc<ValidatorStore>,
@@ -47,7 +47,7 @@ impl TaskManager {
         subscription_view_receiver: mpsc::Receiver<SubscriptionsView>,
         event_sender: mpsc::Sender<ProtocolEvents>,
         validator_id: ValidatorId,
-        wallet: Arc<LocalWallet>,
+        message_signer: Arc<MessageSigner>,
         thresholds: ReliableBroadcastParams,
         validator_store: Arc<ValidatorStore>,
     ) -> (Self, mpsc::Receiver<()>) {
@@ -67,7 +67,7 @@ impl TaskManager {
                 tasks: HashMap::new(),
                 buffered_messages: Default::default(),
                 validator_id,
-                wallet,
+                message_signer,
                 thresholds,
                 shutdown_sender,
                 validator_store,
@@ -106,7 +106,7 @@ impl TaskManager {
                                         self.event_sender.clone(),
                                         self.subscriptions.clone(),
                                         need_gossip,
-                                        self.wallet.clone(),
+                                        self.message_signer.clone(),
                                     );
 
                                     let (task, task_context) = Task::new(cert.id, self.task_completion_sender.clone(), broadcast_state, self.validator_store.clone());
