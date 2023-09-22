@@ -11,30 +11,28 @@ impl TryFrom<proto_v1::Certificate> for topos_uci::Certificate {
         Ok(topos_uci::Certificate {
             prev_id: certificate
                 .prev_id
-                .expect("valid previous certificate id")
+                .ok_or(Error::MissingField("certificate.prev_id"))?
                 .value
                 .as_slice()
-                .try_into()
-                .expect("valid previous certificate id with correct length"),
+                .try_into()?,
             source_subnet_id: certificate
                 .source_subnet_id
-                .expect("valid source subnet id")
+                .ok_or(Error::MissingField("certificate.source_subnet_id"))?
                 .value
                 .as_slice()
-                .try_into()
-                .expect("valid source subnet id with correct length"),
+                .try_into()?,
             state_root: certificate
                 .state_root
                 .try_into()
-                .expect("valid state root with correct length"),
+                .map_err(|_| Error::InvalidStateRoot)?,
             tx_root_hash: certificate
                 .tx_root_hash
                 .try_into()
-                .expect("valid transaction root hash with correct length"),
+                .map_err(|_| Error::InvalidTxRootHash)?,
             receipts_root_hash: certificate
                 .receipts_root_hash
                 .try_into()
-                .expect("valid receipts root hash with correct length"),
+                .map_err(|_| Error::InvalidReceiptsRootHash)?,
             target_subnets: certificate
                 .target_subnets
                 .into_iter()
@@ -43,11 +41,10 @@ impl TryFrom<proto_v1::Certificate> for topos_uci::Certificate {
             verifier: certificate.verifier,
             id: certificate
                 .id
-                .expect("valid certificate id")
+                .ok_or(Error::MissingField("certificate.id"))?
                 .value
                 .as_slice()
-                .try_into()
-                .expect("valid certificate id with correct length"),
+                .try_into()?,
             proof: certificate.proof.expect("valid proof").value,
             signature: certificate.signature.expect("valid frost signature").value,
         })

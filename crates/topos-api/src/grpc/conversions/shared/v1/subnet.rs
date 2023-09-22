@@ -17,6 +17,21 @@ impl std::fmt::Display for SubnetId {
 pub enum Error {
     #[error("Unable to parse subnetId ({0})")]
     ValidationError(SubnetId),
+
+    #[error("Unable to parse UCI field ({0}))")]
+    UCI(#[from] topos_uci::Error),
+
+    #[error("Missing mandatory field: {0}")]
+    MissingField(&'static str),
+
+    #[error("Invalid or missing state_root")]
+    InvalidStateRoot,
+
+    #[error("Invalid or missing tx_root_hash")]
+    InvalidTxRootHash,
+
+    #[error("Invalid or missing receipts_root_hash")]
+    InvalidReceiptsRootHash,
 }
 
 impl From<[u8; SUBNET_ID_LENGTH]> for SubnetId {

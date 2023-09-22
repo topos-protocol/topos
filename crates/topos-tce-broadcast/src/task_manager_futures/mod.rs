@@ -30,6 +30,9 @@ use topos_crypto::messages::MessageSigner;
 type RunningTasks =
     FuturesUnordered<Pin<Box<dyn Future<Output = (CertificateId, TaskStatus)> + Send + 'static>>>;
 
+type RunningTasks =
+    FuturesUnordered<Pin<Box<dyn Future<Output = (CertificateId, TaskStatus)> + Send + 'static>>>;
+
 /// The TaskManager is responsible for receiving messages from the network and distributing them
 /// among tasks. These tasks are either created if none for a certain CertificateID exists yet,
 /// or existing tasks will receive the messages.
