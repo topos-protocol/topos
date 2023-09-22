@@ -120,12 +120,13 @@ impl BroadcastState {
         // any Echo or Ready messages
         // Sending our Echo message
         if let Status::Pending = self.status {
-            _ = self.event_sender.try_send(ProtocolEvents::Echo {
+            let mut payload = Vec::new();
+            payload.extend_from_slice(self.certificate.id.as_array());
+            payload.extend_from_slice(self.validator_id.as_bytes());
+
+            let _ = self.event_sender.try_send(ProtocolEvents::Echo {
                 certificate_id: self.certificate.id,
-                signature: self
-                    .message_signer
-                    .sign_message(self.certificate.id.as_array(), self.validator_id.as_bytes())
-                    .ok()?,
+                signature: self.message_signer.sign_message(&payload).ok()?,
                 validator_id: self.validator_id,
             });
 
@@ -143,12 +144,13 @@ impl BroadcastState {
         // If the status was EchoSent, we update it to ReadySent
         // If the status was Delivered, we update it to DeliveredWithReadySent
         if !self.status.is_ready_sent() && self.reached_ready_threshold() {
+            let mut payload = Vec::new();
+            payload.extend_from_slice(self.certificate.id.as_array());
+            payload.extend_from_slice(self.validator_id.as_bytes());
+
             let event = ProtocolEvents::Ready {
                 certificate_id: self.certificate.id,
-                signature: self
-                    .message_signer
-                    .sign_message(self.certificate.id.as_array(), self.validator_id.as_bytes())
-                    .ok()?,
+                signature: self.message_signer.sign_message(&payload).ok()?,
                 validator_id: self.validator_id,
             };
             if let Err(e) = self.event_sender.try_send(event) {

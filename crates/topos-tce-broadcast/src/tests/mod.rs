@@ -121,11 +121,13 @@ async fn reach_echo_threshold(double_echo: &mut DoubleEcho, cert: &Certificate) 
         .collect::<Vec<_>>();
 
     let message_signer = MessageSigner::new(PRIVATE_KEY);
-
     let validator_id = ValidatorId::from(message_signer.public_address);
-    let signature = message_signer
-        .sign_message(cert.id.as_array(), validator_id.as_bytes())
-        .unwrap();
+
+    let mut payload = Vec::new();
+    payload.extend_from_slice(cert.id.as_array());
+    payload.extend_from_slice(validator_id.as_bytes());
+
+    let signature = message_signer.sign_message(&payload).unwrap();
 
     for p in selected {
         double_echo
@@ -147,9 +149,11 @@ async fn reach_ready_threshold(double_echo: &mut DoubleEcho, cert: &Certificate)
 
     let validator_id = ValidatorId::from(message_signer.public_address);
 
-    let signature = message_signer
-        .sign_message(cert.id.as_array(), validator_id.as_bytes())
-        .unwrap();
+    let mut payload = Vec::new();
+    payload.extend_from_slice(cert.id.as_array());
+    payload.extend_from_slice(validator_id.as_bytes());
+
+    let signature = message_signer.sign_message(&payload).unwrap();
 
     for p in selected {
         double_echo
@@ -168,12 +172,13 @@ async fn reach_delivery_threshold(double_echo: &mut DoubleEcho, cert: &Certifica
         .collect::<Vec<_>>();
 
     let message_signer = MessageSigner::new(PRIVATE_KEY);
-
     let validator_id = ValidatorId::from(message_signer.public_address);
 
-    let signature = message_signer
-        .sign_message(cert.id.as_array(), validator_id.as_bytes())
-        .unwrap();
+    let mut payload = Vec::new();
+    payload.extend_from_slice(cert.id.as_array());
+    payload.extend_from_slice(validator_id.as_bytes());
+
+    let signature = message_signer.sign_message(&payload).unwrap();
 
     for p in selected {
         double_echo

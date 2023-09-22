@@ -10,8 +10,12 @@ pub fn test_signing_messages() {
     let validator_id_sender = ValidatorId::from(message_signer_sender.public_address);
     let certificate_id = CertificateId::from_array([0u8; 32]);
 
+    let mut payload = Vec::new();
+    payload.extend_from_slice(certificate_id.as_array());
+    payload.extend_from_slice(validator_id_sender.as_bytes());
+
     let signature = message_signer_sender
-        .sign_message(certificate_id.as_array(), validator_id_sender.as_bytes())
+        .sign_message(&payload)
         .expect("Cannot create Signature");
 
     let message_signer_receiver =
@@ -19,8 +23,8 @@ pub fn test_signing_messages() {
 
     let verify = message_signer_receiver.verify_signature(
         signature,
-        certificate_id.as_array(),
-        validator_id_sender.as_bytes(),
+        &payload,
+        validator_id_sender.address(),
     );
 
     assert!(verify.is_ok());
@@ -33,8 +37,12 @@ pub fn fails_to_verify_with_own_public_address() {
     let validator_id_sender = ValidatorId::from(message_signer_sender.public_address);
     let certificate_id = CertificateId::from_array([0u8; 32]);
 
+    let mut payload = Vec::new();
+    payload.extend_from_slice(certificate_id.as_array());
+    payload.extend_from_slice(validator_id_sender.as_bytes());
+
     let signature = message_signer_sender
-        .sign_message(certificate_id.as_array(), validator_id_sender.as_bytes())
+        .sign_message(&payload)
         .expect("Cannot create Signature");
 
     let message_signer_receiver =
@@ -43,8 +51,8 @@ pub fn fails_to_verify_with_own_public_address() {
 
     let verify = message_signer_receiver.verify_signature(
         signature,
-        certificate_id.as_array(),
-        validator_id_receiver.as_bytes(),
+        &payload,
+        validator_id_receiver.address(),
     );
 
     assert!(verify.is_err());

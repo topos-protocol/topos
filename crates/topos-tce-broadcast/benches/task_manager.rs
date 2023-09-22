@@ -103,10 +103,12 @@ pub async fn processing_double_echo(n: u64, validator_store: Arc<ValidatorStore>
     }
 
     for cert in &certificates {
+        let mut payload = Vec::new();
+        payload.extend_from_slice(cert.certificate.id.as_array());
+        payload.extend_from_slice(validator_id.as_bytes());
+
         for p in &double_echo_selected_echo {
-            let signature = message_signer
-                .sign_message(cert.certificate.id.as_array(), validator_id.as_bytes())
-                .unwrap();
+            let signature = message_signer.sign_message(&payload).unwrap();
 
             double_echo
                 .handle_echo(*p, cert.certificate.id, validator_id, signature)
@@ -114,9 +116,7 @@ pub async fn processing_double_echo(n: u64, validator_store: Arc<ValidatorStore>
         }
 
         for p in &double_echo_selected_ready {
-            let signature = message_signer
-                .sign_message(cert.certificate.id.as_array(), validator_id.as_bytes())
-                .unwrap();
+            let signature = message_signer.sign_message(&payload).unwrap();
 
             double_echo
                 .handle_ready(*p, cert.certificate.id, validator_id, signature)

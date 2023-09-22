@@ -22,5 +22,3 @@ rstest.workspace = true
 topos-tce-transport = { path = "../topos-tce-transport" }
 topos-core = { path = "../topos-core" }
 ethers.workspace = true
-
-

@@ -1,6 +1,6 @@
 use ethers::signers::Signer;
 use ethers::signers::{LocalWallet, WalletError};
-use ethers::types::{Address, RecoveryMessage, Signature, SignatureError, H160};
+use ethers::types::{Address, RecoveryMessage, Signature, SignatureError};
 use ethers::utils::hash_message;
 use std::sync::Arc;
 
@@ -21,16 +21,8 @@ impl MessageSigner {
         })
     }
 
-    pub fn sign_message(
-        &self,
-        certificate_id: &[u8],
-        validator_id: &[u8],
-    ) -> Result<Signature, WalletError> {
-        let mut message: Vec<u8> = Vec::with_capacity(certificate_id.len() + validator_id.len());
-        message.extend_from_slice(certificate_id);
-        message.extend_from_slice(validator_id);
-
-        let hash = hash_message(message.as_slice());
+    pub fn sign_message(&self, payload: &[u8]) -> Result<Signature, WalletError> {
+        let hash = hash_message(payload);
 
         LocalWallet::sign_hash(&self.wallet, hash)
     }
@@ -38,18 +30,11 @@ impl MessageSigner {
     pub fn verify_signature(
         &self,
         signature: Signature,
-        certificate_id: &[u8],
-        validator_id: &[u8],
+        payload: &[u8],
+        public_key: Address,
     ) -> Result<(), SignatureError> {
-        let mut message: Vec<u8> = Vec::with_capacity(certificate_id.len() + validator_id.len());
-        message.extend_from_slice(certificate_id);
-        message.extend_from_slice(validator_id);
+        let message: RecoveryMessage = payload.into();
 
-        let hash = hash_message(message.as_slice());
-        let message: RecoveryMessage = hash.into();
-
-        let public_address: Address = H160::from_slice(validator_id);
-
-        signature.verify(message, public_address)
+        signature.verify(message, public_key)
     }
 }

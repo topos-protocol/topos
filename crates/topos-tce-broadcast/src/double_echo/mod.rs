@@ -29,7 +29,7 @@ pub struct DoubleEcho {
     task_manager_message_sender: mpsc::Sender<DoubleEchoCommand>,
     /// The overview of the network, which holds echo and ready subscriptions and the network size
     pub subscriptions: SubscriptionsView,
-    /// Public ETH address
+    /// Local node ValidatorId
     pub validator_id: ValidatorId,
     /// Keypair to sign and verify ECHO and READY messages
     pub message_signer: Arc<MessageSigner>,
@@ -167,7 +167,11 @@ impl DoubleEcho {
                                         return error!("ECHO message comes from non-validator: {}", validator_id);
                                     }
 
-                                    if let Err(e) = self.message_signer.verify_signature(signature, certificate_id.as_array(), validator_id.as_bytes()) {
+                                    let mut payload = Vec::new();
+                                    payload.extend_from_slice(certificate_id.as_array());
+                                    payload.extend_from_slice(validator_id.as_bytes());
+
+                                    if let Err(e) = self.message_signer.verify_signature(signature, &payload, validator_id.address()) {
                                         return error!("ECHO messag signature cannot be verified from: {}", e);
                                     }
 
@@ -179,7 +183,11 @@ impl DoubleEcho {
                                         return error!("READY message comes from non-validator: {}", validator_id);
                                     }
 
-                                    if let Err(e) = self.message_signer.verify_signature(signature, certificate_id.as_array(), validator_id.as_bytes()) {
+                                    let mut payload = Vec::new();
+                                    payload.extend_from_slice(certificate_id.as_array());
+                                    payload.extend_from_slice(validator_id.as_bytes());
+
+                                    if let Err(e) = self.message_signer.verify_signature(signature, &payload, validator_id.address()) {
                                         return error!("READY message signature cannot be verified from: {}", e);
                                     }
 
