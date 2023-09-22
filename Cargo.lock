@@ -7543,6 +7543,7 @@ dependencies = [
  "ethers",
  "hex",
  "serde",
+ "thiserror",
  "topos-core",
  "topos-crypto",
  "topos-p2p",

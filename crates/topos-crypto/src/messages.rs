@@ -8,7 +8,6 @@ pub fn sign_message(
     wallet: &LocalWallet,
 ) -> Result<Signature, WalletError> {
     let mut message: Vec<u8> = Vec::with_capacity(certificate_id.len() + validator_id.len());
-
     message.extend_from_slice(certificate_id);
     message.extend_from_slice(validator_id);
 
@@ -24,7 +23,6 @@ pub fn verify_signature(
     public_key: Address,
 ) -> Result<(), SignatureError> {
     let mut message: Vec<u8> = Vec::with_capacity(certificate_id.len() + validator_id.len());
-
     message.extend_from_slice(certificate_id);
     message.extend_from_slice(validator_id);
 

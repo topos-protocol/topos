@@ -19,7 +19,7 @@ pub async fn create_reliable_broadcast_client(
     ReliableBroadcastClient,
     impl Stream<Item = ProtocolEvents> + Unpin,
 ) {
-    let wallet: LocalWallet = PRIVATE_KEY.parse().unwrap();
+    let wallet: Arc<LocalWallet> = Arc::new(PRIVATE_KEY.parse().unwrap());
 
     let mut validators = HashSet::new();
     let validator_id = ValidatorId::from(wallet.address());

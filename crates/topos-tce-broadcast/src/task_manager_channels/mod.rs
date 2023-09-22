@@ -33,7 +33,7 @@ pub struct TaskManager {
     pub tasks: HashMap<CertificateId, TaskContext>,
     pub buffered_messages: HashMap<CertificateId, Vec<DoubleEchoCommand>>,
     pub validator_id: ValidatorId,
-    pub wallet: LocalWallet,
+    pub wallet: Arc<LocalWallet>,
     pub thresholds: ReliableBroadcastParams,
     pub shutdown_sender: mpsc::Sender<()>,
     pub validator_store: Arc<ValidatorStore>,
@@ -47,7 +47,7 @@ impl TaskManager {
         subscription_view_receiver: mpsc::Receiver<SubscriptionsView>,
         event_sender: mpsc::Sender<ProtocolEvents>,
         validator_id: ValidatorId,
-        wallet: LocalWallet,
+        wallet: Arc<LocalWallet>,
         thresholds: ReliableBroadcastParams,
         validator_store: Arc<ValidatorStore>,
     ) -> (Self, mpsc::Receiver<()>) {

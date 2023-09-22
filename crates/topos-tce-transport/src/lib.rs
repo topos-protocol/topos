@@ -4,6 +4,7 @@ use clap::Parser;
 use ethers::types::{Address, Signature, H160};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
+use thiserror::Error;
 use topos_core::uci::{Certificate, CertificateId};
 use topos_p2p::PeerId;
 
@@ -127,6 +128,12 @@ pub enum ProtocolEvents {
     StableSample,
 }
 
+#[derive(Debug, Error)]
+pub enum ValidatorIdConversionError {
+    #[error("Failed to parse address string as H160")]
+    ParseError,
+}
+
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct ValidatorId(H160);
 
@@ -136,7 +143,7 @@ impl ValidatorId {
     }
 
     pub fn address(&self) -> Address {
-        Address::from_str(&format!("0x{}", hex::encode(self.0))).unwrap()
+        self.0
     }
 }
 
@@ -146,9 +153,13 @@ impl From<H160> for ValidatorId {
     }
 }
 
-impl From<&str> for ValidatorId {
-    fn from(address: &str) -> Self {
-        ValidatorId(H160::from_str(address).expect("Cannot parse address string as H160"))
+impl TryFrom<&str> for ValidatorId {
+    type Error = ValidatorIdConversionError;
+
+    fn try_from(address: &str) -> Result<Self, Self::Error> {
+        H160::from_str(address)
+            .map_err(|_| ValidatorIdConversionError::ParseError)
+            .map(ValidatorId)
     }
 }
 

@@ -46,11 +46,11 @@ pub async fn run(
         None => local_key_pair(None),
     };
 
-    let local_wallet: LocalWallet = match &config.signing_key {
+    let local_wallet: Arc<LocalWallet> = match &config.signing_key {
         Some(AuthKey::PrivateKey(pk)) => {
             let bytes = pk.to_vec();
             let bytes_str = std::str::from_utf8(&bytes)?;
-            bytes_str.parse()?
+            Arc::new(bytes_str.parse()?)
         }
         _ => return Err(Box::try_from("Error, no singing key".to_string()).unwrap()),
     };

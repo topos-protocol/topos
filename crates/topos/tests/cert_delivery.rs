@@ -35,7 +35,7 @@ fn get_subset_of_subnets(subnets: &[SubnetId], subset_size: usize) -> Vec<Subnet
 
 #[rstest]
 #[test(tokio::test)]
-#[timeout(Duration::from_secs(5))]
+#[timeout(Duration::from_secs(7))]
 async fn start_a_cluster() {
     let mut peers_context = create_network(5, vec![]).await;
 

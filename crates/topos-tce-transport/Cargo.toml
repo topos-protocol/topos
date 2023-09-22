@@ -14,6 +14,7 @@ clap.workspace = true
 ethers.workspace = true
 serde = { workspace = true, features = ["rc"] }
 tracing.workspace = true
+thiserror.workspace = true
 hex.workspace = true
 topos-core = { workspace = true, features = ["uci"] }
 topos-p2p = { path = "../topos-p2p/"}

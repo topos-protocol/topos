@@ -33,7 +33,7 @@ pub struct DoubleEcho {
     /// Public ETH address
     pub validator_id: ValidatorId,
     /// Keypair to sign and verify ECHO and READY messages
-    pub wallet: LocalWallet,
+    pub wallet: Arc<LocalWallet>,
     /// List of approved validators through smart contract and/or genesis
     pub validators: HashSet<ValidatorId>,
     pub validator_store: Arc<ValidatorStore>,
@@ -47,7 +47,7 @@ impl DoubleEcho {
     pub fn new(
         params: ReliableBroadcastParams,
         validator_id: ValidatorId,
-        wallet: LocalWallet,
+        wallet: Arc<LocalWallet>,
         validators: HashSet<ValidatorId>,
         task_manager_message_sender: mpsc::Sender<DoubleEchoCommand>,
         command_receiver: mpsc::Receiver<DoubleEchoCommand>,

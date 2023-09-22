@@ -3,6 +3,7 @@ use crate::*;
 use ethers::signers::{LocalWallet, Signer};
 use rstest::*;
 use std::collections::HashSet;
+use std::sync::Arc;
 use std::time::Duration;
 use tce_transport::ReliableBroadcastParams;
 use tokio::sync::mpsc::Receiver;
@@ -58,7 +59,7 @@ async fn create_context(params: TceParams, folder_name: &'static str) -> (Double
         mpsc::channel::<oneshot::Sender<()>>(1);
     let (task_manager_message_sender, task_manager_message_receiver) = mpsc::channel(CHANNEL_SIZE);
 
-    let wallet: LocalWallet = PRIVATE_KEY.parse().unwrap();
+    let wallet: Arc<LocalWallet> = Arc::new(PRIVATE_KEY.parse().unwrap());
 
     let mut validators = HashSet::new();
     let validator_id = ValidatorId::from(wallet.address());

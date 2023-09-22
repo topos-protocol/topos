@@ -1,5 +1,6 @@
 use crate::sampler::SubscriptionsView;
 use ethers::signers::LocalWallet;
+use std::sync::Arc;
 use std::{collections::HashSet, time};
 use tce_transport::{ProtocolEvents, ValidatorId};
 use tokio::sync::mpsc;
@@ -25,7 +26,7 @@ pub struct BroadcastState {
     echo_threshold: usize,
     ready_threshold: usize,
     delivery_threshold: usize,
-    wallet: LocalWallet,
+    wallet: Arc<LocalWallet>,
     event_sender: mpsc::Sender<ProtocolEvents>,
     delivery_time: time::Instant,
     readies: HashSet<Ready>,
@@ -43,7 +44,7 @@ impl BroadcastState {
         event_sender: mpsc::Sender<ProtocolEvents>,
         subscriptions_view: SubscriptionsView,
         need_gossip: bool,
-        wallet: LocalWallet,
+        wallet: Arc<LocalWallet>,
     ) -> Self {
         let mut state = Self {
             subscriptions_view,

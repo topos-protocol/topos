@@ -36,7 +36,7 @@ pub async fn processing_double_echo(n: u64, validator_store: Arc<ValidatorStore>
         },
     };
 
-    let wallet: LocalWallet = PRIVATE_KEY.parse().unwrap();
+    let wallet: Arc<LocalWallet> = Arc::new(PRIVATE_KEY.parse().unwrap());
 
     let mut validators = HashSet::new();
     let validator_id = ValidatorId::from(wallet.address());

@@ -63,7 +63,7 @@ pub struct ReliableBroadcastConfig {
     pub tce_params: ReliableBroadcastParams,
     pub validator_id: ValidatorId,
     pub validators: HashSet<ValidatorId>,
-    pub wallet: LocalWallet,
+    pub wallet: Arc<LocalWallet>,
 }
 
 #[derive(Debug)]

@@ -102,7 +102,11 @@ impl Run {
             return self
                 .validators
                 .split(&[',', ' '])
-                .map(ValidatorId::from)
+                .map(|address| {
+                    ValidatorId::try_from(address).unwrap_or_else(|error| {
+                        panic!("Failed to convert address to ValidatorId: {:?}", error)
+                    })
+                })
                 .collect();
         }
 

@@ -1,4 +1,5 @@
 use rlp::Rlp;
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::{fs, path::PathBuf};
 
@@ -13,6 +14,11 @@ pub(crate) mod tests;
 pub struct Genesis {
     pub path: PathBuf,
     pub json: Value,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum Error {
+    ParseValidators,
 }
 
 impl Genesis {
@@ -90,7 +96,11 @@ impl Genesis {
             if let Ok(validator_data) = validator_data {
                 let public_key = validator_data.to_vec();
                 let address = format!("0x{}", hex::encode(&public_key[1..=20]));
-                validator_public_keys.insert(ValidatorId::from(address.as_str()));
+                validator_public_keys.insert(
+                    ValidatorId::try_from(address.as_str()).unwrap_or_else(|error| {
+                        panic!("Failed to convert address to ValidatorId: {:?}", error)
+                    }),
+                );
             }
         }
 

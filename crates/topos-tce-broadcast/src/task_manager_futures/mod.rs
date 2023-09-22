@@ -40,7 +40,7 @@ pub struct TaskManager {
     pub subscriptions: SubscriptionsView,
     pub event_sender: mpsc::Sender<ProtocolEvents>,
     pub tasks: HashMap<CertificateId, TaskContext>,
-    pub wallet: LocalWallet,
+    pub wallet: Arc<LocalWallet>,
     #[allow(clippy::type_complexity)]
     pub running_tasks: RunningTasks,
     pub buffered_messages: HashMap<CertificateId, Vec<DoubleEchoCommand>>,
@@ -61,7 +61,7 @@ impl TaskManager {
         event_sender: mpsc::Sender<ProtocolEvents>,
         validator_id: ValidatorId,
         thresholds: ReliableBroadcastParams,
-        wallet: LocalWallet,
+        wallet: Arc<LocalWallet>,
         validator_store: Arc<ValidatorStore>,
         broadcast_sender: broadcast::Sender<CertificateDeliveredWithPositions>,
     ) -> (Self, mpsc::Receiver<()>) {
