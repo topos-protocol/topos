@@ -177,14 +177,11 @@ pub async fn start_node(
     let (_, validator_store) = create_validator_store(&peer_id_str, certificates.clone()).await;
     let full_node_store = create_fullnode_store(&peer_id_str, certificates).await;
 
-    let (_, validator_store) = create_validator_store(&peer_id_str, certificates.clone()).await;
-    let full_node_store = create_fullnode_store(&peer_id_str, certificates).await;
     let storage_join_handle = spawn(storage.into_future());
 
     let (sender, receiver) = broadcast::channel(100);
     let (tce_cli, tce_stream) = create_reliable_broadcast_client(
         create_reliable_broadcast_params(peers.len()),
-        config.keypair.public().to_peer_id().to_string(),
         validator_store.clone(),
         sender,
     )

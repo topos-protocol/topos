@@ -8,7 +8,6 @@ use tokio::sync::mpsc::Receiver;
 use topos_crypto::messages::MessageSigner;
 use topos_test_sdk::constants::*;
 use topos_test_sdk::storage::create_validator_store;
-use topos_test_sdk::storage::create_validator_store;
 
 const CHANNEL_SIZE: usize = 10;
 const PRIVATE_KEY: &str = "47d361f6becb933a77d7e01dee7b1c1859b656adbd8428bf7bf9519503e5d5d6";

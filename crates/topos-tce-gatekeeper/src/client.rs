@@ -11,11 +11,6 @@ pub trait GatekeeperClient: Send + Sync + 'static {
     async fn get_random_peers(&self, number: usize) -> Result<Vec<PeerId>, GatekeeperError>;
 }
 
-#[async_trait]
-pub trait GatekeeperClient: Send + Sync + 'static {
-    async fn get_random_peers(&self, number: usize) -> Result<Vec<PeerId>, GatekeeperError>;
-}
-
 #[derive(Clone)]
 pub struct Client {
     pub(crate) local_peer_id: PeerId,
