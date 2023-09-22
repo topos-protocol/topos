@@ -1,5 +1,5 @@
 //!
-//! The module to handle incoming events from the friendly TCE node
+//! Handles incoming events from the friendly TCE node
 //!
 pub mod client;
 pub mod worker;
@@ -52,6 +52,7 @@ pub enum Error {
     },
 }
 
+/// Control the TceProxy
 #[derive(Debug)]
 pub enum TceProxyCommand {
     /// Submit a newly created certificate to the TCE
@@ -64,6 +65,7 @@ pub enum TceProxyCommand {
     Shutdown(tokio::sync::oneshot::Sender<()>),
 }
 
+/// Events related to synchronizing certificates with the TCE network.
 #[derive(Debug, Clone)]
 pub enum TceProxyEvent {
     /// New delivered certificate (and its position) fetched from the TCE network
@@ -71,14 +73,17 @@ pub enum TceProxyEvent {
         certificates: Vec<(Certificate, u64)>,
         ctx: Context,
     },
-    /// Failed watching certificates channel
-    /// Requires restart of sequencer tce proxy
+    /// Failed watching certificates channel. Requires a restart of the sequencer tce proxy to recover.
     WatchCertificatesChannelFailed,
 }
 
+/// Configuration data for the TCE proxy, used to configure the [`TceProxyWorker`].
 pub struct TceProxyConfig {
+    /// The [`SubnetId`] this config handles certificate proxying for.
     pub subnet_id: SubnetId,
-    pub base_tce_api_url: String,
+    /// The GRPC endpoint where the Sequencer is expecting to find a TCE node.
+    pub tce_endpoint: String,
+    /// The positions in the index of the known Certificates.
     pub positions: Vec<TargetStreamPosition>,
 }
 
@@ -86,7 +91,7 @@ async fn connect_to_tce_service_with_retry(
     endpoint: String,
 ) -> Result<ApiServiceClient<tonic::transport::channel::Channel>, Error> {
     info!(
-        "Connecting to the TCE at {} using backoff strategy...",
+        "Connecting to the TCE at {} using the exponential backoff strategy...",
         endpoint
     );
     let op = || async {
@@ -102,7 +107,7 @@ async fn connect_to_tce_service_with_retry(
     backoff::future::retry(backoff::ExponentialBackoff::default(), op)
         .await
         .map_err(|e| {
-            error!("Failed to connect to the TCE: {e}");
+            error!("Failed to connect to the TCE at {}: {e}", &endpoint);
             Error::TonicTransportError { source: e }
         })
 }
