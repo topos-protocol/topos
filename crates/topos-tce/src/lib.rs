@@ -169,7 +169,7 @@ pub async fn run(
         .serve_grpc_addr(config.api_addr)
         .serve_graphql_addr(config.graphql_api_addr)
         .serve_metrics_addr(config.metrics_api_addr)
-        .store(fullnode_store.clone())
+        .store(validator_store.clone())
         .storage(storage_client.clone())
         .build_and_launch()
         .await;

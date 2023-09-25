@@ -1,3 +1,4 @@
+use rocksdb::IteratorMode;
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::errors::InternalStorageError;
@@ -11,6 +12,12 @@ where
 
     /// Returns an Iterator over the whole CF
     fn iter(&'a self) -> Result<Self::Iterator, InternalStorageError>;
+
+    /// Returns an Iterator over the whole CF with mode configured
+    fn iter_with_mode(
+        &'a self,
+        mode: IteratorMode<'_>,
+    ) -> Result<Self::Iterator, InternalStorageError>;
 
     /// Returns a prefixed Iterator over the CF
     fn prefix_iter<P: Serialize>(

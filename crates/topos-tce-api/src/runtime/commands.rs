@@ -57,12 +57,4 @@ pub(crate) enum InternalRuntimeCommand {
         subnet_id: SubnetId,
         sender: oneshot::Sender<Result<Option<(u64, Certificate)>, RuntimeError>>,
     },
-
-    /// Get source head certificate and its index (basically number pending certificates) by source subnet id
-    GetLastPendingCertificates {
-        subnet_ids: Vec<SubnetId>,
-        #[allow(clippy::type_complexity)]
-        sender:
-            oneshot::Sender<Result<HashMap<SubnetId, Option<(Certificate, u64)>>, RuntimeError>>,
-    },
 }

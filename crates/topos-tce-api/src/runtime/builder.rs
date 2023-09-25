@@ -7,7 +7,7 @@ use tokio::{
 use tokio_stream::wrappers::ReceiverStream;
 use topos_core::api::grpc::tce::v1::StatusResponse;
 use topos_tce_storage::{
-    fullnode::FullNodeStore, types::CertificateDeliveredWithPositions, StorageClient,
+    types::CertificateDeliveredWithPositions, validator::ValidatorStore, StorageClient,
 };
 
 use crate::{
@@ -18,7 +18,7 @@ use crate::{
 #[derive(Default)]
 pub struct RuntimeBuilder {
     storage: Option<StorageClient>,
-    store: Option<Arc<FullNodeStore>>,
+    store: Option<Arc<ValidatorStore>>,
     broadcast_stream: Option<broadcast::Receiver<CertificateDeliveredWithPositions>>,
     local_peer_id: String,
     grpc_socket_addr: Option<SocketAddr>,
@@ -67,7 +67,7 @@ impl RuntimeBuilder {
         self
     }
 
-    pub fn store(mut self, store: Arc<FullNodeStore>) -> Self {
+    pub fn store(mut self, store: Arc<ValidatorStore>) -> Self {
         self.store = Some(store);
 
         self
@@ -90,6 +90,12 @@ impl RuntimeBuilder {
         let (api_event_sender, api_event_receiver) = mpsc::channel(2048);
 
         let (health_reporter, tce_status, grpc) = ServerBuilder::default()
+            .with_store(
+                self.store
+                    .clone()
+                    .take()
+                    .expect("Unable to build gRPC Server, Store is missing"),
+            )
             .with_peer_id(self.local_peer_id)
             .command_sender(command_sender.clone())
             .serve_addr(self.grpc_socket_addr)
@@ -108,6 +114,7 @@ impl RuntimeBuilder {
                 .store(
                     self.store
                         .take()
+                        .map(|store| store.get_fullnode_store())
                         .expect("Unable to build GraphQL Server, Store is missing"),
                 )
                 .serve_addr(Some(graphql_addr))

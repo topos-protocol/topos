@@ -1,11 +1,12 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     path::PathBuf,
     sync::{atomic::Ordering, Arc},
 };
 
 use async_trait::async_trait;
 
+use rocksdb::IteratorMode;
 use topos_core::{
     types::{
         stream::{CertificateSourceStreamPosition, Position},
@@ -48,6 +49,10 @@ impl ValidatorStore {
         Ok(store)
     }
 
+    pub fn get_fullnode_store(&self) -> Arc<FullNodeStore> {
+        self.fullnode_store.clone()
+    }
+
     pub fn count_pending_certificates(&self) -> Result<usize, StorageError> {
         Ok(self.pending_tables.pending_pool.iter()?.count())
     }
@@ -70,6 +75,43 @@ impl ValidatorStore {
         &self,
     ) -> Result<Vec<(PendingCertificateId, Certificate)>, StorageError> {
         Ok(self.pending_tables.pending_pool.iter()?.collect())
+    }
+
+    pub fn get_pending_certificates_for_subnets(
+        &self,
+        subnets: &[SubnetId],
+    ) -> Result<HashMap<SubnetId, Option<(PendingCertificateId, Certificate)>>, StorageError> {
+        let mut cache: HashSet<_> = subnets.iter().collect();
+        let mut result: HashMap<SubnetId, Option<(u64, Certificate)>> = subnets
+            .iter()
+            .enumerate()
+            .map(|(_, s)| (*s, None))
+            .collect();
+
+        for (position, certificate) in self
+            .pending_tables
+            .pending_pool
+            .iter_with_mode(IteratorMode::End)?
+        {
+            if cache.is_empty() {
+                break;
+            }
+
+            if !cache.contains(&certificate.source_subnet_id) {
+                continue;
+            }
+
+            cache.remove(&certificate.source_subnet_id);
+            let mut latest_cert = certificate;
+            while let Some(certificate) =
+                self.pending_tables.precedence_pool.get(&latest_cert.id)?
+            {
+                latest_cert = certificate;
+            }
+            result.insert(certificate.source_subnet_id, Some((position, certificate)));
+        }
+
+        Ok(result)
     }
 
     pub fn insert_pending_certificates(

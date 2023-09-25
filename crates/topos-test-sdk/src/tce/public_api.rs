@@ -12,13 +12,13 @@ use topos_core::api::grpc::tce::v1::{
 use topos_tce_api::RuntimeClient;
 use topos_tce_api::RuntimeContext;
 use topos_tce_api::RuntimeEvent;
-use topos_tce_storage::fullnode::FullNodeStore;
 use topos_tce_storage::types::CertificateDeliveredWithPositions;
+use topos_tce_storage::validator::ValidatorStore;
 use topos_tce_storage::StorageClient;
 use tracing::warn;
 
 use crate::networking::get_available_addr;
-use crate::storage::create_fullnode_store;
+use crate::storage::create_validator_store;
 use crate::storage::storage_client;
 use crate::PORT_MAPPING;
 
@@ -41,10 +41,10 @@ pub fn broadcast_stream() -> broadcast::Receiver<CertificateDeliveredWithPositio
 pub async fn create_public_api(
     #[future] storage_client: StorageClient,
     broadcast_stream: broadcast::Receiver<CertificateDeliveredWithPositions>,
-    #[future] create_fullnode_store: Arc<FullNodeStore>,
+    #[future] create_validator_store: Arc<ValidatorStore>,
 ) -> (PublicApiContext, impl Stream<Item = RuntimeEvent>) {
     let storage_client = storage_client.await;
-    let store = create_fullnode_store.await;
+    let store = create_validator_store.await;
     let grpc_addr = get_available_addr();
     let graphql_addr = get_available_addr();
     let metrics_addr = get_available_addr();

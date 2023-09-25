@@ -213,12 +213,12 @@ async fn can_catchup_with_old_certs_with_position(
     )
     .await;
 
-    let storage_client = StorageClient::new(store);
+    let storage_client = StorageClient::new(store.clone());
 
     let (runtime_client, _launcher, _ctx) = Runtime::builder()
         .with_broadcast_stream(broadcast_stream)
         .storage(storage_client)
-        .store(fullnode_store)
+        .store(store)
         .serve_grpc_addr(addr)
         .serve_graphql_addr(graphql_addr)
         .serve_metrics_addr(metrics_addr)
@@ -337,11 +337,11 @@ async fn boots_healthy_graphql_server(
         futures::future::ready(fullnode_store.clone()),
     )
     .await;
-    let storage_client = StorageClient::new(store);
+    let storage_client = StorageClient::new(store.clone());
     let (_runtime_client, _launcher, _ctx) = Runtime::builder()
         .with_broadcast_stream(broadcast_stream)
         .storage(storage_client)
-        .store(fullnode_store)
+        .store(store)
         .serve_grpc_addr(addr)
         .serve_graphql_addr(graphql_addr)
         .serve_metrics_addr(metrics_addr)
@@ -381,12 +381,12 @@ async fn graphql_server_enables_cors(
     )
     .await;
 
-    let storage_client = StorageClient::new(store);
+    let storage_client = StorageClient::new(store.clone());
 
     let (_runtime_client, _launcher, _ctx) = Runtime::builder()
         .with_broadcast_stream(broadcast_stream)
         .storage(storage_client)
-        .store(fullnode_store)
+        .store(store)
         .serve_grpc_addr(addr)
         .serve_graphql_addr(graphql_addr)
         .serve_metrics_addr(metrics_addr)
@@ -451,12 +451,12 @@ async fn can_query_graphql_endpoint_for_certificates(
     )
     .await;
 
-    let storage_client = StorageClient::new(store);
+    let storage_client = StorageClient::new(store.clone());
 
     let (runtime_client, _launcher, _ctx) = Runtime::builder()
         .with_broadcast_stream(broadcast_stream)
         .storage(storage_client)
-        .store(fullnode_store)
+        .store(store)
         .serve_grpc_addr(addr)
         .serve_graphql_addr(graphql_addr)
         .serve_metrics_addr(metrics_addr)

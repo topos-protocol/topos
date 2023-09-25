@@ -244,7 +244,6 @@ async fn test_tce_get_source_head_certificate(
 
 #[rstest]
 #[test(tokio::test)]
-#[ignore = "Broken because of https://github.com/topos-protocol/topos/pull/248"]
 async fn test_tce_get_last_pending_certificates(
     #[future] start_node: TceContext,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -277,6 +276,7 @@ async fn test_tce_get_last_pending_certificates(
     let expected_response = GetLastPendingCertificatesResponse {
         last_pending_certificate: last_pending_certificates,
     };
+
     assert_eq!(response, expected_response);
 
     for cert in &certificates {

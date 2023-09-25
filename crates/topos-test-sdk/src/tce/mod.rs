@@ -187,7 +187,7 @@ pub async fn start_node(
     let (api_context, api_stream) = create_public_api(
         futures::future::ready(api_storage_client),
         receiver.resubscribe(),
-        futures::future::ready(fullnode_store),
+        futures::future::ready(validator_store.clone()),
     )
     .await;
 

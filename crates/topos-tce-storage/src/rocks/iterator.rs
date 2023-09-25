@@ -13,9 +13,16 @@ pub struct ColumnIterator<'a, K, V> {
 impl<'a, K, V> ColumnIterator<'a, K, V> {
     /// Creates a new ColumnIterator base on a DBRawIteratorWithThreadMode
     pub fn new(iterator: DBRawIteratorWithThreadMode<'a, DBWithThreadMode<MultiThreaded>>) -> Self {
+        Self::new_with_direction(iterator, Direction::Forward)
+    }
+
+    pub fn new_with_direction(
+        iterator: DBRawIteratorWithThreadMode<'a, DBWithThreadMode<MultiThreaded>>,
+        direction: Direction,
+    ) -> Self {
         Self {
             iterator,
-            direction: Direction::Forward,
+            direction,
             _phantom: PhantomData,
         }
     }
