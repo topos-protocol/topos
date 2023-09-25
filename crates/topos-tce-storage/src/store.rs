@@ -1,12 +1,13 @@
 use std::collections::HashMap;
 
 use async_trait::async_trait;
-use topos_core::uci::{CertificateId, SubnetId};
+use topos_core::{
+    types::{stream::CertificateSourceStreamPosition, CertificateDelivered},
+    uci::{CertificateId, SubnetId},
+};
 
 use crate::{
-    errors::StorageError,
-    types::{CertificateDelivered, SourceStreamPositionKey},
-    CertificatePositions, CertificateSourceStreamPosition, SourceHead,
+    errors::StorageError, CertificatePositions, CertificateTargetStreamPosition, SourceHead,
 };
 
 #[async_trait]
@@ -18,13 +19,14 @@ pub trait WriteStore: Send {
     ) -> Result<CertificatePositions, StorageError>;
 
     /// Insert multiple CertificateDelivered
-    async fn multi_insert_certificates_delivered(
+    async fn insert_certificates_delivered(
         &self,
         certificates: &[CertificateDelivered],
     ) -> Result<(), StorageError>;
 }
 
 pub trait ReadStore: Send {
+    fn get_source_head(&self, subnet_id: &SubnetId) -> Result<Option<SourceHead>, StorageError>;
     /// Try to get a Certificate
     fn get_certificate(
         &self,
@@ -32,7 +34,7 @@ pub trait ReadStore: Send {
     ) -> Result<Option<CertificateDelivered>, StorageError>;
 
     /// Try to get multiple certificates at once
-    fn multi_get_certificate(
+    fn get_certificates(
         &self,
         certificate_ids: &[CertificateId],
     ) -> Result<Vec<Option<CertificateDelivered>>, StorageError>;
@@ -49,7 +51,18 @@ pub trait ReadStore: Send {
     /// Returns the certificates delivered by a source subnet from a position.
     fn get_source_stream_certificates_from_position(
         &self,
-        from: SourceStreamPositionKey,
+        from: CertificateSourceStreamPosition,
         limit: usize,
     ) -> Result<Vec<(CertificateDelivered, CertificateSourceStreamPosition)>, StorageError>;
+
+    fn get_target_stream_certificates_from_position(
+        &self,
+        position: CertificateTargetStreamPosition,
+        limit: usize,
+    ) -> Result<Vec<(CertificateDelivered, CertificateTargetStreamPosition)>, StorageError>;
+
+    fn get_target_source_subnet_list(
+        &self,
+        target_subnet_id: &SubnetId,
+    ) -> Result<Vec<SubnetId>, StorageError>;
 }

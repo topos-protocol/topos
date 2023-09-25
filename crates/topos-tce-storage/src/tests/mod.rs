@@ -1,13 +1,22 @@
+use std::sync::Arc;
+
 use rstest::rstest;
 use test_log::test;
-use topos_core::uci::{Certificate, SubnetId};
-
-use crate::{
-    rocks::{map::Map, TargetStreamPositionKey},
-    Position, RocksDBStorage, Storage,
+use topos_core::{
+    types::{
+        stream::{CertificateSourceStreamPosition, CertificateTargetStreamPosition, Position},
+        CertificateDelivered, ProofOfDelivery,
+    },
+    uci::{Certificate, SubnetId},
 };
 
-use self::support::storage;
+use crate::{
+    rocks::map::Map,
+    store::{ReadStore, WriteStore},
+    validator::ValidatorStore,
+};
+
+use self::support::store;
 
 use topos_test_sdk::certificates::create_certificate_chain;
 use topos_test_sdk::constants::*;
@@ -22,42 +31,57 @@ const TARGET_STORAGE_SUBNET_ID_1: SubnetId = TARGET_SUBNET_ID_1;
 const TARGET_STORAGE_SUBNET_ID_2: SubnetId = TARGET_SUBNET_ID_2;
 
 #[rstest]
-#[test(tokio::test)]
-async fn can_persist_a_pending_certificate(storage: RocksDBStorage) {
+#[test]
+fn can_persist_a_pending_certificate(store: Arc<ValidatorStore>) {
     let certificate =
         Certificate::new_with_default_fields(PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID_1, &[]).unwrap();
 
-    assert!(storage.add_pending_certificate(&certificate).await.is_ok());
+    assert!(store.insert_pending_certificate(&certificate).is_ok());
 }
 
 #[rstest]
 #[test(tokio::test)]
-async fn can_persist_a_delivered_certificate(storage: RocksDBStorage) {
-    let certificates_column = storage.certificates_column();
-    let source_streams_column = storage.source_streams_column();
-    let target_streams_column = storage.target_streams_column();
-
+async fn can_persist_a_delivered_certificate(store: Arc<ValidatorStore>) {
     let certificate = Certificate::new_with_default_fields(
         PREV_CERTIFICATE_ID,
         SOURCE_SUBNET_ID_1,
         &[TARGET_SUBNET_ID_1],
     )
     .unwrap();
+    let certificate_id = certificate.id;
+    let certificate = CertificateDelivered {
+        certificate,
+        proof_of_delivery: ProofOfDelivery {
+            delivery_position: CertificateSourceStreamPosition::new(
+                SOURCE_SUBNET_ID_1,
+                Position::ZERO,
+            ),
+            readies: vec![],
+            threshold: 0,
+            certificate_id,
+        },
+    };
 
-    let cert_id = certificate.id;
-    storage.persist(&certificate, None).await.unwrap();
+    store
+        .insert_certificate_delivered(&certificate)
+        .await
+        .unwrap();
 
-    assert!(certificates_column.get(&cert_id).is_ok());
+    let certificates_table = store.full_node_store.perpetual_tables.certificates.clone();
+    let streams_table = store.full_node_store.perpetual_tables.streams.clone();
+    let targets_streams_table = store.full_node_store.index_tables.target_streams.clone();
 
-    let stream_element = source_streams_column
+    assert!(certificates_table.get(&certificate.certificate.id).is_ok());
+
+    let stream_element = streams_table
         .prefix_iter(&SOURCE_SUBNET_ID_1)
         .unwrap()
         .last()
         .unwrap();
 
-    assert_eq!(stream_element.0 .1, Position::ZERO);
+    assert_eq!(stream_element.0.position, Position::ZERO);
 
-    let stream_element = target_streams_column
+    let stream_element = targets_streams_table
         .prefix_iter::<(SubnetId, SubnetId)>(&(
             TARGET_STORAGE_SUBNET_ID_1,
             SOURCE_STORAGE_SUBNET_ID,
@@ -66,19 +90,19 @@ async fn can_persist_a_delivered_certificate(storage: RocksDBStorage) {
         .last()
         .unwrap();
 
-    assert_eq!(stream_element.0 .2, Position::ZERO);
+    assert_eq!(stream_element.0.position, Position::ZERO);
 }
 
 #[rstest]
 #[test(tokio::test)]
-async fn delivered_certificate_are_added_to_target_stream(storage: RocksDBStorage) {
-    let certificates_column = storage.certificates_column();
-    let source_streams_column = storage.source_streams_column();
-    let target_streams_column = storage.target_streams_column();
+async fn delivered_certificate_are_added_to_target_stream(store: Arc<ValidatorStore>) {
+    let certificates_column = store.full_node_store.perpetual_tables.certificates.clone();
+    let source_streams_column = store.full_node_store.perpetual_tables.streams.clone();
+    let target_streams_column = store.full_node_store.index_tables.target_streams.clone();
 
     target_streams_column
         .insert(
-            &TargetStreamPositionKey(
+            &CertificateTargetStreamPosition::new(
                 TARGET_STORAGE_SUBNET_ID_1,
                 SOURCE_STORAGE_SUBNET_ID,
                 Position::ZERO,
@@ -88,16 +112,31 @@ async fn delivered_certificate_are_added_to_target_stream(storage: RocksDBStorag
         .unwrap();
 
     let certificate = Certificate::new_with_default_fields(
-        PREV_CERTIFICATE_ID,
+        CERTIFICATE_ID_1,
         SOURCE_SUBNET_ID_1,
         &[TARGET_SUBNET_ID_1, TARGET_SUBNET_ID_2],
     )
     .unwrap();
 
-    let cert_id = certificate.id;
-    storage.persist(&certificate, None).await.unwrap();
+    let certificate_id = certificate.id;
+    let certificate = CertificateDelivered {
+        certificate,
+        proof_of_delivery: ProofOfDelivery {
+            delivery_position: CertificateSourceStreamPosition::new(
+                SOURCE_SUBNET_ID_1,
+                Position::ZERO,
+            ),
+            readies: vec![],
+            threshold: 0,
+            certificate_id,
+        },
+    };
+    store
+        .insert_certificate_delivered(&certificate)
+        .await
+        .unwrap();
 
-    assert!(certificates_column.get(&cert_id).is_ok());
+    assert!(certificates_column.get(&certificate_id).is_ok());
 
     let stream_element = source_streams_column
         .prefix_iter(&SOURCE_SUBNET_ID_1)
@@ -105,7 +144,7 @@ async fn delivered_certificate_are_added_to_target_stream(storage: RocksDBStorag
         .last()
         .unwrap();
 
-    assert_eq!(stream_element.0 .1, Position::ZERO);
+    assert_eq!(stream_element.0.position, Position::ZERO);
 
     let stream_element = target_streams_column
         .prefix_iter(&(&TARGET_STORAGE_SUBNET_ID_1, &SOURCE_STORAGE_SUBNET_ID))
@@ -113,7 +152,7 @@ async fn delivered_certificate_are_added_to_target_stream(storage: RocksDBStorag
         .last()
         .unwrap();
 
-    assert_eq!(stream_element.0 .2, Position(1));
+    assert_eq!(*stream_element.0.position, 1);
 
     let stream_element = target_streams_column
         .prefix_iter(&(&TARGET_STORAGE_SUBNET_ID_2, &SOURCE_STORAGE_SUBNET_ID))
@@ -121,13 +160,13 @@ async fn delivered_certificate_are_added_to_target_stream(storage: RocksDBStorag
         .last()
         .unwrap();
 
-    assert_eq!(stream_element.0 .2, Position::ZERO);
+    assert_eq!(stream_element.0.position, Position::ZERO);
 }
 
 #[rstest]
 #[test(tokio::test)]
-async fn pending_certificate_are_removed_during_persist_action(storage: RocksDBStorage) {
-    let pending_column = storage.pending_certificates_column();
+async fn pending_certificate_are_removed_during_persist_action(store: Arc<ValidatorStore>) {
+    let pending_column = store.pending_tables.pending_pool.clone();
 
     let certificate = Certificate::new_with_default_fields(
         PREV_CERTIFICATE_ID,
@@ -136,11 +175,24 @@ async fn pending_certificate_are_removed_during_persist_action(storage: RocksDBS
     )
     .unwrap();
 
-    let pending_id = storage.add_pending_certificate(&certificate).await.unwrap();
+    let certificate_id = certificate.id;
+    let pending_id = store.insert_pending_certificate(&certificate).unwrap();
 
+    let certificate = CertificateDelivered {
+        certificate,
+        proof_of_delivery: ProofOfDelivery {
+            certificate_id,
+            delivery_position: CertificateSourceStreamPosition::new(
+                SOURCE_SUBNET_ID_1,
+                Position::ZERO,
+            ),
+            readies: vec![],
+            threshold: 0,
+        },
+    };
     assert!(pending_column.get(&pending_id).is_ok());
-    storage
-        .persist(&certificate, Some(pending_id))
+    store
+        .insert_certificate_delivered(&certificate)
         .await
         .unwrap();
 
@@ -149,7 +201,7 @@ async fn pending_certificate_are_removed_during_persist_action(storage: RocksDBS
 
 #[rstest]
 #[test(tokio::test)]
-async fn fetch_certificates_for_subnets(storage: RocksDBStorage) {
+async fn fetch_certificates_for_subnets(store: Arc<ValidatorStore>) {
     let other_certificate = Certificate::new_with_default_fields(
         PREV_CERTIFICATE_ID,
         TARGET_SUBNET_ID_2,
@@ -157,62 +209,119 @@ async fn fetch_certificates_for_subnets(storage: RocksDBStorage) {
     )
     .unwrap();
 
-    storage.persist(&other_certificate, None).await.unwrap();
+    let certificate_id = other_certificate.id;
+    let other_certificate = CertificateDelivered {
+        certificate: other_certificate,
+        proof_of_delivery: ProofOfDelivery {
+            certificate_id,
+            delivery_position: CertificateSourceStreamPosition::new(
+                TARGET_SUBNET_ID_2,
+                Position::ZERO,
+            ),
+            readies: vec![],
+            threshold: 0,
+        },
+    };
+
+    store
+        .insert_certificate_delivered(&other_certificate)
+        .await
+        .unwrap();
+
     let mut expected_certificates =
         create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], 10)
             .into_iter()
-            .map(|v| v.certificate)
+            .enumerate()
+            .map(|(index, v)| CertificateDelivered {
+                certificate: v.certificate.clone(),
+                proof_of_delivery: ProofOfDelivery {
+                    certificate_id: v.certificate.id,
+                    delivery_position: CertificateSourceStreamPosition::new(
+                        SOURCE_SUBNET_ID_1,
+                        index as u64,
+                    ),
+                    readies: vec![],
+                    threshold: 0,
+                },
+            })
             .collect::<Vec<_>>();
 
     for cert in &expected_certificates {
-        storage.persist(cert, None).await.unwrap();
+        store.insert_certificate_delivered(cert).await.unwrap();
     }
 
-    let mut certificate_ids = storage
-        .get_certificates_by_source(SOURCE_STORAGE_SUBNET_ID, Position::ZERO, 5)
-        .await
-        .unwrap();
+    let mut certificate_ids = store
+        .get_source_stream_certificates_from_position(
+            CertificateSourceStreamPosition::new(SOURCE_STORAGE_SUBNET_ID, Position::ZERO),
+            5,
+        )
+        .unwrap()
+        .into_iter()
+        .map(|(certificate, _)| certificate.certificate.id)
+        .collect::<Vec<_>>();
 
     assert_eq!(5, certificate_ids.len());
 
-    let certificate_ids_second = storage
-        .get_certificates_by_source(SOURCE_STORAGE_SUBNET_ID, Position(5), 5)
-        .await
-        .unwrap();
+    let certificate_ids_second = store
+        .get_source_stream_certificates_from_position(
+            CertificateSourceStreamPosition::new(SOURCE_STORAGE_SUBNET_ID, 5),
+            5,
+        )
+        .unwrap()
+        .into_iter()
+        .map(|(certificate, _)| certificate.certificate.id)
+        .collect::<Vec<_>>();
 
     assert_eq!(5, certificate_ids_second.len());
 
     certificate_ids.extend(certificate_ids_second.into_iter());
 
-    let certificates = storage.get_certificates(certificate_ids).await.unwrap();
+    let certificates = store
+        .get_certificates(&certificate_ids[..])
+        .unwrap()
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
+
     assert_eq!(expected_certificates, certificates);
 
-    let mut certificate_ids = storage
-        .get_certificates_by_target(
-            TARGET_STORAGE_SUBNET_ID_1,
-            SOURCE_STORAGE_SUBNET_ID,
-            Position::ZERO,
+    let mut certificate_ids = store
+        .get_target_stream_certificates_from_position(
+            CertificateTargetStreamPosition::new(
+                TARGET_STORAGE_SUBNET_ID_1,
+                SOURCE_STORAGE_SUBNET_ID,
+                Position::ZERO,
+            ),
             100,
         )
-        .await
-        .unwrap();
+        .unwrap()
+        .into_iter()
+        .map(|(c, _)| c.certificate.id)
+        .collect::<Vec<_>>();
 
     certificate_ids.extend(
-        storage
-            .get_certificates_by_target(
-                TARGET_STORAGE_SUBNET_ID_1,
-                TARGET_STORAGE_SUBNET_ID_2,
-                Position::ZERO,
+        store
+            .get_target_stream_certificates_from_position(
+                CertificateTargetStreamPosition::new(
+                    TARGET_STORAGE_SUBNET_ID_1,
+                    TARGET_STORAGE_SUBNET_ID_2,
+                    Position::ZERO,
+                ),
                 100,
             )
-            .await
             .unwrap()
-            .into_iter(),
+            .into_iter()
+            .map(|(c, _)| c.certificate.id),
     );
 
     assert_eq!(11, certificate_ids.len());
 
-    let certificates = storage.get_certificates(certificate_ids).await.unwrap();
+    let certificates = store
+        .get_certificates(&certificate_ids[..])
+        .unwrap()
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
 
     expected_certificates.push(other_certificate);
 
@@ -221,8 +330,8 @@ async fn fetch_certificates_for_subnets(storage: RocksDBStorage) {
 
 #[rstest]
 #[test(tokio::test)]
-async fn pending_certificate_can_be_removed(storage: RocksDBStorage) {
-    let pending_column = storage.pending_certificates_column();
+async fn pending_certificate_can_be_removed(store: Arc<ValidatorStore>) {
+    let pending_column = store.pending_tables.pending_pool.clone();
 
     let certificate = Certificate::new_with_default_fields(
         PREV_CERTIFICATE_ID,
@@ -231,190 +340,202 @@ async fn pending_certificate_can_be_removed(storage: RocksDBStorage) {
     )
     .unwrap();
 
-    let pending_id = storage.add_pending_certificate(&certificate).await.unwrap();
+    let pending_id = store.insert_pending_certificate(&certificate).unwrap();
 
     assert!(pending_column.get(&pending_id).is_ok());
-    storage
-        .remove_pending_certificate(pending_id)
-        .await
-        .unwrap();
+    store.delete_pending_certificate(&pending_id).unwrap();
 
     assert!(matches!(pending_column.get(&pending_id), Ok(None)));
 
-    storage.remove_pending_certificate(1234).await.unwrap();
+    let _ = store.insert_pending_certificate(&certificate).unwrap();
 
-    assert!(pending_column.iter().unwrap().next().is_none());
-
-    let _ = storage.add_pending_certificate(&certificate).await.unwrap();
-
-    let pending_id = storage.add_pending_certificate(&certificate).await.unwrap();
+    let pending_id = store.insert_pending_certificate(&certificate).unwrap();
 
     assert!(pending_column.get(&pending_id).is_ok());
-    storage
-        .remove_pending_certificate(pending_id)
-        .await
-        .unwrap();
+    store.delete_pending_certificate(&pending_id).unwrap();
 
     assert!(pending_column.iter().unwrap().next().is_some());
 }
 
 #[rstest]
 #[test(tokio::test)]
-async fn get_source_head_for_subnet(storage: RocksDBStorage) {
+async fn get_source_head_for_subnet(store: Arc<ValidatorStore>) {
     let expected_certificates_for_source_subnet_1: Vec<_> =
-        create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_2], 10)
-            .into_iter()
-            .map(|v| v.certificate)
-            .collect();
+        create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_2], 10);
 
-    for cert in &expected_certificates_for_source_subnet_1 {
-        storage.persist(cert, None).await.unwrap();
-    }
+    store
+        .insert_certificates_delivered(&expected_certificates_for_source_subnet_1)
+        .await
+        .unwrap();
 
     let expected_certificates_for_source_subnet_2 =
-        create_certificate_chain(SOURCE_SUBNET_ID_2, &[TARGET_SUBNET_ID_2], 10)
-            .into_iter()
-            .map(|v| v.certificate)
-            .collect::<Vec<_>>();
+        create_certificate_chain(SOURCE_SUBNET_ID_2, &[TARGET_SUBNET_ID_2], 10);
 
-    for cert in &expected_certificates_for_source_subnet_2 {
-        storage.persist(cert, None).await.unwrap();
-    }
+    store
+        .insert_certificates_delivered(&expected_certificates_for_source_subnet_2)
+        .await
+        .unwrap();
 
-    let last_certificate_source_subnet_1 = storage
-        .get_source_heads(vec![SOURCE_SUBNET_ID_1])
-        .await
-        .unwrap()
-        .last()
-        .unwrap()
-        .clone();
-    let last_certificate_source_subnet_2 = storage
-        .get_source_heads(vec![SOURCE_SUBNET_ID_2])
-        .await
-        .unwrap()
-        .last()
-        .unwrap()
-        .clone();
+    let last_certificate_source_subnet_1 =
+        store.get_source_head(&SOURCE_SUBNET_ID_1).unwrap().unwrap();
+    let last_certificate_source_subnet_2 =
+        store.get_source_head(&SOURCE_SUBNET_ID_2).unwrap().unwrap();
 
     assert_eq!(
-        expected_certificates_for_source_subnet_1.last().unwrap().id,
+        expected_certificates_for_source_subnet_1
+            .last()
+            .unwrap()
+            .certificate
+            .id,
         last_certificate_source_subnet_1.certificate_id
     );
-    assert_eq!(9, last_certificate_source_subnet_1.position.0); //check position
+    assert_eq!(9, *last_certificate_source_subnet_1.position); //check position
     assert_eq!(
-        expected_certificates_for_source_subnet_2.last().unwrap().id,
+        expected_certificates_for_source_subnet_2
+            .last()
+            .unwrap()
+            .certificate
+            .id,
         last_certificate_source_subnet_2.certificate_id
     );
-    assert_eq!(9, last_certificate_source_subnet_2.position.0); //check position
+    assert_eq!(9, *last_certificate_source_subnet_2.position); //check position
 
-    let new_certificate_source_subnet_1 = Certificate::new_with_default_fields(
-        expected_certificates_for_source_subnet_1.last().unwrap().id,
+    let certificate = Certificate::new_with_default_fields(
+        expected_certificates_for_source_subnet_1
+            .last()
+            .unwrap()
+            .certificate
+            .id,
         SOURCE_SUBNET_ID_1,
         &[TARGET_SUBNET_ID_1],
     )
     .unwrap();
-    storage
-        .persist(&new_certificate_source_subnet_1, None)
+
+    let new_certificate_source_subnet_1 = CertificateDelivered {
+        certificate: certificate.clone(),
+        proof_of_delivery: ProofOfDelivery {
+            certificate_id: certificate.id,
+            delivery_position: CertificateSourceStreamPosition::new(SOURCE_SUBNET_ID_1, 10),
+            readies: vec![],
+            threshold: 0,
+        },
+    };
+
+    store
+        .insert_certificate_delivered(&new_certificate_source_subnet_1)
         .await
         .unwrap();
 
-    let last_certificate_subnet_1 = storage
-        .get_source_heads(vec![SOURCE_SUBNET_ID_1])
-        .await
-        .unwrap()
-        .last()
-        .unwrap()
-        .clone();
+    let last_certificate_subnet_1 = store.get_source_head(&SOURCE_SUBNET_ID_1).unwrap().unwrap();
+
     assert_eq!(
-        new_certificate_source_subnet_1.id,
+        new_certificate_source_subnet_1.certificate.id,
         last_certificate_subnet_1.certificate_id
     );
-    assert_eq!(10, last_certificate_subnet_1.position.0); //check position
+    assert_eq!(10, *last_certificate_subnet_1.position); //check position
 
     let other_certificate_2 = Certificate::new_with_default_fields(
-        new_certificate_source_subnet_1.id,
+        new_certificate_source_subnet_1.certificate.id,
         SOURCE_SUBNET_ID_1,
         &[TARGET_SUBNET_ID_2, TARGET_SUBNET_ID_1],
     )
     .unwrap();
-    storage.persist(&other_certificate_2, None).await.unwrap();
+    let other_certificate_2 = CertificateDelivered {
+        certificate: other_certificate_2.clone(),
+        proof_of_delivery: ProofOfDelivery {
+            certificate_id: other_certificate_2.id,
+            delivery_position: CertificateSourceStreamPosition::new(SOURCE_SUBNET_ID_1, 11),
+            readies: vec![],
+            threshold: 0,
+        },
+    };
 
-    let last_certificate_subnet_2 = storage
-        .get_source_heads(vec![SOURCE_SUBNET_ID_1])
+    store
+        .insert_certificate_delivered(&other_certificate_2)
         .await
-        .unwrap()
-        .last()
-        .unwrap()
-        .clone();
+        .unwrap();
+
+    let last_certificate_subnet_2 = store.get_source_head(&SOURCE_SUBNET_ID_1).unwrap().unwrap();
     assert_eq!(
-        other_certificate_2.id,
+        other_certificate_2.certificate.id,
         last_certificate_subnet_2.certificate_id
     );
-    assert_eq!(11, last_certificate_subnet_2.position.0); //check position
+    assert_eq!(11, *last_certificate_subnet_2.position); //check position
 }
 
 #[rstest]
 #[test(tokio::test)]
-async fn get_pending_certificates(storage: RocksDBStorage) {
-    let mut expected_pending_certificates: Vec<(u64, Certificate)> = Vec::new();
-    let mut expected_pending_certificates_count: u64 = 0;
-
+async fn get_pending_certificates(store: Arc<ValidatorStore>) {
     let certificates_for_source_subnet_1 =
-        create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_2], 15)
-            .into_iter()
-            .map(|v| v.certificate)
-            .collect::<Vec<_>>();
+        create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_2], 15);
     let certificates_for_source_subnet_2 =
-        create_certificate_chain(SOURCE_SUBNET_ID_2, &[TARGET_SUBNET_ID_2], 15)
-            .into_iter()
-            .map(|v| v.certificate)
-            .collect::<Vec<_>>();
+        create_certificate_chain(SOURCE_SUBNET_ID_2, &[TARGET_SUBNET_ID_2], 15);
 
     // Persist the first 10 Cert of each Subnets
-    for cert in &certificates_for_source_subnet_1[0..10] {
-        storage.persist(cert, None).await.unwrap();
-    }
-    for cert in &certificates_for_source_subnet_2[0..10] {
-        storage.persist(cert, None).await.unwrap();
-    }
+    store
+        .insert_certificates_delivered(&certificates_for_source_subnet_1[..10])
+        .await
+        .unwrap();
+    store
+        .insert_certificates_delivered(&certificates_for_source_subnet_2[..10])
+        .await
+        .unwrap();
+
+    let mut expected_pending_certificates = certificates_for_source_subnet_1[10..]
+        .iter()
+        .enumerate()
+        .map(|(index, certificate)| (index as u64, certificate.certificate.clone()))
+        .collect::<Vec<_>>();
+
+    expected_pending_certificates.extend(
+        certificates_for_source_subnet_2[10..]
+            .iter()
+            .enumerate()
+            .map(|(index, certificate)| {
+                (
+                    index as u64 + expected_pending_certificates.len() as u64,
+                    certificate.certificate.clone(),
+                )
+            })
+            .collect::<Vec<_>>(),
+    );
 
     // Add the last 5 cert of each Subnet as pending certificate
-    for cert in &certificates_for_source_subnet_1[10..] {
-        storage.add_pending_certificate(cert).await.unwrap();
-        expected_pending_certificates.push((expected_pending_certificates_count, cert.clone()));
-        expected_pending_certificates_count += 1;
-    }
-    for cert in &certificates_for_source_subnet_2[10..] {
-        storage.add_pending_certificate(cert).await.unwrap();
-        expected_pending_certificates.push((expected_pending_certificates_count, cert.clone()));
-        expected_pending_certificates_count += 1;
-    }
+    store
+        .insert_pending_certificates(
+            &certificates_for_source_subnet_1[10..]
+                .iter()
+                .map(|certificate| certificate.certificate.clone())
+                .collect::<Vec<_>>(),
+        )
+        .unwrap();
 
-    let pending_certificates = storage.get_pending_certificates().await.unwrap();
+    store
+        .insert_pending_certificates(
+            &certificates_for_source_subnet_2[10..]
+                .iter()
+                .map(|certificate| certificate.certificate.clone())
+                .collect::<Vec<_>>(),
+        )
+        .unwrap();
+
+    let pending_certificates = store.get_pending_certificates().unwrap();
     assert_eq!(
-        expected_pending_certificates_count as usize,
+        expected_pending_certificates.len(),
         pending_certificates.len()
     );
     assert_eq!(expected_pending_certificates, pending_certificates);
 
     // Remove some pending certificates, check again
     let cert_to_remove = expected_pending_certificates.remove(5);
-    storage
-        .remove_pending_certificate(cert_to_remove.0)
-        .await
-        .unwrap();
+    store.delete_pending_certificate(&cert_to_remove.0).unwrap();
 
     let cert_to_remove = expected_pending_certificates.remove(8);
-    storage
-        .remove_pending_certificate(cert_to_remove.0)
-        .await
-        .unwrap();
+    store.delete_pending_certificate(&cert_to_remove.0).unwrap();
 
-    expected_pending_certificates_count -= 2;
-
-    let pending_certificates = storage.get_pending_certificates().await.unwrap();
+    let pending_certificates = store.get_pending_certificates().unwrap();
     assert_eq!(
-        expected_pending_certificates_count as usize,
+        expected_pending_certificates.len(),
         pending_certificates.len()
     );
     assert_eq!(expected_pending_certificates, pending_certificates);

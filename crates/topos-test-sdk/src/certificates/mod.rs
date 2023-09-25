@@ -1,13 +1,10 @@
+use rstest::*;
 use std::collections::HashMap;
 
-use topos_core::uci::Certificate;
-use topos_core::uci::SubnetId;
-use topos_tce_storage::types::CertificateDelivered;
-use topos_tce_storage::types::ProofOfDelivery;
-use topos_tce_storage::types::SourceStreamPositionKey;
-use topos_tce_storage::Position;
-
-use rstest::*;
+use topos_core::{
+    types::{stream::CertificateSourceStreamPosition, CertificateDelivered, ProofOfDelivery},
+    uci::{Certificate, SubnetId},
+};
 
 use crate::constants::PREV_CERTIFICATE_ID;
 use crate::constants::SOURCE_SUBNET_ID_1;
@@ -35,7 +32,10 @@ pub fn create_certificate_chain(
             certificate: cert,
             proof_of_delivery: ProofOfDelivery {
                 certificate_id: id,
-                delivery_position: SourceStreamPositionKey(source_subnet, Position(i as u64)),
+                delivery_position: CertificateSourceStreamPosition {
+                    subnet_id: source_subnet,
+                    position: i.try_into().unwrap(),
+                },
                 readies: Vec::new(),
                 threshold: 0,
             },

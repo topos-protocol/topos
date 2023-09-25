@@ -1,8 +1,9 @@
 use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
-use topos_core::uci::{CertificateId, SubnetId, SUBNET_ID_LENGTH};
-
-use crate::command::StorageCommand;
+use topos_core::{
+    types::stream::PositionError,
+    uci::{CertificateId, SubnetId, SUBNET_ID_LENGTH},
+};
 
 #[derive(Error, Debug)]
 pub enum InternalStorageError {
@@ -53,9 +54,6 @@ pub enum StorageError {
     #[error(transparent)]
     InternalStorage(#[from] InternalStorageError),
 
-    #[error("Unable to communicate with storage: {0}")]
-    CommunicationChannel(Box<mpsc::error::SendError<StorageCommand>>),
-
     #[error("Unable to communicate with storage: closed")]
     CommunicationChannelClosed,
 
@@ -64,18 +62,4 @@ pub enum StorageError {
 
     #[error("Unable to execute shutdown on the storage service: {0}")]
     ShutdownCommunication(mpsc::error::SendError<oneshot::Sender<()>>),
-}
-
-impl From<mpsc::error::SendError<StorageCommand>> for StorageError {
-    fn from(err: mpsc::error::SendError<StorageCommand>) -> Self {
-        StorageError::CommunicationChannel(Box::new(err))
-    }
-}
-
-#[derive(Debug, Error)]
-pub enum PositionError {
-    #[error("Maximum position reached for subnet")]
-    MaximumPositionReached,
-    #[error("Invalid expected position")]
-    InvalidExpectedPosition,
 }

@@ -17,8 +17,8 @@ use topos_core::api::grpc::tce::v1::{
     SubmitCertificateRequest,
 };
 use topos_core::api::grpc::uci::v1::Certificate;
+use topos_core::types::CertificateDelivered;
 use topos_core::uci::SUBNET_ID_LENGTH;
-use topos_tce_storage::types::CertificateDelivered;
 use tracing::{debug, error, info};
 
 use topos_test_sdk::{

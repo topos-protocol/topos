@@ -19,7 +19,7 @@ use topos_tce_storage::{
     fullnode::FullNodeStore,
     index::IndexTables,
     validator::{ValidatorPerpetualTables, ValidatorStore},
-    Connection, RocksDBStorage,
+    StorageClient,
 };
 use tracing::{debug, warn};
 
@@ -120,19 +120,7 @@ pub async fn run(
 
     let (broadcast_sender, broadcast_receiver) = broadcast::channel(BROADCAST_CHANNEL_SIZE);
 
-    let (storage, storage_client, storage_stream) =
-        if let StorageConfiguration::RocksDB(Some(ref path)) = config.storage {
-            let storage = RocksDBStorage::open(path)?;
-            Connection::build(Box::pin(async { Ok(storage) }))
-        } else {
-            return Err(Box::new(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("Unsupported storage type {:?}", config.storage),
-            )));
-        };
-
-    spawn(storage.into_future());
-    debug!("Storage started");
+    let storage_client = StorageClient::new(validator_store.clone());
 
     debug!("Starting reliable broadcast");
     let (tce_cli, tce_stream) = ReliableBroadcastClient::new(
@@ -186,7 +174,6 @@ pub async fn run(
             event_stream,
             tce_stream,
             api_stream,
-            storage_stream,
             synchronizer_stream,
             BroadcastStream::new(broadcast_receiver).filter_map(|v| futures::future::ready(v.ok())),
             shutdown,

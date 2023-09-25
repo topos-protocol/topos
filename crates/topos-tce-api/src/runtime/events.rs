@@ -19,7 +19,7 @@ pub enum RuntimeEvent {
 
     GetSourceHead {
         subnet_id: SubnetId,
-        sender: oneshot::Sender<Result<(u64, Certificate), RuntimeError>>,
+        sender: oneshot::Sender<Result<Option<(u64, Certificate)>, RuntimeError>>,
     },
 
     GetLastPendingCertificates {

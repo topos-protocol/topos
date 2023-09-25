@@ -7,3 +7,8 @@ pub use topos_uci as uci;
 #[cfg_attr(docsrs, doc(cfg(feature = "api")))]
 #[doc(inline)]
 pub use topos_api as api;
+
+pub mod types;
+
+#[cfg(test)]
+mod test;

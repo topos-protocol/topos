@@ -12,12 +12,15 @@ use tokio::{
     task::JoinHandle,
 };
 use tonic_health::server::HealthReporter;
-use topos_core::api::grpc::checkpoints::TargetStreamPosition;
-use topos_core::api::grpc::tce::v1::api_service_server::ApiServiceServer;
-use topos_core::uci::{Certificate, SubnetId};
+use topos_core::uci::SubnetId;
+use topos_core::{api::grpc::checkpoints::TargetStreamPosition, types::CertificateDelivered};
+use topos_core::{
+    api::grpc::tce::v1::api_service_server::ApiServiceServer,
+    types::stream::CertificateTargetStreamPosition,
+};
 use topos_tce_storage::{
-    types::CertificateDeliveredWithPositions, CertificateTargetStreamPosition,
-    FetchCertificatesFilter, FetchCertificatesPosition, StorageClient,
+    types::CertificateDeliveredWithPositions, FetchCertificatesFilter, FetchCertificatesPosition,
+    StorageClient,
 };
 
 use tracing::{debug, error, info};
@@ -109,7 +112,7 @@ impl Runtime {
                                             certificate_target_stream_position.target_subnet_id,
                                         source_subnet_id:
                                             certificate_target_stream_position.source_subnet_id,
-                                        position: certificate_target_stream_position.position.0,
+                                        position: *certificate_target_stream_position.position,
                                         certificate_id: Some(certificate_id),
                                     },
                                 )
@@ -275,11 +278,14 @@ impl Runtime {
                     // TODO: Refactor this using a better handle, FuturesUnordered + Killswitch
                     let task = spawn(async move {
                         info!("Sync task started for stream {}", stream_id);
-                        let mut collector: Vec<(Certificate, FetchCertificatesPosition)> =
+                        let mut collector: Vec<(CertificateDelivered, FetchCertificatesPosition)> =
                             Vec::new();
 
                         for (target_subnet_id, mut source) in target_subnet_stream_positions {
-                            let source_subnet_list = storage.targeted_by(target_subnet_id).await;
+                            // return list of subnets that target this subnet
+                            let source_subnet_list = storage
+                                .get_target_source_subnet_list(target_subnet_id)
+                                .await;
 
                             info!(
                                 "Stream sync task detected {:?} as source list",
@@ -313,7 +319,7 @@ impl Runtime {
                                         target_stream_position: CertificateTargetStreamPosition {
                                             target_subnet_id,
                                             source_subnet_id,
-                                            position: topos_tce_storage::Position(position),
+                                            position: position.into(),
                                         },
                                         limit: 100,
                                     })
@@ -324,7 +330,7 @@ impl Runtime {
                             }
                         }
 
-                        for (certificate, position) in collector {
+                        for (CertificateDelivered { certificate, .. }, position) in collector {
                             info!(
                                 "Stream sync task for {} is sending {}",
                                 stream_id, certificate.id
@@ -343,7 +349,7 @@ impl Runtime {
                                         positions: vec![TargetStreamPosition {
                                             target_subnet_id,
                                             source_subnet_id,
-                                            position: position.0,
+                                            position: *position,
                                             certificate_id: Some(certificate.id),
                                         }],
                                         certificate,

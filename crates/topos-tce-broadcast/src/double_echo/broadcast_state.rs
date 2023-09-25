@@ -2,13 +2,15 @@ use std::{collections::HashSet, time};
 
 use tce_transport::ProtocolEvents;
 use tokio::sync::mpsc;
-use topos_core::uci::Certificate;
+use topos_core::{
+    types::{
+        stream::{CertificateSourceStreamPosition, Position},
+        CertificateDelivered, ProofOfDelivery, Ready,
+    },
+    uci::Certificate,
+};
 use topos_metrics::DOUBLE_ECHO_BROADCAST_FINISHED_TOTAL;
 use topos_p2p::PeerId;
-use topos_tce_storage::{
-    types::{CertificateDelivered, ProofOfDelivery, Ready, SourceStreamPositionKey},
-    Position,
-};
 use tracing::{debug, info, warn};
 
 use crate::sampler::SubscriptionsView;
@@ -75,12 +77,13 @@ impl BroadcastState {
             certificate: self.certificate.clone(),
             proof_of_delivery: ProofOfDelivery {
                 certificate_id: self.certificate.id,
-                delivery_position: SourceStreamPositionKey(
-                    self.certificate.source_subnet_id,
+                delivery_position: CertificateSourceStreamPosition {
+                    subnet_id: self.certificate.source_subnet_id,
                     // FIXME: Should never fails but need to find how to remove the unwrap
-                    self.expected_position
+                    position: self
+                        .expected_position
                         .expect("Expected position is not set, this is a bug"),
-                ),
+                },
                 readies: self
                     .readies
                     .iter()

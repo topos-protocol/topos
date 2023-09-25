@@ -1,14 +1,12 @@
 use rstest::rstest;
 use test_log::test;
+use topos_core::types::stream::CertificateSourceStreamPosition;
 use topos_core::uci::Certificate;
 use topos_test_sdk::constants::SOURCE_SUBNET_ID_1;
 
 use crate::tests::{PREV_CERTIFICATE_ID, SOURCE_STORAGE_SUBNET_ID};
 use crate::{
-    rocks::{
-        map::Map, CertificatesColumn, PendingCertificatesColumn, SourceStreamPositionKey,
-        SourceStreamsColumn,
-    },
+    rocks::{map::Map, CertificatesColumn, PendingCertificatesColumn, SourceStreamsColumn},
     Position,
 };
 
@@ -54,7 +52,7 @@ async fn delivered_certificate_position_are_incremented(
         .is_ok());
     assert!(source_streams_column
         .insert(
-            &SourceStreamPositionKey(SOURCE_STORAGE_SUBNET_ID, Position::ZERO),
+            &CertificateSourceStreamPosition::new(SOURCE_STORAGE_SUBNET_ID, Position::ZERO),
             &certificate.id
         )
         .is_ok());
@@ -68,7 +66,7 @@ async fn position_can_be_fetch_for_one_subnet(source_streams_column: SourceStrea
 
     assert!(source_streams_column
         .insert(
-            &SourceStreamPositionKey(SOURCE_STORAGE_SUBNET_ID, Position::ZERO),
+            &CertificateSourceStreamPosition::new(SOURCE_STORAGE_SUBNET_ID, Position::ZERO),
             &certificate.id
         )
         .is_ok());
@@ -78,7 +76,13 @@ async fn position_can_be_fetch_for_one_subnet(source_streams_column: SourceStrea
             .prefix_iter(&SOURCE_SUBNET_ID_1)
             .unwrap()
             .last(),
-        Some((SourceStreamPositionKey(_, Position::ZERO), _))
+        Some((
+            CertificateSourceStreamPosition {
+                position: Position::ZERO,
+                ..
+            },
+            _
+        ))
     ));
 
     let certificate =
@@ -86,17 +90,25 @@ async fn position_can_be_fetch_for_one_subnet(source_streams_column: SourceStrea
 
     assert!(source_streams_column
         .insert(
-            &SourceStreamPositionKey(SOURCE_STORAGE_SUBNET_ID, Position(1)),
+            &CertificateSourceStreamPosition::new(SOURCE_STORAGE_SUBNET_ID, 1),
             &certificate.id
         )
         .is_ok());
+
+    let expected_position: Position = 1.into();
 
     assert!(matches!(
         source_streams_column
             .prefix_iter(&SOURCE_SUBNET_ID_1)
             .unwrap()
             .last(),
-        Some((SourceStreamPositionKey(_, Position(1)), _))
+        Some((
+            CertificateSourceStreamPosition {
+                position,
+                ..
+            },
+            _
+        )) if expected_position == position
     ));
 }
 

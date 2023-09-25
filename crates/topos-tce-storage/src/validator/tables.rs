@@ -1,21 +1,26 @@
-use std::path::PathBuf;
+use std::{collections::BTreeSet, path::PathBuf, sync::atomic::AtomicU64};
 
 use rocksdb::ColumnFamilyDescriptor;
-use topos_core::uci::{Certificate, CertificateId};
+use topos_core::{
+    types::{stream::CertificateSourceStreamPosition, CertificateDelivered, ProofOfDelivery},
+    uci::{Certificate, CertificateId},
+};
 
 use crate::{
     rocks::{
         constants,
         db::{default_options, init_with_cfs},
         db_column::DBColumn,
-        SourceStreamPositionKey,
     },
-    types::{CertificateDelivered, EpochId, EpochSummary, ProofOfDelivery},
+    types::{EpochId, EpochSummary},
     PendingCertificateId,
 };
 
 /// Volatile and pending data
 pub struct ValidatorPendingTables {
+    pub(crate) next_pending_id: AtomicU64,
+    #[allow(unused)]
+    fetching_pool: BTreeSet<CertificateId>, // Not sure to keep it
     pub(crate) pending_pool: DBColumn<PendingCertificateId, Certificate>,
     pub(crate) pending_pool_index: DBColumn<CertificateId, PendingCertificateId>,
     #[allow(unused)]
@@ -29,6 +34,7 @@ impl ValidatorPendingTables {
 
         let cfs = vec![
             ColumnFamilyDescriptor::new("pending_pool", default_options()),
+            ColumnFamilyDescriptor::new("pending_pool_index", default_options()),
             ColumnFamilyDescriptor::new("precedence_pool", default_options()),
         ];
 
@@ -36,6 +42,9 @@ impl ValidatorPendingTables {
             .unwrap_or_else(|_| panic!("Cannot open DB at {:?}", path));
 
         Self {
+            // TODO: Fetch it from the storage
+            next_pending_id: AtomicU64::new(0),
+            fetching_pool: BTreeSet::new(),
             pending_pool: DBColumn::reopen(&db, "pending_pool"),
             pending_pool_index: DBColumn::reopen(&db, "pending_pool_index"),
             precedence_pool: DBColumn::reopen(&db, "precedence_pool"),
@@ -47,7 +56,7 @@ impl ValidatorPendingTables {
 /// Data that shouldn't be purged at all.
 pub struct ValidatorPerpetualTables {
     pub(crate) certificates: DBColumn<CertificateId, CertificateDelivered>,
-    pub(crate) streams: DBColumn<SourceStreamPositionKey, CertificateId>,
+    pub(crate) streams: DBColumn<CertificateSourceStreamPosition, CertificateId>,
     #[allow(unused)]
     epoch_chain: DBColumn<EpochId, EpochSummary>,
     pub(crate) unverified: DBColumn<CertificateId, ProofOfDelivery>,
