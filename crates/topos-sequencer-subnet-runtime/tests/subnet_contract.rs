@@ -34,13 +34,14 @@ use topos_test_sdk::constants::*;
 
 // Local test network with default 2 seconds block
 const STANDALONE_SUBNET: &str = "standalone-test";
-const STANDALONE_SUBNET_BLOCK_TIME: u64 = 2u64;
+const STANDALONE_SUBNET_BLOCK_TIME: u64 = 2;
 // Local test network with 12 seconds block, usefull for multiple transactions in one block tests
-const STANDALONE_SUBNET_WITH_LONG_BLOCKS_BLOCK_TIME: u64 = 12u64;
+const STANDALONE_SUBNET_WITH_LONG_BLOCKS_BLOCK_TIME: u64 = 12;
 
 const SUBNET_RPC_PORT: u32 = 8545;
+// Account 0x4AAb25B4fAd0Beaac466050f3A7142A502f4Cf0a
 const TEST_SECRET_ETHEREUM_KEY: &str =
-    "d7e2e00b43c12cf17239d4755ed744df6ca70a933fc7c8bbb7da1342a5ff2e38"; // Account 0x4AAb25B4fAd0Beaac466050f3A7142A502f4Cf0a
+    "d7e2e00b43c12cf17239d4755ed744df6ca70a933fc7c8bbb7da1342a5ff2e38";
 const TEST_ETHEREUM_ACCOUNT: &str = "0x4AAb25B4fAd0Beaac466050f3A7142A502f4Cf0a";
 const POLYGON_EDGE_CONTAINER: &str = "ghcr.io/topos-protocol/polygon-edge";
 const POLYGON_EDGE_CONTAINER_TAG: &str = "develop";
@@ -49,14 +50,17 @@ const TEST_SUBNET_ID: &str = "64646464646464646464646464646464646464646464646464
 const ZERO_ADDRESS: &str = "0000000000000000000000000000000000000000";
 
 // Accounts pre-filled in STANDALONE_SUBNET_WITH_LONG_BLOCKS
+// Account Alith 0xf24FF3a9CF04c71Dbc94D0b566f7A27B94566cac
 const TEST_ACCOUNT_ALITH_KEY: &str =
-    "5fb92d6e98884f76de468fa3f6278f8807c48bebc13595d45af5bdc4da702133"; // Account 0xf24FF3a9CF04c71Dbc94D0b566f7A27B94566cac
+    "5fb92d6e98884f76de468fa3f6278f8807c48bebc13595d45af5bdc4da702133";
 const TEST_ACCOUNT_ALITH_ACCOUNT: &str = "0xf24FF3a9CF04c71Dbc94D0b566f7A27B94566cac";
+// Account Balathar 0x3Cd0A705a2DC65e5b1E1205896BaA2be8A07c6e0
 const TEST_ACCOUNT_BALATHAR_KEY: &str =
-    "8075991ce870b93a8870eca0c0f91913d12f47948ca0fd25b49c6fa7cdbeee8b"; // Account 0x3Cd0A705a2DC65e5b1E1205896BaA2be8A07c6e0
+    "8075991ce870b93a8870eca0c0f91913d12f47948ca0fd25b49c6fa7cdbeee8b";
 const TEST_ACCOUNT_BALATHAR_ACCOUNT: &str = "0x3Cd0A705a2DC65e5b1E1205896BaA2be8A07c6e0";
+// Account Cezar 0x5283ac54A7B9669F6415168DC7a5FcEe05019E45
 const TEST_ACCOUNT_CEZAR_KEY: &str =
-    "11eddfae7abe45531b3f18342c8062969323a7131d3043f1a33c40df74803cc7"; // Account 0x5283ac54A7B9669F6415168DC7a5FcEe05019E45
+    "11eddfae7abe45531b3f18342c8062969323a7131d3043f1a33c40df74803cc7";
 const TEST_ACCOUNT_CEZAR_ACCOUNT: &str = "0x5283ac54A7B9669F6415168DC7a5FcEe05019E45";
 
 const PREV_CERTIFICATE_ID_1: CertificateId = CERTIFICATE_ID_4;
@@ -232,10 +236,12 @@ async fn create_new_erc20msg_client(
     let chain_id = http_provider.get_chainid().await?;
     let client = Arc::new(SignerMiddleware::new(
         http_provider,
-        wallet.clone().with_chain_id(chain_id.as_u64()),
+        wallet.with_chain_id(chain_id.as_u64()),
     ));
-    let i_erc20_messaging = IERC20Messaging::new(erc20_messaging_contract_address, client);
-    Ok(i_erc20_messaging)
+    Ok(IERC20Messaging::new(
+        erc20_messaging_contract_address,
+        client,
+    ))
 }
 
 async fn create_new_erc20_client(
@@ -249,7 +255,7 @@ async fn create_new_erc20_client(
     let chain_id = http_provider.get_chainid().await?;
     let client = Arc::new(SignerMiddleware::new(
         http_provider,
-        wallet.clone().with_chain_id(chain_id.as_u64()),
+        wallet.with_chain_id(chain_id.as_u64()),
     ));
     let i_erc20 = IERC20::new(erc20_contract_address, client);
     Ok(i_erc20)
@@ -272,9 +278,10 @@ async fn deploy_contracts(
     let http_provider =
         Provider::<Http>::try_from(endpoint)?.interval(std::time::Duration::from_millis(20u64));
     let chain_id = http_provider.get_chainid().await?;
+    let wallet_account = wallet.address();
     let client = Arc::new(SignerMiddleware::new(
         http_provider,
-        wallet.clone().with_chain_id(chain_id.as_u64()),
+        wallet.with_chain_id(chain_id.as_u64()),
     ));
 
     // Deploying contracts
@@ -303,7 +310,7 @@ async fn deploy_contracts(
     );
 
     let topos_core_contact_address: Token = Token::Address(topos_core_contract.address());
-    let admin_account = vec![wallet.address()];
+    let admin_account = vec![wallet_account];
     let new_admin_threshold = U256::from(1);
 
     info!("Deploying ToposCoreProxy contract...");
@@ -403,7 +410,7 @@ async fn deploy_test_token(
     let chain_id = http_provider.get_chainid().await?;
     let client = Arc::new(SignerMiddleware::new(
         http_provider,
-        wallet.clone().with_chain_id(chain_id.as_u64()),
+        wallet.with_chain_id(chain_id.as_u64()),
     ));
 
     let ierc20_messaging = IERC20Messaging::new(topos_messaging_address, client.clone());
@@ -1273,12 +1280,12 @@ async fn test_subnet_multiple_send_token_in_a_block(
     }
 
     // Send token to other addresses
-    info!("Transfer tokens");
     let test_accounts: Vec<_> = vec![
         TEST_ACCOUNT_ALITH_ACCOUNT.parse()?,
         TEST_ACCOUNT_BALATHAR_ACCOUNT.parse()?,
         TEST_ACCOUNT_CEZAR_ACCOUNT.parse()?,
     ];
+    info!("Transferring tokens to {} accounts", test_accounts.len());
     for test_account in test_accounts {
         info!(
             "Transferring token to address {}",
@@ -1328,7 +1335,6 @@ async fn test_subnet_multiple_send_token_in_a_block(
         .expect("Valid erc20 client"),
     ];
 
-    // Approve token spending
     info!("Approve token spending");
     for erc20_client in &mut erc20_clients {
         if let Err(e) = erc20_client
@@ -1444,7 +1450,8 @@ async fn test_subnet_multiple_send_token_in_a_block(
             } = event
             {
                 info!(
-                    "New certificate event received, block number: {} cert id: {} target subnets: {:?}",
+                    "New certificate event received, block number: {} cert id: {} target subnets: \
+                     {:?}",
                     block_number, cert.id, cert.target_subnets
                 );
                 if !cert.target_subnets.is_empty() {
@@ -1465,7 +1472,7 @@ async fn test_subnet_multiple_send_token_in_a_block(
         panic!("Expected event not received");
     };
 
-    // Set big timeout to prevent flaky fails. Instead fail/panic early in the test to indicate actual error
+    // Set big timeout to prevent flaky failures. Instead fail/panic early in the test to indicate actual error
     if tokio::time::timeout(std::time::Duration::from_secs(120), assertion)
         .await
         .is_err()
