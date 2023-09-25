@@ -1,51 +1,35 @@
-use futures::{Future, Stream};
 use rand::Rng;
 use rstest::fixture;
-use std::future::IntoFuture;
 use std::sync::Arc;
+use std::thread;
 use std::{
     path::PathBuf,
     str::FromStr,
     time::{SystemTime, UNIX_EPOCH},
 };
-use tokio::spawn;
 
+use topos_core::types::CertificateDelivered;
 use topos_tce_storage::{
-    epoch::EpochValidatorsStore, epoch::ValidatorPerEpochStore, events::StorageEvent,
-    fullnode::FullNodeStore, index::IndexTables, store::WriteStore, types::CertificateDelivered,
-    validator::ValidatorPerpetualTables, validator::ValidatorStore, Connection, ConnectionBuilder,
-    RocksDBStorage, Storage, StorageClient,
+    epoch::EpochValidatorsStore, epoch::ValidatorPerEpochStore, fullnode::FullNodeStore,
+    index::IndexTables, store::WriteStore, validator::ValidatorPerpetualTables,
+    validator::ValidatorStore, StorageClient,
 };
 
 #[fixture]
-fn folder_name<'a>() -> &'a str {
-    "test"
+fn folder_name() -> &'static str {
+    Box::leak(Box::new(
+        thread::current().name().unwrap().replace("::", "_"),
+    ))
 }
 
 #[fixture(certificates = Vec::new())]
 pub async fn storage_client(certificates: Vec<CertificateDelivered>) -> StorageClient {
-    spawn_runtime(create_rocksdb("test", certificates)).await
+    let store = create_validator_store::partial_1(certificates).await;
+
+    StorageClient::new(store)
 }
 
-async fn spawn_runtime(
-    create_rocksdb: impl Future<
-        Output = (
-            PathBuf,
-            (
-                ConnectionBuilder<RocksDBStorage>,
-                StorageClient,
-                impl Stream<Item = StorageEvent>,
-            ),
-        ),
-    >,
-) -> StorageClient {
-    let (_, (runtime, client, _stream)) = create_rocksdb.await;
-
-    spawn(runtime.into_future());
-
-    client
-}
-
+#[fixture]
 pub fn create_folder(folder_name: &str) -> PathBuf {
     let dir = env!("TOPOS_TEST_SDK_TMP");
     let mut temp_dir =
@@ -65,23 +49,32 @@ pub fn create_folder(folder_name: &str) -> PathBuf {
 
 #[fixture(certificates = Vec::new())]
 pub async fn create_validator_store(
-    folder_name: &str,
     certificates: Vec<CertificateDelivered>,
-) -> (PathBuf, Arc<ValidatorStore>) {
-    let (temp_dir, full_node_store) = create_fullnode_store(folder_name, certificates).await;
+    #[future] create_fullnode_store: Arc<FullNodeStore>,
+) -> Arc<ValidatorStore> {
+    let temp_dir = create_folder::default();
+    let full_node_store = create_fullnode_store.await;
 
-    let store = ValidatorStore::open(temp_dir.clone(), full_node_store)
-        .expect("Unable to create validator store");
+    let store =
+        ValidatorStore::open(temp_dir, full_node_store).expect("Unable to create validator store");
 
-    (temp_dir, store)
+    store
+        .insert_certificates_delivered(&certificates)
+        .await
+        .expect("Unable to insert predefined certificates");
+
+    store
 }
 
+pub async fn create_validator_store_with_fullnode(
+    full_node_store: Arc<FullNodeStore>,
+) -> Arc<ValidatorStore> {
+    ValidatorStore::open(create_folder::default(), full_node_store)
+        .expect("Unable to create validator store")
+}
 #[fixture(certificates = Vec::new())]
-pub async fn create_fullnode_store(
-    folder_name: &str,
-    certificates: Vec<CertificateDelivered>,
-) -> (PathBuf, Arc<FullNodeStore>) {
-    let temp_dir = create_folder(folder_name);
+pub async fn create_fullnode_store(certificates: Vec<CertificateDelivered>) -> Arc<FullNodeStore> {
+    let temp_dir = create_folder::default();
 
     let perpetual_tables = Arc::new(ValidatorPerpetualTables::open(temp_dir.clone()));
     let index_tables = Arc::new(IndexTables::open(temp_dir.clone()));
@@ -90,7 +83,7 @@ pub async fn create_fullnode_store(
         .expect("Unable to create EpochValidators store");
 
     let epoch_store =
-        ValidatorPerEpochStore::new(0, temp_dir.clone()).expect("Unable to create Per epoch store");
+        ValidatorPerEpochStore::new(0, temp_dir).expect("Unable to create Per epoch store");
 
     let store = FullNodeStore::open(
         epoch_store,
@@ -101,31 +94,9 @@ pub async fn create_fullnode_store(
     .expect("Unable to create full node store");
 
     store
-        .multi_insert_certificates_delivered(&certificates[..])
+        .insert_certificates_delivered(&certificates[..])
         .await
         .unwrap();
 
-    (temp_dir, store)
-}
-
-#[fixture(certificates = Vec::new())]
-pub async fn create_rocksdb(
-    folder_name: &str,
-    certificates: Vec<CertificateDelivered>,
-) -> (
-    PathBuf,
-    (
-        ConnectionBuilder<RocksDBStorage>,
-        StorageClient,
-        impl Stream<Item = StorageEvent>,
-    ),
-) {
-    let temp_dir = create_folder(folder_name);
-
-    let storage = RocksDBStorage::with_isolation(&temp_dir).expect("valid rocksdb storage");
-    for certificate in certificates {
-        _ = storage.persist(&certificate.certificate, None).await;
-    }
-
-    (temp_dir, Connection::build(Box::pin(async { Ok(storage) })))
+    store
 }

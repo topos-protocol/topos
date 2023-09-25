@@ -67,6 +67,12 @@ impl AppContext {
                     .pending_storage
                     .get_source_head(subnet_id)
                     .await
+                    .and_then(|result| match result {
+                        None => Err(StorageError::InternalStorage(
+                            InternalStorageError::MissingHeadForSubnet(subnet_id),
+                        )),
+                        value => Ok(value),
+                    })
                     .map_err(|e| match e {
                         StorageError::InternalStorage(internal) => {
                             if let InternalStorageError::MissingHeadForSubnet(subnet_id) = internal
@@ -84,7 +90,7 @@ impl AppContext {
                 // So for MissingHeadForSubnet error we will return some default dummy certificate
                 if let Err(RuntimeError::UnknownSubnet(subnet_id)) = result {
                     warn!("Returning dummy certificate as head certificate, to be fixed...");
-                    result = Ok((
+                    result = Ok(Some((
                         0,
                         topos_core::uci::Certificate {
                             prev_id: AppContext::DUMMY_INITIAL_CERTIFICATE_ID,
@@ -98,7 +104,7 @@ impl AppContext {
                             proof: Default::default(),
                             signature: Default::default(),
                         },
-                    ));
+                    )));
                 };
 
                 _ = sender.send(result);

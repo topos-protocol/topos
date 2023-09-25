@@ -3,12 +3,12 @@ use std::pin::Pin;
 use std::sync::Arc;
 use tokio::sync::{broadcast, mpsc};
 
+use topos_core::types::stream::Position;
 use topos_core::uci::CertificateId;
 use topos_tce_storage::errors::StorageError;
 use topos_tce_storage::store::{ReadStore, WriteStore};
 use topos_tce_storage::types::CertificateDeliveredWithPositions;
 use topos_tce_storage::validator::ValidatorStore;
-use topos_tce_storage::Position;
 use tracing::warn;
 
 use crate::double_echo::broadcast_state::{BroadcastState, Status};
@@ -84,7 +84,7 @@ impl IntoFuture for Task {
                 &self.broadcast_state.certificate.source_subnet_id,
             ) {
                 Ok(Some(stream_position)) => stream_position.position.increment().unwrap(),
-                Ok(None) => Position(0),
+                Ok(None) => Position::ZERO,
                 Err(_) => return (self.certificate_id, TaskStatus::Failure),
             };
 

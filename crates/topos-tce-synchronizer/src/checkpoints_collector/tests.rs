@@ -4,18 +4,22 @@ use futures::FutureExt;
 use libp2p::{request_response::ResponseChannel, PeerId};
 use mockall::mock;
 use rstest::rstest;
-use topos_core::api::grpc::tce::v1::{
-    CheckpointMapFieldEntry, CheckpointRequest, CheckpointResponse, FetchCertificatesRequest,
-    FetchCertificatesResponse,
+use topos_core::{
+    api::grpc::tce::v1::{
+        CheckpointMapFieldEntry, CheckpointRequest, CheckpointResponse, FetchCertificatesRequest,
+        FetchCertificatesResponse,
+    },
+    types::{
+        stream::{CertificateSourceStreamPosition, Position},
+        CertificateDelivered,
+    },
 };
 use topos_p2p::{
     constant::SYNCHRONIZER_PROTOCOL, error::CommandExecutionError, NetworkClient, RetryPolicy,
     TransmissionResponse,
 };
 use topos_tce_gatekeeper::{GatekeeperClient, GatekeeperError};
-use topos_tce_storage::{
-    store::ReadStore, types::CertificateDelivered, CertificateSourceStreamPosition, Position,
-};
+use topos_tce_storage::store::ReadStore;
 use topos_test_sdk::{
     certificates::create_certificate_chain,
     storage::create_validator_store,
@@ -60,7 +64,9 @@ use test_log::test;
 #[test(tokio::test)]
 async fn can_initiate_a_sync() {
     let peer_id = PeerId::random();
-    let (_, validator_store) = create_validator_store("can_initiate_a_sync", vec![]).await;
+
+    let validator_store = create_validator_store::default().await;
+
     let subnet = topos_test_sdk::constants::SOURCE_SUBNET_ID_1;
     let certificates: Vec<CertificateDelivered> =
         create_certificate_chain(subnet, &[topos_test_sdk::constants::TARGET_SUBNET_ID_1], 1);
@@ -134,8 +140,8 @@ async fn can_initiate_a_sync() {
     assert_eq!(
         value,
         CertificateSourceStreamPosition {
-            source_subnet_id: subnet,
-            position: Position(0)
+            subnet_id: subnet,
+            position: Position::ZERO
         }
     );
 

@@ -1,3 +1,5 @@
+use self::checkpoints::StreamPositionError;
+
 pub const FILE_DESCRIPTOR_SET: &[u8] = include_bytes!("generated/topos.bin");
 
 pub mod checkpoints;
@@ -6,6 +8,12 @@ pub mod checkpoints;
 pub enum ConversionError {
     #[error(transparent)]
     GrpcDecode(#[from] prost::DecodeError),
+
+    #[error("Missing mandatory field: {0}")]
+    MissingField(&'static str),
+
+    #[error(transparent)]
+    StreamConversion(#[from] StreamPositionError),
 }
 
 #[path = ""]

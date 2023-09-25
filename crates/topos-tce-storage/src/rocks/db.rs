@@ -1,4 +1,3 @@
-use once_cell::sync::OnceCell;
 use rocksdb::MultiThreaded;
 use std::{path::PathBuf, sync::Arc};
 
@@ -8,7 +7,6 @@ use crate::errors::InternalStorageError;
 
 use super::constants;
 
-pub(crate) static DB: OnceCell<RocksDB> = OnceCell::new();
 pub(crate) type RocksDB = Arc<rocksdb::DBWithThreadMode<MultiThreaded>>;
 
 pub(crate) fn init_with_cfs(
