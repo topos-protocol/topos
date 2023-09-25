@@ -19,7 +19,9 @@ use topos_core::api::grpc::tce::v1::{
 use topos_core::api::grpc::uci::v1::Certificate;
 use topos_core::types::CertificateDelivered;
 use topos_core::uci::SUBNET_ID_LENGTH;
-use tracing::{debug, error, info};
+use topos_tce_proxy::worker::TceProxyWorker;
+use topos_tce_proxy::{TceProxyCommand, TceProxyConfig};
+use tracing::{debug, error, info, warn};
 
 use topos_test_sdk::{
     certificates::create_certificate_chain,
@@ -531,4 +533,76 @@ fn input_certificates() -> Vec<CertificateDelivered> {
     ));
 
     certificates
+}
+
+#[rstest]
+#[test(tokio::test)]
+async fn test_tce_proxy_submit_certificate(
+    #[future] start_node: TceContext,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut context = start_node.await;
+
+    let source_subnet_id = SOURCE_SUBNET_ID_1;
+    let target_subnet_stream_positions = Vec::new();
+
+    let mut certificates = Vec::new();
+    certificates.append(&mut create_certificate_chain(
+        SOURCE_SUBNET_ID_1,
+        &[TARGET_SUBNET_ID_1],
+        5,
+    ));
+
+    // Create tce proxy client
+    let (tce_proxy_worker, _source_head_certificate_id) =
+        match TceProxyWorker::new(TceProxyConfig {
+            subnet_id: source_subnet_id,
+            base_tce_api_url: context.api_entrypoint.clone(),
+            positions: target_subnet_stream_positions,
+        })
+        .await
+        {
+            Ok((tce_proxy_worker, mut source_head_certificate)) => {
+                if let Some((cert, _position)) = &mut source_head_certificate {
+                    if cert.id == CertificateId::default() {
+                        warn!(
+                            "Tce has not provided source head certificate, starting from subnet \
+                             genesis block..."
+                        );
+                        source_head_certificate = None;
+                    }
+                }
+
+                info!(
+                    "TCE proxy client is starting for the source subnet {:?} from the head {:?}",
+                    source_subnet_id, source_head_certificate
+                );
+                let source_head_certificate_id =
+                    source_head_certificate.map(|(cert, position)| (cert.id, position));
+                (tce_proxy_worker, source_head_certificate_id)
+            }
+            Err(e) => {
+                panic!("Unable to create TCE Proxy: {e}");
+            }
+        };
+
+    for (index, cert) in certificates.into_iter().enumerate() {
+        match tce_proxy_worker
+            .send_command(TceProxyCommand::SubmitCertificate {
+                cert: Box::new(cert.certificate),
+                ctx: Default::default(),
+            })
+            .await
+        {
+            Ok(_) => {
+                info!("Certificate {} successfully submitted", index);
+            }
+            Err(e) => {
+                panic!("Error submitting certificate: {e}");
+            }
+        }
+    }
+
+    info!("Shutting down TCE node client");
+    context.shutdown().await?;
+    Ok(())
 }
