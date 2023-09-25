@@ -22,7 +22,7 @@ use test_log::test;
 use tokio::sync::{oneshot, Mutex};
 use topos_core::uci::{Certificate, CertificateId, SubnetId, SUBNET_ID_LENGTH};
 use topos_sequencer_subnet_runtime::proxy::{SubnetRuntimeProxyCommand, SubnetRuntimeProxyEvent};
-use tracing::{error, info, Span};
+use tracing::{error, info, warn, Span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 mod common;
@@ -32,14 +32,36 @@ use topos_sequencer_subnet_runtime::{SubnetRuntimeProxyConfig, SubnetRuntimeProx
 
 use topos_test_sdk::constants::*;
 
+// Local test network with default 2 seconds block
+const STANDALONE_SUBNET: &str = "standalone-test";
+const STANDALONE_SUBNET_BLOCK_TIME: u64 = 2;
+// Local test network with 12 seconds block, usefull for multiple transactions in one block tests
+const STANDALONE_SUBNET_WITH_LONG_BLOCKS_BLOCK_TIME: u64 = 12;
+
 const SUBNET_RPC_PORT: u32 = 8545;
+// Account 0x4AAb25B4fAd0Beaac466050f3A7142A502f4Cf0a
 const TEST_SECRET_ETHEREUM_KEY: &str =
     "d7e2e00b43c12cf17239d4755ed744df6ca70a933fc7c8bbb7da1342a5ff2e38";
+const TEST_ETHEREUM_ACCOUNT: &str = "0x4AAb25B4fAd0Beaac466050f3A7142A502f4Cf0a";
 const POLYGON_EDGE_CONTAINER: &str = "ghcr.io/topos-protocol/polygon-edge";
 const POLYGON_EDGE_CONTAINER_TAG: &str = "develop";
 const SUBNET_STARTUP_DELAY: u64 = 5; // seconds left for subnet startup
 const TEST_SUBNET_ID: &str = "6464646464646464646464646464646464646464646464646464646464646464";
 const ZERO_ADDRESS: &str = "0000000000000000000000000000000000000000";
+
+// Accounts pre-filled in STANDALONE_SUBNET_WITH_LONG_BLOCKS
+// Account Alith 0xf24FF3a9CF04c71Dbc94D0b566f7A27B94566cac
+const TEST_ACCOUNT_ALITH_KEY: &str =
+    "5fb92d6e98884f76de468fa3f6278f8807c48bebc13595d45af5bdc4da702133";
+const TEST_ACCOUNT_ALITH_ACCOUNT: &str = "0xf24FF3a9CF04c71Dbc94D0b566f7A27B94566cac";
+// Account Balathar 0x3Cd0A705a2DC65e5b1E1205896BaA2be8A07c6e0
+const TEST_ACCOUNT_BALATHAR_KEY: &str =
+    "8075991ce870b93a8870eca0c0f91913d12f47948ca0fd25b49c6fa7cdbeee8b";
+const TEST_ACCOUNT_BALATHAR_ACCOUNT: &str = "0x3Cd0A705a2DC65e5b1E1205896BaA2be8A07c6e0";
+// Account Cezar 0x5283ac54A7B9669F6415168DC7a5FcEe05019E45
+const TEST_ACCOUNT_CEZAR_KEY: &str =
+    "11eddfae7abe45531b3f18342c8062969323a7131d3043f1a33c40df74803cc7";
+const TEST_ACCOUNT_CEZAR_ACCOUNT: &str = "0x5283ac54A7B9669F6415168DC7a5FcEe05019E45";
 
 const PREV_CERTIFICATE_ID_1: CertificateId = CERTIFICATE_ID_4;
 const PREV_CERTIFICATE_ID_2: CertificateId = CERTIFICATE_ID_5;
@@ -109,7 +131,11 @@ fn spawn_subnet_node(
     stop_subnet_receiver: tokio::sync::oneshot::Receiver<()>,
     subnet_ready_sender: tokio::sync::oneshot::Sender<()>,
     port: u32,
+    block_time: u64, // Block time in seconds
 ) -> Result<tokio::task::JoinHandle<()>, Box<dyn std::error::Error>> {
+    let subnet_test_type = STANDALONE_SUBNET;
+    let subnet_startup_delay = SUBNET_STARTUP_DELAY * (block_time / 2);
+    let block_time_str = block_time.to_string() + "s";
     let handle = tokio::task::spawn_blocking(move || {
         let source = Source::DockerHub;
         let img = Image::with_repository(POLYGON_EDGE_CONTAINER)
@@ -117,6 +143,7 @@ fn spawn_subnet_node(
             .tag(POLYGON_EDGE_CONTAINER_TAG)
             .pull_policy(PullPolicy::IfNotPresent);
         let mut polygon_edge_node = Composition::with_image(img);
+        polygon_edge_node.env("BLOCK_TIME", block_time_str.clone());
 
         // Define docker options
         polygon_edge_node.port_map(SUBNET_RPC_PORT, port);
@@ -124,8 +151,7 @@ fn spawn_subnet_node(
         let mut polygon_edge_node_docker = DockerTest::new().with_default_source(source);
 
         // Setup command for polygon edge binary
-        let cmd: Vec<String> = vec!["standalone-test".to_string()];
-
+        let cmd: Vec<String> = vec![subnet_test_type.to_string()];
         polygon_edge_node_docker.add_composition(
             polygon_edge_node
                 .with_log_options(Some(LogOptions {
@@ -143,7 +169,7 @@ fn spawn_subnet_node(
                 container.name(),
             );
             // TODO: use polling of network block number or some other means to learn when subnet node has started
-            tokio::time::sleep(tokio::time::Duration::from_secs(SUBNET_STARTUP_DELAY)).await;
+            tokio::time::sleep(tokio::time::Duration::from_secs(subnet_startup_delay)).await;
             subnet_ready_sender
                 .send(())
                 .expect("subnet ready channel available");
@@ -199,6 +225,42 @@ impl Drop for Context {
     }
 }
 
+async fn create_new_erc20msg_client(
+    deploy_key: &str,
+    endpoint: &str,
+    erc20_messaging_contract_address: Address,
+) -> Result<IERC20MessagingClient, Box<dyn std::error::Error>> {
+    let wallet: LocalWallet = deploy_key.parse()?;
+    let http_provider =
+        Provider::<Http>::try_from(endpoint)?.interval(std::time::Duration::from_millis(20u64));
+    let chain_id = http_provider.get_chainid().await?;
+    let client = Arc::new(SignerMiddleware::new(
+        http_provider,
+        wallet.with_chain_id(chain_id.as_u64()),
+    ));
+    Ok(IERC20Messaging::new(
+        erc20_messaging_contract_address,
+        client,
+    ))
+}
+
+async fn create_new_erc20_client(
+    deploy_key: &str,
+    endpoint: &str,
+    erc20_contract_address: Address,
+) -> Result<IERC20Client, Box<dyn std::error::Error>> {
+    let wallet: LocalWallet = deploy_key.parse()?;
+    let http_provider =
+        Provider::<Http>::try_from(endpoint)?.interval(std::time::Duration::from_millis(20u64));
+    let chain_id = http_provider.get_chainid().await?;
+    let client = Arc::new(SignerMiddleware::new(
+        http_provider,
+        wallet.with_chain_id(chain_id.as_u64()),
+    ));
+    let i_erc20 = IERC20::new(erc20_contract_address, client);
+    Ok(i_erc20)
+}
+
 async fn deploy_contracts(
     deploy_key: &str,
     endpoint: &str,
@@ -216,9 +278,10 @@ async fn deploy_contracts(
     let http_provider =
         Provider::<Http>::try_from(endpoint)?.interval(std::time::Duration::from_millis(20u64));
     let chain_id = http_provider.get_chainid().await?;
+    let wallet_account = wallet.address();
     let client = Arc::new(SignerMiddleware::new(
         http_provider,
-        wallet.clone().with_chain_id(chain_id.as_u64()),
+        wallet.with_chain_id(chain_id.as_u64()),
     ));
 
     // Deploying contracts
@@ -247,7 +310,7 @@ async fn deploy_contracts(
     );
 
     let topos_core_contact_address: Token = Token::Address(topos_core_contract.address());
-    let admin_account = vec![wallet.address()];
+    let admin_account = vec![wallet_account];
     let new_admin_threshold = U256::from(1);
 
     info!("Deploying ToposCoreProxy contract...");
@@ -347,7 +410,7 @@ async fn deploy_test_token(
     let chain_id = http_provider.get_chainid().await?;
     let client = Arc::new(SignerMiddleware::new(
         http_provider,
-        wallet.clone().with_chain_id(chain_id.as_u64()),
+        wallet.with_chain_id(chain_id.as_u64()),
     ));
 
     let ierc20_messaging = IERC20Messaging::new(topos_messaging_address, client.clone());
@@ -397,7 +460,7 @@ async fn deploy_test_token(
         .from_block(0);
     let events = events.query().await?;
     let token_address = events[0].token_address;
-    info!("Token contract deploye to {}", token_address.to_string());
+    info!("Token contract deployed to {}", token_address.to_string());
 
     let i_erc20 = IERC20Client::new(token_address, client);
 
@@ -405,13 +468,19 @@ async fn deploy_test_token(
 }
 
 #[fixture]
-async fn context_running_subnet_node(#[default(8545)] port: u32) -> Context {
+async fn context_running_subnet_node(
+    #[default(8545)] port: u32,
+    #[default(STANDALONE_SUBNET_BLOCK_TIME)] block_time: u64,
+) -> Context {
     let (subnet_stop_sender, subnet_stop_receiver) = oneshot::channel::<()>();
     let (subnet_ready_sender, subnet_ready_receiver) = oneshot::channel::<()>();
-    info!("Starting subnet node...");
+    info!(
+        "Starting subnet node on port {}, block time: {}s",
+        port, block_time
+    );
 
     let subnet_node_handle =
-        match spawn_subnet_node(subnet_stop_receiver, subnet_ready_sender, port) {
+        match spawn_subnet_node(subnet_stop_receiver, subnet_ready_sender, port, block_time) {
             Ok(subnet_node_handle) => subnet_node_handle,
             Err(e) => {
                 panic!("Failed to start the polygon edge subnet node as part of test context: {e}");
@@ -443,7 +512,7 @@ async fn context_running_subnet_node(#[default(8545)] port: u32) -> Context {
     }
 }
 
-/// Test to start subnet and deploy subnet smart contract
+// Test to start subnet and deploy subnet smart contract
 #[rstest]
 #[test(tokio::test)]
 #[serial]
@@ -498,7 +567,7 @@ async fn test_subnet_node_get_block_info(
     Ok(())
 }
 
-/// Test runtime initialization
+// Test runtime initialization
 #[rstest]
 #[test(tokio::test)]
 #[serial]
@@ -523,7 +592,7 @@ async fn test_create_runtime() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/// Test push certificate to subnet smart contract
+// Test push certificate to subnet smart contract
 #[rstest]
 #[test(tokio::test)]
 #[serial]
@@ -642,7 +711,7 @@ async fn test_subnet_certificate_push_call(
     Ok(())
 }
 
-/// Test get last checkpoints from subnet smart contract
+// Test get last checkpoints from subnet smart contract
 #[rstest]
 #[test(tokio::test)]
 #[serial]
@@ -761,7 +830,7 @@ async fn test_subnet_certificate_get_checkpoints_call(
     Ok(())
 }
 
-/// Test get subnet id from subnet smart contract
+// Test get subnet id from subnet smart contract
 #[rstest]
 #[test(tokio::test)]
 #[serial]
@@ -807,8 +876,8 @@ async fn test_subnet_id_call(
     Ok(())
 }
 
-/// Test perform send token and check for transaction
-/// in the certificate (by observing target subnets)
+// Test perform send token and check for transaction
+// in the certificate (by observing target subnets)
 #[rstest]
 #[test(tokio::test)]
 #[serial]
@@ -1145,6 +1214,273 @@ async fn test_sync_from_genesis(
 
     info!("Shutting down context...");
 
+    context.shutdown().await?;
+    Ok(())
+}
+
+// Test multiple send token events in a block
+// Test is slow, block time is 12 seconds
+#[rstest]
+#[test(tokio::test)]
+#[timeout(std::time::Duration::from_secs(600))]
+#[serial]
+async fn test_subnet_multiple_send_token_in_a_block(
+    #[with(8546, STANDALONE_SUBNET_WITH_LONG_BLOCKS_BLOCK_TIME)]
+    #[future]
+    context_running_subnet_node: Context,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let context = context_running_subnet_node.await;
+    let test_private_key = hex::decode(TEST_SECRET_ETHEREUM_KEY).unwrap();
+    let subnet_jsonrpc_endpoint = context.jsonrpc();
+    let subnet_smart_contract_address =
+        "0x".to_string() + &hex::encode(context.i_topos_core.address());
+    let number_of_send_token_transactions: usize = 4;
+
+    warn!("Block time is intentionally long, this is slow test...");
+
+    // Create runtime proxy worker
+    info!("Creating subnet runtime proxy");
+    let mut runtime_proxy_worker = SubnetRuntimeProxyWorker::new(
+        SubnetRuntimeProxyConfig {
+            subnet_id: SOURCE_SUBNET_ID_1,
+            http_endpoint: context.jsonrpc(),
+            ws_endpoint: context.jsonrpc_ws(),
+            subnet_contract_address: subnet_smart_contract_address.clone(),
+            verifier: 0,
+            source_head_certificate_id: None,
+        },
+        test_private_key.clone(),
+    )
+    .await?;
+    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+    info!("Set source head certificate to 0");
+    if let Err(e) = runtime_proxy_worker
+        .set_source_head_certificate_id(Some((CERTIFICATE_ID_1, 0)))
+        .await
+    {
+        panic!("Unable to set source head certificate id: {e}");
+    }
+
+    // Deploy token contract
+    let i_erc20 = deploy_test_token(
+        &hex::encode(&test_private_key),
+        &subnet_jsonrpc_endpoint,
+        context.i_topos_messaging.address(),
+    )
+    .await?;
+
+    info!("Reading balance of the main account...");
+    match i_erc20.balance_of(TEST_ETHEREUM_ACCOUNT.parse()?).await {
+        Ok(balance) => {
+            info!("Balance of admin account is {:?}", balance);
+        }
+        Err(e) => {
+            error!("Unable to read balance {e}");
+        }
+    }
+
+    // Send token to other addresses
+    let test_accounts: Vec<_> = vec![
+        TEST_ACCOUNT_ALITH_ACCOUNT.parse()?,
+        TEST_ACCOUNT_BALATHAR_ACCOUNT.parse()?,
+        TEST_ACCOUNT_CEZAR_ACCOUNT.parse()?,
+    ];
+    info!("Transferring tokens to {} accounts", test_accounts.len());
+    for test_account in test_accounts {
+        info!(
+            "Transferring token to address {}",
+            "0x".to_string() + &hex::encode(test_account)
+        );
+        if let Err(e) = i_erc20
+            .transfer(test_account, U256::from(10))
+            .legacy()
+            .gas(DEFAULT_GAS)
+            .send()
+            .await?
+            .await
+        {
+            panic!("Unable to perform token transfer {e}");
+        }
+    }
+    info!("Tokens transferred");
+
+    let mut erc20_clients = vec![
+        create_new_erc20_client(
+            TEST_SECRET_ETHEREUM_KEY,
+            &subnet_jsonrpc_endpoint,
+            i_erc20.address(),
+        )
+        .await
+        .expect("Valid erc20 client"),
+        create_new_erc20_client(
+            TEST_ACCOUNT_ALITH_KEY,
+            &subnet_jsonrpc_endpoint,
+            i_erc20.address(),
+        )
+        .await
+        .expect("Valid erc20 client"),
+        create_new_erc20_client(
+            TEST_ACCOUNT_BALATHAR_KEY,
+            &subnet_jsonrpc_endpoint,
+            i_erc20.address(),
+        )
+        .await
+        .expect("Valid erc20 client"),
+        create_new_erc20_client(
+            TEST_ACCOUNT_CEZAR_KEY,
+            &subnet_jsonrpc_endpoint,
+            i_erc20.address(),
+        )
+        .await
+        .expect("Valid erc20 client"),
+    ];
+
+    info!("Approve token spending");
+    for erc20_client in &mut erc20_clients {
+        if let Err(e) = erc20_client
+            .approve(context.i_topos_messaging.address(), U256::from(10))
+            .legacy()
+            .gas(DEFAULT_GAS)
+            .send()
+            .await?
+            .await
+        {
+            panic!("Unable to perform token approval {e}");
+        } else {
+            info!("Token spending approved for {}", erc20_client.address());
+        }
+    }
+    info!("All token spending approved");
+
+    info!("Initializing multiple i_erc20_messaging subnet clients");
+    let mut target_subnets = vec![
+        (
+            TARGET_SUBNET_ID_5,
+            create_new_erc20msg_client(
+                TEST_SECRET_ETHEREUM_KEY,
+                &subnet_jsonrpc_endpoint,
+                context.i_erc20_messaging.address(),
+            )
+            .await
+            .expect("Valid client"),
+        ),
+        (
+            TARGET_SUBNET_ID_4,
+            create_new_erc20msg_client(
+                TEST_ACCOUNT_ALITH_KEY,
+                &subnet_jsonrpc_endpoint,
+                context.i_erc20_messaging.address(),
+            )
+            .await
+            .expect("Valid client"),
+        ),
+        (
+            TARGET_SUBNET_ID_3,
+            create_new_erc20msg_client(
+                TEST_ACCOUNT_BALATHAR_KEY,
+                &subnet_jsonrpc_endpoint,
+                context.i_erc20_messaging.address(),
+            )
+            .await
+            .expect("Valid client"),
+        ),
+        (
+            TARGET_SUBNET_ID_2,
+            create_new_erc20msg_client(
+                TEST_ACCOUNT_CEZAR_KEY,
+                &subnet_jsonrpc_endpoint,
+                context.i_erc20_messaging.address(),
+            )
+            .await
+            .expect("Valid client"),
+        ),
+    ];
+
+    // Perform multiple send token actions
+    info!("Sending multiple transactions in parallel");
+    let mut handles = Vec::new();
+    for i in 1..=number_of_send_token_transactions {
+        let i_erc20_address = i_erc20.address();
+        let (target_subnet, i_erc20_messaging) = target_subnets.pop().unwrap();
+        let i_erc20_messaging_address = i_erc20_messaging.address();
+        let handle = tokio::spawn(async move {
+            info!(
+                "Sending transaction {} to target subnet {} erc20 messaging account {}",
+                i,
+                &target_subnet,
+                "0x".to_string() + &hex::encode(i_erc20_messaging_address)
+            );
+            if let Err(e) = i_erc20_messaging
+                .send_token(
+                    target_subnet.into(),
+                    i_erc20_address,
+                    "00000000000000000000000000000000000000AA".parse().unwrap(),
+                    U256::from(i),
+                )
+                .legacy()
+                .gas(DEFAULT_GAS)
+                .send()
+                .await
+                .map_err(|e| {
+                    error!("Unable to send token, contract error: {e}");
+                })
+                .unwrap()
+                .await
+            {
+                error!("Unable to send token {e}");
+                panic!("Unable to send token: {e}");
+            };
+            info!("Transaction {} sent", i);
+        });
+        handles.push(handle);
+    }
+    for handle in handles {
+        handle.await.expect("Send token task correctly finished");
+    }
+    info!("All token transactions sent!");
+
+    info!("Waiting for certificate with send token transaction...");
+    let mut received_certificates = Vec::new();
+    let assertion = async move {
+        while let Ok(event) = runtime_proxy_worker.next_event().await {
+            if let SubnetRuntimeProxyEvent::NewCertificate {
+                cert,
+                block_number,
+                ctx: _,
+            } = event
+            {
+                info!(
+                    "New certificate event received, block number: {} cert id: {} target subnets: \
+                     {:?}",
+                    block_number, cert.id, cert.target_subnets
+                );
+                if !cert.target_subnets.is_empty() {
+                    received_certificates.push(cert);
+                    let target_subnets = received_certificates
+                        .iter()
+                        .flat_map(|c| c.target_subnets.iter())
+                        .collect::<Vec<_>>();
+                    if target_subnets.len() == number_of_send_token_transactions {
+                        info!("Received all expected target subnets {:?}", target_subnets);
+                        return Ok::<(), Box<dyn std::error::Error>>(());
+                    }
+                }
+            } else {
+                info!("Received subnet event: {:?}", event);
+            }
+        }
+        panic!("Expected event not received");
+    };
+
+    // Set big timeout to prevent flaky failures. Instead fail/panic early in the test to indicate actual error
+    if tokio::time::timeout(std::time::Duration::from_secs(120), assertion)
+        .await
+        .is_err()
+    {
+        panic!("Timeout waiting for command");
+    }
+
+    info!("Shutting down context...");
     context.shutdown().await?;
     Ok(())
 }
