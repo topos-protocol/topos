@@ -602,6 +602,11 @@ async fn test_tce_proxy_submit_certificate(
         }
     }
 
+    // Wait for certificates to be submitted
+    tokio::time::sleep(Duration::from_secs(5)).await;
+
+    // TODO: get pending certificates from TCE to make sure they were actually submitted
+
     info!("Shutting down TCE node client");
     context.shutdown().await?;
     Ok(())

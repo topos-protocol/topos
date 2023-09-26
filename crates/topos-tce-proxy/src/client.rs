@@ -18,7 +18,7 @@ use topos_core::{
     },
     uci::{Certificate, SubnetId},
 };
-use tracing::{error, info, info_span, warn, Instrument, Span};
+use tracing::{debug, error, info, info_span, warn, Instrument, Span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 const CERTIFICATE_OUTBOUND_CHANNEL_SIZE: usize = 100;
@@ -48,6 +48,15 @@ pub(crate) enum TceClientCommand {
         span: tracing::Span,
     },
     Shutdown,
+}
+
+/// Create new backoff library error based on error that happened
+pub(crate) fn new_tce_proxy_backoff_err<E: std::fmt::Display>(err: E) -> backoff::Error<E> {
+    // Retry according to backoff policy
+    backoff::Error::Transient {
+        err,
+        retry_after: None,
+    }
 }
 
 pub struct TceClient {
@@ -349,30 +358,42 @@ impl TceClientBuilder {
                                 let span = info_span!(parent: &span, "SendCertificate", %cert_id, %previous_cert_id, %tce_endpoint);
                                 let context = span.context();
 
-                                let mut request = SubmitCertificateRequest {
-                                    certificate: Some(topos_core::api::grpc::uci::v1::Certificate::from(*cert)),
-                                }.into_request();
-
-                                let mut span_context = topos_telemetry::TonicMetaInjector(request.metadata_mut());
-
-                                span_context.inject(&context);
-
                                 let tce_endpoint = tce_endpoint.clone();
-                                let mut tce_grpc_client = tce_grpc_client.clone();
+                                let tce_grpc_client = tce_grpc_client.clone();
+                                let context_send = context.clone();
                                 certificate_to_send.push(async move {
-                                    match tce_grpc_client
+                                    debug!("Submitting certificate {} to the TCE using backoff strategy...", &tce_endpoint);
+                                    let cert = cert.clone();
+                                    let op = || async {
+                                        let mut tce_grpc_client = tce_grpc_client.clone();
+                                        let mut request = SubmitCertificateRequest {
+                                            certificate: Some(topos_core::api::grpc::uci::v1::Certificate::from(*(cert.clone()))),
+                                        }.into_request();
+
+                                        let mut span_context = topos_telemetry::TonicMetaInjector(request.metadata_mut());
+                                        span_context.inject(&context_send);
+
+                                        tce_grpc_client
                                         .submit_certificate(request)
                                         .with_current_context()
                                         .instrument(Span::current())
                                         .await
-                                        .map(|r| r.into_inner()) {
-                                            Ok(_response)=> {
-                                                info!("Successfully sent the Certificate {} (previous: {}) to the TCE at {}", &cert_id, &previous_cert_id, &tce_endpoint);
-                                            }
-                                            Err(e) => {
-                                                error!("Failed to submit the Certificate to the TCE at {}: {e}", &tce_endpoint);
-                                            }
-                                    }
+                                        .map(|_response| {
+                                            info!("Successfully submitted the Certificate {} (previous: {}) to the TCE at {}",
+                                                &cert_id, &previous_cert_id, &tce_endpoint);
+                                        })
+                                        .map_err(|e| {
+                                            error!("Failed to submit the Certificate to the TCE at {}, will retry: {e}", &tce_endpoint);
+                                            new_tce_proxy_backoff_err(e)
+                                        })
+                                    };
+
+                                    backoff::future::retry(backoff::ExponentialBackoff::default(), op)
+                                        .await
+                                        .map_err(|e| {
+                                            error!("Failed to submit certificate to the TCE: {e}");
+                                           e
+                                        })
                                 }
                                 .with_context(context)
                                 .instrument(span));
