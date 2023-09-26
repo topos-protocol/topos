@@ -3,7 +3,7 @@ use std::{num::NonZeroUsize, time::Duration};
 use futures::StreamExt;
 use libp2p::{
     identify::{self, Info},
-    kad::{record::Key, KademliaEvent, PutRecordOk, QueryResult, Record},
+    kad::{record::Key, GetRecordOk, KademliaEvent, PeerRecord, PutRecordOk, QueryResult, Record},
     swarm::SwarmEvent,
 };
 use rstest::rstest;
@@ -60,27 +60,3 @@ async fn put_value_in_dht() {
 
     join.abort();
 }
-
-#[test(tokio::test)]
-#[ignore = "not implemented yet"]
-async fn fetch_value_from_dht() {}
-
-#[test(tokio::test)]
-#[ignore = "not implemented yet"]
-async fn remove_value_from_dht() {}
-
-#[test(tokio::test)]
-#[ignore = "not implemented yet"]
-async fn peer_read_an_available_value() {}
-
-#[test(tokio::test)]
-#[ignore = "not implemented yet"]
-async fn peer_read_an_unavailable_value() {}
-
-#[test(tokio::test)]
-#[ignore = "not implemented yet"]
-async fn reading_available_data_with_client() {}
-
-#[test(tokio::test)]
-#[ignore = "not implemented yet"]
-async fn reading_unavailable_data_with_client() {}

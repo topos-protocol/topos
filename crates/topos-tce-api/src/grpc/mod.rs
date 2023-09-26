@@ -1,6 +1,7 @@
-use base64::Engine;
+use base64ct::{Base64, Encoding};
 use futures::{FutureExt, Stream as FutureStream, StreamExt};
 use std::pin::Pin;
+use std::sync::Arc;
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::{Request, Response, Status, Streaming};
@@ -13,6 +14,7 @@ use topos_core::api::grpc::tce::v1::{
 };
 use topos_core::uci::SubnetId;
 use topos_metrics::API_GRPC_CERTIFICATE_RECEIVED_TOTAL;
+use topos_tce_storage::validator::ValidatorStore;
 use tracing::{error, info, Span};
 use uuid::Uuid;
 
@@ -32,8 +34,8 @@ const DEFAULT_CHANNEL_STREAM_CAPACITY: usize = 100;
 pub(crate) mod builder;
 pub(crate) mod messaging;
 
-#[derive(Debug)]
 pub(crate) struct TceGrpcService {
+    store: Arc<ValidatorStore>,
     command_sender: mpsc::Sender<InternalRuntimeCommand>,
 }
 
@@ -213,58 +215,38 @@ impl ApiService for TceGrpcService {
 
         let subnet_ids = data.subnet_ids;
 
-        let (sender, receiver) = oneshot::channel();
-
         let subnet_ids: Vec<SubnetId> = subnet_ids
             .into_iter()
             .map(TryInto::try_into)
             .map(|v| v.map_err(|e| Status::internal(format!("Invalid subnet id: {e}"))))
             .collect::<Result<_, _>>()?;
 
-        if self
-            .command_sender
-            .send(InternalRuntimeCommand::GetLastPendingCertificates { subnet_ids, sender })
-            .await
-            .is_err()
-        {
-            return Err(Status::internal(
-                "Can't get last pending certificates: sender dropped into channel",
-            ));
-        }
-
-        receiver
-            .map(|value| match value {
-                Ok(Ok(map)) => Ok(Response::new(GetLastPendingCertificatesResponse {
-                    last_pending_certificate: map
-                        .into_iter()
-                        .map(|(subnet_id, last_pending_certificate)| {
-                            (
-                                base64::engine::general_purpose::STANDARD
-                                    .encode(subnet_id.as_array()),
-                                {
-                                    LastPendingCertificate {
-                                        index: last_pending_certificate
-                                            .as_ref()
-                                            .map(|(_cert, index)| *index)
-                                            .unwrap_or_default()
-                                            as i32,
-                                        value: last_pending_certificate
-                                            .map(|(cert, _index)| cert)
-                                            .map(Into::into),
-                                    }
-                                },
-                            )
-                        })
-                        .collect(),
-                })),
-                Ok(Err(e)) => Err(Status::internal(format!(
-                    "Can't get last pending certificates: {e}"
-                ))),
-                Err(e) => Err(Status::internal(format!(
-                    "Can't get last pending certificates: {e}"
-                ))),
+        let last_pending_certificate = self
+            .store
+            .get_pending_certificates_for_subnets(&subnet_ids)
+            .map_err(|e| Status::internal(format!("Can't get last pending certificates: {e}")))?
+            .into_iter()
+            .map(|(subnet_id, (index, maybe_certificate))| {
+                (
+                    base64::engine::general_purpose::STANDARD.encode(subnet_id.as_array()),
+                    {
+                        maybe_certificate
+                            .map(|certificate| LastPendingCertificate {
+                                index,
+                                value: Some(certificate.into()),
+                            })
+                            .unwrap_or(LastPendingCertificate {
+                                value: None,
+                                index: 0,
+                            })
+                    },
+                )
             })
-            .await
+            .collect();
+
+        Ok(Response::new(GetLastPendingCertificatesResponse {
+            last_pending_certificate,
+        }))
     }
 
     ///Server streaming response type for the WatchCertificates method.

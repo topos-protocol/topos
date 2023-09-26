@@ -18,7 +18,7 @@ async-graphql.workspace = true
 async-stream.workspace = true
 async-trait.workspace = true
 axum.workspace = true
-base64.workspace = true
+base64ct.workspace = true
 futures.workspace = true
 hex.workspace = true
 http.workspace = true
@@ -51,4 +51,3 @@ http = "0.2.8"
 http-body = "0.4.5"
 rstest = { workspace = true, features = ["async-timeout"] }
 topos-test-sdk = { path = "../topos-test-sdk/" }
-

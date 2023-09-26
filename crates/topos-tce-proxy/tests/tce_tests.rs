@@ -1,4 +1,4 @@
-use base64::Engine;
+use base64ct::{Base64, Encoding};
 use futures::StreamExt;
 use rstest::*;
 use std::collections::HashMap;
@@ -244,7 +244,6 @@ async fn test_tce_get_source_head_certificate(
 
 #[rstest]
 #[test(tokio::test)]
-#[ignore = "Broken because of https://github.com/topos-protocol/topos/pull/248"]
 async fn test_tce_get_last_pending_certificates(
     #[future] start_node: TceContext,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -265,7 +264,7 @@ async fn test_tce_get_last_pending_certificates(
         .expect("valid response");
 
     let last_pending_certificates = vec![(
-        base64::engine::general_purpose::STANDARD.encode(&source_subnet_id.value),
+        Base64::encode_string(&source_subnet_id.value),
         LastPendingCertificate {
             value: None,
             index: 0,
@@ -277,6 +276,7 @@ async fn test_tce_get_last_pending_certificates(
     let expected_response = GetLastPendingCertificatesResponse {
         last_pending_certificate: last_pending_certificates,
     };
+
     assert_eq!(response, expected_response);
 
     for cert in &certificates {
@@ -309,7 +309,7 @@ async fn test_tce_get_last_pending_certificates(
         .expect("valid response");
 
     let expected_last_pending_certificates = vec![(
-        base64::engine::general_purpose::STANDARD.encode(&source_subnet_id.value),
+        Base64::encode_string(&source_subnet_id.value),
         LastPendingCertificate {
             value: Some(
                 certificates
@@ -320,7 +320,7 @@ async fn test_tce_get_last_pending_certificates(
                     .certificate
                     .into(),
             ),
-            index: 0,
+            index: 10,
         },
     )]
     .into_iter()

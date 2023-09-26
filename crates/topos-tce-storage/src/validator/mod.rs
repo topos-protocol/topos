@@ -11,12 +11,12 @@ use topos_core::{
         stream::{CertificateSourceStreamPosition, Position},
         CertificateDelivered, ProofOfDelivery,
     },
-    uci::{Certificate, CertificateId, SubnetId},
+    uci::{Certificate, CertificateId, SubnetId, INITIAL_CERTIFICATE_ID},
 };
 use tracing::{debug, info, instrument};
 
 use crate::{
-    errors::StorageError,
+    errors::{InternalStorageError, StorageError},
     fullnode::FullNodeStore,
     rocks::map::Map,
     store::{ReadStore, WriteStore},
@@ -31,29 +31,85 @@ mod tables;
 /// Contains all persistent data about the validator
 pub struct ValidatorStore {
     pub(crate) pending_tables: ValidatorPendingTables,
-    pub(crate) full_node_store: Arc<FullNodeStore>,
+    pub(crate) fullnode_store: Arc<FullNodeStore>,
 }
 
 impl ValidatorStore {
     pub fn open(
         path: PathBuf,
-        full_node_store: Arc<FullNodeStore>,
+        fullnode_store: Arc<FullNodeStore>,
     ) -> Result<Arc<Self>, StorageError> {
         let pending_tables: ValidatorPendingTables = ValidatorPendingTables::open(path);
         let store = Arc::new(Self {
             pending_tables,
-            full_node_store,
+            fullnode_store,
         });
 
         Ok(store)
     }
+
+    pub fn get_fullnode_store(&self) -> Arc<FullNodeStore> {
+        self.fullnode_store.clone()
+    }
+
     pub fn count_pending_certificates(&self) -> Result<usize, StorageError> {
         Ok(self.pending_tables.pending_pool.iter()?.count())
     }
+
+    pub fn get_pending_id(
+        &self,
+        certificate_id: &CertificateId,
+    ) -> Result<Option<PendingCertificateId>, StorageError> {
+        Ok(self.pending_tables.pending_pool_index.get(certificate_id)?)
+    }
+
+    pub fn get_pending_certificate(
+        &self,
+        pending_id: &PendingCertificateId,
+    ) -> Result<Option<Certificate>, StorageError> {
+        Ok(self.pending_tables.pending_pool.get(pending_id)?)
+    }
+
     pub fn get_pending_certificates(
         &self,
     ) -> Result<Vec<(PendingCertificateId, Certificate)>, StorageError> {
         Ok(self.pending_tables.pending_pool.iter()?.collect())
+    }
+
+    // TODO: Performance issue on this one as we iter over all the pending certificates
+    // We need to improve how we request the pending certificates.
+    pub fn get_pending_certificates_for_subnets(
+        &self,
+        subnets: &[SubnetId],
+    ) -> Result<HashMap<SubnetId, (u64, Option<Certificate>)>, StorageError> {
+        let mut result: HashMap<SubnetId, (u64, Option<Certificate>)> = subnets
+            .iter()
+            .enumerate()
+            .map(|(_, s)| (*s, (0, None)))
+            .collect();
+
+        for (_, certificate) in self.pending_tables.pending_pool.iter()? {
+            if !subnets.contains(&certificate.source_subnet_id) {
+                continue;
+            }
+
+            let mut latest_cert = certificate;
+            let entry = result
+                .entry(latest_cert.source_subnet_id)
+                .or_insert((0, None));
+
+            entry.0 += 1;
+            while let Some(certificate) =
+                self.pending_tables.precedence_pool.get(&latest_cert.id)?
+            {
+                latest_cert = certificate;
+                entry.0 += 1;
+            }
+
+            entry.1 = Some(latest_cert);
+        }
+
+        Ok(result)
     }
 
     pub fn insert_pending_certificates(
@@ -91,18 +147,38 @@ impl ValidatorStore {
     pub fn insert_pending_certificate(
         &self,
         certificate: &Certificate,
-    ) -> Result<PendingCertificateId, StorageError> {
-        let id = self
-            .pending_tables
-            .next_pending_id
-            .fetch_add(1, Ordering::Relaxed);
+    ) -> Result<Option<PendingCertificateId>, StorageError> {
+        if self.get_certificate(&certificate.id)?.is_some() {
+            return Err(StorageError::InternalStorage(
+                InternalStorageError::CertificateAlreadyExists,
+            ));
+        }
 
-        self.pending_tables.pending_pool.insert(&id, certificate)?;
-        self.pending_tables
-            .pending_pool_index
-            .insert(&certificate.id, &id)?;
+        let prev_delivered = certificate.prev_id == INITIAL_CERTIFICATE_ID
+            || self
+                .fullnode_store
+                .get_certificate(&certificate.prev_id)?
+                .is_some();
 
-        Ok(id)
+        if prev_delivered {
+            let id = self
+                .pending_tables
+                .next_pending_id
+                .fetch_add(1, Ordering::Relaxed);
+
+            self.pending_tables.pending_pool.insert(&id, certificate)?;
+            self.pending_tables
+                .pending_pool_index
+                .insert(&certificate.id, &id)?;
+
+            Ok(Some(id))
+        } else {
+            self.pending_tables
+                .precedence_pool
+                .insert(&certificate.prev_id, certificate)?;
+
+            Ok(None)
+        }
     }
 
     #[instrument(skip(self, proofs))]
@@ -123,7 +199,7 @@ impl ValidatorStore {
             })
             .collect();
 
-        self.full_node_store
+        self.fullnode_store
             .perpetual_tables
             .unverified
             .multi_insert(unverified)?;
@@ -152,7 +228,7 @@ impl ValidatorStore {
                 "Certificate Sync: unverified proof as been removed for {}",
                 certificate_id
             );
-            self.full_node_store
+            self.fullnode_store
                 .perpetual_tables
                 .unverified
                 .delete(&certificate_id)?;
@@ -171,7 +247,7 @@ impl ValidatorStore {
         certificate_id: &CertificateId,
     ) -> Result<Option<ProofOfDelivery>, StorageError> {
         Ok(self
-            .full_node_store
+            .fullnode_store
             .perpetual_tables
             .unverified
             .get(certificate_id)?)
@@ -189,7 +265,7 @@ impl ValidatorStore {
 
         // Request the local head checkpoint
         let subnets: HashMap<SubnetId, Position> = self
-            .full_node_store
+            .fullnode_store
             .index_tables
             .source_list
             .iter()?
@@ -205,7 +281,7 @@ impl ValidatorStore {
                 if local_position <= position.delivery_position.position {
                     continue;
                 }
-                self.full_node_store
+                self.fullnode_store
                     .perpetual_tables
                     .streams
                     .prefix_iter_at(&subnet, &position)?
@@ -213,7 +289,7 @@ impl ValidatorStore {
                     .map(|(_, v)| v)
                     .collect()
             } else {
-                self.full_node_store
+                self.fullnode_store
                     .perpetual_tables
                     .streams
                     .prefix_iter(&subnet)?
@@ -223,7 +299,7 @@ impl ValidatorStore {
             };
 
             let proofs: Vec<_> = self
-                .full_node_store
+                .fullnode_store
                 .get_certificates(&certs)?
                 .into_iter()
                 .filter_map(|v| v.map(|c| c.proof_of_delivery))
@@ -263,21 +339,21 @@ impl ValidatorStore {
 }
 impl ReadStore for ValidatorStore {
     fn get_source_head(&self, subnet_id: &SubnetId) -> Result<Option<SourceHead>, StorageError> {
-        self.full_node_store.get_source_head(subnet_id)
+        self.fullnode_store.get_source_head(subnet_id)
     }
 
     fn get_certificate(
         &self,
         certificate_id: &CertificateId,
     ) -> Result<Option<CertificateDelivered>, StorageError> {
-        self.full_node_store.get_certificate(certificate_id)
+        self.fullnode_store.get_certificate(certificate_id)
     }
 
     fn get_certificates(
         &self,
         certificate_ids: &[CertificateId],
     ) -> Result<Vec<Option<CertificateDelivered>>, StorageError> {
-        self.full_node_store.get_certificates(certificate_ids)
+        self.fullnode_store.get_certificates(certificate_ids)
     }
 
     fn last_delivered_position_for_subnet(
@@ -285,7 +361,7 @@ impl ReadStore for ValidatorStore {
         subnet_id: &SubnetId,
     ) -> Result<Option<CertificateSourceStreamPosition>, StorageError> {
         Ok(self
-            .full_node_store
+            .fullnode_store
             .index_tables
             .source_list
             .get(subnet_id)?
@@ -296,7 +372,7 @@ impl ReadStore for ValidatorStore {
     }
 
     fn get_checkpoint(&self) -> Result<HashMap<SubnetId, SourceHead>, StorageError> {
-        self.full_node_store.get_checkpoint()
+        self.fullnode_store.get_checkpoint()
     }
 
     fn get_source_stream_certificates_from_position(
@@ -304,7 +380,7 @@ impl ReadStore for ValidatorStore {
         from: CertificateSourceStreamPosition,
         limit: usize,
     ) -> Result<Vec<(CertificateDelivered, CertificateSourceStreamPosition)>, StorageError> {
-        self.full_node_store
+        self.fullnode_store
             .get_source_stream_certificates_from_position(from, limit)
     }
 
@@ -313,7 +389,7 @@ impl ReadStore for ValidatorStore {
         position: CertificateTargetStreamPosition,
         limit: usize,
     ) -> Result<Vec<(CertificateDelivered, CertificateTargetStreamPosition)>, StorageError> {
-        self.full_node_store
+        self.fullnode_store
             .get_target_stream_certificates_from_position(position, limit)
     }
 
@@ -321,7 +397,7 @@ impl ReadStore for ValidatorStore {
         &self,
         target_subnet_id: &SubnetId,
     ) -> Result<Vec<SubnetId>, StorageError> {
-        self.full_node_store
+        self.fullnode_store
             .get_target_source_subnet_list(target_subnet_id)
     }
 }
@@ -333,7 +409,7 @@ impl WriteStore for ValidatorStore {
         certificate: &CertificateDelivered,
     ) -> Result<CertificatePositions, StorageError> {
         let position = self
-            .full_node_store
+            .fullnode_store
             .insert_certificate_delivered(certificate)
             .await?;
 
@@ -344,6 +420,15 @@ impl WriteStore for ValidatorStore {
         {
             _ = self.pending_tables.pending_pool.delete(&pending_id);
         }
+
+        if let Ok(Some(certificate)) = self
+            .pending_tables
+            .precedence_pool
+            .get(&certificate.certificate.id)
+        {
+            self.insert_pending_certificate(&certificate)?;
+        }
+
         Ok(position)
     }
 
@@ -351,7 +436,7 @@ impl WriteStore for ValidatorStore {
         &self,
         certificates: &[CertificateDelivered],
     ) -> Result<(), StorageError> {
-        self.full_node_store
+        self.fullnode_store
             .insert_certificates_delivered(certificates)
             .await
     }

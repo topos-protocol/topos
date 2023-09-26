@@ -104,8 +104,8 @@ pub struct LastPendingCertificate {
     #[prost(message, optional, tag = "1")]
     pub value: ::core::option::Option<super::super::uci::v1::Certificate>,
     /// Pending certificate index (effectively total number of pending certificates)
-    #[prost(int32, tag = "2")]
-    pub index: i32,
+    #[prost(uint64, tag = "2")]
+    pub index: u64,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

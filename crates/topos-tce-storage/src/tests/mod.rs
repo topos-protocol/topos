@@ -22,6 +22,7 @@ use topos_test_sdk::certificates::create_certificate_chain;
 use topos_test_sdk::constants::*;
 
 mod db_columns;
+mod pending_certificates;
 mod position;
 mod rocks;
 pub(crate) mod support;
@@ -67,9 +68,9 @@ async fn can_persist_a_delivered_certificate(store: Arc<ValidatorStore>) {
         .await
         .unwrap();
 
-    let certificates_table = store.full_node_store.perpetual_tables.certificates.clone();
-    let streams_table = store.full_node_store.perpetual_tables.streams.clone();
-    let targets_streams_table = store.full_node_store.index_tables.target_streams.clone();
+    let certificates_table = store.fullnode_store.perpetual_tables.certificates.clone();
+    let streams_table = store.fullnode_store.perpetual_tables.streams.clone();
+    let targets_streams_table = store.fullnode_store.index_tables.target_streams.clone();
 
     assert!(certificates_table.get(&certificate.certificate.id).is_ok());
 
@@ -96,9 +97,9 @@ async fn can_persist_a_delivered_certificate(store: Arc<ValidatorStore>) {
 #[rstest]
 #[test(tokio::test)]
 async fn delivered_certificate_are_added_to_target_stream(store: Arc<ValidatorStore>) {
-    let certificates_column = store.full_node_store.perpetual_tables.certificates.clone();
-    let source_streams_column = store.full_node_store.perpetual_tables.streams.clone();
-    let target_streams_column = store.full_node_store.index_tables.target_streams.clone();
+    let certificates_column = store.fullnode_store.perpetual_tables.certificates.clone();
+    let source_streams_column = store.fullnode_store.perpetual_tables.streams.clone();
+    let target_streams_column = store.fullnode_store.index_tables.target_streams.clone();
 
     target_streams_column
         .insert(
@@ -176,7 +177,10 @@ async fn pending_certificate_are_removed_during_persist_action(store: Arc<Valida
     .unwrap();
 
     let certificate_id = certificate.id;
-    let pending_id = store.insert_pending_certificate(&certificate).unwrap();
+    let pending_id = store
+        .insert_pending_certificate(&certificate)
+        .unwrap()
+        .unwrap();
 
     let certificate = CertificateDelivered {
         certificate,
@@ -340,7 +344,10 @@ async fn pending_certificate_can_be_removed(store: Arc<ValidatorStore>) {
     )
     .unwrap();
 
-    let pending_id = store.insert_pending_certificate(&certificate).unwrap();
+    let pending_id = store
+        .insert_pending_certificate(&certificate)
+        .unwrap()
+        .unwrap();
 
     assert!(pending_column.get(&pending_id).is_ok());
     store.delete_pending_certificate(&pending_id).unwrap();
@@ -349,7 +356,10 @@ async fn pending_certificate_can_be_removed(store: Arc<ValidatorStore>) {
 
     let _ = store.insert_pending_certificate(&certificate).unwrap();
 
-    let pending_id = store.insert_pending_certificate(&certificate).unwrap();
+    let pending_id = store
+        .insert_pending_certificate(&certificate)
+        .unwrap()
+        .unwrap();
 
     assert!(pending_column.get(&pending_id).is_ok());
     store.delete_pending_certificate(&pending_id).unwrap();

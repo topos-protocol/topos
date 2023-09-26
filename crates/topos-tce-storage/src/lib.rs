@@ -9,6 +9,7 @@ use topos_core::{
 };
 
 // v2
+pub mod constant;
 /// Epoch related store
 pub mod epoch;
 /// Fullnode store

@@ -8,6 +8,7 @@ pub use topos_uci as uci;
 #[doc(inline)]
 pub use topos_api as api;
 
+pub mod errors;
 pub mod types;
 
 #[cfg(test)]

@@ -7,19 +7,27 @@ use topos_core::api::grpc::tce::v1::{
     api_service_server::ApiServiceServer, console_service_server::ConsoleServiceServer,
     StatusResponse,
 };
+use topos_tce_storage::validator::ValidatorStore;
 
 use crate::runtime::InternalRuntimeCommand;
 
 use super::{console::TceConsoleService, TceGrpcService};
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct ServerBuilder {
+    store: Option<Arc<ValidatorStore>>,
     local_peer_id: String,
     command_sender: Option<Sender<InternalRuntimeCommand>>,
     serve_addr: Option<SocketAddr>,
 }
 
 impl ServerBuilder {
+    pub(crate) fn with_store(mut self, store: Arc<ValidatorStore>) -> Self {
+        self.store = Some(store);
+
+        self
+    }
+
     pub(crate) fn with_peer_id(mut self, local_peer_id: String) -> Self {
         self.local_peer_id = local_peer_id;
 
@@ -59,7 +67,15 @@ impl ServerBuilder {
             status: status.clone(),
         });
 
-        let service = ApiServiceServer::new(TceGrpcService { command_sender });
+        let store = self
+            .store
+            .take()
+            .expect("Cannot build GraphQL server without a FullNode store");
+
+        let service = ApiServiceServer::new(TceGrpcService {
+            store,
+            command_sender,
+        });
 
         let (mut health_reporter, health_service) = tonic_health::server::health_reporter();
 
