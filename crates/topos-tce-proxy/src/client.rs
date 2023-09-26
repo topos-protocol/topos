@@ -451,12 +451,11 @@ impl TceClientBuilder {
                                                     )
                                                     .map_err(|_| Error::InvalidSubnetId)?;
 
-                                                    let index: u64 = last_pending_certificate.index as u64;
                                                     let certificate_and_index: Option<(Certificate, u64)> =
                                                         match last_pending_certificate.value {
                                                             Some(certificate) => Some(
                                                                 Certificate::try_from(certificate)
-                                                                .map(|certificate| (certificate, index))
+                                                                .map(|certificate| (certificate, last_pending_certificate.index))
                                                                 .map_err(
                                                                     |e| Error::UnableToGetLastPendingCertificates {
                                                                         details: e.to_string(),

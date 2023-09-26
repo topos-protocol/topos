@@ -320,7 +320,7 @@ async fn test_tce_get_last_pending_certificates(
                     .certificate
                     .into(),
             ),
-            index: 0,
+            index: 10,
         },
     )]
     .into_iter()

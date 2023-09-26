@@ -1,12 +1,11 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     path::PathBuf,
     sync::{atomic::Ordering, Arc},
 };
 
 use async_trait::async_trait;
 
-use rocksdb::IteratorMode;
 use topos_core::{
     types::{
         stream::{CertificateSourceStreamPosition, Position},
@@ -77,38 +76,37 @@ impl ValidatorStore {
         Ok(self.pending_tables.pending_pool.iter()?.collect())
     }
 
+    // TODO: Performance issue on this one as we iter over all the pending certificates
+    // We need to improve how we request the pending certificates.
     pub fn get_pending_certificates_for_subnets(
         &self,
         subnets: &[SubnetId],
-    ) -> Result<HashMap<SubnetId, Option<(PendingCertificateId, Certificate)>>, StorageError> {
-        let mut cache: HashSet<_> = subnets.iter().collect();
-        let mut result: HashMap<SubnetId, Option<(u64, Certificate)>> = subnets
+    ) -> Result<HashMap<SubnetId, (u64, Option<Certificate>)>, StorageError> {
+        let mut result: HashMap<SubnetId, (u64, Option<Certificate>)> = subnets
             .iter()
             .enumerate()
-            .map(|(_, s)| (*s, None))
+            .map(|(_, s)| (*s, (0, None)))
             .collect();
 
-        for (position, certificate) in self
-            .pending_tables
-            .pending_pool
-            .iter_with_mode(IteratorMode::End)?
-        {
-            if cache.is_empty() {
-                break;
-            }
-
-            if !cache.contains(&certificate.source_subnet_id) {
+        for (_, certificate) in self.pending_tables.pending_pool.iter()? {
+            if !subnets.contains(&certificate.source_subnet_id) {
                 continue;
             }
 
-            cache.remove(&certificate.source_subnet_id);
             let mut latest_cert = certificate;
+            let entry = result
+                .entry(latest_cert.source_subnet_id)
+                .or_insert((0, None));
+
+            entry.0 += 1;
             while let Some(certificate) =
                 self.pending_tables.precedence_pool.get(&latest_cert.id)?
             {
                 latest_cert = certificate;
+                entry.0 += 1;
             }
-            result.insert(certificate.source_subnet_id, Some((position, certificate)));
+
+            entry.1 = Some(latest_cert);
         }
 
         Ok(result)

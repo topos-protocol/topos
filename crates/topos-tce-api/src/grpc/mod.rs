@@ -226,12 +226,12 @@ impl ApiService for TceGrpcService {
             .get_pending_certificates_for_subnets(&subnet_ids)
             .map_err(|e| Status::internal(format!("Can't get last pending certificates: {e}")))?
             .into_iter()
-            .map(|(subnet_id, maybe_certificate)| {
+            .map(|(subnet_id, (index, maybe_certificate))| {
                 (
                     base64::engine::general_purpose::STANDARD.encode(subnet_id.as_array()),
                     {
                         maybe_certificate
-                            .map(|(index, certificate)| LastPendingCertificate {
+                            .map(|certificate| LastPendingCertificate {
                                 index,
                                 value: Some(certificate.into()),
                             })

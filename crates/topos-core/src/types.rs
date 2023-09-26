@@ -4,11 +4,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::errors::GrpcParsingError;
 
-use self::stream::{CertificateSourceStreamPosition, Position};
+use self::stream::CertificateSourceStreamPosition;
 use topos_api::grpc::{
     checkpoints::SourceStreamPosition,
     tce::v1::{ProofOfDelivery as GrpcProofOfDelivery, SignedReady},
-    ConversionError,
 };
 
 pub mod stream;
