@@ -360,7 +360,7 @@ impl TceClientBuilder {
 
                                 let tce_endpoint = tce_endpoint.clone();
                                 let tce_grpc_client = tce_grpc_client.clone();
-                                let context_send = context.clone();
+                                let context_backoff = context.clone();
                                 certificate_to_send.push(async move {
                                     debug!("Submitting certificate {} to the TCE using backoff strategy...", &tce_endpoint);
                                     let cert = cert.clone();
@@ -371,11 +371,11 @@ impl TceClientBuilder {
                                         }.into_request();
 
                                         let mut span_context = topos_telemetry::TonicMetaInjector(request.metadata_mut());
-                                        span_context.inject(&context_send);
+                                        span_context.inject(&context_backoff);
 
                                         tce_grpc_client
                                         .submit_certificate(request)
-                                        .with_current_context()
+                                        .with_context(context_backoff.clone())
                                         .instrument(Span::current())
                                         .await
                                         .map(|_response| {
