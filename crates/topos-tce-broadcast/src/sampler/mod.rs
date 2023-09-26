@@ -34,15 +34,4 @@ impl SubscriptionsView {
     pub fn is_none(&self) -> bool {
         self.echo.is_empty() && self.ready.is_empty()
     }
-
-    /// Current view of subscriptions of the node, which is initially the whole network
-    pub fn get_subscriptions(&self) -> Vec<PeerId> {
-        self.echo
-            .iter()
-            .chain(self.ready.iter())
-            .cloned()
-            .collect::<HashSet<_>>()
-            .into_iter()
-            .collect()
-    }
 }

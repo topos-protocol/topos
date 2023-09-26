@@ -142,41 +142,37 @@ impl SubnetRuntimeProxy {
                 }
 
                 // Establish the connection with the Subnet
-                let subnet_listener: Option<SubnetClientListener> = loop {
-                    tokio::select! {
+                let subnet_listener: Option<SubnetClientListener> = tokio::select! {
                         // Create subnet client
                         Ok(client) = topos_sequencer_subnet_client::connect_to_subnet_listener_with_retry(
                             ws_runtime_endpoint.as_str(),
                             subnet_contract_address.as_str(),
                         ) => {
-                            break Some(client);
+                            Some(client)
                         }
                         _ = block_task_shutdown.recv() => {
-                            break None;
-                        }
+                            None
                     }
                 };
                 let mut subnet_listener = subnet_listener.expect("subnet listener");
 
                 // Sync missing blocks
                 loop {
-                    let current_subnet_block_number: Option<i128> = loop {
-                        tokio::select! {
+                    let current_subnet_block_number: Option<i128> = tokio::select! {
                             block_number = subnet_listener.get_subnet_block_number() => {
                                 match block_number {
                                     Ok(block_number) => {
-                                        break Some(block_number as i128);
+                                        Some(block_number as i128)
                                     }
                                     Err(e) => {
                                         error!("Failed to get subnet block number: {:?}", e);
-                                        break None;
+                                        None
                                     }
                                 }
                             }
                             _ = block_task_shutdown.recv() => {
-                                break None;
+                                None
                             }
-                        }
                     };
                     let current_subnet_block_number = current_subnet_block_number
                         .expect("need valid subnet block number to start syncing");
@@ -257,8 +253,7 @@ impl SubnetRuntimeProxy {
         // Runtime command task
         tokio::spawn(async move {
             // Establish the connection with the Subnet
-            let mut subnet_client: Option<SubnetClient> = loop {
-                tokio::select! {
+            let mut subnet_client: Option<SubnetClient> = tokio::select! {
                     // Create subnet client
                     Ok(client) = topos_sequencer_subnet_client::connect_to_subnet_with_retry(
                         http_runtime_endpoint.as_ref(),
@@ -266,12 +261,11 @@ impl SubnetRuntimeProxy {
                         subnet_contract_address.as_str(),
                     ) => {
                         info!("Connected to subnet node {}", &http_runtime_endpoint);
-                        break Some(client);
+                        Some(client)
                     }
                     _ = command_task_shutdown.recv() => {
-                        break None;
+                        None
                     }
-                }
             };
 
             let shutdowned: Option<oneshot::Sender<()>> = loop {
@@ -333,7 +327,7 @@ impl SubnetRuntimeProxy {
                 Ok(())
             }
             Err(topos_sequencer_subnet_client::Error::BlockNotAvailable(block_number)) => {
-                error!("New block {block_number} not yet available, trying again soon");
+                warn!("New block {block_number} not yet available, trying again soon");
                 Err(Error::SubnetError {
                     source: topos_sequencer_subnet_client::Error::BlockNotAvailable(block_number),
                 })
@@ -371,7 +365,7 @@ impl SubnetRuntimeProxy {
     /// Send certificate to target subnet Topos Core contract for verification
     async fn push_certificate(
         runtime_proxy_config: &SubnetRuntimeProxyConfig,
-        subnet_client: &mut SubnetClient,
+        subnet_client: &SubnetClient,
         cert: &Certificate,
         position: u64,
     ) -> Result<Option<String>, Error> {
@@ -388,7 +382,7 @@ impl SubnetRuntimeProxy {
 
     async fn on_command(
         runtime_proxy_config: &SubnetRuntimeProxyConfig,
-        subnet_client: &mut SubnetClient,
+        subnet_client: &SubnetClient,
         mb_cmd: Option<SubnetRuntimeProxyCommand>,
     ) {
         match mb_cmd {

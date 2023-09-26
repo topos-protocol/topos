@@ -12,6 +12,13 @@ secp256k1.workspace = true
 byteorder.workspace = true
 hex.workspace = true
 thiserror.workspace = true
+ethers.workspace = true
 
 keccak-hash = "0.10.0"
 eth-keystore = "0.5.0"
+
+[dev-dependencies]
+rstest.workspace = true
+topos-tce-transport = { path = "../topos-tce-transport" }
+topos-core = { path = "../topos-core" }
+ethers.workspace = true

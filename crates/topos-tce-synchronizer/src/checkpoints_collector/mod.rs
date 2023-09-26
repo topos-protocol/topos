@@ -17,19 +17,14 @@ use topos_core::{
             FetchCertificatesResponse,
         },
     },
+    types::{stream::CertificateSourceStreamPosition, ProofOfDelivery},
     uci::{Certificate, CertificateId, SubnetId},
 };
 use topos_p2p::{
     constant::SYNCHRONIZER_PROTOCOL, error::CommandExecutionError, NetworkClient, RetryPolicy,
 };
 use topos_tce_gatekeeper::GatekeeperClient;
-use topos_tce_storage::{
-    errors::StorageError,
-    store::ReadStore,
-    types::{ProofOfDelivery, SourceStreamPositionKey},
-    validator::ValidatorStore,
-    Position,
-};
+use topos_tce_storage::{errors::StorageError, store::ReadStore, validator::ValidatorStore};
 use tracing::{debug, warn};
 use uuid::Uuid;
 
@@ -148,7 +143,7 @@ impl<G: GatekeeperClient, N: NetworkClient> CheckpointSynchronizer<G, N> {
                 .collect::<Vec<_>>();
 
             self.store
-                .multi_get_certificate(&certificate_ids[..])?
+                .get_certificates(&certificate_ids[..])?
                 .into_iter()
                 .filter_map(|value| {
                     value.map(|delivered_certificate| delivered_certificate.proof_of_delivery)
@@ -191,12 +186,15 @@ impl<G: GatekeeperClient, N: NetworkClient> CheckpointSynchronizer<G, N> {
                                 .certificate_id
                                 .map(TryInto::try_into)
                                 .ok_or(SyncError::GrpcMalformedType("position.certificate_id"))??,
-                            delivery_position: SourceStreamPositionKey(
-                                position.source_subnet_id.map(TryInto::try_into).ok_or(
-                                    SyncError::GrpcMalformedType("position.source_subnet_id"),
-                                )??,
-                                Position(position.position),
-                            ),
+                            delivery_position: CertificateSourceStreamPosition {
+                                subnet_id: position
+                                    .source_subnet_id
+                                    .map(TryInto::try_into)
+                                    .ok_or(SyncError::GrpcMalformedType(
+                                        "position.source_subnet_id",
+                                    ))??,
+                                position: position.position.into(),
+                            },
                             readies: v
                                 .readies
                                 .into_iter()

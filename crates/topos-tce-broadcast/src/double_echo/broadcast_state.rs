@@ -1,18 +1,19 @@
+use crate::sampler::SubscriptionsView;
+use std::sync::Arc;
 use std::{collections::HashSet, time};
-
-use tce_transport::ProtocolEvents;
+use tce_transport::{ProtocolEvents, ValidatorId};
 use tokio::sync::mpsc;
-use topos_core::uci::Certificate;
+use topos_core::{
+    types::{
+        stream::{CertificateSourceStreamPosition, Position},
+        CertificateDelivered, ProofOfDelivery, Ready,
+    },
+    uci::Certificate,
+};
+use topos_crypto::messages::MessageSigner;
 use topos_metrics::DOUBLE_ECHO_BROADCAST_FINISHED_TOTAL;
 use topos_p2p::PeerId;
-use topos_tce_storage::{
-    types::{CertificateDelivered, ProofOfDelivery, Ready, SourceStreamPositionKey},
-    Position,
-};
 use tracing::{debug, info, warn};
-
-use crate::sampler::SubscriptionsView;
-
 mod status;
 
 pub use status::Status;
@@ -22,9 +23,11 @@ pub struct BroadcastState {
     subscriptions_view: SubscriptionsView,
     status: Status,
     pub(crate) certificate: Certificate,
+    validator_id: ValidatorId,
     echo_threshold: usize,
     ready_threshold: usize,
     delivery_threshold: usize,
+    message_signer: Arc<MessageSigner>,
     event_sender: mpsc::Sender<ProtocolEvents>,
     delivery_time: time::Instant,
     readies: HashSet<Ready>,
@@ -32,22 +35,27 @@ pub struct BroadcastState {
 }
 
 impl BroadcastState {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         certificate: Certificate,
+        validator_id: ValidatorId,
         echo_threshold: usize,
         ready_threshold: usize,
         delivery_threshold: usize,
         event_sender: mpsc::Sender<ProtocolEvents>,
         subscriptions_view: SubscriptionsView,
         need_gossip: bool,
+        message_signer: Arc<MessageSigner>,
     ) -> Self {
         let mut state = Self {
             subscriptions_view,
             status: Status::Pending,
             certificate,
+            validator_id,
             echo_threshold,
             ready_threshold,
             delivery_threshold,
+            message_signer,
             event_sender,
             delivery_time: time::Instant::now(),
             readies: HashSet::new(),
@@ -75,12 +83,13 @@ impl BroadcastState {
             certificate: self.certificate.clone(),
             proof_of_delivery: ProofOfDelivery {
                 certificate_id: self.certificate.id,
-                delivery_position: SourceStreamPositionKey(
-                    self.certificate.source_subnet_id,
+                delivery_position: CertificateSourceStreamPosition {
+                    subnet_id: self.certificate.source_subnet_id,
                     // FIXME: Should never fails but need to find how to remove the unwrap
-                    self.expected_position
+                    position: self
+                        .expected_position
                         .expect("Expected position is not set, this is a bug"),
-                ),
+                },
                 readies: self
                     .readies
                     .iter()
@@ -114,8 +123,14 @@ impl BroadcastState {
         // any Echo or Ready messages
         // Sending our Echo message
         if let Status::Pending = self.status {
-            _ = self.event_sender.try_send(ProtocolEvents::Echo {
+            let mut payload = Vec::new();
+            payload.extend_from_slice(self.certificate.id.as_array());
+            payload.extend_from_slice(self.validator_id.as_bytes());
+
+            let _ = self.event_sender.try_send(ProtocolEvents::Echo {
                 certificate_id: self.certificate.id,
+                signature: self.message_signer.sign_message(&payload).ok()?,
+                validator_id: self.validator_id,
             });
 
             self.status = Status::EchoSent;
@@ -132,8 +147,14 @@ impl BroadcastState {
         // If the status was EchoSent, we update it to ReadySent
         // If the status was Delivered, we update it to DeliveredWithReadySent
         if !self.status.is_ready_sent() && self.reached_ready_threshold() {
+            let mut payload = Vec::new();
+            payload.extend_from_slice(self.certificate.id.as_array());
+            payload.extend_from_slice(self.validator_id.as_bytes());
+
             let event = ProtocolEvents::Ready {
                 certificate_id: self.certificate.id,
+                signature: self.message_signer.sign_message(&payload).ok()?,
+                validator_id: self.validator_id,
             };
             if let Err(e) = self.event_sender.try_send(event) {
                 warn!("Error sending Ready message: {}", e);

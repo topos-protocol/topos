@@ -87,7 +87,9 @@ pub(crate) fn spawn_tce_process(
             .into_iter()
             .chain(config.parse_boot_peers())
             .collect::<Vec<_>>(),
+        validators: genesis.validators(),
         auth_key: keys.network.map(AuthKey::PrivateKey),
+        signing_key: keys.validator.map(AuthKey::PrivateKey),
         tce_addr: format!("/ip4/{}", config.libp2p_api_addr.ip()),
         tce_local_port: config.libp2p_api_addr.port(),
         tce_params: ReliableBroadcastParams::new(genesis.validator_count()),

@@ -1,14 +1,14 @@
-use std::{future::IntoFuture, sync::Arc};
-
 use config::TceConfiguration;
 use futures::StreamExt;
 use opentelemetry::global;
+use std::{future::IntoFuture, sync::Arc};
 use tokio::{
     spawn,
     sync::{broadcast, mpsc},
 };
 use tokio_stream::wrappers::BroadcastStream;
 use tokio_util::sync::CancellationToken;
+use topos_crypto::messages::MessageSigner;
 use topos_p2p::{
     utils::{local_key_pair, local_key_pair_from_slice},
     Multiaddr,
@@ -19,10 +19,9 @@ use topos_tce_storage::{
     fullnode::FullNodeStore,
     index::IndexTables,
     validator::{ValidatorPerpetualTables, ValidatorStore},
-    Connection, RocksDBStorage,
+    StorageClient,
 };
 use tracing::{debug, warn};
-
 mod app_context;
 pub mod config;
 pub mod events;
@@ -47,9 +46,22 @@ pub async fn run(
         None => local_key_pair(None),
     };
 
+    let message_signer = match &config.signing_key {
+        Some(AuthKey::PrivateKey(pk)) => {
+            let bytes = pk.to_vec();
+            let bytes_str = std::str::from_utf8(&bytes)?;
+            MessageSigner::new(bytes_str)?
+        }
+        _ => return Err(Box::try_from("Error, no singing key".to_string()).unwrap()),
+    };
+
+    let public_address = message_signer.public_address.to_string();
+
+    warn!("Public node address: {public_address}");
+
     let peer_id = key.public().to_peer_id();
 
-    warn!("I am {}", peer_id);
+    warn!("I am {peer_id}");
 
     tracing::Span::current().record("peer_id", &peer_id.to_string());
 
@@ -120,30 +132,22 @@ pub async fn run(
 
     let (broadcast_sender, broadcast_receiver) = broadcast::channel(BROADCAST_CHANNEL_SIZE);
 
-    let (storage, storage_client, storage_stream) =
-        if let StorageConfiguration::RocksDB(Some(ref path)) = config.storage {
-            let storage = RocksDBStorage::open(path)?;
-            Connection::build(Box::pin(async { Ok(storage) }))
-        } else {
-            return Err(Box::new(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("Unsupported storage type {:?}", config.storage),
-            )));
-        };
-
-    spawn(storage.into_future());
-    debug!("Storage started");
+    let storage_client = StorageClient::new(validator_store.clone());
 
     debug!("Starting reliable broadcast");
+
     let (tce_cli, tce_stream) = ReliableBroadcastClient::new(
         ReliableBroadcastConfig {
             tce_params: config.tce_params.clone(),
+            validator_id: message_signer.public_address.into(),
+            validators: config.validators.clone(),
+            message_signer,
         },
-        peer_id.to_string(),
         validator_store.clone(),
         broadcast_sender,
     )
     .await;
+
     debug!("Reliable broadcast started");
 
     debug!("Starting the Synchronizer");
@@ -186,7 +190,6 @@ pub async fn run(
             event_stream,
             tce_stream,
             api_stream,
-            storage_stream,
             synchronizer_stream,
             BroadcastStream::new(broadcast_receiver).filter_map(|v| futures::future::ready(v.ok())),
             shutdown,

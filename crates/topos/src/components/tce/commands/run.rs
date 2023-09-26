@@ -1,8 +1,9 @@
 use clap::Args;
 use serde::Serialize;
+use std::collections::HashSet;
 use std::net::SocketAddr;
 use topos_p2p::{Multiaddr, PeerId};
-use topos_tce_transport::ReliableBroadcastParams;
+use topos_tce_transport::{ReliableBroadcastParams, ValidatorId};
 
 #[derive(Args, Debug, Serialize)]
 #[command(about = "Run a full TCE instance")]
@@ -11,6 +12,11 @@ pub struct Run {
     /// quoted list like --boot-peers='a a1,b b1'
     #[arg(long, default_value = "", env = "TCE_BOOT_PEERS")]
     pub boot_peers: String,
+
+    /// Validator nodes to connect to, list of Ethereum addresses, space separated,
+    /// quoted list like --validators='0xfd530a60b4b4cf799d74'
+    #[arg(long, default_value = "", env = "TCE_VALIDATORS", default_value = "")]
+    pub validators: String,
 
     /// Advertised (externally visible) <host>,
     /// if empty this machine ip address(es) are used
@@ -32,6 +38,10 @@ pub struct Run {
     /// Local peer secret key seed (optional, used for testing)
     #[clap(long, env = "TCE_LOCAL_KS")]
     pub local_key_seed: Option<String>,
+
+    /// Local peer secret key seed (optional, used for testing)
+    #[clap(long, env = "TCE_LOCAL_VPK")]
+    pub local_validator_private_key: Option<String>,
 
     /// Storage database path, if not set RAM storage is used
     #[clap(long, default_value = "./default_db/", env = "TCE_DB_PATH")]
@@ -85,5 +95,21 @@ impl Run {
                 }
             })
             .collect()
+    }
+
+    pub fn parse_validators(&self) -> HashSet<ValidatorId> {
+        if !self.validators.is_empty() {
+            return self
+                .validators
+                .split(&[',', ' '])
+                .map(|address| {
+                    ValidatorId::try_from(address).unwrap_or_else(|error| {
+                        panic!("Failed to convert address to ValidatorId: {:?}", error)
+                    })
+                })
+                .collect();
+        }
+
+        HashSet::new()
     }
 }

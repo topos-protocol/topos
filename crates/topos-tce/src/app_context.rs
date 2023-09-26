@@ -16,7 +16,6 @@ use topos_tce_api::RuntimeClient as ApiClient;
 use topos_tce_api::RuntimeEvent as ApiEvent;
 use topos_tce_broadcast::ReliableBroadcastClient;
 use topos_tce_gatekeeper::Client as GatekeeperClient;
-use topos_tce_storage::events::StorageEvent;
 use topos_tce_storage::types::CertificateDeliveredWithPositions;
 use topos_tce_storage::validator::ValidatorStore;
 use topos_tce_storage::StorageClient;
@@ -89,7 +88,6 @@ impl AppContext {
         mut network_stream: impl Stream<Item = NetEvent> + Unpin,
         mut tce_stream: impl Stream<Item = ProtocolEvents> + Unpin,
         mut api_stream: impl Stream<Item = ApiEvent> + Unpin,
-        mut storage_stream: impl Stream<Item = StorageEvent> + Unpin,
         mut synchronizer_stream: impl Stream<Item = SynchronizerEvent> + Unpin,
         mut broadcast_stream: impl Stream<Item = CertificateDeliveredWithPositions> + Unpin,
         shutdown: (CancellationToken, mpsc::Sender<()>),
@@ -122,10 +120,6 @@ impl AppContext {
                     self.on_api_event(event).await;
                 }
 
-                // Storage events
-                Some(_event) = storage_stream.next() => {
-                }
-
                 // Synchronizer events
                 Some(_event) = synchronizer_stream.next() => {
                 }
@@ -149,7 +143,6 @@ impl AppContext {
         info!("Shutting down the TCE client...");
         self.api_client.shutdown().await?;
         self.synchronizer.shutdown().await?;
-        self.pending_storage.shutdown().await?;
         self.tce_cli.shutdown().await?;
         self.gatekeeper.shutdown().await?;
         self.network_client.shutdown().await?;

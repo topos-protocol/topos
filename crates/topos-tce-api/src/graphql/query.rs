@@ -8,9 +8,9 @@ use topos_api::graphql::{
     checkpoint::SourceCheckpoint,
     query::CertificateQuery,
 };
+use topos_core::types::stream::CertificateSourceStreamPosition;
 use topos_tce_storage::fullnode::FullNodeStore;
 use topos_tce_storage::store::ReadStore;
-use topos_tce_storage::types::SourceStreamPositionKey;
 
 use tracing::debug;
 
@@ -36,12 +36,14 @@ impl CertificateQuery for QueryRoot {
             let subnet_id = topos_core::uci::SubnetId::try_from(
                 &from_source_checkpoint.positions[index].source_subnet_id,
             )?;
-            let position =
-                topos_tce_storage::Position(from_source_checkpoint.positions[index].position);
+            let position = from_source_checkpoint.positions[index].position.into();
 
             let certificates_with_position = store
                 .get_source_stream_certificates_from_position(
-                    SourceStreamPositionKey(subnet_id, position),
+                    CertificateSourceStreamPosition {
+                        subnet_id,
+                        position,
+                    },
                     first,
                 )
                 .map_err(|_| GraphQLServerError::StorageError)?;
@@ -75,9 +77,11 @@ impl CertificateQuery for QueryRoot {
                     .try_into()
                     .map_err(|_| GraphQLServerError::ParseCertificateId)?,
             )
-            .map_err(|_| GraphQLServerError::StorageError)?
-            .map(|c| c.certificate.into())
-            .ok_or(GraphQLServerError::CertificateNotFound)
+            .map_err(|_| GraphQLServerError::StorageError)
+            .and_then(|c| {
+                c.map(|c| c.certificate.into())
+                    .ok_or(GraphQLServerError::StorageError)
+            })
     }
 }
 

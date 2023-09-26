@@ -1,8 +1,11 @@
 use rlp::Rlp;
+use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::{fs, path::PathBuf};
 
 use serde_json::Value;
 use topos_p2p::{Multiaddr, PeerId};
+use topos_tce_transport::ValidatorId;
 
 #[cfg(test)]
 pub(crate) mod tests;
@@ -11,6 +14,11 @@ pub(crate) mod tests;
 pub struct Genesis {
     pub path: PathBuf,
     pub json: Value,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum Error {
+    ParseValidators,
 }
 
 impl Genesis {
@@ -58,7 +66,7 @@ impl Genesis {
     /// The `extraData` is patted with 32 bytes, and the validators are RLP encoded.
     /// Each validator is 20 bytes, with a SEAL at the end of the whole list (8 bytes)
     #[allow(dead_code)]
-    pub fn validators(&self) -> Vec<String> {
+    pub fn validators(&self) -> HashSet<ValidatorId> {
         let extra_data = self.json["genesis"]["extraData"]
             .as_str()
             .unwrap()
@@ -81,14 +89,18 @@ impl Genesis {
 
         // Get the first Rlp item (index 0) and iterate over its items
         let first_item = rlp.at(0).expect("Failed to get first RLP item");
-        let mut validator_public_keys = Vec::new();
+        let mut validator_public_keys = HashSet::new();
 
         for i in 0..first_item.item_count().unwrap() {
             let validator_data = first_item.at(i).expect("Failed to get RLP item").data();
             if let Ok(validator_data) = validator_data {
                 let public_key = validator_data.to_vec();
                 let address = format!("0x{}", hex::encode(&public_key[1..=20]));
-                validator_public_keys.push(address);
+                validator_public_keys.insert(
+                    ValidatorId::try_from(address.as_str()).unwrap_or_else(|error| {
+                        panic!("Failed to convert address to ValidatorId: {:?}", error)
+                    }),
+                );
             }
         }
 

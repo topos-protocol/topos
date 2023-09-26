@@ -2,29 +2,24 @@ use std::{
     collections::HashMap,
     path::PathBuf,
     str::FromStr,
-    sync::{atomic::AtomicU64, Arc, Mutex},
+    sync::{Arc, Mutex},
     thread,
 };
 
 use once_cell::sync::Lazy;
 use rocksdb::Options;
 use rstest::fixture;
+use topos_test_sdk::storage::create_folder;
 
 use crate::{
-    rocks::{
-        db::init_db, db::RocksDB, CertificatesColumn, PendingCertificatesColumn,
-        SourceStreamsColumn, TargetSourceListColumn, TargetStreamsColumn,
-    },
-    RocksDBStorage,
+    epoch::{EpochValidatorsStore, ValidatorPerEpochStore},
+    fullnode::FullNodeStore,
+    index::IndexTables,
+    rocks::{db::init_db, db::RocksDB},
+    validator::{ValidatorPerpetualTables, ValidatorStore},
 };
 
-use self::{
-    columns::{
-        certificates_column, pending_column, source_streams_column, target_source_list_column,
-        target_streams_column,
-    },
-    folder::created_folder,
-};
+use self::folder::created_folder;
 
 pub(crate) mod columns;
 pub(crate) mod folder;
@@ -43,21 +38,26 @@ pub(crate) fn database_name() -> &'static str {
 }
 
 #[fixture]
-pub(crate) fn storage(database_name: &'static str) -> RocksDBStorage {
-    let pending_column: PendingCertificatesColumn = pending_column(database_name);
-    let certificates_column: CertificatesColumn = certificates_column(database_name);
-    let source_streams_column: SourceStreamsColumn = source_streams_column(database_name);
-    let target_streams_column: TargetStreamsColumn = target_streams_column(database_name);
-    let target_source_list: TargetSourceListColumn = target_source_list_column(database_name);
+pub(crate) fn store() -> Arc<ValidatorStore> {
+    let temp_dir = create_folder::default();
+    let perpetual_tables = Arc::new(ValidatorPerpetualTables::open(temp_dir.clone()));
+    let index_tables = Arc::new(IndexTables::open(temp_dir.clone()));
 
-    RocksDBStorage::new(
-        pending_column,
-        certificates_column,
-        source_streams_column,
-        target_streams_column,
-        target_source_list,
-        AtomicU64::new(0),
+    let participants_store =
+        EpochValidatorsStore::new(temp_dir.clone()).expect("Unable to create Participant store");
+
+    let epoch_store =
+        ValidatorPerEpochStore::new(0, temp_dir.clone()).expect("Unable to create Per epoch store");
+
+    let store = FullNodeStore::open(
+        epoch_store,
+        participants_store,
+        perpetual_tables,
+        index_tables,
     )
+    .expect("Unable to create full node store");
+
+    ValidatorStore::open(temp_dir, store).unwrap()
 }
 
 #[fixture]

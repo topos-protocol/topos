@@ -1,7 +1,8 @@
 use std::collections::HashSet;
 use std::sync::Arc;
-use tce_transport::ReliableBroadcastParams;
+use tce_transport::{ReliableBroadcastParams, ValidatorId};
 use tokio::sync::{broadcast, mpsc, oneshot};
+use topos_crypto::messages::MessageSigner;
 use topos_tce_broadcast::double_echo::DoubleEcho;
 use topos_tce_broadcast::sampler::SubscriptionsView;
 use topos_tce_storage::validator::ValidatorStore;
@@ -9,6 +10,7 @@ use topos_test_sdk::certificates::create_certificate_chain;
 use topos_test_sdk::constants::{SOURCE_SUBNET_ID_1, TARGET_SUBNET_ID_1};
 
 const CHANNEL_SIZE: usize = 256_000;
+const PRIVATE_KEY: &str = "47d361f6becb933a77d7e01dee7b1c1859b656adbd8428bf7bf9519503e5d5d6";
 
 struct TceParams {
     nb_peers: usize,
@@ -34,13 +36,21 @@ pub async fn processing_double_echo(n: u64, validator_store: Arc<ValidatorStore>
         },
     };
 
+    let message_signer: Arc<MessageSigner> = MessageSigner::new(PRIVATE_KEY).unwrap();
+
+    let mut validators = HashSet::new();
+    let validator_id = ValidatorId::from(message_signer.public_address);
+    validators.insert(validator_id);
+
     let mut double_echo = DoubleEcho::new(
         params.broadcast_params,
+        validator_id,
+        message_signer.clone(),
+        validators,
         task_manager_message_sender.clone(),
         cmd_receiver,
         event_sender,
         double_echo_shutdown_receiver,
-        0,
         validator_store,
         broadcast_sender,
     );
@@ -93,12 +103,24 @@ pub async fn processing_double_echo(n: u64, validator_store: Arc<ValidatorStore>
     }
 
     for cert in &certificates {
+        let mut payload = Vec::new();
+        payload.extend_from_slice(cert.certificate.id.as_array());
+        payload.extend_from_slice(validator_id.as_bytes());
+
         for p in &double_echo_selected_echo {
-            double_echo.handle_echo(*p, cert.certificate.id).await;
+            let signature = message_signer.sign_message(&payload).unwrap();
+
+            double_echo
+                .handle_echo(*p, cert.certificate.id, validator_id, signature)
+                .await;
         }
 
         for p in &double_echo_selected_ready {
-            double_echo.handle_ready(*p, cert.certificate.id).await;
+            let signature = message_signer.sign_message(&payload).unwrap();
+
+            double_echo
+                .handle_ready(*p, cert.certificate.id, validator_id, signature)
+                .await;
         }
     }
 

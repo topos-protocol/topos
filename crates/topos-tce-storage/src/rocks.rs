@@ -1,23 +1,20 @@
 use std::collections::HashMap;
 use std::{
     fmt::Debug,
-    path::PathBuf,
     sync::atomic::{AtomicU64, Ordering},
 };
 
+use topos_core::types::stream::CertificateSourceStreamPosition;
 use topos_core::uci::{Certificate, CertificateId, CERTIFICATE_ID_LENGTH};
 use tracing::warn;
 
 use crate::{
-    errors::InternalStorageError, CertificatePositions, CertificateSourceStreamPosition,
-    CertificateTargetStreamPosition, PendingCertificateId, Position, SourceHead, Storage, SubnetId,
+    errors::InternalStorageError, CertificatePositions, CertificateTargetStreamPosition,
+    PendingCertificateId, Position, SourceHead, Storage, SubnetId,
 };
 
-use self::{db::DB, db_column::DBColumn, iterator::ColumnIterator};
-use self::{
-    db::{init_db, RocksDB},
-    map::Map,
-};
+use self::iterator::ColumnIterator;
+use self::{db::RocksDB, map::Map};
 
 pub(crate) mod constants;
 pub(crate) mod db;
@@ -60,39 +57,6 @@ impl RocksDBStorage {
             next_pending_id,
         }
     }
-
-    pub fn with_isolation(path: &PathBuf) -> Result<Self, InternalStorageError> {
-        Self::setup(&create_and_init(path)?)
-    }
-
-    pub fn open(path: &PathBuf) -> Result<Self, InternalStorageError> {
-        Self::setup(DB.get_or_try_init(|| create_and_init(path))?)
-    }
-
-    fn setup(db: &RocksDB) -> Result<Self, InternalStorageError> {
-        let pending_certificates = DBColumn::reopen(db, constants::PENDING_CERTIFICATES);
-
-        let next_pending_id = match pending_certificates.iter()?.last() {
-            Some((pending_id, _)) => AtomicU64::new(pending_id),
-            None => AtomicU64::new(0),
-        };
-
-        Ok(Self {
-            pending_certificates,
-            certificates: DBColumn::reopen(db, constants::CERTIFICATES),
-            source_streams: DBColumn::reopen(db, constants::SOURCE_STREAMS),
-            target_streams: DBColumn::reopen(db, constants::TARGET_STREAMS),
-            target_source_list: DBColumn::reopen(db, constants::TARGET_SOURCES),
-            next_pending_id,
-        })
-    }
-}
-
-fn create_and_init(path: &PathBuf) -> Result<RocksDB, InternalStorageError> {
-    let mut options = rocksdb::Options::default();
-    options.create_if_missing(true);
-    options.create_missing_column_families(true);
-    init_db(path, options)
 }
 
 #[async_trait::async_trait]
@@ -155,7 +119,7 @@ impl Storage for RocksDBStorage {
 
         let source_subnet_position = if certificate.prev_id.as_array() == &EMPTY_PREVIOUS_CERT_ID {
             Position::ZERO
-        } else if let Some((SourceStreamPositionKey(_, position), _)) = self
+        } else if let Some((CertificateSourceStreamPosition { position, .. }, _)) = self
             .source_streams
             .prefix_iter(&certificate.source_subnet_id)?
             .last()
@@ -174,15 +138,18 @@ impl Storage for RocksDBStorage {
 
         // Return from function as info
         let source_subnet_stream_position = CertificateSourceStreamPosition {
-            source_subnet_id: certificate.source_subnet_id,
-            position: Position(source_subnet_position.0),
+            subnet_id: certificate.source_subnet_id,
+            position: source_subnet_position,
         };
 
         // Adding the certificate to the stream
         batch = batch.insert_batch(
             &self.source_streams,
             [(
-                SourceStreamPositionKey(certificate.source_subnet_id, source_subnet_position),
+                CertificateSourceStreamPosition {
+                    subnet_id: certificate.source_subnet_id,
+                    position: source_subnet_position,
+                },
                 certificate.id,
             )],
         )?;
@@ -198,7 +165,7 @@ impl Storage for RocksDBStorage {
         let mut targets = Vec::new();
 
         for target_subnet_id in &certificate.target_subnets {
-            let target = if let Some((TargetStreamPositionKey(target, source, position), _)) = self
+            let target = match self
                 .target_streams
                 .prefix_iter(&TargetSourceListKey(
                     *target_subnet_id,
@@ -206,52 +173,36 @@ impl Storage for RocksDBStorage {
                 ))?
                 .last()
             {
-                let target_stream_position = TargetStreamPositionKey(
-                    target,
-                    source,
-                    position.increment().map_err(|error| {
+                Some((mut target_stream_position, _)) => {
+                    target_stream_position.position = target_stream_position
+                        .position
+                        .increment()
+                        .map_err(|error| {
                         InternalStorageError::PositionError(
                             error,
                             certificate.source_subnet_id.into(),
                         )
-                    })?,
-                );
-                target_subnet_stream_positions.insert(
-                    target_stream_position.0,
-                    CertificateTargetStreamPosition {
-                        target_subnet_id: target_stream_position.0,
-                        source_subnet_id: target_stream_position.1,
-                        position: target_stream_position.2,
-                    },
-                );
-                (target_stream_position, certificate.id)
-            } else {
-                let target_stream_position = TargetStreamPositionKey(
+                    })?;
+                    target_stream_position
+                }
+                None => CertificateTargetStreamPosition::new(
                     *target_subnet_id,
                     certificate.source_subnet_id,
                     Position::ZERO,
-                );
-                target_subnet_stream_positions.insert(
-                    target_stream_position.0,
-                    CertificateTargetStreamPosition {
-                        target_subnet_id: target_stream_position.0,
-                        source_subnet_id: target_stream_position.1,
-                        position: target_stream_position.2,
-                    },
-                );
-
-                (target_stream_position, certificate.id)
+                ),
             };
 
-            let TargetStreamPositionKey(_, _, position) = &target.0;
+            target_subnet_stream_positions.insert(*target_subnet_id, target);
+
             batch = batch.insert_batch(
                 &self.target_source_list,
                 [(
                     TargetSourceListKey(*target_subnet_id, certificate.source_subnet_id),
-                    position.0,
+                    *target.position,
                 )],
             )?;
-            targets.push(target);
+
+            targets.push((target, certificate.id));
         }
 
         batch = batch.insert_batch(&self.target_streams, targets)?;
@@ -282,7 +233,7 @@ impl Storage for RocksDBStorage {
                 .source_streams
                 .prefix_iter(&source_subnet_id)?
                 .last()
-                .map(|(source_stream_position, cert_id)| (source_stream_position.1, cert_id))
+                .map(|(source_stream_position, cert_id)| (source_stream_position.position, cert_id))
                 .ok_or(InternalStorageError::MissingHeadForSubnet(source_subnet_id))?;
             result.push(SourceHead {
                 position,
@@ -324,7 +275,7 @@ impl Storage for RocksDBStorage {
             .source_streams
             .prefix_iter(&source_subnet_id)?
             // TODO: Find a better way to convert u64 to usize
-            .skip(from.0.try_into().unwrap())
+            .skip(from.try_into().unwrap())
             .take(limit)
             .map(|(_, certificate_id)| certificate_id)
             .collect())
@@ -341,7 +292,7 @@ impl Storage for RocksDBStorage {
             .target_streams
             .prefix_iter(&(&target_subnet_id, &source_subnet_id))?
             // TODO: Find a better way to convert u64 to usize
-            .skip(from.0.try_into().unwrap())
+            .skip(from.try_into().unwrap())
             .take(limit)
             .map(|(_, certificate_id)| certificate_id)
             .collect())
@@ -371,11 +322,13 @@ impl Storage for RocksDBStorage {
         target: SubnetId,
         source: SubnetId,
         position: Position,
-    ) -> Result<ColumnIterator<'_, TargetStreamPositionKey, CertificateId>, InternalStorageError>
-    {
+    ) -> Result<
+        ColumnIterator<'_, CertificateTargetStreamPosition, CertificateId>,
+        InternalStorageError,
+    > {
         Ok(self.target_streams.prefix_iter_at(
             &(&target, &source),
-            &TargetStreamPositionKey(target, source, position),
+            &CertificateTargetStreamPosition::new(target, source, position),
         )?)
     }
 
@@ -388,24 +341,5 @@ impl Storage for RocksDBStorage {
             .prefix_iter(&target)?
             .map(|(TargetSourceListKey(_, k), _)| k)
             .collect())
-    }
-}
-
-#[cfg(test)]
-impl RocksDBStorage {
-    pub(crate) fn pending_certificates_column(&self) -> PendingCertificatesColumn {
-        self.pending_certificates.clone()
-    }
-
-    pub(crate) fn certificates_column(&self) -> CertificatesColumn {
-        self.certificates.clone()
-    }
-
-    pub(crate) fn source_streams_column(&self) -> SourceStreamsColumn {
-        self.source_streams.clone()
-    }
-
-    pub(crate) fn target_streams_column(&self) -> TargetStreamsColumn {
-        self.target_streams.clone()
     }
 }

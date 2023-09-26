@@ -35,9 +35,17 @@ impl AppContext {
                 }
             }
 
-            ProtocolEvents::Echo { certificate_id } => {
+            ProtocolEvents::Echo {
+                certificate_id,
+                signature,
+                validator_id,
+            } => {
                 // Send echo message
-                let data = NetworkMessage::from(TceCommands::OnEcho { certificate_id });
+                let data = NetworkMessage::from(TceCommands::OnEcho {
+                    certificate_id,
+                    signature,
+                    validator_id,
+                });
 
                 if let Err(e) = self
                     .network_client
@@ -48,8 +56,16 @@ impl AppContext {
                 }
             }
 
-            ProtocolEvents::Ready { certificate_id } => {
-                let data = NetworkMessage::from(TceCommands::OnReady { certificate_id });
+            ProtocolEvents::Ready {
+                certificate_id,
+                signature,
+                validator_id,
+            } => {
+                let data = NetworkMessage::from(TceCommands::OnReady {
+                    certificate_id,
+                    signature,
+                    validator_id,
+                });
 
                 if let Err(e) = self
                     .network_client

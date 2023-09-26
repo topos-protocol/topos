@@ -57,14 +57,19 @@ impl AppContext {
                                 }
                             });
                         }
-
-                        TceCommands::OnEcho { certificate_id } => {
+                        TceCommands::OnEcho {
+                            certificate_id,
+                            signature,
+                            validator_id,
+                        } => {
                             let channel = self.tce_cli.get_double_echo_channel();
                             spawn(async move {
                                 if let Err(e) = channel
                                     .send(DoubleEchoCommand::Echo {
                                         from_peer: from,
+                                        signature,
                                         certificate_id,
+                                        validator_id,
                                     })
                                     .await
                                 {
@@ -72,13 +77,19 @@ impl AppContext {
                                 }
                             });
                         }
-                        TceCommands::OnReady { certificate_id } => {
+                        TceCommands::OnReady {
+                            certificate_id,
+                            validator_id,
+                            signature,
+                        } => {
                             let channel = self.tce_cli.get_double_echo_channel();
                             spawn(async move {
                                 if let Err(e) = channel
                                     .send(DoubleEchoCommand::Ready {
                                         from_peer: from,
+                                        validator_id,
                                         certificate_id,
+                                        signature,
                                     })
                                     .await
                                 {
@@ -93,18 +104,28 @@ impl AppContext {
             NetEvent::SynchronizerRequest { data, channel, .. } => {
                 let msg: Result<CheckpointRequest, _> = data.clone().try_into();
                 if let Ok(msg) = msg {
-                    let diff = if let Ok(diff) = self
-                        .validator_store
-                        .get_checkpoint_diff(msg.checkpoint.into_iter().map(|v| v.into()).collect())
-                    {
+                    let res: Result<Vec<_>, _> =
+                        msg.checkpoint.into_iter().map(|v| v.try_into()).collect();
+
+                    let res = match res {
+                        Err(error) => {
+                            error!("{}", error);
+                            return;
+                        }
+                        Ok(value) => value,
+                    };
+
+                    let diff = if let Ok(diff) = self.validator_store.get_checkpoint_diff(res) {
                         diff.into_iter()
                             .map(|(key, value)| {
                                 let v: Vec<_> = value
                                     .into_iter()
                                     .map(|v| ProofOfDelivery {
                                         delivery_position: Some(SourceStreamPosition {
-                                            source_subnet_id: Some(v.delivery_position.0.into()),
-                                            position: v.delivery_position.1 .0,
+                                            source_subnet_id: Some(
+                                                v.delivery_position.subnet_id.into(),
+                                            ),
+                                            position: *v.delivery_position.position,
                                             certificate_id: Some(v.certificate_id.into()),
                                         }),
                                         readies: v
@@ -147,9 +168,8 @@ impl AppContext {
                             .map(|c| c.try_into().unwrap())
                             .collect();
 
-                        if let Ok(certs) = self
-                            .validator_store
-                            .multi_get_certificate(&certificate_ids[..])
+                        if let Ok(certs) =
+                            self.validator_store.get_certificates(&certificate_ids[..])
                         {
                             let certs: Vec<_> = certs
                                 .into_iter()

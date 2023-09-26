@@ -13,6 +13,8 @@ Options:
           Defines the verbosity level
       --home <HOME>
           Home directory for the configuration [env: TOPOS_HOME=] [default: /home/runner/.config/topos]
+      --validators <VALIDATORS>
+          Validator nodes to connect to, list of Ethereum addresses, space separated, quoted list like --validators='0xfd530a60b4b4cf799d74' [env: TCE_VALIDATORS=] [default: ]
       --tce-ext-host <TCE_EXT_HOST>
           Advertised (externally visible) <host>, if empty this machine ip address(es) are used [env: TCE_EXT_HOST=] [default: /ip4/0.0.0.0]
       --tce-local-port <TCE_LOCAL_PORT>
@@ -23,6 +25,8 @@ Options:
           WebAPI port [env: TCE_WEB_API_PORT=] [default: 8080]
       --local-key-seed <LOCAL_KEY_SEED>
           Local peer secret key seed (optional, used for testing) [env: TCE_LOCAL_KS=]
+      --local-validator-private-key <LOCAL_VALIDATOR_PRIVATE_KEY>
+          Local peer secret key seed (optional, used for testing) [env: TCE_LOCAL_VPK=]
       --db-path <DB_PATH>
           Storage database path, if not set RAM storage is used [env: TCE_DB_PATH=] [default: ./default_db/]
       --api-addr <API_ADDR>
