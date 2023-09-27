@@ -135,7 +135,7 @@ impl ReliableBroadcastClient {
             command_receiver,
             event_sender,
             double_echo_shutdown_receiver,
-            validator_store.clone(),
+            validator_store,
             broadcast_sender,
         );
 
