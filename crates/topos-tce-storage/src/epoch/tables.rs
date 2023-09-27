@@ -4,6 +4,7 @@ use rocksdb::ColumnFamilyDescriptor;
 use topos_core::uci::CertificateId;
 
 use crate::{
+    constant::cfs,
     rocks::{
         db::{default_options, init_db, init_with_cfs},
         db_column::DBColumn,
@@ -24,7 +25,7 @@ impl EpochValidatorsTables {
         let db = init_db(&path, options).unwrap_or_else(|_| panic!("Cannot open DB at {:?}", path));
 
         Self {
-            validators_map: DBColumn::reopen(&db, "validators"),
+            validators_map: DBColumn::reopen(&db, cfs::VALIDATORS),
         }
     }
 }
@@ -44,16 +45,16 @@ impl ValidatorPerEpochTables {
         path.push("epochs");
         path.push(epoch_id.to_string());
         let cfs = vec![
-            ColumnFamilyDescriptor::new("epoch_summary", default_options()),
-            ColumnFamilyDescriptor::new("broadcast_states", default_options()),
+            ColumnFamilyDescriptor::new(cfs::EPOCH_SUMMARY, default_options()),
+            ColumnFamilyDescriptor::new(cfs::BROADCAST_STATES, default_options()),
         ];
 
         let db = init_with_cfs(&path, default_options(), cfs)
             .unwrap_or_else(|_| panic!("Cannot open DB at {:?}", path));
 
         Self {
-            epoch_summary: DBColumn::reopen(&db, "epoch_summary"),
-            broadcast_states: DBColumn::reopen(&db, "broadcast_states"),
+            epoch_summary: DBColumn::reopen(&db, cfs::EPOCH_SUMMARY),
+            broadcast_states: DBColumn::reopen(&db, cfs::BROADCAST_STATES),
             validators: Vec::new(),
         }
     }

@@ -7,6 +7,7 @@ use topos_core::{
 };
 
 use crate::{
+    constant::cfs,
     rocks::{
         constants,
         db::{default_options, init_with_cfs},
@@ -23,19 +24,19 @@ pub struct ValidatorPendingTables {
     fetching_pool: BTreeSet<CertificateId>, // Not sure to keep it
     pub(crate) pending_pool: DBColumn<PendingCertificateId, Certificate>,
     pub(crate) pending_pool_index: DBColumn<CertificateId, PendingCertificateId>,
-    #[allow(unused)]
-    precedence_pool: DBColumn<CertificateId, Vec<Certificate>>,
+    pub(crate) precedence_pool: DBColumn<CertificateId, Certificate>,
     #[allow(unused)]
     expiration_tracker: (), // Unknown
 }
+
 impl ValidatorPendingTables {
     pub fn open(mut path: PathBuf) -> Self {
         path.push("pending");
 
         let cfs = vec![
-            ColumnFamilyDescriptor::new("pending_pool", default_options()),
-            ColumnFamilyDescriptor::new("pending_pool_index", default_options()),
-            ColumnFamilyDescriptor::new("precedence_pool", default_options()),
+            ColumnFamilyDescriptor::new(cfs::PENDING_POOL, default_options()),
+            ColumnFamilyDescriptor::new(cfs::PENDING_POOL_INDEX, default_options()),
+            ColumnFamilyDescriptor::new(cfs::PRECEDENCE_POOL, default_options()),
         ];
 
         let db = init_with_cfs(&path, default_options(), cfs)
@@ -45,9 +46,9 @@ impl ValidatorPendingTables {
             // TODO: Fetch it from the storage
             next_pending_id: AtomicU64::new(0),
             fetching_pool: BTreeSet::new(),
-            pending_pool: DBColumn::reopen(&db, "pending_pool"),
-            pending_pool_index: DBColumn::reopen(&db, "pending_pool_index"),
-            precedence_pool: DBColumn::reopen(&db, "precedence_pool"),
+            pending_pool: DBColumn::reopen(&db, cfs::PENDING_POOL),
+            pending_pool_index: DBColumn::reopen(&db, cfs::PENDING_POOL_INDEX),
+            precedence_pool: DBColumn::reopen(&db, cfs::PRECEDENCE_POOL),
             expiration_tracker: (),
         }
     }
@@ -71,20 +72,20 @@ impl ValidatorPerpetualTables {
         ));
 
         let cfs = vec![
-            ColumnFamilyDescriptor::new("certificates", default_options()),
-            ColumnFamilyDescriptor::new("streams", options_stream),
-            ColumnFamilyDescriptor::new("epoch_chain", default_options()),
-            ColumnFamilyDescriptor::new("unverified", default_options()),
+            ColumnFamilyDescriptor::new(cfs::CERTIFICATES, default_options()),
+            ColumnFamilyDescriptor::new(cfs::STREAMS, options_stream),
+            ColumnFamilyDescriptor::new(cfs::EPOCH_CHAIN, default_options()),
+            ColumnFamilyDescriptor::new(cfs::UNVERIFIED, default_options()),
         ];
 
         let db = init_with_cfs(&path, default_options(), cfs)
             .unwrap_or_else(|_| panic!("Cannot open DB at {:?}", path));
 
         Self {
-            certificates: DBColumn::reopen(&db, "certificates"),
-            streams: DBColumn::reopen(&db, "streams"),
-            epoch_chain: DBColumn::reopen(&db, "epoch_chain"),
-            unverified: DBColumn::reopen(&db, "unverified"),
+            certificates: DBColumn::reopen(&db, cfs::CERTIFICATES),
+            streams: DBColumn::reopen(&db, cfs::STREAMS),
+            epoch_chain: DBColumn::reopen(&db, cfs::EPOCH_CHAIN),
+            unverified: DBColumn::reopen(&db, cfs::UNVERIFIED),
         }
     }
 }

@@ -48,7 +48,7 @@ message GetLastPendingCertificatesRequest {
 message LastPendingCertificate {
   topos.uci.v1.Certificate value = 1;
   // Pending certificate index (effectively total number of pending certificates)
-  int32 index = 2;
+  uint64 index = 2;
 }
 
 message GetLastPendingCertificatesResponse {

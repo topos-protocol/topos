@@ -107,7 +107,7 @@ pub async fn run(
     let epoch_store =
         ValidatorPerEpochStore::new(0, path.clone()).expect("Unable to create Per epoch store");
 
-    let full_node_store = FullNodeStore::open(
+    let fullnode_store = FullNodeStore::open(
         epoch_store,
         validators_store,
         perpetual_tables,
@@ -115,7 +115,7 @@ pub async fn run(
     )
     .expect("Unable to create full node store");
 
-    let validator_store = ValidatorStore::open(path.clone(), full_node_store.clone())
+    let validator_store = ValidatorStore::open(path.clone(), fullnode_store.clone())
         .expect("Unable to create validator store");
 
     let (broadcast_sender, broadcast_receiver) = broadcast::channel(BROADCAST_CHANNEL_SIZE);
@@ -135,12 +135,13 @@ pub async fn run(
     debug!("Reliable broadcast started");
 
     debug!("Starting the Synchronizer");
-    let (synchronizer_client, synchronizer_runtime, synchronizer_stream) =
+    let (synchronizer_runtime, synchronizer_stream) =
         topos_tce_synchronizer::Synchronizer::builder()
+            .with_shutdown(shutdown.0.child_token())
             .with_store(validator_store.clone())
             .with_gatekeeper_client(gatekeeper_client.clone())
             .with_network_client(network_client.clone())
-            .await?;
+            .build()?;
 
     spawn(synchronizer_runtime.into_future());
     debug!("Synchronizer started");
@@ -152,7 +153,7 @@ pub async fn run(
         .serve_grpc_addr(config.api_addr)
         .serve_graphql_addr(config.graphql_api_addr)
         .serve_metrics_addr(config.metrics_api_addr)
-        .store(full_node_store.clone())
+        .store(validator_store.clone())
         .storage(storage_client.clone())
         .build_and_launch()
         .await;
@@ -165,7 +166,6 @@ pub async fn run(
         network_client,
         api_client,
         gatekeeper_client,
-        synchronizer_client,
         validator_store,
     );
 

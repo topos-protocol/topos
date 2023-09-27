@@ -53,10 +53,10 @@ pub async fn create_validator_store(
     #[future] create_fullnode_store: Arc<FullNodeStore>,
 ) -> Arc<ValidatorStore> {
     let temp_dir = create_folder::default();
-    let full_node_store = create_fullnode_store.await;
+    let fullnode_store = create_fullnode_store.await;
 
     let store =
-        ValidatorStore::open(temp_dir, full_node_store).expect("Unable to create validator store");
+        ValidatorStore::open(temp_dir, fullnode_store).expect("Unable to create validator store");
 
     store
         .insert_certificates_delivered(&certificates)
@@ -67,9 +67,9 @@ pub async fn create_validator_store(
 }
 
 pub async fn create_validator_store_with_fullnode(
-    full_node_store: Arc<FullNodeStore>,
+    fullnode_store: Arc<FullNodeStore>,
 ) -> Arc<ValidatorStore> {
-    ValidatorStore::open(create_folder::default(), full_node_store)
+    ValidatorStore::open(create_folder::default(), fullnode_store)
         .expect("Unable to create validator store")
 }
 #[fixture(certificates = Vec::new())]
