@@ -132,7 +132,7 @@ impl ReliableBroadcastClient {
             event_sender,
             double_echo_shutdown_receiver,
             pending_certificate_count,
-            validator_store.clone(),
+            validator_store,
             broadcast_sender,
         );
 

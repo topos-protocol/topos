@@ -33,7 +33,7 @@ fn encode() {
         request_id: Some(request_id),
         checkpoint_diff: vec![CheckpointMapFieldEntry {
             key: subnet.to_string(),
-            value: vec![cert.proof_of_delivery.clone().into()],
+            value: vec![cert.proof_of_delivery.into()],
         }],
     };
 
