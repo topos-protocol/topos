@@ -3,13 +3,20 @@ use topos_core::{
     types::{CertificateDelivered, Ready, Signature},
 };
 
-use crate::CertificatePositions;
+use crate::{CertificatePositions, PendingCertificateId};
 
 pub type Echo = String;
 
 pub type CertificateSequenceNumber = u64;
 pub type EpochId = u64;
 pub type Validators = Vec<String>;
+
+#[derive(Debug, Clone)]
+pub enum PendingResult {
+    AlreadyDelivered,
+    AwaitPrecedence,
+    InPending(PendingCertificateId),
+}
 
 #[derive(Debug, Clone)]
 pub struct CertificateDeliveredWithPositions(pub CertificateDelivered, pub CertificatePositions);

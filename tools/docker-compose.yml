@@ -76,9 +76,6 @@ services:
     init: true
     labels:
       "autoheal": "true"
-    healthcheck:
-      test: ./topos tce push-peer-list --node http://localhost:1340 --format json /tmp/shared/peer_ids.json && ./topos tce status --node http://localhost:1340
-      interval: 5s
     volumes:
       - shared:/tmp/shared
     build:

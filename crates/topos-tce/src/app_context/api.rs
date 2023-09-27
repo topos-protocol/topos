@@ -8,6 +8,7 @@ use topos_tce_api::RuntimeError;
 use topos_tce_api::RuntimeEvent as ApiEvent;
 use topos_tce_gatekeeper::GatekeeperError;
 use topos_tce_storage::errors::{InternalStorageError, StorageError};
+use topos_tce_storage::types::PendingResult;
 use tracing::{error, info, warn};
 
 impl AppContext {
@@ -20,12 +21,28 @@ impl AppContext {
                 self.delivery_latency
                     .insert(certificate.id, CERTIFICATE_DELIVERY_LATENCY.start_timer());
 
+                _ = match self
+                    .validator_store
+                    .insert_pending_certificate(&certificate)
+                {
+                    Ok(Some(pending_id)) => sender.send(Ok(PendingResult::InPending(pending_id))),
+                    Ok(None) => sender.send(Ok(PendingResult::AwaitPrecedence)),
+                    Err(StorageError::InternalStorage(
+                        InternalStorageError::CertificateAlreadyExists,
+                    )) => sender.send(Ok(PendingResult::AlreadyDelivered)),
+                    Err(error) => {
+                        error!(
+                            "Unable to insert pending certificate {}: {}",
+                            certificate.id, error
+                        );
+
+                        sender.send(Err(error.into()))
+                    }
+                };
                 _ = self
                     .tce_cli
                     .broadcast_new_certificate(*certificate, true)
                     .await;
-
-                _ = sender.send(Ok(()));
             }
 
             ApiEvent::PeerListPushed { peers, sender } => {

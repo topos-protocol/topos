@@ -6,8 +6,8 @@ use std::path::Path;
 #[cfg(test)]
 use rocksdb::ColumnFamilyDescriptor;
 use rocksdb::{
-    BoundColumnFamily, DBRawIteratorWithThreadMode, DBWithThreadMode, MultiThreaded, ReadOptions,
-    WriteBatch,
+    BoundColumnFamily, DBRawIteratorWithThreadMode, DBWithThreadMode, Direction, IteratorMode,
+    MultiThreaded, ReadOptions, WriteBatch,
 };
 
 use bincode::Options;
@@ -119,7 +119,6 @@ where
             })
     }
 
-    #[allow(unused)]
     pub(crate) fn multi_insert(
         &self,
         key_value_pairs: impl IntoIterator<Item = (K, V)>,
@@ -149,6 +148,14 @@ where
                 None => Ok(None),
             })
             .collect()
+    }
+
+    #[allow(unused)]
+    pub(crate) fn merge(&self, key: &K, value: V) -> Result<(), InternalStorageError> {
+        let key_buf = be_fix_int_ser(key)?;
+        let value_buf = bincode::serialize(&value)?;
+
+        Ok(self.rocksdb.merge_cf(&self.cf()?, key_buf, value_buf)?)
     }
 
     pub(crate) fn batch(&self) -> DBBatch {
@@ -231,6 +238,27 @@ where
         raw_iterator.seek_to_first();
 
         Ok(ColumnIterator::new(raw_iterator))
+    }
+
+    fn iter_with_mode(
+        &'a self,
+        mode: IteratorMode<'_>,
+    ) -> Result<Self::Iterator, InternalStorageError> {
+        let mut raw_iterator = self.rocksdb.raw_iterator_cf(&self.cf()?);
+
+        let direction = match mode {
+            IteratorMode::Start => {
+                raw_iterator.seek_to_first();
+                Direction::Forward
+            }
+            IteratorMode::End => {
+                raw_iterator.seek_to_last();
+                Direction::Forward
+            }
+            _ => unimplemented!(),
+        };
+
+        Ok(ColumnIterator::new_with_direction(raw_iterator, direction))
     }
 
     fn prefix_iter<P: Serialize>(

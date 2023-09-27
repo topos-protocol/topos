@@ -19,7 +19,7 @@ use topos_tce_gatekeeper::Client as GatekeeperClient;
 use topos_tce_storage::types::CertificateDeliveredWithPositions;
 use topos_tce_storage::validator::ValidatorStore;
 use topos_tce_storage::StorageClient;
-use topos_tce_synchronizer::{SynchronizerClient, SynchronizerEvent};
+use topos_tce_synchronizer::SynchronizerEvent;
 use tracing::{error, info, warn};
 
 mod api;
@@ -41,7 +41,6 @@ pub struct AppContext {
     pub api_client: ApiClient,
     pub pending_storage: StorageClient,
     pub gatekeeper: GatekeeperClient,
-    pub synchronizer: SynchronizerClient,
 
     pub delivery_latency: HashMap<CertificateId, HistogramTimer>,
 
@@ -61,7 +60,6 @@ impl AppContext {
         network_client: NetworkClient,
         api_client: ApiClient,
         gatekeeper: GatekeeperClient,
-        synchronizer: SynchronizerClient,
         validator_store: Arc<ValidatorStore>,
     ) -> (Self, mpsc::Receiver<Events>) {
         let (events, receiver) = mpsc::channel(100);
@@ -73,7 +71,6 @@ impl AppContext {
                 api_client,
                 pending_storage,
                 gatekeeper,
-                synchronizer,
                 delivery_latency: Default::default(),
                 validator_store,
             },
@@ -142,7 +139,6 @@ impl AppContext {
     pub async fn shutdown(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         info!("Shutting down the TCE client...");
         self.api_client.shutdown().await?;
-        self.synchronizer.shutdown().await?;
         self.tce_cli.shutdown().await?;
         self.gatekeeper.shutdown().await?;
         self.network_client.shutdown().await?;
