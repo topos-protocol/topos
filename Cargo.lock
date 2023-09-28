@@ -7467,6 +7467,7 @@ dependencies = [
  "topos-tce-transport",
  "topos-telemetry",
  "topos-test-sdk",
+ "topos-uci",
  "tracing",
  "tracing-opentelemetry",
  "tracing-subscriber",

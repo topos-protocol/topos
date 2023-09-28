@@ -1,7 +1,7 @@
 use base64ct::{Base64, Encoding};
 use futures::StreamExt;
 use rstest::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use test_log::test;
 use tokio::sync::{mpsc, oneshot};
 use tokio::time::Duration;
@@ -610,7 +610,7 @@ async fn test_tce_proxy_submit_certificate(
 
     // Get last pending certificate to check that all certificates are submitted
     let (mut tce_client, _receiving_certificate_stream) =
-        create_tce_client(&context.api_entrypoint).await?;
+        create_tce_client(&context.api_entrypoint, SOURCE_SUBNET_ID_1).await?;
     match tce_client
         .get_last_pending_certificates(vec![tce_client.get_subnet_id()])
         .await
@@ -634,6 +634,7 @@ async fn test_tce_proxy_submit_certificate(
 
 async fn create_tce_client(
     endpoint: &str,
+    source_subnet_id: topos_uci::SubnetId,
 ) -> Result<
     (
         TceClient,
@@ -646,7 +647,6 @@ async fn create_tce_client(
     ),
     Box<dyn std::error::Error>,
 > {
-    let source_subnet_id = SOURCE_SUBNET_ID_1;
     let (evt_sender, _evt_rcv) = mpsc::channel::<TceProxyEvent>(128);
     let (_tce_client_shutdown_channel, shutdown_receiver) = mpsc::channel::<oneshot::Sender<()>>(1);
 
@@ -678,7 +678,7 @@ async fn test_tce_client_submit_and_get_last_pending_certificate(
     let last_sent_certificate = certificates.last().unwrap().clone().certificate;
 
     let (mut tce_client, _receiving_certificate_stream) =
-        create_tce_client(&context.api_entrypoint).await?;
+        create_tce_client(&context.api_entrypoint, SOURCE_SUBNET_ID_1).await?;
 
     // Create tce proxy client
     for (index, cert) in certificates.into_iter().enumerate() {
@@ -728,7 +728,7 @@ async fn test_tce_client_get_empty_history_source_head(
     let mut context = start_node.await;
 
     let (mut tce_client, _receiving_certificate_stream) =
-        create_tce_client(&context.api_entrypoint).await?;
+        create_tce_client(&context.api_entrypoint, SOURCE_SUBNET_ID_1).await?;
 
     // Get source head certificate, check if it is empty
     match tce_client.get_source_head().await {
@@ -769,7 +769,7 @@ async fn test_tce_client_get_source_head(
         .certificate;
 
     let (mut tce_client, _receiving_certificate_stream) =
-        create_tce_client(&context.api_entrypoint).await?;
+        create_tce_client(&context.api_entrypoint, SOURCE_SUBNET_ID_1).await?;
 
     // Get source head, check if it matches
     match tce_client.get_source_head().await {
@@ -808,5 +808,82 @@ async fn test_tce_client_get_source_head(
 
     info!("Shutting down TCE node client");
     context.shutdown().await?;
+    Ok(())
+}
+
+#[rstest]
+#[test(tokio::test)]
+#[timeout(Duration::from_secs(30))]
+async fn test_tce_client_submit_and_get_certificate_delivered(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let peers_context = topos_test_sdk::tce::create_network(5, vec![]).await;
+    let mut peers = peers_context.into_iter();
+    let mut sending_tce: TceContext = peers.next().expect("valid peer 1").1;
+    let mut receiving_tce: TceContext = peers.next().expect("valid peer 2").1;
+
+    let mut certificates = Vec::new();
+    certificates.append(&mut create_certificate_chain(
+        SOURCE_SUBNET_ID_1,
+        &[TARGET_SUBNET_ID_1],
+        5,
+    ));
+    let expected_certificates: HashSet<topos_uci::CertificateId> = certificates
+        .iter()
+        .map(|cert| cert.certificate.id)
+        .collect();
+
+    // Create tce proxy client for sending subnet
+    let (mut tce_client_source, _) =
+        create_tce_client(&sending_tce.api_entrypoint, SOURCE_SUBNET_ID_1).await?;
+
+    // Create tce proxy client for receiving subnet
+    let (_, mut target_receiving_certificate_stream) =
+        create_tce_client(&receiving_tce.api_entrypoint, TARGET_SUBNET_ID_1).await?;
+
+    // Send certificate from source subnet
+    for (index, cert) in certificates.into_iter().enumerate() {
+        match tce_client_source.send_certificate(cert.certificate).await {
+            Ok(_) => {
+                info!(
+                    "Certificate {} successfully submitted by the tce client",
+                    index
+                );
+            }
+            Err(e) => {
+                panic!("Error submitting certificate by the tce client: {e}");
+            }
+        }
+    }
+
+    // Wait for certificates to be submitted
+    tokio::time::sleep(Duration::from_secs(5)).await;
+
+    // Listen for certificates on target subnet
+    info!("Waiting for certificates to be received on the target subnet");
+    let mut received_certs = HashSet::new();
+    loop {
+        match target_receiving_certificate_stream.next().await {
+            Some((certificate, target_position)) => {
+                info!(
+                    "Delivered certificate cert id {}, position {:?}",
+                    &certificate.id, target_position
+                );
+                received_certs.insert(certificate.id);
+                if received_certs.len() == expected_certificates.len()
+                    && received_certs == expected_certificates
+                {
+                    info!("All certificates successfully received");
+                    break;
+                }
+            }
+            None => {
+                error!("Certificate not received!")
+            }
+        }
+    }
+
+    info!("Shutting down TCE node client");
+    sending_tce.shutdown().await?;
+    receiving_tce.shutdown().await?;
     Ok(())
 }
