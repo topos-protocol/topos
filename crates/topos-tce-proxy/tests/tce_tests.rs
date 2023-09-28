@@ -827,7 +827,7 @@ async fn test_tce_client_submit_and_get_certificate_delivered(
         &[TARGET_SUBNET_ID_1],
         5,
     ));
-    let expected_certificates: HashSet<topos_uci::CertificateId> = certificates
+    let expected_certs: HashSet<topos_uci::CertificateId> = certificates
         .iter()
         .map(|cert| cert.certificate.id)
         .collect();
@@ -869,8 +869,8 @@ async fn test_tce_client_submit_and_get_certificate_delivered(
                     &certificate.id, target_position
                 );
                 received_certs.insert(certificate.id);
-                if received_certs.len() == expected_certificates.len()
-                    && received_certs == expected_certificates
+                if received_certs.len() == expected_certs.len()
+                    && received_certs == expected_certs
                 {
                     info!("All certificates successfully received");
                     break;
