@@ -221,26 +221,44 @@ impl ApiService for TceGrpcService {
             .map(|v| v.map_err(|e| Status::internal(format!("Invalid subnet id: {e}"))))
             .collect::<Result<_, _>>()?;
 
-        let last_pending_certificate = self
-            .store
-            .get_pending_certificates_for_subnets(&subnet_ids)
-            .map_err(|e| Status::internal(format!("Can't get last pending certificates: {e}")))?
-            .into_iter()
-            .map(|(subnet_id, (index, maybe_certificate))| {
-                (
-                    base64::engine::general_purpose::STANDARD.encode(subnet_id.as_array()),
-                    {
-                        maybe_certificate
-                            .map(|certificate| LastPendingCertificate {
-                                index,
-                                value: Some(certificate.into()),
+        if self
+            .command_sender
+            .send(InternalRuntimeCommand::GetLastPendingCertificates { subnet_ids, sender })
+            .await
+            .is_err()
+        {
+            return Err(Status::internal(
+                "Can't get last pending certificates: sender dropped into channel",
+            ));
+        }
+
+        receiver
+            .map(|value| match value {
+                Ok(Ok(map)) => Ok(Response::new(GetLastPendingCertificatesResponse {
+                    last_pending_certificate: map
+                        .into_iter()
+                        .map(|(subnet_id, last_pending_certificate)| {
+                            (Base64::encode_string(subnet_id.as_array()), {
+                                LastPendingCertificate {
+                                    index: last_pending_certificate
+                                        .as_ref()
+                                        .map(|(_cert, index)| *index)
+                                        .unwrap_or_default()
+                                        as i32,
+                                    value: last_pending_certificate
+                                        .map(|(cert, _index)| cert)
+                                        .map(Into::into),
+                                }
                             })
-                            .unwrap_or(LastPendingCertificate {
-                                value: None,
-                                index: 0,
-                            })
-                    },
-                )
+                        })
+                        .collect(),
+                })),
+                Ok(Err(e)) => Err(Status::internal(format!(
+                    "Can't get last pending certificates: {e}"
+                ))),
+                Err(e) => Err(Status::internal(format!(
+                    "Can't get last pending certificates: {e}"
+                ))),
             })
             .collect();
 
