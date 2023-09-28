@@ -869,8 +869,7 @@ async fn test_tce_client_submit_and_get_certificate_delivered(
                     &certificate.id, target_position
                 );
                 received_certs.insert(certificate.id);
-                if received_certs.len() == expected_certs.len()
-                    && received_certs == expected_certs
+                if received_certs.len() == expected_certs.len() && received_certs == expected_certs
                 {
                     info!("All certificates successfully received");
                     break;
