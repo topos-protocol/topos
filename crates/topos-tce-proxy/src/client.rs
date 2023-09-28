@@ -1,5 +1,5 @@
 use crate::{Error, TceProxyEvent};
-use base64::Engine;
+use base64ct::{Base64, Encoding};
 use futures::stream::FuturesUnordered;
 use opentelemetry::trace::FutureExt;
 use std::collections::HashMap;
@@ -466,9 +466,7 @@ impl TceClientBuilder {
                                                 .into_iter()
                                                 .map(|(subnet_id, last_pending_certificate)| {
                                                     let subnet_id: SubnetId = TryInto::<SubnetId>::try_into(
-                                                        base64::engine::general_purpose::STANDARD.decode(subnet_id)
-                                                            .map_err(|_| Error::InvalidSubnetId)?
-                                                            .as_slice(),
+                                                        Base64::decode_vec(subnet_id.as_str()).map_err(|_| Error::InvalidSubnetId)?.as_slice(),
                                                     )
                                                     .map_err(|_| Error::InvalidSubnetId)?;
 
