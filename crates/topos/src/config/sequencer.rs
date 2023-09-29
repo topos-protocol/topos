@@ -32,6 +32,10 @@ pub struct SequencerConfig {
 
     /// OTLP service name, not used if not provided
     pub otlp_service_name: Option<String>,
+
+    /// Start syncing from particular block number
+    /// Default is to sync from genesis block 0
+    pub start_block: Option<u64>,
 }
 
 fn default_subnet_jsonrpc_endpoint() -> String {

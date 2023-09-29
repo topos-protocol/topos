@@ -122,11 +122,17 @@ impl SubnetRuntimeProxy {
                                     "Source head certificate id received {:?}",
                                     certificate_and_position
                                 );
-                                // If the position is not provided, it should start form -1, so that first fetched is subnet genesis block
+                                // If tce source head position is provided, continue syncing from it
+                                // If `start_block` sequencer parameter is provided and tce source head is missing,
+                                // we should start syncing from that block instead of genesis
+                                // If both tce source head position and start_block parameter are not provided,
+                                // sync should start form -1, so that first fetched is subnet genesis block
+                                let default_block_sync: i128 =
+                                    config.start_block.map(|i| i as i128).unwrap_or(-1);
                                 let cert_id = certificate_and_position.map(|(id, _position)| id);
                                 let position: i128 = certificate_and_position
                                     .map(|(_id, position)| position as i128)
-                                    .unwrap_or(-1);
+                                    .unwrap_or(default_block_sync);
                                 // Certificate generation is now ready to run
                                 certification.last_certificate_id = cert_id;
                                 latest_acquired_subnet_block_number = position;

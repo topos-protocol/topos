@@ -26,6 +26,7 @@ pub(crate) async fn handle_command(
                 tce_grpc_endpoint: cmd.base_tce_api_url,
                 signing_key: keys.validator.clone().unwrap(),
                 verifier: cmd.verifier,
+                start_block: cmd.start_block,
             };
 
             // Setup instrumentation if both otlp agent and otlp service name are provided as arguments

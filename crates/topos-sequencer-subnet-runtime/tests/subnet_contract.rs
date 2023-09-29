@@ -582,6 +582,7 @@ async fn test_create_runtime() -> Result<(), Box<dyn std::error::Error>> {
             subnet_contract_address: "0x0000000000000000000000000000000000000000".to_string(),
             verifier: 0,
             source_head_certificate_id: None,
+            start_block: None,
         },
         test_private_key,
     )
@@ -614,6 +615,7 @@ async fn test_subnet_certificate_push_call(
             subnet_contract_address: subnet_smart_contract_address.clone(),
             verifier: 0,
             source_head_certificate_id: None,
+            start_block: None,
         },
         admin_key.clone(),
     )
@@ -902,6 +904,7 @@ async fn test_subnet_send_token_processing(
             subnet_contract_address: subnet_smart_contract_address.clone(),
             verifier: 0,
             source_head_certificate_id: None,
+            start_block: None,
         },
         test_private_key.clone(),
     )
@@ -1026,6 +1029,7 @@ async fn test_sync_from_genesis(
             subnet_contract_address: subnet_smart_contract_address.clone(),
             verifier: 0,
             source_head_certificate_id: None,
+            start_block: None,
         },
         test_private_key.clone(),
     )
@@ -1158,6 +1162,7 @@ async fn test_sync_from_genesis(
             subnet_contract_address: subnet_smart_contract_address.clone(),
             verifier: 0,
             source_head_certificate_id: None,
+            start_block: None,
         },
         test_private_key.clone(),
     )
@@ -1248,6 +1253,7 @@ async fn test_subnet_multiple_send_token_in_a_block(
             subnet_contract_address: subnet_smart_contract_address.clone(),
             verifier: 0,
             source_head_certificate_id: None,
+            start_block: None,
         },
         test_private_key.clone(),
     )

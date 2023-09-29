@@ -48,6 +48,11 @@ pub struct Run {
     /// If not provided open telemetry will not be used
     #[arg(long, env = "TOPOS_OTLP_SERVICE_NAME")]
     pub otlp_service_name: Option<String>,
+
+    /// Start syncing from particular block number
+    /// Default is to sync from genesis block 0
+    #[arg(long, env = "TOPOS_START_BLOCK")]
+    pub start_block: Option<u64>,
 }
 
 impl Run {}
