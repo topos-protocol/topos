@@ -1,4 +1,4 @@
-use base64::Engine;
+use base64ct::{Base64, Encoding};
 use futures::{FutureExt, Stream as FutureStream, StreamExt};
 use std::pin::Pin;
 use std::sync::Arc;
@@ -227,20 +227,17 @@ impl ApiService for TceGrpcService {
             .map_err(|e| Status::internal(format!("Can't get last pending certificates: {e}")))?
             .into_iter()
             .map(|(subnet_id, (index, maybe_certificate))| {
-                (
-                    base64::engine::general_purpose::STANDARD.encode(subnet_id.as_array()),
-                    {
-                        maybe_certificate
-                            .map(|certificate| LastPendingCertificate {
-                                index,
-                                value: Some(certificate.into()),
-                            })
-                            .unwrap_or(LastPendingCertificate {
-                                value: None,
-                                index: 0,
-                            })
-                    },
-                )
+                (Base64::encode_string(subnet_id.as_array()), {
+                    maybe_certificate
+                        .map(|certificate| LastPendingCertificate {
+                            index,
+                            value: Some(certificate.into()),
+                        })
+                        .unwrap_or(LastPendingCertificate {
+                            value: None,
+                            index: 0,
+                        })
+                })
             })
             .collect();
 
