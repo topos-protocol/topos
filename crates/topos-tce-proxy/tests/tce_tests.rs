@@ -551,12 +551,11 @@ async fn test_tce_proxy_submit_certificate(
         &[TARGET_SUBNET_ID_1],
         5,
     ));
-
     // Create tce proxy client
     let (tce_proxy_worker, _source_head_certificate_id) =
         match TceProxyWorker::new(TceProxyConfig {
             subnet_id: source_subnet_id,
-            base_tce_api_url: context.api_entrypoint.clone(),
+            tce_endpoint: context.api_entrypoint.clone(),
             positions: target_subnet_stream_positions,
         })
         .await

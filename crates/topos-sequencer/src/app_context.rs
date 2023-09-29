@@ -133,7 +133,7 @@ impl AppContext {
                 let (tce_proxy_worker, _source_head_certificate_id) =
                     match TceProxyWorker::new(topos_tce_proxy::TceProxyConfig {
                         subnet_id: config.subnet_id,
-                        base_tce_api_url: config.base_tce_api_url.clone(),
+                        tce_endpoint: config.tce_endpoint.clone(),
                         positions: Vec::new(), // TODO: acquire from subnet
                     })
                     .await
