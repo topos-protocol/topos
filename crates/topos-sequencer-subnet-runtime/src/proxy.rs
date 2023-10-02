@@ -105,9 +105,9 @@ impl SubnetRuntimeProxy {
             let runtime_proxy = runtime_proxy.clone();
             let subnet_contract_address = subnet_contract_address.clone();
             tokio::spawn(async move {
-                // if `start_block` parameter is provided, first block retrieved (genesis certificate)
-                // will be start block. `default_block_sync_start` is hence `start_block`-1
-                // as first retrieved block is latest_acquired_subnet_block_number + 1
+                // If the `start_block` sequencer parameter is provided, first block retrieved from blockchain (for genesis certificate)
+                // will be `start_block`. `default_block_sync_start` is hence `start_block`-1
+                // as first block retrieved from subnet node is `latest_acquired_subnet_block_number` + 1
                 let default_block_sync_start: i128 = config
                     .start_block
                     .map(|block_number| (block_number - 1) as i128)

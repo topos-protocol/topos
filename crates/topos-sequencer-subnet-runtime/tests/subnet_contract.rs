@@ -467,6 +467,70 @@ async fn deploy_test_token(
     Ok(i_erc20)
 }
 
+async fn check_received_certificate(
+    mut runtime_proxy_worker: SubnetRuntimeProxyWorker,
+    received_certificates: Arc<Mutex<Vec<(u64, Certificate)>>>,
+    expected_block_numbers: Vec<u64>,
+    expected_blocks: Vec<Block<H256>>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let start_height = *expected_block_numbers.first().unwrap();
+    let end_height = *expected_block_numbers.last().unwrap();
+    while let Ok(event) = runtime_proxy_worker.next_event().await {
+        if let SubnetRuntimeProxyEvent::NewCertificate {
+            cert,
+            block_number,
+            ctx: _,
+        } = event
+        {
+            info!(
+                "New certificate event received, block number: {} cert id: {} target subnets: \
+                 {:?} state root {}",
+                block_number,
+                cert.id,
+                cert.target_subnets,
+                hex::encode(cert.state_root)
+            );
+            let mut received_certificates = received_certificates.lock().await;
+            received_certificates.push((block_number, *cert));
+
+            if received_certificates
+                .iter()
+                .take(end_height as usize + 1)
+                .map(|(height, _cert)| height)
+                .copied()
+                .collect::<Vec<_>>()
+                == expected_block_numbers
+            {
+                info!(
+                    "Received all certificates for blocks from {} to {}",
+                    start_height, end_height
+                );
+                // Check if state root matches for all blocks
+                for expected_height in expected_block_numbers {
+                    let index = (expected_height - start_height) as usize;
+                    let received_certificate = &received_certificates[index].1;
+                    if expected_blocks[index].state_root
+                        != ethers::types::TxHash(received_certificate.state_root)
+                    {
+                        error!(
+                            "State root mismatch, block: {:#?}\n received certificate: {:#?}",
+                            expected_blocks[index], received_certificates[index].1
+                        );
+                        panic!("State root mismatch");
+                    }
+                }
+                info!(
+                    "State root check successfully passed for blocks from {} to {}",
+                    start_height, end_height
+                );
+
+                return Ok::<(), Box<dyn std::error::Error>>(());
+            }
+        }
+    }
+    panic!("Expected event not received");
+}
+
 #[fixture]
 async fn context_running_subnet_node(
     #[default(8545)] port: u32,
@@ -996,11 +1060,12 @@ async fn test_subnet_send_token_processing(
 }
 
 // Test sync of blocks and generating certificates from genesis block
+// and test sync from particular source head received from tce
 #[rstest]
 #[test(tokio::test)]
 #[timeout(std::time::Duration::from_secs(600))]
 #[serial]
-async fn test_sync_from_genesis(
+async fn test_sync_from_genesis_and_particular_source_head(
     #[with(8546)]
     #[future]
     context_running_subnet_node: Context,
@@ -1046,70 +1111,6 @@ async fn test_sync_from_genesis(
     info!("Waiting for the certificates from zero until height {subnet_height}...");
     let received_certificates = Arc::new(Mutex::new(Vec::new()));
 
-    async fn check_received_certificate(
-        mut runtime_proxy_worker: SubnetRuntimeProxyWorker,
-        received_certificates: Arc<Mutex<Vec<(u64, Certificate)>>>,
-        expected_block_numbers: Vec<u64>,
-        expected_blocks: Vec<Block<H256>>,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let start_height = *expected_block_numbers.first().unwrap();
-        let end_height = *expected_block_numbers.last().unwrap();
-        while let Ok(event) = runtime_proxy_worker.next_event().await {
-            if let SubnetRuntimeProxyEvent::NewCertificate {
-                cert,
-                block_number,
-                ctx: _,
-            } = event
-            {
-                info!(
-                    "New certificate event received, block number: {} cert id: {} target subnets: \
-                     {:?} state root {}",
-                    block_number,
-                    cert.id,
-                    cert.target_subnets,
-                    hex::encode(cert.state_root)
-                );
-                let mut received_certificates = received_certificates.lock().await;
-                received_certificates.push((block_number, *cert));
-
-                if received_certificates
-                    .iter()
-                    .take(end_height as usize + 1)
-                    .map(|(height, _cert)| height)
-                    .copied()
-                    .collect::<Vec<_>>()
-                    == expected_block_numbers
-                {
-                    info!(
-                        "Received all certificates for blocks from {} to {}",
-                        start_height, end_height
-                    );
-                    // Check if state root matches for all blocks
-                    for expected_height in expected_block_numbers {
-                        let index = (expected_height - start_height) as usize;
-                        let received_certificate = &received_certificates[index].1;
-                        if expected_blocks[index].state_root
-                            != ethers::types::TxHash(received_certificate.state_root)
-                        {
-                            error!(
-                                "State root mismatch, block: {:#?}\n received certificate: {:#?}",
-                                expected_blocks[index], received_certificates[index].1
-                            );
-                            panic!("State root mismatch");
-                        }
-                    }
-                    info!(
-                        "State root check successfully passed for blocks from {} to {}",
-                        start_height, end_height
-                    );
-
-                    return Ok::<(), Box<dyn std::error::Error>>(());
-                }
-            }
-        }
-        panic!("Expected event not received");
-    }
-
     // Test sync from genesis block
     {
         let expected_block_numbers = (0..=subnet_height).collect::<Vec<_>>();
@@ -1147,13 +1148,13 @@ async fn test_sync_from_genesis(
     //---------------------------------------------------------------------
     //
     // Get block height
-    let http_provider_2 = Provider::<Http>::try_from(subnet_jsonrpc_endpoint)?
+    let http_provider = Provider::<Http>::try_from(subnet_jsonrpc_endpoint)?
         .interval(std::time::Duration::from_millis(20u64));
-    let subnet_height_2 = http_provider_2.get_block_number().await?.as_u64();
+    let subnet_height = http_provider.get_block_number().await?.as_u64();
     const SYNC_START_BLOCK_NUMBER: u64 = 11;
 
-    // Create runtime proxy worker 2
-    info!("Creating subnet runtime proxy 2");
+    // Create second runtime proxy worker
+    info!("Creating second subnet runtime proxy worker");
     let runtime_proxy_worker_2 = SubnetRuntimeProxyWorker::new(
         SubnetRuntimeProxyConfig {
             subnet_id: SOURCE_SUBNET_ID_1,
@@ -1187,27 +1188,122 @@ async fn test_sync_from_genesis(
 
     // Test sync from 11 block
     {
-        let expected_block_numbers_2 =
-            (SYNC_START_BLOCK_NUMBER..=subnet_height_2).collect::<Vec<_>>();
-        let mut expected_blocks_2 = Vec::new();
-        for height in &expected_block_numbers_2 {
+        let expected_block_numbers = (SYNC_START_BLOCK_NUMBER..=subnet_height).collect::<Vec<_>>();
+        let mut expected_blocks = Vec::new();
+        for height in &expected_block_numbers {
             match http_provider.get_block(*height).await {
-                Ok(block_info) => expected_blocks_2.push(block_info.expect("valid block")),
+                Ok(block_info) => expected_blocks.push(block_info.expect("valid block")),
                 Err(e) => {
                     panic!("Unable to get block number {}: {}", height, e);
                 }
             }
         }
-        let received_certificates_2 = Arc::new(Mutex::new(Vec::new()));
+        let received_certificates = Arc::new(Mutex::new(Vec::new()));
 
         // Set big timeout to prevent flaky fails. Instead fail/panic early in the test to indicate actual error
         if tokio::time::timeout(
             std::time::Duration::from_secs(60),
             check_received_certificate(
                 runtime_proxy_worker_2,
-                received_certificates_2,
-                expected_block_numbers_2,
-                expected_blocks_2,
+                received_certificates,
+                expected_block_numbers,
+                expected_blocks,
+            ),
+        )
+        .await
+        .is_err()
+        {
+            panic!("Timeout waiting for command");
+        }
+    }
+
+    info!("Shutting down context...");
+
+    context.shutdown().await?;
+    Ok(())
+}
+
+// Test sync of blocks and generating certificates start block parameter
+#[rstest]
+#[test(tokio::test)]
+#[timeout(std::time::Duration::from_secs(600))]
+#[serial]
+async fn test_sync_from_start_block(
+    #[with(8546)]
+    #[future]
+    context_running_subnet_node: Context,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let context = context_running_subnet_node.await;
+    let test_private_key = hex::decode(TEST_SECRET_ETHEREUM_KEY).unwrap();
+    let subnet_jsonrpc_endpoint = context.jsonrpc();
+    let subnet_smart_contract_address =
+        "0x".to_string() + &hex::encode(context.i_topos_core.address());
+
+    // Wait for some time to simulate network history
+    tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+
+    // Get block height
+    let http_provider = Provider::<Http>::try_from(subnet_jsonrpc_endpoint.clone())?
+        .interval(std::time::Duration::from_millis(20u64));
+    let subnet_height = http_provider.get_block_number().await?.as_u64();
+
+    // Define start block as current subnet height reduced by 5
+    let start_block: u64 = subnet_height - 5;
+
+    // Create runtime proxy worker
+    info!("Creating subnet runtime proxy");
+    let runtime_proxy_worker = SubnetRuntimeProxyWorker::new(
+        SubnetRuntimeProxyConfig {
+            subnet_id: SOURCE_SUBNET_ID_1,
+            http_endpoint: context.jsonrpc(),
+            ws_endpoint: context.jsonrpc_ws(),
+            subnet_contract_address: subnet_smart_contract_address.clone(),
+            verifier: 0,
+            source_head_certificate_id: None,
+            start_block: Some(start_block),
+        },
+        test_private_key.clone(),
+    )
+    .await?;
+    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
+    info!("Manually set source head certificate to 0 as TCE is not available");
+    if let Err(e) = runtime_proxy_worker
+        .set_source_head_certificate_id(None)
+        .await
+    {
+        panic!("Unable to set source head certificate id: {e}");
+    }
+
+    info!(
+        "Syncing from the start block {} to current height {}",
+        start_block, subnet_height
+    );
+
+    let received_certificates = Arc::new(Mutex::new(Vec::new()));
+
+    // Test sync from start block
+    {
+        let expected_block_numbers = (start_block..=subnet_height).collect::<Vec<_>>();
+        let mut expected_blocks = Vec::new();
+        for height in &expected_block_numbers {
+            match http_provider.get_block(*height).await {
+                Ok(block_info) => expected_blocks.push(block_info.expect("valid block")),
+                Err(e) => {
+                    panic!("Unable to get block number {}: {}", height, e);
+                }
+            }
+        }
+        let received_certificates = received_certificates.clone();
+
+        // Set big timeout to prevent flaky fails. Instead fail/panic early in the test to indicate actual error
+        if tokio::time::timeout(
+            std::time::Duration::from_secs(60),
+            check_received_certificate(
+                runtime_proxy_worker,
+                received_certificates,
+                expected_block_numbers,
+                expected_blocks,
             ),
         )
         .await
