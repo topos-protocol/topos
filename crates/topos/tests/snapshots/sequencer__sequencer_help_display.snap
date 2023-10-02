@@ -28,7 +28,7 @@ Options:
       --otlp-service-name <OTLP_SERVICE_NAME>
           Otlp service name If not provided open telemetry will not be used [env: TOPOS_OTLP_SERVICE_NAME=]
       --start-block <START_BLOCK>
-          Start syncing from particular block number Default is to sync from genesis block 0 [env: TOPOS_START_BLOCK=]
+          Start synchronizing from particular block number Default is to sync from genesis block (0) [env: TOPOS_START_BLOCK=]
   -h, --help
           Print help
 

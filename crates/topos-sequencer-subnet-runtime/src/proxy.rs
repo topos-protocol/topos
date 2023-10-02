@@ -122,10 +122,10 @@ impl SubnetRuntimeProxy {
                                     "Source head certificate id received {:?}",
                                     certificate_and_position
                                 );
-                                // If tce source head position is provided, continue syncing from it
-                                // If `start_block` sequencer parameter is provided and tce source head is missing,
-                                // we should start syncing from that block instead of genesis
-                                // If both tce source head position and start_block parameter are not provided,
+                                // If tce source head position is provided, continue synchronizing from it
+                                // If the `start_block` sequencer parameter is provided and tce source head is missing,
+                                // we should start synchronizing from that block instead of genesis
+                                // If neither tce source head position nor start_block parameters are provided,
                                 // sync should start form -1, so that first fetched is subnet genesis block
                                 let default_block_sync: i128 =
                                     config.start_block.map(|i| i as i128).unwrap_or(-1);
