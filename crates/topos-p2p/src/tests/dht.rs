@@ -42,7 +42,7 @@ async fn put_value_in_dht() {
     let mut runtime = runtime.bootstrap().await.unwrap();
     let kad = &mut runtime.swarm.behaviour_mut().discovery;
 
-    let input_key = Key::new(&runtime.local_peer_id.to_string());
+    let input_key = Key::new(&runtime.local_validator_id.to_string());
     _ = kad
         .inner
         .put_record(

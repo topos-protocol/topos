@@ -1,12 +1,13 @@
 use std::fmt::Display;
 
-use libp2p::{request_response::ResponseChannel, Multiaddr, PeerId};
+use libp2p::{request_response::ResponseChannel, Multiaddr};
 use serde::{Deserialize, Serialize};
 use tokio::sync::oneshot;
 
 use crate::{
     behaviour::transmission::codec::TransmissionResponse,
     error::{CommandExecutionError, P2PError},
+    ValidatorId,
 };
 
 #[derive(Debug)]
@@ -22,14 +23,14 @@ pub enum Command {
     /// If the peer that we want to dial is self, an error is returned
     /// If we can't initiate a dial with the peer, an error is returned
     Dial {
-        peer_id: PeerId,
+        peer_id: ValidatorId,
         peer_addr: Multiaddr,
         sender: oneshot::Sender<Result<(), P2PError>>,
     },
 
     /// Command to ask for the current connected peer id list
     ConnectedPeers {
-        sender: oneshot::Sender<Result<Vec<PeerId>, P2PError>>,
+        sender: oneshot::Sender<Result<Vec<ValidatorId>, P2PError>>,
     },
 
     /// Disconnect the node
@@ -39,15 +40,15 @@ pub enum Command {
 
     /// Send a TransmissionReq to multiple nodes
     TransmissionReq {
-        to: PeerId,
+        to: ValidatorId,
         data: Vec<u8>,
         protocol: &'static str,
         sender: oneshot::Sender<Result<Vec<u8>, CommandExecutionError>>,
     },
 
-    /// Try to discover a peer based on its PeerId
+    /// Try to discover a peer based on its ValidatorId
     Discover {
-        to: PeerId,
+        to: ValidatorId,
         sender: oneshot::Sender<Result<Vec<Multiaddr>, CommandExecutionError>>,
     },
 

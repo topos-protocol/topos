@@ -11,7 +11,7 @@ pub async fn create_gatekeeper<P: Into<PeerId>>(
     peer_id: P,
 ) -> Result<(Client, JoinHandle<Result<(), GatekeeperError>>), Box<dyn Error>> {
     let (gatekeeper_client, gatekeeper_runtime) = topos_tce_gatekeeper::Gatekeeper::builder()
-        .local_peer_id(peer_id.into())
+        .local_validator_id(peer_id.into())
         .await
         .expect("Can't create the Gatekeeper");
 

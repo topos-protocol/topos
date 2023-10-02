@@ -175,7 +175,7 @@ impl<'a> NetworkBuilder<'a> {
         Ok((
             Client {
                 retry_ttl: self.config.client_retry_ttl,
-                local_peer_id: peer_id,
+                local_validator_id: peer_id,
                 sender: command_sender,
                 shutdown_channel,
             },
@@ -187,7 +187,7 @@ impl<'a> NetworkBuilder<'a> {
                 is_boot_node: self.known_peers.is_empty(),
                 command_receiver,
                 event_sender,
-                local_peer_id: peer_id,
+                local_validator_id: peer_id,
                 listening_on: self
                     .listen_addr
                     .take()

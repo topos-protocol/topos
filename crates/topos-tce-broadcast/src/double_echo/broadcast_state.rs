@@ -101,17 +101,17 @@ impl BroadcastState {
         }
     }
 
-    pub fn apply_echo(&mut self, peer_id: PeerId) -> Option<Status> {
-        if self.subscriptions_view.echo.remove(&peer_id) {
+    pub fn apply_echo(&mut self, valdiator_id: ValidatorId) -> Option<Status> {
+        if self.subscriptions_view.echo.remove(&valdiator_id) {
             self.update_status()
         } else {
             None
         }
     }
 
-    pub fn apply_ready(&mut self, peer_id: PeerId) -> Option<Status> {
-        if self.subscriptions_view.ready.remove(&peer_id) {
-            self.readies.insert(peer_id.to_string());
+    pub fn apply_ready(&mut self, valdiator_id: ValidatorId) -> Option<Status> {
+        if self.subscriptions_view.ready.remove(&valdiator_id) {
+            self.readies.insert(valdiator_id.to_string());
             self.update_status()
         } else {
             None

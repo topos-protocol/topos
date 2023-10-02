@@ -22,7 +22,7 @@ impl AppContext {
     pub async fn on_net_event(&mut self, evt: NetEvent) {
         trace!(
             "on_net_event: peer: {} event {:?}",
-            &self.network_client.local_peer_id,
+            &self.network_client.local_validator_id,
             &evt
         );
 
@@ -66,7 +66,6 @@ impl AppContext {
                             spawn(async move {
                                 if let Err(e) = channel
                                     .send(DoubleEchoCommand::Echo {
-                                        from_peer: from,
                                         signature,
                                         certificate_id,
                                         validator_id,
@@ -86,7 +85,6 @@ impl AppContext {
                             spawn(async move {
                                 if let Err(e) = channel
                                     .send(DoubleEchoCommand::Ready {
-                                        from_peer: from,
                                         validator_id,
                                         certificate_id,
                                         signature,

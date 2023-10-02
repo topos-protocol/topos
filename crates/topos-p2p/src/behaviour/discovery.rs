@@ -33,7 +33,7 @@ impl DiscoveryBehaviour {
         known_peers: &[(PeerId, Multiaddr)],
         _with_mdns: bool,
     ) -> Self {
-        let local_peer_id = peer_key.public().to_peer_id();
+        let local_validator_id = peer_key.public().to_peer_id();
         let kademlia_config = KademliaConfig::default()
             .set_replication_factor(config.replication_factor)
             .set_kbucket_inserts(KademliaBucketInserts::Manual)
@@ -43,8 +43,8 @@ impl DiscoveryBehaviour {
             .to_owned();
 
         let mut kademlia = Kademlia::with_config(
-            local_peer_id,
-            MemoryStore::new(local_peer_id),
+            local_validator_id,
+            MemoryStore::new(local_validator_id),
             kademlia_config,
         );
 

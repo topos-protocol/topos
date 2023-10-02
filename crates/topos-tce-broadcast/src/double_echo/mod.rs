@@ -160,7 +160,7 @@ impl DoubleEcho {
 
                         command if self.subscriptions.is_some() => {
                             match command {
-                                DoubleEchoCommand::Echo { from_peer, certificate_id, validator_id, signature } => {
+                                DoubleEchoCommand::Echo { certificate_id, validator_id, signature } => {
                                     // Check if source is part of known_validators
                                     if !self.validators.contains(&validator_id) {
                                         return error!("ECHO message comes from non-validator: {}", validator_id);
@@ -174,9 +174,9 @@ impl DoubleEcho {
                                         return error!("ECHO messag signature cannot be verified from: {}", e);
                                     }
 
-                                    self.handle_echo(from_peer, certificate_id, validator_id, signature).await
+                                    self.handle_echo(certificate_id, validator_id, signature).await
                                 },
-                                DoubleEchoCommand::Ready { from_peer, certificate_id, validator_id, signature } => {
+                                DoubleEchoCommand::Ready { certificate_id, validator_id, signature } => {
                                     // Check if source is part of known_validators
                                     if !self.validators.contains(&validator_id) {
                                         return error!("READY message comes from non-validator: {}", validator_id);
@@ -190,7 +190,7 @@ impl DoubleEcho {
                                         return error!("READY message signature cannot be verified from: {}", e);
                                     }
 
-                                    self.handle_ready(from_peer, certificate_id, validator_id, signature).await
+                                    self.handle_ready(certificate_id, validator_id, signature).await
                                 },
                                 _ => {}
                             }
@@ -306,7 +306,6 @@ impl DoubleEcho {
 impl DoubleEcho {
     pub async fn handle_echo(
         &mut self,
-        from_peer: PeerId,
         certificate_id: CertificateId,
         validator_id: ValidatorId,
         signature: Signature,
@@ -315,7 +314,6 @@ impl DoubleEcho {
             let _ = self
                 .task_manager_message_sender
                 .send(DoubleEchoCommand::Echo {
-                    from_peer,
                     validator_id,
                     certificate_id,
                     signature,
@@ -326,7 +324,6 @@ impl DoubleEcho {
 
     pub async fn handle_ready(
         &mut self,
-        from_peer: PeerId,
         certificate_id: CertificateId,
         validator_id: ValidatorId,
         signature: Signature,
@@ -335,7 +332,6 @@ impl DoubleEcho {
             let _ = self
                 .task_manager_message_sender
                 .send(DoubleEchoCommand::Ready {
-                    from_peer,
                     validator_id,
                     certificate_id,
                     signature,

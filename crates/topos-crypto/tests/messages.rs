@@ -1,7 +1,7 @@
 use rstest::*;
 use topos_core::uci::CertificateId;
 use topos_crypto::messages::MessageSigner;
-use topos_tce_transport::ValidatorId;
+use topos_p2p::ValidatorId;
 
 #[rstest]
 pub fn test_signing_messages() {

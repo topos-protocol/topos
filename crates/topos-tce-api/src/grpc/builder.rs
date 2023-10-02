@@ -16,7 +16,7 @@ use super::{console::TceConsoleService, TceGrpcService};
 #[derive(Default)]
 pub struct ServerBuilder {
     store: Option<Arc<ValidatorStore>>,
-    local_peer_id: String,
+    local_validator_id: String,
     command_sender: Option<Sender<InternalRuntimeCommand>>,
     serve_addr: Option<SocketAddr>,
 }
@@ -28,8 +28,8 @@ impl ServerBuilder {
         self
     }
 
-    pub(crate) fn with_peer_id(mut self, local_peer_id: String) -> Self {
-        self.local_peer_id = local_peer_id;
+    pub(crate) fn with_peer_id(mut self, local_validator_id: String) -> Self {
+        self.local_validator_id = local_validator_id;
 
         self
     }

@@ -1,6 +1,6 @@
 use rstest::fixture;
 use rstest::rstest;
-use topos_tce_transport::ValidatorId;
+use topos_p2p::ValidatorId;
 
 use super::Genesis;
 

@@ -16,6 +16,7 @@ tokio = { workspace = true, features = ["full"] }
 
 topos-core = { workspace = true, features = ["uci"] }
 topos-p2p = { path = "../topos-p2p" }
+topos-tce-transport = { path = "../topos-tce-transport" }
 topos-commands = { path = "../topos-commands" }
 
 [dev-dependencies]

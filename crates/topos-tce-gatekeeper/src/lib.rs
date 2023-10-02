@@ -19,7 +19,7 @@ pub use client::Client;
 pub use client::GatekeeperClient;
 use topos_commands::{Command, CommandHandler, RegisterCommands};
 use topos_core::uci::SubnetId;
-use topos_p2p::PeerId;
+use topos_p2p::ValidatorId;
 use tracing::{info, warn};
 
 pub struct Gatekeeper {
@@ -27,7 +27,7 @@ pub struct Gatekeeper {
     pub(crate) commands: mpsc::Receiver<GatekeeperCommand>,
     pub(crate) tick_duration: Duration,
 
-    peer_list: Vec<PeerId>,
+    peer_list: Vec<ValidatorId>,
     subnet_list: Vec<SubnetId>,
 }
 
@@ -54,7 +54,7 @@ impl CommandHandler<PushPeerList> for Gatekeeper {
     async fn handle(
         &mut self,
         PushPeerList { mut peer_list }: PushPeerList,
-    ) -> Result<Vec<PeerId>, Self::Error> {
+    ) -> Result<Vec<ValidatorId>, Self::Error> {
         peer_list.dedup();
 
         if !self.peer_list.is_empty() && peer_list == self.peer_list {
@@ -71,7 +71,7 @@ impl CommandHandler<PushPeerList> for Gatekeeper {
 impl CommandHandler<GetAllPeers> for Gatekeeper {
     type Error = GatekeeperError;
 
-    async fn handle(&mut self, _command: GetAllPeers) -> Result<Vec<PeerId>, Self::Error> {
+    async fn handle(&mut self, _command: GetAllPeers) -> Result<Vec<ValidatorId>, Self::Error> {
         Ok(self.peer_list.clone())
     }
 }
@@ -92,7 +92,7 @@ impl CommandHandler<GetRandomPeers> for Gatekeeper {
     async fn handle(
         &mut self,
         GetRandomPeers { number }: GetRandomPeers,
-    ) -> Result<Vec<PeerId>, Self::Error> {
+    ) -> Result<Vec<ValidatorId>, Self::Error> {
         let peer_list_len = self.peer_list.len();
 
         if number > peer_list_len {
@@ -198,18 +198,18 @@ RegisterCommands!(
 
 #[derive(Debug)]
 pub struct PushPeerList {
-    peer_list: Vec<PeerId>,
+    peer_list: Vec<ValidatorId>,
 }
 
 impl Command for PushPeerList {
-    type Result = Vec<PeerId>;
+    type Result = Vec<ValidatorId>;
 }
 
 #[derive(Debug)]
 pub struct GetAllPeers;
 
 impl Command for GetAllPeers {
-    type Result = Vec<PeerId>;
+    type Result = Vec<ValidatorId>;
 }
 
 #[derive(Debug)]
@@ -218,7 +218,7 @@ pub struct GetRandomPeers {
 }
 
 impl Command for GetRandomPeers {
-    type Result = Vec<PeerId>;
+    type Result = Vec<ValidatorId>;
 }
 
 #[derive(Debug)]

@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use topos_p2p::PeerId;
+use tce_transport::ValidatorId;
 
 /// Categorize what we expect from which peer for the broadcast
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
@@ -19,9 +19,9 @@ pub enum SampleType {
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct SubscriptionsView {
     /// Set of Peer from which we listen Echo
-    pub echo: HashSet<PeerId>,
+    pub echo: HashSet<ValidatorId>,
     /// Set of Peer from which we listen Ready
-    pub ready: HashSet<PeerId>,
+    pub ready: HashSet<ValidatorId>,
     /// Size of the network
     pub network_size: usize,
 }

@@ -12,7 +12,7 @@ async fn can_start_and_stop() -> Result<(), Box<dyn std::error::Error>> {
     let peer_id = topos_p2p::utils::local_key_pair(Some(99))
         .public()
         .to_peer_id();
-    let (client, server) = Gatekeeper::builder().local_peer_id(peer_id).await?;
+    let (client, server) = Gatekeeper::builder().local_validator_id(peer_id).await?;
 
     let handler = spawn(server.into_future());
 
@@ -59,7 +59,10 @@ async fn gatekeeper() -> Client {
     let peer_id = topos_p2p::utils::local_key_pair(Some(99))
         .public()
         .to_peer_id();
-    let (client, server) = Gatekeeper::builder().local_peer_id(peer_id).await.unwrap();
+    let (client, server) = Gatekeeper::builder()
+        .local_validator_id(peer_id)
+        .await
+        .unwrap();
 
     spawn(server.into_future());
 

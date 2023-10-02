@@ -7434,6 +7434,7 @@ dependencies = [
  "topos-commands",
  "topos-core",
  "topos-p2p",
+ "topos-tce-transport",
  "tracing",
  "tracing-subscriber",
 ]

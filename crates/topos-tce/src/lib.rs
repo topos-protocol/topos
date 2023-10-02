@@ -94,7 +94,7 @@ pub async fn run(
 
     debug!("Starting the gatekeeper");
     let (gatekeeper_client, gatekeeper_runtime) = topos_tce_gatekeeper::Gatekeeper::builder()
-        .local_peer_id(peer_id)
+        .local_validator_id(peer_id)
         .await?;
     spawn(gatekeeper_runtime.into_future());
     debug!("Gatekeeper started");

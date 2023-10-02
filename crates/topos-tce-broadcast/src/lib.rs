@@ -17,7 +17,6 @@ use tokio_stream::wrappers::ReceiverStream;
 use topos_core::uci::{Certificate, CertificateId};
 use topos_crypto::messages::{MessageSigner, Signature};
 use topos_metrics::DOUBLE_ECHO_COMMAND_CHANNEL_CAPACITY_TOTAL;
-use topos_p2p::PeerId;
 use topos_tce_storage::types::CertificateDeliveredWithPositions;
 use topos_tce_storage::validator::ValidatorStore;
 use tracing::{debug, error, info};
@@ -59,15 +58,15 @@ pub struct ReliableBroadcastConfig {
 #[derive(Debug)]
 pub enum SamplerCommand {
     PeersChanged {
-        peers: Vec<PeerId>,
+        peers: Vec<ValidatorId>,
     },
     ConfirmPeer {
-        peer: PeerId,
+        peer: ValidatorId,
         sample_type: SampleType,
         sender: oneshot::Sender<Result<(), ()>>,
     },
     PeerConfirmationFailed {
-        peer: PeerId,
+        peer: ValidatorId,
         sample_type: SampleType,
     },
     ForceResample,
@@ -83,7 +82,6 @@ pub enum DoubleEchoCommand {
 
     /// When echo reply received
     Echo {
-        from_peer: PeerId,
         validator_id: ValidatorId,
         certificate_id: CertificateId,
         signature: Signature,
@@ -91,7 +89,6 @@ pub enum DoubleEchoCommand {
 
     /// When ready reply received
     Ready {
-        from_peer: PeerId,
         validator_id: ValidatorId,
         certificate_id: CertificateId,
         signature: Signature,
@@ -151,7 +148,7 @@ impl ReliableBroadcastClient {
         )
     }
 
-    pub async fn peer_changed(&self, peers: Vec<PeerId>) -> Result<(), ()> {
+    pub async fn peer_changed(&self, peers: Vec<ValidatorId>) -> Result<(), ()> {
         let set = peers.into_iter().collect::<HashSet<_>>();
         self.subscriptions_view_sender
             .send(SubscriptionsView {

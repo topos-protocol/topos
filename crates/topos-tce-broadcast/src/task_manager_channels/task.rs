@@ -65,9 +65,9 @@ impl Task {
             tokio::select! {
                 Some(msg) = self.message_receiver.recv() => {
                     match msg {
-                        DoubleEchoCommand::Echo { from_peer, .. } => {
+                        DoubleEchoCommand::Echo { validator_id, .. } => {
                             if let Some(Status::DeliveredWithReadySent) =
-                                self.broadcast_state.apply_echo(from_peer)
+                                self.broadcast_state.apply_echo(validator_id)
                             {
                                 let _ = self
                                     .completion_sender
