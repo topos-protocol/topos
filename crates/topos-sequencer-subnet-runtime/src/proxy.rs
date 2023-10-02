@@ -104,7 +104,9 @@ impl SubnetRuntimeProxy {
             let runtime_proxy = runtime_proxy.clone();
             let subnet_contract_address = subnet_contract_address.clone();
             tokio::spawn(async move {
-                let mut latest_acquired_subnet_block_number: i128 = -1;
+                let default_block_sync: i128 =
+                    config.start_block.map(|i| i as i128).unwrap_or(-1);
+                let mut latest_acquired_subnet_block_number: i128 = default_block_sync;
 
                 {
                     // To start producing certificates, we need to know latest delivered or pending certificate id from TCE
@@ -127,8 +129,6 @@ impl SubnetRuntimeProxy {
                                 // we should start synchronizing from that block instead of genesis
                                 // If neither tce source head position nor start_block parameters are provided,
                                 // sync should start form -1, so that first fetched is subnet genesis block
-                                let default_block_sync: i128 =
-                                    config.start_block.map(|i| i as i128).unwrap_or(-1);
                                 let cert_id = certificate_and_position.map(|(id, _position)| id);
                                 let position: i128 = certificate_and_position
                                     .map(|(_id, position)| position as i128)
