@@ -13,7 +13,7 @@ macro_rules! test_case {
 #[fixture]
 #[once]
 pub fn genesis() -> Genesis {
-    Genesis::new(test_case!("genesis.json").into())
+    Genesis::new(test_case!("genesis-example.json").into())
 }
 
 #[rstest]
