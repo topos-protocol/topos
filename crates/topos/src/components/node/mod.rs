@@ -110,9 +110,8 @@ pub(crate) async fn handle_command(
             // FIXME: Handle properly the `cmd`
             let config = NodeConfig::new(&node_path, None);
             info!(
-                "⚙️ Reading the configuration from {}/{}/config.toml",
-                home.display(),
-                config.base.name
+                "⚙️ Reading the configuration from {}/config.toml",
+                node_path.display()
             );
 
             // Load genesis pointed by the local config
