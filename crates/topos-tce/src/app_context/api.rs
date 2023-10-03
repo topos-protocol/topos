@@ -45,39 +45,6 @@ impl AppContext {
                     .await;
             }
 
-            ApiEvent::PeerListPushed { peers, sender } => {
-                let sampler = self.tce_cli.clone();
-                let gatekeeper = self.gatekeeper.clone();
-                let events = self.events.clone();
-                let api = self.api_client.clone();
-
-                spawn(async move {
-                    match gatekeeper.push_peer_list(peers).await {
-                        Ok(peers) => {
-                            info!(
-                                "Gatekeeper has detected changes on the peer list, new sample in \
-                                 creation"
-                            );
-                            if sampler.peer_changed(peers).await.is_err() {
-                                _ = sender.send(Err(RuntimeError::UnableToPushPeerList));
-                            } else {
-                                api.set_active_sample(true).await;
-                                if events.send(Events::StableSample).await.is_err() {
-                                    error!("Unable to send StableSample event");
-                                }
-                                _ = sender.send(Ok(()));
-                            }
-                        }
-                        Err(GatekeeperError::NoUpdate) => {
-                            _ = sender.send(Ok(()));
-                        }
-                        Err(_) => {
-                            _ = sender.send(Err(RuntimeError::UnableToPushPeerList));
-                        }
-                    }
-                });
-            }
-
             ApiEvent::GetSourceHead { subnet_id, sender } => {
                 // Get source head certificate
                 let mut result = self

@@ -77,14 +77,6 @@ pub(crate) async fn handle_command(
                 }
             }
         }
-        Some(TceCommands::PushPeerList(cmd)) => {
-            debug!("Executing the PushPeerList on the TCE service");
-            TCEService::with_grpc_endpoint(&cmd.node_args.node)
-                .call(cmd)
-                .await?;
-
-            Ok(())
-        }
 
         Some(TceCommands::Run(cmd)) => {
             let config = TceConfiguration {

@@ -20,7 +20,7 @@ pub struct RuntimeBuilder {
     storage: Option<StorageClient>,
     store: Option<Arc<ValidatorStore>>,
     broadcast_stream: Option<broadcast::Receiver<CertificateDeliveredWithPositions>>,
-    local_validator_id: String,
+    local_peer_id: String,
     grpc_socket_addr: Option<SocketAddr>,
     graphql_socket_addr: Option<SocketAddr>,
     metrics_socket_addr: Option<SocketAddr>,
@@ -37,8 +37,8 @@ impl RuntimeBuilder {
         self
     }
 
-    pub fn with_peer_id(mut self, local_validator_id: String) -> Self {
-        self.local_validator_id = local_validator_id;
+    pub fn with_peer_id(mut self, local_peer_id: String) -> Self {
+        self.local_peer_id = local_peer_id;
 
         self
     }
@@ -96,7 +96,7 @@ impl RuntimeBuilder {
                     .take()
                     .expect("Unable to build gRPC Server, Store is missing"),
             )
-            .with_peer_id(self.local_validator_id)
+            .with_peer_id(self.local_peer_id)
             .command_sender(command_sender.clone())
             .serve_addr(self.grpc_socket_addr)
             .build()

@@ -25,9 +25,6 @@ use libp2p::identity;
 pub use libp2p::Multiaddr;
 pub use libp2p::PeerId;
 pub use runtime::Runtime;
-use serde::{Deserialize, Serialize};
-use thiserror::Error;
-use topos_crypto::messages::{Address, H160};
 
 use topos_crypto::keys;
 
@@ -36,49 +33,6 @@ pub mod network;
 pub const TOPOS_GOSSIP: &str = "topos_gossip";
 pub const TOPOS_ECHO: &str = "topos_echo";
 pub const TOPOS_READY: &str = "topos_ready";
-
-#[derive(Debug, Error)]
-pub enum ValidatorIdConversionError {
-    #[error("Failed to parse address string as H160")]
-    ParseError,
-    #[error("Failed to convert byte array into H160")]
-    InvalidByteLength,
-}
-
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
-pub struct ValidatorId(H160);
-
-impl ValidatorId {
-    pub fn as_bytes(&self) -> &[u8] {
-        self.0.as_bytes()
-    }
-
-    pub fn address(&self) -> Address {
-        self.0
-    }
-}
-
-impl From<H160> for ValidatorId {
-    fn from(address: H160) -> Self {
-        ValidatorId(address)
-    }
-}
-
-impl TryFrom<&str> for ValidatorId {
-    type Error = ValidatorIdConversionError;
-
-    fn try_from(address: &str) -> Result<Self, Self::Error> {
-        H160::from_str(address)
-            .map_err(|_| ValidatorIdConversionError::ParseError)
-            .map(ValidatorId)
-    }
-}
-
-impl std::fmt::Display for ValidatorId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "0x{}", hex::encode(self.0))
-    }
-}
 
 pub mod utils {
     use libp2p::identity;

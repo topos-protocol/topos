@@ -17,9 +17,10 @@ mod tests;
 
 pub use client::Client;
 pub use client::GatekeeperClient;
+use libp2p::PeerId;
 use topos_commands::{Command, CommandHandler, RegisterCommands};
 use topos_core::uci::SubnetId;
-use topos_p2p::ValidatorId;
+use topos_tce_transport::ValidatorId;
 use tracing::{info, warn};
 
 pub struct Gatekeeper {
@@ -27,7 +28,7 @@ pub struct Gatekeeper {
     pub(crate) commands: mpsc::Receiver<GatekeeperCommand>,
     pub(crate) tick_duration: Duration,
 
-    peer_list: Vec<ValidatorId>,
+    peer_list: Vec<PeerId>,
     subnet_list: Vec<SubnetId>,
 }
 
@@ -48,30 +49,10 @@ impl Default for Gatekeeper {
 }
 
 #[async_trait::async_trait]
-impl CommandHandler<PushPeerList> for Gatekeeper {
-    type Error = GatekeeperError;
-
-    async fn handle(
-        &mut self,
-        PushPeerList { mut peer_list }: PushPeerList,
-    ) -> Result<Vec<ValidatorId>, Self::Error> {
-        peer_list.dedup();
-
-        if !self.peer_list.is_empty() && peer_list == self.peer_list {
-            return Err(GatekeeperError::NoUpdate);
-        }
-
-        self.peer_list = peer_list.into_iter().collect();
-
-        Ok(self.peer_list.clone())
-    }
-}
-
-#[async_trait::async_trait]
 impl CommandHandler<GetAllPeers> for Gatekeeper {
     type Error = GatekeeperError;
 
-    async fn handle(&mut self, _command: GetAllPeers) -> Result<Vec<ValidatorId>, Self::Error> {
+    async fn handle(&mut self, _command: GetAllPeers) -> Result<Vec<PeerId>, Self::Error> {
         Ok(self.peer_list.clone())
     }
 }
@@ -92,7 +73,7 @@ impl CommandHandler<GetRandomPeers> for Gatekeeper {
     async fn handle(
         &mut self,
         GetRandomPeers { number }: GetRandomPeers,
-    ) -> Result<Vec<ValidatorId>, Self::Error> {
+    ) -> Result<Vec<PeerId>, Self::Error> {
         let peer_list_len = self.peer_list.len();
 
         if number > peer_list_len {
@@ -134,9 +115,6 @@ impl IntoFuture for Gatekeeper {
                         break sender;
                     }
                     Some(command) = self.commands.recv() => match command {
-                         GatekeeperCommand::PushPeerList(command, response_channel) => {
-                            _ = response_channel.send(self.handle(command).await)
-                        },
                         GatekeeperCommand::GetAllPeers(command, response_channel) => {
                             _ = response_channel.send(self.handle(command).await)
                         },
@@ -193,23 +171,14 @@ pub enum GatekeeperError {
 RegisterCommands!(
     name = GatekeeperCommand,
     error = GatekeeperError,
-    commands = [PushPeerList, GetAllPeers, GetRandomPeers, GetAllSubnets]
+    commands = [GetAllPeers, GetRandomPeers, GetAllSubnets]
 );
-
-#[derive(Debug)]
-pub struct PushPeerList {
-    peer_list: Vec<ValidatorId>,
-}
-
-impl Command for PushPeerList {
-    type Result = Vec<ValidatorId>;
-}
 
 #[derive(Debug)]
 pub struct GetAllPeers;
 
 impl Command for GetAllPeers {
-    type Result = Vec<ValidatorId>;
+    type Result = Vec<PeerId>;
 }
 
 #[derive(Debug)]
@@ -218,7 +187,7 @@ pub struct GetRandomPeers {
 }
 
 impl Command for GetRandomPeers {
-    type Result = Vec<ValidatorId>;
+    type Result = Vec<PeerId>;
 }
 
 #[derive(Debug)]

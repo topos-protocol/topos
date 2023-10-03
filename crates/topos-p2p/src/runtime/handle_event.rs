@@ -77,7 +77,7 @@ impl
             } => {
                 info!(
                     "Local node is listening on {:?}",
-                    address.with(Protocol::P2p(self.local_validator_id)),
+                    address.with(Protocol::P2p(self.local_peer_id)),
                 );
 
                 self.active_listeners.insert(listener_id);
@@ -129,7 +129,7 @@ impl
                 info!(
                     "ListenerClosed {:?}: listener_id{listener_id:?} | addresses: {addresses:?} | \
                      reason: {reason:?}",
-                    *self.swarm.local_validator_id()
+                    *self.swarm.local_peer_id()
                 );
             }
 

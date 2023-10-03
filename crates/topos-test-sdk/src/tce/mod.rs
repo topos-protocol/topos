@@ -19,7 +19,7 @@ use topos_core::api::grpc::tce::v1::{
     api_service_client::ApiServiceClient, console_service_client::ConsoleServiceClient,
 };
 
-use topos_core::api::grpc::tce::v1::{PushPeerListRequest, StatusRequest, StatusResponse};
+use topos_core::api::grpc::tce::v1::{StatusRequest, StatusResponse};
 use topos_core::types::CertificateDelivered;
 use topos_core::uci::SubnetId;
 use topos_p2p::{error::P2PError, Client, Event, Runtime};
@@ -288,25 +288,25 @@ pub async fn create_network(
     warn!("Pool created, waiting for peers to connect...");
     // Force TCE nodes to recreate subscriptions and subscribers
     let mut await_peers = Vec::new();
-    for (peer_id, client) in peers_context.iter_mut() {
-        await_peers.push(
-            client
-                .console_grpc_client
-                .push_peer_list(PushPeerListRequest {
-                    request_id: None,
-                    peers: all_peers
-                        .iter()
-                        .filter_map(|key| {
-                            if key == peer_id {
-                                None
-                            } else {
-                                Some(key.to_string())
-                            }
-                        })
-                        .collect::<Vec<_>>(),
-                }),
-        );
-    }
+    // for (peer_id, client) in peers_context.iter_mut() {
+    //     await_peers.push(
+    //         client
+    //             .console_grpc_client
+    //             .push_peer_list(PushPeerListRequest {
+    //                 request_id: None,
+    //                 peers: all_peers
+    //                     .iter()
+    //                     .filter_map(|key| {
+    //                         if key == peer_id {
+    //                             None
+    //                         } else {
+    //                             Some(key.to_string())
+    //                         }
+    //                     })
+    //                     .collect::<Vec<_>>(),
+    //             }),
+    //     );
+    // }
 
     assert!(!join_all(await_peers).await.iter().any(|res| res.is_err()));
     warn!("Peers connected");

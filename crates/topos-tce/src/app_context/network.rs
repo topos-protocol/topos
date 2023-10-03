@@ -22,7 +22,7 @@ impl AppContext {
     pub async fn on_net_event(&mut self, evt: NetEvent) {
         trace!(
             "on_net_event: peer: {} event {:?}",
-            &self.network_client.local_validator_id,
+            &self.network_client.local_peer_id,
             &evt
         );
 

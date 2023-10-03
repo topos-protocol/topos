@@ -14,7 +14,7 @@ use tracing::{debug, info, warn};
 use crate::{
     behaviour::transmission::codec::TransmissionResponse,
     error::{CommandExecutionError, P2PError},
-    Command, ValidatorId,
+    Command,
 };
 
 pub trait NetworkClient: Send + Sync + 'static {
@@ -37,7 +37,7 @@ pub trait NetworkClient: Send + Sync + 'static {
 #[derive(Clone)]
 pub struct Client {
     pub retry_ttl: u64,
-    pub local_validator_id: PeerId,
+    pub local_peer_id: PeerId,
     pub sender: mpsc::Sender<Command>,
     pub shutdown_channel: mpsc::Sender<oneshot::Sender<()>>,
 }
@@ -50,7 +50,7 @@ impl Client {
         Self::send_command_with_receiver(&self.sender, command, receiver).await
     }
 
-    pub async fn connected_peers(&self) -> Result<Vec<ValidatorId>, P2PError> {
+    pub async fn connected_peers(&self) -> Result<Vec<PeerId>, P2PError> {
         let (sender, receiver) = oneshot::channel();
         Self::send_command_with_receiver(&self.sender, Command::ConnectedPeers { sender }, receiver)
             .await

@@ -13,7 +13,7 @@ rand.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 tokio = { workspace = true, features = ["full"] }
-
+libp2p.workspace = true
 topos-core = { workspace = true, features = ["uci"] }
 topos-p2p = { path = "../topos-p2p" }
 topos-tce-transport = { path = "../topos-tce-transport" }

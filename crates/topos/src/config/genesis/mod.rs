@@ -4,8 +4,8 @@ use std::collections::HashSet;
 use std::{fs, path::PathBuf};
 
 use serde_json::Value;
-use topos_p2p::ValidatorId;
 use topos_p2p::{Multiaddr, PeerId};
+use topos_tce_transport::ValidatorId;
 
 #[cfg(test)]
 pub(crate) mod tests;

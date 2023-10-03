@@ -1,26 +1,25 @@
-use crate::{
-    GatekeeperCommand, GatekeeperError, GetAllPeers, GetAllSubnets, GetRandomPeers, PushPeerList,
-};
+use crate::{GatekeeperCommand, GatekeeperError, GetAllPeers, GetAllSubnets, GetRandomPeers};
 use async_trait::async_trait;
+use libp2p::PeerId;
 use tokio::sync::{mpsc, oneshot};
 use topos_core::uci::SubnetId;
-use topos_p2p::ValidatorId;
+use topos_tce_transport::ValidatorId;
 
 #[async_trait]
 pub trait GatekeeperClient: Send + Sync + 'static {
-    async fn get_random_peers(&self, number: usize) -> Result<Vec<ValidatorId>, GatekeeperError>;
+    async fn get_random_peers(&self, number: usize) -> Result<Vec<PeerId>, GatekeeperError>;
 }
 
 #[derive(Clone)]
 pub struct Client {
-    pub(crate) local_validator_id: ValidatorId,
+    pub(crate) local_peer_id: PeerId,
     pub(crate) shutdown_channel: mpsc::Sender<oneshot::Sender<()>>,
     pub(crate) commands: mpsc::Sender<GatekeeperCommand>,
 }
 
 #[async_trait]
 impl GatekeeperClient for Client {
-    async fn get_random_peers(&self, number: usize) -> Result<Vec<ValidatorId>, GatekeeperError> {
+    async fn get_random_peers(&self, number: usize) -> Result<Vec<PeerId>, GatekeeperError> {
         GetRandomPeers { number }.send_to(&self.commands).await
     }
 }
@@ -36,25 +35,7 @@ impl Client {
         Ok(receiver.await?)
     }
 
-    pub async fn push_peer_list(
-        &self,
-        peer_list: Vec<ValidatorId>,
-    ) -> Result<Vec<ValidatorId>, GatekeeperError> {
-        let peer_list: Vec<ValidatorId> = peer_list
-            .into_iter()
-            .filter(|peer| peer != &self.local_validator_id)
-            .collect();
-
-        PushPeerList {
-            peer_list: peer_list.clone(),
-        }
-        .send_to(&self.commands)
-        .await?;
-
-        Ok(peer_list)
-    }
-
-    pub async fn get_all_peers(&self) -> Result<Vec<ValidatorId>, GatekeeperError> {
+    pub async fn get_all_peers(&self) -> Result<Vec<PeerId>, GatekeeperError> {
         GetAllPeers.send_to(&self.commands).await
     }
 

@@ -9,7 +9,7 @@ use tonic::{Request, Response, Status};
 
 use topos_core::api::grpc::tce::v1::{
     console_service_server::{ConsoleService, ConsoleServiceServer},
-    PushPeerListRequest, PushPeerListResponse, StatusRequest, StatusResponse,
+    StatusRequest, StatusResponse,
 };
 use topos_test_sdk::networking::get_available_addr;
 
@@ -78,13 +78,6 @@ struct DummyServer;
 
 #[tonic::async_trait]
 impl ConsoleService for DummyServer {
-    async fn push_peer_list(
-        &self,
-        _request: Request<PushPeerListRequest>,
-    ) -> Result<Response<PushPeerListResponse>, Status> {
-        unimplemented!()
-    }
-
     async fn status(&self, _: Request<StatusRequest>) -> Result<Response<StatusResponse>, Status> {
         unimplemented!()
     }

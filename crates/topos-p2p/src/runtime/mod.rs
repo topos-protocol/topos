@@ -41,7 +41,7 @@ pub struct Runtime {
     pub(crate) swarm: Swarm<Behaviour>,
     pub(crate) command_receiver: mpsc::Receiver<Command>,
     pub(crate) event_sender: mpsc::Sender<Event>,
-    pub(crate) local_validator_id: PeerId,
+    pub(crate) local_peer_id: PeerId,
     pub(crate) listening_on: Multiaddr,
     #[allow(unused)]
     pub(crate) addresses: Multiaddr,
@@ -133,7 +133,7 @@ impl Runtime {
                                 "Publishing our addresses to the network ! We have {} peers",
                                 self.peer_set.len()
                             );
-                            let key = Key::new(&self.local_validator_id.to_string());
+                            let key = Key::new(&self.local_peer_id.to_string());
                             addr_query_id = if let Ok(query_id_record) =
                                 self.swarm.behaviour_mut().discovery.inner.put_record(
                                     Record::new(key, self.addresses.to_vec()),
@@ -189,7 +189,7 @@ impl Runtime {
                                     "QuorumFailure on DHT addr publication: key: {key:?}, \
                                      success: {success:?}, quorum: {quorum:?}, stats: {stats:?}"
                                 );
-                                let key = Key::new(&self.local_validator_id.to_string());
+                                let key = Key::new(&self.local_peer_id.to_string());
                                 if let Ok(query_id_record) =
                                     self.swarm.behaviour_mut().discovery.inner.put_record(
                                         Record::new(key, self.addresses.to_vec()),
@@ -210,7 +210,7 @@ impl Runtime {
                             } if Some(id) == addr_query_id => {
                                 info!(
                                     "Bootstrap finished and MultiAddr published on DHT for {}",
-                                    self.local_validator_id
+                                    self.local_peer_id
                                 );
 
                                 break;
