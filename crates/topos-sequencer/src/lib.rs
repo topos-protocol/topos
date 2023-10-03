@@ -25,6 +25,7 @@ pub struct SequencerConfiguration {
     pub tce_grpc_endpoint: String,
     pub signing_key: SecretKey,
     pub verifier: u32,
+    pub start_block: Option<u64>,
 }
 
 pub async fn launch(
@@ -85,6 +86,7 @@ pub async fn launch(
             subnet_contract_address: config.subnet_contract_address.clone(),
             source_head_certificate_id: None, // Must be acquired later after TCE proxy is connected
             verifier: config.verifier,
+            start_block: config.start_block,
         },
         config.signing_key.clone(),
     )

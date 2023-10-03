@@ -17,6 +17,8 @@ pub struct Certification {
     pub verifier: u32,
     /// Key for signing certificates, currently secp256k1
     signing_key: Vec<u8>,
+    /// Optional synchronization from particular block number
+    pub start_block: Option<u64>,
 }
 
 impl Debug for Certification {
@@ -33,6 +35,7 @@ impl Certification {
         source_head_certificate_id: Option<CertificateId>,
         verifier: u32,
         signing_key: Vec<u8>,
+        start_block: Option<u64>,
     ) -> Result<Arc<Mutex<Certification>>, crate::Error> {
         Ok(Arc::new(Mutex::from(Self {
             last_certificate_id: source_head_certificate_id,
@@ -40,6 +43,7 @@ impl Certification {
             subnet_id: *subnet_id,
             verifier,
             signing_key,
+            start_block,
         })))
     }
 
@@ -97,10 +101,12 @@ impl Certification {
         let is_genesis_certificate: bool = self
             .finalized_blocks
             .front()
-            .map(|b| b.number == 0)
+            .map(|b| b.number == 0 || self.start_block.is_some())
             .unwrap_or(false);
         let last_known_certificate_id = if is_genesis_certificate {
             // We are creating genesis certificate, there were no previous certificates
+            // In case where start block is present, we also consider start block as genesis certificate,
+            // so it has no history (prev cert id all 0)
             CertificateId::default()
         } else {
             self.last_certificate_id
