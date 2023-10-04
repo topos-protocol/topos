@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
-use async_graphql::{Context, EmptyMutation, EmptySubscription, Object, Schema};
+use async_graphql::{Context, EmptyMutation, EmptySubscription, Object, Schema, Subscription};
 use async_trait::async_trait;
+use futures::{Stream, StreamExt};
+use tokio::sync::{mpsc, oneshot};
 use topos_api::graphql::errors::GraphQLServerError;
 use topos_api::graphql::{
     certificate::{Certificate, CertificateId},
@@ -13,6 +15,9 @@ use topos_tce_storage::fullnode::FullNodeStore;
 use topos_tce_storage::store::ReadStore;
 
 use tracing::debug;
+
+use crate::runtime::InternalRuntimeCommand;
+use crate::stream::TransientStream;
 
 pub struct QueryRoot;
 pub(crate) type ServiceSchema = Schema<QueryRoot, EmptyMutation, EmptySubscription>;
@@ -103,5 +108,38 @@ impl QueryRoot {
         certificate_id: CertificateId,
     ) -> Result<Certificate, GraphQLServerError> {
         Self::certificate_by_id(ctx, certificate_id).await
+    }
+}
+
+pub struct SubscriptionRoot;
+
+#[Subscription]
+impl SubscriptionRoot {
+    /// This endpoint is used to received delivered certificates.
+    /// It uses a transient stream, which is a stream that is only valid for the current connection.
+    ///
+    /// Closing the connection will close the stream.
+    /// Starting a new connection will start a new stream and the client will not receive
+    /// any certificates that were delivered before the connection was started.
+    async fn watch_delivered_certificates(
+        &self,
+        ctx: &Context<'_>,
+    ) -> Result<impl Stream<Item = Certificate>, GraphQLServerError> {
+        let register = ctx
+            .data::<mpsc::Sender<InternalRuntimeCommand>>()
+            .map_err(|_| {
+                tracing::error!("Failed to get the transient register client from context");
+
+                GraphQLServerError::ParseDataConnector
+            })?;
+
+        let (sender, receiver) = oneshot::channel();
+        _ = register
+            .send(InternalRuntimeCommand::NewTransientStream { sender })
+            .await;
+
+        let stream: TransientStream = receiver.await.unwrap().unwrap();
+
+        Ok(stream.map(|c| c.into()))
     }
 }

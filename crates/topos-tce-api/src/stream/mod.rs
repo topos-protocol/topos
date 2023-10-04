@@ -9,7 +9,7 @@ use tokio::{
 };
 use tonic::Status;
 use topos_core::api::grpc::checkpoints::{TargetCheckpoint, TargetStreamPosition};
-use topos_core::uci::SubnetId;
+use topos_core::uci::{Certificate, SubnetId};
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
@@ -30,6 +30,38 @@ use crate::{
 pub use self::commands::StreamCommand;
 pub use self::errors::StreamError;
 pub(crate) use self::errors::{HandshakeError, StreamErrorKind};
+
+/// [`TransientStream`] is a stream that live as long as the connection is open.
+/// A [`TransientStream`] will not receive any certificates that were delivered
+/// before the stream was ready to listen.
+///
+/// [`TransientStream`] is implementing [`futures::Stream`] and use a custom [`Drop`]
+/// implementation to notify the `runtime` when ended.
+#[derive(Debug)]
+pub struct TransientStream {
+    pub(crate) inner: mpsc::Receiver<Certificate>,
+    pub(crate) stream_id: Uuid,
+    pub(crate) notifier: Option<oneshot::Sender<Uuid>>,
+}
+
+impl futures::Stream for TransientStream {
+    type Item = Certificate;
+
+    fn poll_next(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Self::Item>> {
+        self.inner.poll_recv(cx)
+    }
+}
+
+impl Drop for TransientStream {
+    fn drop(&mut self) {
+        if let Some(notifier) = self.notifier.take() {
+            _ = notifier.send(self.stream_id);
+        }
+    }
+}
 
 pub struct Stream {
     pub(crate) stream_id: Uuid,
