@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::str::FromStr;
 use std::sync::Arc;
 use tce_transport::{ReliableBroadcastParams, ValidatorId};
 use tokio::sync::{broadcast, mpsc, oneshot};
@@ -36,7 +37,8 @@ pub async fn processing_double_echo(n: u64, validator_store: Arc<ValidatorStore>
         },
     };
 
-    let message_signer: Arc<MessageSigner> = MessageSigner::new(PRIVATE_KEY).unwrap();
+    let message_signer: Arc<MessageSigner> =
+        Arc::new(MessageSigner::from_str(PRIVATE_KEY).unwrap());
 
     let mut validators = HashSet::new();
     let validator_id = ValidatorId::from(message_signer.public_address);
