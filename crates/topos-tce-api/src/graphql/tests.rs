@@ -37,7 +37,7 @@ async fn requesting_transient_stream_from_graphql() {
 
     let root = SubscriptionRoot {};
 
-    let result = root.new_transient_stream(&sender).await;
+    let result = root.new_transient_stream(&sender, None).await;
 
     assert!(result.is_ok());
 }
@@ -98,7 +98,7 @@ async fn open_watch_certificate_delivered() {
                               watchDeliveredCertificates {
                                 id
                                 prevId
-                                sourceSubnetId
+                                sourceSubnetId { value }
                                 targetSubnets {
                                   value
                                 }

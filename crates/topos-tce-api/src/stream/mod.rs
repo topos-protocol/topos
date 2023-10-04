@@ -1,4 +1,5 @@
 use futures::{stream::BoxStream, StreamExt, TryStreamExt};
+use std::sync::Arc;
 use std::{collections::HashMap, fmt::Debug, time::Duration};
 use tokio::{
     sync::{
@@ -39,13 +40,13 @@ pub(crate) use self::errors::{HandshakeError, StreamErrorKind};
 /// implementation to notify the `runtime` when ended.
 #[derive(Debug)]
 pub struct TransientStream {
-    pub(crate) inner: mpsc::Receiver<Certificate>,
+    pub(crate) inner: mpsc::Receiver<Arc<Certificate>>,
     pub(crate) stream_id: Uuid,
     pub(crate) notifier: Option<oneshot::Sender<Uuid>>,
 }
 
 impl futures::Stream for TransientStream {
-    type Item = Certificate;
+    type Item = Arc<Certificate>;
 
     fn poll_next(
         mut self: std::pin::Pin<&mut Self>,

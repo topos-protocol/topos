@@ -1,10 +1,12 @@
+use std::str::FromStr;
 use std::sync::Arc;
 
-use async_graphql::{Context, EmptyMutation, EmptySubscription, Object, Schema, Subscription};
+use async_graphql::{Context, EmptyMutation, Object, Schema, Subscription};
 use async_trait::async_trait;
 use futures::{Stream, StreamExt};
 use tokio::sync::{mpsc, oneshot};
 use topos_api::graphql::errors::GraphQLServerError;
+use topos_api::graphql::filter::SubnetFilter;
 use topos_api::graphql::{
     certificate::{Certificate, CertificateId},
     checkpoint::SourceCheckpoint,
@@ -19,8 +21,10 @@ use tracing::debug;
 use crate::runtime::InternalRuntimeCommand;
 use crate::stream::TransientStream;
 
+use super::filter::FilterIs;
+
 pub struct QueryRoot;
-pub(crate) type ServiceSchema = Schema<QueryRoot, EmptyMutation, EmptySubscription>;
+pub(crate) type ServiceSchema = Schema<QueryRoot, EmptyMutation, SubscriptionRoot>;
 
 #[async_trait]
 impl CertificateQuery for QueryRoot {
@@ -57,7 +61,7 @@ impl CertificateQuery for QueryRoot {
             certificates.extend(
                 certificates_with_position
                     .into_iter()
-                    .map(|(c, _)| c.certificate.into()),
+                    .map(|(c, _)| c.certificate.as_ref().into()),
             );
         }
 
@@ -84,7 +88,7 @@ impl CertificateQuery for QueryRoot {
             )
             .map_err(|_| GraphQLServerError::StorageError)
             .and_then(|c| {
-                c.map(|c| c.certificate.into())
+                c.map(|c| Certificate::from(&c.certificate))
                     .ok_or(GraphQLServerError::StorageError)
             })
     }
@@ -118,6 +122,7 @@ impl SubscriptionRoot {
     pub(crate) async fn new_transient_stream(
         &self,
         register: &mpsc::Sender<InternalRuntimeCommand>,
+        filter: Option<SubnetFilter>,
     ) -> Result<impl Stream<Item = Certificate>, GraphQLServerError> {
         let (sender, receiver) = oneshot::channel();
         _ = register
@@ -133,7 +138,30 @@ impl SubscriptionRoot {
             })?
             .map_err(|e| GraphQLServerError::TransientStream(e.to_string()))?;
 
-        Ok(stream.map(|c| c.into()))
+        let filter: Option<(FilterIs, topos_core::uci::SubnetId)> =
+            filter
+                .map(|value| match value {
+                    SubnetFilter::Target(id) => topos_core::uci::SubnetId::from_str(&id.value)
+                        .map(|v| (FilterIs::Target, v)),
+                    SubnetFilter::Source(id) => topos_core::uci::SubnetId::from_str(&id.value)
+                        .map(|v| (FilterIs::Source, v)),
+                })
+                .map_or(Ok(None), |v| v.map(Some))
+                .map_err(|_| GraphQLServerError::ParseSubnetId)?;
+
+        Ok(stream
+            .filter(move |c| {
+                futures::future::ready(
+                    filter
+                        .as_ref()
+                        .map(|v| match v {
+                            (FilterIs::Source, id) => id == &c.source_subnet_id,
+                            (FilterIs::Target, id) => c.target_subnets.contains(id),
+                        })
+                        .unwrap_or(true),
+                )
+            })
+            .map(|c| c.as_ref().into()))
     }
 }
 
@@ -148,6 +176,7 @@ impl SubscriptionRoot {
     async fn watch_delivered_certificates(
         &self,
         ctx: &Context<'_>,
+        filter: Option<SubnetFilter>,
     ) -> Result<impl Stream<Item = Certificate>, GraphQLServerError> {
         let register = ctx
             .data::<mpsc::Sender<InternalRuntimeCommand>>()
@@ -157,6 +186,6 @@ impl SubscriptionRoot {
                 GraphQLServerError::ParseDataConnector
             })?;
 
-        self.new_transient_stream(register).await
+        self.new_transient_stream(register, filter).await
     }
 }

@@ -61,8 +61,8 @@ tonic-build = { version = "0.10", default-features = false, features = [
 
 # Axum server (GraphQL + Metrics)
 axum = "0.6"
-async-graphql = "5"
-async-graphql-axum = "5"
+async-graphql = "6"
+async-graphql-axum = "6"
 http = "0.2.9"
 tower-http = { version = "0.4", features = ["cors"] }
 
