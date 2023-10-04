@@ -47,9 +47,7 @@ pub async fn run(
     };
 
     let message_signer = match &config.signing_key {
-        Some(AuthKey::PrivateKey(pk)) => {
-            MessageSigner::new(&hex::encode(pk))?
-        }
+        Some(AuthKey::PrivateKey(pk)) => MessageSigner::new(&hex::encode(pk))?,
         _ => return Err(Box::try_from("Error, no singing key".to_string()).unwrap()),
     };
 
