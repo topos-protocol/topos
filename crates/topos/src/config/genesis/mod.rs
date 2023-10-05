@@ -63,13 +63,12 @@ impl Genesis {
     }
 
     /// Parse the validators from the `extraData` field of the genesis file.
-    /// The `extraData` is patted with 32 bytes, and the validators are RLP encoded.
+    /// The `extraData` is padded with 32 bytes, and the validators are RLP encoded.
     /// Each validator is 20 bytes, with a SEAL at the end of the whole list (8 bytes)
-    #[allow(dead_code)]
     pub fn validators(&self) -> HashSet<ValidatorId> {
         let extra_data = self.json["genesis"]["extraData"]
             .as_str()
-            .unwrap()
+            .expect("The extraData field must be present. Bad genesis file?")
             .to_string();
 
         // Define constants for the prefix size and validator size
@@ -89,21 +88,22 @@ impl Genesis {
 
         // Get the first Rlp item (index 0) and iterate over its items
         let first_item = rlp.at(0).expect("Failed to get first RLP item");
-        let mut validator_public_keys = HashSet::new();
-
-        for i in 0..first_item.item_count().unwrap() {
-            let validator_data = first_item.at(i).expect("Failed to get RLP item").data();
-            if let Ok(validator_data) = validator_data {
-                let public_key = validator_data.to_vec();
-                let address = format!("0x{}", hex::encode(&public_key[1..=20]));
-                validator_public_keys.insert(
-                    ValidatorId::try_from(address.as_str()).unwrap_or_else(|error| {
-                        panic!("Failed to convert address to ValidatorId: {:?}", error)
-                    }),
-                );
-            }
-        }
-
-        validator_public_keys
+        let item_count = first_item
+            .item_count()
+            .expect("Validators must be an RLP list. Bad genesis file?");
+        first_item.into_iter().enumerate().fold(
+            HashSet::with_capacity(item_count),
+            |mut validator_public_keys, (i, validator)| {
+                if let Ok(public_key) = validator.data() {
+                    let address = format!("0x{}", hex::encode(&public_key[1..=20]));
+                    validator_public_keys.insert(
+                        ValidatorId::try_from(address.as_str()).unwrap_or_else(|error| {
+                            panic!("Failed to convert address to ValidatorId: {:?}", error)
+                        }),
+                    );
+                }
+                validator_public_keys
+            },
+        )
     }
 }
