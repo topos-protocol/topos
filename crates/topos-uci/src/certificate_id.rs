@@ -52,7 +52,10 @@ impl TryFrom<&[u8]> for CertificateId {
     type Error = Error;
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
-        let value = if value.starts_with(b"0x") {
+        let value = if value.starts_with(b"0x")
+            && (value.len() == (HEX_CERTIFICATE_ID_LENGTH + 2)
+                || value.len() == (CERTIFICATE_ID_LENGTH + 2))
+        {
             &value[2..]
         } else {
             value
@@ -61,13 +64,20 @@ impl TryFrom<&[u8]> for CertificateId {
         let length = value.len();
 
         if length != CERTIFICATE_ID_LENGTH && length != HEX_CERTIFICATE_ID_LENGTH {
-            return Err(Error::ValidationError);
+            return Err(Error::ValidationError(format!(
+                "invalid certificate id length {length} should be byte array \
+                 {CERTIFICATE_ID_LENGTH} or hex encoded string of size {HEX_CERTIFICATE_ID_LENGTH}"
+            )));
         }
 
         let mut id = [0; CERTIFICATE_ID_LENGTH];
 
         if length == HEX_CERTIFICATE_ID_LENGTH {
-            let value = hex::decode(value).map_err(|_| Error::ValidationError)?;
+            let value = hex::decode(value).map_err(|_| {
+                Error::ValidationError(format!(
+                    "invalid hex encoded certificate id string {value:?}"
+                ))
+            })?;
 
             id.copy_from_slice(&value[..])
         } else {
