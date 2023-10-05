@@ -77,9 +77,9 @@ impl Task {
                                 break;
                             }
                         }
-                        DoubleEchoCommand::Ready { from_peer, .. } => {
+                        DoubleEchoCommand::Ready { validator_id, .. } => {
                             if let Some(Status::DeliveredWithReadySent) =
-                                self.broadcast_state.apply_ready(from_peer)
+                                self.broadcast_state.apply_ready(validator_id)
                             {
                                 let _ = self
                                     .completion_sender

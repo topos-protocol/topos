@@ -3,7 +3,6 @@ use async_trait::async_trait;
 use libp2p::PeerId;
 use tokio::sync::{mpsc, oneshot};
 use topos_core::uci::SubnetId;
-use topos_tce_transport::ValidatorId;
 
 #[async_trait]
 pub trait GatekeeperClient: Send + Sync + 'static {
@@ -12,7 +11,6 @@ pub trait GatekeeperClient: Send + Sync + 'static {
 
 #[derive(Clone)]
 pub struct Client {
-    pub(crate) local_peer_id: PeerId,
     pub(crate) shutdown_channel: mpsc::Sender<oneshot::Sender<()>>,
     pub(crate) commands: mpsc::Sender<GatekeeperCommand>,
 }

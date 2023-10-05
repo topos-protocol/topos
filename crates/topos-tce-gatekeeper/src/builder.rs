@@ -24,18 +24,17 @@ impl IntoFuture for GatekeeperBuilder {
 
     type IntoFuture = BoxFuture<'static, Self::Output>;
 
-    fn into_future(mut self) -> Self::IntoFuture {
+    fn into_future(self) -> Self::IntoFuture {
         let (shutdown_channel, shutdown) = mpsc::channel(1);
         let (commands, commands_recv) = mpsc::channel(100);
-
-        // TODO: Fix this unwrap later
-        let local_peer_id = self.local_peer_id.take().unwrap();
+        //
+        // // TODO: Fix this unwrap later
+        // let local_peer_id = self.local_peer_id.take().unwrap();
 
         futures::future::ok((
             Client {
                 shutdown_channel,
                 commands,
-                local_peer_id,
             },
             Gatekeeper {
                 shutdown,

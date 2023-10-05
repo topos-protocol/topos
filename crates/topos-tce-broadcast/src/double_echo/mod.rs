@@ -6,7 +6,6 @@ use tce_transport::{ProtocolEvents, ReliableBroadcastParams, ValidatorId};
 use tokio::sync::{broadcast, mpsc, oneshot};
 use topos_core::uci::{Certificate, CertificateId};
 use topos_crypto::messages::{MessageSigner, Signature};
-use topos_p2p::PeerId;
 use topos_tce_storage::types::CertificateDeliveredWithPositions;
 use topos_tce_storage::validator::ValidatorStore;
 use tracing::{error, info, warn};

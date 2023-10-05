@@ -1,3 +1,4 @@
+use rand::Rng;
 use std::collections::HashSet;
 use std::sync::Arc;
 use tce_transport::{ReliableBroadcastParams, ValidatorId};
@@ -36,17 +37,27 @@ pub async fn processing_double_echo(n: u64, validator_store: Arc<ValidatorStore>
         },
     };
 
-    let message_signer: Arc<MessageSigner> = MessageSigner::new(PRIVATE_KEY).unwrap();
+    let mut rng = rand::thread_rng();
 
+    let message_signer = MessageSigner::new(PRIVATE_KEY).unwrap();
     let mut validators = HashSet::new();
     let validator_id = ValidatorId::from(message_signer.public_address);
     validators.insert(validator_id);
+
+    for _ in 1..params.nb_peers {
+        let private_key: [u8; 32] = rng.gen();
+        validators.insert(ValidatorId::from(
+            MessageSigner::new(&hex::encode(private_key))
+                .unwrap()
+                .public_address,
+        ));
+    }
 
     let mut double_echo = DoubleEcho::new(
         params.broadcast_params,
         validator_id,
         message_signer.clone(),
-        validators,
+        validators.clone(),
         task_manager_message_sender.clone(),
         cmd_receiver,
         event_sender,
@@ -55,23 +66,14 @@ pub async fn processing_double_echo(n: u64, validator_store: Arc<ValidatorStore>
         broadcast_sender,
     );
 
-    // List of peers
-    let mut peers = HashSet::new();
-    for i in 0..params.nb_peers {
-        let peer = topos_p2p::utils::local_key_pair(Some(i as u8))
-            .public()
-            .to_peer_id();
-        peers.insert(peer);
-    }
-
     // Subscriptions
-    double_echo.subscriptions.echo = peers.clone();
-    double_echo.subscriptions.ready = peers.clone();
+    double_echo.subscriptions.echo = validators.clone();
+    double_echo.subscriptions.ready = validators.clone();
     double_echo.subscriptions.network_size = params.nb_peers;
 
     let msg = SubscriptionsView {
-        echo: peers.clone(),
-        ready: peers.clone(),
+        echo: validators.clone(),
+        ready: validators.clone(),
         network_size: params.nb_peers,
     };
 
@@ -111,7 +113,7 @@ pub async fn processing_double_echo(n: u64, validator_store: Arc<ValidatorStore>
             let signature = message_signer.sign_message(&payload).unwrap();
 
             double_echo
-                .handle_echo(*p, cert.certificate.id, validator_id, signature)
+                .handle_echo(cert.certificate.id, validator_id, signature)
                 .await;
         }
 
@@ -119,7 +121,7 @@ pub async fn processing_double_echo(n: u64, validator_store: Arc<ValidatorStore>
             let signature = message_signer.sign_message(&payload).unwrap();
 
             double_echo
-                .handle_ready(*p, cert.certificate.id, validator_id, signature)
+                .handle_ready(cert.certificate.id, validator_id, signature)
                 .await;
         }
     }

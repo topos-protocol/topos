@@ -2,9 +2,7 @@ use std::collections::HashMap;
 use tokio::sync::{mpsc::Sender, oneshot};
 use topos_core::api::grpc::checkpoints::TargetStreamPosition;
 use topos_core::uci::{Certificate, SubnetId};
-use topos_p2p::PeerId;
 use topos_tce_storage::types::PendingResult;
-use topos_tce_transport::ValidatorId;
 use uuid::Uuid;
 
 use crate::stream::{Stream, StreamCommand};

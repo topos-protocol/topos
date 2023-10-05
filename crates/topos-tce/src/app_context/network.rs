@@ -27,7 +27,7 @@ impl AppContext {
         );
 
         match evt {
-            NetEvent::Gossip { from, data } => {
+            NetEvent::Gossip { data, .. } => {
                 let msg: NetworkMessage = data.into();
 
                 if let NetworkMessage::Cmd(cmd) = msg {

@@ -191,7 +191,7 @@ impl TaskManager {
     }
 
     fn start_task(
-        running_tasks: &mut RunningTasks,
+        running_tasks: &RunningTasks,
         task: Task,
         sink: mpsc::Sender<DoubleEchoCommand>,
         messages: Option<Vec<DoubleEchoCommand>>,

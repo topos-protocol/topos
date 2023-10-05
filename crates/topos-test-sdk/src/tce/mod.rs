@@ -283,11 +283,11 @@ pub async fn create_network(
 ) -> HashMap<PeerId, TceContext> {
     // List of peers (tce nodes) with their context
     let mut peers_context = start_pool(peer_number as u8, certificates).await;
-    let all_peers: Vec<PeerId> = peers_context.keys().cloned().collect();
-
-    warn!("Pool created, waiting for peers to connect...");
-    // Force TCE nodes to recreate subscriptions and subscribers
-    let mut await_peers = Vec::new();
+    // let all_peers: Vec<PeerId> = peers_context.keys().cloned().collect();
+    //
+    // warn!("Pool created, waiting for peers to connect...");
+    // // Force TCE nodes to recreate subscriptions and subscribers
+    // let mut await_peers = Vec::new();
     // for (peer_id, client) in peers_context.iter_mut() {
     //     await_peers.push(
     //         client
@@ -307,9 +307,9 @@ pub async fn create_network(
     //             }),
     //     );
     // }
-
-    assert!(!join_all(await_peers).await.iter().any(|res| res.is_err()));
-    warn!("Peers connected");
+    //
+    // assert!(!join_all(await_peers).await.iter().any(|res| res.is_err()));
+    // warn!("Peers connected");
 
     for (peer_id, client) in peers_context.iter_mut() {
         wait_for_event!(

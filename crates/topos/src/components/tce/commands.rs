@@ -45,11 +45,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_publish_peer_list() {
-        assert!(TceCommands::has_subcommand("push-peer-list"));
-    }
-
-    #[test]
     fn test_run() {
         assert!(TceCommands::has_subcommand("run"));
     }

@@ -20,7 +20,6 @@ pub use client::GatekeeperClient;
 use libp2p::PeerId;
 use topos_commands::{Command, CommandHandler, RegisterCommands};
 use topos_core::uci::SubnetId;
-use topos_tce_transport::ValidatorId;
 use tracing::{info, warn};
 
 pub struct Gatekeeper {

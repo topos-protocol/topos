@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 use tce_transport::ValidatorId;
-use topos_p2p::PeerId;
 
 /// Categorize what we expect from which peer for the broadcast
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
