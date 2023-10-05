@@ -57,7 +57,10 @@ impl TryFrom<&[u8]> for SubnetId {
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
         if value.len() != SUBNET_ID_LENGTH {
-            return Err(Error::ValidationError);
+            return Err(Error::ValidationError(format!(
+                "invalid subnet id of length {}, expected length {SUBNET_ID_LENGTH}",
+                value.len()
+            )));
         }
 
         let mut id = [0; SUBNET_ID_LENGTH];
@@ -72,7 +75,11 @@ impl FromStr for SubnetId {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let s = if s.starts_with("0x") {
-            hex::decode(&s[2..s.len()]).map_err(|_| Error::ValidationError)?
+            hex::decode(&s[2..s.len()]).map_err(|e| {
+                Error::ValidationError(format!(
+                    "could not decode subnet id hex encoded string '{s}' error: {e}"
+                ))
+            })?
         } else {
             s.as_bytes().to_vec()
         };

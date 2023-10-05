@@ -35,8 +35,8 @@ const DUMMY_STARK_DELAY: time::Duration = time::Duration::from_millis(0);
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("certificate validation error")]
-    ValidationError,
+    #[error("certificate validation error: {0}")]
+    ValidationError(String),
 
     #[error("topos crypto error: (0)")]
     CryptoError(#[from] topos_crypto::Error),
