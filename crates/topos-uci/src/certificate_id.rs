@@ -65,8 +65,8 @@ impl TryFrom<&[u8]> for CertificateId {
 
         if length != CERTIFICATE_ID_LENGTH && length != HEX_CERTIFICATE_ID_LENGTH {
             return Err(Error::ValidationError(format!(
-                "invalid certificate id length {length} should be byte array \
-                 {CERTIFICATE_ID_LENGTH} or hex encoded string of size {HEX_CERTIFICATE_ID_LENGTH}"
+                "invalid certificate id length {length} - should be {CERTIFICATE_ID_LENGTH} bytes \
+                 array or hex encoded string of size {HEX_CERTIFICATE_ID_LENGTH}"
             )));
         }
 
@@ -75,7 +75,7 @@ impl TryFrom<&[u8]> for CertificateId {
         if length == HEX_CERTIFICATE_ID_LENGTH {
             let value = hex::decode(value).map_err(|_| {
                 Error::ValidationError(format!(
-                    "invalid hex encoded certificate id string {value:?}"
+                    "invalid hex encoded certificate id string: {value:?}"
                 ))
             })?;
 
