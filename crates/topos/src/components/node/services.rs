@@ -64,6 +64,7 @@ pub(crate) fn spawn_sequencer_process(
         tce_grpc_endpoint: config.tce_grpc_endpoint,
         signing_key: keys.validator.clone().unwrap(),
         verifier: 0,
+        start_block: config.start_block,
     };
 
     debug!("Sequencer args: {config:?}");

@@ -89,7 +89,12 @@ pub(crate) async fn handle_command(
                 signing_key: cmd
                     .local_validator_private_key
                     .clone()
-                    .map(|s| AuthKey::PrivateKey(s.as_bytes().to_vec())),
+                    .map(|s| {
+                        hex::decode(s)
+                            .map(AuthKey::PrivateKey)
+                            .map_err(|_| Box::new(topos::Error::InvalidPrivateKey))
+                    })
+                    .map_or(Ok(None), |v| v.map(Some))?,
                 tce_addr: cmd.tce_ext_host,
                 tce_local_port: cmd.tce_local_port,
                 tce_params: cmd.tce_params,

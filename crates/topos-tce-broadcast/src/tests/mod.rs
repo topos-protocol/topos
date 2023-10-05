@@ -3,6 +3,7 @@ use crate::*;
 use rand::Rng;
 use rstest::*;
 use std::collections::HashSet;
+use std::str::FromStr;
 use std::time::Duration;
 use tce_transport::ReliableBroadcastParams;
 use tokio::sync::mpsc::Receiver;
@@ -59,8 +60,8 @@ async fn create_context(params: TceParams) -> (DoubleEcho, Context) {
     let (task_manager_message_sender, task_manager_message_receiver) = mpsc::channel(CHANNEL_SIZE);
 
     let mut rng = rand::thread_rng();
+    let message_signer = Arc::new(MessageSigner::from_str(PRIVATE_KEY).unwrap());
 
-    let message_signer = MessageSigner::new(PRIVATE_KEY).unwrap();
     let mut validators = HashSet::new();
     let validator_id = ValidatorId::from(message_signer.public_address);
     validators.insert(validator_id);
@@ -68,7 +69,7 @@ async fn create_context(params: TceParams) -> (DoubleEcho, Context) {
     for _ in 1..params.nb_peers {
         let private_key: [u8; 32] = rng.gen();
         validators.insert(ValidatorId::from(
-            MessageSigner::new(&hex::encode(private_key))
+            MessageSigner::new(&hex::encode(private_key).as_bytes())
                 .unwrap()
                 .public_address,
         ));
@@ -121,7 +122,7 @@ async fn reach_echo_threshold(double_echo: &mut DoubleEcho, cert: &Certificate) 
         .cloned()
         .collect::<Vec<_>>();
 
-    let message_signer = MessageSigner::new(PRIVATE_KEY).unwrap();
+    let message_signer = Arc::new(MessageSigner::from_str(PRIVATE_KEY).unwrap());
     let validator_id = ValidatorId::from(message_signer.public_address);
 
     let mut payload = Vec::new();
@@ -146,7 +147,7 @@ async fn reach_ready_threshold(double_echo: &mut DoubleEcho, cert: &Certificate)
         .cloned()
         .collect::<Vec<_>>();
 
-    let message_signer = MessageSigner::new(PRIVATE_KEY).unwrap();
+    let message_signer = Arc::new(MessageSigner::from_str(PRIVATE_KEY).unwrap());
 
     let validator_id = ValidatorId::from(message_signer.public_address);
 
@@ -172,7 +173,7 @@ async fn reach_delivery_threshold(double_echo: &mut DoubleEcho, cert: &Certifica
         .cloned()
         .collect::<Vec<_>>();
 
-    let message_signer = MessageSigner::new(PRIVATE_KEY).unwrap();
+    let message_signer = Arc::new(MessageSigner::from_str(PRIVATE_KEY).unwrap());
     let validator_id = ValidatorId::from(message_signer.public_address);
 
     let mut payload = Vec::new();

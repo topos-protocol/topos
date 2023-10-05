@@ -1,6 +1,6 @@
 ---
 source: crates/topos/tests/sequencer.rs
-expression: result
+expression: "utils::sanitize_config_folder_path(result)"
 ---
 Run a full Topos Sequencer instance
 
@@ -27,6 +27,8 @@ Options:
           Socket of the opentelemetry agent endpoint If not provided open telemetry will not be used [env: TOPOS_OTLP_AGENT=]
       --otlp-service-name <OTLP_SERVICE_NAME>
           Otlp service name If not provided open telemetry will not be used [env: TOPOS_OTLP_SERVICE_NAME=]
+      --start-block <START_BLOCK>
+          Start synchronizing from particular block number Default is to sync from genesis block (0) [env: TOPOS_START_BLOCK=]
   -h, --help
           Print help
 

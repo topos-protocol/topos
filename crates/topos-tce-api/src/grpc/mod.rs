@@ -89,13 +89,17 @@ impl ApiService for TceGrpcService {
                     Span::current().record("certificate_id", id.to_string());
 
                     let (sender, receiver) = oneshot::channel();
-                    let certificate = match certificate.try_into() {
+                    // FIXME: remove certificate cloning (may be a lot of data) when we
+                    // resolve the issue with invalid certificate error
+                    let certificate = match certificate.clone().try_into() {
                         Ok(c) => c,
                         Err(e) => {
-                            error!("Invalid certificate: {e:?}");
-                            return Err(Status::invalid_argument(
-                                "Can't submit certificate: invalid certificate",
-                            ));
+                            error!(
+                                "Invalid certificate error: {e:?}, certificate: {certificate:?}"
+                            );
+                            return Err(Status::invalid_argument(format!(
+                                "Can't submit invalid certificate: {e}"
+                            )));
                         }
                     };
 

@@ -87,6 +87,7 @@ impl SubnetRuntimeProxy {
             None,
             config.verifier,
             signing_key.clone(),
+            config.start_block,
         )?;
 
         let runtime_proxy = Arc::new(Mutex::from(Self {
@@ -104,7 +105,14 @@ impl SubnetRuntimeProxy {
             let runtime_proxy = runtime_proxy.clone();
             let subnet_contract_address = subnet_contract_address.clone();
             tokio::spawn(async move {
-                let mut latest_acquired_subnet_block_number: i128 = -1;
+                // If the `start_block` sequencer parameter is provided, first block retrieved from blockchain (for genesis certificate)
+                // will be `start_block`. `default_block_sync_start` is hence `start_block`-1
+                // as first block retrieved from subnet node is `latest_acquired_subnet_block_number` + 1
+                let default_block_sync_start: i128 = config
+                    .start_block
+                    .map(|block_number| (block_number - 1) as i128)
+                    .unwrap_or(-1);
+                let mut latest_acquired_subnet_block_number: i128 = default_block_sync_start;
 
                 {
                     // To start producing certificates, we need to know latest delivered or pending certificate id from TCE
@@ -122,11 +130,15 @@ impl SubnetRuntimeProxy {
                                     "Source head certificate id received {:?}",
                                     certificate_and_position
                                 );
-                                // If the position is not provided, it should start form -1, so that first fetched is subnet genesis block
+                                // If tce source head position is provided, continue synchronizing from it
+                                // If the `start_block` sequencer parameter is provided and tce source head is missing,
+                                // we should start synchronizing from that block instead of genesis
+                                // If neither tce source head position nor start_block parameters are provided,
+                                // sync should start form -1, so that first fetched is subnet genesis block
                                 let cert_id = certificate_and_position.map(|(id, _position)| id);
                                 let position: i128 = certificate_and_position
                                     .map(|(_id, position)| position as i128)
-                                    .unwrap_or(-1);
+                                    .unwrap_or(default_block_sync_start);
                                 // Certificate generation is now ready to run
                                 certification.last_certificate_id = cert_id;
                                 latest_acquired_subnet_block_number = position;
