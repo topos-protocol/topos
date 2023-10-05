@@ -137,11 +137,11 @@ fn test_proto_uci_certificate_conversion_id_random_0x() {
 fn test_proto_uci_certificate_conversion_id_starts_with_0x() {
     use crate::grpc::shared::v1::{CertificateId, Frost, StarkProof, SubnetId};
     let mut prev_id = vec![b'0', b'x'];
-    let id = "504b5d01948bc777ba1510ba92a901f516408e4b2a1a5b97fed719430acc9ec9";
     prev_id.append(
         &mut hex::decode("aac03cadfff6846c9ce72956eee2498011dd7b08689565d6f29e25c0a967ef14")
             .expect("Valid id"),
     );
+    let id = "504b5d01948bc777ba1510ba92a901f516408e4b2a1a5b97fed719430acc9ec9";
     let valid_cert = proto_v1::Certificate {
         prev_id: Some(CertificateId { value: prev_id }),
         id: Some(CertificateId {
@@ -172,7 +172,7 @@ fn test_proto_uci_certificate_conversion_id_starts_with_0x() {
     let id = "AA4b5d01948bc777ba1510ba92a901f516408e4b2a1a5b97fed719430acc9ec9"
         .to_string()
         .into_bytes();
-    let valid_cert = proto_v1::Certificate {
+    let valid_cert_2 = proto_v1::Certificate {
         prev_id: Some(CertificateId { value: prev_id }),
         id: Some(CertificateId { value: id }),
         source_subnet_id: Some(SubnetId::from([0u8; 32])),
@@ -183,7 +183,7 @@ fn test_proto_uci_certificate_conversion_id_starts_with_0x() {
         signature: Some(Frost { value: Vec::new() }),
         ..Default::default()
     };
-    let cert: topos_uci::Certificate = match topos_uci::Certificate::try_from(valid_cert) {
+    let cert_2: topos_uci::Certificate = match topos_uci::Certificate::try_from(valid_cert_2) {
         Ok(cert) => cert,
         Err(e) => {
             panic!("Unable to perform certificate conversion: {e}");
@@ -192,6 +192,6 @@ fn test_proto_uci_certificate_conversion_id_starts_with_0x() {
 
     println!(
         "Second certificate converted prev_id={}, id={}",
-        cert.prev_id, cert.id
+        cert_2.prev_id, cert_2.id
     );
 }
