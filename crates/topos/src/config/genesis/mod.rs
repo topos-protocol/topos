@@ -91,10 +91,10 @@ impl Genesis {
         let item_count = first_item
             .item_count()
             .expect("Validators must be an RLP list. Bad genesis file?");
-        first_item.into_iter().enumerate().fold(
+        first_item.into_iter().fold(
             HashSet::with_capacity(item_count),
-            |mut validator_public_keys, (i, validator)| {
-                if let Ok(public_key) = validator.data() {
+            |mut validator_public_keys, validator_rlp| {
+                if let Ok(public_key) = validator_rlp.data() {
                     let address = format!("0x{}", hex::encode(&public_key[1..=20]));
                     validator_public_keys.insert(
                         ValidatorId::try_from(address.as_str()).unwrap_or_else(|error| {
