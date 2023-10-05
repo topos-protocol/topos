@@ -14,4 +14,10 @@ pub enum GraphQLServerError {
 
     #[error("Certificate not found")]
     CertificateNotFound,
+
+    #[error("Unable to create transient stream: {0}")]
+    TransientStream(String),
+
+    #[error("Internal API error: {0}")]
+    InternalError(&'static str),
 }

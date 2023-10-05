@@ -10,7 +10,7 @@ use tokio::{
 use tonic::Status;
 use topos_core::api::grpc::checkpoints::{TargetCheckpoint, TargetStreamPosition};
 use topos_core::uci::{Certificate, SubnetId};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info, trace, warn};
 use uuid::Uuid;
 
 pub mod commands;
@@ -35,7 +35,7 @@ pub(crate) use self::errors::{HandshakeError, StreamErrorKind};
 /// A [`TransientStream`] will not receive any certificates that were delivered
 /// before the stream was ready to listen.
 ///
-/// [`TransientStream`] is implementing [`futures::Stream`] and use a custom [`Drop`]
+/// [`TransientStream`] implements [`futures::Stream`] and use a custom [`Drop`]
 /// implementation to notify the `runtime` when ended.
 #[derive(Debug)]
 pub struct TransientStream {
@@ -58,6 +58,10 @@ impl futures::Stream for TransientStream {
 impl Drop for TransientStream {
     fn drop(&mut self) {
         if let Some(notifier) = self.notifier.take() {
+            trace!(
+                "Dropping TransientStream {}, notifying runtime for cleanup",
+                self.stream_id
+            );
             _ = notifier.send(self.stream_id);
         }
     }

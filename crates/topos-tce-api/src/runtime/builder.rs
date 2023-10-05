@@ -162,7 +162,7 @@ impl RuntimeBuilder {
             api_event_sender,
             shutdown: shutdown_receiver,
             streams: Default::default(),
-            transient_stream: HashMap::new(),
+            transient_streams: HashMap::new(),
         };
         let runtime_handler = spawn(runtime.launch());
 

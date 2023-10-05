@@ -113,6 +113,30 @@ impl QueryRoot {
 
 pub struct SubscriptionRoot;
 
+impl SubscriptionRoot {
+    /// Try to create a new [`Stream`] of delivered [`Certificate`]s to be used in a GraphQL subscription.
+    pub(crate) async fn new_transient_stream(
+        &self,
+        register: &mpsc::Sender<InternalRuntimeCommand>,
+    ) -> Result<impl Stream<Item = Certificate>, GraphQLServerError> {
+        let (sender, receiver) = oneshot::channel();
+        _ = register
+            .send(InternalRuntimeCommand::NewTransientStream { sender })
+            .await;
+
+        let stream: TransientStream = receiver
+            .await
+            .map_err(|_| {
+                GraphQLServerError::InternalError(
+                    "Communication error trying to create a new transient stream",
+                )
+            })?
+            .map_err(|e| GraphQLServerError::TransientStream(e.to_string()))?;
+
+        Ok(stream.map(|c| c.into()))
+    }
+}
+
 #[Subscription]
 impl SubscriptionRoot {
     /// This endpoint is used to received delivered certificates.
@@ -133,13 +157,6 @@ impl SubscriptionRoot {
                 GraphQLServerError::ParseDataConnector
             })?;
 
-        let (sender, receiver) = oneshot::channel();
-        _ = register
-            .send(InternalRuntimeCommand::NewTransientStream { sender })
-            .await;
-
-        let stream: TransientStream = receiver.await.unwrap().unwrap();
-
-        Ok(stream.map(|c| c.into()))
+        self.new_transient_stream(register).await
     }
 }

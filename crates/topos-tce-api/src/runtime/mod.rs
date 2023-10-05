@@ -59,7 +59,7 @@ pub struct Runtime {
     pub(crate) broadcast_stream: broadcast::Receiver<CertificateDeliveredWithPositions>,
 
     pub(crate) storage: StorageClient,
-    pub(crate) transient_stream: HashMap<Uuid, Sender<Certificate>>,
+    pub(crate) transient_streams: HashMap<Uuid, Sender<Certificate>>,
     /// Streams that are currently active (with a valid handshake)
     pub(crate) active_streams: HashMap<Uuid, Sender<StreamCommand>>,
     /// Streams that are currently in negotiation
@@ -187,6 +187,7 @@ impl Runtime {
                     "Dispatching certificate cert_id: {:?} to target subnets: {:?}",
                     &certificate.id, target_subnets
                 );
+
                 for target_subnet_id in target_subnets {
                     let target_subnet_id = *target_subnet_id;
                     let target_position = positions.remove(&target_subnet_id);
@@ -230,7 +231,7 @@ impl Runtime {
 
                 let (stream, receiver) = mpsc::channel(TRANSIENT_STREAM_CHANNEL_SIZE);
                 let (shutdown, shutdown_recv) = oneshot::channel();
-                self.transient_stream.insert(stream_id, stream);
+                self.transient_streams.insert(stream_id, stream);
 
                 self.streams.push(
                     shutdown_recv
@@ -250,7 +251,7 @@ impl Runtime {
                     .is_err()
                 {
                     error!("Unable to send new TransientStream");
-                    _ = self.transient_stream.remove(&stream_id);
+                    _ = self.transient_streams.remove(&stream_id);
                 }
             }
 
