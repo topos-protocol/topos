@@ -1,5 +1,6 @@
 use futures::Stream;
 use std::collections::HashSet;
+use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use topos_crypto::messages::MessageSigner;
@@ -18,7 +19,7 @@ pub async fn create_reliable_broadcast_client(
     ReliableBroadcastClient,
     impl Stream<Item = ProtocolEvents> + Unpin,
 ) {
-    let message_signer = MessageSigner::new(PRIVATE_KEY).unwrap();
+    let message_signer = Arc::new(MessageSigner::from_str(PRIVATE_KEY).unwrap());
 
     let mut validators = HashSet::new();
     let validator_id = ValidatorId::from(message_signer.public_address);

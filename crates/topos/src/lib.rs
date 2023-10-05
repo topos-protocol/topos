@@ -21,6 +21,8 @@ pub enum Error {
     InvalidReleaseMetadata,
     #[error("File io error: {0}")]
     File(std::io::Error),
+    #[error("Invalid private key")]
+    InvalidPrivateKey,
 }
 
 fn map_arch(arch: &str) -> &str {
