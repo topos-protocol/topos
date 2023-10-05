@@ -51,8 +51,6 @@ struct Context {
 
 async fn create_context(params: TceParams) -> (DoubleEcho, Context) {
     let validator_store = create_validator_store::partial_1(vec![]).await;
-    let (subscriptions_view_sender, subscriptions_view_receiver) = mpsc::channel(CHANNEL_SIZE);
-
     let (_cmd_sender, cmd_receiver) = mpsc::channel(CHANNEL_SIZE);
     let (event_sender, event_receiver) = mpsc::channel(CHANNEL_SIZE);
     let (_double_echo_shutdown_sender, double_echo_shutdown_receiver) =
@@ -89,20 +87,7 @@ async fn create_context(params: TceParams) -> (DoubleEcho, Context) {
         broadcast_sender,
     );
 
-    // Subscriptions
-    double_echo.subscriptions.echo = validators.clone();
-    double_echo.subscriptions.ready = validators.clone();
-    double_echo.subscriptions.network_size = params.nb_peers;
-
-    let msg = SubscriptionsView {
-        echo: validators.clone(),
-        ready: validators.clone(),
-        network_size: params.nb_peers,
-    };
-
-    subscriptions_view_sender.send(msg).await.unwrap();
-
-    double_echo.spawn_task_manager(subscriptions_view_receiver, task_manager_message_receiver);
+    double_echo.spawn_task_manager(task_manager_message_receiver);
 
     (
         double_echo,

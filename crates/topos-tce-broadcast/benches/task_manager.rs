@@ -20,8 +20,6 @@ struct TceParams {
 }
 
 pub async fn processing_double_echo(n: u64, validator_store: Arc<ValidatorStore>) {
-    let (subscriptions_view_sender, subscriptions_view_receiver) = mpsc::channel(CHANNEL_SIZE);
-
     let (_cmd_sender, cmd_receiver) = mpsc::channel(CHANNEL_SIZE);
     let (event_sender, _event_receiver) = mpsc::channel(CHANNEL_SIZE);
     let (broadcast_sender, mut broadcast_receiver) = broadcast::channel(CHANNEL_SIZE);
@@ -68,20 +66,7 @@ pub async fn processing_double_echo(n: u64, validator_store: Arc<ValidatorStore>
         broadcast_sender,
     );
 
-    // Subscriptions
-    double_echo.subscriptions.echo = validators.clone();
-    double_echo.subscriptions.ready = validators.clone();
-    double_echo.subscriptions.network_size = params.nb_peers;
-
-    let msg = SubscriptionsView {
-        echo: validators.clone(),
-        ready: validators.clone(),
-        network_size: params.nb_peers,
-    };
-
-    subscriptions_view_sender.send(msg).await.unwrap();
-
-    double_echo.spawn_task_manager(subscriptions_view_receiver, task_manager_message_receiver);
+    double_echo.spawn_task_manager(task_manager_message_receiver);
 
     let certificates =
         create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], n as usize);

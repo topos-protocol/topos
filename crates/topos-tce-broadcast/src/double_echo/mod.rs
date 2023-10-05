@@ -57,11 +57,15 @@ impl DoubleEcho {
             params,
             validator_id,
             message_signer,
-            validators,
+            validators: validators.clone(),
             task_manager_message_sender,
             command_receiver,
             event_sender,
-            subscriptions: SubscriptionsView::default(),
+            subscriptions: SubscriptionsView {
+                echo: validators.clone(),
+                ready: validators.clone(),
+                network_size: validators.len(),
+            },
             shutdown,
             delivered_certificates: Default::default(),
             validator_store,
@@ -72,7 +76,6 @@ impl DoubleEcho {
     #[cfg(not(feature = "task-manager-channels"))]
     pub fn spawn_task_manager(
         &mut self,
-        subscriptions_view_receiver: mpsc::Receiver<SubscriptionsView>,
         task_manager_message_receiver: mpsc::Receiver<DoubleEchoCommand>,
     ) -> mpsc::Receiver<(CertificateId, TaskStatus)> {
         let (task_completion_sender, task_completion_receiver) = mpsc::channel(2048);
@@ -80,7 +83,7 @@ impl DoubleEcho {
         let (task_manager, shutdown_receiver) = crate::task_manager_futures::TaskManager::new(
             task_manager_message_receiver,
             task_completion_sender,
-            subscriptions_view_receiver,
+            self.subscriptions.clone(),
             self.event_sender.clone(),
             self.validator_id,
             self.params.clone(),
@@ -97,7 +100,6 @@ impl DoubleEcho {
     #[cfg(feature = "task-manager-channels")]
     pub fn spawn_task_manager(
         &mut self,
-        subscriptions_view_receiver: mpsc::Receiver<SubscriptionsView>,
         task_manager_message_receiver: mpsc::Receiver<DoubleEchoCommand>,
     ) -> mpsc::Receiver<(CertificateId, TaskStatus)> {
         let (task_completion_sender, task_completion_receiver) = mpsc::channel(2048);
@@ -105,7 +107,7 @@ impl DoubleEcho {
         let (task_manager, shutdown_receiver) = crate::task_manager_channels::TaskManager::new(
             task_manager_message_receiver,
             task_completion_sender,
-            subscriptions_view_receiver,
+            self.subscriptions.clone(),
             self.event_sender.clone(),
             self.validator_id,
             self.message_signer.clone(),
@@ -127,26 +129,15 @@ impl DoubleEcho {
     ///      the message
     pub(crate) async fn run(
         mut self,
-        mut subscriptions_view_receiver: mpsc::Receiver<SubscriptionsView>,
         task_manager_message_receiver: mpsc::Receiver<DoubleEchoCommand>,
     ) {
-        let (forwarding_subscriptions_sender, forwarding_subscriptions_receiver) =
-            mpsc::channel(2048);
-        let mut task_completion = self.spawn_task_manager(
-            forwarding_subscriptions_receiver,
-            task_manager_message_receiver,
-        );
+        let mut task_completion = self.spawn_task_manager(task_manager_message_receiver);
 
         info!("DoubleEcho started");
 
         let shutdowned: Option<oneshot::Sender<()>> = loop {
             tokio::select! {
                 biased;
-
-                Some(new_subscriptions_view) = subscriptions_view_receiver.recv() => {
-                    forwarding_subscriptions_sender.send(new_subscriptions_view.clone()).await.unwrap();
-                    self.subscriptions = new_subscriptions_view;
-                }
 
                 shutdown = self.shutdown.recv() => {
                         warn!("Double echo shutdown signal received {:?}", shutdown);
