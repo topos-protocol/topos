@@ -3,7 +3,6 @@ mod utils;
 use std::process::Command;
 
 use assert_cmd::prelude::*;
-use futures::FutureExt;
 use tonic::{Request, Response, Status};
 
 use topos_core::api::grpc::tce::v1::{
