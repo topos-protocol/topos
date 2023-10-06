@@ -6,7 +6,6 @@ use tce_transport::{ReliableBroadcastParams, ValidatorId};
 use tokio::sync::{broadcast, mpsc, oneshot};
 use topos_crypto::messages::MessageSigner;
 use topos_tce_broadcast::double_echo::DoubleEcho;
-use topos_tce_broadcast::sampler::SubscriptionsView;
 use topos_tce_storage::validator::ValidatorStore;
 use topos_test_sdk::certificates::create_certificate_chain;
 use topos_test_sdk::constants::{SOURCE_SUBNET_ID_1, TARGET_SUBNET_ID_1};
@@ -94,7 +93,7 @@ pub async fn processing_double_echo(n: u64, validator_store: Arc<ValidatorStore>
         payload.extend_from_slice(cert.certificate.id.as_array());
         payload.extend_from_slice(validator_id.as_bytes());
 
-        for p in &double_echo_selected_echo {
+        for _ in &double_echo_selected_echo {
             let signature = message_signer.sign_message(&payload).unwrap();
 
             double_echo
@@ -102,7 +101,7 @@ pub async fn processing_double_echo(n: u64, validator_store: Arc<ValidatorStore>
                 .await;
         }
 
-        for p in &double_echo_selected_ready {
+        for _ in &double_echo_selected_ready {
             let signature = message_signer.sign_message(&payload).unwrap();
 
             double_echo
