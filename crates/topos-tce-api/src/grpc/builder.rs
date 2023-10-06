@@ -63,6 +63,7 @@ impl ServerBuilder {
         }));
 
         let console = ConsoleServiceServer::new(TceConsoleService {
+            command_sender: command_sender.clone(),
             status: status.clone(),
         });
 

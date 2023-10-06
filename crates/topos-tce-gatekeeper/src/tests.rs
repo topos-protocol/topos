@@ -25,10 +25,7 @@ async fn can_start_and_stop() -> Result<(), Box<dyn std::error::Error>> {
 
 #[rstest]
 #[test(tokio::test)]
-async fn can_fetch_full_or_partial_list(
-    #[future] gatekeeper: Client,
-    #[with(10)] peer_list: Vec<PeerId>,
-) {
+async fn can_fetch_full_or_partial_list(#[future] gatekeeper: Client) {
     let gatekeeper = gatekeeper.await;
 
     assert_eq!(10, gatekeeper.get_all_peers().await.unwrap().len());

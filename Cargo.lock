@@ -7426,7 +7426,6 @@ dependencies = [
  "async-trait",
  "env_logger 0.10.0",
  "futures",
- "libp2p",
  "rand",
  "rstest",
  "test-log",

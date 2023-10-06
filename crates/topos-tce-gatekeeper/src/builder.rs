@@ -1,8 +1,8 @@
 use std::future::IntoFuture;
 
 use futures::{future::BoxFuture, FutureExt};
-use libp2p::PeerId;
 use tokio::sync::mpsc;
+use topos_p2p::PeerId;
 
 use crate::{client::Client, Gatekeeper, GatekeeperError};
 

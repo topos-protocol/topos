@@ -1,5 +1,7 @@
 use std::sync::Arc;
+use tokio::sync::mpsc::Sender;
 
+use crate::runtime::InternalRuntimeCommand;
 use tokio::sync::RwLock;
 use tonic::{Request, Response, Status};
 use topos_core::api::grpc::tce::v1::{
@@ -7,6 +9,7 @@ use topos_core::api::grpc::tce::v1::{
 };
 
 pub(crate) struct TceConsoleService {
+    pub(crate) command_sender: Sender<InternalRuntimeCommand>,
     pub(crate) status: Arc<RwLock<StatusResponse>>,
 }
 

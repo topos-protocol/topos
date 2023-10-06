@@ -1,8 +1,8 @@
 use crate::{GatekeeperCommand, GatekeeperError, GetAllPeers, GetAllSubnets, GetRandomPeers};
 use async_trait::async_trait;
-use libp2p::PeerId;
 use tokio::sync::{mpsc, oneshot};
 use topos_core::uci::SubnetId;
+use topos_p2p::PeerId;
 
 #[async_trait]
 pub trait GatekeeperClient: Send + Sync + 'static {

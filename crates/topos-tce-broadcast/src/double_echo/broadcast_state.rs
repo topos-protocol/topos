@@ -12,7 +12,7 @@ use topos_core::{
 };
 use topos_crypto::messages::MessageSigner;
 use topos_metrics::DOUBLE_ECHO_BROADCAST_FINISHED_TOTAL;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 mod status;
 
 pub use status::Status;
