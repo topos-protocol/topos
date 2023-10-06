@@ -9,9 +9,11 @@ use topos_tce_gatekeeper::{Client, GatekeeperError};
 
 pub async fn create_gatekeeper<P: Into<PeerId>>(
     peer_id: P,
+    peer_list: Vec<PeerId>,
 ) -> Result<(Client, JoinHandle<Result<(), GatekeeperError>>), Box<dyn Error>> {
     let (gatekeeper_client, gatekeeper_runtime) = topos_tce_gatekeeper::Gatekeeper::builder()
         .local_peer_id(peer_id.into())
+        .peer_list(peer_list)
         .await
         .expect("Can't create the Gatekeeper");
 

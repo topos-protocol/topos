@@ -7382,7 +7382,6 @@ dependencies = [
  "topos-metrics",
  "topos-p2p",
  "topos-tce-storage",
- "topos-tce-transport",
  "topos-test-sdk",
  "tower",
  "tower-http",

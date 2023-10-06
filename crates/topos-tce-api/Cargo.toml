@@ -12,7 +12,6 @@ topos-api = { path = "../topos-api", features = ["graphql"] }
 topos-core = { workspace = true, features = ["uci", "api"] }
 topos-metrics = { path = "../topos-metrics" }
 topos-tce-storage = { path = "../topos-tce-storage" }
-topos-tce-transport = { path = "../topos-tce-transport" }
 
 async-graphql-axum.workspace = true
 async-graphql.workspace = true

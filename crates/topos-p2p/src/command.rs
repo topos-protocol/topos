@@ -45,7 +45,7 @@ pub enum Command {
         sender: oneshot::Sender<Result<Vec<u8>, CommandExecutionError>>,
     },
 
-    /// Try to discover a peer based on its ValidatorId
+    /// Try to discover a peer based on its PeerId
     Discover {
         to: PeerId,
         sender: oneshot::Sender<Result<Vec<Multiaddr>, CommandExecutionError>>,

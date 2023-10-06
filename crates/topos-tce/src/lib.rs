@@ -70,6 +70,12 @@ pub async fn run(
     let mut boot_peers = config.boot_peers.clone();
     boot_peers.retain(|(p, _)| *p != peer_id);
 
+    let peer_list = boot_peers
+        .iter()
+        .map(|(p, _)| p.clone())
+        .collect::<Vec<_>>();
+
+    warn!("Building the network client");
     let (network_client, event_stream, unbootstrapped_runtime) = topos_p2p::network::builder()
         .peer_key(key)
         .listen_addr(addr)
@@ -79,23 +85,26 @@ pub async fn run(
         .build()
         .await?;
 
-    debug!("Starting the p2p network");
+    warn!("Succesfully built the p2p client");
+
+    warn!("Starting the p2p network");
     let network_runtime = tokio::time::timeout(
         config.network_bootstrap_timeout,
         unbootstrapped_runtime.bootstrap(),
     )
     .await??;
     let _network_handler = spawn(network_runtime.run());
-    debug!("p2p network started");
+    warn!("p2p network started");
 
-    debug!("Starting the gatekeeper");
+    warn!("Starting the gatekeeper");
     let (gatekeeper_client, gatekeeper_runtime) = topos_tce_gatekeeper::Gatekeeper::builder()
         .local_peer_id(peer_id)
+        .peer_list(peer_list)
         .await?;
     spawn(gatekeeper_runtime.into_future());
-    debug!("Gatekeeper started");
+    warn!("Gatekeeper started");
 
-    debug!("Starting the Storage");
+    warn!("Starting the Storage");
 
     let path = if let StorageConfiguration::RocksDB(Some(ref path)) = config.storage {
         path

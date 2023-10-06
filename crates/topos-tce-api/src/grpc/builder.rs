@@ -59,7 +59,7 @@ impl ServerBuilder {
             .expect("Cannot build gRPC without an InternalRuntimeCommand sender");
 
         let status = Arc::new(RwLock::new(StatusResponse {
-            has_active_sample: false,
+            has_active_sample: true,
         }));
 
         let console = ConsoleServiceServer::new(TceConsoleService {

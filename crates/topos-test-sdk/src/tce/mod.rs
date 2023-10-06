@@ -160,6 +160,11 @@ pub async fn start_node(
 ) -> TceContext {
     let peer_id = config.keypair.public().to_peer_id();
 
+    let known_peers = peers
+        .iter()
+        .map(|p| p.keypair.public().to_peer_id())
+        .collect::<Vec<_>>();
+
     let (network_client, network_stream, runtime_join_handle) = bootstrap_network(
         config.seed,
         config.port,
@@ -191,7 +196,8 @@ pub async fn start_node(
     )
     .await;
 
-    let (gatekeeper_client, gatekeeper_join_handle) = create_gatekeeper(peer_id).await.unwrap();
+    let (gatekeeper_client, gatekeeper_join_handle) =
+        create_gatekeeper(peer_id, known_peers).await.unwrap();
 
     let (synchronizer_stream, synchronizer_join_handle) = create_synchronizer(
         gatekeeper_client.clone(),
@@ -311,16 +317,16 @@ pub async fn create_network(
     // assert!(!join_all(await_peers).await.iter().any(|res| res.is_err()));
     // warn!("Peers connected");
 
-    for (peer_id, client) in peers_context.iter_mut() {
-        wait_for_event!(
-            client.event_stream.recv(),
-            matches: Events::StableSample,
-            peer_id,
-            15000
-        );
-    }
+    // for (peer_id, client) in peers_context.iter_mut() {
+    //     wait_for_event!(
+    //         client.event_stream.recv(),
+    //         matches: Events::StableSample,
+    //         peer_id,
+    //         15000
+    //     );
+    // }
 
-    warn!("Stable sample received");
+    // warn!("Stable sample received");
 
     // Waiting for new network view
     let mut await_peers = Vec::new();
