@@ -110,9 +110,8 @@ pub(crate) async fn handle_command(
             // FIXME: Handle properly the `cmd`
             let config = NodeConfig::new(&node_path, None);
             info!(
-                "⚙️ Reading the configuration from {}/{}/config.toml",
-                home.display(),
-                config.base.name
+                "⚙️ Reading the configuration from {}/config.toml",
+                node_path.display()
             );
 
             // Load genesis pointed by the local config
@@ -140,18 +139,37 @@ pub(crate) async fn handle_command(
             let mut processes = FuturesUnordered::new();
 
             // Edge
-            let data_dir = node_path.clone();
-            processes.push(services::spawn_edge_process(
-                edge_path.join(BINARY_NAME),
-                data_dir,
-                genesis.path.clone(),
-                config.edge.unwrap().args,
-            ));
+            if cmd.external_edge_node {
+                info!("Using external edge node, skip running of local edge instance...")
+            } else {
+                let data_dir = node_path.clone();
+                info!(
+                    "Spawning edge process with genesis file: {}, data directory: {}, additional \
+                     edge arguments: {:?}",
+                    genesis.path.display(),
+                    data_dir.display(),
+                    config.edge.as_ref().unwrap().args
+                );
+                processes.push(services::spawn_edge_process(
+                    edge_path.join(BINARY_NAME),
+                    data_dir,
+                    genesis.path.clone(),
+                    config.edge.unwrap().args,
+                ));
+            }
 
             // Sequencer
             if matches!(config.base.role, NodeRole::Sequencer) {
+                let sequencer_config = config
+                    .sequencer
+                    .clone()
+                    .expect("valid sequencer configuration");
+                info!(
+                    "Running sequencer with configuration {:?}",
+                    sequencer_config
+                );
                 processes.push(services::spawn_sequencer_process(
-                    config.sequencer.clone().unwrap(),
+                    sequencer_config,
                     &keys,
                     (shutdown_token.clone(), shutdown_sender.clone()),
                 ));
@@ -159,6 +177,7 @@ pub(crate) async fn handle_command(
 
             // TCE
             if config.base.subnet_id == "topos" {
+                info!("Running topos TCE service...",);
                 processes.push(services::spawn_tce_process(
                     config.tce.clone().unwrap(),
                     keys,

@@ -12,4 +12,9 @@ pub struct Up {
     /// If omitted, the local FS secrets manager is used
     #[arg(long, env = "TOPOS_SECRETS_MANAGER")]
     pub secrets_config: Option<String>,
+
+    /// Do not run background edge process as part of node
+    /// Usable for cases where edge edpoint is available as infura (or similar cluod provider) endpoint
+    #[arg(long, env = "EXTERNAL_EDGE_NODE", action)]
+    pub external_edge_node: bool,
 }
