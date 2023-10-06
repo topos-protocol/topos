@@ -19,7 +19,7 @@ use topos_core::{
     uci::{Certificate, SubnetId, SUBNET_ID_LENGTH},
 };
 use topos_test_sdk::{certificates::create_certificate_chains, tce::create_network};
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, warn};
 
 const NUMBER_OF_SUBNETS_PER_CLIENT: usize = 1;
 
@@ -79,6 +79,8 @@ async fn cert_delivery() {
             .into_iter()
             .map(|(s, v)| (s, v.into_iter().map(|v| v.certificate).collect::<Vec<_>>()))
             .collect::<HashMap<_, _>>();
+
+    error!("SUBNET CERTIFICATES: {:#?}", subnet_certificates);
 
     debug!(
         "Generated certificates for distribution per subnet: {:#?}",
@@ -169,6 +171,7 @@ async fn cert_delivery() {
             let mut resp_stream = response.into_inner();
             while let Some(received) = resp_stream.next().await {
                 let received = received.unwrap();
+
                 if let Some(Event::CertificatePushed(CertificatePushed {
                     certificate: Some(certificate),
                     ..
@@ -212,13 +215,13 @@ async fn cert_delivery() {
         let delivery_tx = delivery_tx.clone();
         let delivery_task = tokio::spawn(async move {
             // Read certificates that every client has received
-            info!("Delivery task for receiver {}", index);
+            error!("Delivery task for receiver {}", index);
             loop {
                 let x = client_delivered_certificates.recv().await;
 
                 match x {
                     Some((peer_id, target_subnet_id, cert)) => {
-                        info!(
+                        error!(
                             "Delivered certificate on peer_Id: {} cert id: {} from source subnet \
                              id: {} to target subnet id {}",
                             &peer_id, cert.id, cert.source_subnet_id, target_subnet_id
@@ -234,7 +237,7 @@ async fn cert_delivery() {
             }
             // We will end this loop when sending TCE client has dropped channel sender and there
             // are not certificates in channel
-            info!("End delivery task for receiver {}", index);
+            error!("End delivery task for receiver {}", index);
         });
         delivery_tasks.push(delivery_task);
     }

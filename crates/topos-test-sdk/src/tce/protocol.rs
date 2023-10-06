@@ -1,6 +1,5 @@
 use futures::Stream;
 use std::collections::HashSet;
-use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use topos_crypto::messages::MessageSigner;
@@ -9,9 +8,10 @@ use topos_tce_storage::types::CertificateDeliveredWithPositions;
 use topos_tce_storage::validator::ValidatorStore;
 use topos_tce_transport::{ProtocolEvents, ReliableBroadcastParams, ValidatorId};
 
-const PRIVATE_KEY: &str = "47d361f6becb933a77d7e01dee7b1c1859b656adbd8428bf7bf9519503e5d5d6";
-
 pub async fn create_reliable_broadcast_client(
+    validator_id: ValidatorId,
+    validators: HashSet<ValidatorId>,
+    message_signer: Arc<MessageSigner>,
     tce_params: ReliableBroadcastParams,
     storage: Arc<ValidatorStore>,
     sender: broadcast::Sender<CertificateDeliveredWithPositions>,
@@ -19,12 +19,6 @@ pub async fn create_reliable_broadcast_client(
     ReliableBroadcastClient,
     impl Stream<Item = ProtocolEvents> + Unpin,
 ) {
-    let message_signer = Arc::new(MessageSigner::from_str(PRIVATE_KEY).unwrap());
-
-    let mut validators = HashSet::new();
-    let validator_id = ValidatorId::from(message_signer.public_address);
-    validators.insert(validator_id);
-
     let config = ReliableBroadcastConfig {
         tce_params,
         validator_id,

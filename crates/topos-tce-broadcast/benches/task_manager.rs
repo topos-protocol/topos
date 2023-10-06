@@ -12,7 +12,7 @@ use topos_test_sdk::certificates::create_certificate_chain;
 use topos_test_sdk::constants::{SOURCE_SUBNET_ID_1, TARGET_SUBNET_ID_1};
 
 const CHANNEL_SIZE: usize = 256_000;
-const PRIVATE_KEY: &str = "47d361f6becb933a77d7e01dee7b1c1859b656adbd8428bf7bf9519503e5d5d6";
+const PRIVATE_KEY: &str = "d6f8d1fe6d0f3606ccb15ef383910f10d83ca77bf3d73007f12fef023dabaab9";
 
 struct TceParams {
     nb_peers: usize,
@@ -47,9 +47,7 @@ pub async fn processing_double_echo(n: u64, validator_store: Arc<ValidatorStore>
     for _ in 1..params.nb_peers {
         let private_key: [u8; 32] = rng.gen();
         validators.insert(ValidatorId::from(
-            MessageSigner::new(&hex::encode(private_key))
-                .unwrap()
-                .public_address,
+            MessageSigner::new(&private_key).unwrap().public_address,
         ));
     }
 

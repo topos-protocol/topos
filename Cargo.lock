@@ -7560,6 +7560,7 @@ dependencies = [
 name = "topos-test-sdk"
 version = "0.1.0"
 dependencies = [
+ "ethers",
  "futures",
  "hex",
  "lazy_static",

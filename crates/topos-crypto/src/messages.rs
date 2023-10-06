@@ -16,7 +16,7 @@ pub enum MessageSignerError {
 #[derive(Debug)]
 pub struct MessageSigner {
     pub public_address: Address,
-    wallet: LocalWallet,
+    pub wallet: LocalWallet,
 }
 
 impl FromStr for MessageSigner {

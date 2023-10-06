@@ -70,10 +70,7 @@ pub async fn run(
     let mut boot_peers = config.boot_peers.clone();
     boot_peers.retain(|(p, _)| *p != peer_id);
 
-    let peer_list = boot_peers
-        .iter()
-        .map(|(p, _)| p.clone())
-        .collect::<Vec<_>>();
+    let peer_list = boot_peers.iter().map(|(p, _)| *p).collect::<Vec<_>>();
 
     warn!("Building the network client");
     let (network_client, event_stream, unbootstrapped_runtime) = topos_p2p::network::builder()

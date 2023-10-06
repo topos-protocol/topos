@@ -12,7 +12,7 @@ use topos_core::{
 };
 use topos_crypto::messages::MessageSigner;
 use topos_metrics::DOUBLE_ECHO_BROADCAST_FINISHED_TOTAL;
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, warn};
 mod status;
 
 pub use status::Status;
@@ -100,17 +100,17 @@ impl BroadcastState {
         }
     }
 
-    pub fn apply_echo(&mut self, valdiator_id: ValidatorId) -> Option<Status> {
-        if self.subscriptions_view.echo.remove(&valdiator_id) {
+    pub fn apply_echo(&mut self, validator_id: ValidatorId) -> Option<Status> {
+        if self.subscriptions_view.echo.remove(&validator_id) {
             self.update_status()
         } else {
             None
         }
     }
 
-    pub fn apply_ready(&mut self, valdiator_id: ValidatorId) -> Option<Status> {
-        if self.subscriptions_view.ready.remove(&valdiator_id) {
-            self.readies.insert(valdiator_id.to_string());
+    pub fn apply_ready(&mut self, validator_id: ValidatorId) -> Option<Status> {
+        if self.subscriptions_view.ready.remove(&validator_id) {
+            self.readies.insert(validator_id.to_string());
             self.update_status()
         } else {
             None

@@ -12,8 +12,7 @@ use topos_test_sdk::constants::*;
 use topos_test_sdk::storage::create_validator_store;
 
 const CHANNEL_SIZE: usize = 10;
-const PRIVATE_KEY: &str = "47d361f6becb933a77d7e01dee7b1c1859b656adbd8428bf7bf9519503e5d5d6";
-const PRIVATE_KEY_1: &str = "d6f8d1fe6d0f3606ccb15ef383910f10d83ca77bf3d73007f12fef023dabaab9";
+const PRIVATE_KEY: &str = "d6f8d1fe6d0f3606ccb15ef383910f10d83ca77bf3d73007f12fef023dabaab9";
 
 #[fixture]
 fn small_config() -> TceParams {
@@ -60,7 +59,7 @@ async fn create_context(params: TceParams) -> (DoubleEcho, Context) {
 
     let mut rng = rand::thread_rng();
 
-    let message_signer = Arc::new(MessageSigner::from_str(PRIVATE_KEY_1).unwrap());
+    let message_signer = Arc::new(MessageSigner::from_str(PRIVATE_KEY).unwrap());
 
     let mut validators = HashSet::new();
     let validator_id = ValidatorId::from(message_signer.public_address);

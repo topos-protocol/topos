@@ -16,7 +16,7 @@ pub enum ValidatorIdConversionError {
     InvalidByteLength,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
+#[derive(Clone, Copy, Default, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct ValidatorId(H160);
 
 impl ValidatorId {
