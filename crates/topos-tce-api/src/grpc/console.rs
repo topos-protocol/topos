@@ -9,6 +9,7 @@ use topos_core::api::grpc::tce::v1::{
 };
 
 pub(crate) struct TceConsoleService {
+    #[allow(dead_code)]
     pub(crate) command_sender: Sender<InternalRuntimeCommand>,
     pub(crate) status: Arc<RwLock<StatusResponse>>,
 }
