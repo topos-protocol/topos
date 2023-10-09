@@ -7820,6 +7820,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tokio-util",
+ "tonic 0.10.2",
  "topos-core",
  "topos-p2p",
  "topos-tce-gatekeeper",

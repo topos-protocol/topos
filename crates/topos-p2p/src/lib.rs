@@ -58,12 +58,6 @@ pub mod utils {
 
     use crate::command::Command;
 
-    pub(crate) struct NewProxiedQuery {
-        pub(crate) peer: PeerId,
-        pub(crate) id: uuid::Uuid,
-        pub(crate) response: oneshot::Sender<Channel>,
-    }
-
     #[derive(Clone)]
     pub struct GrpcOverP2P {
         pub(crate) proxy_sender: mpsc::Sender<Command>,

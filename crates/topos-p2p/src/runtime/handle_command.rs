@@ -24,7 +24,7 @@ impl Runtime {
                     .grpc
                     .open_outbound_connection(&peer);
 
-                response.send(connection);
+                _ = response.send(connection);
             }
             Command::StartListening { peer_addr, sender } => {
                 if sender.send(self.start_listening(peer_addr)).is_err() {

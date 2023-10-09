@@ -25,9 +25,9 @@ async fn put_value_in_dht() {
     let peer_1 = NodeConfig::from_seed(1);
     let peer_2 = NodeConfig::from_seed(2);
 
-    let (_client, _, _, join) = peer_1.bootstrap(&[], None).await.unwrap();
+    let (_client, _, join) = peer_1.bootstrap(&[], None).await.unwrap();
 
-    let (_, _, _, runtime) = crate::network::builder()
+    let (_, _, runtime) = crate::network::builder()
         .peer_key(peer_2.keypair.clone())
         .known_peers(&[(peer_1.peer_id(), peer_1.addr.clone())])
         .exposed_addresses(peer_2.addr.clone())

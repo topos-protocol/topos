@@ -13,8 +13,8 @@ use topos_core::{
         self,
         shared::v1::Uuid as APIUuid,
         tce::v1::{
-            CheckpointRequest, CheckpointResponse, FetchCertificatesRequest,
-            FetchCertificatesResponse,
+            synchronizer_service_client::SynchronizerServiceClient, CheckpointRequest,
+            CheckpointResponse, FetchCertificatesRequest, FetchCertificatesResponse,
         },
     },
     errors::GrpcParsingError,
@@ -100,6 +100,8 @@ enum SyncError {
     UnableToFetchTargetPeer,
 
     #[error("Unable to parse subnet id")]
+    // TODO: Check if needed after full merge of grpc over p2p
+    #[allow(unused)]
     UnableToParseSubnetId,
 
     #[error("Gatekeeper returned no peer")]
@@ -152,10 +154,13 @@ impl<G: GatekeeperClient, N: NetworkClient> CheckpointSynchronizer<G, N> {
         };
 
         debug!("Asking {} for latest checkpoint", peer);
-        let response: CheckpointResponse = self
+        let mut client: SynchronizerServiceClient<_> = self
             .network
-            .send_request(peer, req, RetryPolicy::NoRetry, SYNCHRONIZER_PROTOCOL)
-            .await?;
+            .new_grpc_client::<SynchronizerServiceClient<_>, SynchronizerServiceClient<_>>(peer)
+            .await
+            .unwrap();
+
+        let response: CheckpointResponse = client.fetch_checkpoint(req).await.unwrap().into_inner();
 
         let diff = response
             .checkpoint_diff

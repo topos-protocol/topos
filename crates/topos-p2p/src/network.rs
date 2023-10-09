@@ -9,8 +9,8 @@ use crate::{
     command,
     config::{DiscoveryConfig, NetworkConfig},
     constant::{
-        COMMAND_STREAM_BUFFER_SIZE, DISCOVERY_PROTOCOL, EVENT_STREAM_BUFFER, PEER_INFO_PROTOCOL,
-        SYNCHRONIZER_PROTOCOL, TRANSMISSION_PROTOCOL,
+        self, COMMAND_STREAM_BUFFER_SIZE, DISCOVERY_PROTOCOL, EVENT_STREAM_BUFFER,
+        PEER_INFO_PROTOCOL, SYNCHRONIZER_PROTOCOL, TRANSMISSION_PROTOCOL,
     },
     error::P2PError,
     temp_grpc::Synchronizer,
@@ -140,17 +140,7 @@ impl<'a> NetworkBuilder<'a> {
         self
     }
 
-    pub async fn build(
-        mut self,
-    ) -> Result<
-        (
-            Client,
-            impl Stream<Item = Event>,
-            HashMap<&'static str, mpsc::Receiver<Vec<u8>>>,
-            Runtime,
-        ),
-        P2PError,
-    > {
+    pub async fn build(mut self) -> Result<(Client, impl Stream<Item = Event>, Runtime), P2PError> {
         let peer_key = self.peer_key.ok_or(P2PError::MissingPeerKey)?;
         let peer_id = peer_key.public().to_peer_id();
 
@@ -200,19 +190,12 @@ impl<'a> NetworkBuilder<'a> {
             .timeout(TWO_HOURS)
             .boxed();
 
-        let swarm = SwarmBuilder::with_tokio_executor(transport, behaviour, peer_id).build();
+        let swarm = SwarmBuilder::with_tokio_executor(transport, behaviour, peer_id)
+            .idle_connection_timeout(Duration::from_secs(
+                constant::IDLE_CONNECTION_TIMEOUT_SECONDS,
+            ))
+            .build();
         let (shutdown_channel, shutdown) = mpsc::channel::<oneshot::Sender<()>>(1);
-
-        let (sender_transmission, recv_transmission) = mpsc::channel(*EVENT_STREAM_BUFFER);
-        let (sender_synchronizer, recv_synchronizer) = mpsc::channel(*EVENT_STREAM_BUFFER);
-
-        let mut request_sender = HashMap::new();
-        request_sender.insert(TRANSMISSION_PROTOCOL, sender_transmission);
-        request_sender.insert(SYNCHRONIZER_PROTOCOL, sender_synchronizer);
-
-        let mut request_receivers = HashMap::new();
-        request_receivers.insert(TRANSMISSION_PROTOCOL, recv_transmission);
-        request_receivers.insert(SYNCHRONIZER_PROTOCOL, recv_synchronizer);
 
         let grpc_over_p2p = GrpcOverP2P {
             proxy_sender: command_sender.clone(),
@@ -227,10 +210,8 @@ impl<'a> NetworkBuilder<'a> {
                 shutdown_channel,
             },
             ReceiverStream::new(event_receiver),
-            request_receivers,
             Runtime {
                 swarm,
-                request_sender,
                 config: self.config,
                 peer_set: self.known_peers.iter().map(|(p, _)| *p).collect(),
                 is_boot_node: self.known_peers.is_empty(),

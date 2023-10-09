@@ -49,8 +49,6 @@ pub struct Runtime {
     pub(crate) bootstrapped: bool,
     pub(crate) is_boot_node: bool,
 
-    pub(crate) request_sender: HashMap<&'static str, mpsc::Sender<Vec<u8>>>,
-
     pub(crate) pending_requests: PendingRequests,
 
     /// Contains peer ids of dialled node
