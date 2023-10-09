@@ -11,8 +11,9 @@ use topos_tce_storage::{
 };
 
 use crate::{
-    graphql::builder::ServerBuilder as GraphQLBuilder, grpc::builder::ServerBuilder,
-    metrics::builder::ServerBuilder as MetricsBuilder, Runtime, RuntimeClient, RuntimeEvent,
+    constants::CHANNEL_SIZE, graphql::builder::ServerBuilder as GraphQLBuilder,
+    grpc::builder::ServerBuilder, metrics::builder::ServerBuilder as MetricsBuilder, Runtime,
+    RuntimeClient, RuntimeEvent,
 };
 
 #[derive(Default)]
@@ -86,8 +87,9 @@ impl RuntimeBuilder {
         impl Stream<Item = RuntimeEvent>,
         RuntimeContext,
     ) {
-        let (command_sender, internal_runtime_command_receiver) = mpsc::channel(2048);
-        let (api_event_sender, api_event_receiver) = mpsc::channel(2048);
+        let (internal_runtime_command_sender, internal_runtime_command_receiver) =
+            mpsc::channel(CHANNEL_SIZE);
+        let (api_event_sender, api_event_receiver) = mpsc::channel(CHANNEL_SIZE);
 
         let (health_reporter, tce_status, grpc) = ServerBuilder::default()
             .with_store(
@@ -97,12 +99,12 @@ impl RuntimeBuilder {
                     .expect("Unable to build gRPC Server, Store is missing"),
             )
             .with_peer_id(self.local_peer_id)
-            .command_sender(command_sender.clone())
+            .command_sender(internal_runtime_command_sender.clone())
             .serve_addr(self.grpc_socket_addr)
             .build()
             .await;
 
-        let (command_sender, runtime_command_receiver) = mpsc::channel(2048);
+        let (command_sender, runtime_command_receiver) = mpsc::channel(CHANNEL_SIZE);
         let (shutdown_channel, shutdown_receiver) = mpsc::channel::<oneshot::Sender<()>>(1);
 
         let grpc_handler = spawn(grpc);
@@ -117,6 +119,7 @@ impl RuntimeBuilder {
                         .map(|store| store.get_fullnode_store())
                         .expect("Unable to build GraphQL Server, Store is missing"),
                 )
+                .runtime(internal_runtime_command_sender.clone())
                 .serve_addr(Some(graphql_addr))
                 .build();
             spawn(graphql.await)
@@ -159,6 +162,7 @@ impl RuntimeBuilder {
             api_event_sender,
             shutdown: shutdown_receiver,
             streams: Default::default(),
+            transient_streams: HashMap::new(),
         };
         let runtime_handler = spawn(runtime.launch());
 

@@ -1,12 +1,15 @@
 use rstest::*;
 use std::time::Duration;
+use tokio::sync::{mpsc, oneshot};
+use tokio_stream::StreamExt;
 use topos_core::uci::{Certificate, SUBNET_ID_LENGTH};
 use topos_test_sdk::constants::{PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID_2, TARGET_SUBNET_ID_1};
+use uuid::Uuid;
 
 use self::utils::StreamBuilder;
 use crate::grpc::messaging::{OutboundMessage, StreamOpened};
 use crate::runtime::InternalRuntimeCommand;
-use crate::stream::{StreamError, StreamErrorKind};
+use crate::stream::{StreamError, StreamErrorKind, TransientStream};
 use crate::tests::encode;
 use crate::wait_for_command;
 use test_log::test;
@@ -212,3 +215,47 @@ async fn closing_client_stream() {}
 #[test(tokio::test)]
 #[ignore = "not yet implemented"]
 async fn closing_server_stream() {}
+
+#[test(tokio::test)]
+async fn opening_transient_stream() {
+    let (_sender, receiver) = mpsc::channel(1);
+    let (notifier, check) = oneshot::channel();
+    let id = Uuid::new_v4();
+
+    let stream = TransientStream {
+        inner: receiver,
+        stream_id: id,
+        notifier: Some(notifier),
+    };
+
+    tokio::spawn(async move {
+        drop(stream);
+    });
+
+    let res = check.await;
+
+    assert_eq!(res.unwrap(), id);
+}
+
+#[test(tokio::test)]
+async fn opening_transient_stream_drop_sender() {
+    let (sender, receiver) = mpsc::channel(1);
+    let (notifier, check) = oneshot::channel();
+    let id = Uuid::new_v4();
+
+    let mut stream = TransientStream {
+        inner: receiver,
+        stream_id: id,
+        notifier: Some(notifier),
+    };
+
+    let handle = tokio::spawn(async move { while stream.next().await.is_some() {} });
+
+    tokio::time::sleep(Duration::from_millis(10)).await;
+    drop(sender);
+
+    let res = check.await;
+
+    assert_eq!(res.unwrap(), id);
+    assert!(handle.is_finished());
+}
