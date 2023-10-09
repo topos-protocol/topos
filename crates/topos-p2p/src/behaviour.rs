@@ -13,6 +13,7 @@ use libp2p::{
 
 pub(crate) mod discovery;
 pub(crate) mod gossip;
+pub(crate) mod grpc;
 pub(crate) mod peer_info;
 pub(crate) mod topos;
 pub(crate) mod transmission;
