@@ -5,12 +5,13 @@ use libp2p::PeerId;
 use tokio::spawn;
 use tokio::task::JoinHandle;
 
-use topos_tce_gatekeeper::{Client, GatekeeperError};
+use topos_tce_gatekeeper::GatekeeperClient;
+use topos_tce_gatekeeper::GatekeeperError;
 
 pub async fn create_gatekeeper<P: Into<PeerId>>(
     peer_id: P,
     peer_list: Vec<P>,
-) -> Result<(Client, JoinHandle<Result<(), GatekeeperError>>), Box<dyn Error>> {
+) -> Result<(GatekeeperClient, JoinHandle<Result<(), GatekeeperError>>), Box<dyn Error>> {
     let (gatekeeper_client, gatekeeper_runtime) = topos_tce_gatekeeper::Gatekeeper::builder()
         .local_peer_id(peer_id.into())
         .peer_list(peer_list.into_iter().map(|p| p.into()).collect())

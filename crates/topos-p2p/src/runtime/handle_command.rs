@@ -1,12 +1,12 @@
 use std::collections::hash_map::Entry;
 
-use crate::{
-    behaviour::transmission::codec::{TransmissionRequest, TransmissionResponse},
-    constants::SYNCHRONIZER_PROTOCOL,
-    error::P2PError,
-    Command, Runtime,
+use crate::{error::P2PError, Command, Runtime};
+use libp2p::{
+    gossipsub::IdentTopic,
+    kad::{record::Key, Quorum},
+    swarm::NetworkBehaviour,
+    PeerId,
 };
-use libp2p::{kad::record::Key, PeerId};
 use topos_metrics::P2P_MESSAGE_SENT_ON_GOSSIPSUB_TOTAL;
 use tracing::{debug, error, info, warn};
 
@@ -123,56 +123,6 @@ impl Runtime {
                 } else {
                     _ = sender.send(Ok(addr));
                 }
-            }
-
-            Command::TransmissionReq {
-                to,
-                data,
-                sender,
-                protocol,
-            } => {
-                let request_id = match protocol {
-                    SYNCHRONIZER_PROTOCOL => self
-                        .swarm
-                        .behaviour_mut()
-                        .synchronizer
-                        .send_request(&to, TransmissionRequest::Synchronizer(data)),
-                    _ => self
-                        .swarm
-                        .behaviour_mut()
-                        .transmission
-                        .send_request(&to, TransmissionRequest::Transmission(data)),
-                };
-
-                info!("Created a transmission request {request_id:?} for {to}");
-
-                if let Some(id) = self.pending_requests.insert(request_id, sender) {
-                    warn!("Transmission request {id:?} was overwritten by {request_id:?}",);
-                }
-            }
-
-            Command::TransmissionResponse {
-                data,
-                channel,
-                protocol,
-            } => {
-                match protocol {
-                    SYNCHRONIZER_PROTOCOL => {
-                        _ = self
-                            .swarm
-                            .behaviour_mut()
-                            .synchronizer
-                            .send_response(channel, data.map(TransmissionResponse::Synchronizer))
-                    }
-
-                    _ => {
-                        _ = self
-                            .swarm
-                            .behaviour_mut()
-                            .transmission
-                            .send_response(channel, data.map(TransmissionResponse::Transmission))
-                    }
-                };
             }
 
             Command::Gossip { topic, data } => {

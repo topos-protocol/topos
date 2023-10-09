@@ -10,9 +10,7 @@ mod runtime;
 #[cfg(test)]
 mod tests;
 
-pub use behaviour::transmission::codec::TransmissionResponse;
 pub(crate) use behaviour::Behaviour;
-pub use client::Client;
 pub use client::NetworkClient;
 pub use client::RetryPolicy;
 pub(crate) use command::Command;

@@ -32,7 +32,7 @@ use topos_core::types::CertificateDelivered;
 use topos_core::types::ValidatorId;
 use topos_core::uci::SubnetId;
 use topos_crypto::messages::MessageSigner;
-use topos_p2p::{error::P2PError, Client, Event, Runtime};
+use topos_p2p::{error::P2PError, Event, NetworkClient, Runtime};
 use topos_tce::{events::Events, AppContext};
 use topos_tce_api::RuntimeContext;
 use topos_tce_storage::StorageClient;
@@ -131,7 +131,7 @@ impl NodeConfig {
         router: Option<Router>,
     ) -> Result<
         (
-            Client,
+            NetworkClient,
             impl Stream<Item = Event> + Unpin + Send,
             JoinHandle<Result<(), ()>>,
         ),
@@ -152,7 +152,7 @@ impl NodeConfig {
         &self,
         peers: &[NodeConfig],
         router: Option<Router>,
-    ) -> Result<(Client, impl Stream<Item = Event>, Runtime), P2PError> {
+    ) -> Result<(NetworkClient, impl Stream<Item = Event>, Runtime), P2PError> {
         create_network_worker(
             self.seed,
             self.port,

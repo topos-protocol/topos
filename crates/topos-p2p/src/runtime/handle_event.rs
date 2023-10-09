@@ -10,7 +10,6 @@ mod discovery;
 mod gossipsub;
 mod grpc;
 mod peer_info;
-mod transmission;
 
 #[async_trait::async_trait]
 pub(crate) trait EventHandler<T> {
@@ -32,7 +31,6 @@ impl EventHandler<ComposedEvent> for Runtime {
         match event {
             ComposedEvent::Kademlia(event) => self.handle(event).await,
             ComposedEvent::PeerInfo(event) => self.handle(event).await,
-            ComposedEvent::Transmission(event) => self.handle(event).await,
             ComposedEvent::Gossipsub(event) => self.handle(event).await,
             ComposedEvent::Grpc(event) => self.handle(event).await,
             ComposedEvent::Void => (),
@@ -45,13 +43,7 @@ impl
     EventHandler<
         SwarmEvent<
             ComposedEvent,
-            Either<
-                Either<
-                    Either<Either<Either<std::io::Error, std::io::Error>, void::Void>, void::Void>,
-                    void::Void,
-                >,
-                void::Void,
-            >,
+            Either<Either<Either<std::io::Error, std::io::Error>, void::Void>, void::Void>,
         >,
     > for Runtime
 {
@@ -59,13 +51,7 @@ impl
         &mut self,
         event: SwarmEvent<
             ComposedEvent,
-            Either<
-                Either<
-                    Either<Either<Either<std::io::Error, std::io::Error>, void::Void>, void::Void>,
-                    void::Void,
-                >,
-                void::Void,
-            >,
+            Either<Either<Either<std::io::Error, std::io::Error>, void::Void>, void::Void>,
         >,
     ) {
         match event {

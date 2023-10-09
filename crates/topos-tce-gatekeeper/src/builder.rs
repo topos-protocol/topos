@@ -4,7 +4,7 @@ use futures::{future::BoxFuture, FutureExt};
 use tokio::sync::mpsc;
 use topos_p2p::PeerId;
 
-use crate::{client::Client, Gatekeeper, GatekeeperError};
+use crate::{client::GatekeeperClient, Gatekeeper, GatekeeperError};
 
 #[derive(Default)]
 pub struct GatekeeperBuilder {
@@ -30,7 +30,7 @@ impl GatekeeperBuilder {
 }
 
 impl IntoFuture for GatekeeperBuilder {
-    type Output = Result<(Client, Gatekeeper), GatekeeperError>;
+    type Output = Result<(GatekeeperClient, Gatekeeper), GatekeeperError>;
 
     type IntoFuture = BoxFuture<'static, Self::Output>;
 
@@ -39,7 +39,7 @@ impl IntoFuture for GatekeeperBuilder {
         let (commands, commands_recv) = mpsc::channel(100);
 
         futures::future::ok((
-            Client {
+            GatekeeperClient {
                 shutdown_channel,
                 commands,
             },

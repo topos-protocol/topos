@@ -3,12 +3,13 @@ use std::time::Duration;
 use rstest::rstest;
 use topos_core::{
     api::grpc::tce::v1::{
+        synchronizer_service_client::SynchronizerServiceClient,
         synchronizer_service_server::SynchronizerServiceServer, CheckpointMapFieldEntry,
-        CheckpointRequest, CheckpointResponse, FetchCertificatesRequest, FetchCertificatesResponse,
+        CheckpointRequest, CheckpointResponse, FetchCertificatesRequest,
     },
     types::CertificateDelivered,
 };
-use topos_p2p::{constants::SYNCHRONIZER_PROTOCOL, NetworkClient, RetryPolicy};
+
 use topos_test_sdk::{
     certificates::create_certificate_chain,
     storage::{create_fullnode_store, create_validator_store},
@@ -102,17 +103,14 @@ async fn check_fetch_certificates() {
             .collect(),
     };
 
-    let res = client
-        .send_request::<_, FetchCertificatesResponse>(
-            boot_node.keypair.public().to_peer_id(),
-            req,
-            RetryPolicy::NoRetry,
-            SYNCHRONIZER_PROTOCOL,
-        )
-        .await;
+    let mut client: SynchronizerServiceClient<_> = client
+        .new_grpc_client::<SynchronizerServiceClient<_>>(boot_node.keypair.public().to_peer_id())
+        .await
+        .unwrap();
 
+    let res = client.fetch_certificates(req).await;
     assert!(res.is_ok());
-    let res = res.unwrap();
+    let res = res.unwrap().into_inner();
 
     let expected = certificates
         .into_iter()

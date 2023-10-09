@@ -5,10 +5,7 @@ use libp2p::{
     PeerId,
 };
 
-use crate::behaviour::{
-    grpc,
-    transmission::codec::{TransmissionRequest, TransmissionResponse},
-};
+use crate::behaviour::grpc;
 
 #[derive(Debug)]
 pub struct GossipEvent {
@@ -20,7 +17,6 @@ pub struct GossipEvent {
 #[derive(Debug)]
 pub enum ComposedEvent {
     Kademlia(Box<KademliaEvent>),
-    Transmission(RequestResponseEvent<TransmissionRequest, Result<TransmissionResponse, ()>>),
     PeerInfo(Box<identify::Event>),
     Gossipsub(GossipEvent),
     Grpc(grpc::Event),
@@ -44,16 +40,6 @@ impl From<identify::Event> for ComposedEvent {
     }
 }
 
-impl From<RequestResponseEvent<TransmissionRequest, Result<TransmissionResponse, ()>>>
-    for ComposedEvent
-{
-    fn from(
-        event: RequestResponseEvent<TransmissionRequest, Result<TransmissionResponse, ()>>,
-    ) -> Self {
-        Self::Transmission(event)
-    }
-}
-
 impl From<void::Void> for ComposedEvent {
     fn from(_: void::Void) -> Self {
         Self::Void
@@ -62,24 +48,7 @@ impl From<void::Void> for ComposedEvent {
 
 #[derive(Debug)]
 pub enum Event {
-    PeerDisconnected {
-        peer_id: PeerId,
-    },
-    PeersChanged {
-        new_peers: Vec<PeerId>,
-    },
-    Gossip {
-        from: PeerId,
-        data: Vec<u8>,
-    },
-    SynchronizerRequest {
-        from: PeerId,
-        data: Vec<u8>,
-        channel: ResponseChannel<Result<TransmissionResponse, ()>>,
-    },
-    TransmissionOnReq {
-        from: PeerId,
-        data: Vec<u8>,
-        channel: ResponseChannel<Result<TransmissionResponse, ()>>,
-    },
+    PeerDisconnected { peer_id: PeerId },
+    PeersChanged { new_peers: Vec<PeerId> },
+    Gossip { from: PeerId, data: Vec<u8> },
 }

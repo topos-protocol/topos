@@ -19,28 +19,16 @@ tonic = { workspace = true, default-features = false, features = [
     "codegen",
     "transport",
 ] }
-ethereum-types.workspace = true
+
+async-graphql.workspace = true
+async-trait.workspace = true
+base64ct.workspace = true
 hex.workspace = true
 prost.workspace = true
-thiserror.workspace = true
-uuid.workspace = true
-base64ct.workspace = true
-axum.workspace = true
-async-graphql.workspace = true
-async-graphql-axum.workspace = true
 serde = { workspace = true, features = ["derive"] }
-async-trait.workspace = true
+thiserror.workspace = true
 tracing.workspace = true
-http.workspace = true
-bytes.workspace = true
-http-body = "0.4.5"
-bincode.workspace = true
-tokio.workspace = true
-tokio-util.workspace = true
-rstest.workspace = true
-h2 = "0.3.21"
-tower.workspace = true
-http-body-util = "0.1.0-rc.3"
+uuid.workspace = true
 
 [build-dependencies]
 tonic-build = { workspace = true, default-features = false, features = [
@@ -49,11 +37,12 @@ tonic-build = { workspace = true, default-features = false, features = [
 
 [dev-dependencies]
 async-stream.workspace = true
+env_logger.workspace = true
 futures.workspace = true
+rstest.workspace = true
+test-log.workspace = true
 tokio-stream.workspace = true
 tokio.workspace = true
-test-log.workspace = true
-env_logger.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 tracing.workspace = true
 

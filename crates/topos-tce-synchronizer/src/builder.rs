@@ -3,8 +3,8 @@ use std::{future::IntoFuture, sync::Arc};
 use tokio::{spawn, sync::mpsc};
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_util::sync::CancellationToken;
-use topos_p2p::Client as NetworkClient;
-use topos_tce_gatekeeper::Client as GatekeeperClient;
+use topos_p2p::NetworkClient;
+use topos_tce_gatekeeper::GatekeeperClient;
 use topos_tce_storage::validator::ValidatorStore;
 
 use crate::{

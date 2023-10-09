@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::oneshot;
 
 use crate::{
-    behaviour::{grpc::connection::OutboundConnection, transmission::codec::TransmissionResponse},
+    behaviour::grpc::connection::OutboundConnection,
     error::{CommandExecutionError, P2PError},
 };
 
@@ -37,25 +37,10 @@ pub enum Command {
         sender: oneshot::Sender<Result<(), P2PError>>,
     },
 
-    /// Send a TransmissionReq to multiple nodes
-    TransmissionReq {
-        to: PeerId,
-        data: Vec<u8>,
-        protocol: &'static str,
-        sender: oneshot::Sender<Result<Vec<u8>, CommandExecutionError>>,
-    },
-
     /// Try to discover a peer based on its PeerId
     Discover {
         to: PeerId,
         sender: oneshot::Sender<Result<Vec<Multiaddr>, CommandExecutionError>>,
-    },
-
-    /// Send a TransmissionReq to multiple nodes
-    TransmissionResponse {
-        data: Result<Vec<u8>, ()>,
-        protocol: &'static str,
-        channel: ResponseChannel<Result<TransmissionResponse, ()>>,
     },
 
     Gossip {
@@ -81,11 +66,9 @@ impl Display for Command {
             Command::Dial { peer_id, .. } => write!(f, "Dial({peer_id})"),
             Command::ConnectedPeers { .. } => write!(f, "ConnectedPeers"),
             Command::Disconnect { .. } => write!(f, "Disconnect"),
-            Command::TransmissionReq { to, .. } => write!(f, "TransmissionReq(to: {to})"),
             Command::Gossip { .. } => write!(f, "GossipMessage"),
             Command::NewProxiedQuery { .. } => write!(f, "NewProxiedQuery"),
             Command::Discover { to, .. } => write!(f, "Discover(to: {to})"),
-            Command::TransmissionResponse { .. } => write!(f, "TransmissionResponse"),
         }
     }
 }

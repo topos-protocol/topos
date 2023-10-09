@@ -1,13 +1,11 @@
-use super::{Behaviour, Client, Event, Runtime};
+use super::{Behaviour, Event, NetworkClient, Runtime};
 use crate::{
-    behaviour::{
-        discovery::DiscoveryBehaviour, gossip, grpc, peer_info::PeerInfoBehaviour,
-        transmission::TransmissionBehaviour,
-    },
+    behaviour::{discovery::DiscoveryBehaviour, gossip, grpc, peer_info::PeerInfoBehaviour},
+    command,
     config::{DiscoveryConfig, NetworkConfig},
     constants::{
         self, COMMAND_STREAM_BUFFER_SIZE, DISCOVERY_PROTOCOL, EVENT_STREAM_BUFFER,
-        PEER_INFO_PROTOCOL, SYNCHRONIZER_PROTOCOL, TRANSMISSION_PROTOCOL,
+        PEER_INFO_PROTOCOL,
     },
     error::P2PError,
     utils::GrpcOverP2P,
@@ -125,7 +123,9 @@ impl<'a> NetworkBuilder<'a> {
         self
     }
 
-    pub async fn build(mut self) -> Result<(Client, impl Stream<Item = Event>, Runtime), P2PError> {
+    pub async fn build(
+        mut self,
+    ) -> Result<(NetworkClient, impl Stream<Item = Event>, Runtime), P2PError> {
         let peer_key = self.peer_key.ok_or(P2PError::MissingPeerKey)?;
         let peer_id = peer_key.public().to_peer_id();
 
@@ -151,8 +151,6 @@ impl<'a> NetworkBuilder<'a> {
                 self.known_peers,
                 false,
             ),
-            transmission: TransmissionBehaviour::create(StreamProtocol::new(TRANSMISSION_PROTOCOL)),
-            synchronizer: TransmissionBehaviour::create(StreamProtocol::new(SYNCHRONIZER_PROTOCOL)),
             grpc,
         };
 
@@ -185,7 +183,7 @@ impl<'a> NetworkBuilder<'a> {
         };
 
         Ok((
-            Client {
+            NetworkClient {
                 retry_ttl: self.config.client_retry_ttl,
                 local_peer_id: peer_id,
                 sender: command_sender,
@@ -210,7 +208,6 @@ impl<'a> NetworkBuilder<'a> {
                     .take()
                     .expect("P2P runtime expect a MultiAddr"),
                 bootstrapped: false,
-                pending_requests: HashMap::new(),
                 pending_dial: HashMap::new(),
                 active_listeners: HashSet::new(),
                 peers: HashSet::new(),

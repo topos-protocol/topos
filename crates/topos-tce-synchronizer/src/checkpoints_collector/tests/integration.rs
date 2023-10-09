@@ -1,20 +1,21 @@
 use std::time::Duration;
 
 use rstest::rstest;
+use test_log::test;
 use topos_core::{
     api::grpc::tce::v1::{
         synchronizer_service_client::SynchronizerServiceClient, FetchCertificatesRequest,
     },
     types::CertificateDelivered,
 };
-use topos_p2p::NetworkClient;
+
 use topos_test_sdk::{
     certificates::create_certificate_chain,
     tce::{create_network, NodeConfig},
 };
 use uuid::Uuid;
 
-use test_log::test;
+mod mock;
 
 #[rstest]
 #[test(tokio::test)]
@@ -45,7 +46,7 @@ async fn network_test() {
     let peer = boot_node.keypair.public().to_peer_id();
 
     let mut client: SynchronizerServiceClient<_> = client
-        .new_grpc_client::<SynchronizerServiceClient<_>, SynchronizerServiceClient<_>>(peer)
+        .new_grpc_client::<SynchronizerServiceClient<_>>(peer)
         .await
         .unwrap();
 

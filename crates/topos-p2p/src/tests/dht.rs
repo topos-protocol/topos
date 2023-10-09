@@ -9,7 +9,12 @@ use rstest::rstest;
 use test_log::test;
 use topos_test_sdk::tce::NodeConfig;
 
-use crate::{config::DiscoveryConfig, event::ComposedEvent, wait_for_event};
+use crate::{
+    config::DiscoveryConfig, event::ComposedEvent, network::NetworkBuilder,
+    tests::support::local_peer, wait_for_event, NetworkClient, Runtime,
+};
+
+use super::support::{dummy_peer, PeerAddr};
 
 #[rstest]
 #[test(tokio::test)]
