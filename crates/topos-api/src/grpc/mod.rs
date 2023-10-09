@@ -1,15 +1,6 @@
 use self::checkpoints::StreamPositionError;
 
-use bytes::Bytes;
-use http::Uri;
-use http_body::Body;
-use tonic::{
-    codegen::{InterceptedService, StdError},
-    service::{interceptor, Interceptor},
-    transport::{Channel, Endpoint},
-    Request, Response,
-};
-use tower::{util::BoxService, BoxError};
+use tonic::transport::Channel;
 
 use self::tce::v1::synchronizer_service_client::SynchronizerServiceClient;
 
