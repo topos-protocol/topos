@@ -28,9 +28,19 @@ base64ct.workspace = true
 axum.workspace = true
 async-graphql.workspace = true
 async-graphql-axum.workspace = true
-serde.workspace = true
+serde = { workspace = true, features = ["derive"] }
 async-trait.workspace = true
 tracing.workspace = true
+http.workspace = true
+bytes.workspace = true
+http-body = "0.4.5"
+bincode.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+rstest.workspace = true
+h2 = "0.3.21"
+tower.workspace = true
+http-body-util = "0.1.0-rc.3"
 
 [build-dependencies]
 tonic-build = { workspace = true, default-features = false, features = [
@@ -42,7 +52,6 @@ async-stream.workspace = true
 futures.workspace = true
 tokio-stream.workspace = true
 tokio.workspace = true
-tower.workspace = true
 test-log.workspace = true
 env_logger.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
