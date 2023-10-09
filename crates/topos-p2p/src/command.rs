@@ -3,9 +3,10 @@ use std::fmt::Display;
 use libp2p::{request_response::ResponseChannel, Multiaddr, PeerId};
 use serde::{Deserialize, Serialize};
 use tokio::sync::oneshot;
+use tonic::transport::Channel;
 
 use crate::{
-    behaviour::transmission::codec::TransmissionResponse,
+    behaviour::{grpc::connection::OutboundConnection, transmission::codec::TransmissionResponse},
     error::{CommandExecutionError, P2PError},
 };
 
@@ -62,6 +63,11 @@ pub enum Command {
         topic: &'static str,
         data: Vec<u8>,
     },
+    NewProxiedQuery {
+        peer: PeerId,
+        id: uuid::Uuid,
+        response: oneshot::Sender<OutboundConnection>,
+    },
 }
 
 impl Display for Command {
@@ -73,6 +79,7 @@ impl Display for Command {
             Command::Disconnect { .. } => write!(f, "Disconnect"),
             Command::TransmissionReq { to, .. } => write!(f, "TransmissionReq(to: {to})"),
             Command::Gossip { .. } => write!(f, "GossipMessage"),
+            Command::NewProxiedQuery { .. } => write!(f, "NewProxiedQuery"),
             Command::Discover { to, .. } => write!(f, "Discover(to: {to})"),
             Command::TransmissionResponse { .. } => write!(f, "TransmissionResponse"),
         }

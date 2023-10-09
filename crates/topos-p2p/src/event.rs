@@ -6,7 +6,10 @@ use libp2p::{
     PeerId,
 };
 
-use crate::behaviour::transmission::codec::{TransmissionRequest, TransmissionResponse};
+use crate::behaviour::{
+    grpc,
+    transmission::codec::{TransmissionRequest, TransmissionResponse},
+};
 
 #[derive(Debug)]
 pub struct GossipEvent {
@@ -21,7 +24,13 @@ pub enum ComposedEvent {
     Transmission(RequestResponseEvent<TransmissionRequest, Result<TransmissionResponse, ()>>),
     PeerInfo(Box<identify::Event>),
     Gossipsub(GossipEvent),
+    Grpc(grpc::Event),
     Void,
+}
+impl From<grpc::Event> for ComposedEvent {
+    fn from(event: grpc::Event) -> Self {
+        ComposedEvent::Grpc(event)
+    }
 }
 
 impl From<KademliaEvent> for ComposedEvent {

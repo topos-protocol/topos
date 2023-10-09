@@ -1,10 +1,12 @@
-use std::error::Error;
+use std::{collections::HashMap, error::Error};
 
 use futures::Stream;
 use libp2p::Multiaddr;
-use tokio::{spawn, task::JoinHandle};
+use tokio::{spawn, sync::mpsc, task::JoinHandle};
+use tonic::transport::{server::Router, Server};
 
 use crate::p2p::keypair_from_seed;
+use topos_core::api::grpc::tce::v1::synchronizer_service_server::SynchronizerServiceServer;
 use topos_p2p::{error::P2PError, Client, Event, Runtime};
 
 use super::NodeConfig;
@@ -15,7 +17,16 @@ pub async fn create_network_worker(
     addr: Multiaddr,
     peers: &[NodeConfig],
     minimum_cluster_size: usize,
-) -> Result<(Client, impl Stream<Item = Event> + Unpin + Send, Runtime), P2PError> {
+    router: Option<Router>,
+) -> Result<
+    (
+        Client,
+        impl Stream<Item = Event> + Unpin + Send,
+        HashMap<&'static str, mpsc::Receiver<Vec<u8>>>,
+        Runtime,
+    ),
+    P2PError,
+> {
     let key = keypair_from_seed(seed);
     let _peer_id = key.public().to_peer_id();
 
@@ -40,6 +51,7 @@ pub async fn create_network_worker(
         .exposed_addresses(addr.clone())
         .listen_addr(addr)
         .minimum_cluster_size(minimum_cluster_size)
+        .router(router)
         .build()
         .await
 }
@@ -50,19 +62,21 @@ pub async fn bootstrap_network(
     addr: Multiaddr,
     peers: &[NodeConfig],
     minimum_cluster_size: usize,
+    router: Option<Router>,
 ) -> Result<
     (
         Client,
         impl Stream<Item = Event> + Unpin + Send,
+        HashMap<&'static str, mpsc::Receiver<Vec<u8>>>,
         JoinHandle<Result<(), ()>>,
     ),
     Box<dyn Error>,
 > {
-    let (network_client, network_stream, runtime) =
-        create_network_worker(seed, port, addr, peers, minimum_cluster_size).await?;
+    let (network_client, network_stream, map, runtime) =
+        create_network_worker(seed, port, addr, peers, minimum_cluster_size, router).await?;
 
     let runtime = runtime.bootstrap().await?;
 
     let runtime_join_handle = spawn(runtime.run());
-    Ok((network_client, network_stream, runtime_join_handle))
+    Ok((network_client, network_stream, map, runtime_join_handle))
 }

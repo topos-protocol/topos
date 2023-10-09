@@ -7857,9 +7857,12 @@ dependencies = [
 name = "topos-test-sdk"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "ethers",
  "futures",
  "hex",
+ "http",
+ "hyper",
  "lazy_static",
  "libp2p",
  "proc_macro_sdk",
@@ -7881,6 +7884,7 @@ dependencies = [
  "topos-tce-storage",
  "topos-tce-synchronizer",
  "topos-tce-transport",
+ "tower",
  "tracing",
 ]
 

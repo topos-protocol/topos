@@ -33,6 +33,7 @@ use tokio::sync::{
     oneshot::{Receiver, Sender},
 };
 use tokio_stream::StreamExt;
+use tonic::transport::server::Routes;
 use tracing::{debug, error, info, warn};
 
 pub struct Runtime {
@@ -47,6 +48,8 @@ pub struct Runtime {
     pub(crate) addresses: Multiaddr,
     pub(crate) bootstrapped: bool,
     pub(crate) is_boot_node: bool,
+
+    pub(crate) request_sender: HashMap<&'static str, mpsc::Sender<Vec<u8>>>,
 
     pub(crate) pending_requests: PendingRequests,
 

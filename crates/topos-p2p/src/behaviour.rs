@@ -35,4 +35,6 @@ pub(crate) struct Behaviour {
     pub(crate) synchronizer: request_response::Behaviour<TransmissionCodec>,
 
     pub(crate) gossipsub: gossip::Behaviour,
+
+    pub(crate) grpc: grpc::Behaviour,
 }

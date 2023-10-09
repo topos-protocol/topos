@@ -17,6 +17,15 @@ use tracing::{debug, error, info, warn};
 impl Runtime {
     pub(crate) async fn handle_command(&mut self, command: Command) {
         match command {
+            Command::NewProxiedQuery { peer, id, response } => {
+                let connection = self
+                    .swarm
+                    .behaviour_mut()
+                    .grpc
+                    .open_outbound_connection(&peer);
+
+                response.send(connection);
+            }
             Command::StartListening { peer_addr, sender } => {
                 if sender.send(self.start_listening(peer_addr)).is_err() {
                     warn!("Unable to notify StartListening response: initiator is dropped");

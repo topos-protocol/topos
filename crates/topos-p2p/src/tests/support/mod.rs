@@ -17,7 +17,7 @@ pub async fn dummy_peer() -> (Client, PeerAddr) {
     let (key, addr_dummy) = local_peer(1);
     let dummy_peer = (key.public().to_peer_id(), addr_dummy.clone());
 
-    let (client, _stream, runtime): (_, _, Runtime) = NetworkBuilder::default()
+    let (client, _stream, _, runtime): (_, _, _, Runtime) = NetworkBuilder::default()
         .peer_key(key)
         .listen_addr(addr_dummy.clone())
         .exposed_addresses(addr_dummy)

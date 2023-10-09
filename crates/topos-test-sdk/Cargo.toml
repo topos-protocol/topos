@@ -8,7 +8,7 @@ build = "build.rs"
 workspace = true
 
 [dependencies]
-topos-core = { workspace = true, features = ["uci"] }
+topos-core = { workspace = true, features = ["uci", "api"] }
 topos-p2p = { path = "../topos-p2p/" }
 topos-tce = { path = "../topos-tce/", optional = true }
 topos-tce-api = { path = "../topos-tce-api/", optional = true }
@@ -37,7 +37,11 @@ tonic = { workspace = true, default-features = false, features = [
     "transport",
 ] }
 
+tower.workspace = true
 tracing.workspace = true
+http.workspace = true
+hyper.workspace = true
+async-trait.workspace = true
 
 [features]
 default = []

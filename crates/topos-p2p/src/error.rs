@@ -38,6 +38,9 @@ pub enum P2PError {
 
     #[error("Unable to execute shutdown on the p2p runtime: {0}")]
     ShutdownCommunication(mpsc::error::SendError<oneshot::Sender<()>>),
+
+    #[error("Unable to create gRPC client")]
+    UnableToCreateGrpcClient,
 }
 
 #[derive(Error, Debug)]

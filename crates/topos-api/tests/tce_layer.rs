@@ -1,27 +1,47 @@
 use async_stream::stream;
+use bytes::Bytes;
 use futures::{channel::oneshot, FutureExt};
 use futures::{Stream, StreamExt};
+use http::uri::{Parts, PathAndQuery};
+use http::Uri;
+use prost::bytes::{Buf, BufMut, BytesMut};
+use prost::Message;
 use rstest::rstest;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::io::{Read, Write};
+use std::marker::PhantomData;
 use std::pin::Pin;
+use std::str::FromStr;
 use std::time::Duration;
 use test_log::test;
+use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::sync::mpsc;
-use tonic::transport::Endpoint;
+use tokio_util::io::ReaderStream;
+use tonic::body::BoxBody;
+use tonic::client::GrpcService;
+use tonic::codec::{Codec, DecodeBuf, Decoder, EncodeBuf, Encoder};
+use tonic::transport::{Channel, Endpoint};
+use tonic::IntoRequest;
 use tonic::{transport::Server, Request, Response, Status, Streaming};
 use topos_api::grpc::shared::v1::checkpoints::TargetCheckpoint;
 use topos_api::grpc::shared::v1::positions::SourceStreamPosition;
 use topos_api::grpc::shared::v1::{CertificateId, SubnetId};
 use topos_api::grpc::tce::v1::api_service_server::{ApiService, ApiServiceServer};
 use topos_api::grpc::tce::v1::synchronizer_service_client::SynchronizerServiceClient;
+use topos_api::grpc::tce::v1::synchronizer_service_server::{
+    SynchronizerService, SynchronizerServiceServer,
+};
 use topos_api::grpc::tce::v1::watch_certificates_request::{Command, OpenStream};
 use topos_api::grpc::tce::v1::{
+    CheckpointRequest, CheckpointResponse, FetchCertificatesRequest, FetchCertificatesResponse,
     GetLastPendingCertificatesRequest, GetLastPendingCertificatesResponse, GetSourceHeadRequest,
     GetSourceHeadResponse, LastPendingCertificate, SubmitCertificateRequest,
     SubmitCertificateResponse, WatchCertificatesRequest, WatchCertificatesResponse,
 };
 use topos_api::grpc::uci::v1::Certificate;
 use topos_api::grpc::{shared, GrpcClient};
+use tower::service_fn;
 use uuid::Uuid;
 
 use topos_test_sdk::constants::*;
@@ -265,4 +285,229 @@ async fn create_grpc_client() {
     let entrypoint = Endpoint::from_static("http://127.0.0.1:1340").connect_lazy();
 
     let _client = SynchronizerServiceClient::init(entrypoint);
+}
+
+enum TestMsg {
+    Fetch(FetchCertificatesRequest),
+    Checkpoint(CheckpointRequest),
+}
+
+#[rstest::rstest]
+#[tokio::test]
+#[timeout(Duration::from_secs(1))]
+async fn encode_into_enum() {
+    let request_id: shared::v1::Uuid = Uuid::new_v4().into();
+    let msg = CheckpointRequest {
+        request_id: Some(request_id),
+        checkpoint: Vec::new(),
+    };
+    #[derive(Debug)]
+    pub struct TransparentEncoder(PhantomData<Vec<u8>>);
+
+    impl Encoder for TransparentEncoder {
+        type Error = Status;
+        type Item = Vec<u8>;
+
+        fn encode(&mut self, item: Self::Item, buf: &mut EncodeBuf<'_>) -> Result<(), Self::Error> {
+            buf.writer()
+                .write_all(&item)
+                .map_err(|e| Status::internal(e.to_string()))?;
+            Ok(())
+        }
+    }
+
+    #[derive(Debug)]
+    pub struct TransparentDecoder(PhantomData<Vec<u8>>);
+
+    impl Decoder for TransparentDecoder {
+        type Error = Status;
+        type Item = Vec<u8>;
+
+        fn decode(&mut self, buf: &mut DecodeBuf<'_>) -> Result<Option<Self::Item>, Self::Error> {
+            let mut result: Vec<u8> = vec![];
+            buf.reader()
+                .read_to_end(&mut result)
+                .map_err(|e| Status::internal(e.to_string()))?;
+
+            Ok(Some(result))
+        }
+    }
+
+    #[derive(Debug, Clone)]
+    pub struct TransparentCodec(PhantomData<(Vec<u8>, Vec<u8>)>);
+
+    impl Default for TransparentCodec {
+        fn default() -> Self {
+            Self(PhantomData)
+        }
+    }
+
+    impl Codec for TransparentCodec {
+        type Decode = Vec<u8>;
+        type Decoder = TransparentDecoder;
+        type Encode = Vec<u8>;
+        type Encoder = TransparentEncoder;
+
+        fn encoder(&mut self) -> Self::Encoder {
+            TransparentEncoder(PhantomData)
+        }
+
+        fn decoder(&mut self) -> Self::Decoder {
+            TransparentDecoder(PhantomData)
+        }
+    }
+
+    let codec = TransparentCodec::default();
+
+    #[derive(Serialize, Deserialize)]
+    struct Msg {
+        uri: String,
+        msg: Bytes,
+    }
+    const BUFFER_SIZE: usize = 8 * 1024;
+    // let msg = msg.encode_to_vec();
+    const HEADER_SIZE: usize =
+        // compression flag
+        std::mem::size_of::<u8>() +
+    // data length
+    std::mem::size_of::<u32>();
+
+    let (client, server) = tokio::io::duplex(BUFFER_SIZE);
+    // let (sender, mut recv) = mpsc::channel(100);
+    let s = SyncService {};
+    let mut service = SynchronizerServiceServer::new(s);
+
+    #[derive(Serialize, Deserialize)]
+    struct NetworkMsg {
+        uri: Bytes,
+        body: Bytes,
+    }
+
+    let (client, server) = tokio::io::duplex(BUFFER_SIZE);
+    tokio::spawn(async move {
+        let mut serv = h2::server::handshake(server).await.unwrap();
+        loop {
+            if let Some(request) = serv.accept().await {
+                println!("REQ: {:?}", request);
+            }
+        }
+    });
+
+    let mut client = Some(client);
+    let dest = Endpoint::try_from("http://[::]:50051")
+        .unwrap()
+        .connect_with_connector_lazy(service_fn(move |_: Uri| {
+            let client = client.take();
+
+            async move {
+                if let Some(client) = client {
+                    Ok(client)
+                } else {
+                    Err(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        "Client already taken",
+                    ))
+                }
+            }
+        }));
+
+    let mut client_1 = SynchronizerServiceClient::new(dest.clone());
+    client_1
+        .fetch_checkpoint(CheckpointRequest {
+            request_id: Some(request_id),
+            checkpoint: vec![],
+        })
+        .await;
+
+    let mut client_2 = SynchronizerServiceClient::new(dest);
+    client_2
+        .fetch_checkpoint(CheckpointRequest {
+            request_id: Some(request_id),
+            checkpoint: vec![],
+        })
+        .await;
+    //             let (mut request, mut respond) = request.unwrap();
+    //             let uri_bytes = Bytes::from(request.uri().to_string());
+    //             // let uri = request.uri().clone();
+    //             let body = request.body_mut();
+    //
+    //             let mut the_data = BytesMut::new();
+    //             while let Some(data) = body.data().await {
+    //                 let data = data.unwrap();
+    //                 the_data.put(&data[..]);
+    //
+    //                 let _ = body.flow_control().release_capacity(data.len());
+    //             }
+    //
+    //             let req = NetworkMsg {
+    //                 uri: uri_bytes,
+    //                 body: the_data.freeze(),
+    //             };
+    //
+    //             let data = bincode::serialize(&req).unwrap();
+    //             drop(body);
+    //
+    //             let recover_data: NetworkMsg = bincode::deserialize(&data).unwrap();
+    //
+    //             let msg = http_body::Full::new(recover_data.body);
+    //             let mut req = http::Request::new(msg);
+    //
+    //             *req.uri_mut() = Uri::try_from(&recover_data.uri[..]).unwrap();
+    //
+    //             // let (parts, body) = req.into_parts();
+    //             // use http_body_util::BodyExt;
+    //
+    //             sender.send(req).await;
+    //
+    //             println!("Received request: {:?}", request);
+    //         }
+    //     }
+    // });
+
+    // let mut client = Some(client);
+    // let dest = Endpoint::try_from("http://[::]:50051")
+    //     .unwrap()
+    //     .connect_with_connector(service_fn(move |_: Uri| {
+    //         let client = client.take();
+    //
+    //         async move {
+    //             if let Some(client) = client {
+    //                 Ok(client)
+    //             } else {
+    //                 Err(std::io::Error::new(
+    //                     std::io::ErrorKind::Other,
+    //                     "Client already taken",
+    //                 ))
+    //             }
+    //         }
+    //     }))
+    //     .await
+    //     .unwrap();
+    //
+    // let mut client = SynchronizerServiceClient::new(dest);
+    // client
+    //     .fetch_checkpoint(CheckpointRequest {
+    //         request_id: Some(request_id),
+    //         checkpoint: vec![],
+    //     })
+    //     .await;
+    struct SyncService {}
+
+    #[tonic::async_trait]
+    impl SynchronizerService for SyncService {
+        async fn fetch_checkpoint(
+            &self,
+            req: tonic::Request<CheckpointRequest>,
+        ) -> Result<tonic::Response<CheckpointResponse>, Status> {
+            println!("OK in server");
+            Err(Status::unimplemented(""))
+        }
+
+        async fn fetch_certificates(
+            &self,
+            req: tonic::Request<FetchCertificatesRequest>,
+        ) -> Result<tonic::Response<FetchCertificatesResponse>, Status> {
+            Err(Status::unimplemented(""))
+        }
+    }
 }

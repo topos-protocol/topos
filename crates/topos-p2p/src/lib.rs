@@ -26,6 +26,7 @@ pub use libp2p::Multiaddr;
 pub use libp2p::PeerId;
 pub use runtime::Runtime;
 
+pub(crate) mod temp_grpc;
 use topos_crypto::keys;
 
 pub mod network;
@@ -35,7 +36,66 @@ pub const TOPOS_ECHO: &str = "topos_echo";
 pub const TOPOS_READY: &str = "topos_ready";
 
 pub mod utils {
-    use libp2p::identity;
+    use std::{
+        future::IntoFuture,
+        pin::{pin, Pin},
+    };
+
+    use libp2p::{identity, PeerId};
+    use tokio::{
+        io::{AsyncRead, AsyncWrite, DuplexStream},
+        sync::mpsc,
+        sync::oneshot,
+    };
+    use tonic::{
+        service::Interceptor,
+        transport::{Channel, Endpoint, Uri},
+        Request, Status,
+    };
+    use topos_api::grpc::GrpcClient;
+    use tower::{ServiceBuilder, ServiceExt};
+    use tracing::{info, warn};
+
+    use crate::command::Command;
+
+    pub(crate) struct NewProxiedQuery {
+        pub(crate) peer: PeerId,
+        pub(crate) id: uuid::Uuid,
+        pub(crate) response: oneshot::Sender<Channel>,
+    }
+
+    #[derive(Clone)]
+    pub struct GrpcOverP2P {
+        pub(crate) proxy_sender: mpsc::Sender<Command>,
+    }
+
+    impl GrpcOverP2P {
+        pub async fn create<S: GrpcClient>(
+            &self,
+            peer: PeerId,
+        ) -> Result<S::Output, tonic::transport::Error> {
+            warn!("Creating new instance of GRPC CLIENT FOR P2P");
+            let (sender, recv) = oneshot::channel();
+            let id = uuid::Uuid::new_v4();
+
+            let _ = self
+                .proxy_sender
+                .send(Command::NewProxiedQuery {
+                    peer,
+                    id,
+                    response: sender,
+                })
+                .await;
+
+            let connection = recv.await.unwrap();
+
+            let connected = connection.into_future().await.unwrap();
+
+            info!("Connected: {:?}", connected);
+
+            Ok(S::init(connected.channel))
+        }
+    }
 
     /// build peer_id keys, generate for now - either from the seed or purely random one
     pub fn local_key_pair(secret_key_seed: Option<u8>) -> identity::Keypair {

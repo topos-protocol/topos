@@ -5,12 +5,14 @@ use libp2p::{
     multiaddr::Protocol,
     swarm::{derive_prelude::Either, NetworkBehaviour, SwarmEvent},
 };
+use prometheus_client::metrics::info;
 use tracing::{debug, error, info, warn};
 
 use crate::{event::ComposedEvent, Event, Runtime};
 
 mod discovery;
 mod gossipsub;
+mod grpc;
 mod peer_info;
 mod transmission;
 
@@ -36,6 +38,7 @@ impl EventHandler<ComposedEvent> for Runtime {
             ComposedEvent::PeerInfo(event) => self.handle(event).await,
             ComposedEvent::Transmission(event) => self.handle(event).await,
             ComposedEvent::Gossipsub(event) => self.handle(event).await,
+            ComposedEvent::Grpc(event) => self.handle(event).await,
             ComposedEvent::Void => (),
         }
     }
@@ -77,6 +80,7 @@ impl
                 self.active_listeners.insert(listener_id);
             }
             SwarmEvent::OutgoingConnectionError { peer_id, error, .. } => {
+                info!("OutgoingConnectionError");
                 if let Some(_peer_id) = peer_id {
                     error!("OutgoingConnectionError {error:?}");
                 }
@@ -109,11 +113,11 @@ impl
             }
 
             incoming_connection_error @ SwarmEvent::IncomingConnectionError { .. } => {
-                debug!("{:?}", incoming_connection_error);
+                error!("{:?}", incoming_connection_error);
             }
 
             SwarmEvent::IncomingConnection { local_addr, .. } => {
-                debug!("IncomingConnection {local_addr}")
+                info!("IncomingConnection {local_addr}")
             }
             SwarmEvent::ListenerClosed {
                 listener_id,
@@ -142,7 +146,9 @@ impl
                 }
             }
 
-            SwarmEvent::Dialing { peer_id, .. } => {}
+            SwarmEvent::Dialing { peer_id, .. } => {
+                info!("Dialing {:?}", peer_id);
+            }
 
             SwarmEvent::Behaviour(event) => {
                 self.handle(event).await;

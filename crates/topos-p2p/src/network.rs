@@ -2,19 +2,23 @@ use super::{Behaviour, Client, Event, Runtime};
 use crate::{
     behaviour::{
         discovery::DiscoveryBehaviour,
-        gossip,
+        gossip, grpc,
         peer_info::PeerInfoBehaviour,
         transmission::{codec::TransmissionCodec, TransmissionBehaviour},
     },
+    command,
     config::{DiscoveryConfig, NetworkConfig},
     constant::{
         COMMAND_STREAM_BUFFER_SIZE, DISCOVERY_PROTOCOL, EVENT_STREAM_BUFFER, PEER_INFO_PROTOCOL,
         SYNCHRONIZER_PROTOCOL, TRANSMISSION_PROTOCOL,
     },
     error::P2PError,
+    temp_grpc::Synchronizer,
+    utils::GrpcOverP2P,
     TOPOS_ECHO, TOPOS_GOSSIP, TOPOS_READY,
 };
 use futures::Stream;
+use http::Uri;
 use libp2p::{
     core::upgrade,
     dns::TokioDnsConfig,
@@ -35,6 +39,13 @@ use std::{
 };
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
+use tonic::transport::{server::Router, Endpoint, Server};
+use topos_api::grpc::tce::v1::{
+    synchronizer_service_client::SynchronizerServiceClient,
+    synchronizer_service_server::SynchronizerServiceServer,
+};
+use tower::service_fn;
+use tracing::info;
 
 pub fn builder<'a>() -> NetworkBuilder<'a> {
     NetworkBuilder::default()
@@ -53,9 +64,16 @@ pub struct NetworkBuilder<'a> {
     known_peers: &'a [(PeerId, Multiaddr)],
     local_port: Option<u8>,
     config: NetworkConfig,
+    router: Option<Router>,
 }
 
 impl<'a> NetworkBuilder<'a> {
+    pub fn router(mut self, router: Option<Router>) -> Self {
+        self.router = router;
+
+        self
+    }
+
     pub fn discovery_config(mut self, config: DiscoveryConfig) -> Self {
         self.config.discovery = config;
 
@@ -122,7 +140,17 @@ impl<'a> NetworkBuilder<'a> {
         self
     }
 
-    pub async fn build(mut self) -> Result<(Client, impl Stream<Item = Event>, Runtime), P2PError> {
+    pub async fn build(
+        mut self,
+    ) -> Result<
+        (
+            Client,
+            impl Stream<Item = Event>,
+            HashMap<&'static str, mpsc::Receiver<Vec<u8>>>,
+            Runtime,
+        ),
+        P2PError,
+    > {
         let peer_key = self.peer_key.ok_or(P2PError::MissingPeerKey)?;
         let peer_id = peer_key.public().to_peer_id();
 
@@ -130,6 +158,8 @@ impl<'a> NetworkBuilder<'a> {
         let (event_sender, event_receiver) = mpsc::channel(*EVENT_STREAM_BUFFER);
 
         let gossipsub = gossip::Behaviour::new(peer_key.clone()).await;
+
+        let grpc = grpc::Behaviour::new(self.router.take());
 
         let behaviour = Behaviour {
             gossipsub,
@@ -148,6 +178,7 @@ impl<'a> NetworkBuilder<'a> {
             ),
             transmission: TransmissionBehaviour::create(StreamProtocol::new(TRANSMISSION_PROTOCOL)),
             synchronizer: TransmissionBehaviour::create(StreamProtocol::new(SYNCHRONIZER_PROTOCOL)),
+            grpc,
         };
 
         let transport = {
@@ -171,16 +202,35 @@ impl<'a> NetworkBuilder<'a> {
 
         let swarm = SwarmBuilder::with_tokio_executor(transport, behaviour, peer_id).build();
         let (shutdown_channel, shutdown) = mpsc::channel::<oneshot::Sender<()>>(1);
+
+        let (sender_transmission, recv_transmission) = mpsc::channel(*EVENT_STREAM_BUFFER);
+        let (sender_synchronizer, recv_synchronizer) = mpsc::channel(*EVENT_STREAM_BUFFER);
+
+        let mut request_sender = HashMap::new();
+        request_sender.insert(TRANSMISSION_PROTOCOL, sender_transmission);
+        request_sender.insert(SYNCHRONIZER_PROTOCOL, sender_synchronizer);
+
+        let mut request_receivers = HashMap::new();
+        request_receivers.insert(TRANSMISSION_PROTOCOL, recv_transmission);
+        request_receivers.insert(SYNCHRONIZER_PROTOCOL, recv_synchronizer);
+
+        let grpc_over_p2p = GrpcOverP2P {
+            proxy_sender: command_sender.clone(),
+        };
+
         Ok((
             Client {
                 retry_ttl: self.config.client_retry_ttl,
                 local_peer_id: peer_id,
                 sender: command_sender,
+                grpc_over_p2p,
                 shutdown_channel,
             },
             ReceiverStream::new(event_receiver),
+            request_receivers,
             Runtime {
                 swarm,
+                request_sender,
                 config: self.config,
                 peer_set: self.known_peers.iter().map(|(p, _)| *p).collect(),
                 is_boot_node: self.known_peers.is_empty(),
