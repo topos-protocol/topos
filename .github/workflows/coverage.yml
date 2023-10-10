@@ -39,7 +39,16 @@ jobs:
         run: cargo nextest run --workspace --exclude topos-sequencer-subnet-runtime
 
       - name: Run grcov
-        run: grcov . --binary-path target/debug/ -s . -t lcov --branch --ignore-not-existing --ignore '../**' --ignore '/*' -o coverage.lcov
+        run: |
+          grcov . --binary-path target/debug/ -s . \
+            -t lcov \
+            --branch \
+            --ignore-not-existing \
+            --ignore 'crates/topos-api/src/grpc/generated/*' \
+            --ignore 'crates/topos-test-sdk/src/grpc/behaviour/*' \
+            --ignore '../**' \
+            --ignore '/*' \
+            -o coverage.lcov
 
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v3

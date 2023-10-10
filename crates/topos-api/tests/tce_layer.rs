@@ -1,17 +1,19 @@
 use async_stream::stream;
 use futures::{channel::oneshot, FutureExt};
 use futures::{Stream, StreamExt};
+use rstest::rstest;
 use std::collections::HashMap;
 use std::pin::Pin;
 use std::time::Duration;
 use test_log::test;
 use tokio::sync::mpsc;
+use tonic::transport::Endpoint;
 use tonic::{transport::Server, Request, Response, Status, Streaming};
-use topos_api::grpc::shared;
 use topos_api::grpc::shared::v1::checkpoints::TargetCheckpoint;
 use topos_api::grpc::shared::v1::positions::SourceStreamPosition;
 use topos_api::grpc::shared::v1::{CertificateId, SubnetId};
 use topos_api::grpc::tce::v1::api_service_server::{ApiService, ApiServiceServer};
+use topos_api::grpc::tce::v1::synchronizer_service_client::SynchronizerServiceClient;
 use topos_api::grpc::tce::v1::watch_certificates_request::{Command, OpenStream};
 use topos_api::grpc::tce::v1::{
     GetLastPendingCertificatesRequest, GetLastPendingCertificatesResponse, GetSourceHeadRequest,
@@ -19,6 +21,7 @@ use topos_api::grpc::tce::v1::{
     SubmitCertificateResponse, WatchCertificatesRequest, WatchCertificatesResponse,
 };
 use topos_api::grpc::uci::v1::Certificate;
+use topos_api::grpc::{shared, GrpcClient};
 use uuid::Uuid;
 
 use topos_test_sdk::constants::*;
@@ -254,4 +257,12 @@ async fn create_tce_layer() {
     tx.send(()).unwrap();
     drop(stream);
     jh.await.unwrap();
+}
+
+#[rstest]
+#[test(tokio::test)]
+async fn create_grpc_client() {
+    let entrypoint = Endpoint::from_static("http://127.0.0.1:1340").connect_lazy();
+
+    let _client = SynchronizerServiceClient::init(entrypoint);
 }
