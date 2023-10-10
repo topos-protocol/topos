@@ -316,7 +316,6 @@ pub async fn start_pool(
         let validators_cloned = validators.clone();
 
         let fut = async move {
-            // Note the "move" keyword
             let client = start_node(
                 certificates_cloned,
                 config_cloned,

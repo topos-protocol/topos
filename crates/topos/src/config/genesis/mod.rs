@@ -1,6 +1,7 @@
 use rlp::Rlp;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
+use std::str::FromStr;
 use std::{fs, path::PathBuf};
 
 use serde_json::Value;
@@ -97,7 +98,7 @@ impl Genesis {
                 if let Ok(public_key) = validator_rlp.data() {
                     let address = format!("0x{}", hex::encode(&public_key[1..=20]));
                     validator_public_keys.insert(
-                        ValidatorId::try_from(address.as_str()).unwrap_or_else(|error| {
+                        ValidatorId::from_str(address.as_str()).unwrap_or_else(|error| {
                             panic!("Failed to convert address to ValidatorId: {:?}", error)
                         }),
                     );

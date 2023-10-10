@@ -80,8 +80,6 @@ async fn cert_delivery() {
             .map(|(s, v)| (s, v.into_iter().map(|v| v.certificate).collect::<Vec<_>>()))
             .collect::<HashMap<_, _>>();
 
-    error!("SUBNET CERTIFICATES: {:#?}", subnet_certificates);
-
     debug!(
         "Generated certificates for distribution per subnet: {:#?}",
         &subnet_certificates
@@ -215,13 +213,13 @@ async fn cert_delivery() {
         let delivery_tx = delivery_tx.clone();
         let delivery_task = tokio::spawn(async move {
             // Read certificates that every client has received
-            error!("Delivery task for receiver {}", index);
+            info!("Delivery task for receiver {}", index);
             loop {
                 let x = client_delivered_certificates.recv().await;
 
                 match x {
                     Some((peer_id, target_subnet_id, cert)) => {
-                        error!(
+                        info!(
                             "Delivered certificate on peer_Id: {} cert id: {} from source subnet \
                              id: {} to target subnet id {}",
                             &peer_id, cert.id, cert.source_subnet_id, target_subnet_id
@@ -237,7 +235,7 @@ async fn cert_delivery() {
             }
             // We will end this loop when sending TCE client has dropped channel sender and there
             // are not certificates in channel
-            error!("End delivery task for receiver {}", index);
+            info!("End delivery task for receiver {}", index);
         });
         delivery_tasks.push(delivery_task);
     }

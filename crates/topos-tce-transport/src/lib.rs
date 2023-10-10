@@ -35,10 +35,10 @@ impl From<H160> for ValidatorId {
     }
 }
 
-impl TryFrom<&str> for ValidatorId {
-    type Error = ValidatorIdConversionError;
+impl FromStr for ValidatorId {
+    type Err = ValidatorIdConversionError;
 
-    fn try_from(address: &str) -> Result<Self, Self::Error> {
+    fn from_str(address: &str) -> Result<Self, Self::Err> {
         H160::from_str(address)
             .map_err(|_| ValidatorIdConversionError::ParseError)
             .map(ValidatorId)

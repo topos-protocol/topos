@@ -2,6 +2,7 @@ use clap::Args;
 use serde::Serialize;
 use std::collections::HashSet;
 use std::net::SocketAddr;
+use std::str::FromStr;
 use topos_p2p::{Multiaddr, PeerId};
 use topos_tce_transport::{ReliableBroadcastParams, ValidatorId};
 
@@ -103,7 +104,7 @@ impl Run {
                 .validators
                 .split(&[',', ' '])
                 .map(|address| {
-                    ValidatorId::try_from(address).unwrap_or_else(|error| {
+                    ValidatorId::from_str(address).unwrap_or_else(|error| {
                         panic!("Failed to convert address to ValidatorId: {:?}", error)
                     })
                 })
