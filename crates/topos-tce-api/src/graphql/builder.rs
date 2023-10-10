@@ -1,14 +1,19 @@
 use std::{net::SocketAddr, sync::Arc};
 
 use async_graphql::{EmptyMutation, EmptySubscription, Schema};
+use async_graphql_axum::GraphQLSubscription;
 use axum::{extract::Extension, routing::get, Router, Server};
 use http::{header, Method};
 use hyper;
+use tokio::sync::mpsc;
 use tower_http::cors::{Any, CorsLayer};
 
-use crate::graphql::{
-    query::{QueryRoot, ServiceSchema},
-    routes::{graphql_handler, graphql_playground, health},
+use crate::{
+    graphql::{
+        query::{QueryRoot, ServiceSchema},
+        routes::{graphql_handler, graphql_playground, health},
+    },
+    runtime::InternalRuntimeCommand,
 };
 use topos_tce_storage::fullnode::FullNodeStore;
 
@@ -16,9 +21,18 @@ use topos_tce_storage::fullnode::FullNodeStore;
 pub struct ServerBuilder {
     store: Option<Arc<FullNodeStore>>,
     serve_addr: Option<SocketAddr>,
+    runtime: Option<mpsc::Sender<InternalRuntimeCommand>>,
 }
 
 impl ServerBuilder {
+    /// Sets the runtime command channel
+    ///
+    /// Mostly used to manage Transient streams
+    pub(crate) fn runtime(mut self, runtime: mpsc::Sender<InternalRuntimeCommand>) -> Self {
+        self.runtime = Some(runtime);
+
+        self
+    }
     pub(crate) fn store(mut self, store: Arc<FullNodeStore>) -> Self {
         self.store = Some(store);
 
@@ -53,6 +67,7 @@ impl ServerBuilder {
 
         let app = Router::new()
             .route("/", get(graphql_playground).post(graphql_handler))
+            .route_service("/ws", GraphQLSubscription::new(schema.clone()))
             .route("/health", get(health))
             .layer(cors)
             .layer(Extension(schema));

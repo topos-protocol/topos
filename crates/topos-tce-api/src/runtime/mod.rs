@@ -1,4 +1,4 @@
-use futures::{stream::FuturesUnordered, StreamExt};
+use futures::{stream::FuturesUnordered, FutureExt, StreamExt, TryFutureExt};
 use std::{
     collections::{hash_map::Entry, HashMap, HashSet},
     future,
@@ -12,7 +12,7 @@ use tokio::{
     task::JoinHandle,
 };
 use tonic_health::server::HealthReporter;
-use topos_core::uci::SubnetId;
+use topos_core::uci::{Certificate, SubnetId};
 use topos_core::{api::grpc::checkpoints::TargetStreamPosition, types::CertificateDelivered};
 use topos_core::{
     api::grpc::tce::v1::api_service_server::ApiServiceServer,
@@ -27,8 +27,9 @@ use tracing::{debug, error, info};
 use uuid::Uuid;
 
 use crate::{
+    constants::TRANSIENT_STREAM_CHANNEL_SIZE,
     grpc::TceGrpcService,
-    stream::{StreamCommand, StreamError, StreamErrorKind},
+    stream::{StreamCommand, StreamError, StreamErrorKind, TransientStream},
 };
 
 pub mod builder;
@@ -58,6 +59,7 @@ pub struct Runtime {
     pub(crate) broadcast_stream: broadcast::Receiver<CertificateDeliveredWithPositions>,
 
     pub(crate) storage: StorageClient,
+    pub(crate) transient_streams: HashMap<Uuid, Sender<Certificate>>,
     /// Streams that are currently active (with a valid handshake)
     pub(crate) active_streams: HashMap<Uuid, Sender<StreamCommand>>,
     /// Streams that are currently in negotiation
@@ -185,6 +187,7 @@ impl Runtime {
                     "Dispatching certificate cert_id: {:?} to target subnets: {:?}",
                     &certificate.id, target_subnets
                 );
+
                 for target_subnet_id in target_subnets {
                     let target_subnet_id = *target_subnet_id;
                     let target_position = positions.remove(&target_subnet_id);
@@ -222,6 +225,36 @@ impl Runtime {
 
     async fn handle_internal_command(&mut self, command: InternalRuntimeCommand) {
         match command {
+            InternalRuntimeCommand::NewTransientStream { sender } => {
+                let stream_id = Uuid::new_v4();
+                info!("Opening a new transient stream with UUID {stream_id}");
+
+                let (stream, receiver) = mpsc::channel(TRANSIENT_STREAM_CHANNEL_SIZE);
+                let (shutdown, shutdown_recv) = oneshot::channel();
+                self.transient_streams.insert(stream_id, stream);
+
+                self.streams.push(
+                    shutdown_recv
+                        .map_err(move |_| StreamError {
+                            stream_id,
+                            kind: StreamErrorKind::StreamClosed,
+                        })
+                        .boxed(),
+                );
+
+                if sender
+                    .send(Ok(TransientStream {
+                        stream_id,
+                        inner: receiver,
+                        notifier: Some(shutdown),
+                    }))
+                    .is_err()
+                {
+                    error!("Unable to send new TransientStream");
+                    _ = self.transient_streams.remove(&stream_id);
+                }
+            }
+
             InternalRuntimeCommand::NewStream {
                 stream,
                 command_sender,

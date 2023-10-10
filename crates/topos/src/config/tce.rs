@@ -51,28 +51,32 @@ fn default_db_path() -> PathBuf {
     PathBuf::from("./tce_rocksdb")
 }
 
-fn default_libp2p_api_addr() -> SocketAddr {
-    "0.0.0.0:9090"
-        .parse()
-        .expect("Cannot parse address to SocketAddr")
+const fn default_libp2p_api_addr() -> SocketAddr {
+    SocketAddr::V4(std::net::SocketAddrV4::new(
+        std::net::Ipv4Addr::new(0, 0, 0, 1),
+        9090,
+    ))
 }
 
-fn default_grpc_api_addr() -> SocketAddr {
-    "0.0.0.0:1340"
-        .parse()
-        .expect("Cannot parse address to SocketAddr")
+const fn default_grpc_api_addr() -> SocketAddr {
+    SocketAddr::V4(std::net::SocketAddrV4::new(
+        std::net::Ipv4Addr::new(0, 0, 0, 1),
+        1340,
+    ))
 }
 
-fn default_graphql_api_addr() -> SocketAddr {
-    "0.0.0.0:4030"
-        .parse()
-        .expect("Cannot parse address to SocketAddr")
+const fn default_graphql_api_addr() -> SocketAddr {
+    SocketAddr::V4(std::net::SocketAddrV4::new(
+        std::net::Ipv4Addr::new(0, 0, 0, 1),
+        4030,
+    ))
 }
 
-fn default_metrics_api_addr() -> SocketAddr {
-    "0.0.0.0:3000"
-        .parse()
-        .expect("Cannot parse address to SocketAddr")
+const fn default_metrics_api_addr() -> SocketAddr {
+    SocketAddr::V4(std::net::SocketAddrV4::new(
+        std::net::Ipv4Addr::new(0, 0, 0, 1),
+        3000,
+    ))
 }
 
 impl TceConfig {

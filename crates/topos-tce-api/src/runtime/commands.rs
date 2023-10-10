@@ -5,7 +5,7 @@ use topos_core::uci::{Certificate, SubnetId};
 use topos_tce_storage::types::PendingResult;
 use uuid::Uuid;
 
-use crate::stream::{Stream, StreamCommand};
+use crate::stream::{Stream, StreamCommand, TransientStream};
 
 use super::error::RuntimeError;
 
@@ -49,5 +49,10 @@ pub(crate) enum InternalRuntimeCommand {
     GetSourceHead {
         subnet_id: SubnetId,
         sender: oneshot::Sender<Result<Option<(u64, Certificate)>, RuntimeError>>,
+    },
+
+    /// Ask the creation of a new TransientStream
+    NewTransientStream {
+        sender: oneshot::Sender<Result<TransientStream, RuntimeError>>,
     },
 }
