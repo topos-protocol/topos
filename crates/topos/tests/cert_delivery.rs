@@ -19,7 +19,7 @@ use topos_core::{
     uci::{Certificate, SubnetId, SUBNET_ID_LENGTH},
 };
 use topos_test_sdk::{certificates::create_certificate_chains, tce::create_network};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 
 const NUMBER_OF_SUBNETS_PER_CLIENT: usize = 1;
 
