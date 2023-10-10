@@ -11,12 +11,14 @@ use libp2p::swarm::{
     handler::{ConnectionEvent, FullyNegotiatedInbound, FullyNegotiatedOutbound},
     ConnectionHandler, ConnectionHandlerEvent, SubstreamProtocol,
 };
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 use self::protocol::GrpcUpgradeProtocol;
 
-use super::{Event, RequestId};
+use super::RequestId;
 
+pub(crate) mod event;
+use event::Event;
 mod protocol;
 
 /// Handler for gRPC connections
@@ -42,7 +44,7 @@ impl Handler {
 impl ConnectionHandler for Handler {
     type FromBehaviour = RequestId;
 
-    type ToBehaviour = Event;
+    type ToBehaviour = event::Event;
 
     type Error = void::Void;
 
@@ -126,6 +128,7 @@ impl ConnectionHandler for Handler {
         }
 
         if let Some(request_id) = self.outbound_request_id.take() {
+            debug!("Starting outbound request SubstreamProtocol");
             return Poll::Ready(ConnectionHandlerEvent::OutboundSubstreamRequest {
                 protocol: SubstreamProtocol::new(GrpcUpgradeProtocol {}, request_id),
             });

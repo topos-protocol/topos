@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package helloworld;
+
+// The greeting service definition.
+service Greeter {
+  // Sends a greeting
+  rpc SayHello (HelloRequest) returns (HelloReply) {}
+
+  // Send a greeting with a delay
+  rpc SayHelloWithDelay(HelloWithDelayRequest) returns (HelloReply) {}
+}
+
+// The request message containing the user's name.
+message HelloRequest {
+  string name = 1;
+}
+
+// The request message containing the user's name and the delay.
+message HelloWithDelayRequest {
+  string name = 1;
+  uint64 delay_in_seconds = 2;
+}
+
+// The response message containing the greetings
+message HelloReply {
+  string message = 1;
+}

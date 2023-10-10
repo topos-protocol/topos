@@ -1,4 +1,4 @@
-use libp2p::PeerId;
+use libp2p::{swarm::ConnectionId, PeerId};
 use tonic::transport::Channel;
 
 use super::{OutboundError, RequestId};
@@ -11,18 +11,27 @@ pub enum Event {
         error: OutboundError,
     },
 
-    InboundNegotiatedStream {
-        request_id: RequestId,
-        stream: libp2p::Stream,
-    },
-
-    OutboundNegotiatedStream {
-        request_id: RequestId,
-        stream: libp2p::Stream,
-    },
     OutboundSuccess {
         peer_id: PeerId,
         request_id: RequestId,
         channel: Channel,
+    },
+
+    // InboundNegotiatedStream {
+    //     request_id: RequestId,
+    //     stream: libp2p::Stream,
+    // },
+    InboundNegotiatedConnection {
+        request_id: RequestId,
+        connection_id: ConnectionId,
+    },
+
+    // OutboundNegotiatedStream {
+    //     request_id: RequestId,
+    //     stream: libp2p::Stream,
+    // },
+    OutboundNegotiatedConnection {
+        peer_id: PeerId,
+        request_id: RequestId,
     },
 }

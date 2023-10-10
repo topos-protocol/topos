@@ -82,6 +82,8 @@ pub(crate) struct Behaviour {
     next_inbound_request_id: Arc<AtomicU64>,
     /// The list of connected peers with the associated gRPC channel
     connected: HashMap<PeerId, SmallVec<[Connection; 2]>>,
+    /// The list of known addresses for each peer managed by `add_address` and `remove_address`
+    addresses: HashMap<PeerId, SmallVec<[Multiaddr; 6]>>,
     /// The optional inbound stream to receive gRPC connections
     inbound_stream: Option<mpsc::UnboundedSender<io::Result<stream::GrpcStream>>>,
     /// The list of pending outbound connections
@@ -99,12 +101,36 @@ impl Behaviour {
         Self {
             service,
             connected: HashMap::new(),
+            addresses: HashMap::new(),
             inbound_stream: None,
             next_request_id: RequestId(1),
             next_inbound_request_id: Arc::new(AtomicU64::new(0)),
             pending_outbound_connections: HashMap::new(),
             pending_events: VecDeque::new(),
             pending_negotiated_channels: FuturesUnordered::new(),
+        }
+    }
+
+    /// Adds a known address for a peer that can be used for
+    /// dialing attempts by the `Swarm`
+    ///
+    /// Addresses added in this way are only removed by `remove_address`.
+    #[cfg(test)]
+    pub fn add_address(&mut self, peer: &PeerId, address: Multiaddr) {
+        self.addresses.entry(*peer).or_default().push(address);
+    }
+
+    /// Removes an address of a peer previously added via `add_address`.
+    #[cfg(test)]
+    #[allow(unused)]
+    pub fn remove_address(&mut self, peer: &PeerId, address: &Multiaddr) {
+        let mut last = false;
+        if let Some(addresses) = self.addresses.get_mut(peer) {
+            addresses.retain(|a| a != address);
+            last = addresses.is_empty();
+        }
+        if last {
+            self.addresses.remove(peer);
         }
     }
 
@@ -267,6 +293,7 @@ impl Behaviour {
             connection_id,
         }: DialFailure,
     ) {
+        println!("Dial failure {:?}", error);
         if let Some(peer_id) = peer_id {
             match error {
                 DialError::DialPeerConditionFalse(_) => {
@@ -360,6 +387,10 @@ impl NetworkBehaviour for Behaviour {
             addresses.extend(connections.iter().filter_map(|c| c.address.clone()));
         }
 
+        if let Some(more) = self.addresses.get(&peer_id) {
+            addresses.extend(more.into_iter().cloned());
+        }
+
         Ok(addresses)
     }
 
@@ -370,24 +401,18 @@ impl NetworkBehaviour for Behaviour {
         event: libp2p::swarm::THandlerOutEvent<Self>,
     ) {
         match event {
-            Event::OutboundSuccess {
-                peer_id,
-                request_id,
-                channel,
-            } => {}
-            Event::OutboundFailure {
-                peer_id,
-                request_id,
-                error,
-            } => {
-                warn!("Unhandled OutboundFailure in gRPC Behaviour");
-            }
-            Event::InboundNegotiatedStream { request_id, stream } => {
+            handler::event::Event::InboundNegotiatedStream { request_id, stream } => {
                 if let Some(sender) = &mut self.inbound_stream {
                     _ = sender.send(Ok(GrpcStream::new(stream, peer_id, connection_id)));
+                    self.pending_events.push_back(ToSwarm::GenerateEvent(
+                        Event::InboundNegotiatedConnection {
+                            request_id,
+                            connection_id,
+                        },
+                    ));
                 }
             }
-            Event::OutboundNegotiatedStream { request_id, stream } => {
+            handler::event::Event::OutboundNegotiatedStream { request_id, stream } => {
                 let stream = GrpcStream::new(stream, peer_id, connection_id);
 
                 let future = stream
@@ -444,6 +469,7 @@ impl NetworkBehaviour for Behaviour {
                         if let Some(conn_request_id) = &conn.request_id {
                             if request_id == *conn_request_id {
                                 conn.channel = Some(channel.clone());
+
                                 break;
                             }
                         }
@@ -453,6 +479,12 @@ impl NetworkBehaviour for Behaviour {
                 // Notifying the channel to the initial sender
                 if let Some(req) = self.pending_outbound_connections.remove(&peer_id) {
                     let _ = req.notifier.send(Ok(channel.clone()));
+                    self.pending_events.push_back(ToSwarm::GenerateEvent(
+                        Event::OutboundNegotiatedConnection {
+                            request_id: req.request_id,
+                            peer_id,
+                        },
+                    ));
                 }
 
                 return Poll::Ready(ToSwarm::GenerateEvent(Event::OutboundSuccess {
