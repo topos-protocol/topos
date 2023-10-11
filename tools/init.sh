@@ -50,17 +50,17 @@ case "$1" in
 
         # For libp2p_keys.json
         LIBP2P_KEY=$(jq -r ".keys[$INDEX]" /tmp/shared/libp2p_keys.json)
-        echo "$LIBP2P_KEY" > $TOPOS_HOME/node/test/libp2p/libp2p.key
+        echo -n "$LIBP2P_KEY" > $TOPOS_HOME/node/test/libp2p/libp2p.key
         jq "del(.keys[$INDEX])" /tmp/shared/libp2p_keys.json > /tmp/shared/libp2p_keys_temp.json && mv /tmp/shared/libp2p_keys_temp.json /tmp/shared/libp2p_keys.json
 
         # For validator_bls_keys.json
         VALIDATOR_BLS_KEY=$(jq -r ".keys[$INDEX]" /tmp/shared/validator_bls_keys.json)
-        echo "$VALIDATOR_BLS_KEY" > $TOPOS_HOME/node/test/consensus/validator-bls.key
+        echo -n "$VALIDATOR_BLS_KEY" > $TOPOS_HOME/node/test/consensus/validator-bls.key
         jq "del(.keys[$INDEX])" /tmp/shared/validator_bls_keys.json > /tmp/shared/validator_bls_keys_temp.json && mv /tmp/shared/validator_bls_keys_temp.json /tmp/shared/validator_bls_keys.json
 
         # For validator_keys.json
         VALIDATOR_KEY=$(jq -r ".keys[$INDEX]" /tmp/shared/validator_keys.json)
-        echo "$VALIDATOR_KEY" > $TOPOS_HOME/node/test/consensus/validator.key
+        echo -n "$VALIDATOR_KEY" > $TOPOS_HOME/node/test/consensus/validator.key
         jq "del(.keys[$INDEX])" /tmp/shared/validator_keys.json > /tmp/shared/validator_keys_temp.json && mv /tmp/shared/validator_keys_temp.json /tmp/shared/validator_keys.json
 
         exec "$TOPOS_BIN" "${@:2}"
@@ -118,17 +118,17 @@ case "$1" in
 
            # For libp2p_keys.json
            LIBP2P_KEY=$(jq -r ".keys[$INDEX]" /tmp/shared/libp2p_keys.json)
-           echo "$LIBP2P_KEY" > $TOPOS_HOME/node/test/libp2p/libp2p.key
+           echo -n "$LIBP2P_KEY" > $TOPOS_HOME/node/test/libp2p/libp2p.key
            jq "del(.keys[$INDEX])" /tmp/shared/libp2p_keys.json > /tmp/shared/libp2p_keys_temp.json && mv /tmp/shared/libp2p_keys_temp.json /tmp/shared/libp2p_keys.json
 
            # For validator_bls_keys.json
            VALIDATOR_BLS_KEY=$(jq -r ".keys[$INDEX]" /tmp/shared/validator_bls_keys.json)
-           echo "$VALIDATOR_BLS_KEY" > $TOPOS_HOME/node/test/consensus/validator-bls.key
+           echo -n "$VALIDATOR_BLS_KEY" > $TOPOS_HOME/node/test/consensus/validator-bls.key
            jq "del(.keys[$INDEX])" /tmp/shared/validator_bls_keys.json > /tmp/shared/validator_bls_keys_temp.json && mv /tmp/shared/validator_bls_keys_temp.json /tmp/shared/validator_bls_keys.json
 
            # For validator_keys.json
            VALIDATOR_KEY=$(jq -r ".keys[$INDEX]" /tmp/shared/validator_keys.json)
-           echo "$VALIDATOR_KEY" > $TOPOS_HOME/node/test/consensus/validator.key
+           echo -n "$VALIDATOR_KEY" > $TOPOS_HOME/node/test/consensus/validator.key
            jq "del(.keys[$INDEX])" /tmp/shared/validator_keys.json > /tmp/shared/validator_keys_temp.json && mv /tmp/shared/validator_keys_temp.json /tmp/shared/validator_keys.json
 
        fi

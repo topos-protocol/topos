@@ -1,6 +1,5 @@
 use rstest::fixture;
 use rstest::rstest;
-use std::str::FromStr;
 use topos_tce_transport::ValidatorId;
 
 use super::Genesis;
@@ -33,10 +32,10 @@ pub fn test_parse_bootnodes(genesis: &Genesis) {
 pub fn test_extract_validators(genesis: &Genesis) {
     let validators = genesis.validators();
 
-    let first = ValidatorId::from_str("0x100d617e4392c02b31bdce650b26b6c0c3e04f95").unwrap();
-    let second = ValidatorId::from_str("0x92183cff18a1328e7d791d607589a15d9eee4bc4").unwrap();
-    let third = ValidatorId::from_str("0xb4973cdb10894d1d1547673bd758589034c2bba5").unwrap();
-    let fourth = ValidatorId::from_str("0xc16d83893cb61872206d4e271b813015d3242d94").unwrap();
+    let first = ValidatorId::try_from("0x100d617e4392c02b31bdce650b26b6c0c3e04f95").unwrap();
+    let second = ValidatorId::try_from("0x92183cff18a1328e7d791d607589a15d9eee4bc4").unwrap();
+    let third = ValidatorId::try_from("0xb4973cdb10894d1d1547673bd758589034c2bba5").unwrap();
+    let fourth = ValidatorId::try_from("0xc16d83893cb61872206d4e271b813015d3242d94").unwrap();
 
     assert_eq!(validators.len(), 4);
     assert_eq!(validators.get(&first), Some(&first));

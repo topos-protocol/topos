@@ -3,8 +3,8 @@ services:
 
   boot:
     container_name: boot
-    command: help
-    image: b356d84cb25f
+    command: boot node up --name test --home /tmp/node_config
+    image: 0126448c1a13
     init: true
     labels:
       "autoheal": "true"
@@ -33,11 +33,11 @@ services:
       - env/telemetry.env
     environment:
       - TCE_LOCAL_KS=1 # 12D3KooWRhFCXBhmsMnur3up3vJsDoqWh4c39PKXgSWwzAzDHNLn
-      - RUST_LOG=topos_tce_storage=info,topos_tce_synchronizer=info
+      - RUST_LOG=topos=debug,topos_tce_storage=info,topos_tce_synchronizer=info
 
   peer:
-    image: b356d84cb25f
-    command: node up
+    image: 0126448c1a13
+    command: peer node up --name test --home /tmp/node_config
     init: true
     labels:
       "autoheal": "true"
@@ -68,11 +68,11 @@ services:
       - env/node.env
       - env/telemetry.env
     environment:
-      - RUST_LOG=topos_tce_storage=info,topos_tce_synchronizer=debug
+      - RUST_LOG=topos=debug,topos_tce_storage=info,topos_tce_synchronizer=debug
 
   sync:
-    image: b356d84cb25f
-    command: node up
+    image: 0126448c1a13
+    command: sync node up --name test --home /tmp/node_config
     init: true
     labels:
       "autoheal": "true"
@@ -104,7 +104,7 @@ services:
   spammer:
     container_name: spam
     command: network spam
-    image: b356d84cb25f
+    image: 0126448c1a13
     init: true
     build:
       context: ../
@@ -125,7 +125,7 @@ services:
 
   check:
     container_name: check
-    image: aa6fd3790ef6
+    image: 0126448c1a13
     command: tce push-certificate -f json
     profiles:
       - CI
