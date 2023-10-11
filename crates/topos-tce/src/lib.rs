@@ -99,7 +99,6 @@ pub async fn run(
     debug!("Gatekeeper started");
 
     debug!("Starting the Storage");
-
     let path = if let StorageConfiguration::RocksDB(Some(ref path)) = config.storage {
         path
     } else {
