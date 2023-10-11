@@ -19,6 +19,11 @@ pub struct SequencerConfig {
     #[serde(default = "default_subnet_jsonrpc_endpoint")]
     pub subnet_jsonrpc_endpoint: String,
 
+    // Optional explicit websocket endpoint for the subnet jsonrpc api. If this parameter is not provided,
+    // it will be derived from the `subnet_jsonrpc_endpoint`.
+    // Full uri value is expected, e.g. `wss://arbitrum.infura.com/v3/ws/mykey` or `ws://127.0.0.1/ws`
+    pub subnet_websocket_endpoint: Option<String>,
+
     /// Address where the Topos Core contract is deployed
     #[serde(default = "default_subnet_contract_address")]
     pub subnet_contract_address: String,

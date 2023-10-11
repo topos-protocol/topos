@@ -22,6 +22,7 @@ pub(crate) async fn handle_command(
                 subnet_id: cmd.subnet_id,
                 public_key: None,
                 subnet_jsonrpc_endpoint: cmd.subnet_jsonrpc_endpoint,
+                subnet_websocket_endpoint: cmd.subnet_websocket_endpoint,
                 subnet_contract_address: cmd.subnet_contract_address,
                 tce_grpc_endpoint: cmd.base_tce_api_url,
                 signing_key: keys.validator.clone().unwrap(),
