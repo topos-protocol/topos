@@ -138,24 +138,27 @@ pub(crate) async fn handle_command(
 
             let mut processes = FuturesUnordered::new();
 
-            // Edge
+            // Edge node
             if cmd.no_edge_process {
                 info!("Using external edge node, skip running of local edge instance...")
-            } else {
+            } else if let Some(edge_config) = config.edge {
                 let data_dir = node_path.clone();
                 info!(
                     "Spawning edge process with genesis file: {}, data directory: {}, additional \
                      edge arguments: {:?}",
                     genesis.path.display(),
                     data_dir.display(),
-                    config.edge.as_ref().expect("valid edge configuration").args
+                    edge_config.args
                 );
                 processes.push(services::spawn_edge_process(
                     edge_path.join(BINARY_NAME),
                     data_dir,
                     genesis.path.clone(),
-                    config.edge.unwrap().args,
+                    edge_config.args,
                 ));
+            } else {
+                error!("Missing edge configuration, could not run edge node!");
+                std::process::exit(1);
             }
 
             // Sequencer
