@@ -13,8 +13,8 @@ pub struct Up {
     #[arg(long, env = "TOPOS_SECRETS_MANAGER")]
     pub secrets_config: Option<String>,
 
-    /// Do not run background edge process as part of node
-    /// Usable for cases where edge edpoint is available as infura (or similar cluod provider) endpoint
-    #[arg(long, env = "EXTERNAL_EDGE_NODE", action)]
-    pub external_edge_node: bool,
+    /// Defines that an external edge node will be use, replacing the one normally run by the node.
+    /// Usable for cases where edge endpoint is available as infura (or similar cloud provider) endpoint
+    #[arg(long, env = "TOPOS_NO_EDGE_PROCESS", action)]
+    pub no_edge_process: bool,
 }

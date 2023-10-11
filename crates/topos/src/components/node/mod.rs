@@ -139,7 +139,7 @@ pub(crate) async fn handle_command(
             let mut processes = FuturesUnordered::new();
 
             // Edge
-            if cmd.external_edge_node {
+            if cmd.no_edge_process {
                 info!("Using external edge node, skip running of local edge instance...")
             } else {
                 let data_dir = node_path.clone();
@@ -148,7 +148,7 @@ pub(crate) async fn handle_command(
                      edge arguments: {:?}",
                     genesis.path.display(),
                     data_dir.display(),
-                    config.edge.as_ref().unwrap().args
+                    config.edge.as_ref().expect("valid edge configuration").args
                 );
                 processes.push(services::spawn_edge_process(
                     edge_path.join(BINARY_NAME),
