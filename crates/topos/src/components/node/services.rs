@@ -120,7 +120,6 @@ pub fn spawn_edge_process(
     genesis_path: PathBuf,
     edge_args: HashMap<String, String>,
 ) -> JoinHandle<Result<(), Errors>> {
-    debug!("Edge args: {edge_args:?}");
     spawn(async move {
         match CommandConfig::new(edge_path)
             .server(&data_dir, &genesis_path, edge_args)
