@@ -3,8 +3,8 @@ services:
 
   boot:
     container_name: boot
-    command: boot tce run
-    image: ghcr.io/topos-protocol/topos:main
+    command: help
+    image: b356d84cb25f
     init: true
     labels:
       "autoheal": "true"
@@ -36,8 +36,8 @@ services:
       - RUST_LOG=topos_tce_storage=info,topos_tce_synchronizer=info
 
   peer:
-    image: ghcr.io/topos-protocol/topos:main
-    command: peer tce run
+    image: b356d84cb25f
+    command: node up
     init: true
     labels:
       "autoheal": "true"
@@ -71,8 +71,8 @@ services:
       - RUST_LOG=topos_tce_storage=info,topos_tce_synchronizer=debug
 
   sync:
-    image: ghcr.io/topos-protocol/topos:main
-    command: sync tce run
+    image: b356d84cb25f
+    command: node up
     init: true
     labels:
       "autoheal": "true"
@@ -104,7 +104,7 @@ services:
   spammer:
     container_name: spam
     command: network spam
-    image: ghcr.io/topos-protocol/topos:main
+    image: b356d84cb25f
     init: true
     build:
       context: ../
@@ -125,7 +125,7 @@ services:
 
   check:
     container_name: check
-    image: ghcr.io/topos-protocol/topos:main
+    image: aa6fd3790ef6
     command: tce push-certificate -f json
     profiles:
       - CI

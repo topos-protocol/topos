@@ -10,22 +10,13 @@ fi
 
 JQ=$(which jq)
 TOPOS_BIN=./topos
+TOPOS_HOME=/tmp/node_config
 BOOT_PEERS_PATH=/tmp/shared/boot_peers.json
 PEER_LIST_PATH=/tmp/shared/peer_ids.json
 NODE_LIST_PATH=/tmp/shared/peer_nodes.json
 NODE="http://$HOSTNAME:1340"
 TCE_EXT_HOST="/dns4/$HOSTNAME"
 
-
-# List of validator public keys
-public_keys=(
-    # public address for 122f3ae6ade1fd136b292cea4f6243c7811160352c8821528547a1fe7c459daf
-    "0xfa1dbe573e7ab7eb4fb772a349129cf0833f1154"
-    # public address for a2e33a9bad88f7b7568228f51d5274c471a9217162d46f1533b6a290f0be1baf
-    "0xfba339119da6dd78814055e50b5ae0ad4e880181"
-)
-
-TCE_VALIDATORS=$(IFS=,; echo "${public_keys[*]}")
 
 case "$1" in
 
@@ -51,10 +42,26 @@ case "$1" in
         echo "BOOT_PEER_ID: $BOOT_PEER_ID"
         echo "TCE_LOCAL_KS: $HOSTNAME"
 
+        export TOPOS_HOME=$TOPOS_HOME
         export TCE_LOCAL_KS=$HOSTNAME
-        export TCE_LOCAL_VPK=122f3ae6ade1fd136b292cea4f6243c7811160352c8821528547a1fe7c459daf
-        export TCE_VALIDATORS
         export TCE_EXT_HOST
+
+        INDEX=0
+
+        # For libp2p_keys.json
+        LIBP2P_KEY=$(jq -r ".keys[$INDEX]" /tmp/shared/libp2p_keys.json)
+        echo "$LIBP2P_KEY" > $TOPOS_HOME/node/test/libp2p/libp2p.key
+        jq "del(.keys[$INDEX])" /tmp/shared/libp2p_keys.json > /tmp/shared/libp2p_keys_temp.json && mv /tmp/shared/libp2p_keys_temp.json /tmp/shared/libp2p_keys.json
+
+        # For validator_bls_keys.json
+        VALIDATOR_BLS_KEY=$(jq -r ".keys[$INDEX]" /tmp/shared/validator_bls_keys.json)
+        echo "$VALIDATOR_BLS_KEY" > $TOPOS_HOME/node/test/consensus/validator-bls.key
+        jq "del(.keys[$INDEX])" /tmp/shared/validator_bls_keys.json > /tmp/shared/validator_bls_keys_temp.json && mv /tmp/shared/validator_bls_keys_temp.json /tmp/shared/validator_bls_keys.json
+
+        # For validator_keys.json
+        VALIDATOR_KEY=$(jq -r ".keys[$INDEX]" /tmp/shared/validator_keys.json)
+        echo "$VALIDATOR_KEY" > $TOPOS_HOME/node/test/consensus/validator.key
+        jq "del(.keys[$INDEX])" /tmp/shared/validator_keys.json > /tmp/shared/validator_keys_temp.json && mv /tmp/shared/validator_keys_temp.json /tmp/shared/validator_keys.json
 
         exec "$TOPOS_BIN" "${@:2}"
         ;;
@@ -85,9 +92,8 @@ case "$1" in
 
            ) 201>"${PEER_LIST_PATH}.lock"
 
+           export TOPOS_HOME=$TOPOS_HOME
            export TCE_LOCAL_KS=$HOSTNAME
-           export TCE_LOCAL_VPK=a2e33a9bad88f7b7568228f51d5274c471a9217162d46f1533b6a290f0be1baf
-           export TCE_VALIDATORS
            export TCE_EXT_HOST
 
            until [ -f "$NODE_LIST_PATH" ]
@@ -107,6 +113,23 @@ case "$1" in
 
            echo "PEER_ID: $PEER"
            echo "TCE_LOCAL_KS: $HOSTNAME"
+
+           INDEX=0
+
+           # For libp2p_keys.json
+           LIBP2P_KEY=$(jq -r ".keys[$INDEX]" /tmp/shared/libp2p_keys.json)
+           echo "$LIBP2P_KEY" > $TOPOS_HOME/node/test/libp2p/libp2p.key
+           jq "del(.keys[$INDEX])" /tmp/shared/libp2p_keys.json > /tmp/shared/libp2p_keys_temp.json && mv /tmp/shared/libp2p_keys_temp.json /tmp/shared/libp2p_keys.json
+
+           # For validator_bls_keys.json
+           VALIDATOR_BLS_KEY=$(jq -r ".keys[$INDEX]" /tmp/shared/validator_bls_keys.json)
+           echo "$VALIDATOR_BLS_KEY" > $TOPOS_HOME/node/test/consensus/validator-bls.key
+           jq "del(.keys[$INDEX])" /tmp/shared/validator_bls_keys.json > /tmp/shared/validator_bls_keys_temp.json && mv /tmp/shared/validator_bls_keys_temp.json /tmp/shared/validator_bls_keys.json
+
+           # For validator_keys.json
+           VALIDATOR_KEY=$(jq -r ".keys[$INDEX]" /tmp/shared/validator_keys.json)
+           echo "$VALIDATOR_KEY" > $TOPOS_HOME/node/test/consensus/validator.key
+           jq "del(.keys[$INDEX])" /tmp/shared/validator_keys.json > /tmp/shared/validator_keys_temp.json && mv /tmp/shared/validator_keys_temp.json /tmp/shared/validator_keys.json
 
        fi
 

@@ -7,6 +7,10 @@
 !tests
 !Cargo.*
 !tools/init.sh
+!tools/node_config
+!tools/libp2p_keys.json
+!tools/validator_bls_keys.json
+!tools/validator_keys.json
 !tools/liveness.sh
 !tools/config/nextest.toml
 !.git
