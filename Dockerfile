@@ -40,9 +40,6 @@ COPY --from=build /usr/src/app/target/release/topos .
 COPY tools/init.sh ./init.sh
 COPY tools/liveness.sh /tmp/liveness.sh
 
-COPY --chown=topos:topos /tools/node_config /tmp/node_config
-
-
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     jq \
@@ -52,7 +49,12 @@ RUN apt-get update && apt-get install -y \
 USER topos:topos
 
 RUN mkdir /tmp/shared
+RUN mkdir -p /tmp/node_config/subnet/topos
+RUN mkdir -p /tmp/node_config/node/test/consensus
+RUN mkdir -p /tmp/node_config/node/test/libp2p
 
+COPY tools/node_config/node/test/config.toml /tmp/node_config/node/test/config.toml
+COPY tools/node_config/subnet/topos/genesis.json /tmp/node_config/subnet/topos/genesis.json
 COPY tools/libp2p_keys.json /tmp/shared/libp2p_keys.json
 COPY tools/validator_bls_keys.json /tmp/shared/validator_bls_keys.json
 COPY tools/validator_keys.json /tmp/shared/validator_keys.json
