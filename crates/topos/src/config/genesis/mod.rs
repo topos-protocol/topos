@@ -7,6 +7,7 @@ use std::{fs, path::PathBuf};
 use serde_json::Value;
 use topos_p2p::{Multiaddr, PeerId};
 use topos_tce_transport::ValidatorId;
+use tracing::info;
 
 #[cfg(test)]
 pub(crate) mod tests;
@@ -24,6 +25,7 @@ pub enum Error {
 
 impl Genesis {
     pub fn new(path: PathBuf) -> Self {
+        info!("Reading subnet genesis file {}", path.display());
         let genesis_file = fs::File::open(&path).expect("opened file");
 
         let json: serde_json::Value =

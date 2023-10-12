@@ -6,9 +6,9 @@ on:
     paths:
       - "**.proto"
   pull_request:
-    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
-      - "**.proto"
+      - "./crates/topos-api/**.proto"
 
 jobs:
   js-grpc:

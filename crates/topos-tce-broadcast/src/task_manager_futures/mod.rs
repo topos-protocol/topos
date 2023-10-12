@@ -130,7 +130,7 @@ impl TaskManager {
                                     let prev = self.validator_store.get_certificate(&cert.prev_id);
                                     if matches!(prev, Ok(Some(_))) || cert.prev_id == topos_core::uci::INITIAL_CERTIFICATE_ID  {
                                         Self::start_task(
-                                            &mut self.running_tasks,
+                                            &self.running_tasks,
                                             task,
                                             task_context.sink.clone(),
                                             self.buffered_messages.remove(&cert.id),
@@ -158,7 +158,7 @@ impl TaskManager {
 
                                 let certificate_id= task.certificate_id;
                                 Self::start_task(
-                                    &mut self.running_tasks,
+                                    &self.running_tasks,
                                     task,
                                     context.sink.clone(),
                                     self.buffered_messages.remove(&certificate_id),
