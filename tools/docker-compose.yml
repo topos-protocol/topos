@@ -3,8 +3,8 @@ services:
 
   boot:
     container_name: boot
-    command: boot node up --name test --home /tmp/node_config
-    image: 309b80e94497
+    command: boot node up --name test --home /tmp/node_config --no-edge-process
+    image: 4c7598914c59
     init: true
     labels:
       "autoheal": "true"
@@ -36,8 +36,8 @@ services:
       - RUST_LOG=topos=debug,topos_tce_storage=info,topos_tce_synchronizer=info
 
   peer:
-    image: 309b80e94497
-    command: peer node up --name test --home /tmp/node_config
+    image: 4c7598914c59
+    command: peer node up --name test --home /tmp/node_config --no-edge-process
     init: true
     labels:
       "autoheal": "true"
@@ -62,7 +62,7 @@ services:
       - "3000"
       - "4000"
     deploy:
-      replicas: 14
+      replicas: 2
     env_file:
       - env/base.env
       - env/node.env
@@ -71,8 +71,8 @@ services:
       - RUST_LOG=topos=debug,topos_tce_storage=info,topos_tce_synchronizer=debug
 
   sync:
-    image: 309b80e94497
-    command: sync node up --name test --home /tmp/node_config
+    image: 4c7598914c59
+    command: sync node up --name test --home /tmp/node_config --no-edge-process
     init: true
     labels:
       "autoheal": "true"
@@ -104,7 +104,7 @@ services:
   spammer:
     container_name: spam
     command: network spam
-    image: 309b80e94497
+    image: 4c7598914c59
     init: true
     build:
       context: ../
@@ -125,7 +125,7 @@ services:
 
   check:
     container_name: check
-    image: 309b80e94497
+    image: 4c7598914c59
     command: tce push-certificate -f json
     profiles:
       - CI
