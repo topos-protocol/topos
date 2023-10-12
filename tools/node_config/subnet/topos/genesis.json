@@ -43,9 +43,6 @@
     "burnContractDestinationAddress": "0x0000000000000000000000000000000000000000"
   },
   "bootnodes": [
-    "/ip4/10.101.192.110/tcp/10001/p2p/16Uiu2HAkxKTnwPL3eZmFkiKYJiG3um9uraPh21XhsJEPNm8juhy3",
-    "/ip4/10.101.232.59/tcp/10001/p2p/16Uiu2HAmQfaE4bjJMVCwzigAUgp9eLcGQz8HZpURqEPNjtfDwge8",
-    "/ip4/10.101.208.7/tcp/10001/p2p/16Uiu2HAm5tS7AdBhhtQ2JuTtyy2U4uFqsiW57vof5fiyHPRpwboD",
-    "/ip4/10.101.210.76/tcp/10001/p2p/16Uiu2HAmFjGqEUYSnKkoqURRu8bZaWpuGdxBBqW15KFs4BsxFxdp"
+    "/ip4/10.101.232.59/tcp/10001/p2p/12D3KooWKfbuXufub9aRs3HQJ2T8geHDM8mkfA6DaZ8KTHzQzzPU"
   ]
 }

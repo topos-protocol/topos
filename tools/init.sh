@@ -16,12 +16,12 @@ PEER_LIST_PATH=/tmp/shared/peer_ids.json
 NODE_LIST_PATH=/tmp/shared/peer_nodes.json
 NODE="http://$HOSTNAME:1340"
 TCE_EXT_HOST="/dns4/$HOSTNAME"
-
+FIXED_BOOT_PEER_ID="BOOT_NODE_1"
 
 case "$1" in
 
     "boot")
-        BOOT_PEER_ID=$($TOPOS_BIN tce keys --from-seed=$HOSTNAME)
+        BOOT_PEER_ID=$($TOPOS_BIN tce keys --from-seed=$FIXED_BOOT_PEER_ID)
 
         echo "Generating boot_peers file..."
         $JQ -n --arg PEER $BOOT_PEER_ID --arg ADDR $TCE_EXT_HOST '[$PEER + " " + $ADDR + "/tcp/9090"]' > $BOOT_PEERS_PATH
@@ -76,6 +76,8 @@ case "$1" in
            done
 
            export TCE_BOOT_PEERS=$(cat $BOOT_PEERS_PATH | $JQ -r '.|join(",")')
+
+           echo "BOOT PEERS:  $TCE_BOOT_PEERS"
 
            until [ -f "$PEER_LIST_PATH" ]
            do
