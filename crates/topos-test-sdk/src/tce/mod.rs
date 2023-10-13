@@ -6,7 +6,6 @@ use libp2p::{Multiaddr, PeerId};
 use rstest::*;
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
-use std::str::FromStr;
 use std::sync::Arc;
 use tokio::spawn;
 use tokio::sync::broadcast;
@@ -286,9 +285,7 @@ pub async fn start_pool(
     let mut message_signers = Vec::new();
 
     for i in 1..=peer_number {
-        let mut bytes = [i; 32];
-
-        let message_signer = Arc::new(MessageSigner::new(&bytes).unwrap());
+        let message_signer = Arc::new(MessageSigner::new(&[i; 32]).unwrap());
         message_signers.push(message_signer.clone());
 
         let validator_id = ValidatorId::from(message_signer.public_address);
