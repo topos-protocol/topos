@@ -44,10 +44,9 @@ pub async fn processing_double_echo(n: u64, validator_store: Arc<ValidatorStore>
     let validator_id = ValidatorId::from(message_signer.public_address);
     validators.insert(validator_id);
 
-    for _ in 1..params.nb_peers {
-        let private_key: [u8; 32] = rng.gen();
+    for i in 1..params.nb_peers {
         validators.insert(ValidatorId::from(
-            MessageSigner::new(&private_key).unwrap().public_address,
+            MessageSigner::new(&[i as u8; 32]).unwrap().public_address,
         ));
     }
 

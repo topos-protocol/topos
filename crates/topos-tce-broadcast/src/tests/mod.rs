@@ -1,6 +1,5 @@
 use crate::double_echo::*;
 use crate::*;
-use rand::Rng;
 use rstest::*;
 use std::collections::HashSet;
 use std::str::FromStr;
@@ -57,18 +56,14 @@ async fn create_context(params: TceParams) -> (DoubleEcho, Context) {
         mpsc::channel::<oneshot::Sender<()>>(1);
     let (task_manager_message_sender, task_manager_message_receiver) = mpsc::channel(CHANNEL_SIZE);
 
-    let mut rng = rand::thread_rng();
-
     let message_signer = Arc::new(MessageSigner::from_str(PRIVATE_KEY).unwrap());
 
     let mut validators = HashSet::new();
     let validator_id = ValidatorId::from(message_signer.public_address);
     validators.insert(validator_id);
 
-    for _ in 1..params.nb_peers {
-        let private_key: [u8; 32] = rng.gen();
-        let hex_key = hex::encode(private_key);
-        let message_signer = Arc::new(MessageSigner::from_str(&hex_key).unwrap());
+    for i in 1..params.nb_peers {
+        let message_signer = Arc::new(MessageSigner::new(&[i as u8; 32]).unwrap());
         let validator_id = ValidatorId::from(message_signer.public_address);
         validators.insert(validator_id);
     }

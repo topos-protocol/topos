@@ -41,9 +41,6 @@ case "$1" in
         export TCE_LOCAL_KS=$HOSTNAME
         export TCE_EXT_HOST
 
-        mkdir -p $TOPOS_HOME/node/test/libp2p/
-        mkdir -p $TOPOS_HOME/node/test/consensus/
-
         if [ ! -d "$TOPOS_HOME/node/test/libp2p/" ]; then
             echo "Directory $TOPOS_HOME/node/test/libp2p/ does not exist!"
         fi

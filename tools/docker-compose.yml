@@ -4,7 +4,7 @@ services:
   boot:
     container_name: boot
     command: boot node up --name test --home /tmp/node_config --no-edge-process
-    image: 32357077f6da
+    image: ghcr.io/topos-protocol/topos:main
     init: true
     labels:
       "autoheal": "true"
@@ -41,7 +41,7 @@ services:
       - RUST_LOG=topos=debug,topos_tce_storage=info,topos_tce_synchronizer=info
 
   peer:
-    image: 32357077f6da
+    image: ghcr.io/topos-protocol/topos:main
     command: peer node up --name test --home /tmp/node_config --no-edge-process
     init: true
     labels:
@@ -81,16 +81,13 @@ services:
       - RUST_LOG=topos=debug,topos_tce_storage=info,topos_tce_synchronizer=debug
 
   sync:
-    image: 32357077f6da
+    image: ghcr.io/topos-protocol/topos:main
     command: sync node up --name test --home /tmp/node_config --no-edge-process
     init: true
     labels:
       "autoheal": "true"
     volumes:
       - shared:/tmp/shared
-      - ./node_config/node_test:/tmp/node_config/node/test
-      - ./node_config/node_test/consensus:/tmp/node_config/node/test/consensus
-      - ./node_config/node_test/libp2p:/tmp/node_config/node/test/libp2p
       - ./node_config/node/test/config.toml:/tmp/node_config/node/test/config.toml
       - ./node_config/subnet/topos/genesis.json:/tmp/node_config/subnet/topos/genesis.json
       - ./libp2p_keys.json:/tmp/shared/libp2p_keys.json
@@ -122,7 +119,7 @@ services:
   spammer:
     container_name: spam
     command: network spam
-    image: 32357077f6da
+    image: ghcr.io/topos-protocol/topos:main
     init: true
     build:
       context: ../
@@ -143,7 +140,7 @@ services:
 
   check:
     container_name: check
-    image: 32357077f6da
+    image: ghcr.io/topos-protocol/topos:main
     command: tce push-certificate -f json
     profiles:
       - CI

@@ -1,10 +1,8 @@
-use ethers::prelude::LocalWallet;
 use futures::future::join_all;
 use futures::Stream;
 use futures::StreamExt;
 use libp2p::identity::Keypair;
 use libp2p::{Multiaddr, PeerId};
-use rand::Rng;
 use rstest::*;
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
@@ -156,10 +154,7 @@ impl NodeConfig {
 }
 
 fn default_message_signer() -> Arc<MessageSigner> {
-    let mut rng = rand::thread_rng();
-    let random_bytes: [u8; 32] = rng.gen();
-
-    Arc::new(MessageSigner::new(&random_bytes).unwrap())
+    Arc::new(MessageSigner::new(&[5u8; 32]).unwrap())
 }
 
 #[fixture(
@@ -287,15 +282,13 @@ pub async fn start_pool(
     let mut clients = HashMap::new();
     let peers = build_peer_config_pool(peer_number);
 
-    let mut rng = rand::thread_rng();
-
     let mut validators = Vec::new();
     let mut message_signers = Vec::new();
 
-    for _ in 0..peer_number {
-        let private_key: [u8; 32] = rng.gen();
-        let hex_key = hex::encode(private_key);
-        let message_signer = Arc::new(MessageSigner::from_str(&hex_key).unwrap());
+    for i in 1..=peer_number {
+        let mut bytes = [i; 32];
+
+        let message_signer = Arc::new(MessageSigner::new(&bytes).unwrap());
         message_signers.push(message_signer.clone());
 
         let validator_id = ValidatorId::from(message_signer.public_address);
