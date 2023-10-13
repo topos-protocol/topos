@@ -1,7 +1,7 @@
 name: template - docker
 
 env:
-  DEFAULT_FEATURES: tce,sequencer,node,subnet
+  DEFAULT_FEATURES: tce,sequencer,subnet
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
   AWS_SHARED_CREDENTIALS_FILE: "${{ github.workspace }}/.aws/credentials"
