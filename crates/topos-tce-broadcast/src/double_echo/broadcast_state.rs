@@ -1,12 +1,12 @@
 use crate::sampler::SubscriptionsView;
 use std::sync::Arc;
 use std::{collections::HashSet, time};
-use tce_transport::{ProtocolEvents, ValidatorId};
+use tce_transport::ProtocolEvents;
 use tokio::sync::mpsc;
 use topos_core::{
     types::{
         stream::{CertificateSourceStreamPosition, Position},
-        CertificateDelivered, ProofOfDelivery, Ready,
+        CertificateDelivered, ProofOfDelivery, Ready, ValidatorId,
     },
     uci::Certificate,
 };

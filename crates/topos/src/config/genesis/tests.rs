@@ -1,7 +1,7 @@
 use rstest::fixture;
 use rstest::rstest;
 use std::str::FromStr;
-use topos_tce_transport::ValidatorId;
+use topos_core::types::ValidatorId;
 
 use super::Genesis;
 
@@ -31,7 +31,7 @@ pub fn test_parse_bootnodes(genesis: &Genesis) {
 
 #[rstest]
 pub fn test_extract_validators(genesis: &Genesis) {
-    let validators = genesis.validators();
+    let validators = genesis.validators().unwrap();
 
     let first = ValidatorId::from_str("0x100d617e4392c02b31bdce650b26b6c0c3e04f95").unwrap();
     let second = ValidatorId::from_str("0x92183cff18a1328e7d791d607589a15d9eee4bc4").unwrap();

@@ -24,13 +24,13 @@ use topos_core::api::grpc::tce::v1::{
 
 use topos_core::api::grpc::tce::v1::{StatusRequest, StatusResponse};
 use topos_core::types::CertificateDelivered;
+use topos_core::types::ValidatorId;
 use topos_core::uci::SubnetId;
 use topos_crypto::messages::MessageSigner;
 use topos_p2p::{error::P2PError, Client, Event, Runtime};
 use topos_tce::{events::Events, AppContext};
 use topos_tce_api::RuntimeContext;
 use topos_tce_storage::StorageClient;
-use topos_tce_transport::ValidatorId;
 use tracing::{info, warn};
 
 use self::gatekeeper::create_gatekeeper;
@@ -159,10 +159,7 @@ fn default_message_signer() -> Arc<MessageSigner> {
     let mut rng = rand::thread_rng();
     let random_bytes: [u8; 32] = rng.gen();
 
-    Arc::new(MessageSigner {
-        public_address: Default::default(),
-        wallet: LocalWallet::from_bytes(&random_bytes).unwrap(),
-    })
+    Arc::new(MessageSigner::new(&random_bytes).unwrap())
 }
 
 #[fixture(

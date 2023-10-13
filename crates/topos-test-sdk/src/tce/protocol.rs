@@ -2,11 +2,12 @@ use futures::Stream;
 use std::collections::HashSet;
 use std::sync::Arc;
 use tokio::sync::broadcast;
+use topos_core::types::ValidatorId;
 use topos_crypto::messages::MessageSigner;
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
 use topos_tce_storage::types::CertificateDeliveredWithPositions;
 use topos_tce_storage::validator::ValidatorStore;
-use topos_tce_transport::{ProtocolEvents, ReliableBroadcastParams, ValidatorId};
+use topos_tce_transport::{ProtocolEvents, ReliableBroadcastParams};
 
 pub async fn create_reliable_broadcast_client(
     validator_id: ValidatorId,

@@ -3,7 +3,8 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use tce_transport::{ReliableBroadcastParams, ValidatorId};
+use tce_transport::ReliableBroadcastParams;
+use topos_core::types::ValidatorId;
 use topos_p2p::{Multiaddr, PeerId};
 
 pub use crate::AppContext;

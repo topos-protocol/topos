@@ -40,13 +40,13 @@ async fn can_fetch_full_or_partial_list(#[future] gatekeeper: Client) {
 }
 
 #[fixture]
-async fn gatekeeper(peer_list: Vec<PeerId>) -> Client {
+async fn gatekeeper<P: Into<PeerId>>(peer_list: Vec<P>) -> Client {
     let peer_id = topos_p2p::utils::local_key_pair(Some(99))
         .public()
         .to_peer_id();
     let (client, server) = Gatekeeper::builder()
         .local_peer_id(peer_id)
-        .peer_list(peer_list)
+        .peer_list(peer_list.into_iter().map(|p| p.into()).collect())
         .await
         .unwrap();
 

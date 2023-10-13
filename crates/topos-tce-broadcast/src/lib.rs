@@ -8,12 +8,13 @@ use futures::Stream;
 use sampler::SampleType;
 use std::collections::HashSet;
 use std::sync::Arc;
-use tce_transport::{ProtocolEvents, ReliableBroadcastParams, ValidatorId};
+use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
 use thiserror::Error;
 use tokio::spawn;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
+use topos_core::types::ValidatorId;
 use topos_core::uci::{Certificate, CertificateId};
 use topos_crypto::messages::{MessageSigner, Signature};
 use topos_metrics::DOUBLE_ECHO_COMMAND_CHANNEL_CAPACITY_TOTAL;
@@ -57,16 +58,16 @@ pub struct ReliableBroadcastConfig {
 
 #[derive(Debug)]
 pub enum SamplerCommand {
-    PeersChanged {
-        peers: Vec<ValidatorId>,
+    ValidatorChanged {
+        validators: Vec<ValidatorId>,
     },
-    ConfirmPeer {
-        peer: ValidatorId,
+    ConfirmValidator {
+        validator: ValidatorId,
         sample_type: SampleType,
         sender: oneshot::Sender<Result<(), ()>>,
     },
-    PeerConfirmationFailed {
-        peer: ValidatorId,
+    ValidatorConfirmationFailed {
+        validator: ValidatorId,
         sample_type: SampleType,
     },
     ForceResample,

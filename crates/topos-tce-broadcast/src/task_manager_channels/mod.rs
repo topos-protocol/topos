@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::sync::Arc;
-use tce_transport::{ProtocolEvents, ReliableBroadcastParams, ValidatorId};
+use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
 use tokio::{spawn, sync::mpsc};
-use topos_core::uci::CertificateId;
+use topos_core::{types::ValidatorId, uci::CertificateId};
 use topos_crypto::messages::MessageSigner;
 use tracing::warn;
 

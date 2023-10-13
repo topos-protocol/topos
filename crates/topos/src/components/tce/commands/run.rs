@@ -3,8 +3,9 @@ use serde::Serialize;
 use std::collections::HashSet;
 use std::net::SocketAddr;
 use std::str::FromStr;
+use topos_core::types::{ValidatorId, ValidatorIdConversionError};
 use topos_p2p::{Multiaddr, PeerId};
-use topos_tce_transport::{ReliableBroadcastParams, ValidatorId};
+use topos_tce_transport::ReliableBroadcastParams;
 
 #[derive(Args, Debug, Serialize)]
 #[command(about = "Run a full TCE instance")]
@@ -98,19 +99,15 @@ impl Run {
             .collect()
     }
 
-    pub fn parse_validators(&self) -> HashSet<ValidatorId> {
+    pub fn parse_validators(&self) -> Result<HashSet<ValidatorId>, ValidatorIdConversionError> {
         if !self.validators.is_empty() {
             return self
                 .validators
                 .split(&[',', ' '])
-                .map(|address| {
-                    ValidatorId::from_str(address).unwrap_or_else(|error| {
-                        panic!("Failed to convert address to ValidatorId: {:?}", error)
-                    })
-                })
-                .collect();
+                .map(ValidatorId::from_str)
+                .collect::<Result<HashSet<_>, ValidatorIdConversionError>>();
         }
 
-        HashSet::new()
+        Ok(HashSet::new())
     }
 }

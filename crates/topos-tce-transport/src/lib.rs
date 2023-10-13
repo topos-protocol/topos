@@ -2,54 +2,11 @@
 //!
 use clap::Parser;
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
-use thiserror::Error;
-use topos_core::uci::{Certificate, CertificateId};
+use topos_core::{
+    types::ValidatorId,
+    uci::{Certificate, CertificateId},
+};
 use topos_crypto::messages::Signature;
-use topos_crypto::messages::{Address, H160};
-
-#[derive(Debug, Error)]
-pub enum ValidatorIdConversionError {
-    #[error("Failed to parse address string as H160")]
-    ParseError,
-    #[error("Failed to convert byte array into H160")]
-    InvalidByteLength,
-}
-
-#[derive(Clone, Copy, Default, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
-pub struct ValidatorId(H160);
-
-impl ValidatorId {
-    pub fn as_bytes(&self) -> &[u8] {
-        self.0.as_bytes()
-    }
-
-    pub fn address(&self) -> Address {
-        self.0
-    }
-}
-
-impl From<H160> for ValidatorId {
-    fn from(address: H160) -> Self {
-        ValidatorId(address)
-    }
-}
-
-impl FromStr for ValidatorId {
-    type Err = ValidatorIdConversionError;
-
-    fn from_str(address: &str) -> Result<Self, Self::Err> {
-        H160::from_str(address)
-            .map_err(|_| ValidatorIdConversionError::ParseError)
-            .map(ValidatorId)
-    }
-}
-
-impl std::fmt::Display for ValidatorId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "0x{}", hex::encode(self.0))
-    }
-}
 
 #[derive(Parser, Clone, Debug, Default, Deserialize, Serialize)]
 #[command(name = "Parameters of the reliable broadcast")]
@@ -86,8 +43,6 @@ pub enum TceCommands {
     Shutdown,
     /// Entry point for new certificate to submit as initial sender
     OnBroadcast { cert: Certificate },
-    /// We got updated list of visible peers to work with, let protocol do the sampling
-    OnVisiblePeersChanged { peers: Vec<ValidatorId> },
     /// Given peer sent EchoSubscribe request
     OnEchoSubscribeReq {},
     /// Given peer sent ReadySubscribe request
@@ -130,23 +85,6 @@ pub enum ProtocolEvents {
     /// (pb.Broadcast)
     Broadcast {
         certificate_id: CertificateId,
-    },
-    /// After sampling is done we ask peers to participate in the protocol (and provide us echo feedback)
-    EchoSubscribeReq {
-        peers: Vec<ValidatorId>,
-    },
-    /// After sampling is done we ask peers to participate in the protocol
-    /// (and provide us ready/delivery feedback (both with Ready message))
-    ReadySubscribeReq {
-        peers: Vec<ValidatorId>,
-    },
-    /// We are ok to participate in the protocol and confirm that to subscriber
-    EchoSubscribeOk {
-        to_peer: ValidatorId,
-    },
-    /// We are ok to participate in the protocol and confirm that to subscriber
-    ReadySubscribeOk {
-        to_peer: ValidatorId,
     },
     /// Indicates that 'gossip' message broadcasting is required
     Gossip {

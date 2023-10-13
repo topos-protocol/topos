@@ -41,20 +41,37 @@ case "$1" in
         export TCE_LOCAL_KS=$HOSTNAME
         export TCE_EXT_HOST
 
-        # For libp2p_keys.json
-        LIBP2P_KEY=$(jq -r ".keys[0]" /tmp/shared/libp2p_keys.json)
-        echo -n "$LIBP2P_KEY" > $TOPOS_HOME/node/test/libp2p/libp2p.key
-        jq "del(.keys[0])" /tmp/shared/libp2p_keys.json > /tmp/shared/libp2p_keys_temp.json && mv /tmp/shared/libp2p_keys_temp.json /tmp/shared/libp2p_keys.json
+        mkdir -p $TOPOS_HOME/node/test/libp2p/
+        mkdir -p $TOPOS_HOME/node/test/consensus/
 
-        # For validator_bls_keys.json
-        VALIDATOR_BLS_KEY=$(jq -r ".keys[0]" /tmp/shared/validator_bls_keys.json)
-        echo -n "$VALIDATOR_BLS_KEY" > $TOPOS_HOME/node/test/consensus/validator-bls.key
-        jq "del(.keys[0])" /tmp/shared/validator_bls_keys.json > /tmp/shared/validator_bls_keys_temp.json && mv /tmp/shared/validator_bls_keys_temp.json /tmp/shared/validator_bls_keys.json
+        if [ ! -d "$TOPOS_HOME/node/test/libp2p/" ]; then
+            echo "Directory $TOPOS_HOME/node/test/libp2p/ does not exist!"
+        fi
 
-        # For validator_keys.json
-        VALIDATOR_KEY=$(jq -r ".keys[0]" /tmp/shared/validator_keys.json)
-        echo -n "$VALIDATOR_KEY" > $TOPOS_HOME/node/test/consensus/validator.key
-        jq "del(.keys[0])" /tmp/shared/validator_keys.json > /tmp/shared/validator_keys_temp.json && mv /tmp/shared/validator_keys_temp.json /tmp/shared/validator_keys.json
+        if [ ! -w "$TOPOS_HOME/node/test/libp2p/" ]; then
+            echo "Directory $TOPOS_HOME/node/test/libp2p/ is not writable!"
+        fi
+
+        (
+          flock -x 200
+          LIBP2P_KEY=$(jq -r ".keys[0]" /tmp/shared/libp2p_keys.json)
+          echo -n "$LIBP2P_KEY" > $TOPOS_HOME/node/test/libp2p/libp2p.key
+          jq "del(.keys[0])" /tmp/shared/libp2p_keys.json > /tmp/shared/libp2p_keys_temp.json && cat /tmp/shared/libp2p_keys_temp.json > /tmp/shared/libp2p_keys.json && rm /tmp/shared/libp2p_keys_temp.json
+        ) 200>/tmp/shared/libp2p_keys.lock
+
+        (
+          flock -x 201
+          VALIDATOR_BLS_KEY=$(jq -r ".keys[0]" /tmp/shared/validator_bls_keys.json)
+          echo -n "$VALIDATOR_BLS_KEY" > $TOPOS_HOME/node/test/consensus/validator-bls.key
+          jq "del(.keys[0])" /tmp/shared/validator_bls_keys.json > /tmp/shared/validator_bls_keys_temp.json && cat /tmp/shared/validator_bls_keys_temp.json > /tmp/shared/validator_bls_keys.json && rm /tmp/shared/validator_bls_keys_temp.json
+        ) 201>/tmp/shared/validator_bls_keys.lock
+
+        (
+          flock -x 202
+          VALIDATOR_KEY=$(jq -r ".keys[0]" /tmp/shared/validator_keys.json)
+          echo -n "$VALIDATOR_KEY" > $TOPOS_HOME/node/test/consensus/validator.key
+          jq "del(.keys[0])" /tmp/shared/validator_keys.json > /tmp/shared/validator_keys_temp.json && cat /tmp/shared/validator_keys_temp.json > /tmp/shared/validator_keys.json && rm /tmp/shared/validator_keys_temp.json
+        ) 202>/tmp/shared/validator_keys.lock
 
         exec "$TOPOS_BIN" "${@:2}"
         ;;
@@ -99,20 +116,26 @@ case "$1" in
            echo "PEER_ID: $PEER"
            echo "TCE_LOCAL_KS: $HOSTNAME"
 
-           # For libp2p_keys.json
-           LIBP2P_KEY=$(jq -r ".keys[0]" /tmp/shared/libp2p_keys.json)
-           echo -n "$LIBP2P_KEY" > $TOPOS_HOME/node/test/libp2p/libp2p.key
-           jq "del(.keys[0])" /tmp/shared/libp2p_keys.json > /tmp/shared/libp2p_keys_temp.json && mv /tmp/shared/libp2p_keys_temp.json /tmp/shared/libp2p_keys.json
+          (
+            flock -x 200
+            LIBP2P_KEY=$(jq -r ".keys[0]" /tmp/shared/libp2p_keys.json)
+            echo -n "$LIBP2P_KEY" > $TOPOS_HOME/node/test/libp2p/libp2p.key
+            jq "del(.keys[0])" /tmp/shared/libp2p_keys.json > /tmp/shared/libp2p_keys_temp.json && cat /tmp/shared/libp2p_keys_temp.json > /tmp/shared/libp2p_keys.json && rm /tmp/shared/libp2p_keys_temp.json
+          ) 200>/tmp/shared/libp2p_keys.lock
 
-           # For validator_bls_keys.json
-           VALIDATOR_BLS_KEY=$(jq -r ".keys[0]" /tmp/shared/validator_bls_keys.json)
-           echo -n "$VALIDATOR_BLS_KEY" > $TOPOS_HOME/node/test/consensus/validator-bls.key
-           jq "del(.keys[0])" /tmp/shared/validator_bls_keys.json > /tmp/shared/validator_bls_keys_temp.json && mv /tmp/shared/validator_bls_keys_temp.json /tmp/shared/validator_bls_keys.json
+          (
+            flock -x 201
+            VALIDATOR_BLS_KEY=$(jq -r ".keys[0]" /tmp/shared/validator_bls_keys.json)
+            echo -n "$VALIDATOR_BLS_KEY" > $TOPOS_HOME/node/test/consensus/validator-bls.key
+            jq "del(.keys[0])" /tmp/shared/validator_bls_keys.json > /tmp/shared/validator_bls_keys_temp.json && cat /tmp/shared/validator_bls_keys_temp.json > /tmp/shared/validator_bls_keys.json && rm /tmp/shared/validator_bls_keys_temp.json
+          ) 201>/tmp/shared/validator_bls_keys.lock
 
-           # For validator_keys.json
-           VALIDATOR_KEY=$(jq -r ".keys[0]" /tmp/shared/validator_keys.json)
-           echo -n "$VALIDATOR_KEY" > $TOPOS_HOME/node/test/consensus/validator.key
-           jq "del(.keys[0])" /tmp/shared/validator_keys.json > /tmp/shared/validator_keys_temp.json && mv /tmp/shared/validator_keys_temp.json /tmp/shared/validator_keys.json
+          (
+            flock -x 202
+            VALIDATOR_KEY=$(jq -r ".keys[0]" /tmp/shared/validator_keys.json)
+            echo -n "$VALIDATOR_KEY" > $TOPOS_HOME/node/test/consensus/validator.key
+            jq "del(.keys[0])" /tmp/shared/validator_keys.json > /tmp/shared/validator_keys_temp.json && cat /tmp/shared/validator_keys_temp.json > /tmp/shared/validator_keys.json && rm /tmp/shared/validator_keys_temp.json
+          ) 202>/tmp/shared/validator_keys.lock
 
        fi
 

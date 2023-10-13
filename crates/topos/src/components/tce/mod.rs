@@ -81,7 +81,9 @@ pub(crate) async fn handle_command(
         Some(TceCommands::Run(cmd)) => {
             let config = TceConfiguration {
                 boot_peers: cmd.parse_boot_peers(),
-                validators: cmd.parse_validators(),
+                validators: cmd
+                    .parse_validators()
+                    .map_err(|_| Box::new(topos::Error::InvalidValidatorAddress))?,
                 auth_key: cmd
                     .local_key_seed
                     .clone()

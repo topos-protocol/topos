@@ -19,6 +19,9 @@ impl GatekeeperBuilder {
         self
     }
 
+    /// Start the Gatekeeper with a set of known peers in the network
+    /// The Sync service for example is making use of this list to ask for
+    /// random peers
     pub fn peer_list(mut self, peer_list: Vec<PeerId>) -> Self {
         self.local_peer_list = Some(peer_list);
 

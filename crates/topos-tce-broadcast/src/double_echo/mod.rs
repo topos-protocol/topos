@@ -2,9 +2,12 @@ use crate::TaskStatus;
 use crate::{DoubleEchoCommand, SubscriptionsView};
 use std::collections::HashSet;
 use std::sync::Arc;
-use tce_transport::{ProtocolEvents, ReliableBroadcastParams, ValidatorId};
+use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
 use tokio::sync::{broadcast, mpsc, oneshot};
-use topos_core::uci::{Certificate, CertificateId};
+use topos_core::{
+    types::ValidatorId,
+    uci::{Certificate, CertificateId},
+};
 use topos_crypto::messages::{MessageSigner, Signature};
 use topos_tce_storage::types::CertificateDeliveredWithPositions;
 use topos_tce_storage::validator::ValidatorStore;

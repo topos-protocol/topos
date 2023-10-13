@@ -9,6 +9,9 @@ use topos_core::api::grpc::tce::v1::{
 };
 
 pub(crate) struct TceConsoleService {
+    // We want to allow this unused command_sender, because we need it in the future again.
+    // We keep it so the architecture is alrady obvious where to put a command_sender
+    // One example will be changing validators during the uptime of the network
     #[allow(dead_code)]
     pub(crate) command_sender: Sender<InternalRuntimeCommand>,
     pub(crate) status: Arc<RwLock<StatusResponse>>,
