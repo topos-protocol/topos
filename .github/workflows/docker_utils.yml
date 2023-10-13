@@ -22,7 +22,7 @@ on:
       features:
         required: false
         type: string
-        default: tce,sequencer,network, node, subnet
+        default: tce,sequencer,network,node,subnet
     outputs:
       tags:
         description: "Docker tags"
