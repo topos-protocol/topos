@@ -59,8 +59,8 @@ pub(crate) fn spawn_sequencer_process(
     let config = SequencerConfiguration {
         subnet_id: None,
         public_key: keys.validator_pubkey(),
-        subnet_jsonrpc_endpoint: config.subnet_jsonrpc_endpoint,
-        subnet_websocket_endpoint: config.subnet_websocket_endpoint,
+        subnet_jsonrpc_http: config.subnet_jsonrpc_http,
+        subnet_jsonrpc_ws: config.subnet_jsonrpc_ws,
         subnet_contract_address: config.subnet_contract_address,
         tce_grpc_endpoint: config.tce_grpc_endpoint,
         signing_key: keys.validator.clone().unwrap(),
