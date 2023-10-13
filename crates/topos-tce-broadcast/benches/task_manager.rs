@@ -1,4 +1,3 @@
-use rand::Rng;
 use std::collections::HashSet;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -35,8 +34,6 @@ pub async fn processing_double_echo(n: u64, validator_store: Arc<ValidatorStore>
             delivery_threshold: 8,
         },
     };
-
-    let mut rng = rand::thread_rng();
 
     let message_signer: Arc<MessageSigner> =
         Arc::new(MessageSigner::from_str(PRIVATE_KEY).unwrap());
