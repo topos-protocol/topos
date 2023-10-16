@@ -111,7 +111,7 @@ async fn opening_outbound_stream() {}
 async fn opening_outbound_stream_half_close() {}
 
 #[test(tokio::test)]
-#[ignore = "Need to find a way to properly close the connection after sending the query"]
+#[ignore = "TP-757: Need to find a way to properly close the connection after sending the query"]
 async fn closing_stream() {
     let dummy = DummyServer {};
     let router = Server::builder().add_service(GreeterServer::new(dummy));
@@ -160,7 +160,7 @@ async fn closing_stream() {
 }
 
 #[test(tokio::test)]
-async fn executing_query() {
+async fn execute_query() {
     let dummy = DummyServer {};
     let router = Server::builder().add_service(GreeterServer::new(dummy));
     let mut client_swarm = Swarm::new_ephemeral(|_| grpc::Behaviour::new(None));

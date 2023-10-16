@@ -44,15 +44,13 @@ impl Future for NegotiatedGrpcOutboundStream {
     type Output = Result<GrpcStream, BoxError>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let fut = self.project();
-        let x = fut
+        let stream = self.project();
+        let mut fut = stream
             .stream_rx
             .lock()
-            .unwrap()
-            .poll_recv(cx)
-            .map(|option| option.unwrap());
+            .expect("Failed to lock gRPC Outbound Stream Receiver");
 
-        x
+        fut.poll_recv(cx).map(|option| option.unwrap())
     }
 }
 

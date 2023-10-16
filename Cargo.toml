@@ -53,8 +53,11 @@ tracing-opentelemetry = "0.19"
 tracing-subscriber = { version = "0.3", default-features = false }
 
 # gRPC
-prost = {version = "0.11"}
-tonic = { version = "0.9", default-features = false }
+prost = {version = "0.12"}
+tonic = { version = "0.10", default-features = false }
+tonic-build = { version = "0.10", default-features = false, features = [
+    "prost", "transport"
+] }
 
 # Axum server (GraphQL + Metrics)
 axum = "0.6"

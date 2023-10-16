@@ -44,7 +44,7 @@ pub struct OutboundConnectedConnection {
     pub(crate) channel: tonic::transport::Channel,
 }
 
-/// Enum which represent the different state of an outbound connection
+/// Enum that represents the different states of an outbound connection
 #[derive(Debug)]
 pub enum OutboundConnection {
     Connected(OutboundConnectedConnection),

@@ -24,11 +24,6 @@ lazy_static! {
         .ok()
         .and_then(|v| v.parse::<usize>().ok())
         .unwrap_or(2048);
-
-    pub static ref GRPC_QUERY_BUFFER_SIZE: usize = env::var("TCE_P2P_GRPC_BUFFER_SIZE")
-        .ok()
-        .and_then(|v| v.parse::<usize>().ok())
-        .unwrap_or(2048);
 }
 
 pub const TRANSMISSION_PROTOCOL: &str = "/tce-transmission/1";

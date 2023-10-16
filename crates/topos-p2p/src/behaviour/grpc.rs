@@ -195,7 +195,7 @@ impl Behaviour {
 
     /// Try to open a connection with the given peer.
     fn open_connection(&mut self, peer_id: &PeerId) -> OutboundConnection {
-        info!("Opening gRPC outbound connection to peer {peer_id}");
+        debug!("Opening gRPC outbound connection to peer {peer_id}");
 
         let (notifier, receiver) = oneshot::channel();
         let request_id = self.next_request_id();
@@ -217,7 +217,7 @@ impl Behaviour {
         }
     }
 
-    /// Handle the [`ConnectionEstablished`] event comming from the [`Swarm`]
+    /// Handle the [`ConnectionEstablished`] event coming from the [`Swarm`]
     /// and try to open a gRPC channel using a [`ConnectionHandler`].
     fn on_connection_established(
         &mut self,
@@ -256,11 +256,14 @@ impl Behaviour {
         if let Some(service) = self.service.take() {
             let (tx, rx) = mpsc::unbounded_channel();
             self.inbound_stream = Some(tx);
-            // TODO: Switch to serve_with_incoming_shutdown at some point
+            // TODO: TP-758: Switch to serve_with_incoming_shutdown at some point
             tokio::spawn(service.serve_with_incoming(proxy::GrpcProxy::new(rx)));
-            info!("New gRPC proxy start and listening on {listener_id:?}");
+            info!("New gRPC proxy started and listening on {listener_id:?}");
         } else {
-            warn!("Tried to instantiate gRPC proxy but service is missing");
+            warn!(
+                "Tried to instantiate a gRPC proxy on {listener_id:?} but the service is missing \
+                 (already spawn or unprovided)"
+            );
         }
     }
 
@@ -275,7 +278,7 @@ impl Behaviour {
             remaining_established,
         }: ConnectionClosed<<Self as NetworkBehaviour>::ConnectionHandler>,
     ) {
-        warn!("Connection {connection_id} closed with peer {peer_id}");
+        debug!("Connection {connection_id} closed with peer {peer_id}");
         if let Some(connections) = self.connected.get_mut(&peer_id) {
             connections.retain(|conn| conn.id != connection_id);
             if connections.is_empty() {
@@ -331,7 +334,7 @@ impl Behaviour {
                     notifier,
                 }) = self.pending_outbound_connections.get(peer_id)
                 {
-                    info!("gRPC Outbound connection established with {peer_id}");
+                    debug!("gRPC Outbound connection established with {peer_id}");
                     self.pending_events.push_back(ToSwarm::NotifyHandler {
                         peer_id: *peer_id,
                         handler: libp2p::swarm::NotifyHandler::One(connection.id),
@@ -463,7 +466,7 @@ impl NetworkBehaviour for Behaviour {
         // to update the [`Connection`] with the channel.
         match self.pending_negotiated_channels.poll_next_unpin(cx) {
             Poll::Ready(Some((Ok(channel), request_id, peer_id))) => {
-                tracing::debug!("gRPC channel ready for {} {}", peer_id, request_id);
+                debug!("gRPC channel ready for {} {}", peer_id, request_id);
                 if let Some(conns) = self.connected.get_mut(&peer_id) {
                     for conn in conns {
                         if let Some(conn_request_id) = &conn.request_id {

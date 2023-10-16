@@ -17,19 +17,11 @@ pub enum Event {
         channel: Channel,
     },
 
-    // InboundNegotiatedStream {
-    //     request_id: RequestId,
-    //     stream: libp2p::Stream,
-    // },
     InboundNegotiatedConnection {
         request_id: RequestId,
         connection_id: ConnectionId,
     },
 
-    // OutboundNegotiatedStream {
-    //     request_id: RequestId,
-    //     stream: libp2p::Stream,
-    // },
     OutboundNegotiatedConnection {
         peer_id: PeerId,
         request_id: RequestId,
