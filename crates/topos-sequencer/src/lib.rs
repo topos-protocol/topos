@@ -20,7 +20,8 @@ mod app_context;
 pub struct SequencerConfiguration {
     pub subnet_id: Option<String>,
     pub public_key: Option<Vec<u8>>,
-    pub subnet_jsonrpc_endpoint: String,
+    pub subnet_jsonrpc_http: String,
+    pub subnet_jsonrpc_ws: Option<String>,
     pub subnet_contract_address: String,
     pub tce_grpc_endpoint: String,
     pub signing_key: SecretKey,
@@ -49,7 +50,7 @@ pub async fn launch(
     // It will retry using backoff algorithm, but if it fails (default max backoff elapsed time is 15 min) we can not proceed
     else {
         let http_endpoint =
-            topos_sequencer_subnet_runtime::derive_endpoints(&config.subnet_jsonrpc_endpoint)
+            topos_sequencer_subnet_runtime::derive_endpoints(&config.subnet_jsonrpc_http)
                 .map_err(|e| {
                     Box::new(std::io::Error::new(
                         InvalidInput,
@@ -73,8 +74,13 @@ pub async fn launch(
         }
     };
 
-    let (http_endpoint, ws_endpoint) =
-        topos_sequencer_subnet_runtime::derive_endpoints(&config.subnet_jsonrpc_endpoint)?;
+    let (http_endpoint, mut ws_endpoint) =
+        topos_sequencer_subnet_runtime::derive_endpoints(&config.subnet_jsonrpc_http)?;
+
+    if let Some(config_ws_endpoint) = config.subnet_jsonrpc_ws.as_ref() {
+        // Use explicitly provided websocket subnet endpoint
+        ws_endpoint = config_ws_endpoint.clone();
+    }
 
     // Instantiate subnet runtime proxy, handling interaction with subnet node
     let subnet_runtime_proxy_worker = match SubnetRuntimeProxyWorker::new(
