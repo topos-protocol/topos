@@ -21,7 +21,8 @@ pub(crate) async fn handle_command(
             let config = SequencerConfiguration {
                 subnet_id: cmd.subnet_id,
                 public_key: None,
-                subnet_jsonrpc_endpoint: cmd.subnet_jsonrpc_endpoint,
+                subnet_jsonrpc_http: cmd.subnet_jsonrpc_http,
+                subnet_jsonrpc_ws: cmd.subnet_jsonrpc_ws,
                 subnet_contract_address: cmd.subnet_contract_address,
                 tce_grpc_endpoint: cmd.base_tce_api_url,
                 signing_key: keys.validator.clone().unwrap(),

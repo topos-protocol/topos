@@ -790,11 +790,11 @@ async fn test_subnet_certificate_get_checkpoints_call(
     let context = context_running_subnet_node.await;
     let subnet_smart_contract_address =
         "0x".to_string() + &hex::encode(context.i_topos_core.address());
-    let subnet_jsonrpc_endpoint = context.jsonrpc();
+    let subnet_jsonrpc_http = context.jsonrpc();
 
     // Get checkpoints when contract is empty
     let subnet_client = topos_sequencer_subnet_client::SubnetClient::new(
-        &subnet_jsonrpc_endpoint,
+        &subnet_jsonrpc_http,
         Some(hex::decode(TEST_SECRET_ETHEREUM_KEY).unwrap()),
         &subnet_smart_contract_address,
     )
@@ -908,11 +908,11 @@ async fn test_subnet_id_call(
     let context = context_running_subnet_node.await;
     let subnet_smart_contract_address =
         "0x".to_string() + &hex::encode(context.i_topos_core.address());
-    let subnet_jsonrpc_endpoint = context.jsonrpc();
+    let subnet_jsonrpc_http = context.jsonrpc();
 
     // Create subnet client
     let subnet_client = topos_sequencer_subnet_client::SubnetClient::new(
-        &subnet_jsonrpc_endpoint,
+        &subnet_jsonrpc_http,
         Some(hex::decode(TEST_SECRET_ETHEREUM_KEY).unwrap()),
         &subnet_smart_contract_address,
     )
@@ -954,7 +954,7 @@ async fn test_subnet_send_token_processing(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let context = context_running_subnet_node.await;
     let test_private_key = hex::decode(TEST_SECRET_ETHEREUM_KEY).unwrap();
-    let subnet_jsonrpc_endpoint = context.jsonrpc();
+    let subnet_jsonrpc_http = context.jsonrpc();
     let subnet_smart_contract_address =
         "0x".to_string() + &hex::encode(context.i_topos_core.address());
 
@@ -985,7 +985,7 @@ async fn test_subnet_send_token_processing(
     // Deploy token contract
     let i_erc20 = deploy_test_token(
         &hex::encode(&test_private_key),
-        &subnet_jsonrpc_endpoint,
+        &subnet_jsonrpc_http,
         context.i_topos_messaging.address(),
     )
     .await?;
@@ -1072,7 +1072,7 @@ async fn test_sync_from_genesis_and_particular_source_head(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let context = context_running_subnet_node.await;
     let test_private_key = hex::decode(TEST_SECRET_ETHEREUM_KEY).unwrap();
-    let subnet_jsonrpc_endpoint = context.jsonrpc();
+    let subnet_jsonrpc_http = context.jsonrpc();
     let subnet_smart_contract_address =
         "0x".to_string() + &hex::encode(context.i_topos_core.address());
 
@@ -1080,7 +1080,7 @@ async fn test_sync_from_genesis_and_particular_source_head(
     tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
 
     // Get block height
-    let http_provider = Provider::<Http>::try_from(subnet_jsonrpc_endpoint.clone())?
+    let http_provider = Provider::<Http>::try_from(subnet_jsonrpc_http.clone())?
         .interval(std::time::Duration::from_millis(20u64));
     let subnet_height = http_provider.get_block_number().await?.as_u64();
 
@@ -1148,7 +1148,7 @@ async fn test_sync_from_genesis_and_particular_source_head(
     //---------------------------------------------------------------------
     //
     // Get block height
-    let http_provider = Provider::<Http>::try_from(subnet_jsonrpc_endpoint)?
+    let http_provider = Provider::<Http>::try_from(subnet_jsonrpc_http)?
         .interval(std::time::Duration::from_millis(20u64));
     let subnet_height = http_provider.get_block_number().await?.as_u64();
     const SYNC_START_BLOCK_NUMBER: u64 = 11;
@@ -1235,7 +1235,7 @@ async fn test_sync_from_start_block(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let context = context_running_subnet_node.await;
     let test_private_key = hex::decode(TEST_SECRET_ETHEREUM_KEY).unwrap();
-    let subnet_jsonrpc_endpoint = context.jsonrpc();
+    let subnet_jsonrpc_http = context.jsonrpc();
     let subnet_smart_contract_address =
         "0x".to_string() + &hex::encode(context.i_topos_core.address());
 
@@ -1243,7 +1243,7 @@ async fn test_sync_from_start_block(
     tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
 
     // Get block height
-    let http_provider = Provider::<Http>::try_from(subnet_jsonrpc_endpoint.clone())?
+    let http_provider = Provider::<Http>::try_from(subnet_jsonrpc_http.clone())?
         .interval(std::time::Duration::from_millis(20u64));
     let subnet_height = http_provider.get_block_number().await?.as_u64();
 
@@ -1332,7 +1332,7 @@ async fn test_subnet_multiple_send_token_in_a_block(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let context = context_running_subnet_node.await;
     let test_private_key = hex::decode(TEST_SECRET_ETHEREUM_KEY).unwrap();
-    let subnet_jsonrpc_endpoint = context.jsonrpc();
+    let subnet_jsonrpc_http = context.jsonrpc();
     let subnet_smart_contract_address =
         "0x".to_string() + &hex::encode(context.i_topos_core.address());
     let number_of_send_token_transactions: usize = 4;
@@ -1366,7 +1366,7 @@ async fn test_subnet_multiple_send_token_in_a_block(
     // Deploy token contract
     let i_erc20 = deploy_test_token(
         &hex::encode(&test_private_key),
-        &subnet_jsonrpc_endpoint,
+        &subnet_jsonrpc_http,
         context.i_topos_messaging.address(),
     )
     .await?;
@@ -1409,28 +1409,28 @@ async fn test_subnet_multiple_send_token_in_a_block(
     let mut erc20_clients = vec![
         create_new_erc20_client(
             TEST_SECRET_ETHEREUM_KEY,
-            &subnet_jsonrpc_endpoint,
+            &subnet_jsonrpc_http,
             i_erc20.address(),
         )
         .await
         .expect("Valid erc20 client"),
         create_new_erc20_client(
             TEST_ACCOUNT_ALITH_KEY,
-            &subnet_jsonrpc_endpoint,
+            &subnet_jsonrpc_http,
             i_erc20.address(),
         )
         .await
         .expect("Valid erc20 client"),
         create_new_erc20_client(
             TEST_ACCOUNT_BALATHAR_KEY,
-            &subnet_jsonrpc_endpoint,
+            &subnet_jsonrpc_http,
             i_erc20.address(),
         )
         .await
         .expect("Valid erc20 client"),
         create_new_erc20_client(
             TEST_ACCOUNT_CEZAR_KEY,
-            &subnet_jsonrpc_endpoint,
+            &subnet_jsonrpc_http,
             i_erc20.address(),
         )
         .await
@@ -1460,7 +1460,7 @@ async fn test_subnet_multiple_send_token_in_a_block(
             TARGET_SUBNET_ID_5,
             create_new_erc20msg_client(
                 TEST_SECRET_ETHEREUM_KEY,
-                &subnet_jsonrpc_endpoint,
+                &subnet_jsonrpc_http,
                 context.i_erc20_messaging.address(),
             )
             .await
@@ -1470,7 +1470,7 @@ async fn test_subnet_multiple_send_token_in_a_block(
             TARGET_SUBNET_ID_4,
             create_new_erc20msg_client(
                 TEST_ACCOUNT_ALITH_KEY,
-                &subnet_jsonrpc_endpoint,
+                &subnet_jsonrpc_http,
                 context.i_erc20_messaging.address(),
             )
             .await
@@ -1480,7 +1480,7 @@ async fn test_subnet_multiple_send_token_in_a_block(
             TARGET_SUBNET_ID_3,
             create_new_erc20msg_client(
                 TEST_ACCOUNT_BALATHAR_KEY,
-                &subnet_jsonrpc_endpoint,
+                &subnet_jsonrpc_http,
                 context.i_erc20_messaging.address(),
             )
             .await
@@ -1490,7 +1490,7 @@ async fn test_subnet_multiple_send_token_in_a_block(
             TARGET_SUBNET_ID_2,
             create_new_erc20msg_client(
                 TEST_ACCOUNT_CEZAR_KEY,
-                &subnet_jsonrpc_endpoint,
+                &subnet_jsonrpc_http,
                 context.i_erc20_messaging.address(),
             )
             .await
