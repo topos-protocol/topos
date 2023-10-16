@@ -1,5 +1,4 @@
 use crate::{GatekeeperCommand, GatekeeperError, GetAllPeers, GetAllSubnets, GetRandomPeers};
-use async_trait::async_trait;
 use tokio::sync::{mpsc, oneshot};
 use topos_core::uci::SubnetId;
 use topos_p2p::PeerId;

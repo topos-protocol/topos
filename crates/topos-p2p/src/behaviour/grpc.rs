@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::{HashMap, HashSet, VecDeque},
     io,
     sync::{atomic::AtomicU64, Arc},
     task::{Context, Poll},
@@ -22,11 +22,14 @@ use tokio::sync::{mpsc, oneshot};
 use tonic::transport::{server::Router, Channel};
 use tracing::{debug, info, warn};
 
+use crate::GrpcRouter;
+
 use self::{
     connection::{
         Connection, OutboundConnectedConnection, OutboundConnection, OutboundConnectionRequest,
     },
     error::OutboundError,
+    handler::ProtocolRequest,
     stream::GrpcStream,
 };
 pub(crate) use event::Event;
@@ -34,9 +37,48 @@ pub(crate) use event::Event;
 pub(crate) mod connection;
 pub mod error;
 pub mod event;
-mod handler;
+pub(crate) mod handler;
 mod proxy;
 mod stream;
+
+#[derive(Default)]
+pub struct GrpcContext {
+    server: Option<GrpcRouter>,
+    client: HashSet<String>,
+}
+
+impl GrpcContext {
+    pub(crate) fn into_parts(mut self) -> (Option<Router>, (HashSet<String>, HashSet<String>)) {
+        let (server, inbound_protocols) = self
+            .server
+            .map(|server| (Some(server.server), server.protocols))
+            .unwrap_or((None, HashSet::new()));
+
+        if self.client.is_empty() {
+            self.client = inbound_protocols.clone();
+        }
+
+        (server, (inbound_protocols, self.client))
+    }
+
+    pub fn with_router(mut self, router: GrpcRouter) -> Self {
+        self.server = Some(router);
+
+        self
+    }
+
+    pub fn add_client_protocol<S: ToString>(mut self, protocol: S) -> Self {
+        self.client.insert(protocol.to_string());
+
+        self
+    }
+
+    pub fn with_client_protocols(mut self, protocols: HashSet<String>) -> Self {
+        self.client = protocols;
+
+        self
+    }
+}
 
 /// The request id used to identify a gRPC request
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -74,17 +116,22 @@ pub(crate) struct Behaviour {
     /// The list of pending outbound connections
     pending_outbound_connections: HashMap<PeerId, OutboundConnectionRequest>,
     /// The list of pending events to send to the swarm
-    pending_events: VecDeque<ToSwarm<Event, RequestId>>,
+    pending_events: VecDeque<ToSwarm<Event, ProtocolRequest>>,
     /// The list of pending channel negotiation futures
     pending_negotiated_channels: FuturesUnordered<ChannelNegotiationFuture>,
+    inbound_protocols: HashSet<String>,
+    outbound_protocols: HashSet<String>,
 }
 
 impl Behaviour {
     // TODO: Remove unused when gRPC behaviour is activated
-    #[allow(unused)]
-    pub fn new(service: Option<Router>) -> Self {
+    pub fn new(service: GrpcContext) -> Self {
+        let (service, (inbound_protocols, outbound_protocols)) = service.into_parts();
+
         Self {
             service,
+            inbound_protocols,
+            outbound_protocols,
             connected: HashMap::new(),
             addresses: HashMap::new(),
             inbound_stream: None,
@@ -126,7 +173,11 @@ impl Behaviour {
     /// is established, the gRPC channel is returned.
     // TODO: Remove unused when gRPC behaviour is activated
     #[allow(unused)]
-    pub fn open_outbound_connection(&mut self, peer_id: &PeerId) -> OutboundConnection {
+    pub fn open_outbound_connection(
+        &mut self,
+        peer_id: &PeerId,
+        protocol: String,
+    ) -> OutboundConnection {
         // If there is a pending outbound connection for this peer
         // return the request id
         if let Some(request) = self.pending_outbound_connections.get(peer_id) {
@@ -158,15 +209,15 @@ impl Behaviour {
                         request_id: *request_id,
                     }
                 }
-                Some(_) => self.open_connection(peer_id),
+                Some(_) => self.open_connection(peer_id, protocol),
                 _ => {
                     debug!("No connection for this peer {}", peer_id);
-                    self.open_connection(peer_id)
+                    self.open_connection(peer_id, protocol)
                 }
             }
         } else {
             debug!("Buffering sender as no available connection to peer {peer_id} yet");
-            self.open_connection(peer_id)
+            self.open_connection(peer_id, protocol)
         }
     }
 
@@ -179,8 +230,8 @@ impl Behaviour {
     }
 
     /// Try to open a connection with the given peer.
-    fn open_connection(&mut self, peer_id: &PeerId) -> OutboundConnection {
-        debug!("Opening gRPC outbound connection to peer {peer_id}");
+    fn open_connection(&mut self, peer_id: &PeerId, protocol: String) -> OutboundConnection {
+        info!("Opening gRPC outbound connection to peer {peer_id}");
 
         let (notifier, receiver) = oneshot::channel();
         let request_id = self.next_request_id();
@@ -190,6 +241,7 @@ impl Behaviour {
             .or_insert_with(|| OutboundConnectionRequest {
                 request_id,
                 notifier,
+                protocol,
             });
 
         self.pending_events.push_back(ToSwarm::Dial {
@@ -281,7 +333,6 @@ impl Behaviour {
             connection_id,
         }: DialFailure,
     ) {
-        println!("Dial failure {:?}", error);
         if let Some(peer_id) = peer_id {
             match error {
                 DialError::DialPeerConditionFalse(_) => {
@@ -291,6 +342,7 @@ impl Behaviour {
                     if let Some(OutboundConnectionRequest {
                         request_id,
                         notifier,
+                        protocol,
                     }) = self.pending_outbound_connections.remove(&peer_id)
                     {
                         self.pending_events.push_back(ToSwarm::GenerateEvent(
@@ -317,13 +369,17 @@ impl Behaviour {
                 if let Some(OutboundConnectionRequest {
                     request_id,
                     notifier,
+                    protocol,
                 }) = self.pending_outbound_connections.get(peer_id)
                 {
                     debug!("gRPC Outbound connection established with {peer_id}");
                     self.pending_events.push_back(ToSwarm::NotifyHandler {
                         peer_id: *peer_id,
                         handler: libp2p::swarm::NotifyHandler::One(connection.id),
-                        event: *request_id,
+                        event: ProtocolRequest {
+                            request_id: *request_id,
+                            protocol: protocol.clone(),
+                        },
                     });
 
                     debug!("Sending handler notif to connect");
@@ -345,7 +401,10 @@ impl NetworkBehaviour for Behaviour {
         local_addr: &libp2p::Multiaddr,
         remote_addr: &libp2p::Multiaddr,
     ) -> Result<libp2p::swarm::THandler<Self>, libp2p::swarm::ConnectionDenied> {
-        Ok(Handler::new(self.next_inbound_request_id.clone()))
+        Ok(Handler::new(
+            self.next_inbound_request_id.clone(),
+            self.inbound_protocols.clone(),
+        ))
     }
 
     fn handle_established_outbound_connection(
@@ -355,7 +414,10 @@ impl NetworkBehaviour for Behaviour {
         addr: &libp2p::Multiaddr,
         role_override: libp2p::core::Endpoint,
     ) -> Result<libp2p::swarm::THandler<Self>, libp2p::swarm::ConnectionDenied> {
-        Ok(Handler::new(self.next_inbound_request_id.clone()))
+        Ok(Handler::new(
+            self.next_inbound_request_id.clone(),
+            self.outbound_protocols.clone(),
+        ))
     }
 
     fn handle_pending_outbound_connection(
@@ -389,7 +451,45 @@ impl NetworkBehaviour for Behaviour {
         event: libp2p::swarm::THandlerOutEvent<Self>,
     ) {
         match event {
+            handler::event::Event::OutboundTimeout(request) => {
+                debug!(
+                    "Outbound timeout for request {} with peer {peer_id}",
+                    request.request_id
+                );
+                self.pending_events
+                    .push_back(ToSwarm::GenerateEvent(Event::OutboundFailure {
+                        peer_id,
+                        request_id: request.request_id,
+                        error: OutboundError::Timeout,
+                    }));
+
+                if let Some(connection_request) = self.pending_outbound_connections.remove(&peer_id)
+                {
+                    _ = connection_request
+                        .notifier
+                        .send(Err(OutboundError::Timeout))
+                }
+            }
+            handler::event::Event::UnsupportedProtocol(request_id, protocol) => {
+                debug!(
+                    "Unsupported protocol {protocol} for request {request_id} with peer {peer_id}"
+                );
+                self.pending_events
+                    .push_back(ToSwarm::GenerateEvent(Event::OutboundFailure {
+                        peer_id,
+                        request_id,
+                        error: OutboundError::UnsupportedProtocol(protocol.clone()),
+                    }));
+
+                if let Some(connection_request) = self.pending_outbound_connections.remove(&peer_id)
+                {
+                    _ = connection_request
+                        .notifier
+                        .send(Err(OutboundError::UnsupportedProtocol(protocol)))
+                }
+            }
             handler::event::Event::InboundNegotiatedStream { request_id, stream } => {
+                debug!("Inbound stream negotiated for request {request_id} with peer {peer_id}",);
                 if let Some(sender) = &mut self.inbound_stream {
                     _ = sender.send(Ok(GrpcStream::new(stream, peer_id, connection_id)));
                     self.pending_events.push_back(ToSwarm::GenerateEvent(
@@ -401,6 +501,7 @@ impl NetworkBehaviour for Behaviour {
                 }
             }
             handler::event::Event::OutboundNegotiatedStream { request_id, stream } => {
+                debug!("Outbound stream negotiated for request {request_id} with peer {peer_id}",);
                 let stream = GrpcStream::new(stream, peer_id, connection_id);
 
                 let future = stream
@@ -425,15 +526,15 @@ impl NetworkBehaviour for Behaviour {
                 self.on_connection_closed(connection_closed)
             }
             FromSwarm::DialFailure(dial_failure) => self.on_dial_failure(dial_failure),
-            FromSwarm::AddressChange(_) => (),
-            FromSwarm::ExpiredListenAddr(_) => (),
-            FromSwarm::ExternalAddrConfirmed(_) => (),
-            FromSwarm::ExternalAddrExpired(_) => (),
-            FromSwarm::ListenFailure(_) => (),
-            FromSwarm::ListenerClosed(_) => (),
-            FromSwarm::ListenerError(_) => (),
-            FromSwarm::NewExternalAddrCandidate(_) => (),
-            FromSwarm::NewListenAddr(_) => (),
+            FromSwarm::AddressChange(_)
+            | FromSwarm::ExpiredListenAddr(_)
+            | FromSwarm::ExternalAddrConfirmed(_)
+            | FromSwarm::ExternalAddrExpired(_)
+            | FromSwarm::ListenFailure(_)
+            | FromSwarm::ListenerClosed(_)
+            | FromSwarm::ListenerError(_)
+            | FromSwarm::NewExternalAddrCandidate(_)
+            | FromSwarm::NewListenAddr(_) => (),
         }
     }
 
@@ -483,6 +584,7 @@ impl NetworkBehaviour for Behaviour {
             }
 
             Poll::Ready(Some((Err(error), request_id, peer_id))) => {
+                debug!("Received error from channel negotiation {:?}", error);
                 let error = Arc::new(error);
                 if let Some(req) = self.pending_outbound_connections.remove(&peer_id) {
                     let _ = req

@@ -34,6 +34,7 @@ tower.workspace = true
 tracing = { workspace = true, features = ["attributes"] }
 uuid.workspace = true
 void = "1"
+hyper.workspace = true
 
 [dev-dependencies]
 test-log.workspace = true
@@ -41,3 +42,4 @@ env_logger.workspace = true
 rstest = { workspace = true, features = ["async-timeout"] }
 tracing-subscriber.workspace = true
 topos-test-sdk = { path = "../topos-test-sdk/", features = ["tce"] }
+rand.workspace = true

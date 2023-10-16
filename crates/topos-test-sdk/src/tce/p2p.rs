@@ -3,10 +3,9 @@ use std::error::Error;
 use futures::Stream;
 use libp2p::Multiaddr;
 use tokio::{spawn, task::JoinHandle};
-use tonic::transport::server::Router;
 
 use crate::p2p::keypair_from_seed;
-use topos_p2p::{error::P2PError, Event, NetworkClient, Runtime};
+use topos_p2p::{error::P2PError, Event, GrpcContext, GrpcRouter, NetworkClient, Runtime};
 
 use super::NodeConfig;
 
@@ -16,7 +15,7 @@ pub async fn create_network_worker(
     addr: Multiaddr,
     peers: &[NodeConfig],
     minimum_cluster_size: usize,
-    router: Option<Router>,
+    router: Option<GrpcRouter>,
 ) -> Result<
     (
         NetworkClient,
@@ -42,6 +41,11 @@ pub async fn create_network_worker(
             })
             .collect::<Vec<_>>()
     };
+    let grpc_context = if let Some(router) = router {
+        GrpcContext::default().with_router(router)
+    } else {
+        GrpcContext::default()
+    };
 
     topos_p2p::network::builder()
         .peer_key(key.clone())
@@ -49,7 +53,7 @@ pub async fn create_network_worker(
         .exposed_addresses(addr.clone())
         .listen_addr(addr)
         .minimum_cluster_size(minimum_cluster_size)
-        .router(router)
+        .grpc_context(grpc_context)
         .build()
         .await
 }
@@ -60,7 +64,7 @@ pub async fn bootstrap_network(
     addr: Multiaddr,
     peers: &[NodeConfig],
     minimum_cluster_size: usize,
-    router: Option<Router>,
+    router: Option<GrpcRouter>,
 ) -> Result<
     (
         NetworkClient,

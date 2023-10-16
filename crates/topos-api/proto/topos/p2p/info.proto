@@ -1,0 +1,6 @@
+syntax = "proto3";
+
+package topos.p2p;
+
+service InfoService {
+}

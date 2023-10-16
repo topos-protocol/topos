@@ -14,7 +14,8 @@ use topos_core::{
         self,
         shared::v1::Uuid as APIUuid,
         tce::v1::{
-            synchronizer_service_client::SynchronizerServiceClient, CheckpointRequest,
+            synchronizer_service_client::SynchronizerServiceClient,
+            synchronizer_service_server::SynchronizerServiceServer, CheckpointRequest,
             CheckpointResponse, FetchCertificatesRequest,
         },
     },
@@ -36,6 +37,8 @@ mod tests;
 
 pub use config::CheckpointsCollectorConfig;
 pub use error::CheckpointsCollectorError;
+
+use crate::SynchronizerService;
 
 pub struct CheckpointSynchronizer {
     pub(crate) config: CheckpointsCollectorConfig,
@@ -158,7 +161,7 @@ impl CheckpointSynchronizer {
         debug!("Asking {} for latest checkpoint", peer);
         let mut client: SynchronizerServiceClient<_> = self
             .network
-            .new_grpc_client::<SynchronizerServiceClient<_>>(peer)
+            .new_grpc_client::<SynchronizerServiceClient<_>, SynchronizerServiceServer<SynchronizerService>>(peer)
             .await
             .unwrap();
 
@@ -233,7 +236,7 @@ impl CheckpointSynchronizer {
         );
         let mut client: SynchronizerServiceClient<_> = self
             .network
-            .new_grpc_client::<SynchronizerServiceClient<_>>(target_peer)
+            .new_grpc_client::<SynchronizerServiceClient<_>, SynchronizerServiceServer<SynchronizerService>>(target_peer)
             .await?;
 
         let response = client.fetch_certificates(req).await?.into_inner();

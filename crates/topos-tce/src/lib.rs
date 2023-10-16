@@ -12,7 +12,7 @@ use topos_core::api::grpc::tce::v1::synchronizer_service_server::SynchronizerSer
 use topos_crypto::messages::MessageSigner;
 use topos_p2p::{
     utils::{local_key_pair, local_key_pair_from_slice},
-    Multiaddr,
+    GrpcContext, GrpcRouter, Multiaddr,
 };
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
 use topos_tce_storage::{
@@ -103,11 +103,13 @@ pub async fn run(
     let validator_store = ValidatorStore::open(path.clone(), fullnode_store.clone())
         .expect("Unable to create validator store");
 
-    let router = tonic::transport::Server::builder().add_service(SynchronizerServiceServer::new(
-        SynchronizerService {
-            validator_store: validator_store.clone(),
-        },
-    ));
+    let grpc_context = GrpcContext::default().with_router(
+        GrpcRouter::new(tonic::transport::Server::builder()).add_service(
+            SynchronizerServiceServer::new(SynchronizerService {
+                validator_store: validator_store.clone(),
+            }),
+        ),
+    );
 
     let (network_client, event_stream, unbootstrapped_runtime) = topos_p2p::network::builder()
         .peer_key(key)
@@ -115,7 +117,7 @@ pub async fn run(
         .minimum_cluster_size(config.minimum_cluster_size)
         .exposed_addresses(external_addr)
         .known_peers(&boot_peers)
-        .router(Some(router))
+        .grpc_context(grpc_context)
         .build()
         .await?;
 

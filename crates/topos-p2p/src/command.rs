@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use libp2p::{request_response::ResponseChannel, Multiaddr, PeerId};
+use libp2p::{Multiaddr, PeerId};
 use serde::{Deserialize, Serialize};
 use tokio::sync::oneshot;
 
@@ -53,6 +53,7 @@ pub enum Command {
     /// The response will be a `OutboundConnection` that can be used to create a gRPC client.
     /// A connection is established if needed with the peer.
     NewProxiedQuery {
+        protocol: &'static str,
         peer: PeerId,
         id: uuid::Uuid,
         response: oneshot::Sender<OutboundConnection>,

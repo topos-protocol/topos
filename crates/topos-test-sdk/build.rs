@@ -14,11 +14,15 @@ fn main() {
     );
 
     let path = PathBuf::from("./src/grpc/behaviour/");
-    let descriptor_path = path.join("helloworld_descriptor.bin");
 
     tonic_build::configure()
         .out_dir(path)
-        .file_descriptor_set_path(descriptor_path)
-        .compile(&["./proto/behaviour/helloworld.proto"], &["proto/"])
+        .compile(
+            &[
+                "./proto/behaviour/helloworld.proto",
+                "./proto/behaviour/noop.proto",
+            ],
+            &["proto/"],
+        )
         .unwrap();
 }

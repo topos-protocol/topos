@@ -1,9 +1,4 @@
-use libp2p::{
-    identify,
-    kad::KademliaEvent,
-    request_response::{Event as RequestResponseEvent, ResponseChannel},
-    PeerId,
-};
+use libp2p::{identify, kad::KademliaEvent, PeerId};
 
 use crate::behaviour::grpc;
 

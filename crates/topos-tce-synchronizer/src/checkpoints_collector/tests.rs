@@ -10,6 +10,7 @@ use topos_core::{
     types::CertificateDelivered,
 };
 
+use topos_p2p::GrpcRouter;
 use topos_test_sdk::{
     certificates::create_certificate_chain,
     storage::{create_fullnode_store, create_validator_store},
@@ -80,11 +81,11 @@ async fn check_fetch_certificates() {
     let validator_store =
         create_validator_store(vec![], futures::future::ready(fullnode_store.clone())).await;
 
-    let router = tonic::transport::Server::builder().add_service(SynchronizerServiceServer::new(
-        SynchronizerService {
+    let router = GrpcRouter::new(tonic::transport::Server::builder()).add_service(
+        SynchronizerServiceServer::new(SynchronizerService {
             validator_store: validator_store.clone(),
-        },
-    ));
+        }),
+    );
 
     let (client, _, _) = cfg
         .bootstrap(&[boot_node.clone()], Some(router))
@@ -104,7 +105,7 @@ async fn check_fetch_certificates() {
     };
 
     let mut client: SynchronizerServiceClient<_> = client
-        .new_grpc_client::<SynchronizerServiceClient<_>>(boot_node.keypair.public().to_peer_id())
+        .new_grpc_client::<SynchronizerServiceClient<_>, SynchronizerServiceServer<SynchronizerService>>(boot_node.keypair.public().to_peer_id())
         .await
         .unwrap();
 

@@ -1,8 +1,6 @@
-use std::iter;
+use std::collections::HashSet;
 
 use libp2p::{core::UpgradeInfo, InboundUpgrade, OutboundUpgrade, Stream};
-
-use crate::constants::GRPC_P2P_TOPOS_PROTOCOL;
 
 /// UpgradeProtocol for gRPC Connection
 ///
@@ -15,15 +13,18 @@ use crate::constants::GRPC_P2P_TOPOS_PROTOCOL;
 /// The `OutboundUpgrade` and `InboundUpgrade` traits are implemented to provide
 /// the upgrade of the connection. The upgrade is done by returning the socket
 /// wrapped in a `Future`.
-pub struct GrpcUpgradeProtocol {}
+#[derive(Debug)]
+pub struct GrpcUpgradeProtocol {
+    pub(crate) protocols: HashSet<String>,
+}
 
 impl UpgradeInfo for GrpcUpgradeProtocol {
     type Info = String;
 
-    type InfoIter = iter::Once<Self::Info>;
+    type InfoIter = std::collections::hash_set::IntoIter<Self::Info>;
 
     fn protocol_info(&self) -> Self::InfoIter {
-        iter::once(GRPC_P2P_TOPOS_PROTOCOL.into())
+        self.protocols.clone().into_iter()
     }
 }
 

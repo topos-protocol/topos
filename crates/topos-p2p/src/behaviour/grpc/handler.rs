@@ -1,5 +1,5 @@
 use std::{
-    collections::VecDeque,
+    collections::{HashSet, VecDeque},
     sync::{
         atomic::{AtomicU64, Ordering},
         Arc,
@@ -8,8 +8,8 @@ use std::{
 };
 
 use libp2p::swarm::{
-    handler::{ConnectionEvent, FullyNegotiatedInbound, FullyNegotiatedOutbound},
-    ConnectionHandler, ConnectionHandlerEvent, SubstreamProtocol,
+    handler::{ConnectionEvent, DialUpgradeError, FullyNegotiatedInbound, FullyNegotiatedOutbound},
+    ConnectionHandler, ConnectionHandlerEvent, KeepAlive, SubstreamProtocol,
 };
 use tracing::{debug, warn};
 
@@ -19,7 +19,13 @@ use super::RequestId;
 
 pub(crate) mod event;
 use event::Event;
-mod protocol;
+pub(crate) mod protocol;
+
+#[derive(Debug)]
+pub struct ProtocolRequest {
+    pub(crate) request_id: RequestId,
+    pub(crate) protocol: String,
+}
 
 /// Handler for gRPC connections
 pub struct Handler {
@@ -28,21 +34,25 @@ pub struct Handler {
     /// Pending events to send
     pending_events: VecDeque<Event>,
     /// Optional outbound request id
-    outbound_request_id: Option<RequestId>,
+    outbound_request_id: Option<ProtocolRequest>,
+    protocols: HashSet<String>,
+    keep_alive: KeepAlive,
 }
 
 impl Handler {
-    pub(crate) fn new(inbound_request_id: Arc<AtomicU64>) -> Self {
+    pub(crate) fn new(inbound_request_id: Arc<AtomicU64>, protocols: HashSet<String>) -> Self {
         Self {
             inbound_request_id,
             pending_events: VecDeque::new(),
             outbound_request_id: None,
+            protocols,
+            keep_alive: KeepAlive::Yes,
         }
     }
 }
 
 impl ConnectionHandler for Handler {
-    type FromBehaviour = RequestId;
+    type FromBehaviour = ProtocolRequest;
 
     type ToBehaviour = event::Event;
 
@@ -54,24 +64,30 @@ impl ConnectionHandler for Handler {
 
     type InboundOpenInfo = RequestId;
 
-    type OutboundOpenInfo = RequestId;
+    type OutboundOpenInfo = ProtocolRequest;
 
     fn listen_protocol(&self) -> SubstreamProtocol<Self::InboundProtocol, Self::InboundOpenInfo> {
         let id = self.inbound_request_id.fetch_add(1, Ordering::Relaxed);
 
-        SubstreamProtocol::new(GrpcUpgradeProtocol {}, RequestId(id))
+        SubstreamProtocol::new(
+            GrpcUpgradeProtocol {
+                protocols: self.protocols.clone(),
+            },
+            RequestId(id),
+        )
     }
 
     fn connection_keep_alive(&self) -> libp2p::swarm::KeepAlive {
-        libp2p::swarm::KeepAlive::Yes
+        self.keep_alive
     }
 
-    fn on_behaviour_event(&mut self, id: Self::FromBehaviour) {
-        if let Some(prev) = self.outbound_request_id.replace(id) {
+    fn on_behaviour_event(&mut self, request: Self::FromBehaviour) {
+        let request_id = request.request_id;
+        if let Some(prev) = self.outbound_request_id.replace(request) {
             warn!(
                 "Received new outbound request id {:?} while previous request id {:?} is still \
                  pending",
-                id, prev
+                request_id, prev.request_id
             );
         }
     }
@@ -101,14 +117,33 @@ impl ConnectionHandler for Handler {
             }) => self
                 .pending_events
                 .push_back(Event::OutboundNegotiatedStream {
-                    request_id: info,
+                    request_id: info.request_id,
                     stream: protocol,
                 }),
-            ConnectionEvent::ListenUpgradeError(_) => todo!(),
-            ConnectionEvent::DialUpgradeError(_) => todo!(),
-            ConnectionEvent::AddressChange(_) => (),
-            ConnectionEvent::LocalProtocolsChange(_) => (),
-            ConnectionEvent::RemoteProtocolsChange(_) => (),
+            ConnectionEvent::DialUpgradeError(DialUpgradeError {
+                info,
+                error: libp2p::swarm::StreamUpgradeError::Timeout,
+            }) => {
+                self.pending_events.push_back(Event::OutboundTimeout(info));
+
+                // Closing the connection handler
+                self.keep_alive = KeepAlive::No;
+            }
+            ConnectionEvent::DialUpgradeError(DialUpgradeError {
+                info,
+                error: libp2p::swarm::StreamUpgradeError::NegotiationFailed,
+            }) => {
+                self.pending_events
+                    .push_back(Event::UnsupportedProtocol(info.request_id, info.protocol));
+
+                // Closing the connection handler
+                self.keep_alive = KeepAlive::No;
+            }
+            ConnectionEvent::DialUpgradeError(_)
+            | ConnectionEvent::AddressChange(_)
+            | ConnectionEvent::ListenUpgradeError(_)
+            | ConnectionEvent::LocalProtocolsChange(_)
+            | ConnectionEvent::RemoteProtocolsChange(_) => (),
         }
     }
 
@@ -127,10 +162,15 @@ impl ConnectionHandler for Handler {
             return Poll::Ready(ConnectionHandlerEvent::NotifyBehaviour(event));
         }
 
-        if let Some(request_id) = self.outbound_request_id.take() {
-            debug!("Starting outbound request SubstreamProtocol");
+        if let Some(request) = self.outbound_request_id.take() {
+            debug!(
+                "Starting outbound request SubstreamProtocol for {}",
+                request.request_id
+            );
+            let mut protocols = self.protocols.clone();
+            protocols.insert(request.protocol.clone());
             return Poll::Ready(ConnectionHandlerEvent::OutboundSubstreamRequest {
-                protocol: SubstreamProtocol::new(GrpcUpgradeProtocol {}, request_id),
+                protocol: SubstreamProtocol::new(GrpcUpgradeProtocol { protocols }, request),
             });
         }
 

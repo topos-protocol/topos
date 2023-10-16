@@ -10,15 +10,28 @@ mod runtime;
 #[cfg(test)]
 mod tests;
 
+use std::collections::HashSet;
+use std::convert::Infallible;
+
 pub(crate) use behaviour::Behaviour;
 pub use client::NetworkClient;
 pub use client::RetryPolicy;
 pub(crate) use command::Command;
 pub use command::NotReadyMessage;
 pub use event::Event;
+use http::Request;
+use http::Response;
 pub use libp2p::Multiaddr;
 pub use libp2p::PeerId;
 pub use runtime::Runtime;
+
+use hyper::Body;
+use tonic::body::BoxBody;
+use tonic::transport::server::Router;
+use tonic::transport::NamedService;
+use topos_api::grpc::p2p::info_service_server::InfoService;
+use topos_api::grpc::p2p::info_service_server::InfoServiceServer;
+use tower::Service;
 
 pub mod network;
 
@@ -26,13 +39,60 @@ pub const TOPOS_GOSSIP: &str = "topos_gossip";
 pub const TOPOS_ECHO: &str = "topos_echo";
 pub const TOPOS_READY: &str = "topos_ready";
 
+#[macro_export]
+macro_rules! protocol_name {
+    ($i:expr) => {
+        format!("/{}", $i)
+    };
+}
+
+#[derive(Debug)]
+pub(crate) struct GrpcP2pInfo {}
+#[async_trait::async_trait]
+impl InfoService for GrpcP2pInfo {}
+
+pub use behaviour::grpc::GrpcContext;
+
+pub struct GrpcRouter {
+    server: Router,
+    protocols: HashSet<String>,
+}
+
+impl GrpcRouter {
+    pub fn new(mut server: tonic::transport::Server) -> Self {
+        let mut protocols = HashSet::new();
+        protocols.insert(protocol_name!(InfoServiceServer::<GrpcP2pInfo>::NAME));
+
+        Self {
+            server: server.add_optional_service::<InfoServiceServer<GrpcP2pInfo>>(None),
+            protocols,
+        }
+    }
+
+    pub fn add_service<S>(mut self, service: S) -> Self
+    where
+        S: Service<Request<Body>, Response = Response<BoxBody>, Error = Infallible>
+            + NamedService
+            + Clone
+            + Send
+            + 'static,
+        S::Future: Send + 'static,
+    {
+        self.protocols.insert(protocol_name!(S::NAME));
+        self.server = self.server.add_service(service);
+
+        self
+    }
+}
+
 pub mod utils {
     use std::future::IntoFuture;
 
     use libp2p::{identity, PeerId};
     use tokio::{sync::mpsc, sync::oneshot};
-
+    use tonic::transport::NamedService;
     use topos_api::grpc::GrpcClient;
+
     use tracing::debug;
 
     use crate::{command::Command, error::P2PError};
@@ -43,7 +103,11 @@ pub mod utils {
     }
 
     impl GrpcOverP2P {
-        pub async fn create<S: GrpcClient>(&self, peer: PeerId) -> Result<S::Output, P2PError> {
+        pub async fn create<C, S>(&self, peer: PeerId) -> Result<C::Output, P2PError>
+        where
+            C: GrpcClient<Output = C>,
+            S: NamedService,
+        {
             debug!("Creating new instance of GRPC client for P2P");
             let (sender, recv) = oneshot::channel();
             let id = uuid::Uuid::new_v4();
@@ -51,6 +115,7 @@ pub mod utils {
             let _ = self
                 .proxy_sender
                 .send(Command::NewProxiedQuery {
+                    protocol: S::NAME,
                     peer,
                     id,
                     response: sender,
@@ -61,7 +126,7 @@ pub mod utils {
 
             let connected = connection.into_future().await?;
 
-            Ok(S::init(connected.channel))
+            Ok(C::init(connected.channel))
         }
     }
 

@@ -1,6 +1,6 @@
 use self::{discovery::DiscoveryBehaviour, peer_info::PeerInfoBehaviour};
 use crate::event::ComposedEvent;
-use libp2p::{request_response, swarm::NetworkBehaviour};
+use libp2p::swarm::NetworkBehaviour;
 
 pub(crate) mod discovery;
 pub(crate) mod gossip;

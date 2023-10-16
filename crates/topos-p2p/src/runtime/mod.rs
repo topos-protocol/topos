@@ -14,7 +14,6 @@ use libp2p::{
         record::Key, BootstrapOk, KademliaEvent, PutRecordError, QueryId, QueryResult, Quorum,
         Record,
     },
-    request_response::{Event as RequestResponseEvent, Message as RequestResponseMessage},
     swarm::SwarmEvent,
     Multiaddr, PeerId, Swarm,
 };

@@ -19,7 +19,7 @@ impl AppContext {
             &evt
         );
 
-        if let NetEvent::Gossip { from, data } = evt {
+        if let NetEvent::Gossip { data, .. } = evt {
             let msg: NetworkMessage = data.into();
 
             if let NetworkMessage::Cmd(cmd) = msg {

@@ -1,16 +1,11 @@
-use std::time::Duration;
-
 use futures::future::BoxFuture;
-use libp2p::{
-    request_response::{OutboundFailure, ResponseChannel},
-    PeerId,
-};
+use libp2p::PeerId;
 use tokio::sync::{
     mpsc::{self, error::SendError},
     oneshot,
 };
+use tonic::transport::NamedService;
 use topos_api::grpc::GrpcClient;
-use tracing::{debug, info, warn};
 
 use crate::{
     error::{CommandExecutionError, P2PError},
@@ -85,11 +80,12 @@ impl NetworkClient {
     }
 
     /// Creates a new gRPC client for the given peer.
-    pub async fn new_grpc_client<S: 'static + GrpcClient<Output = S>>(
-        &self,
-        peer: PeerId,
-    ) -> Result<S, P2PError> {
-        self.grpc_over_p2p.create::<S>(peer).await
+    pub async fn new_grpc_client<C, S>(&self, peer: PeerId) -> Result<C, P2PError>
+    where
+        C: GrpcClient<Output = C>,
+        S: NamedService,
+    {
+        self.grpc_over_p2p.create::<C, S>(peer).await
     }
 }
 

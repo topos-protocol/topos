@@ -31,7 +31,7 @@ tracing.workspace = true
 uuid.workspace = true
 
 [build-dependencies]
-tonic-build = { workspace = true, default-features = false, features = [
+tonic-build = { version = "0.10", default-features = false, features = [
     "prost", "transport"
 ] }
 

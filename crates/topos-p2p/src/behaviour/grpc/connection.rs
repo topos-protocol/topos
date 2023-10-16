@@ -32,6 +32,7 @@ pub(crate) struct Connection {
 pub(crate) struct OutboundConnectionRequest {
     pub(crate) request_id: RequestId,
     pub(crate) notifier: oneshot::Sender<Result<Channel, OutboundError>>,
+    pub(crate) protocol: String,
 }
 
 /// Struct which is used to represent a connected channel connection
@@ -63,6 +64,7 @@ impl IntoFuture for OutboundConnection {
     type IntoFuture = BoxFuture<'static, Self::Output>;
 
     fn into_future(self) -> Self::IntoFuture {
+        println!("Outbound future is in: {:?}", self);
         async move {
             match self {
                 // The outbound connection is already opened
