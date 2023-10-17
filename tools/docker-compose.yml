@@ -14,8 +14,7 @@ services:
       interval: 15s
     volumes:
       - shared:/tmp/shared
-      - ./node_config/node/test/config.toml:/tmp/node_config/node/test/config.toml
-      - ./node_config/subnet/topos/genesis.json:/tmp/node_config/subnet/topos/genesis.json
+      - ./node_config:/tmp/node_config
       - ./libp2p_keys.json:/tmp/shared/libp2p_keys.json
       - ./validator_bls_keys.json:/tmp/shared/validator_bls_keys.json
       - ./validator_keys.json:/tmp/shared/validator_keys.json
@@ -51,8 +50,7 @@ services:
       interval: 5s
     volumes:
       - shared:/tmp/shared
-      - ./node_config/node/test/config.toml:/tmp/node_config/node/test/config.toml
-      - ./node_config/subnet/topos/genesis.json:/tmp/node_config/subnet/topos/genesis.json
+      - ./node_config:/tmp/node_config
       - ./libp2p_keys.json:/tmp/shared/libp2p_keys.json
       - ./validator_bls_keys.json:/tmp/shared/validator_bls_keys.json
       - ./validator_keys.json:/tmp/shared/validator_keys.json
@@ -88,8 +86,7 @@ services:
       "autoheal": "true"
     volumes:
       - shared:/tmp/shared
-      - ./node_config/node/test/config.toml:/tmp/node_config/node/test/config.toml
-      - ./node_config/subnet/topos/genesis.json:/tmp/node_config/subnet/topos/genesis.json
+      - ./node_config:/tmp/node_config
       - ./libp2p_keys.json:/tmp/shared/libp2p_keys.json
       - ./validator_bls_keys.json:/tmp/shared/validator_bls_keys.json
       - ./validator_keys.json:/tmp/shared/validator_keys.json

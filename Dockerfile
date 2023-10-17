@@ -49,8 +49,5 @@ RUN apt-get update && apt-get install -y \
 USER topos:topos
 
 RUN mkdir /tmp/shared
-RUN mkdir -p /tmp/node_config/subnet/topos
-RUN mkdir -p /tmp/node_config/node/test/consensus
-RUN mkdir -p /tmp/node_config/node/test/libp2p
 
 ENTRYPOINT ["./init.sh"]
