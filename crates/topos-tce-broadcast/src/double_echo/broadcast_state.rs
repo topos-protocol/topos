@@ -1,18 +1,17 @@
 use crate::sampler::SubscriptionsView;
 use std::sync::Arc;
 use std::{collections::HashSet, time};
-use tce_transport::{ProtocolEvents, ValidatorId};
+use tce_transport::ProtocolEvents;
 use tokio::sync::mpsc;
 use topos_core::{
     types::{
         stream::{CertificateSourceStreamPosition, Position},
-        CertificateDelivered, ProofOfDelivery, Ready,
+        CertificateDelivered, ProofOfDelivery, Ready, ValidatorId,
     },
     uci::Certificate,
 };
 use topos_crypto::messages::MessageSigner;
 use topos_metrics::DOUBLE_ECHO_BROADCAST_FINISHED_TOTAL;
-use topos_p2p::PeerId;
 use tracing::{debug, info, warn};
 mod status;
 
@@ -101,17 +100,17 @@ impl BroadcastState {
         }
     }
 
-    pub fn apply_echo(&mut self, peer_id: PeerId) -> Option<Status> {
-        if self.subscriptions_view.echo.remove(&peer_id) {
+    pub fn apply_echo(&mut self, validator_id: ValidatorId) -> Option<Status> {
+        if self.subscriptions_view.echo.remove(&validator_id) {
             self.update_status()
         } else {
             None
         }
     }
 
-    pub fn apply_ready(&mut self, peer_id: PeerId) -> Option<Status> {
-        if self.subscriptions_view.ready.remove(&peer_id) {
-            self.readies.insert(peer_id.to_string());
+    pub fn apply_ready(&mut self, validator_id: ValidatorId) -> Option<Status> {
+        if self.subscriptions_view.ready.remove(&validator_id) {
+            self.readies.insert(validator_id.to_string());
             self.update_status()
         } else {
             None

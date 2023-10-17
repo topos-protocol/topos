@@ -3,17 +3,21 @@ services:
 
   boot:
     container_name: boot
-    command: boot tce run
+    command: boot node up --name test --home /tmp/node_config --no-edge-process
     image: ghcr.io/topos-protocol/topos:main
     init: true
     labels:
       "autoheal": "true"
       "prometheus-job": "boot"
     healthcheck:
-      test: ./topos tce push-peer-list --node http://localhost:1340 --format json /tmp/shared/peer_ids.json && ./topos tce status --node http://localhost:1340
+      test: ./topos tce status --node http://localhost:1340
       interval: 15s
     volumes:
       - shared:/tmp/shared
+      - ./node_config:/tmp/node_config
+      - ./libp2p_keys.json:/tmp/shared/libp2p_keys.json
+      - ./validator_bls_keys.json:/tmp/shared/validator_bls_keys.json
+      - ./validator_keys.json:/tmp/shared/validator_keys.json
     build:
       context: ../
       args:
@@ -33,19 +37,23 @@ services:
       - env/telemetry.env
     environment:
       - TCE_LOCAL_KS=1 # 12D3KooWRhFCXBhmsMnur3up3vJsDoqWh4c39PKXgSWwzAzDHNLn
-      - RUST_LOG=topos_tce_storage=info,topos_tce_synchronizer=info
+      - RUST_LOG=topos=debug,topos_tce_storage=info,topos_tce_synchronizer=info
 
   peer:
     image: ghcr.io/topos-protocol/topos:main
-    command: peer tce run
+    command: peer node up --name test --home /tmp/node_config --no-edge-process
     init: true
     labels:
       "autoheal": "true"
     healthcheck:
-      test: ./topos tce push-peer-list --node http://localhost:1340 --format json /tmp/shared/peer_ids.json && ./topos tce status --node http://localhost:1340
+      test: ./topos tce status --node http://localhost:1340
       interval: 5s
     volumes:
       - shared:/tmp/shared
+      - ./node_config:/tmp/node_config
+      - ./libp2p_keys.json:/tmp/shared/libp2p_keys.json
+      - ./validator_bls_keys.json:/tmp/shared/validator_bls_keys.json
+      - ./validator_keys.json:/tmp/shared/validator_keys.json
     build:
       context: ../
       args:
@@ -62,22 +70,26 @@ services:
       - "3000"
       - "4000"
     deploy:
-      replicas: 14
+      replicas: 2
     env_file:
       - env/base.env
       - env/node.env
       - env/telemetry.env
     environment:
-      - RUST_LOG=topos_tce_storage=info,topos_tce_synchronizer=debug
+      - RUST_LOG=topos=debug,topos_tce_storage=info,topos_tce_synchronizer=debug
 
   sync:
     image: ghcr.io/topos-protocol/topos:main
-    command: sync tce run
+    command: sync node up --name test --home /tmp/node_config --no-edge-process
     init: true
     labels:
       "autoheal": "true"
     volumes:
       - shared:/tmp/shared
+      - ./node_config:/tmp/node_config
+      - ./libp2p_keys.json:/tmp/shared/libp2p_keys.json
+      - ./validator_bls_keys.json:/tmp/shared/validator_bls_keys.json
+      - ./validator_keys.json:/tmp/shared/validator_keys.json
     build:
       context: ../
       args:

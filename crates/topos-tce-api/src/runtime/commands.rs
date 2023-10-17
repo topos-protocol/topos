@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use tokio::sync::{mpsc::Sender, oneshot};
 use topos_core::api::grpc::checkpoints::TargetStreamPosition;
 use topos_core::uci::{Certificate, SubnetId};
-use topos_p2p::PeerId;
 use topos_tce_storage::types::PendingResult;
 use uuid::Uuid;
 
@@ -44,12 +43,6 @@ pub(crate) enum InternalRuntimeCommand {
     CertificateSubmitted {
         certificate: Box<Certificate>,
         sender: oneshot::Sender<Result<PendingResult, RuntimeError>>,
-    },
-
-    /// Push a new list of PeerId to be used by the Gatekeeper
-    PushPeerList {
-        peers: Vec<PeerId>,
-        sender: oneshot::Sender<Result<(), RuntimeError>>,
     },
 
     /// Get source head certificate by source subnet id

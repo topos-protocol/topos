@@ -424,21 +424,6 @@ impl Runtime {
                 .await
             }
 
-            InternalRuntimeCommand::PushPeerList { peers, sender } => {
-                // debug!("A peer list has been pushed {:?}", peers);
-
-                if let Err(error) = self
-                    .api_event_sender
-                    .send(RuntimeEvent::PeerListPushed { peers, sender })
-                    .await
-                {
-                    error!(
-                        %error,
-                        "Can't send new peer list to runtime, receiver is dropped"
-                    );
-                }
-            }
-
             InternalRuntimeCommand::GetSourceHead { subnet_id, sender } => {
                 info!("Source head certificate has been requested for subnet id: {subnet_id}");
 

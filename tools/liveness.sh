@@ -9,11 +9,11 @@ fi
 case "$1" in
 
     "boot")
-            topos tce push-peer-list --endpoint http://localhost:1340 --format json /tmp/shared/peer_ids.json;
+            topos tce status --endpoint http://localhost:1340;
         ;;
 
    *)
-            topos tce push-peer-list --endpoint http://localhost:1340 --format json /tmp/shared/peer_ids.json && topos tce status --endpoint http://localhost:1340;
+            topos tce status --endpoint http://localhost:1340;
        ;;
 
 esac

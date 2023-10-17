@@ -7416,9 +7416,11 @@ name = "topos-core"
 version = "0.1.0"
 dependencies = [
  "bincode",
+ "hex",
  "serde",
  "thiserror",
  "topos-api",
+ "topos-crypto",
  "topos-uci",
 ]
 
@@ -7792,9 +7794,7 @@ name = "topos-tce-transport"
 version = "0.1.0"
 dependencies = [
  "clap 4.4.4",
- "hex",
  "serde",
- "thiserror",
  "topos-core",
  "topos-crypto",
  "topos-p2p",
@@ -7816,6 +7816,7 @@ dependencies = [
 name = "topos-test-sdk"
 version = "0.1.0"
 dependencies = [
+ "ethers",
  "futures",
  "hex",
  "lazy_static",

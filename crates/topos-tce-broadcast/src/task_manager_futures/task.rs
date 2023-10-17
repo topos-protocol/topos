@@ -98,8 +98,8 @@ impl IntoFuture for Task {
                 tokio::select! {
                     Some(msg) = self.message_receiver.recv() => {
                         match msg {
-                            DoubleEchoCommand::Echo { from_peer, .. } => {
-                                if let Some(Status::DeliveredWithReadySent) = self.broadcast_state.apply_echo(from_peer) {
+                            DoubleEchoCommand::Echo { validator_id, .. } => {
+                                if let Some(Status::DeliveredWithReadySent) = self.broadcast_state.apply_echo(validator_id) {
                                     match self.persist().await {
                                         Ok(delivered) => {
                                             _ = self.broadcast_sender.send(delivered);
@@ -114,8 +114,8 @@ impl IntoFuture for Task {
 
                                 }
                             }
-                            DoubleEchoCommand::Ready { from_peer, .. } => {
-                                if let Some(Status::DeliveredWithReadySent) = self.broadcast_state.apply_ready(from_peer) {
+                            DoubleEchoCommand::Ready { validator_id, .. } => {
+                                if let Some(Status::DeliveredWithReadySent) = self.broadcast_state.apply_ready(validator_id) {
                                     match self.persist().await {
                                         Ok(delivered) => {
                                             _ = self.broadcast_sender.send(delivered);

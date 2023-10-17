@@ -5,9 +5,10 @@ use std::collections::HashMap;
 use std::future::IntoFuture;
 use std::pin::Pin;
 use std::sync::Arc;
-use tce_transport::{ProtocolEvents, ReliableBroadcastParams, ValidatorId};
+use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
 use tokio::sync::broadcast;
 use tokio::{spawn, sync::mpsc};
+use topos_core::types::ValidatorId;
 use topos_core::uci::CertificateId;
 use topos_metrics::CERTIFICATE_PROCESSING_FROM_API_TOTAL;
 use topos_metrics::CERTIFICATE_PROCESSING_FROM_GOSSIP_TOTAL;
@@ -36,7 +37,6 @@ type RunningTasks =
 pub struct TaskManager {
     pub message_receiver: mpsc::Receiver<DoubleEchoCommand>,
     pub task_completion_sender: mpsc::Sender<(CertificateId, TaskStatus)>,
-    pub subscription_view_receiver: mpsc::Receiver<SubscriptionsView>,
     pub subscriptions: SubscriptionsView,
     pub event_sender: mpsc::Sender<ProtocolEvents>,
     pub tasks: HashMap<CertificateId, TaskContext>,
@@ -58,7 +58,7 @@ impl TaskManager {
     pub fn new(
         message_receiver: mpsc::Receiver<DoubleEchoCommand>,
         task_completion_sender: mpsc::Sender<(CertificateId, TaskStatus)>,
-        subscription_view_receiver: mpsc::Receiver<SubscriptionsView>,
+        subscriptions: SubscriptionsView,
         event_sender: mpsc::Sender<ProtocolEvents>,
         validator_id: ValidatorId,
         thresholds: ReliableBroadcastParams,
@@ -72,8 +72,7 @@ impl TaskManager {
             Self {
                 message_receiver,
                 task_completion_sender,
-                subscription_view_receiver,
-                subscriptions: SubscriptionsView::default(),
+                subscriptions,
                 event_sender,
                 tasks: HashMap::new(),
                 running_tasks: FuturesUnordered::new(),
@@ -94,10 +93,6 @@ impl TaskManager {
         loop {
             tokio::select! {
                 biased;
-
-                Some(new_subscriptions_view) = self.subscription_view_receiver.recv() => {
-                    self.subscriptions = new_subscriptions_view;
-                }
 
                 Some(msg) = self.message_receiver.recv() => {
                     match msg {

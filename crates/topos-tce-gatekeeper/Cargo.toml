@@ -13,7 +13,6 @@ rand.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 tokio = { workspace = true, features = ["full"] }
-
 topos-core = { workspace = true, features = ["uci"] }
 topos-p2p = { path = "../topos-p2p" }
 topos-commands = { path = "../topos-commands" }

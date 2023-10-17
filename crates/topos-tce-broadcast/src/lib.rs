@@ -8,16 +8,16 @@ use futures::Stream;
 use sampler::SampleType;
 use std::collections::HashSet;
 use std::sync::Arc;
-use tce_transport::{ProtocolEvents, ReliableBroadcastParams, ValidatorId};
+use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
 use thiserror::Error;
 use tokio::spawn;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
+use topos_core::types::ValidatorId;
 use topos_core::uci::{Certificate, CertificateId};
 use topos_crypto::messages::{MessageSigner, Signature};
 use topos_metrics::DOUBLE_ECHO_COMMAND_CHANNEL_CAPACITY_TOTAL;
-use topos_p2p::PeerId;
 use topos_tce_storage::types::CertificateDeliveredWithPositions;
 use topos_tce_storage::validator::ValidatorStore;
 use tracing::{debug, error, info};
@@ -58,16 +58,16 @@ pub struct ReliableBroadcastConfig {
 
 #[derive(Debug)]
 pub enum SamplerCommand {
-    PeersChanged {
-        peers: Vec<PeerId>,
+    ValidatorChanged {
+        validators: Vec<ValidatorId>,
     },
-    ConfirmPeer {
-        peer: PeerId,
+    ConfirmValidator {
+        validator: ValidatorId,
         sample_type: SampleType,
         sender: oneshot::Sender<Result<(), ()>>,
     },
-    PeerConfirmationFailed {
-        peer: PeerId,
+    ValidatorConfirmationFailed {
+        validator: ValidatorId,
         sample_type: SampleType,
     },
     ForceResample,
@@ -83,7 +83,6 @@ pub enum DoubleEchoCommand {
 
     /// When echo reply received
     Echo {
-        from_peer: PeerId,
         validator_id: ValidatorId,
         certificate_id: CertificateId,
         signature: Signature,
@@ -91,7 +90,6 @@ pub enum DoubleEchoCommand {
 
     /// When ready reply received
     Ready {
-        from_peer: PeerId,
         validator_id: ValidatorId,
         certificate_id: CertificateId,
         signature: Signature,
@@ -102,7 +100,6 @@ pub enum DoubleEchoCommand {
 #[derive(Clone, Debug)]
 pub struct ReliableBroadcastClient {
     command_sender: Sender<DoubleEchoCommand>,
-    pub(crate) subscriptions_view_sender: Sender<SubscriptionsView>,
     pub(crate) double_echo_shutdown_channel: Sender<oneshot::Sender<()>>,
 }
 
@@ -116,8 +113,6 @@ impl ReliableBroadcastClient {
         validator_store: Arc<ValidatorStore>,
         broadcast_sender: broadcast::Sender<CertificateDeliveredWithPositions>,
     ) -> (Self, impl Stream<Item = ProtocolEvents>) {
-        let (subscriptions_view_sender, subscriptions_view_receiver) =
-            mpsc::channel::<SubscriptionsView>(*constant::SUBSCRIPTION_VIEW_CHANNEL_SIZE);
         let (event_sender, event_receiver) = mpsc::channel(*constant::PROTOCOL_CHANNEL_SIZE);
         let (command_sender, command_receiver) = mpsc::channel(*constant::COMMAND_CHANNEL_SIZE);
         let (double_echo_shutdown_channel, double_echo_shutdown_receiver) =
@@ -139,29 +134,15 @@ impl ReliableBroadcastClient {
             broadcast_sender,
         );
 
-        spawn(double_echo.run(subscriptions_view_receiver, task_manager_message_receiver));
+        spawn(double_echo.run(task_manager_message_receiver));
 
         (
             Self {
                 command_sender,
-                subscriptions_view_sender,
                 double_echo_shutdown_channel,
             },
             ReceiverStream::new(event_receiver),
         )
-    }
-
-    pub async fn peer_changed(&self, peers: Vec<PeerId>) -> Result<(), ()> {
-        let set = peers.into_iter().collect::<HashSet<_>>();
-        self.subscriptions_view_sender
-            .send(SubscriptionsView {
-                echo: set.clone(),
-                ready: set.clone(),
-                network_size: set.len(),
-            })
-            .await
-            .map(|_| ())
-            .map_err(|_| ())
     }
 
     pub fn get_double_echo_channel(&self) -> Sender<DoubleEchoCommand> {

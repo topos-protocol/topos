@@ -8,9 +8,6 @@ pub enum RuntimeError {
     #[error("The pending stream {0} was not found")]
     PendingStreamNotFound(Uuid),
 
-    #[error("Unable to push peer list")]
-    UnableToPushPeerList,
-
     #[error("Unable to get source head certificate for subnet id {0}: {1}")]
     UnableToGetSourceHead(SubnetId, String),
 

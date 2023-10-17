@@ -761,17 +761,6 @@ pub mod api_service_server {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct PushPeerListRequest {
-    #[prost(message, optional, tag = "1")]
-    pub request_id: ::core::option::Option<super::super::shared::v1::Uuid>,
-    #[prost(string, repeated, tag = "2")]
-    pub peers: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct PushPeerListResponse {}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct StatusRequest {}
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -864,31 +853,6 @@ pub mod console_service_client {
             self.inner = self.inner.max_encoding_message_size(limit);
             self
         }
-        pub async fn push_peer_list(
-            &mut self,
-            request: impl tonic::IntoRequest<super::PushPeerListRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::PushPeerListResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
-            let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/topos.tce.v1.ConsoleService/PushPeerList",
-            );
-            let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("topos.tce.v1.ConsoleService", "PushPeerList"));
-            self.inner.unary(req, path, codec).await
-        }
         pub async fn status(
             &mut self,
             request: impl tonic::IntoRequest<super::StatusRequest>,
@@ -920,13 +884,6 @@ pub mod console_service_server {
     /// Generated trait containing gRPC methods that should be implemented for use with ConsoleServiceServer.
     #[async_trait]
     pub trait ConsoleService: Send + Sync + 'static {
-        async fn push_peer_list(
-            &self,
-            request: tonic::Request<super::PushPeerListRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::PushPeerListResponse>,
-            tonic::Status,
-        >;
         async fn status(
             &self,
             request: tonic::Request<super::StatusRequest>,
@@ -1011,52 +968,6 @@ pub mod console_service_server {
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
             let inner = self.inner.clone();
             match req.uri().path() {
-                "/topos.tce.v1.ConsoleService/PushPeerList" => {
-                    #[allow(non_camel_case_types)]
-                    struct PushPeerListSvc<T: ConsoleService>(pub Arc<T>);
-                    impl<
-                        T: ConsoleService,
-                    > tonic::server::UnaryService<super::PushPeerListRequest>
-                    for PushPeerListSvc<T> {
-                        type Response = super::PushPeerListResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
-                        fn call(
-                            &mut self,
-                            request: tonic::Request<super::PushPeerListRequest>,
-                        ) -> Self::Future {
-                            let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as ConsoleService>::push_peer_list(&inner, request).await
-                            };
-                            Box::pin(fut)
-                        }
-                    }
-                    let accept_compression_encodings = self.accept_compression_encodings;
-                    let send_compression_encodings = self.send_compression_encodings;
-                    let max_decoding_message_size = self.max_decoding_message_size;
-                    let max_encoding_message_size = self.max_encoding_message_size;
-                    let inner = self.inner.clone();
-                    let fut = async move {
-                        let inner = inner.0;
-                        let method = PushPeerListSvc(inner);
-                        let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            )
-                            .apply_max_message_size_config(
-                                max_decoding_message_size,
-                                max_encoding_message_size,
-                            );
-                        let res = grpc.unary(method, req).await;
-                        Ok(res)
-                    };
-                    Box::pin(fut)
-                }
                 "/topos.tce.v1.ConsoleService/Status" => {
                     #[allow(non_camel_case_types)]
                     struct StatusSvc<T: ConsoleService>(pub Arc<T>);

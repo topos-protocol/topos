@@ -77,19 +77,13 @@ pub(crate) async fn handle_command(
                 }
             }
         }
-        Some(TceCommands::PushPeerList(cmd)) => {
-            debug!("Executing the PushPeerList on the TCE service");
-            TCEService::with_grpc_endpoint(&cmd.node_args.node)
-                .call(cmd)
-                .await?;
-
-            Ok(())
-        }
 
         Some(TceCommands::Run(cmd)) => {
             let config = TceConfiguration {
                 boot_peers: cmd.parse_boot_peers(),
-                validators: cmd.parse_validators(),
+                validators: cmd
+                    .parse_validators()
+                    .map_err(|_| Box::new(topos::Error::InvalidValidatorAddress))?,
                 auth_key: cmd
                     .local_key_seed
                     .clone()

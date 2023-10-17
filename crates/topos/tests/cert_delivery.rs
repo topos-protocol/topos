@@ -169,6 +169,7 @@ async fn cert_delivery() {
             let mut resp_stream = response.into_inner();
             while let Some(received) = resp_stream.next().await {
                 let received = received.unwrap();
+
                 if let Some(Event::CertificatePushed(CertificatePushed {
                     certificate: Some(certificate),
                     ..

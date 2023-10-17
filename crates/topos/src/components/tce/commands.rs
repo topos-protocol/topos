@@ -4,12 +4,10 @@ use clap::{Args, Subcommand};
 
 mod peer_id;
 mod push_certificate;
-mod push_peer_list;
 mod run;
 mod status;
 
 pub(crate) use push_certificate::PushCertificate;
-pub(crate) use push_peer_list::PushPeerList;
 pub(crate) use run::Run;
 pub(crate) use status::Status;
 
@@ -37,7 +35,6 @@ pub(crate) struct TceCommand {
 #[derive(Subcommand, Debug)]
 pub(crate) enum TceCommands {
     PushCertificate(PushCertificate),
-    PushPeerList(PushPeerList),
     Keys(Keys),
     Run(Box<Run>),
     Status(Status),
@@ -46,11 +43,6 @@ pub(crate) enum TceCommands {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_publish_peer_list() {
-        assert!(TceCommands::has_subcommand("push-peer-list"));
-    }
 
     #[test]
     fn test_run() {

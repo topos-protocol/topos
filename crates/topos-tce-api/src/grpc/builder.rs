@@ -58,8 +58,11 @@ impl ServerBuilder {
             .take()
             .expect("Cannot build gRPC without an InternalRuntimeCommand sender");
 
+        // We don't do active sampling at the start of the node,
+        // but give it a fixed set of validators from the genesis file.
+        // So as soon as the node starts it is ready to send and receive ECHO messages.
         let status = Arc::new(RwLock::new(StatusResponse {
-            has_active_sample: false,
+            has_active_sample: true,
         }));
 
         let console = ConsoleServiceServer::new(TceConsoleService {

@@ -11,7 +11,7 @@ use topos_test_sdk::constants::*;
 use topos_test_sdk::storage::create_validator_store;
 
 const CHANNEL_SIZE: usize = 10;
-const PRIVATE_KEY: &str = "47d361f6becb933a77d7e01dee7b1c1859b656adbd8428bf7bf9519503e5d5d6";
+const PRIVATE_KEY: &str = "d6f8d1fe6d0f3606ccb15ef383910f10d83ca77bf3d73007f12fef023dabaab9";
 
 #[fixture]
 fn small_config() -> TceParams {
@@ -50,8 +50,6 @@ struct Context {
 
 async fn create_context(params: TceParams) -> (DoubleEcho, Context) {
     let validator_store = create_validator_store::partial_1(vec![]).await;
-    let (subscriptions_view_sender, subscriptions_view_receiver) = mpsc::channel(CHANNEL_SIZE);
-
     let (_cmd_sender, cmd_receiver) = mpsc::channel(CHANNEL_SIZE);
     let (event_sender, event_receiver) = mpsc::channel(CHANNEL_SIZE);
     let (_double_echo_shutdown_sender, double_echo_shutdown_receiver) =
@@ -64,12 +62,18 @@ async fn create_context(params: TceParams) -> (DoubleEcho, Context) {
     let validator_id = ValidatorId::from(message_signer.public_address);
     validators.insert(validator_id);
 
+    for i in 1..params.nb_peers {
+        let message_signer = Arc::new(MessageSigner::new(&[i as u8; 32]).unwrap());
+        let validator_id = ValidatorId::from(message_signer.public_address);
+        validators.insert(validator_id);
+    }
+
     let (broadcast_sender, broadcast_receiver) = broadcast::channel(CHANNEL_SIZE);
     let mut double_echo = DoubleEcho::new(
         params.broadcast_params,
         validator_id,
         message_signer,
-        validators,
+        validators.clone(),
         task_manager_message_sender.clone(),
         cmd_receiver,
         event_sender,
@@ -78,29 +82,7 @@ async fn create_context(params: TceParams) -> (DoubleEcho, Context) {
         broadcast_sender,
     );
 
-    // List of peers
-    let mut peers = HashSet::new();
-    for i in 0..params.nb_peers {
-        let peer = topos_p2p::utils::local_key_pair(Some(i as u8))
-            .public()
-            .to_peer_id();
-        peers.insert(peer);
-    }
-
-    // Subscriptions
-    double_echo.subscriptions.echo = peers.clone();
-    double_echo.subscriptions.ready = peers.clone();
-    double_echo.subscriptions.network_size = params.nb_peers;
-
-    let msg = SubscriptionsView {
-        echo: peers.clone(),
-        ready: peers.clone(),
-        network_size: params.nb_peers,
-    };
-
-    subscriptions_view_sender.send(msg).await.unwrap();
-
-    double_echo.spawn_task_manager(subscriptions_view_receiver, task_manager_message_receiver);
+    double_echo.spawn_task_manager(task_manager_message_receiver);
 
     (
         double_echo,
@@ -129,10 +111,8 @@ async fn reach_echo_threshold(double_echo: &mut DoubleEcho, cert: &Certificate) 
 
     let signature = message_signer.sign_message(&payload).unwrap();
 
-    for p in selected {
-        double_echo
-            .handle_echo(p, cert.id, validator_id, signature)
-            .await;
+    for val_id in selected {
+        double_echo.handle_echo(cert.id, val_id, signature).await;
     }
 }
 
@@ -155,10 +135,8 @@ async fn reach_ready_threshold(double_echo: &mut DoubleEcho, cert: &Certificate)
 
     let signature = message_signer.sign_message(&payload).unwrap();
 
-    for p in selected {
-        double_echo
-            .handle_ready(p, cert.id, validator_id, signature)
-            .await;
+    for val_id in selected {
+        double_echo.handle_ready(cert.id, val_id, signature).await;
     }
 }
 
@@ -180,10 +158,8 @@ async fn reach_delivery_threshold(double_echo: &mut DoubleEcho, cert: &Certifica
 
     let signature = message_signer.sign_message(&payload).unwrap();
 
-    for p in selected {
-        double_echo
-            .handle_ready(p, cert.id, validator_id, signature)
-            .await;
+    for val_id in selected {
+        double_echo.handle_ready(cert.id, val_id, signature).await;
     }
 }
 

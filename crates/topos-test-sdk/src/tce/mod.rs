@@ -1,12 +1,12 @@
-use std::collections::HashMap;
-use std::error::Error;
-
 use futures::future::join_all;
 use futures::Stream;
 use futures::StreamExt;
 use libp2p::identity::Keypair;
 use libp2p::{Multiaddr, PeerId};
 use rstest::*;
+use std::collections::{HashMap, HashSet};
+use std::error::Error;
+use std::sync::Arc;
 use tokio::spawn;
 use tokio::sync::broadcast;
 use tokio::{sync::mpsc, task::JoinHandle};
@@ -19,25 +19,25 @@ use topos_core::api::grpc::tce::v1::{
     api_service_client::ApiServiceClient, console_service_client::ConsoleServiceClient,
 };
 
-use topos_core::api::grpc::tce::v1::{PushPeerListRequest, StatusRequest, StatusResponse};
+use topos_core::api::grpc::tce::v1::{StatusRequest, StatusResponse};
 use topos_core::types::CertificateDelivered;
+use topos_core::types::ValidatorId;
 use topos_core::uci::SubnetId;
+use topos_crypto::messages::MessageSigner;
 use topos_p2p::{error::P2PError, Client, Event, Runtime};
 use topos_tce::{events::Events, AppContext};
 use topos_tce_api::RuntimeContext;
 use topos_tce_storage::StorageClient;
 use tracing::{info, warn};
 
-use crate::p2p::local_peer;
-use crate::storage::create_fullnode_store;
-use crate::storage::create_validator_store;
-use crate::wait_for_event;
-
 use self::gatekeeper::create_gatekeeper;
 use self::p2p::{bootstrap_network, create_network_worker};
 use self::protocol::{create_reliable_broadcast_client, create_reliable_broadcast_params};
 use self::public_api::create_public_api;
 use self::synchronizer::create_synchronizer;
+use crate::p2p::local_peer;
+use crate::storage::create_fullnode_store;
+use crate::storage::create_validator_store;
 
 pub mod gatekeeper;
 pub mod p2p;
@@ -152,13 +152,32 @@ impl NodeConfig {
     }
 }
 
-#[fixture(config = NodeConfig::default(), peers = &[], certificates = Vec::new())]
+fn default_message_signer() -> Arc<MessageSigner> {
+    Arc::new(MessageSigner::new(&[5u8; 32]).unwrap())
+}
+
+#[fixture(
+    config = NodeConfig::default(),
+    peers = &[], certificates = Vec::new(),
+    validator_id = ValidatorId::default(),
+    validators = HashSet::default(),
+    message_signer = default_message_signer())
+]
 pub async fn start_node(
     certificates: Vec<CertificateDelivered>,
     config: NodeConfig,
     peers: &[NodeConfig],
+    validator_id: ValidatorId,
+    validators: HashSet<ValidatorId>,
+    message_signer: Arc<MessageSigner>,
 ) -> TceContext {
     let peer_id = config.keypair.public().to_peer_id();
+
+    let known_peers = peers
+        .iter()
+        .map(|p| p.keypair.public().to_peer_id())
+        .filter(|&p| p != peer_id)
+        .collect::<Vec<_>>();
 
     let (network_client, network_stream, runtime_join_handle) = bootstrap_network(
         config.seed,
@@ -176,6 +195,9 @@ pub async fn start_node(
     let storage_client = StorageClient::new(validator_store.clone());
     let (sender, receiver) = broadcast::channel(100);
     let (tce_cli, tce_stream) = create_reliable_broadcast_client(
+        validator_id,
+        validators,
+        message_signer,
         create_reliable_broadcast_params(peers.len()),
         validator_store.clone(),
         sender,
@@ -191,7 +213,8 @@ pub async fn start_node(
     )
     .await;
 
-    let (gatekeeper_client, gatekeeper_join_handle) = create_gatekeeper(peer_id).await.unwrap();
+    let (gatekeeper_client, gatekeeper_join_handle) =
+        create_gatekeeper(peer_id, known_peers).await.unwrap();
 
     let (synchronizer_stream, synchronizer_join_handle) = create_synchronizer(
         gatekeeper_client.clone(),
@@ -258,15 +281,42 @@ pub async fn start_pool(
     let mut clients = HashMap::new();
     let peers = build_peer_config_pool(peer_number);
 
+    let mut validators = Vec::new();
+    let mut message_signers = Vec::new();
+
+    for i in 1..=peer_number {
+        let message_signer = Arc::new(MessageSigner::new(&[i; 32]).unwrap());
+        message_signers.push(message_signer.clone());
+
+        let validator_id = ValidatorId::from(message_signer.public_address);
+        validators.push(validator_id);
+    }
+
     let mut await_peers = Vec::new();
 
-    for config in &peers {
-        let fut = async {
-            let client = start_node(certificates.clone(), config.clone(), &peers).await;
+    for (i, config) in peers.iter().enumerate() {
+        let validator_id = validators[i];
+        let signer = message_signers[i].clone();
+        let config_cloned = config.clone();
+        let certificates_cloned = certificates.clone();
+        let peers_cloned = peers.clone();
+        let validators_cloned = validators.clone();
+
+        let fut = async move {
+            let client = start_node(
+                certificates_cloned,
+                config_cloned,
+                &peers_cloned,
+                validator_id,
+                validators_cloned
+                    .into_iter()
+                    .collect::<HashSet<ValidatorId>>(),
+                signer,
+            )
+            .await;
 
             (client.peer_id, client)
         };
-
         await_peers.push(fut);
     }
 
@@ -283,44 +333,6 @@ pub async fn create_network(
 ) -> HashMap<PeerId, TceContext> {
     // List of peers (tce nodes) with their context
     let mut peers_context = start_pool(peer_number as u8, certificates).await;
-    let all_peers: Vec<PeerId> = peers_context.keys().cloned().collect();
-
-    warn!("Pool created, waiting for peers to connect...");
-    // Force TCE nodes to recreate subscriptions and subscribers
-    let mut await_peers = Vec::new();
-    for (peer_id, client) in peers_context.iter_mut() {
-        await_peers.push(
-            client
-                .console_grpc_client
-                .push_peer_list(PushPeerListRequest {
-                    request_id: None,
-                    peers: all_peers
-                        .iter()
-                        .filter_map(|key| {
-                            if key == peer_id {
-                                None
-                            } else {
-                                Some(key.to_string())
-                            }
-                        })
-                        .collect::<Vec<_>>(),
-                }),
-        );
-    }
-
-    assert!(!join_all(await_peers).await.iter().any(|res| res.is_err()));
-    warn!("Peers connected");
-
-    for (peer_id, client) in peers_context.iter_mut() {
-        wait_for_event!(
-            client.event_stream.recv(),
-            matches: Events::StableSample,
-            peer_id,
-            15000
-        );
-    }
-
-    warn!("Stable sample received");
 
     // Waiting for new network view
     let mut await_peers = Vec::new();

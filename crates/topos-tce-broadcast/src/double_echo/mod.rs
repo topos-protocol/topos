@@ -2,11 +2,13 @@ use crate::TaskStatus;
 use crate::{DoubleEchoCommand, SubscriptionsView};
 use std::collections::HashSet;
 use std::sync::Arc;
-use tce_transport::{ProtocolEvents, ReliableBroadcastParams, ValidatorId};
+use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
 use tokio::sync::{broadcast, mpsc, oneshot};
-use topos_core::uci::{Certificate, CertificateId};
+use topos_core::{
+    types::ValidatorId,
+    uci::{Certificate, CertificateId},
+};
 use topos_crypto::messages::{MessageSigner, Signature};
-use topos_p2p::PeerId;
 use topos_tce_storage::types::CertificateDeliveredWithPositions;
 use topos_tce_storage::validator::ValidatorStore;
 use tracing::{error, info, warn};
@@ -58,11 +60,15 @@ impl DoubleEcho {
             params,
             validator_id,
             message_signer,
-            validators,
+            validators: validators.clone(),
             task_manager_message_sender,
             command_receiver,
             event_sender,
-            subscriptions: SubscriptionsView::default(),
+            subscriptions: SubscriptionsView {
+                echo: validators.clone(),
+                ready: validators.clone(),
+                network_size: validators.len(),
+            },
             shutdown,
             delivered_certificates: Default::default(),
             validator_store,
@@ -73,7 +79,6 @@ impl DoubleEcho {
     #[cfg(not(feature = "task-manager-channels"))]
     pub fn spawn_task_manager(
         &mut self,
-        subscriptions_view_receiver: mpsc::Receiver<SubscriptionsView>,
         task_manager_message_receiver: mpsc::Receiver<DoubleEchoCommand>,
     ) -> mpsc::Receiver<(CertificateId, TaskStatus)> {
         let (task_completion_sender, task_completion_receiver) = mpsc::channel(2048);
@@ -81,7 +86,7 @@ impl DoubleEcho {
         let (task_manager, shutdown_receiver) = crate::task_manager_futures::TaskManager::new(
             task_manager_message_receiver,
             task_completion_sender,
-            subscriptions_view_receiver,
+            self.subscriptions.clone(),
             self.event_sender.clone(),
             self.validator_id,
             self.params.clone(),
@@ -98,7 +103,6 @@ impl DoubleEcho {
     #[cfg(feature = "task-manager-channels")]
     pub fn spawn_task_manager(
         &mut self,
-        subscriptions_view_receiver: mpsc::Receiver<SubscriptionsView>,
         task_manager_message_receiver: mpsc::Receiver<DoubleEchoCommand>,
     ) -> mpsc::Receiver<(CertificateId, TaskStatus)> {
         let (task_completion_sender, task_completion_receiver) = mpsc::channel(2048);
@@ -106,7 +110,7 @@ impl DoubleEcho {
         let (task_manager, shutdown_receiver) = crate::task_manager_channels::TaskManager::new(
             task_manager_message_receiver,
             task_completion_sender,
-            subscriptions_view_receiver,
+            self.subscriptions.clone(),
             self.event_sender.clone(),
             self.validator_id,
             self.message_signer.clone(),
@@ -128,26 +132,15 @@ impl DoubleEcho {
     ///      the message
     pub(crate) async fn run(
         mut self,
-        mut subscriptions_view_receiver: mpsc::Receiver<SubscriptionsView>,
         task_manager_message_receiver: mpsc::Receiver<DoubleEchoCommand>,
     ) {
-        let (forwarding_subscriptions_sender, forwarding_subscriptions_receiver) =
-            mpsc::channel(2048);
-        let mut task_completion = self.spawn_task_manager(
-            forwarding_subscriptions_receiver,
-            task_manager_message_receiver,
-        );
+        let mut task_completion = self.spawn_task_manager(task_manager_message_receiver);
 
         info!("DoubleEcho started");
 
         let shutdowned: Option<oneshot::Sender<()>> = loop {
             tokio::select! {
                 biased;
-
-                Some(new_subscriptions_view) = subscriptions_view_receiver.recv() => {
-                    forwarding_subscriptions_sender.send(new_subscriptions_view.clone()).await.unwrap();
-                    self.subscriptions = new_subscriptions_view;
-                }
 
                 shutdown = self.shutdown.recv() => {
                         warn!("Double echo shutdown signal received {:?}", shutdown);
@@ -160,7 +153,7 @@ impl DoubleEcho {
 
                         command if self.subscriptions.is_some() => {
                             match command {
-                                DoubleEchoCommand::Echo { from_peer, certificate_id, validator_id, signature } => {
+                                DoubleEchoCommand::Echo { certificate_id, validator_id, signature } => {
                                     // Check if source is part of known_validators
                                     if !self.validators.contains(&validator_id) {
                                         return error!("ECHO message comes from non-validator: {}", validator_id);
@@ -174,9 +167,9 @@ impl DoubleEcho {
                                         return error!("ECHO messag signature cannot be verified from: {}", e);
                                     }
 
-                                    self.handle_echo(from_peer, certificate_id, validator_id, signature).await
+                                    self.handle_echo(certificate_id, validator_id, signature).await
                                 },
-                                DoubleEchoCommand::Ready { from_peer, certificate_id, validator_id, signature } => {
+                                DoubleEchoCommand::Ready { certificate_id, validator_id, signature } => {
                                     // Check if source is part of known_validators
                                     if !self.validators.contains(&validator_id) {
                                         return error!("READY message comes from non-validator: {}", validator_id);
@@ -190,7 +183,7 @@ impl DoubleEcho {
                                         return error!("READY message signature cannot be verified from: {}", e);
                                     }
 
-                                    self.handle_ready(from_peer, certificate_id, validator_id, signature).await
+                                    self.handle_ready(certificate_id, validator_id, signature).await
                                 },
                                 _ => {}
                             }
@@ -306,7 +299,6 @@ impl DoubleEcho {
 impl DoubleEcho {
     pub async fn handle_echo(
         &mut self,
-        from_peer: PeerId,
         certificate_id: CertificateId,
         validator_id: ValidatorId,
         signature: Signature,
@@ -315,7 +307,6 @@ impl DoubleEcho {
             let _ = self
                 .task_manager_message_sender
                 .send(DoubleEchoCommand::Echo {
-                    from_peer,
                     validator_id,
                     certificate_id,
                     signature,
@@ -326,7 +317,6 @@ impl DoubleEcho {
 
     pub async fn handle_ready(
         &mut self,
-        from_peer: PeerId,
         certificate_id: CertificateId,
         validator_id: ValidatorId,
         signature: Signature,
@@ -335,7 +325,6 @@ impl DoubleEcho {
             let _ = self
                 .task_manager_message_sender
                 .send(DoubleEchoCommand::Ready {
-                    from_peer,
                     validator_id,
                     certificate_id,
                     signature,

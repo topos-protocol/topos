@@ -48,26 +48,6 @@ impl Default for Gatekeeper {
 }
 
 #[async_trait::async_trait]
-impl CommandHandler<PushPeerList> for Gatekeeper {
-    type Error = GatekeeperError;
-
-    async fn handle(
-        &mut self,
-        PushPeerList { mut peer_list }: PushPeerList,
-    ) -> Result<Vec<PeerId>, Self::Error> {
-        peer_list.dedup();
-
-        if !self.peer_list.is_empty() && peer_list == self.peer_list {
-            return Err(GatekeeperError::NoUpdate);
-        }
-
-        self.peer_list = peer_list.into_iter().collect();
-
-        Ok(self.peer_list.clone())
-    }
-}
-
-#[async_trait::async_trait]
 impl CommandHandler<GetAllPeers> for Gatekeeper {
     type Error = GatekeeperError;
 
@@ -134,9 +114,6 @@ impl IntoFuture for Gatekeeper {
                         break sender;
                     }
                     Some(command) = self.commands.recv() => match command {
-                         GatekeeperCommand::PushPeerList(command, response_channel) => {
-                            _ = response_channel.send(self.handle(command).await)
-                        },
                         GatekeeperCommand::GetAllPeers(command, response_channel) => {
                             _ = response_channel.send(self.handle(command).await)
                         },
@@ -193,17 +170,8 @@ pub enum GatekeeperError {
 RegisterCommands!(
     name = GatekeeperCommand,
     error = GatekeeperError,
-    commands = [PushPeerList, GetAllPeers, GetRandomPeers, GetAllSubnets]
+    commands = [GetAllPeers, GetRandomPeers, GetAllSubnets]
 );
-
-#[derive(Debug)]
-pub struct PushPeerList {
-    peer_list: Vec<PeerId>,
-}
-
-impl Command for PushPeerList {
-    type Result = Vec<PeerId>;
-}
 
 #[derive(Debug)]
 pub struct GetAllPeers;

@@ -1,11 +1,12 @@
 use rlp::Rlp;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
+use std::str::FromStr;
 use std::{fs, path::PathBuf};
 
 use serde_json::Value;
+use topos_core::types::ValidatorId;
 use topos_p2p::{Multiaddr, PeerId};
-use topos_tce_transport::ValidatorId;
 use tracing::info;
 
 #[cfg(test)]
@@ -27,8 +28,7 @@ impl Genesis {
         info!("Reading subnet genesis file {}", path.display());
         let genesis_file = fs::File::open(&path).expect("opened file");
 
-        let json: serde_json::Value =
-            serde_json::from_reader(genesis_file).expect("genesis json parsed");
+        let json: Value = serde_json::from_reader(genesis_file).expect("genesis json parsed");
 
         Self { path, json }
     }
@@ -67,7 +67,7 @@ impl Genesis {
     /// Parse the validators from the `extraData` field of the genesis file.
     /// The `extraData` is padded with 32 bytes, and the validators are RLP encoded.
     /// Each validator is 20 bytes, with a SEAL at the end of the whole list (8 bytes)
-    pub fn validators(&self) -> HashSet<ValidatorId> {
+    pub fn validators(&self) -> Result<HashSet<ValidatorId>, Error> {
         let extra_data = self.json["genesis"]["extraData"]
             .as_str()
             .expect("The extraData field must be present. Bad genesis file?")
@@ -93,18 +93,17 @@ impl Genesis {
         let item_count = first_item
             .item_count()
             .expect("Validators must be an RLP list. Bad genesis file?");
-        first_item.into_iter().fold(
+        first_item.into_iter().try_fold(
             HashSet::with_capacity(item_count),
             |mut validator_public_keys, validator_rlp| {
                 if let Ok(public_key) = validator_rlp.data() {
                     let address = format!("0x{}", hex::encode(&public_key[1..=20]));
                     validator_public_keys.insert(
-                        ValidatorId::try_from(address.as_str()).unwrap_or_else(|error| {
-                            panic!("Failed to convert address to ValidatorId: {:?}", error)
-                        }),
+                        ValidatorId::from_str(address.as_str())
+                            .map_err(|_| Error::ParseValidators)?,
                     );
                 }
-                validator_public_keys
+                Ok(validator_public_keys)
             },
         )
     }

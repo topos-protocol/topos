@@ -23,6 +23,8 @@ pub enum Error {
     File(std::io::Error),
     #[error("Invalid private key")]
     InvalidPrivateKey,
+    #[error("Invalid Validator address")]
+    InvalidValidatorAddress,
 }
 
 fn map_arch(arch: &str) -> &str {

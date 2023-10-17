@@ -1,15 +1,12 @@
-use crate::events::Events;
 use crate::AppContext;
 use std::collections::HashMap;
-use tokio::spawn;
 use topos_core::uci::{Certificate, SubnetId};
 use topos_metrics::CERTIFICATE_DELIVERY_LATENCY;
 use topos_tce_api::RuntimeError;
 use topos_tce_api::RuntimeEvent as ApiEvent;
-use topos_tce_gatekeeper::GatekeeperError;
 use topos_tce_storage::errors::{InternalStorageError, StorageError};
 use topos_tce_storage::types::PendingResult;
-use tracing::{error, info, warn};
+use tracing::{error, warn};
 
 impl AppContext {
     pub async fn on_api_event(&mut self, event: ApiEvent) {
@@ -43,39 +40,6 @@ impl AppContext {
                     .tce_cli
                     .broadcast_new_certificate(*certificate, true)
                     .await;
-            }
-
-            ApiEvent::PeerListPushed { peers, sender } => {
-                let sampler = self.tce_cli.clone();
-                let gatekeeper = self.gatekeeper.clone();
-                let events = self.events.clone();
-                let api = self.api_client.clone();
-
-                spawn(async move {
-                    match gatekeeper.push_peer_list(peers).await {
-                        Ok(peers) => {
-                            info!(
-                                "Gatekeeper has detected changes on the peer list, new sample in \
-                                 creation"
-                            );
-                            if sampler.peer_changed(peers).await.is_err() {
-                                _ = sender.send(Err(RuntimeError::UnableToPushPeerList));
-                            } else {
-                                api.set_active_sample(true).await;
-                                if events.send(Events::StableSample).await.is_err() {
-                                    error!("Unable to send StableSample event");
-                                }
-                                _ = sender.send(Ok(()));
-                            }
-                        }
-                        Err(GatekeeperError::NoUpdate) => {
-                            _ = sender.send(Ok(()));
-                        }
-                        Err(_) => {
-                            _ = sender.send(Err(RuntimeError::UnableToPushPeerList));
-                        }
-                    }
-                });
             }
 
             ApiEvent::GetSourceHead { subnet_id, sender } => {

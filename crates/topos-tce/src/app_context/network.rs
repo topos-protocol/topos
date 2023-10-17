@@ -27,7 +27,7 @@ impl AppContext {
         );
 
         match evt {
-            NetEvent::Gossip { from, data } => {
+            NetEvent::Gossip { data, .. } => {
                 let msg: NetworkMessage = data.into();
 
                 if let NetworkMessage::Cmd(cmd) = msg {
@@ -66,7 +66,6 @@ impl AppContext {
                             spawn(async move {
                                 if let Err(e) = channel
                                     .send(DoubleEchoCommand::Echo {
-                                        from_peer: from,
                                         signature,
                                         certificate_id,
                                         validator_id,
@@ -86,7 +85,6 @@ impl AppContext {
                             spawn(async move {
                                 if let Err(e) = channel
                                     .send(DoubleEchoCommand::Ready {
-                                        from_peer: from,
                                         validator_id,
                                         certificate_id,
                                         signature,

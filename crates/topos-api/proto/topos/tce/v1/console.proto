@@ -5,16 +5,8 @@ package topos.tce.v1;
 import "topos/shared/v1/uuid.proto";
 
 service ConsoleService {
-  rpc PushPeerList(PushPeerListRequest) returns (PushPeerListResponse);
   rpc Status(StatusRequest) returns (StatusResponse);
 }
-
-message PushPeerListRequest {
-  topos.shared.v1.UUID request_id = 1;
-  repeated string peers = 2;
-}
-
-message PushPeerListResponse {}
 
 message StatusRequest {}
 message StatusResponse {
