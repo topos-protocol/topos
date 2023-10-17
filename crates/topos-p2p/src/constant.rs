@@ -30,6 +30,7 @@ pub const TRANSMISSION_PROTOCOL: &str = "/tce-transmission/1";
 pub const SYNCHRONIZER_PROTOCOL: &str = "/synchronizer/1.0";
 pub const DISCOVERY_PROTOCOL: &str = "/tce-disco/1";
 pub const PEER_INFO_PROTOCOL: &str = "/tce-peer-info/1";
+pub const GRPC_P2P_TOPOS_PROTOCOL: &str = "/topos-grpc-p2p/1.0";
 
 // FIXME: Considered as constant until customizable and exposed properly in the genesis file
 pub const TCE_BOOTNODE_PORT: u16 = 9090;

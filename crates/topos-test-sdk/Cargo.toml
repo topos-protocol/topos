@@ -18,6 +18,7 @@ topos-tce-gatekeeper = { path = "../topos-tce-gatekeeper/", optional = true }
 topos-tce-synchronizer = { path = "../topos-tce-synchronizer/", optional = true }
 topos-tce-broadcast = { path = "../topos-tce-broadcast/", optional = true }
 topos-tce-transport = { path = "../topos-tce-transport/", optional = true }
+
 hex.workspace = true
 ethers.workspace = true
 futures.workspace = true
@@ -29,14 +30,19 @@ rstest.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true
 tokio-stream.workspace = true
-tonic = { workspace = true, optional = true }
+prost.workspace = true
+tonic = { workspace = true, default-features = false, features = [
+    "prost",
+    "codegen",
+    "transport",
+] }
+
 tracing.workspace = true
 
 [features]
 default = []
 tce = [
     "topos-core/api",
-    "dep:tonic",
     "topos-tce",
     "topos-tce-api",
     "topos-tce-broadcast",
@@ -44,3 +50,6 @@ tce = [
     "topos-tce-synchronizer",
     "topos-tce-transport",
 ]
+
+[build-dependencies]
+tonic-build.workspace = true
