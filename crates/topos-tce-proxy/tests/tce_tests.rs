@@ -349,7 +349,6 @@ async fn test_tce_open_stream_with_checkpoint(
     #[future]
     start_node: TceContext,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    println!("HEERE");
     let mut context = start_node.await;
 
     let source_subnet_id_1: SubnetId = SubnetId {
