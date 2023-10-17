@@ -6,7 +6,7 @@ use libp2p::{
 use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
 
-use crate::command::Command;
+use crate::{behaviour::grpc::error::OutboundConnectionError, command::Command};
 
 #[derive(Error, Debug)]
 pub enum P2PError {
@@ -40,7 +40,7 @@ pub enum P2PError {
     ShutdownCommunication(mpsc::error::SendError<oneshot::Sender<()>>),
 
     #[error("Unable to create gRPC client")]
-    UnableToCreateGrpcClient,
+    UnableToCreateGrpcClient(#[from] OutboundConnectionError),
 }
 
 #[derive(Error, Debug)]

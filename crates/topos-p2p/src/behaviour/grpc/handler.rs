@@ -11,7 +11,7 @@ use libp2p::swarm::{
     handler::{ConnectionEvent, FullyNegotiatedInbound, FullyNegotiatedOutbound},
     ConnectionHandler, ConnectionHandlerEvent, SubstreamProtocol,
 };
-use tracing::{debug, info, warn};
+use tracing::{debug, warn};
 
 use self::protocol::GrpcUpgradeProtocol;
 

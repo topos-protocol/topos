@@ -2,21 +2,14 @@ use std::{num::NonZeroUsize, time::Duration};
 
 use futures::StreamExt;
 use libp2p::{
-    identify::{self, Info},
-    kad::{record::Key, GetRecordOk, KademliaEvent, PeerRecord, PutRecordOk, QueryResult, Record},
+    kad::{record::Key, KademliaEvent, PutRecordOk, QueryResult, Record},
     swarm::SwarmEvent,
 };
 use rstest::rstest;
 use test_log::test;
-use tonic::transport::server::Router;
-use topos_test_sdk::tce::{create_dummy_router, NodeConfig};
+use topos_test_sdk::tce::NodeConfig;
 
-use crate::{
-    config::DiscoveryConfig, event::ComposedEvent, network::NetworkBuilder,
-    tests::support::local_peer, wait_for_event, Client, Runtime,
-};
-
-use super::support::{dummy_peer, PeerAddr};
+use crate::{config::DiscoveryConfig, event::ComposedEvent, wait_for_event};
 
 #[rstest]
 #[test(tokio::test)]

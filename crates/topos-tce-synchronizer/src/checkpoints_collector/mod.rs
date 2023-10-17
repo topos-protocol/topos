@@ -22,7 +22,7 @@ use topos_core::{
     uci::{Certificate, CertificateId, SubnetId},
 };
 use topos_p2p::{
-    constant::SYNCHRONIZER_PROTOCOL, error::CommandExecutionError, NetworkClient, PeerId,
+    constants::SYNCHRONIZER_PROTOCOL, error::CommandExecutionError, NetworkClient, PeerId,
     RetryPolicy,
 };
 use topos_tce_gatekeeper::GatekeeperClient;

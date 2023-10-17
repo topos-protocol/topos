@@ -40,7 +40,6 @@ async fn network_test() {
 
     let (client, _, _) = cfg.bootstrap(&[boot_node.clone()], None).await.unwrap();
 
-    println!("BOOTSTRAP FINISHED");
     use topos_core::api::grpc::shared::v1::Uuid as APIUuid;
 
     let peer = boot_node.keypair.public().to_peer_id();

@@ -2,18 +2,14 @@ use std::collections::hash_map::Entry;
 
 use crate::{
     behaviour::transmission::codec::{TransmissionRequest, TransmissionResponse},
-    constant::SYNCHRONIZER_PROTOCOL,
+    constants::SYNCHRONIZER_PROTOCOL,
     error::P2PError,
     Command, Runtime,
 };
-use libp2p::{
-    gossipsub::IdentTopic,
-    kad::{record::Key, Quorum},
-    swarm::NetworkBehaviour,
-    PeerId,
-};
+use libp2p::{kad::record::Key, PeerId};
 use topos_metrics::P2P_MESSAGE_SENT_ON_GOSSIPSUB_TOTAL;
 use tracing::{debug, error, info, warn};
+
 impl Runtime {
     pub(crate) async fn handle_command(&mut self, command: Command) {
         match command {

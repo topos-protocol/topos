@@ -9,7 +9,7 @@ use topos_core::api::grpc::tce::v1::{
 };
 use topos_core::uci::CertificateId;
 use topos_metrics::CERTIFICATE_DELIVERY_LATENCY;
-use topos_p2p::constant::SYNCHRONIZER_PROTOCOL;
+use topos_p2p::constants::SYNCHRONIZER_PROTOCOL;
 use topos_p2p::{Event as NetEvent, NetworkClient};
 use topos_tce_broadcast::DoubleEchoCommand;
 use topos_tce_storage::store::ReadStore;

@@ -1,14 +1,9 @@
 use std::io;
 
-use crate::constant::{SYNCHRONIZER_PROTOCOL, TRANSMISSION_PROTOCOL};
+use crate::constants::SYNCHRONIZER_PROTOCOL;
 
-use super::protocol::TransmissionProtocol;
 use futures::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
-use libp2p::{
-    core::upgrade::{read_length_prefixed, write_length_prefixed},
-    request_response::Codec,
-    StreamProtocol,
-};
+use libp2p::{request_response::Codec, StreamProtocol};
 
 #[derive(Clone)]
 pub struct TransmissionCodec();

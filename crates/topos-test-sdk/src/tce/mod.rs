@@ -27,7 +27,7 @@ use topos_core::api::grpc::tce::v1::{
 use topos_core::api::grpc::tce::v1::{
     CheckpointRequest, CheckpointResponse, FetchCertificatesRequest, FetchCertificatesResponse,
 };
-use topos_core::api::grpc::tce::v1::{PushPeerListRequest, StatusRequest, StatusResponse};
+use topos_core::api::grpc::tce::v1::{StatusRequest, StatusResponse};
 use topos_core::types::CertificateDelivered;
 use topos_core::types::ValidatorId;
 use topos_core::uci::SubnetId;

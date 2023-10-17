@@ -15,7 +15,6 @@ use tokio::{
 };
 use tonic::transport::{server::Connected, Channel, Endpoint};
 use tower::{BoxError, Service};
-use tracing::info;
 
 /// Manage a gRPC Stream linked to an open [`libp2p::Stream`]
 #[pin_project]

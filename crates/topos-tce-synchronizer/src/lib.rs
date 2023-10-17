@@ -114,15 +114,19 @@ impl GrpcSynchronizerService for SynchronizerService {
         let certificate_ids: Vec<CertificateId> = request
             .certificates
             .into_iter()
-            .map(|c| c.try_into().unwrap())
-            .collect();
+            .map(|c| c.try_into())
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|_| Status::invalid_argument("Unable to parse certificates"))?;
 
         let response =
             if let Ok(certs) = self.validator_store.get_certificates(&certificate_ids[..]) {
                 let certs: Vec<_> = certs
                     .into_iter()
-                    .filter_map(|v| v.map(|c| c.certificate.try_into().unwrap()))
-                    .collect();
+                    .filter_map(|v| v.map(|c| c.certificate.try_into()))
+                    .collect::<Result<Vec<_>, _>>()
+                    .map_err(|_| {
+                        Status::internal("Storage certificates cannot be converted to gRPC type")
+                    })?;
 
                 FetchCertificatesResponse {
                     request_id: request.request_id,

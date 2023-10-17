@@ -3,12 +3,7 @@ use self::{
     transmission::codec::TransmissionCodec,
 };
 use crate::event::ComposedEvent;
-use libp2p::{
-    gossipsub,
-    kad::{store::MemoryStore, Kademlia},
-    request_response,
-    swarm::NetworkBehaviour,
-};
+use libp2p::{request_response, swarm::NetworkBehaviour};
 
 pub(crate) mod discovery;
 pub(crate) mod gossip;

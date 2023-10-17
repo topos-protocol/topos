@@ -1,12 +1,12 @@
-use crate::{constant::TRANSMISSION_PROTOCOL, error::CommandExecutionError};
+use crate::error::CommandExecutionError;
 
-use self::{codec::TransmissionCodec, protocol::TransmissionProtocol};
+use self::codec::TransmissionCodec;
 
 use libp2p::{
     request_response::{Behaviour, Config, ProtocolSupport, RequestId},
     StreamProtocol,
 };
-use std::{collections::HashMap, iter, time::Duration};
+use std::{collections::HashMap, time::Duration};
 use tokio::sync::oneshot;
 
 pub mod codec;

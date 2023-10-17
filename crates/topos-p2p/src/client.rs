@@ -22,6 +22,7 @@ use crate::{
 
 #[async_trait]
 pub trait NetworkClient: Send + Sync + 'static {
+    /// Creates a new gRPC client for the given peer.
     async fn new_grpc_client<S: 'static, T: GrpcClient<Output = S> + 'static>(
         &self,
         peer: PeerId,
@@ -116,11 +117,7 @@ impl NetworkClient for Client {
         &self,
         peer: PeerId,
     ) -> Result<S, P2PError> {
-        Ok(self
-            .grpc_over_p2p
-            .create::<T>(peer)
-            .await
-            .map_err(|_| P2PError::UnableToCreateGrpcClient)?)
+        self.grpc_over_p2p.create::<T>(peer).await
     }
 
     fn respond_to_request<T: std::fmt::Debug + Into<Vec<u8>>>(

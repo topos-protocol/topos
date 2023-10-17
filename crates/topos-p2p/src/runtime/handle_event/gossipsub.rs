@@ -1,4 +1,3 @@
-use libp2p::gossipsub::{Event as GossipsubEvent, Message};
 use topos_metrics::{
     P2P_EVENT_STREAM_CAPACITY_TOTAL, P2P_MESSAGE_DESERIALIZE_FAILURE_TOTAL,
     P2P_MESSAGE_RECEIVED_ON_ECHO_TOTAL, P2P_MESSAGE_RECEIVED_ON_GOSSIP_TOTAL,
@@ -7,7 +6,7 @@ use topos_metrics::{
 use tracing::{debug, error};
 
 use crate::{
-    behaviour::gossip::Batch, constant, event::GossipEvent, Event, Runtime, TOPOS_ECHO,
+    behaviour::gossip::Batch, constants, event::GossipEvent, Event, Runtime, TOPOS_ECHO,
     TOPOS_GOSSIP, TOPOS_READY,
 };
 
@@ -22,7 +21,7 @@ impl EventHandler<GossipEvent> for Runtime {
             topic,
         } = event
         {
-            if self.event_sender.capacity() < *constant::CAPACITY_EVENT_STREAM_BUFFER {
+            if self.event_sender.capacity() < *constants::CAPACITY_EVENT_STREAM_BUFFER {
                 P2P_EVENT_STREAM_CAPACITY_TOTAL.inc();
             }
 

@@ -1,5 +1,4 @@
 use libp2p::{
-    gossipsub::{self, Event as GossipsubEvent},
     identify,
     kad::KademliaEvent,
     request_response::{Event as RequestResponseEvent, ResponseChannel},

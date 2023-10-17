@@ -85,7 +85,7 @@ pub(crate) fn spawn_tce_process(
 ) -> JoinHandle<Result<(), Errors>> {
     let tce_config = TceConfiguration {
         boot_peers: genesis
-            .boot_peers(Some(topos_p2p::constant::TCE_BOOTNODE_PORT))
+            .boot_peers(Some(topos_p2p::constants::TCE_BOOTNODE_PORT))
             .into_iter()
             .chain(config.parse_boot_peers())
             .collect::<Vec<_>>(),

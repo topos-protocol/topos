@@ -1,11 +1,7 @@
-use std::io;
-
 use libp2p::{
-    core::either,
     multiaddr::Protocol,
-    swarm::{derive_prelude::Either, NetworkBehaviour, SwarmEvent},
+    swarm::{derive_prelude::Either, SwarmEvent},
 };
-use prometheus_client::metrics::info;
 use tracing::{debug, error, info, warn};
 
 use crate::{event::ComposedEvent, Event, Runtime};
@@ -50,7 +46,10 @@ impl
         SwarmEvent<
             ComposedEvent,
             Either<
-                Either<Either<Either<std::io::Error, std::io::Error>, void::Void>, void::Void>,
+                Either<
+                    Either<Either<Either<std::io::Error, std::io::Error>, void::Void>, void::Void>,
+                    void::Void,
+                >,
                 void::Void,
             >,
         >,
@@ -61,7 +60,10 @@ impl
         event: SwarmEvent<
             ComposedEvent,
             Either<
-                Either<Either<Either<std::io::Error, std::io::Error>, void::Void>, void::Void>,
+                Either<
+                    Either<Either<Either<std::io::Error, std::io::Error>, void::Void>, void::Void>,
+                    void::Void,
+                >,
                 void::Void,
             >,
         >,
@@ -80,7 +82,6 @@ impl
                 self.active_listeners.insert(listener_id);
             }
             SwarmEvent::OutgoingConnectionError { peer_id, error, .. } => {
-                info!("OutgoingConnectionError");
                 if let Some(_peer_id) = peer_id {
                     error!("OutgoingConnectionError {error:?}");
                 }
@@ -124,7 +125,7 @@ impl
                 addresses,
                 reason,
             } => {
-                info!(
+                debug!(
                     "ListenerClosed {:?}: listener_id{listener_id:?} | addresses: {addresses:?} | \
                      reason: {reason:?}",
                     *self.swarm.local_peer_id()
@@ -146,9 +147,7 @@ impl
                 }
             }
 
-            SwarmEvent::Dialing { peer_id, .. } => {
-                info!("Dialing {:?}", peer_id);
-            }
+            SwarmEvent::Dialing { peer_id, .. } => {}
 
             SwarmEvent::Behaviour(event) => {
                 self.handle(event).await;

@@ -70,6 +70,8 @@ pub async fn run(
     let mut boot_peers = config.boot_peers.clone();
     boot_peers.retain(|(p, _)| *p != peer_id);
 
+    let peer_list = boot_peers.iter().map(|(p, _)| *p).collect::<Vec<_>>();
+
     let (network_client, event_stream, unbootstrapped_runtime) = topos_p2p::network::builder()
         .peer_key(key)
         .listen_addr(addr)

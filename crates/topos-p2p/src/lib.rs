@@ -1,17 +1,14 @@
 #![allow(unused_variables)]
-#![allow(unused_imports)]
 mod behaviour;
 mod client;
 mod command;
 pub mod config;
-pub mod constant;
+pub mod constants;
 pub mod error;
 mod event;
 mod runtime;
 #[cfg(test)]
 mod tests;
-
-use std::str::FromStr;
 
 pub use behaviour::transmission::codec::TransmissionResponse;
 pub(crate) use behaviour::Behaviour;
@@ -21,13 +18,9 @@ pub use client::RetryPolicy;
 pub(crate) use command::Command;
 pub use command::NotReadyMessage;
 pub use event::Event;
-use libp2p::identity;
 pub use libp2p::Multiaddr;
 pub use libp2p::PeerId;
 pub use runtime::Runtime;
-
-pub(crate) mod temp_grpc;
-use topos_crypto::keys;
 
 pub mod network;
 
@@ -36,27 +29,15 @@ pub const TOPOS_ECHO: &str = "topos_echo";
 pub const TOPOS_READY: &str = "topos_ready";
 
 pub mod utils {
-    use std::{
-        future::IntoFuture,
-        pin::{pin, Pin},
-    };
+    use std::future::IntoFuture;
 
     use libp2p::{identity, PeerId};
-    use tokio::{
-        io::{AsyncRead, AsyncWrite, DuplexStream},
-        sync::mpsc,
-        sync::oneshot,
-    };
-    use tonic::{
-        service::Interceptor,
-        transport::{Channel, Endpoint, Uri},
-        Request, Status,
-    };
-    use topos_api::grpc::GrpcClient;
-    use tower::{ServiceBuilder, ServiceExt};
-    use tracing::{info, warn};
+    use tokio::{sync::mpsc, sync::oneshot};
 
-    use crate::command::Command;
+    use topos_api::grpc::GrpcClient;
+    use tracing::debug;
+
+    use crate::{command::Command, error::P2PError};
 
     #[derive(Clone)]
     pub struct GrpcOverP2P {
@@ -64,11 +45,8 @@ pub mod utils {
     }
 
     impl GrpcOverP2P {
-        pub async fn create<S: GrpcClient>(
-            &self,
-            peer: PeerId,
-        ) -> Result<S::Output, tonic::transport::Error> {
-            warn!("Creating new instance of GRPC CLIENT FOR P2P");
+        pub async fn create<S: GrpcClient>(&self, peer: PeerId) -> Result<S::Output, P2PError> {
+            debug!("Creating new instance of GRPC client for P2P");
             let (sender, recv) = oneshot::channel();
             let id = uuid::Uuid::new_v4();
 
@@ -81,11 +59,9 @@ pub mod utils {
                 })
                 .await;
 
-            let connection = recv.await.unwrap();
+            let connection = recv.await?;
 
-            let connected = connection.into_future().await.unwrap();
-
-            info!("Connected: {:?}", connected);
+            let connected = connection.into_future().await?;
 
             Ok(S::init(connected.channel))
         }
@@ -127,6 +103,8 @@ pub fn generate_from_secp256k1() {
     let edge_dec_privkey =
         hex::decode("08021220eb5ce97bd3e7729ac4ab077b83881426cebf19e58a9d9760d1cedfc53d772d6c")
             .expect("Failed to hex decode");
+
+    use std::str::FromStr;
 
     let edge_peerid =
         PeerId::from_str("16Uiu2HAkxA7KW9GC2T3tQg3zHvjrnDPqfQUKTfzU3wbts8AsV6kH").unwrap();

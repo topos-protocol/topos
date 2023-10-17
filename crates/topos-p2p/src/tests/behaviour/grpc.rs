@@ -1,7 +1,7 @@
 use std::{future::IntoFuture, time::Duration};
 
 use async_trait::async_trait;
-use libp2p::{multiaddr::Protocol, swarm::SwarmEvent, Multiaddr, Swarm};
+use libp2p::Swarm;
 use libp2p_swarm_test::SwarmExt;
 use rstest::rstest;
 use test_log::test;
@@ -9,12 +9,10 @@ use tokio::spawn;
 use tokio_util::sync::CancellationToken;
 use tonic::{transport::Server, Request, Response, Status};
 use topos_test_sdk::grpc::behaviour::helloworld::{
-    self,
     greeter_client::GreeterClient,
     greeter_server::{Greeter, GreeterServer},
     HelloReply, HelloRequest, HelloWithDelayRequest,
 };
-use tower::service_fn;
 
 use crate::behaviour::grpc;
 

@@ -1,11 +1,8 @@
-use libp2p::request_response::{
-    Event as RequestResponseEvent, InboundFailure, Message as RequestResponseMessage,
-};
-use tracing::{error, info, warn};
+use libp2p::request_response::{Event as RequestResponseEvent, Message as RequestResponseMessage};
+use tracing::warn;
 
 use crate::{
     behaviour::transmission::codec::{TransmissionRequest, TransmissionResponse},
-    error::CommandExecutionError,
     Event, Runtime,
 };
 

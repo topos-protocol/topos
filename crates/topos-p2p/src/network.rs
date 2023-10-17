@@ -1,28 +1,21 @@
 use super::{Behaviour, Client, Event, Runtime};
 use crate::{
     behaviour::{
-        discovery::DiscoveryBehaviour,
-        gossip, grpc,
-        peer_info::PeerInfoBehaviour,
-        transmission::{codec::TransmissionCodec, TransmissionBehaviour},
+        discovery::DiscoveryBehaviour, gossip, grpc, peer_info::PeerInfoBehaviour,
+        transmission::TransmissionBehaviour,
     },
-    command,
     config::{DiscoveryConfig, NetworkConfig},
-    constant::{
+    constants::{
         self, COMMAND_STREAM_BUFFER_SIZE, DISCOVERY_PROTOCOL, EVENT_STREAM_BUFFER,
         PEER_INFO_PROTOCOL, SYNCHRONIZER_PROTOCOL, TRANSMISSION_PROTOCOL,
     },
     error::P2PError,
-    temp_grpc::Synchronizer,
     utils::GrpcOverP2P,
-    TOPOS_ECHO, TOPOS_GOSSIP, TOPOS_READY,
 };
 use futures::Stream;
-use http::Uri;
 use libp2p::{
     core::upgrade,
     dns::TokioDnsConfig,
-    gossipsub::{self, MessageAuthenticity, MessageId},
     identity::Keypair,
     kad::store::MemoryStore,
     noise,
@@ -32,20 +25,12 @@ use libp2p::{
 };
 use std::{
     borrow::Cow,
-    collections::{hash_map::DefaultHasher, HashMap, HashSet},
-    hash::{Hash, Hasher},
-    sync::{atomic::AtomicU64, Arc},
+    collections::{HashMap, HashSet},
     time::Duration,
 };
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
-use tonic::transport::{server::Router, Endpoint, Server};
-use topos_api::grpc::tce::v1::{
-    synchronizer_service_client::SynchronizerServiceClient,
-    synchronizer_service_server::SynchronizerServiceServer,
-};
-use tower::service_fn;
-use tracing::info;
+use tonic::transport::server::Router;
 
 pub fn builder<'a>() -> NetworkBuilder<'a> {
     NetworkBuilder::default()
@@ -192,7 +177,7 @@ impl<'a> NetworkBuilder<'a> {
 
         let swarm = SwarmBuilder::with_tokio_executor(transport, behaviour, peer_id)
             .idle_connection_timeout(Duration::from_secs(
-                constant::IDLE_CONNECTION_TIMEOUT_SECONDS,
+                constants::IDLE_CONNECTION_TIMEOUT_SECONDS,
             ))
             .build();
         let (shutdown_channel, shutdown) = mpsc::channel::<oneshot::Sender<()>>(1);

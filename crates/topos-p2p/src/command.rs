@@ -3,7 +3,6 @@ use std::fmt::Display;
 use libp2p::{request_response::ResponseChannel, Multiaddr, PeerId};
 use serde::{Deserialize, Serialize};
 use tokio::sync::oneshot;
-use tonic::transport::Channel;
 
 use crate::{
     behaviour::{grpc::connection::OutboundConnection, transmission::codec::TransmissionResponse},
@@ -63,6 +62,11 @@ pub enum Command {
         topic: &'static str,
         data: Vec<u8>,
     },
+
+    /// Ask for the creation of a new proxy connection for a gRPC query.
+    /// The response will be sent to the sender of the command once the connection is established.
+    /// The response will be a `OutboundConnection` that can be used to create a gRPC client.
+    /// A connection is established if needed with the peer.
     NewProxiedQuery {
         peer: PeerId,
         id: uuid::Uuid,

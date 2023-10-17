@@ -8,7 +8,7 @@ use topos_core::{
     },
     types::CertificateDelivered,
 };
-use topos_p2p::{constant::SYNCHRONIZER_PROTOCOL, NetworkClient, RetryPolicy};
+use topos_p2p::{constants::SYNCHRONIZER_PROTOCOL, NetworkClient, RetryPolicy};
 use topos_test_sdk::{
     certificates::create_certificate_chain,
     storage::{create_fullnode_store, create_validator_store},
@@ -111,7 +111,6 @@ async fn network_test() {
         )
         .await;
 
-    println!("RECV gRPC over P2P response: {:?}", res);
     assert!(res.is_ok());
     let res = res.unwrap();
 
