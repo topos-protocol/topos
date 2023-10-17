@@ -47,10 +47,7 @@ impl
         SwarmEvent<
             ComposedEvent,
             Either<
-                Either<
-                    Either<Either<Either<std::io::Error, std::io::Error>, void::Void>, void::Void>,
-                    void::Void,
-                >,
+                Either<Either<Either<std::io::Error, std::io::Error>, void::Void>, void::Void>,
                 void::Void,
             >,
         >,
@@ -61,10 +58,7 @@ impl
         event: SwarmEvent<
             ComposedEvent,
             Either<
-                Either<
-                    Either<Either<Either<std::io::Error, std::io::Error>, void::Void>, void::Void>,
-                    void::Void,
-                >,
+                Either<Either<Either<std::io::Error, std::io::Error>, void::Void>, void::Void>,
                 void::Void,
             >,
         >,

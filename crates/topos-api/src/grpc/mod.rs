@@ -1,8 +1,26 @@
 use self::checkpoints::StreamPositionError;
 
+use tonic::transport::Channel;
+
+use self::tce::v1::synchronizer_service_client::SynchronizerServiceClient;
+
 pub const FILE_DESCRIPTOR_SET: &[u8] = include_bytes!("generated/topos.bin");
 
 pub mod checkpoints;
+
+pub trait GrpcClient {
+    type Output;
+
+    fn init(destination: Channel) -> Self::Output;
+}
+
+impl GrpcClient for SynchronizerServiceClient<Channel> {
+    type Output = Self;
+
+    fn init(channel: Channel) -> Self::Output {
+        SynchronizerServiceClient::new(channel)
+    }
+}
 
 #[derive(thiserror::Error, Debug)]
 pub enum ConversionError {

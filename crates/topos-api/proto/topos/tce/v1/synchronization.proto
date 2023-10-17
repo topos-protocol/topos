@@ -8,6 +8,11 @@ import "topos/shared/v1/subnet.proto";
 import "topos/shared/v1/uuid.proto";
 import "topos/uci/v1/certification.proto";
 
+service SynchronizerService {
+  rpc fetch_checkpoint(CheckpointRequest) returns (CheckpointResponse);
+  rpc fetch_certificates(FetchCertificatesRequest) returns (FetchCertificatesResponse);
+}
+
 message CheckpointRequest {
   // Provide a request_id to track response
   topos.shared.v1.UUID request_id = 1;

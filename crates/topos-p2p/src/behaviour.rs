@@ -7,7 +7,6 @@ use libp2p::{
     gossipsub,
     kad::{store::MemoryStore, Kademlia},
     request_response,
-    swarm::keep_alive,
     swarm::NetworkBehaviour,
 };
 
@@ -34,8 +33,6 @@ pub(crate) struct Behaviour {
     /// TransmissionBehaviour handle how we communicate with nodes
     pub(crate) transmission: request_response::Behaviour<TransmissionCodec>,
     pub(crate) synchronizer: request_response::Behaviour<TransmissionCodec>,
-
-    pub(crate) keep_alive: keep_alive::Behaviour,
 
     pub(crate) gossipsub: gossip::Behaviour,
 }

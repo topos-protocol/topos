@@ -22,7 +22,7 @@ use libp2p::{
     identity::Keypair,
     kad::store::MemoryStore,
     noise,
-    swarm::{keep_alive, SwarmBuilder},
+    swarm::SwarmBuilder,
     tcp::{tokio::Transport, Config},
     Multiaddr, PeerId, StreamProtocol, Transport as TransportTrait,
 };
@@ -148,7 +148,6 @@ impl<'a> NetworkBuilder<'a> {
             ),
             transmission: TransmissionBehaviour::create(StreamProtocol::new(TRANSMISSION_PROTOCOL)),
             synchronizer: TransmissionBehaviour::create(StreamProtocol::new(SYNCHRONIZER_PROTOCOL)),
-            keep_alive: keep_alive::Behaviour,
         };
 
         let transport = {
