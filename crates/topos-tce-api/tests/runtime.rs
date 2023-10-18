@@ -571,7 +571,7 @@ async fn can_query_graphql_endpoint_for_certificates(
                 prevId
                 proof
                 signature
-                sourceSubnetId
+                sourceSubnetId {{ value }}
                 stateRoot
                 targetSubnets {{
                     value
@@ -608,7 +608,7 @@ async fn can_query_graphql_endpoint_for_certificates(
         .await
         .unwrap();
 
-    let graphql_certificate: GraphQLCertificate = cert.into();
+    let graphql_certificate: GraphQLCertificate = cert.as_ref().into();
 
     assert_eq!(response.data.certificates.len(), 10);
     assert_eq!(

@@ -92,6 +92,7 @@ async fn can_persist_a_delivered_certificate(store: Arc<ValidatorStore>) {
         .unwrap();
 
     assert_eq!(stream_element.0.position, Position::ZERO);
+    assert_eq!(stream_element.1, certificate.certificate.id);
 }
 
 #[rstest]

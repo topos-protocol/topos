@@ -51,7 +51,7 @@ pub(crate) enum InternalRuntimeCommand {
         sender: oneshot::Sender<Result<Option<(u64, Certificate)>, RuntimeError>>,
     },
 
-    /// Ask the creation of a new TransientStream
+    /// Ask for the creation of a new TransientStream
     NewTransientStream {
         sender: oneshot::Sender<Result<TransientStream, RuntimeError>>,
     },

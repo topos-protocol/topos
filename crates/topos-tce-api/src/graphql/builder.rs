@@ -1,6 +1,6 @@
 use std::{net::SocketAddr, sync::Arc};
 
-use async_graphql::{EmptyMutation, EmptySubscription, Schema};
+use async_graphql::{EmptyMutation, Schema};
 use async_graphql_axum::GraphQLSubscription;
 use axum::{extract::Extension, routing::get, Router, Server};
 use http::{header, Method};
@@ -11,11 +11,13 @@ use tower_http::cors::{Any, CorsLayer};
 use crate::{
     graphql::{
         query::{QueryRoot, ServiceSchema},
-        routes::{graphql_handler, graphql_playground, health},
+        routes::{graphql_playground, health},
     },
     runtime::InternalRuntimeCommand,
 };
 use topos_tce_storage::fullnode::FullNodeStore;
+
+use super::query::SubscriptionRoot;
 
 #[derive(Default)]
 pub struct ServerBuilder {
@@ -61,12 +63,22 @@ impl ServerBuilder {
             .take()
             .expect("Cannot build GraphQL server without a FullNode store");
 
-        let schema: ServiceSchema = Schema::build(QueryRoot, EmptyMutation, EmptySubscription)
+        let runtime = self
+            .runtime
+            .take()
+            .expect("Cannot build GraphQL server without the internal runtime channel");
+
+        let schema: ServiceSchema = Schema::build(QueryRoot, EmptyMutation, SubscriptionRoot)
             .data(store)
+            .data(runtime)
             .finish();
 
         let app = Router::new()
-            .route("/", get(graphql_playground).post(graphql_handler))
+            .route(
+                "/",
+                get(graphql_playground)
+                    .post_service(async_graphql_axum::GraphQL::new(schema.clone())),
+            )
             .route_service("/ws", GraphQLSubscription::new(schema.clone()))
             .route("/health", get(health))
             .layer(cors)

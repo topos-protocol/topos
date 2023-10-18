@@ -3,6 +3,7 @@ use std::{
     collections::{hash_map::Entry, HashMap, HashSet},
     future,
     pin::Pin,
+    sync::Arc,
     time::Duration,
 };
 use tokio::{
@@ -59,7 +60,7 @@ pub struct Runtime {
     pub(crate) broadcast_stream: broadcast::Receiver<CertificateDeliveredWithPositions>,
 
     pub(crate) storage: StorageClient,
-    pub(crate) transient_streams: HashMap<Uuid, Sender<Certificate>>,
+    pub(crate) transient_streams: HashMap<Uuid, Sender<Arc<Certificate>>>,
     /// Streams that are currently active (with a valid handshake)
     pub(crate) active_streams: HashMap<Uuid, Sender<StreamCommand>>,
     /// Streams that are currently in negotiation
@@ -123,7 +124,6 @@ impl Runtime {
                     };
 
                     self.handle_runtime_command(cmd).await;
-
                 }
 
                 Some(result) = self.streams.next() => {
@@ -187,6 +187,18 @@ impl Runtime {
                     "Dispatching certificate cert_id: {:?} to target subnets: {:?}",
                     &certificate.id, target_subnets
                 );
+
+                // Notify all the transient streams that a new certificate is available
+                // To avoid double allocation for each stream, we clone an Arc of the certificate.
+                // Each stream will convert the UCI certificate into a GraphQL one and send it to the transient stream.
+                let shared_certificate = Arc::new(certificate.clone());
+                for transient in self.transient_streams.values() {
+                    let sender = transient.clone();
+                    let shared_certificate = shared_certificate.clone();
+                    tokio::spawn(async move {
+                        _ = sender.send(shared_certificate).await;
+                    });
+                }
 
                 for target_subnet_id in target_subnets {
                     let target_subnet_id = *target_subnet_id;
