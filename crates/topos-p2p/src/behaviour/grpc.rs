@@ -95,7 +95,7 @@ type ChannelNegotiationFuture =
 
 /// gRPC behaviour for libp2p
 ///
-/// That allows to open gRPC connections to peers and to accept incoming gRPC connections.
+/// Allows opening gRPC connections to peers and to accept incoming gRPC connections.
 /// It also handles the negotiation of the gRPC channel. Once the channel is established,
 /// the behaviour will return a [`GrpcStream`] that can be used to send and receive gRPC messages.
 /// A gRPC Router is optional because as a client or light client I need be able to open a connection
@@ -168,7 +168,7 @@ impl Behaviour {
 
     /// Ask the behaviour to create a new outbound connection for the given peer.
     ///
-    /// The return value is a [`OutboundConnection`] that can be used to check the status of the
+    /// The return value is an [`OutboundConnection`] that can be used to check the status of the
     /// connection. If the connection is pending, the request id is returned. If the connection
     /// is established, the gRPC channel is returned.
     // TODO: Remove unused when gRPC behaviour is activated
@@ -203,7 +203,10 @@ impl Behaviour {
                     request_id: Some(request_id),
                     channel,
                 }) => {
-                    debug!("Peer already connected but no channel bound");
+                    debug!(
+                        "Peer already connected but no channel yet, waiting for channel \
+                         negotiation"
+                    );
 
                     OutboundConnection::Pending {
                         request_id: *request_id,
@@ -280,7 +283,6 @@ impl Behaviour {
 
         self.connected.entry(peer_id).or_default().push(connection);
 
-        // TODO refactor this to better handle connection
         // If there is no current established connection it means that it's the
         // first connection with that peer
         if other_established == 0 {
@@ -381,8 +383,6 @@ impl Behaviour {
                             protocol: protocol.clone(),
                         },
                     });
-
-                    debug!("Sending handler notif to connect");
                 }
             }
         }

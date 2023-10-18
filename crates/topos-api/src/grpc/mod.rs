@@ -37,7 +37,7 @@ pub enum ConversionError {
 #[rustfmt::skip]
 #[path = "generated/topos.p2p.rs"]
 pub mod p2p;
-    
+
 #[path = ""]
 pub mod tce {
     #[rustfmt::skip]

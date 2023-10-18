@@ -21,6 +21,6 @@ pub(crate) struct Behaviour {
     /// Gossip behaviour which handle the gossipsub protocol
     pub(crate) gossipsub: gossip::Behaviour,
 
-    /// Custom gRPC behaviour which handle the different TOPOS gRPC protocol
+    /// Custom gRPC behaviour which handle the different TOPOS gRPC protocols
     pub(crate) grpc: grpc::Behaviour,
 }
