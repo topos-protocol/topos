@@ -9,6 +9,25 @@ on:
   workflow_dispatch:
 
 jobs:
+
+  readme:
+    name: Readme - checking readme compatibility
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - uses: ./.github/actions/install-rust
+        with:
+          with_cache: false
+          tools: cargo-readme
+          AWS_ACCESS_KEY_ID: ${{ secrets.ROBOT_AWS_ACCESS_KEY_ID}}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.ROBOT_AWS_SECRET_ACCESS_KEY}}
+
+      - name: checking readme
+        run: ./scripts/check_readme.sh
+
+
   audit:
     name: Audit - crate security vulnerabilities
     runs-on: ubuntu-latest
