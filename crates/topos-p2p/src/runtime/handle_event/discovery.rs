@@ -75,10 +75,6 @@ impl EventHandler<Box<KademliaEvent>> for Runtime {
                                         );
                                     }
                                 }
-                                self.swarm
-                                    .behaviour_mut()
-                                    .transmission
-                                    .add_address(&peer_id, addr);
                             }
                         }
                     }

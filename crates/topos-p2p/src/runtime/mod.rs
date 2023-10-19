@@ -1,10 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    behaviour::{
-        discovery::{PendingDials, PendingRecordRequest},
-        transmission::PendingRequests,
-    },
+    behaviour::discovery::{PendingDials, PendingRecordRequest},
     config::NetworkConfig,
     error::P2PError,
     event::ComposedEvent,
@@ -17,7 +14,6 @@ use libp2p::{
         record::Key, BootstrapOk, KademliaEvent, PutRecordError, QueryId, QueryResult, Quorum,
         Record,
     },
-    request_response::{Event as RequestResponseEvent, Message as RequestResponseMessage},
     swarm::SwarmEvent,
     Multiaddr, PeerId, Swarm,
 };
@@ -37,8 +33,6 @@ pub struct Runtime {
     pub(crate) addresses: Multiaddr,
     pub(crate) bootstrapped: bool,
     pub(crate) is_boot_node: bool,
-
-    pub(crate) pending_requests: PendingRequests,
 
     /// Contains peer ids of dialled node
     pub peers: HashSet<PeerId>,
@@ -230,20 +224,6 @@ impl Runtime {
                             event => warn!("Unhandle Kademlia event during Bootstrap: {event:?}"),
                         }
                     }
-
-                    // Handle protocol queries
-                    SwarmEvent::Behaviour(ComposedEvent::Transmission(
-                        RequestResponseEvent::Message {
-                            peer,
-                            message:
-                                RequestResponseMessage::Request {
-                                    request_id,
-                                    request,
-                                    channel,
-                                },
-                        },
-                    )) => {}
-
                     SwarmEvent::ConnectionEstablished { .. } => {}
                     SwarmEvent::Dialing { .. } => {}
                     SwarmEvent::IncomingConnection { .. } => {}

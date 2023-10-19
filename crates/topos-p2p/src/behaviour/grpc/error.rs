@@ -6,8 +6,12 @@ use tokio::sync::oneshot;
 pub enum OutboundError {
     #[error("Unable to Dial")]
     DialFailure,
+    #[error("Peer doesn't support the protocol: {0}")]
+    UnsupportedProtocol(String),
     #[error(transparent)]
     GrpcChannel(#[from] Arc<tonic::transport::Error>),
+    #[error("Outbound connection timeout")]
+    Timeout,
 }
 
 #[derive(thiserror::Error, Debug)]

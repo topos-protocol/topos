@@ -32,7 +32,7 @@ use topos_core::types::CertificateDelivered;
 use topos_core::types::ValidatorId;
 use topos_core::uci::SubnetId;
 use topos_crypto::messages::MessageSigner;
-use topos_p2p::{error::P2PError, Client, Event, Runtime};
+use topos_p2p::{error::P2PError, Event, GrpcRouter, NetworkClient, Runtime};
 use topos_tce::{events::Events, AppContext};
 use topos_tce_api::RuntimeContext;
 use topos_tce_storage::StorageClient;
@@ -128,10 +128,10 @@ impl NodeConfig {
     pub async fn bootstrap(
         &self,
         peers: &[NodeConfig],
-        router: Option<Router>,
+        router: Option<GrpcRouter>,
     ) -> Result<
         (
-            Client,
+            NetworkClient,
             impl Stream<Item = Event> + Unpin + Send,
             JoinHandle<Result<(), ()>>,
         ),
@@ -151,8 +151,8 @@ impl NodeConfig {
     pub async fn create(
         &self,
         peers: &[NodeConfig],
-        router: Option<Router>,
-    ) -> Result<(Client, impl Stream<Item = Event>, Runtime), P2PError> {
+        router: Option<GrpcRouter>,
+    ) -> Result<(NetworkClient, impl Stream<Item = Event>, Runtime), P2PError> {
         create_network_worker(
             self.seed,
             self.port,
@@ -219,11 +219,11 @@ pub async fn start_node(
         .filter(|&p| p != peer_id)
         .collect::<Vec<_>>();
 
-    let router = tonic::transport::Server::builder().add_service(SynchronizerServiceServer::new(
-        SynchronizerService {
+    let router = GrpcRouter::new(tonic::transport::Server::builder()).add_service(
+        SynchronizerServiceServer::new(SynchronizerService {
             validator_store: validator_store.clone(),
-        },
-    ));
+        }),
+    );
 
     let (network_client, network_stream, runtime_join_handle) = bootstrap_network(
         config.seed,

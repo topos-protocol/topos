@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package noop;
+
+// The greeting service definition.
+service Noop {
+  // Trigger nothing
+  rpc do_nothing (NoopRequest) returns (NoopResponse) {}
+}
+
+message NoopRequest {
+}
+
+message NoopResponse {
+}

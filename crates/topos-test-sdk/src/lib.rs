@@ -15,12 +15,8 @@ use lazy_static::lazy_static;
 lazy_static! {
     pub static ref PORT_MAPPING: Mutex<HashSet<u16>> = Mutex::new(HashSet::new());
 }
-pub mod grpc {
-    pub mod behaviour {
-        #[rustfmt::skip]
-        pub mod helloworld;
-    }
-}
+
+pub mod grpc;
 
 pub mod constants {
     use proc_macro_sdk::generate_certificate_ids;

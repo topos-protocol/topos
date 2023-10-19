@@ -6,14 +6,14 @@ use rstest::fixture;
 use tokio::spawn;
 use topos_test_sdk::networking::get_available_port;
 
-use crate::{network::NetworkBuilder, Client, Runtime};
+use crate::{network::NetworkBuilder, NetworkClient, Runtime};
 
 pub mod macros;
 
 pub type PeerAddr = (PeerId, Multiaddr);
 
 #[fixture]
-pub async fn dummy_peer() -> (Client, PeerAddr) {
+pub async fn dummy_peer() -> (NetworkClient, PeerAddr) {
     let (key, addr_dummy) = local_peer(1);
     let dummy_peer = (key.public().to_peer_id(), addr_dummy.clone());
 

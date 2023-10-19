@@ -8,23 +8,23 @@ use std::{
 use futures::{future::BoxFuture, FutureExt};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
+use tonic::Status;
 use topos_core::{
     api::grpc::{
         self,
         shared::v1::Uuid as APIUuid,
         tce::v1::{
-            synchronizer_service_client::SynchronizerServiceClient, CheckpointRequest,
-            CheckpointResponse, FetchCertificatesRequest, FetchCertificatesResponse,
+            synchronizer_service_client::SynchronizerServiceClient,
+            synchronizer_service_server::SynchronizerServiceServer, CheckpointRequest,
+            CheckpointResponse, FetchCertificatesRequest,
         },
     },
     errors::GrpcParsingError,
     types::ProofOfDelivery,
     uci::{Certificate, CertificateId, SubnetId},
 };
-use topos_p2p::{
-    constants::SYNCHRONIZER_PROTOCOL, error::CommandExecutionError, NetworkClient, PeerId,
-    RetryPolicy,
-};
+
+use topos_p2p::{error::P2PError, NetworkClient, PeerId};
 use topos_tce_gatekeeper::GatekeeperClient;
 use topos_tce_storage::{errors::StorageError, store::ReadStore, validator::ValidatorStore};
 use tracing::{debug, error, warn};
@@ -38,11 +38,13 @@ mod tests;
 pub use config::CheckpointsCollectorConfig;
 pub use error::CheckpointsCollectorError;
 
-pub struct CheckpointSynchronizer<G: GatekeeperClient, N: NetworkClient> {
+use crate::SynchronizerService;
+
+pub struct CheckpointSynchronizer {
     pub(crate) config: CheckpointsCollectorConfig,
 
-    pub(crate) network: N,
-    pub(crate) gatekeeper: G,
+    pub(crate) network: NetworkClient,
+    pub(crate) gatekeeper: GatekeeperClient,
     #[allow(unused)]
     pub(crate) store: Arc<ValidatorStore>,
 
@@ -54,7 +56,7 @@ pub struct CheckpointSynchronizer<G: GatekeeperClient, N: NetworkClient> {
     pub(crate) events: mpsc::Sender<CheckpointsCollectorEvent>,
 }
 
-impl<G: GatekeeperClient, N: NetworkClient> IntoFuture for CheckpointSynchronizer<G, N> {
+impl IntoFuture for CheckpointSynchronizer {
     type Output = Result<(), CheckpointsCollectorError>;
 
     type IntoFuture = BoxFuture<'static, Self::Output>;
@@ -117,13 +119,16 @@ enum SyncError {
     SubnetConversion(#[from] topos_core::api::grpc::shared::v1_conversions_subnet::Error),
 
     #[error(transparent)]
-    Network(#[from] CommandExecutionError),
+    Store(#[from] StorageError),
 
     #[error(transparent)]
-    Store(#[from] StorageError),
+    Network(#[from] P2PError),
+
+    #[error(transparent)]
+    Grpc(#[from] Status),
 }
 
-impl<G: GatekeeperClient, N: NetworkClient> CheckpointSynchronizer<G, N> {
+impl CheckpointSynchronizer {
     async fn ask_for_checkpoint(
         &self,
         peer: PeerId,
@@ -156,7 +161,7 @@ impl<G: GatekeeperClient, N: NetworkClient> CheckpointSynchronizer<G, N> {
         debug!("Asking {} for latest checkpoint", peer);
         let mut client: SynchronizerServiceClient<_> = self
             .network
-            .new_grpc_client::<SynchronizerServiceClient<_>, SynchronizerServiceClient<_>>(peer)
+            .new_grpc_client::<SynchronizerServiceClient<_>, SynchronizerServiceServer<SynchronizerService>>(peer)
             .await
             .unwrap();
 
@@ -229,15 +234,12 @@ impl<G: GatekeeperClient, N: NetworkClient> CheckpointSynchronizer<G, N> {
             "Ask {} for certificates payload: {:?}",
             target_peer, certificate_ids
         );
-        let response = self
+        let mut client: SynchronizerServiceClient<_> = self
             .network
-            .send_request::<_, FetchCertificatesResponse>(
-                target_peer,
-                req,
-                RetryPolicy::NoRetry,
-                SYNCHRONIZER_PROTOCOL,
-            )
+            .new_grpc_client::<SynchronizerServiceClient<_>, SynchronizerServiceServer<SynchronizerService>>(target_peer)
             .await?;
+
+        let response = client.fetch_certificates(req).await?.into_inner();
 
         let certificates: Result<Vec<Certificate>, _> = response
             .certificates

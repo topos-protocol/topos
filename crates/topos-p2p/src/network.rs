@@ -1,16 +1,14 @@
-use super::{Behaviour, Client, Event, Runtime};
+use super::{Behaviour, Event, NetworkClient, Runtime};
 use crate::{
-    behaviour::{
-        discovery::DiscoveryBehaviour, gossip, grpc, peer_info::PeerInfoBehaviour,
-        transmission::TransmissionBehaviour,
-    },
+    behaviour::{discovery::DiscoveryBehaviour, gossip, grpc, peer_info::PeerInfoBehaviour},
     config::{DiscoveryConfig, NetworkConfig},
     constants::{
         self, COMMAND_STREAM_BUFFER_SIZE, DISCOVERY_PROTOCOL, EVENT_STREAM_BUFFER,
-        PEER_INFO_PROTOCOL, SYNCHRONIZER_PROTOCOL, TRANSMISSION_PROTOCOL,
+        PEER_INFO_PROTOCOL,
     },
     error::P2PError,
     utils::GrpcOverP2P,
+    GrpcContext,
 };
 use futures::Stream;
 use libp2p::{
@@ -21,7 +19,7 @@ use libp2p::{
     noise,
     swarm::SwarmBuilder,
     tcp::{tokio::Transport, Config},
-    Multiaddr, PeerId, StreamProtocol, Transport as TransportTrait,
+    Multiaddr, PeerId, Transport as TransportTrait,
 };
 use std::{
     borrow::Cow,
@@ -30,7 +28,6 @@ use std::{
 };
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
-use tonic::transport::server::Router;
 
 pub fn builder<'a>() -> NetworkBuilder<'a> {
     NetworkBuilder::default()
@@ -49,12 +46,12 @@ pub struct NetworkBuilder<'a> {
     known_peers: &'a [(PeerId, Multiaddr)],
     local_port: Option<u8>,
     config: NetworkConfig,
-    router: Option<Router>,
+    grpc_context: GrpcContext,
 }
 
 impl<'a> NetworkBuilder<'a> {
-    pub fn router(mut self, router: Option<Router>) -> Self {
-        self.router = router;
+    pub fn grpc_context(mut self, grpc_context: GrpcContext) -> Self {
+        self.grpc_context = grpc_context;
 
         self
     }
@@ -125,7 +122,9 @@ impl<'a> NetworkBuilder<'a> {
         self
     }
 
-    pub async fn build(mut self) -> Result<(Client, impl Stream<Item = Event>, Runtime), P2PError> {
+    pub async fn build(
+        mut self,
+    ) -> Result<(NetworkClient, impl Stream<Item = Event>, Runtime), P2PError> {
         let peer_key = self.peer_key.ok_or(P2PError::MissingPeerKey)?;
         let peer_id = peer_key.public().to_peer_id();
 
@@ -134,12 +133,11 @@ impl<'a> NetworkBuilder<'a> {
 
         let gossipsub = gossip::Behaviour::new(peer_key.clone()).await;
 
-        let grpc = grpc::Behaviour::new(self.router.take());
+        let grpc = grpc::Behaviour::new(self.grpc_context);
 
         let behaviour = Behaviour {
             gossipsub,
             peer_info: PeerInfoBehaviour::new(PEER_INFO_PROTOCOL, &peer_key),
-
             discovery: DiscoveryBehaviour::create(
                 &self.config.discovery,
                 peer_key.clone(),
@@ -151,8 +149,6 @@ impl<'a> NetworkBuilder<'a> {
                 self.known_peers,
                 false,
             ),
-            transmission: TransmissionBehaviour::create(StreamProtocol::new(TRANSMISSION_PROTOCOL)),
-            synchronizer: TransmissionBehaviour::create(StreamProtocol::new(SYNCHRONIZER_PROTOCOL)),
             grpc,
         };
 
@@ -185,7 +181,7 @@ impl<'a> NetworkBuilder<'a> {
         };
 
         Ok((
-            Client {
+            NetworkClient {
                 retry_ttl: self.config.client_retry_ttl,
                 local_peer_id: peer_id,
                 sender: command_sender,
@@ -210,7 +206,6 @@ impl<'a> NetworkBuilder<'a> {
                     .take()
                     .expect("P2P runtime expect a MultiAddr"),
                 bootstrapped: false,
-                pending_requests: HashMap::new(),
                 pending_dial: HashMap::new(),
                 active_listeners: HashSet::new(),
                 peers: HashSet::new(),

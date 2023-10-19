@@ -8,10 +8,11 @@ use tokio::{
 };
 use tokio_stream::wrappers::BroadcastStream;
 use tokio_util::sync::CancellationToken;
+use topos_core::api::grpc::tce::v1::synchronizer_service_server::SynchronizerServiceServer;
 use topos_crypto::messages::MessageSigner;
 use topos_p2p::{
     utils::{local_key_pair, local_key_pair_from_slice},
-    Multiaddr,
+    GrpcContext, GrpcRouter, Multiaddr,
 };
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
 use topos_tce_storage::{
@@ -21,6 +22,7 @@ use topos_tce_storage::{
     validator::{ValidatorPerpetualTables, ValidatorStore},
     StorageClient,
 };
+use topos_tce_synchronizer::SynchronizerService;
 use tracing::{debug, warn};
 mod app_context;
 pub mod config;
@@ -71,33 +73,6 @@ pub async fn run(
     boot_peers.retain(|(p, _)| *p != peer_id);
 
     let peer_list = boot_peers.iter().map(|(p, _)| *p).collect::<Vec<_>>();
-
-    let (network_client, event_stream, unbootstrapped_runtime) = topos_p2p::network::builder()
-        .peer_key(key)
-        .listen_addr(addr)
-        .minimum_cluster_size(config.minimum_cluster_size)
-        .exposed_addresses(external_addr)
-        .known_peers(&boot_peers)
-        .build()
-        .await?;
-
-    debug!("Starting the p2p network");
-    let network_runtime = tokio::time::timeout(
-        config.network_bootstrap_timeout,
-        unbootstrapped_runtime.bootstrap(),
-    )
-    .await??;
-    let _network_handler = spawn(network_runtime.run());
-    debug!("p2p network started");
-
-    debug!("Starting the gatekeeper");
-    let (gatekeeper_client, gatekeeper_runtime) = topos_tce_gatekeeper::Gatekeeper::builder()
-        .local_peer_id(peer_id)
-        .peer_list(peer_list)
-        .await?;
-    spawn(gatekeeper_runtime.into_future());
-    debug!("Gatekeeper started");
-
     debug!("Starting the Storage");
     let path = if let StorageConfiguration::RocksDB(Some(ref path)) = config.storage {
         path
@@ -128,6 +103,42 @@ pub async fn run(
     let validator_store = ValidatorStore::open(path.clone(), fullnode_store.clone())
         .expect("Unable to create validator store");
 
+    let grpc_context = GrpcContext::default().with_router(
+        GrpcRouter::new(tonic::transport::Server::builder()).add_service(
+            SynchronizerServiceServer::new(SynchronizerService {
+                validator_store: validator_store.clone(),
+            }),
+        ),
+    );
+
+    let (network_client, event_stream, unbootstrapped_runtime) = topos_p2p::network::builder()
+        .peer_key(key)
+        .listen_addr(addr)
+        .minimum_cluster_size(config.minimum_cluster_size)
+        .exposed_addresses(external_addr)
+        .known_peers(&boot_peers)
+        .grpc_context(grpc_context)
+        .build()
+        .await?;
+
+    debug!("Starting the p2p network");
+    let network_runtime = tokio::time::timeout(
+        config.network_bootstrap_timeout,
+        unbootstrapped_runtime.bootstrap(),
+    )
+    .await??;
+    let _network_handler = spawn(network_runtime.run());
+    debug!("p2p network started");
+
+    debug!("Starting the gatekeeper");
+    let (gatekeeper_client, gatekeeper_runtime) = topos_tce_gatekeeper::Gatekeeper::builder()
+        .local_peer_id(peer_id)
+        .peer_list(peer_list)
+        .await?;
+
+    spawn(gatekeeper_runtime.into_future());
+    debug!("Gatekeeper started");
+
     let (broadcast_sender, broadcast_receiver) = broadcast::channel(BROADCAST_CHANNEL_SIZE);
 
     let storage_client = StorageClient::new(validator_store.clone());
@@ -149,6 +160,7 @@ pub async fn run(
     debug!("Reliable broadcast started");
 
     debug!("Starting the Synchronizer");
+
     let (synchronizer_runtime, synchronizer_stream) =
         topos_tce_synchronizer::Synchronizer::builder()
             .with_shutdown(shutdown.0.child_token())
