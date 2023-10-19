@@ -56,7 +56,7 @@ fn encode() {
 #[rstest]
 #[test_log::test(tokio::test)]
 #[timeout(Duration::from_secs(10))]
-async fn network_test() {
+async fn check_fetch_certificates() {
     let subnet = topos_test_sdk::constants::SOURCE_SUBNET_ID_1;
     let certificates: Vec<CertificateDelivered> =
         create_certificate_chain(subnet, &[topos_test_sdk::constants::TARGET_SUBNET_ID_1], 1);

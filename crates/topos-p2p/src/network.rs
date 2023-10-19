@@ -176,9 +176,7 @@ impl<'a> NetworkBuilder<'a> {
             .boxed();
 
         let swarm = SwarmBuilder::with_tokio_executor(transport, behaviour, peer_id)
-            .idle_connection_timeout(Duration::from_secs(
-                constants::IDLE_CONNECTION_TIMEOUT_SECONDS,
-            ))
+            .idle_connection_timeout(constants::IDLE_CONNECTION_TIMEOUT)
             .build();
         let (shutdown_channel, shutdown) = mpsc::channel::<oneshot::Sender<()>>(1);
 
