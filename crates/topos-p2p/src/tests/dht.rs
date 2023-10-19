@@ -2,20 +2,14 @@ use std::{num::NonZeroUsize, time::Duration};
 
 use futures::StreamExt;
 use libp2p::{
-    identify::{self, Info},
-    kad::{record::Key, GetRecordOk, KademliaEvent, PeerRecord, PutRecordOk, QueryResult, Record},
+    kad::{record::Key, KademliaEvent, PutRecordOk, QueryResult, Record},
     swarm::SwarmEvent,
 };
 use rstest::rstest;
 use test_log::test;
 use topos_test_sdk::tce::NodeConfig;
 
-use crate::{
-    config::DiscoveryConfig, event::ComposedEvent, network::NetworkBuilder,
-    tests::support::local_peer, wait_for_event, Client, Runtime,
-};
-
-use super::support::{dummy_peer, PeerAddr};
+use crate::{config::DiscoveryConfig, event::ComposedEvent, wait_for_event};
 
 #[rstest]
 #[test(tokio::test)]
@@ -24,7 +18,7 @@ async fn put_value_in_dht() {
     let peer_1 = NodeConfig::from_seed(1);
     let peer_2 = NodeConfig::from_seed(2);
 
-    let (_client, _, join) = peer_1.bootstrap(&[]).await.unwrap();
+    let (_client, _, join) = peer_1.bootstrap(&[], None).await.unwrap();
 
     let (_, _, runtime) = crate::network::builder()
         .peer_key(peer_2.keypair.clone())

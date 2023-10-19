@@ -1,12 +1,23 @@
+use std::time::Duration;
+
+use rstest::rstest;
 use topos_core::{
-    api::grpc::tce::v1::{CheckpointMapFieldEntry, CheckpointRequest, CheckpointResponse},
+    api::grpc::tce::v1::{
+        synchronizer_service_server::SynchronizerServiceServer, CheckpointMapFieldEntry,
+        CheckpointRequest, CheckpointResponse, FetchCertificatesRequest, FetchCertificatesResponse,
+    },
     types::CertificateDelivered,
 };
-use topos_test_sdk::certificates::create_certificate_chain;
+use topos_p2p::{constants::SYNCHRONIZER_PROTOCOL, NetworkClient, RetryPolicy};
+use topos_test_sdk::{
+    certificates::create_certificate_chain,
+    storage::{create_fullnode_store, create_validator_store},
+    tce::{create_network, NodeConfig},
+};
 
 use uuid::Uuid;
 
-use super::CheckpointSynchronizer;
+use crate::SynchronizerService;
 
 mod integration;
 
@@ -42,9 +53,73 @@ fn encode() {
     assert_eq!(y, req);
 }
 
-#[test]
-fn sync_same_certificate_twice() {
-    //
+#[rstest]
+#[test_log::test(tokio::test)]
+#[timeout(Duration::from_secs(10))]
+async fn check_fetch_certificates() {
+    let subnet = topos_test_sdk::constants::SOURCE_SUBNET_ID_1;
+    let certificates: Vec<CertificateDelivered> =
+        create_certificate_chain(subnet, &[topos_test_sdk::constants::TARGET_SUBNET_ID_1], 1);
+
+    let boot_node = NodeConfig::from_seed(1);
+    let cluster = create_network(5, certificates.clone()).await;
+    let boot_node = cluster
+        .get(&boot_node.keypair.public().to_peer_id())
+        .unwrap()
+        .node_config
+        .clone();
+
+    let cfg = NodeConfig {
+        seed: 6,
+        minimum_cluster_size: 3,
+        ..Default::default()
+    };
+
+    let fullnode_store = create_fullnode_store(vec![]).await;
+    let validator_store =
+        create_validator_store(vec![], futures::future::ready(fullnode_store.clone())).await;
+
+    let router = tonic::transport::Server::builder().add_service(SynchronizerServiceServer::new(
+        SynchronizerService {
+            validator_store: validator_store.clone(),
+        },
+    ));
+
+    let (client, _, _) = cfg
+        .bootstrap(&[boot_node.clone()], Some(router))
+        .await
+        .unwrap();
+
+    use topos_core::api::grpc::shared::v1::Uuid as APIUuid;
+
+    let request_id: APIUuid = Uuid::new_v4().into();
+    let req = FetchCertificatesRequest {
+        request_id: Some(request_id),
+        certificates: certificates
+            .clone()
+            .into_iter()
+            .map(|c| c.certificate.id.try_into().unwrap())
+            .collect(),
+    };
+
+    let res = client
+        .send_request::<_, FetchCertificatesResponse>(
+            boot_node.keypair.public().to_peer_id(),
+            req,
+            RetryPolicy::NoRetry,
+            SYNCHRONIZER_PROTOCOL,
+        )
+        .await;
+
+    assert!(res.is_ok());
+    let res = res.unwrap();
+
+    let expected = certificates
+        .into_iter()
+        .map(|c| c.certificate.try_into().unwrap())
+        .collect::<Vec<topos_core::api::grpc::uci::v1::Certificate>>();
+
+    assert_eq!(res.certificates, expected);
 }
 
 #[test]

@@ -2,21 +2,26 @@ use std::collections::hash_map::Entry;
 
 use crate::{
     behaviour::transmission::codec::{TransmissionRequest, TransmissionResponse},
-    constant::SYNCHRONIZER_PROTOCOL,
+    constants::SYNCHRONIZER_PROTOCOL,
     error::P2PError,
     Command, Runtime,
 };
-use libp2p::{
-    gossipsub::IdentTopic,
-    kad::{record::Key, Quorum},
-    swarm::NetworkBehaviour,
-    PeerId,
-};
+use libp2p::{kad::record::Key, PeerId};
 use topos_metrics::P2P_MESSAGE_SENT_ON_GOSSIPSUB_TOTAL;
 use tracing::{debug, error, info, warn};
+
 impl Runtime {
     pub(crate) async fn handle_command(&mut self, command: Command) {
         match command {
+            Command::NewProxiedQuery { peer, id, response } => {
+                let connection = self
+                    .swarm
+                    .behaviour_mut()
+                    .grpc
+                    .open_outbound_connection(&peer);
+
+                _ = response.send(connection);
+            }
             Command::StartListening { peer_addr, sender } => {
                 if sender.send(self.start_listening(peer_addr)).is_err() {
                     warn!("Unable to notify StartListening response: initiator is dropped");

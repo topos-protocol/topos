@@ -1,37 +1,27 @@
-use std::{
-    cmp::min,
-    collections::{HashMap, HashSet, VecDeque},
-};
+use std::collections::{HashMap, HashSet};
 
 use crate::{
     behaviour::{
         discovery::{PendingDials, PendingRecordRequest},
-        transmission::{
-            codec::{TransmissionRequest, TransmissionResponse},
-            PendingRequests,
-        },
+        transmission::PendingRequests,
     },
     config::NetworkConfig,
-    error::{CommandExecutionError, P2PError},
+    error::P2PError,
     event::ComposedEvent,
     runtime::handle_event::EventHandler,
-    Behaviour, Command, Event, NotReadyMessage, TOPOS_ECHO, TOPOS_GOSSIP, TOPOS_READY,
+    Behaviour, Command, Event,
 };
 use libp2p::{
     core::transport::ListenerId,
-    gossipsub,
     kad::{
         record::Key, BootstrapOk, KademliaEvent, PutRecordError, QueryId, QueryResult, Quorum,
         Record,
     },
     request_response::{Event as RequestResponseEvent, Message as RequestResponseMessage},
-    swarm::{NetworkBehaviour, SwarmEvent},
+    swarm::SwarmEvent,
     Multiaddr, PeerId, Swarm,
 };
-use tokio::sync::{
-    mpsc, oneshot,
-    oneshot::{Receiver, Sender},
-};
+use tokio::sync::{mpsc, oneshot};
 use tokio_stream::StreamExt;
 use tracing::{debug, error, info, warn};
 

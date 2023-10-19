@@ -13,12 +13,20 @@ use tokio::{sync::mpsc, task::JoinHandle};
 use tokio_stream::wrappers::BroadcastStream;
 use tokio_util::sync::CancellationToken;
 use tonic::transport::Channel;
+use tonic::Request;
 use tonic::Response;
+use tonic::Status;
 
+use tonic::transport::server::Router;
+use tonic::transport::Server;
 use topos_core::api::grpc::tce::v1::{
     api_service_client::ApiServiceClient, console_service_client::ConsoleServiceClient,
+    synchronizer_service_server::SynchronizerService as GrpcSynchronizerService,
+    synchronizer_service_server::SynchronizerServiceServer,
 };
-
+use topos_core::api::grpc::tce::v1::{
+    CheckpointRequest, CheckpointResponse, FetchCertificatesRequest, FetchCertificatesResponse,
+};
 use topos_core::api::grpc::tce::v1::{StatusRequest, StatusResponse};
 use topos_core::types::CertificateDelivered;
 use topos_core::types::ValidatorId;
@@ -28,6 +36,7 @@ use topos_p2p::{error::P2PError, Client, Event, Runtime};
 use topos_tce::{events::Events, AppContext};
 use topos_tce_api::RuntimeContext;
 use topos_tce_storage::StorageClient;
+use topos_tce_synchronizer::SynchronizerService;
 use tracing::{info, warn};
 
 use self::gatekeeper::create_gatekeeper;
@@ -119,6 +128,7 @@ impl NodeConfig {
     pub async fn bootstrap(
         &self,
         peers: &[NodeConfig],
+        router: Option<Router>,
     ) -> Result<
         (
             Client,
@@ -133,6 +143,7 @@ impl NodeConfig {
             self.addr.clone(),
             peers,
             self.minimum_cluster_size,
+            router,
         )
         .await
     }
@@ -140,6 +151,7 @@ impl NodeConfig {
     pub async fn create(
         &self,
         peers: &[NodeConfig],
+        router: Option<Router>,
     ) -> Result<(Client, impl Stream<Item = Event>, Runtime), P2PError> {
         create_network_worker(
             self.seed,
@@ -147,6 +159,7 @@ impl NodeConfig {
             self.addr.clone(),
             peers,
             self.minimum_cluster_size,
+            router,
         )
         .await
     }
@@ -154,6 +167,30 @@ impl NodeConfig {
 
 fn default_message_signer() -> Arc<MessageSigner> {
     Arc::new(MessageSigner::new(&[5u8; 32]).unwrap())
+}
+
+#[derive(Clone)]
+struct DummyService {}
+
+#[async_trait::async_trait]
+impl GrpcSynchronizerService for DummyService {
+    async fn fetch_certificates(
+        &self,
+        _request: Request<FetchCertificatesRequest>,
+    ) -> Result<Response<FetchCertificatesResponse>, Status> {
+        Err(Status::unimplemented("fetch_certificates"))
+    }
+
+    async fn fetch_checkpoint(
+        &self,
+        _request: Request<CheckpointRequest>,
+    ) -> Result<Response<CheckpointResponse>, Status> {
+        Err(Status::unimplemented("fetch_checkpoint"))
+    }
+}
+
+pub fn create_dummy_router() -> Router {
+    Server::builder().add_service(SynchronizerServiceServer::new(DummyService {}))
 }
 
 #[fixture(
@@ -172,6 +209,9 @@ pub async fn start_node(
     message_signer: Arc<MessageSigner>,
 ) -> TceContext {
     let peer_id = config.keypair.public().to_peer_id();
+    let fullnode_store = create_fullnode_store(vec![]).await;
+    let validator_store =
+        create_validator_store(certificates, futures::future::ready(fullnode_store.clone())).await;
 
     let known_peers = peers
         .iter()
@@ -179,18 +219,22 @@ pub async fn start_node(
         .filter(|&p| p != peer_id)
         .collect::<Vec<_>>();
 
+    let router = tonic::transport::Server::builder().add_service(SynchronizerServiceServer::new(
+        SynchronizerService {
+            validator_store: validator_store.clone(),
+        },
+    ));
+
     let (network_client, network_stream, runtime_join_handle) = bootstrap_network(
         config.seed,
         config.port,
         config.addr.clone(),
         peers,
         config.minimum_cluster_size,
+        Some(router),
     )
     .await
     .expect("Unable to bootstrap tce network");
-    let fullnode_store = create_fullnode_store(vec![]).await;
-    let validator_store =
-        create_validator_store(certificates, futures::future::ready(fullnode_store.clone())).await;
 
     let storage_client = StorageClient::new(validator_store.clone());
     let (sender, receiver) = broadcast::channel(100);
@@ -268,7 +312,6 @@ fn build_peer_config_pool(peer_number: u8) -> Vec<NodeConfig> {
         .map(NodeConfig::from_seed)
         .map(|mut c| {
             c.minimum_cluster_size = peer_number as usize / 2;
-
             c
         })
         .collect()

@@ -1,11 +1,7 @@
-use std::borrow::Cow;
-
 use libp2p::identify::{Event as IdentifyEvent, Info as IdentifyInfo};
 use tracing::info;
 
-use crate::{
-    behaviour::transmission::protocol::TransmissionProtocol, constant::PEER_INFO_PROTOCOL, Runtime,
-};
+use crate::{constants::PEER_INFO_PROTOCOL, Runtime};
 
 use super::EventHandler;
 

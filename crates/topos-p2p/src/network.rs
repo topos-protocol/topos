@@ -1,24 +1,21 @@
 use super::{Behaviour, Client, Event, Runtime};
 use crate::{
     behaviour::{
-        discovery::DiscoveryBehaviour,
-        gossip,
-        peer_info::PeerInfoBehaviour,
-        transmission::{codec::TransmissionCodec, TransmissionBehaviour},
+        discovery::DiscoveryBehaviour, gossip, grpc, peer_info::PeerInfoBehaviour,
+        transmission::TransmissionBehaviour,
     },
     config::{DiscoveryConfig, NetworkConfig},
-    constant::{
-        COMMAND_STREAM_BUFFER_SIZE, DISCOVERY_PROTOCOL, EVENT_STREAM_BUFFER, PEER_INFO_PROTOCOL,
-        SYNCHRONIZER_PROTOCOL, TRANSMISSION_PROTOCOL,
+    constants::{
+        self, COMMAND_STREAM_BUFFER_SIZE, DISCOVERY_PROTOCOL, EVENT_STREAM_BUFFER,
+        PEER_INFO_PROTOCOL, SYNCHRONIZER_PROTOCOL, TRANSMISSION_PROTOCOL,
     },
     error::P2PError,
-    TOPOS_ECHO, TOPOS_GOSSIP, TOPOS_READY,
+    utils::GrpcOverP2P,
 };
 use futures::Stream;
 use libp2p::{
     core::upgrade,
     dns::TokioDnsConfig,
-    gossipsub::{self, MessageAuthenticity, MessageId},
     identity::Keypair,
     kad::store::MemoryStore,
     noise,
@@ -28,13 +25,12 @@ use libp2p::{
 };
 use std::{
     borrow::Cow,
-    collections::{hash_map::DefaultHasher, HashMap, HashSet},
-    hash::{Hash, Hasher},
-    sync::{atomic::AtomicU64, Arc},
+    collections::{HashMap, HashSet},
     time::Duration,
 };
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
+use tonic::transport::server::Router;
 
 pub fn builder<'a>() -> NetworkBuilder<'a> {
     NetworkBuilder::default()
@@ -53,9 +49,16 @@ pub struct NetworkBuilder<'a> {
     known_peers: &'a [(PeerId, Multiaddr)],
     local_port: Option<u8>,
     config: NetworkConfig,
+    router: Option<Router>,
 }
 
 impl<'a> NetworkBuilder<'a> {
+    pub fn router(mut self, router: Option<Router>) -> Self {
+        self.router = router;
+
+        self
+    }
+
     pub fn discovery_config(mut self, config: DiscoveryConfig) -> Self {
         self.config.discovery = config;
 
@@ -131,6 +134,8 @@ impl<'a> NetworkBuilder<'a> {
 
         let gossipsub = gossip::Behaviour::new(peer_key.clone()).await;
 
+        let grpc = grpc::Behaviour::new(self.router.take());
+
         let behaviour = Behaviour {
             gossipsub,
             peer_info: PeerInfoBehaviour::new(PEER_INFO_PROTOCOL, &peer_key),
@@ -148,6 +153,7 @@ impl<'a> NetworkBuilder<'a> {
             ),
             transmission: TransmissionBehaviour::create(StreamProtocol::new(TRANSMISSION_PROTOCOL)),
             synchronizer: TransmissionBehaviour::create(StreamProtocol::new(SYNCHRONIZER_PROTOCOL)),
+            grpc,
         };
 
         let transport = {
@@ -169,13 +175,21 @@ impl<'a> NetworkBuilder<'a> {
             .timeout(TWO_HOURS)
             .boxed();
 
-        let swarm = SwarmBuilder::with_tokio_executor(transport, behaviour, peer_id).build();
+        let swarm = SwarmBuilder::with_tokio_executor(transport, behaviour, peer_id)
+            .idle_connection_timeout(constants::IDLE_CONNECTION_TIMEOUT)
+            .build();
         let (shutdown_channel, shutdown) = mpsc::channel::<oneshot::Sender<()>>(1);
+
+        let grpc_over_p2p = GrpcOverP2P {
+            proxy_sender: command_sender.clone(),
+        };
+
         Ok((
             Client {
                 retry_ttl: self.config.client_retry_ttl,
                 local_peer_id: peer_id,
                 sender: command_sender,
+                grpc_over_p2p,
                 shutdown_channel,
             },
             ReceiverStream::new(event_receiver),

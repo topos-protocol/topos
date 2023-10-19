@@ -1,9 +1,8 @@
 use std::iter;
 
 use libp2p::{core::UpgradeInfo, InboundUpgrade, OutboundUpgrade, Stream};
-use tracing::info;
 
-use crate::constant::GRPC_P2P_TOPOS_PROTOCOL;
+use crate::constants::GRPC_P2P_TOPOS_PROTOCOL;
 
 /// UpgradeProtocol for gRPC Connection
 ///

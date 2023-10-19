@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::oneshot;
 
 use crate::{
-    behaviour::transmission::codec::TransmissionResponse,
+    behaviour::{grpc::connection::OutboundConnection, transmission::codec::TransmissionResponse},
     error::{CommandExecutionError, P2PError},
 };
 
@@ -62,6 +62,16 @@ pub enum Command {
         topic: &'static str,
         data: Vec<u8>,
     },
+
+    /// Ask for the creation of a new proxy connection for a gRPC query.
+    /// The response will be sent to the sender of the command once the connection is established.
+    /// The response will be a `OutboundConnection` that can be used to create a gRPC client.
+    /// A connection is established if needed with the peer.
+    NewProxiedQuery {
+        peer: PeerId,
+        id: uuid::Uuid,
+        response: oneshot::Sender<OutboundConnection>,
+    },
 }
 
 impl Display for Command {
@@ -73,6 +83,7 @@ impl Display for Command {
             Command::Disconnect { .. } => write!(f, "Disconnect"),
             Command::TransmissionReq { to, .. } => write!(f, "TransmissionReq(to: {to})"),
             Command::Gossip { .. } => write!(f, "GossipMessage"),
+            Command::NewProxiedQuery { .. } => write!(f, "NewProxiedQuery"),
             Command::Discover { to, .. } => write!(f, "Discover(to: {to})"),
             Command::TransmissionResponse { .. } => write!(f, "TransmissionResponse"),
         }

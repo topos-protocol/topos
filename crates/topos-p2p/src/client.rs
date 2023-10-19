@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use async_trait::async_trait;
 use futures::future::BoxFuture;
 use libp2p::{
     request_response::{OutboundFailure, ResponseChannel},
@@ -9,15 +10,24 @@ use tokio::sync::{
     mpsc::{self, error::SendError},
     oneshot,
 };
+use topos_api::grpc::GrpcClient;
 use tracing::{debug, info, warn};
 
 use crate::{
     behaviour::transmission::codec::TransmissionResponse,
     error::{CommandExecutionError, P2PError},
+    utils::GrpcOverP2P,
     Command,
 };
 
+#[async_trait]
 pub trait NetworkClient: Send + Sync + 'static {
+    /// Creates a new gRPC client for the given peer.
+    async fn new_grpc_client<S: 'static, T: GrpcClient<Output = S> + 'static>(
+        &self,
+        peer: PeerId,
+    ) -> Result<S, P2PError>;
+
     fn send_request<T: std::fmt::Debug + Into<Vec<u8>> + 'static, R: TryFrom<Vec<u8>> + 'static>(
         &self,
         to: PeerId,
@@ -39,6 +49,7 @@ pub struct Client {
     pub retry_ttl: u64,
     pub local_peer_id: PeerId,
     pub sender: mpsc::Sender<Command>,
+    pub grpc_over_p2p: GrpcOverP2P,
     pub shutdown_channel: mpsc::Sender<oneshot::Sender<()>>,
 }
 
@@ -100,7 +111,15 @@ impl Client {
     }
 }
 
+#[async_trait]
 impl NetworkClient for Client {
+    async fn new_grpc_client<S: 'static, T: GrpcClient<Output = S>>(
+        &self,
+        peer: PeerId,
+    ) -> Result<S, P2PError> {
+        self.grpc_over_p2p.create::<T>(peer).await
+    }
+
     fn respond_to_request<T: std::fmt::Debug + Into<Vec<u8>>>(
         &self,
         data: Result<T, ()>,

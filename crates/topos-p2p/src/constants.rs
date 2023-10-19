@@ -1,4 +1,4 @@
-use std::env;
+use std::{env, time::Duration};
 
 use lazy_static::lazy_static;
 use prometheus_client::registry::Registry;
@@ -34,3 +34,6 @@ pub const GRPC_P2P_TOPOS_PROTOCOL: &str = "/topos-grpc-p2p/1.0";
 
 // FIXME: Considered as constant until customizable and exposed properly in the genesis file
 pub const TCE_BOOTNODE_PORT: u16 = 9090;
+
+/// Swarm idle connection timeout
+pub const IDLE_CONNECTION_TIMEOUT: Duration = Duration::from_secs(30);

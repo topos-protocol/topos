@@ -1,39 +1,25 @@
 use std::{
-    collections::{HashMap, HashSet, VecDeque},
-    future::IntoFuture,
+    collections::{HashMap, VecDeque},
     io,
-    pin::Pin,
     sync::{atomic::AtomicU64, Arc},
     task::{Context, Poll},
 };
 
-use futures::{
-    future::BoxFuture, stream::FuturesUnordered, AsyncRead as FutureAsyncRead,
-    AsyncWrite as FutureAsyncWrite, FutureExt, Stream, StreamExt,
-};
+use futures::{future::BoxFuture, stream::FuturesUnordered, FutureExt, StreamExt};
 use handler::Handler;
 use libp2p::{
     core::ConnectedPoint,
     swarm::{
         derive_prelude::{ConnectionEstablished, ListenerId, NewListener},
         dial_opts::DialOpts,
-        ConnectionClosed, ConnectionId, DialError, DialFailure, FromSwarm, NetworkBehaviour,
-        ToSwarm,
+        ConnectionClosed, DialError, DialFailure, FromSwarm, NetworkBehaviour, ToSwarm,
     },
     Multiaddr, PeerId,
 };
-use pin_project::pin_project;
 use smallvec::SmallVec;
 use std::fmt::Display;
-use tokio::{
-    io::{AsyncRead, AsyncWrite, ReadBuf},
-    sync::{mpsc, oneshot},
-};
-use tonic::transport::{
-    server::{Connected, Router},
-    Channel,
-};
-use tower::BoxError;
+use tokio::sync::{mpsc, oneshot};
+use tonic::transport::{server::Router, Channel};
 use tracing::{debug, info, warn};
 
 use self::{
@@ -41,13 +27,12 @@ use self::{
         Connection, OutboundConnectedConnection, OutboundConnection, OutboundConnectionRequest,
     },
     error::OutboundError,
-    proxy::GrpcProxy,
     stream::GrpcStream,
 };
 pub(crate) use event::Event;
 
 pub(crate) mod connection;
-mod error;
+pub mod error;
 pub mod event;
 mod handler;
 mod proxy;

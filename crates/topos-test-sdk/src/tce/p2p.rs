@@ -3,6 +3,7 @@ use std::error::Error;
 use futures::Stream;
 use libp2p::Multiaddr;
 use tokio::{spawn, task::JoinHandle};
+use tonic::transport::server::Router;
 
 use crate::p2p::keypair_from_seed;
 use topos_p2p::{error::P2PError, Client, Event, Runtime};
@@ -15,6 +16,7 @@ pub async fn create_network_worker(
     addr: Multiaddr,
     peers: &[NodeConfig],
     minimum_cluster_size: usize,
+    router: Option<Router>,
 ) -> Result<(Client, impl Stream<Item = Event> + Unpin + Send, Runtime), P2PError> {
     let key = keypair_from_seed(seed);
     let _peer_id = key.public().to_peer_id();
@@ -40,6 +42,7 @@ pub async fn create_network_worker(
         .exposed_addresses(addr.clone())
         .listen_addr(addr)
         .minimum_cluster_size(minimum_cluster_size)
+        .router(router)
         .build()
         .await
 }
@@ -50,6 +53,7 @@ pub async fn bootstrap_network(
     addr: Multiaddr,
     peers: &[NodeConfig],
     minimum_cluster_size: usize,
+    router: Option<Router>,
 ) -> Result<
     (
         Client,
@@ -59,7 +63,7 @@ pub async fn bootstrap_network(
     Box<dyn Error>,
 > {
     let (network_client, network_stream, runtime) =
-        create_network_worker(seed, port, addr, peers, minimum_cluster_size).await?;
+        create_network_worker(seed, port, addr, peers, minimum_cluster_size, router).await?;
 
     let runtime = runtime.bootstrap().await?;
 

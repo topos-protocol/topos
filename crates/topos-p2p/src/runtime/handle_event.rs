@@ -1,9 +1,6 @@
-use std::io;
-
 use libp2p::{
-    core::either,
     multiaddr::Protocol,
-    swarm::{derive_prelude::Either, NetworkBehaviour, SwarmEvent},
+    swarm::{derive_prelude::Either, SwarmEvent},
 };
 use tracing::{debug, error, info, warn};
 
@@ -11,6 +8,7 @@ use crate::{event::ComposedEvent, Event, Runtime};
 
 mod discovery;
 mod gossipsub;
+mod grpc;
 mod peer_info;
 mod transmission;
 
@@ -36,6 +34,7 @@ impl EventHandler<ComposedEvent> for Runtime {
             ComposedEvent::PeerInfo(event) => self.handle(event).await,
             ComposedEvent::Transmission(event) => self.handle(event).await,
             ComposedEvent::Gossipsub(event) => self.handle(event).await,
+            ComposedEvent::Grpc(event) => self.handle(event).await,
             ComposedEvent::Void => (),
         }
     }
@@ -47,7 +46,10 @@ impl
         SwarmEvent<
             ComposedEvent,
             Either<
-                Either<Either<Either<std::io::Error, std::io::Error>, void::Void>, void::Void>,
+                Either<
+                    Either<Either<Either<std::io::Error, std::io::Error>, void::Void>, void::Void>,
+                    void::Void,
+                >,
                 void::Void,
             >,
         >,
@@ -58,7 +60,10 @@ impl
         event: SwarmEvent<
             ComposedEvent,
             Either<
-                Either<Either<Either<std::io::Error, std::io::Error>, void::Void>, void::Void>,
+                Either<
+                    Either<Either<Either<std::io::Error, std::io::Error>, void::Void>, void::Void>,
+                    void::Void,
+                >,
                 void::Void,
             >,
         >,
@@ -109,18 +114,18 @@ impl
             }
 
             incoming_connection_error @ SwarmEvent::IncomingConnectionError { .. } => {
-                debug!("{:?}", incoming_connection_error);
+                error!("{:?}", incoming_connection_error);
             }
 
             SwarmEvent::IncomingConnection { local_addr, .. } => {
-                debug!("IncomingConnection {local_addr}")
+                info!("IncomingConnection {local_addr}")
             }
             SwarmEvent::ListenerClosed {
                 listener_id,
                 addresses,
                 reason,
             } => {
-                info!(
+                debug!(
                     "ListenerClosed {:?}: listener_id{listener_id:?} | addresses: {addresses:?} | \
                      reason: {reason:?}",
                     *self.swarm.local_peer_id()

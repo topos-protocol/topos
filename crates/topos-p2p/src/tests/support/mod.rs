@@ -1,5 +1,5 @@
 use libp2p::{
-    identity::{self, ed25519::SecretKey, Keypair},
+    identity::{self, Keypair},
     Multiaddr, PeerId,
 };
 use rstest::fixture;

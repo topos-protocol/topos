@@ -1,10 +1,10 @@
 use libp2p::{
-    kad::{GetRecordOk, KademliaEvent, PeerRecord, QueryResult, Record},
+    kad::{GetRecordOk, KademliaEvent, QueryResult},
     Multiaddr,
 };
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, warn};
 
-use crate::{error::CommandExecutionError, Event, Runtime};
+use crate::{error::CommandExecutionError, Runtime};
 
 use super::EventHandler;
 

@@ -1,19 +1,18 @@
-use std::{borrow::Cow, collections::HashMap, num::NonZeroUsize, time::Duration};
+use std::{borrow::Cow, collections::HashMap};
 
 use crate::{
     config::DiscoveryConfig,
-    constant::TRANSMISSION_PROTOCOL,
     error::{CommandExecutionError, P2PError},
 };
+use libp2p::kad::KademliaEvent;
 use libp2p::{
     identity::Keypair,
     kad::{store::MemoryStore, Kademlia, KademliaBucketInserts, KademliaConfig},
-    swarm::{behaviour, NetworkBehaviour},
+    swarm::NetworkBehaviour,
     Multiaddr, PeerId,
 };
-use libp2p::{kad::KademliaEvent, StreamProtocol};
 use tokio::sync::oneshot;
-use tracing::{debug, info, warn};
+use tracing::info;
 
 pub type PendingDials = HashMap<PeerId, oneshot::Sender<Result<(), P2PError>>>;
 pub type PendingRecordRequest = oneshot::Sender<Result<Vec<Multiaddr>, CommandExecutionError>>;

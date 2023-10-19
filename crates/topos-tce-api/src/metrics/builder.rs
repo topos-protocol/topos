@@ -25,7 +25,7 @@ impl ServerBuilder {
             get(|| async {
                 let topos_metrics = gather_metrics();
                 let mut libp2p_metrics = String::new();
-                let reg = topos_p2p::constant::METRIC_REGISTRY.lock().await;
+                let reg = topos_p2p::constants::METRIC_REGISTRY.lock().await;
                 _ = prometheus_client::encoding::text::encode(&mut libp2p_metrics, &reg);
 
                 format!("{topos_metrics}{libp2p_metrics}")

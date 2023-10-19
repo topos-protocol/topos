@@ -6,7 +6,7 @@ use std::{
 };
 
 use libp2p::{
-    gossipsub::{self, IdentTopic, Message, MessageAuthenticity, MessageId, Topic, TopicHash},
+    gossipsub::{self, IdentTopic, Message, MessageAuthenticity, MessageId},
     identity::Keypair,
     swarm::{NetworkBehaviour, THandlerInEvent, ToSwarm},
 };
@@ -15,9 +15,9 @@ use topos_metrics::{
     P2P_DUPLICATE_MESSAGE_ID_RECEIVED_TOTAL, P2P_GOSSIP_BATCH_SIZE,
     P2P_MESSAGE_SERIALIZE_FAILURE_TOTAL,
 };
-use tracing::{debug, error, info};
+use tracing::{debug, error};
 
-use crate::{constant, event::ComposedEvent, TOPOS_ECHO, TOPOS_GOSSIP, TOPOS_READY};
+use crate::{constants, event::ComposedEvent, TOPOS_ECHO, TOPOS_GOSSIP, TOPOS_READY};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct Batch {
@@ -77,7 +77,7 @@ impl Behaviour {
         let gossipsub = gossipsub::Behaviour::new_with_metrics(
             MessageAuthenticity::Signed(peer_key),
             gossipsub,
-            constant::METRIC_REGISTRY
+            constants::METRIC_REGISTRY
                 .lock()
                 .await
                 .sub_registry_with_prefix("libp2p_gossipsub"),
