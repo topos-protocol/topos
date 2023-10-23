@@ -38,7 +38,6 @@ const TWO_HOURS: Duration = Duration::from_secs(60 * 60 * 2);
 #[derive(Default)]
 pub struct NetworkBuilder<'a> {
     discovery_protocol: Option<&'static str>,
-    transmission_protocol: Option<&'static str>,
     peer_key: Option<Keypair>,
     listen_addr: Option<Multiaddr>,
     exposed_addresses: Option<Multiaddr>,
@@ -106,12 +105,6 @@ impl<'a> NetworkBuilder<'a> {
 
     pub fn local_port(mut self, port: u8) -> Self {
         self.local_port = Some(port);
-
-        self
-    }
-
-    pub fn transmission_protocol(mut self, protocol: &'static str) -> Self {
-        self.transmission_protocol = Some(protocol);
 
         self
     }
