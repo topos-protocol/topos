@@ -17,7 +17,6 @@ impl EventHandler<Box<IdentifyEvent>> for Runtime {
                 ..
             } = info;
 
-            // TODO: Check subprotocols for TransmissionProtocol
             if !self.peer_set.contains(&peer_id)
                 && protocol_version.as_bytes() == PEER_INFO_PROTOCOL.as_bytes()
             {
