@@ -7836,7 +7836,6 @@ dependencies = [
  "serde",
  "topos-core",
  "topos-crypto",
- "topos-p2p",
  "tracing",
 ]
 
