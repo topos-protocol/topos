@@ -7519,7 +7519,6 @@ dependencies = [
  "tokio-util",
  "tonic 0.10.2",
  "topos-api",
- "topos-crypto",
  "topos-metrics",
  "topos-test-sdk",
  "tower",
