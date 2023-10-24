@@ -28,7 +28,6 @@ tokio-stream.workspace = true
 tokio-util.workspace = true
 tonic = {workspace = true, features = ["tls", "tls-roots"]}
 topos-api = {path = "../topos-api/", features = ["grpc"]}
-topos-crypto = { path = "../topos-crypto" }
 topos-metrics = { path = "../topos-metrics/" }
 tower.workspace = true
 tracing = { workspace = true, features = ["attributes"] }
