@@ -117,6 +117,7 @@ fn nothing_written_if_failure() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+#[rstest]
 #[tokio::test]
 async fn handle_command_init_with_custom_name() -> Result<(), Box<dyn std::error::Error>> {
     let tmp_home_dir = tempdir()?;
