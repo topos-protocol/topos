@@ -20,7 +20,6 @@ tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 tracing.workspace = true
 tce_transport = { package = "topos-tce-transport", path = "../topos-tce-transport"}
 topos-core = { workspace = true, features = ["uci"] }
-topos-p2p = { path = "../topos-p2p/"}
 topos-metrics = { path = "../topos-metrics/" }
 topos-tce-storage = { path = "../topos-tce-storage/" }
 topos-crypto = { path = "../topos-crypto" }
