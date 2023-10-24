@@ -8,8 +8,6 @@ workspace = true
 
 [dependencies]
 topos-core = { workspace = true, features = ["uci", "api"] }
-topos-commands = { path = "../topos-commands/" }
-topos-metrics = { path = "../topos-metrics/" }
 
 async-stream.workspace = true
 async-trait.workspace = true
