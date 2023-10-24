@@ -7478,7 +7478,6 @@ dependencies = [
  "secp256k1",
  "thiserror",
  "topos-core",
- "topos-tce-transport",
 ]
 
 [[package]]

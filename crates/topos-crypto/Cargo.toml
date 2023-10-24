@@ -19,6 +19,5 @@ eth-keystore = "0.5.0"
 
 [dev-dependencies]
 rstest.workspace = true
-topos-tce-transport = { path = "../topos-tce-transport" }
-topos-core = { path = "../topos-core" }
+topos-core = { path = "../topos-core", features = ["api", "uci"] }
 ethers.workspace = true
