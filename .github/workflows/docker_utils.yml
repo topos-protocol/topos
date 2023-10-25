@@ -20,7 +20,7 @@ on:
         type: string
         default: stable
       features:
-        required: true
+        required: false
         type: string
         default: tce,sequencer,network,node,subnet
     outputs:
