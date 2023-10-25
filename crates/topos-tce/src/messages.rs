@@ -1,13 +1,11 @@
 use serde::{Deserialize, Serialize};
-use tce_transport::TceCommands;
-use topos_core::api::grpc::tce::v1::CheckpointRequest;
+use topos_core::api::grpc::tce::v1::{CheckpointRequest, DoubleEchoRequest};
 
 /// Definition of networking payload.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(clippy::large_enum_variant)]
 pub enum NetworkMessage {
-    Cmd(TceCommands),
-    Bulk(Vec<TceCommands>),
+    Cmd(DoubleEchoRequest),
     Sync(CheckpointRequest),
 
     NotReady(topos_p2p::NotReadyMessage),
@@ -27,9 +25,9 @@ impl From<NetworkMessage> for Vec<u8> {
     }
 }
 
-// transformer of protocol commands into network commands
-impl From<TceCommands> for NetworkMessage {
-    fn from(cmd: TceCommands) -> Self {
-        Self::Cmd(cmd)
+// Transformer of double echo requests into network commands
+impl From<DoubleEchoRequest> for NetworkMessage {
+    fn from(request: DoubleEchoRequest) -> Self {
+        Self::Cmd(request)
     }
 }

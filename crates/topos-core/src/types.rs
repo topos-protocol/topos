@@ -18,6 +18,9 @@ pub mod stream;
 pub type Ready = String;
 pub type Signature = String;
 
+pub use topos_crypto::validator_id::Error as ValidatorIdConversionError;
+pub use topos_crypto::validator_id::ValidatorId;
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct CertificateDelivered {
     pub certificate: Certificate,
@@ -105,48 +108,5 @@ impl From<ProofOfDelivery> for GrpcProofOfDelivery {
                 .collect(),
             threshold: value.threshold,
         }
-    }
-}
-
-#[derive(Debug, Error)]
-pub enum ValidatorIdConversionError {
-    #[error("Failed to parse address string as H160")]
-    ParseError,
-    #[error("Failed to convert byte array into H160")]
-    InvalidByteLength,
-}
-
-#[derive(Clone, Copy, Default, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
-pub struct ValidatorId(H160);
-
-impl ValidatorId {
-    pub fn as_bytes(&self) -> &[u8] {
-        self.0.as_bytes()
-    }
-
-    pub fn address(&self) -> Address {
-        self.0
-    }
-}
-
-impl From<H160> for ValidatorId {
-    fn from(address: H160) -> Self {
-        ValidatorId(address)
-    }
-}
-
-impl FromStr for ValidatorId {
-    type Err = ValidatorIdConversionError;
-
-    fn from_str(address: &str) -> Result<Self, Self::Err> {
-        H160::from_str(address)
-            .map_err(|_| ValidatorIdConversionError::ParseError)
-            .map(ValidatorId)
-    }
-}
-
-impl std::fmt::Display for ValidatorId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "0x{}", hex::encode(self.0))
     }
 }

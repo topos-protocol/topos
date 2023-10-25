@@ -13,6 +13,7 @@ byteorder.workspace = true
 hex.workspace = true
 thiserror.workspace = true
 ethers.workspace = true
+serde.workspace = true
 
 keccak-hash = "0.10.0"
 eth-keystore = "0.5.0"

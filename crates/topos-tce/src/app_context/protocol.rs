@@ -1,4 +1,7 @@
-use tce_transport::{ProtocolEvents, TceCommands};
+use tce_transport::ProtocolEvents;
+use topos_core::api::grpc::tce::v1::{
+    double_echo_request, DoubleEchoRequest, EchoRequest, GossipRequest, ReadyRequest,
+};
 use tracing::{debug, error, info};
 
 use crate::events::Events;
@@ -23,7 +26,11 @@ impl AppContext {
             ProtocolEvents::Gossip { cert } => {
                 let cert_id = cert.id;
 
-                let data = NetworkMessage::from(TceCommands::OnGossip { cert });
+                let data = NetworkMessage::from(DoubleEchoRequest {
+                    request: Some(double_echo_request::Request::Gossip(GossipRequest {
+                        certificate: Some(cert.into()),
+                    })),
+                });
 
                 info!("Sending Gossip for certificate {}", cert_id);
                 if let Err(e) = self
@@ -41,10 +48,12 @@ impl AppContext {
                 validator_id,
             } => {
                 // Send echo message
-                let data = NetworkMessage::from(TceCommands::OnEcho {
-                    certificate_id,
-                    signature,
-                    validator_id,
+                let data = NetworkMessage::from(DoubleEchoRequest {
+                    request: Some(double_echo_request::Request::Echo(EchoRequest {
+                        certificate: Some(certificate_id.into()),
+                        signature: Some(signature.into()),
+                        validator_id: Some(validator_id.into()),
+                    })),
                 });
 
                 if let Err(e) = self
@@ -61,10 +70,12 @@ impl AppContext {
                 signature,
                 validator_id,
             } => {
-                let data = NetworkMessage::from(TceCommands::OnReady {
-                    certificate_id,
-                    signature,
-                    validator_id,
+                let data = NetworkMessage::from(DoubleEchoRequest {
+                    request: Some(double_echo_request::Request::Ready(ReadyRequest {
+                        certificate: Some(certificate_id.into()),
+                        signature: Some(signature.into()),
+                        validator_id: Some(validator_id.into()),
+                    })),
                 });
 
                 if let Err(e) = self

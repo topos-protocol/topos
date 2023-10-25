@@ -1,12 +1,16 @@
 use std::collections::hash_map;
 
-use tce_transport::TceCommands;
 use tokio::spawn;
 
 use topos_metrics::CERTIFICATE_DELIVERY_LATENCY;
 use topos_p2p::Event as NetEvent;
 use topos_tce_broadcast::DoubleEchoCommand;
 use tracing::{error, info, trace};
+
+use topos_core::api::grpc::tce::v1::{
+    double_echo_request, EchoRequest, GossipRequest, ReadyRequest,
+};
+use topos_core::uci;
 
 use crate::messages::NetworkMessage;
 use crate::AppContext;
@@ -21,72 +25,112 @@ impl AppContext {
 
         if let NetEvent::Gossip { data, .. } = evt {
             let msg: NetworkMessage = data.into();
+            if let NetworkMessage::Cmd(double_echo_request) = msg {
+                if let Some(double_echo_request) = double_echo_request.request {
+                    match double_echo_request {
+                        double_echo_request::Request::Gossip(GossipRequest {
+                            certificate: Some(certificate),
+                        }) => {
+                            if let Ok(cert) =
+                                std::convert::TryInto::<uci::Certificate>::try_into(certificate)
+                            {
+                                let channel = self.tce_cli.get_double_echo_channel();
+                                if let hash_map::Entry::Vacant(entry) =
+                                    self.delivery_latency.entry(cert.id)
+                                {
+                                    entry.insert(CERTIFICATE_DELIVERY_LATENCY.start_timer());
+                                }
 
-            if let NetworkMessage::Cmd(cmd) = msg {
-                match cmd {
-                    TceCommands::OnGossip { cert } => {
-                        let channel = self.tce_cli.get_double_echo_channel();
-                        if let hash_map::Entry::Vacant(entry) = self.delivery_latency.entry(cert.id)
-                        {
-                            entry.insert(CERTIFICATE_DELIVERY_LATENCY.start_timer());
+                                spawn(async move {
+                                    info!("Send certificate to be broadcast");
+                                    if channel
+                                        .send(DoubleEchoCommand::Broadcast {
+                                            cert,
+                                            need_gossip: false,
+                                        })
+                                        .await
+                                        .is_err()
+                                    {
+                                        error!(
+                                            "Unable to send broadcast_new_certificate command, \
+                                             Receiver was dropped"
+                                        );
+                                    }
+                                });
+                            }
                         }
-
-                        spawn(async move {
-                            info!("Send certificate to be broadcast");
-                            if channel
-                                .send(DoubleEchoCommand::Broadcast {
-                                    cert,
-                                    need_gossip: false,
-                                })
-                                .await
-                                .is_err()
-                            {
-                                error!(
-                                    "Unable to send broadcast_new_certificate command, Receiver \
-                                     was dropped"
-                                );
-                            }
-                        });
+                        double_echo_request::Request::Echo(EchoRequest {
+                            certificate: Some(certificate_id),
+                            signature: Some(signature),
+                            validator_id: Some(validator_id),
+                        }) => {
+                            let channel = self.tce_cli.get_double_echo_channel();
+                            spawn(async move {
+                                let certificate_id = certificate_id.try_into().map_err(|e| {
+                                    error!(
+                                        "Invalid certificate id, could not send Echo message: {e}"
+                                    );
+                                    e
+                                });
+                                let validator_id = validator_id.try_into().map_err(|e| {
+                                    error!(
+                                        "Invalid validator id, could not send Echo message: {e}"
+                                    );
+                                    e
+                                });
+                                if let (Ok(certificate_id), Ok(validator_id)) =
+                                    (certificate_id, validator_id)
+                                {
+                                    if let Err(e) = channel
+                                        .send(DoubleEchoCommand::Echo {
+                                            signature: signature.into(),
+                                            certificate_id,
+                                            validator_id,
+                                        })
+                                        .await
+                                    {
+                                        error!("Unable to send Echo, {:?}", e);
+                                    }
+                                }
+                            });
+                        }
+                        double_echo_request::Request::Ready(ReadyRequest {
+                            certificate: Some(certificate_id),
+                            signature: Some(signature),
+                            validator_id: Some(validator_id),
+                        }) => {
+                            let channel = self.tce_cli.get_double_echo_channel();
+                            spawn(async move {
+                                let certificate_id = certificate_id.try_into().map_err(|e| {
+                                    error!(
+                                        "Invalid certificate id, could not send Ready message: {e}"
+                                    );
+                                    e
+                                });
+                                let validator_id = validator_id.try_into().map_err(|e| {
+                                    error!(
+                                        "Invalid validator id, could not send Ready message: {e}"
+                                    );
+                                    e
+                                });
+                                if let (Ok(certificate_id), Ok(validator_id)) =
+                                    (certificate_id, validator_id)
+                                {
+                                    if let Err(e) = channel
+                                        .send(DoubleEchoCommand::Ready {
+                                            signature: signature.into(),
+                                            certificate_id,
+                                            validator_id,
+                                        })
+                                        .await
+                                    {
+                                        error!("Unable to send Ready, {:?}", e);
+                                    }
+                                }
+                            });
+                        }
+                        _ => {}
                     }
-                    TceCommands::OnEcho {
-                        certificate_id,
-                        signature,
-                        validator_id,
-                    } => {
-                        let channel = self.tce_cli.get_double_echo_channel();
-                        spawn(async move {
-                            if let Err(e) = channel
-                                .send(DoubleEchoCommand::Echo {
-                                    signature,
-                                    certificate_id,
-                                    validator_id,
-                                })
-                                .await
-                            {
-                                error!("Unable to send Echo, {:?}", e);
-                            }
-                        });
-                    }
-                    TceCommands::OnReady {
-                        certificate_id,
-                        validator_id,
-                        signature,
-                    } => {
-                        let channel = self.tce_cli.get_double_echo_channel();
-                        spawn(async move {
-                            if let Err(e) = channel
-                                .send(DoubleEchoCommand::Ready {
-                                    validator_id,
-                                    certificate_id,
-                                    signature,
-                                })
-                                .await
-                            {
-                                error!("Unable to send Ready {:?}", e);
-                            }
-                        });
-                    }
-                    _ => {}
                 }
             }
         }
