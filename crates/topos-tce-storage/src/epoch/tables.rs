@@ -1,7 +1,8 @@
-use std::path::PathBuf;
+use std::{fs::create_dir_all, path::PathBuf};
 
 use rocksdb::ColumnFamilyDescriptor;
 use topos_core::uci::CertificateId;
+use tracing::warn;
 
 use crate::{
     constant::cfs,
@@ -44,6 +45,10 @@ impl ValidatorPerEpochTables {
     pub(crate) fn open(epoch_id: EpochId, mut path: PathBuf) -> Self {
         path.push("epochs");
         path.push(epoch_id.to_string());
+        if !path.exists() {
+            warn!("Path {:?} does not exist, creating it", path);
+            create_dir_all(&path).expect("Cannot create ValidatorPerEpochTables directory");
+        }
         let cfs = vec![
             ColumnFamilyDescriptor::new(cfs::EPOCH_SUMMARY, default_options()),
             ColumnFamilyDescriptor::new(cfs::BROADCAST_STATES, default_options()),
