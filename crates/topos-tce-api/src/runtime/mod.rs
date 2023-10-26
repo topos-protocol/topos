@@ -1,4 +1,5 @@
 use futures::{stream::FuturesUnordered, FutureExt, StreamExt, TryFutureExt};
+use std::future::Future;
 use std::{
     collections::{hash_map::Entry, HashMap, HashSet},
     future,
@@ -7,7 +8,6 @@ use std::{
     time::Duration,
 };
 use tokio::{
-    spawn,
     sync::mpsc::{self, Receiver, Sender},
     sync::{broadcast, oneshot},
     task::JoinHandle,
@@ -40,6 +40,7 @@ mod commands;
 pub mod error;
 mod events;
 
+mod task;
 #[cfg(test)]
 mod tests;
 
@@ -51,11 +52,17 @@ pub(crate) use self::commands::InternalRuntimeCommand;
 pub use self::commands::RuntimeCommand;
 pub use self::events::RuntimeEvent;
 
+use task::SyncTasks;
+
 pub(crate) type Streams =
-    FuturesUnordered<Pin<Box<dyn future::Future<Output = Result<Uuid, StreamError>> + Send>>>;
+    FuturesUnordered<Pin<Box<dyn Future<Output = Result<Uuid, StreamError>> + Send>>>;
 
 pub struct Runtime {
-    pub(crate) sync_tasks: HashMap<Uuid, JoinHandle<()>>,
+    /// Map of sync tasks and their stream id, so we can cancel them when a new stream
+    /// with the same id is registered
+    pub(crate) tasks: HashMap<Uuid, JoinHandle<()>>,
+    /// Sync tasks that were registered for this node.
+    pub(crate) running_tasks: SyncTasks,
 
     pub(crate) broadcast_stream: broadcast::Receiver<CertificateDeliveredWithPositions>,
 
@@ -293,7 +300,7 @@ impl Runtime {
             } => {
                 info!("Stream {stream_id} is registered as subscriber");
 
-                if let Some(task) = self.sync_tasks.get(&stream_id) {
+                if let Some(task) = self.tasks.get(&stream_id) {
                     task.abort();
                 }
 
@@ -321,7 +328,9 @@ impl Runtime {
                     }
 
                     // TODO: Refactor this using a better handle, FuturesUnordered + Killswitch
-                    let task = spawn(async move {
+                    // What we can do here is:
+                    // Put each task on
+                    let task = async move {
                         info!("Sync task started for stream {}", stream_id);
                         let mut collector: Vec<(CertificateDelivered, FetchCertificatesPosition)> =
                             Vec::new();
@@ -404,9 +413,9 @@ impl Runtime {
                                 error!("Invalid certificate position fetched");
                             }
                         }
-                    });
+                    };
 
-                    self.sync_tasks.insert(stream_id, task);
+                    self.running_tasks.push(stream_id, task);
                 }
             }
 
