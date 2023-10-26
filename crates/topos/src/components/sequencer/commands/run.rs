@@ -46,16 +46,6 @@ pub struct Run {
     #[clap(long, default_value = "0", env = "TOPOS_SEQUENCER_VERIFIER_VERSION")]
     pub verifier: u32,
 
-    /// Socket of the opentelemetry agent endpoint
-    /// If not provided open telemetry will not be used
-    #[arg(long, env = "TOPOS_OTLP_AGENT")]
-    pub otlp_agent: Option<String>,
-
-    /// Otlp service name
-    /// If not provided open telemetry will not be used
-    #[arg(long, env = "TOPOS_OTLP_SERVICE_NAME")]
-    pub otlp_service_name: Option<String>,
-
     /// Start synchronizing from particular block number
     /// Default is to sync from genesis block (0)
     #[arg(long, env = "TOPOS_START_BLOCK")]
