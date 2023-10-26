@@ -57,7 +57,7 @@ async fn assert_delivery() -> Result<(), Box<dyn std::error::Error>> {
         cmd.env("RUST_LOG", "topos=debug");
 
         cmd.arg("tce")
-            .arg("push-certificates")
+            .arg("push-certificate")
             .args(["-f", "plain"])
             .arg("-n")
             .arg(nodes);
