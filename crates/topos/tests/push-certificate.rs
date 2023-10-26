@@ -7,6 +7,7 @@ use assert_cmd::Command;
 use rstest::*;
 use topos_core::api::grpc::tce::v1::StatusRequest;
 use topos_test_sdk::tce::create_network;
+use tracing::{error, info};
 
 #[test]
 fn help_display() -> Result<(), Box<dyn std::error::Error>> {
@@ -24,8 +25,7 @@ fn help_display() -> Result<(), Box<dyn std::error::Error>> {
 
 #[rstest]
 #[test_log::test(tokio::test)]
-#[timeout(Duration::from_secs(20))]
-// FIXME: This test is flaky, it fails sometimes because of sample failure
+#[timeout(Duration::from_secs(120))]
 async fn assert_delivery() -> Result<(), Box<dyn std::error::Error>> {
     let mut peers_context = create_network(5, vec![]).await;
 
@@ -43,31 +43,35 @@ async fn assert_delivery() -> Result<(), Box<dyn std::error::Error>> {
 
     assert!(status.iter().all(|s| *s));
 
-    let nodes: String = peers_context
+    let nodes = peers_context
         .iter()
         .map(|peer| peer.1.api_entrypoint.clone())
-        .collect::<Vec<_>>()
-        .join(",");
+        .collect::<Vec<_>>();
 
-    let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+    info!("Nodes used in test: {:?}", nodes);
 
-    _ = thread::spawn(|| {
-        let mut cmd = Command::cargo_bin("topos").unwrap();
-        cmd.env("TOPOS_LOG_FORMAT", "json");
-        cmd.env("RUST_LOG", "topos=debug");
+    let assertion = async move {
+        let peers: Vec<tonic::transport::Uri> = nodes
+            .into_iter()
+            .map(TryInto::try_into)
+            .collect::<Result<_, _>>()
+            .map_err(|e| format!("Unable to parse node list: {e}"))
+            .expect("Valid node list");
 
-        cmd.arg("tce")
-            .arg("push-certificate")
-            .args(["-f", "plain"])
-            .arg("-n")
-            .arg(nodes);
+        match topos_test_sdk::integration::check_certificate_delivery(5, peers, 30).await {
+            Ok(Err(e)) => {
+                panic!("Error with certificate delivery: {e:?}");
+            }
+            Err(e) => {
+                panic!("Timeout elapsed: {e}");
+            }
+            Ok(_) => {
+                info!("Check certificate delivery passed!");
+            }
+        }
+    };
 
-        cmd.assert().success();
-
-        tx.send(()).unwrap();
-    });
-
-    _ = tokio::time::timeout(Duration::from_secs(15), rx)
+    tokio::time::timeout(Duration::from_secs(120), assertion)
         .await
         .unwrap();
 

@@ -3,6 +3,7 @@ pub mod certificates;
 #[cfg(feature = "tce")]
 pub mod tce;
 
+pub mod integration;
 pub mod networking;
 pub mod p2p;
 pub mod sequencer;

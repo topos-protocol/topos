@@ -15,6 +15,7 @@ topos-core = { workspace = true, features = ["api"] }
 topos-certificate-spammer = { path = "../topos-certificate-spammer", optional = true }
 topos-tce-broadcast = { path = "../topos-tce-broadcast", optional = true }
 topos-wallet = { path = "../topos-wallet" }
+topos-test-sdk = { path = "../topos-test-sdk", features = ["tce"] }
 
 async-stream.workspace = true
 async-trait.workspace = true
@@ -54,7 +55,6 @@ topos-tce-synchronizer = { path = "../topos-tce-synchronizer" }
 topos-tce-gatekeeper = { path = "../topos-tce-gatekeeper" }
 topos-tce-api = { path = "../topos-tce-api" }
 topos-tce-storage = { path = "../topos-tce-storage" }
-topos-test-sdk = { path = "../topos-test-sdk", features = ["tce"] }
 serde.workspace = true
 serde_json.workspace = true
 test-log.workspace = true
