@@ -7,9 +7,6 @@ pub(crate) use subnet::Subnet;
 /// Topos CLI subcommand for the setup of various Topos related components (e.g., installation of Polygon Edge binary)
 #[derive(Args, Debug)]
 pub(crate) struct SetupCommand {
-    #[clap(from_global)]
-    pub(crate) verbose: u8,
-
     #[clap(subcommand)]
     pub(crate) subcommands: Option<SetupCommands>,
 }

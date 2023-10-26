@@ -39,18 +39,9 @@ impl TCEService {
 
 pub(crate) async fn handle_command(
     TceCommand {
-        verbose,
-        mut subcommands,
-        ..
+        mut subcommands, ..
     }: TceCommand,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    if let Some(TceCommands::Run(cmd)) = subcommands.as_mut() {
-        // Setup instrumentation if both otlp agent and otlp service name are provided as arguments
-        setup_tracing(verbose, cmd.otlp_agent.take(), cmd.otlp_service_name.take())?;
-    } else {
-        setup_tracing(verbose, None, None)?;
-    };
-
     match subcommands {
         Some(TceCommands::PushCertificate(cmd)) => {
             debug!("Start executing PushCertificate command");
@@ -76,10 +67,6 @@ pub(crate) async fn handle_command(
 
         Some(TceCommands::Run(cmd)) => {
             let config = TceConfiguration {
-                boot_peers: cmd.parse_boot_peers(),
-                validators: cmd
-                    .parse_validators()
-                    .map_err(|_| Box::new(topos::Error::InvalidValidatorAddress))?,
                 auth_key: cmd
                     .local_key_seed
                     .clone()
@@ -93,21 +80,8 @@ pub(crate) async fn handle_command(
                             .map_err(|_| Box::new(topos::Error::InvalidPrivateKey))
                     })
                     .map_or(Ok(None), |v| v.map(Some))?,
-                tce_addr: cmd.tce_ext_host,
-                tce_local_port: cmd.tce_local_port,
-                tce_params: cmd.tce_params,
                 api_addr: cmd.api_addr,
-                graphql_api_addr: cmd.graphql_api_addr,
-                metrics_api_addr: cmd.metrics_api_addr,
-                storage: StorageConfiguration::RocksDB(
-                    cmd.db_path
-                        .as_ref()
-                        .and_then(|path| PathBuf::from_str(path).ok()),
-                ),
                 network_bootstrap_timeout: Duration::from_secs(10),
-                minimum_cluster_size: cmd
-                    .minimum_tce_cluster_size
-                    .unwrap_or(NetworkConfig::MINIMUM_CLUSTER_SIZE),
                 version: env!("TOPOS_VERSION"),
             };
 
@@ -139,19 +113,6 @@ pub(crate) async fn handle_command(
                 }
 
             }
-
-            Ok(())
-        }
-
-        Some(TceCommands::Keys(cmd)) => {
-            if let Some(slice) = cmd.from_seed {
-                println!(
-                    "{}",
-                    topos_p2p::utils::local_key_pair_from_slice(slice.as_bytes())
-                        .public()
-                        .to_peer_id()
-                )
-            };
 
             Ok(())
         }

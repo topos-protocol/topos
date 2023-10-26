@@ -5,15 +5,10 @@ use topos_sequencer::{self, SequencerConfiguration};
 use topos_wallet::SecretManager;
 use tracing::{error, info, warn};
 
-use crate::tracing::setup_tracing;
-
 pub(crate) mod commands;
 
 pub(crate) async fn handle_command(
-    SequencerCommand {
-        verbose,
-        subcommands,
-    }: SequencerCommand,
+    SequencerCommand { subcommands }: SequencerCommand,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match subcommands {
         Some(SequencerCommands::Run(cmd)) => {
@@ -29,9 +24,6 @@ pub(crate) async fn handle_command(
                 verifier: cmd.verifier,
                 start_block: cmd.start_block,
             };
-
-            // Setup instrumentation if both otlp agent and otlp service name are provided as arguments
-            setup_tracing(verbose, cmd.otlp_agent, cmd.otlp_service_name)?;
 
             warn!("DEPRECATED: Please run with `topos node up`");
 

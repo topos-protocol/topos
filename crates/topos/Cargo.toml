@@ -68,7 +68,7 @@ rstest = { workspace = true, features = ["async-timeout"] }
 tempfile = "3.8.0"
 
 [features]
-default = ["tce", "sequencer", "network", "node", "setup", "subnet"]
+default = ["tce", "sequencer", "node", "setup", "subnet"]
 broadcast_via_channels = ["default", "topos-tce-broadcast/task-manager-channels"]
 tce = ["topos-tce", "topos-tce-transport"]
 sequencer = ["topos-sequencer"]

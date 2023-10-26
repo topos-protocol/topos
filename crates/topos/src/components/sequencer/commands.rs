@@ -7,9 +7,6 @@ pub(crate) use run::Run;
 /// Topos CLI subcommand for the Sequencer components
 #[derive(Args, Debug)]
 pub(crate) struct SequencerCommand {
-    #[clap(from_global)]
-    pub(crate) verbose: u8,
-
     #[clap(subcommand)]
     pub(crate) subcommands: Option<SequencerCommands>,
 }
