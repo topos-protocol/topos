@@ -6,7 +6,7 @@ subnet-id = "topos"
 [edge]
 
 [tce]
-db-path = "node_config/node/test/./tce_rocksdb"
+db-path = "./tce_rocksdb"
 graphql-api-addr = "0.0.0.1:4030"
 grpc-api-addr = "0.0.0.1:1340"
 libp2p-api-addr = "0.0.0.1:9090"

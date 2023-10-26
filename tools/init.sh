@@ -35,40 +35,28 @@ case "$1" in
         echo "Starting boot node..."
 
         echo "BOOT_PEER_ID: $BOOT_PEER_ID"
-        echo "TCE_LOCAL_KS: $HOSTNAME"
+        echo "TCE_LOCAL_KS: b2d9e427c3be"
 
         export TOPOS_HOME=$TOPOS_HOME
-        export TCE_LOCAL_KS=$HOSTNAME
-        export TCE_EXT_HOST
+        export TCE_LOCAL_KS="b2d9e427c3be"
+        export TCE_EXT_HOST="/dns4/b2d9e427c3be"
 
-        if [ ! -d "$TOPOS_HOME/node/test/libp2p/" ]; then
-            echo "Directory $TOPOS_HOME/node/test/libp2p/ does not exist!"
+        if [ ! -d "/tmp/boot_node_keys/" ]; then
+            echo "Directory /tmp/boot_node_keys/ does not exist!"
         fi
 
         if [ ! -w "$TOPOS_HOME/node/test/libp2p/" ]; then
             echo "Directory $TOPOS_HOME/node/test/libp2p/ is not writable!"
         fi
 
-        (
-          flock -x 200
-          LIBP2P_KEY=$(jq -r ".keys[0]" /tmp/shared/libp2p_keys.json)
-          echo -n "$LIBP2P_KEY" > $TOPOS_HOME/node/test/libp2p/libp2p.key
-          jq "del(.keys[0])" /tmp/shared/libp2p_keys.json > /tmp/shared/libp2p_keys_temp.json && cat /tmp/shared/libp2p_keys_temp.json > /tmp/shared/libp2p_keys.json && rm /tmp/shared/libp2p_keys_temp.json
-        ) 200>/tmp/shared/libp2p_keys.lock
+        LIBP2P_KEY=$(cat /tmp/boot_node_keys/libp2p.key)
+        echo -n "$LIBP2P_KEY" > "$TOPOS_HOME/node/test/libp2p/libp2p.key"
 
-        (
-          flock -x 201
-          VALIDATOR_BLS_KEY=$(jq -r ".keys[0]" /tmp/shared/validator_bls_keys.json)
-          echo -n "$VALIDATOR_BLS_KEY" > $TOPOS_HOME/node/test/consensus/validator-bls.key
-          jq "del(.keys[0])" /tmp/shared/validator_bls_keys.json > /tmp/shared/validator_bls_keys_temp.json && cat /tmp/shared/validator_bls_keys_temp.json > /tmp/shared/validator_bls_keys.json && rm /tmp/shared/validator_bls_keys_temp.json
-        ) 201>/tmp/shared/validator_bls_keys.lock
+        VALIDATOR_BLS_KEY=$(cat /tmp/boot_node_keys/validator-bls.key)
+        echo -n "$VALIDATOR_BLS_KEY" > $TOPOS_HOME/node/test/consensus/validator-bls.key
 
-        (
-          flock -x 202
-          VALIDATOR_KEY=$(jq -r ".keys[0]" /tmp/shared/validator_keys.json)
-          echo -n "$VALIDATOR_KEY" > $TOPOS_HOME/node/test/consensus/validator.key
-          jq "del(.keys[0])" /tmp/shared/validator_keys.json > /tmp/shared/validator_keys_temp.json && cat /tmp/shared/validator_keys_temp.json > /tmp/shared/validator_keys.json && rm /tmp/shared/validator_keys_temp.json
-        ) 202>/tmp/shared/validator_keys.lock
+        $VALIDATOR_KEY=$(cat /tmp/boot_node_keys/validator.key)
+        echo -n "$VALIDATOR_KEY" > $TOPOS_HOME/node/test/consensus/validator.key
 
         exec "$TOPOS_BIN" "${@:2}"
         ;;

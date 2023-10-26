@@ -9,6 +9,8 @@
 !tools/init.sh
 !tools/node_config
 !tools/node_config/**/*
+!tools/boot_node_keys
+!tools/boot_node_keys/**/*
 !tools/libp2p_keys.json
 !tools/validator_bls_keys.json
 !tools/validator_keys.json

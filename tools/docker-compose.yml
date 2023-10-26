@@ -4,7 +4,7 @@ services:
   boot:
     container_name: boot
     command: boot node up --name test --home /tmp/node_config --no-edge-process
-    image: ghcr.io/topos-protocol/topos:main
+    image: 0f32e256a219
     init: true
     labels:
       "autoheal": "true"
@@ -14,6 +14,7 @@ services:
       interval: 15s
     volumes:
       - shared:/tmp/shared
+      - ./boot_node_keys:/tmp/boot_node_keys
       - ./node_config:/tmp/node_config
       - ./libp2p_keys.json:/tmp/shared/libp2p_keys.json
       - ./validator_bls_keys.json:/tmp/shared/validator_bls_keys.json
@@ -40,7 +41,7 @@ services:
       - RUST_LOG=topos=debug,topos_tce_storage=info,topos_tce_synchronizer=info
 
   peer:
-    image: ghcr.io/topos-protocol/topos:main
+    image: 0f32e256a219
     command: peer node up --name test --home /tmp/node_config --no-edge-process
     init: true
     labels:
@@ -79,7 +80,7 @@ services:
       - RUST_LOG=topos=debug,topos_tce_storage=info,topos_tce_synchronizer=debug
 
   sync:
-    image: ghcr.io/topos-protocol/topos:main
+    image: 0f32e256a219
     command: sync node up --name test --home /tmp/node_config --no-edge-process
     init: true
     labels:
@@ -116,7 +117,7 @@ services:
   spammer:
     container_name: spam
     command: network spam
-    image: ghcr.io/topos-protocol/topos:main
+    image: 0f32e256a219
     init: true
     build:
       context: ../
@@ -137,7 +138,7 @@ services:
 
   check:
     container_name: check
-    image: ghcr.io/topos-protocol/topos:main
+    image: 0f32e256a219
     command: tce push-certificate -f json
     profiles:
       - CI
