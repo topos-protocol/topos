@@ -3,9 +3,11 @@ use std::path::PathBuf;
 use clap::{Args, Subcommand};
 
 mod init;
+mod peer_id;
 mod up;
 
 pub(crate) use init::Init;
+pub(crate) use peer_id::PeerId;
 pub(crate) use up::Up;
 
 /// Utility to manage your nodes in the Topos network
@@ -29,6 +31,7 @@ pub(crate) struct NodeCommand {
 pub(crate) enum NodeCommands {
     Up(Box<Up>),
     Init(Box<Init>),
+    PeerId(Box<PeerId>),
 }
 
 #[cfg(test)]

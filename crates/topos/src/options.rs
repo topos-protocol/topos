@@ -1,20 +1,8 @@
 use clap::{Parser, Subcommand};
 use std::{ffi::OsString, path::PathBuf};
 
-#[cfg(feature = "sequencer")]
-use crate::components::sequencer::commands::SequencerCommand;
-
-#[cfg(feature = "tce")]
-use crate::components::tce::commands::TceCommand;
-
-#[cfg(feature = "network")]
-use crate::components::network::commands::NetworkCommand;
-
 #[cfg(feature = "setup")]
 use crate::components::setup::commands::SetupCommand;
-
-#[cfg(feature = "subnet")]
-use crate::components::subnet::commands::SubnetCommand;
 
 #[cfg(feature = "node")]
 use crate::components::node::commands::NodeCommand;
@@ -57,17 +45,8 @@ fn get_default_home() -> OsString {
 
 #[derive(Subcommand, Debug)]
 pub(crate) enum ToposCommand {
-    #[cfg(feature = "tce")]
-    Tce(TceCommand),
-    #[cfg(feature = "sequencer")]
-    Sequencer(SequencerCommand),
-    #[cfg(feature = "network")]
-    Network(NetworkCommand),
     #[cfg(feature = "setup")]
     Setup(SetupCommand),
-    #[cfg(feature = "subnet")]
-    Subnet(SubnetCommand),
     #[cfg(feature = "node")]
     Node(NodeCommand),
-    Doctor,
 }
