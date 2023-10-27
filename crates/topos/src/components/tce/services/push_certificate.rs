@@ -53,8 +53,8 @@ pub(crate) async fn check_certificate_delivery(
             &[[2u8; SUBNET_ID_LENGTH].into()],
         )
         .map_err(|_| vec![format!("Unable to create the certificate")])?;
-
         let certificate_id = pushed_certificate.id;
+
         let mut join_handlers = Vec::new();
 
         // check that all nodes delivered the certificate
@@ -181,9 +181,7 @@ pub(crate) async fn check_delivery(
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| format!("Unable to parse node list: {e}"))?;
 
-    match check_certificate_delivery(timeout_broadcast, peers, timeout)
-        .await
-    {
+    match check_certificate_delivery(timeout_broadcast, peers, timeout).await {
         Ok(Err(e)) => Err(format!("Error with certificate delivery: {e:?}").into()),
         Err(e) => Err(Box::new(io::Error::new(
             io::ErrorKind::TimedOut,
