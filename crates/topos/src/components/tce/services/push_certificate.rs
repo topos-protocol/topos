@@ -28,9 +28,9 @@ use crate::options::input_format::{InputFormat, Parser};
 
 /// Picks a random peer and sends it a certificate. All other peers listen for broadcast certs.
 /// Three possible outcomes:
-/// 1. No errors, returns Ok;
-/// 2. There were errors, returns a list of all errors encountered;
-/// 3. timeout"
+/// 1. No errors, returns Ok
+/// 2. There were errors, returns a list of all errors encountered
+/// 3. timeout
 pub(crate) async fn check_certificate_delivery(
     timeout_broadcast: u64,
     peers: Vec<Uri>,
