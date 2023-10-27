@@ -70,3 +70,6 @@ polygon-edge
 
 # macOS directory attributes
 **/.DS_Store
+
+tools/node_config/node/test/libp2p/
+tools/node_config/node/test/consensus/

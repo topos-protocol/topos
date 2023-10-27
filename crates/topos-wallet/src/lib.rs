@@ -15,7 +15,7 @@ pub const VALIDATOR_BLS_KEY: &str = "consensus/validator-bls.key";
 /// Load from the filesystem
 pub fn load_fs_secret(file: PathBuf) -> Option<SecretKey> {
     match &fs::read_to_string(&file) {
-        Ok(s) => Some(hex::decode(s).expect("decode failure")),
+        Ok(s) => Some(hex::decode(s).unwrap_or_else(|_| panic!("decode failure for {}", s))),
         Err(e) => panic!("Failed at reading {file:?}: {e}"),
     }
 }

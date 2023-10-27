@@ -1,10 +1,11 @@
-use std::{collections::BTreeSet, path::PathBuf, sync::atomic::AtomicU64};
+use std::{collections::BTreeSet, fs::create_dir_all, path::PathBuf, sync::atomic::AtomicU64};
 
 use rocksdb::ColumnFamilyDescriptor;
 use topos_core::{
     types::{stream::CertificateSourceStreamPosition, CertificateDelivered, ProofOfDelivery},
     uci::{Certificate, CertificateId},
 };
+use tracing::warn;
 
 use crate::{
     constant::cfs,
@@ -32,7 +33,10 @@ pub struct ValidatorPendingTables {
 impl ValidatorPendingTables {
     pub fn open(mut path: PathBuf) -> Self {
         path.push("pending");
-
+        if !path.exists() {
+            warn!("Path {:?} does not exist, creating it", path);
+            create_dir_all(&path).expect("Cannot create ValidatorPendingTables directory");
+        }
         let cfs = vec![
             ColumnFamilyDescriptor::new(cfs::PENDING_POOL, default_options()),
             ColumnFamilyDescriptor::new(cfs::PENDING_POOL_INDEX, default_options()),
@@ -66,6 +70,10 @@ pub struct ValidatorPerpetualTables {
 impl ValidatorPerpetualTables {
     pub fn open(mut path: PathBuf) -> Self {
         path.push("perpetual");
+        if !path.exists() {
+            warn!("Path {:?} does not exist, creating it", path);
+            create_dir_all(&path).expect("Cannot create ValidatorPerpetualTables directory");
+        }
         let mut options_stream = default_options();
         options_stream.set_prefix_extractor(rocksdb::SliceTransform::create_fixed_prefix(
             constants::SOURCE_STREAMS_PREFIX_SIZE,
@@ -78,8 +86,9 @@ impl ValidatorPerpetualTables {
             ColumnFamilyDescriptor::new(cfs::UNVERIFIED, default_options()),
         ];
 
-        let db = init_with_cfs(&path, default_options(), cfs)
-            .unwrap_or_else(|_| panic!("Cannot open DB at {:?}", path));
+        let db = init_with_cfs(&path, default_options(), cfs).unwrap_or_else(|e| {
+            panic!("Cannot open DB at {:?} => error {:?}", path, e);
+        });
 
         Self {
             certificates: DBColumn::reopen(&db, cfs::CERTIFICATES),

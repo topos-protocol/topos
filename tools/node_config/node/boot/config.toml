@@ -1,5 +1,5 @@
 [base]
-name = "test"
+name = "boot"
 role = "validator"
 subnet-id = "topos"
 
