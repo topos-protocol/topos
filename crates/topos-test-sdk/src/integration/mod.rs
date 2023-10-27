@@ -17,7 +17,7 @@ use topos_core::{
     },
     uci::{Certificate, CERTIFICATE_ID_LENGTH, SUBNET_ID_LENGTH},
 };
-use tracing::{debug, info};
+use tracing::{debug, warn};
 
 pub async fn check_certificate_delivery(
     timeout_broadcast: u64,
@@ -45,7 +45,7 @@ pub async fn check_certificate_delivery(
         let certificate_id = pushed_certificate.id;
         let mut join_handlers = Vec::new();
 
-        // check that every nodes delivered the certificate
+        // check that all nodes delivered the certificate
         for peer in peers {
             join_handlers.push(tokio::spawn(async move {
                 let peer_string = peer.clone();
@@ -62,7 +62,7 @@ pub async fn check_certificate_delivery(
 
                 let status = result.into_inner();
                 if !status.has_active_sample {
-                    return Err((peer_string, "didn't succeed in the sample phase"));
+                    return Err((peer_string, "failed to find active sample"));
                 }
 
                 let mut client = ApiServiceClient::connect(peer_string.clone())
@@ -148,7 +148,7 @@ pub async fn check_certificate_delivery(
     })
     .await
     .map_err(|error| {
-        info!("Timeout reached: {:?}", error);
+        warn!("Timeout reached: {:?}", error);
         error
     })
 }

@@ -22,7 +22,7 @@ use topos_core::{
     },
     uci::{Certificate, CERTIFICATE_ID_LENGTH, SUBNET_ID_LENGTH},
 };
-use tracing::{debug, info};
+use tracing::{debug, debug};
 
 use crate::options::input_format::{InputFormat, Parser};
 
@@ -32,7 +32,7 @@ pub(crate) async fn check_delivery(
     peers: Option<String>,
     timeout: u64,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    info!("peers: {:?}", peers);
+    debug!("peers: {:?}", peers);
 
     let peers: Vec<Uri> = format
         .parse(NodeList(peers))

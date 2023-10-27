@@ -48,7 +48,7 @@ async fn assert_delivery() -> Result<(), Box<dyn std::error::Error>> {
         .map(|peer| peer.1.api_entrypoint.clone())
         .collect::<Vec<_>>();
 
-    info!("Nodes used in test: {:?}", nodes);
+    debug!("Nodes used in test: {:?}", nodes);
 
     let assertion = async move {
         let peers: Vec<tonic::transport::Uri> = nodes
@@ -58,7 +58,7 @@ async fn assert_delivery() -> Result<(), Box<dyn std::error::Error>> {
             .map_err(|e| format!("Unable to parse node list: {e}"))
             .expect("Valid node list");
 
-        match topos_test_sdk::integration::check_certificate_delivery(5, peers, 30).await {
+        match topos_test_sdk::integration::check_certificate_delivery(5, peers, 5).await {
             Ok(Err(e)) => {
                 panic!("Error with certificate delivery: {e:?}");
             }
