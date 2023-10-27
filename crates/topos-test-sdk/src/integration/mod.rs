@@ -19,6 +19,11 @@ use topos_core::{
 };
 use tracing::{debug, warn};
 
+/// Picks a random peer and sends it a certificate. All other peers listen for broadcast certs.
+/// Three possible outcomes:
+/// 1. No errors, returns Ok;
+/// 2. There were errors, returns a list of all errors encountered;
+/// 3. timeout"
 pub async fn check_certificate_delivery(
     timeout_broadcast: u64,
     peers: Vec<Uri>,
