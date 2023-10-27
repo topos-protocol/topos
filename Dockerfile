@@ -25,15 +25,6 @@ ENV USER=topos
 ENV UID=10001
 ENV PATH="${PATH}:/usr/src/app"
 
-RUN adduser \
-    --disabled-password \
-    --gecos "" \
-    --home "/nonexistent" \
-    --shell "/sbin/nologin" \
-    --no-create-home \
-    --uid "${UID}" \
-    "${USER}"
-
 WORKDIR /usr/src/app
 
 COPY --from=build /usr/src/app/target/release/topos .
@@ -46,8 +37,7 @@ RUN apt-get update && apt-get install -y \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
-USER topos:topos
-
+RUN mkdir /tmp/node_config
 RUN mkdir /tmp/shared
 
 ENTRYPOINT ["./init.sh"]

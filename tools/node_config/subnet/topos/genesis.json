@@ -43,6 +43,6 @@
     "burnContractDestinationAddress": "0x0000000000000000000000000000000000000000"
   },
   "bootnodes": [
-    "/ip4/10.101.232.59/tcp/10001/p2p/12D3KooWKfbuXufub9aRs3HQJ2T8geHDM8mkfA6DaZ8KTHzQzzPU"
+    "/dns4/boot/tcp/9090/p2p/16Uiu2HAmGTNGFnvac2RixfEXTutQkvTYcn2BxwbBJref3foS525G"
   ]
 }
