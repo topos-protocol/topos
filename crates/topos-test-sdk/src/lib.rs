@@ -1,13 +1,11 @@
 pub mod certificates;
 
-#[cfg(feature = "tce")]
-pub mod tce;
-
-pub mod integration;
 pub mod networking;
 pub mod p2p;
 pub mod sequencer;
 pub mod storage;
+#[cfg(feature = "tce")]
+pub mod tce;
 
 use std::{collections::HashSet, net::SocketAddr, sync::Mutex};
 
