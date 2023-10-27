@@ -7,7 +7,6 @@ use figment::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::components::tce::commands::Run;
 use crate::config::Config;
 use topos_p2p::{Multiaddr, PeerId};
 
@@ -103,7 +102,6 @@ impl TceConfig {
 }
 
 impl Config for TceConfig {
-    type Command = Run;
     type Output = TceConfig;
 
     fn profile(&self) -> String {

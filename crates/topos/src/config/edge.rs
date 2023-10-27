@@ -7,8 +7,6 @@ use figment::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::components::subnet::commands::Run;
-
 // TODO: Provides the default arguments here
 // Serde `flatten` and `default` doesn't work together yet
 // https://github.com/serde-rs/serde/issues/1626
@@ -20,8 +18,6 @@ pub struct EdgeConfig {
 }
 
 impl Config for EdgeConfig {
-    type Command = Run;
-
     type Output = EdgeConfig;
 
     fn load_from_file(figment: Figment, home: &Path) -> Figment {

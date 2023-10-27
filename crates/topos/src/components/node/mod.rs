@@ -30,7 +30,7 @@ pub(crate) async fn handle_command(
         edge_path,
     }: NodeCommand,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    setup_tracing(verbose, None, None)?;
+    setup_tracing(None, None)?;
 
     match subcommands {
         Some(NodeCommands::Init(cmd)) => {
@@ -204,6 +204,18 @@ pub(crate) async fn handle_command(
                     shutdown(shutdown_trigger, shutdown_receiver).await;
                     processes.clear();
                 }
+            };
+
+            Ok(())
+        }
+        Some(NodeCommands::PeerId(cmd)) => {
+            if let Some(slice) = cmd.from_seed {
+                println!(
+                    "{}",
+                    topos_p2p::utils::local_key_pair_from_slice(slice.as_bytes())
+                        .public()
+                        .to_peer_id()
+                )
             };
 
             Ok(())

@@ -32,19 +32,15 @@ pub(crate) struct NodeConfig {
 
 impl NodeConfig {
     pub fn new(from: &Path, cmd: Option<node::commands::Init>) -> Self {
-        let base = load_config::<BaseConfig>(from, cmd);
+        let base = load_config::<BaseConfig>(from);
 
         let mut config = NodeConfig {
             base: base.clone(),
             sequencer: base
                 .need_sequencer()
-                .then(|| load_config::<SequencerConfig>(from, None)),
-            tce: base
-                .need_tce()
-                .then(|| load_config::<TceConfig>(from, None)),
-            edge: base
-                .need_edge()
-                .then(|| load_config::<EdgeConfig>(from, None)),
+                .then(|| load_config::<SequencerConfig>(from)),
+            tce: base.need_tce().then(|| load_config::<TceConfig>(from)),
+            edge: base.need_edge().then(|| load_config::<EdgeConfig>(from)),
         };
 
         // Make the TCE DB path relative to the folder
@@ -57,7 +53,6 @@ impl NodeConfig {
 }
 
 impl Config for NodeConfig {
-    type Command = Up;
     type Output = NodeConfig;
 
     fn profile(&self) -> String {
