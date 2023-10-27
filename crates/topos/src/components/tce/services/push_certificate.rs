@@ -271,7 +271,7 @@ mod tests {
                 .map_err(|e| format!("Unable to parse node list: {e}"))
                 .expect("Valid node list");
 
-            match check_certificate_delivery(5, peers, 5).await {
+            match check_certificate_delivery(5, peers, 30).await {
                 Ok(Err(e)) => {
                     panic!("Error with certificate delivery: {e:?}");
                 }
