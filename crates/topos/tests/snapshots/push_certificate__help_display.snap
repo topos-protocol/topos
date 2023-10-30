@@ -2,7 +2,7 @@
 source: crates/topos/tests/push-certificate.rs
 expression: result
 ---
-Usage: topos tce push-certificate [OPTIONS]
+Usage: topos node push-certificate [OPTIONS]
 
 Options:
   -f, --format <FORMAT>
