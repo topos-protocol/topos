@@ -3,9 +3,6 @@ use tce_transport::TceCommands;
 use topos_core::api::grpc::tce::v1::CheckpointRequest;
 
 /// Definition of networking payload.
-///
-/// We assume that only Commands will go through the network,
-/// [Response] is used to allow reporting of logic errors to the caller.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(clippy::large_enum_variant)]
 pub enum NetworkMessage {
