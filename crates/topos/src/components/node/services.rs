@@ -1,3 +1,5 @@
+pub(crate) mod push_certificate;
+
 use crate::config::sequencer::SequencerConfig;
 use crate::config::tce::TceConfig;
 use crate::edge::CommandConfig;

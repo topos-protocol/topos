@@ -1,0 +1,22 @@
+---
+source: crates/topos/tests/push-certificate.rs
+expression: result
+---
+Usage: topos tce push-certificate [OPTIONS]
+
+Options:
+  -f, --format <FORMAT>
+          [default: plain] [possible values: json, plain]
+  -v, --verbose...
+          Defines the verbosity level
+      --home <HOME>
+          Home directory for the configuration [env: TOPOS_HOME=] [default: /home/runner/.config/topos]
+  -t, --timeout <TIMEOUT>
+          Global timeout for the command [default: 60]
+      --timeout-broadcast <TIMEOUT_BROADCAST>
+          Seconds to wait before asserting the broadcast [default: 30]
+  -n, --nodes <NODES>
+          The node list to be used, can be a file path or a comma separated list of Uri. If not provided, stdin is listened [env: TARGET_NODES_PATH=]
+  -h, --help
+          Print help
+
