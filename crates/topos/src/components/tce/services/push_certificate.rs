@@ -22,26 +22,21 @@ use topos_core::{
     },
     uci::{Certificate, CERTIFICATE_ID_LENGTH, SUBNET_ID_LENGTH},
 };
-use tracing::{debug, info};
+use tracing::{debug, warn};
 
 use crate::options::input_format::{InputFormat, Parser};
 
-pub(crate) async fn check_delivery(
+/// Picks a random peer and sends it a certificate. All other peers listen for broadcast certs.
+/// Three possible outcomes:
+/// 1. No errors, returns Ok
+/// 2. There were errors, returns a list of all errors encountered
+/// 3. timeout
+pub(crate) async fn check_certificate_delivery(
     timeout_broadcast: u64,
-    format: InputFormat,
-    peers: Option<String>,
+    peers: Vec<Uri>,
     timeout: u64,
 ) -> Result<Result<(), Vec<String>>, Elapsed> {
     tokio::time::timeout(Duration::from_secs(timeout), async move {
-        info!("peers: {:?}", peers);
-        let peers: Vec<Uri> = format
-            .parse(NodeList(peers))
-            .map_err(|_| vec![format!("Unable to parse node list")])?
-            .into_iter()
-            .map(TryInto::try_into)
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|_| vec![format!("Unable to parse node list")])?;
-
         let random_peer: Uri = peers
             .choose(&mut rand::thread_rng())
             .ok_or_else(|| {
@@ -58,11 +53,11 @@ pub(crate) async fn check_delivery(
             &[[2u8; SUBNET_ID_LENGTH].into()],
         )
         .map_err(|_| vec![format!("Unable to create the certificate")])?;
-
         let certificate_id = pushed_certificate.id;
+
         let mut join_handlers = Vec::new();
 
-        // check that every nodes delivered the certificate
+        // check that all nodes delivered the certificate
         for peer in peers {
             join_handlers.push(tokio::spawn(async move {
                 let peer_string = peer.clone();
@@ -79,7 +74,7 @@ pub(crate) async fn check_delivery(
 
                 let status = result.into_inner();
                 if !status.has_active_sample {
-                    return Err((peer_string, "didn't succeed in the sample phase"));
+                    return Err((peer_string, "failed to find active sample"));
                 }
 
                 let mut client = ApiServiceClient::connect(peer_string.clone())
@@ -165,9 +160,35 @@ pub(crate) async fn check_delivery(
     })
     .await
     .map_err(|error| {
-        info!("Timeout reached: {:?}", error);
+        warn!("Timeout reached: {:?}", error);
         error
     })
+}
+
+pub(crate) async fn check_delivery(
+    timeout_broadcast: u64,
+    format: InputFormat,
+    peers: Option<String>,
+    timeout: u64,
+) -> Result<(), Box<dyn std::error::Error>> {
+    debug!("peers: {:?}", peers);
+
+    let peers: Vec<Uri> = format
+        .parse(NodeList(peers))
+        .map_err(|e| format!("Unable to parse node list: {e}"))?
+        .into_iter()
+        .map(TryInto::try_into)
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| format!("Unable to parse node list: {e}"))?;
+
+    match check_certificate_delivery(timeout_broadcast, peers, timeout).await {
+        Ok(Err(e)) => Err(format!("Error with certificate delivery: {e:?}").into()),
+        Err(e) => Err(Box::new(io::Error::new(
+            io::ErrorKind::TimedOut,
+            format!("Timeout elapsed: {e}"),
+        ))),
+        Ok(_) => Ok(()),
+    }
 }
 
 pub(crate) struct NodeList(pub(crate) Option<String>);
@@ -201,5 +222,67 @@ impl Parser<NodeList> for InputFormat {
                 .map(|s| s.trim().to_string())
                 .collect()),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::check_certificate_delivery;
+    use rstest::*;
+    use std::time::Duration;
+    use topos_core::api::grpc::tce::v1::StatusRequest;
+    use topos_test_sdk::tce::create_network;
+    use tracing::{debug, info};
+
+    #[rstest]
+    #[test_log::test(tokio::test)]
+    #[timeout(Duration::from_secs(30))]
+    async fn assert_push_certificate_delivery() -> Result<(), Box<dyn std::error::Error>> {
+        let mut peers_context = create_network(5, vec![]).await;
+
+        let mut status: Vec<bool> = Vec::new();
+
+        for (_peer_id, client) in peers_context.iter_mut() {
+            let response = client
+                .console_grpc_client
+                .status(StatusRequest {})
+                .await
+                .expect("Can't get status");
+
+            status.push(response.into_inner().has_active_sample);
+        }
+
+        assert!(status.iter().all(|s| *s));
+
+        let nodes = peers_context
+            .iter()
+            .map(|peer| peer.1.api_entrypoint.clone())
+            .collect::<Vec<_>>();
+
+        debug!("Nodes used in test: {:?}", nodes);
+
+        let assertion = async move {
+            let peers: Vec<tonic::transport::Uri> = nodes
+                .into_iter()
+                .map(TryInto::try_into)
+                .collect::<Result<_, _>>()
+                .map_err(|e| format!("Unable to parse node list: {e}"))
+                .expect("Valid node list");
+
+            match check_certificate_delivery(5, peers, 20).await {
+                Ok(Err(e)) => {
+                    panic!("Error with certificate delivery: {e:?}");
+                }
+                Err(e) => {
+                    panic!("Timeout elapsed: {e}");
+                }
+                Ok(_) => {
+                    info!("Check certificate delivery passed!");
+                }
+            }
+        };
+
+        assertion.await;
+        Ok(())
     }
 }
