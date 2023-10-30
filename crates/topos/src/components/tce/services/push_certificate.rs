@@ -236,7 +236,7 @@ mod tests {
 
     #[rstest]
     #[test_log::test(tokio::test)]
-    #[timeout(Duration::from_secs(120))]
+    #[timeout(Duration::from_secs(30))]
     async fn assert_push_certificate_delivery() -> Result<(), Box<dyn std::error::Error>> {
         let mut peers_context = create_network(5, vec![]).await;
 
@@ -269,7 +269,7 @@ mod tests {
                 .map_err(|e| format!("Unable to parse node list: {e}"))
                 .expect("Valid node list");
 
-            match check_certificate_delivery(5, peers, 30).await {
+            match check_certificate_delivery(5, peers, 20).await {
                 Ok(Err(e)) => {
                     panic!("Error with certificate delivery: {e:?}");
                 }
@@ -282,10 +282,7 @@ mod tests {
             }
         };
 
-        tokio::time::timeout(Duration::from_secs(120), assertion)
-            .await
-            .unwrap();
-
+        assertion.await;
         Ok(())
     }
 }
