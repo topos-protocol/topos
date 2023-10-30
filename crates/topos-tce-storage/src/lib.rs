@@ -30,21 +30,6 @@
 //! The underlying mechanisms of how data is stored is fairly simple, it relies a lot on [`rocksdb`] and will
 //! be describe below.
 //!
-//! As an example, in order to create a new [`EpochValidatorsStore`](struct@epoch::EpochValidatorsStore) you need to provide a
-//! path where the [`rocksdb`] database will be placed:
-//!
-//! ```
-//! # use topos_tce_storage::epoch;
-//! use epoch::EpochValidatorsStore;
-//! # use std::str::FromStr;
-//! # use std::path::PathBuf;
-//! # use std::sync::Arc;
-//! # let mut path = PathBuf::from_str(env!("CARGO_MANIFEST_DIR")).unwrap();
-//! # path.push("./../../target/tmp/");
-//! path.push("epoch");
-//! let store: Arc<EpochValidatorsStore> = EpochValidatorsStore::new(path).unwrap();
-//! ```
-//!
 //! ## Special Considerations
 //!
 //! When using the storage layer, you need to be aware of the following:

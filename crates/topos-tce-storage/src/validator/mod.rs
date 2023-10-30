@@ -23,12 +23,19 @@ use crate::{
     CertificatePositions, CertificateTargetStreamPosition, PendingCertificateId, SourceHead,
 };
 
-pub(crate) use self::tables::ValidatorPendingTables;
+pub use self::tables::ValidatorPendingTables;
 pub use self::tables::ValidatorPerpetualTables;
 
 mod tables;
 
-/// Contains all persistent data about the validator
+/// Store to manage Validator data
+///
+/// The [`ValidatorStore`] is composed of a [`FullNodeStore`] and a [`ValidatorPendingTables`].
+///
+/// As the [`FullNodeStore`] is responsible of keeping and managing every data that are persistent,
+/// the [`ValidatorStore`] is forwarding everything to it. The crucial point is that the
+/// [`ValidatorStore`] is managing the different pending pool using the [`ValidatorPendingTables`].
+///
 pub struct ValidatorStore {
     pub(crate) pending_tables: ValidatorPendingTables,
     pub(crate) fullnode_store: Arc<FullNodeStore>,
@@ -48,14 +55,19 @@ impl ValidatorStore {
         Ok(store)
     }
 
+    /// Returns the [`FullNodeStore`] used by the [`ValidatorStore`]
     pub fn get_fullnode_store(&self) -> Arc<FullNodeStore> {
         self.fullnode_store.clone()
     }
 
+    /// Returns the number of certificates in the pending pool
     pub fn count_pending_certificates(&self) -> Result<usize, StorageError> {
         Ok(self.pending_tables.pending_pool.iter()?.count())
     }
 
+    /// Try to return the [`PendingCertificateId`] for a [`CertificateId`]
+    ///
+    /// Return `Ok(None)` if the `certificate_id` is not found.
     pub fn get_pending_id(
         &self,
         certificate_id: &CertificateId,
@@ -63,6 +75,9 @@ impl ValidatorStore {
         Ok(self.pending_tables.pending_pool_index.get(certificate_id)?)
     }
 
+    /// Try to return the [`Certificate`] for a [`PendingCertificateId`]
+    ///
+    /// Return `Ok(None)` if the `pending_id` is not found.
     pub fn get_pending_certificate(
         &self,
         pending_id: &PendingCertificateId,
@@ -70,6 +85,7 @@ impl ValidatorStore {
         Ok(self.pending_tables.pending_pool.get(pending_id)?)
     }
 
+    /// Returns the entier pending_pool
     pub fn get_pending_certificates(
         &self,
     ) -> Result<Vec<(PendingCertificateId, Certificate)>, StorageError> {
