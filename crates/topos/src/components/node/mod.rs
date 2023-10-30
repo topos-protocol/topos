@@ -220,6 +220,30 @@ pub(crate) async fn handle_command(
 
             Ok(())
         }
+        Some(NodeCommands::PushCertificate(cmd)) => {
+            match services::push_certificate::check_delivery(
+                cmd.timeout_broadcast,
+                cmd.format,
+                cmd.nodes,
+                cmd.timeout,
+            )
+            .await
+            .map_err(Box::<dyn std::error::Error>::from)
+            {
+                Err(_) => {
+                    error!("Check failed due to timeout");
+                    std::process::exit(1);
+                }
+                Ok(Err(errors)) => {
+                    error!("Check failed due to errors: {:?}", errors);
+                    std::process::exit(1);
+                }
+                _ => {
+                    info!("Check passed");
+                    Ok(())
+                }
+            }
+        }
         None => Ok(()),
     }
 }
