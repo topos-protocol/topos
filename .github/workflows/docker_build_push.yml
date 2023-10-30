@@ -49,7 +49,7 @@ jobs:
           docker tag ghcr.io/${{ github.repository}}:${{ env.docker_tag }} ${{ env.EXPECTED_IMAGE_NAME }}
 
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Running TCE cluster
         run: |

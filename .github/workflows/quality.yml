@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - uses: ./.github/actions/install-rust
         with:
@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - uses: ./.github/actions/install-rust
         with:
@@ -54,7 +54,7 @@ jobs:
       RUST_BACKTRACE: 1
     steps:
       - name: Checkout topos repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install Rust
         uses: ./.github/actions/install-rust
@@ -67,7 +67,7 @@ jobs:
         uses: arduino/setup-protoc@v1
 
       - name: Checkout topos-smart-contracts repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: topos-protocol/topos-smart-contracts
           ref: ${{ env.CONTRACTS_REF }}
@@ -99,7 +99,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - uses: ./.github/actions/install-rust
         with:
@@ -117,7 +117,7 @@ jobs:
     runs-on: ubuntu-latest-16-core
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - uses: ./.github/actions/install-rust
         with:
