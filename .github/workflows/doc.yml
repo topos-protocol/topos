@@ -11,10 +11,13 @@ jobs:
     steps:
     - name: Checkout 
       uses: actions/checkout@v4
-    - name: Install nightly toolchain
-      run: rustup toolchain install nightly 
+    - uses: ./.github/actions/install-rust
+      with:
+        with_cache: false
+        AWS_ACCESS_KEY_ID: ${{ secrets.ROBOT_AWS_ACCESS_KEY_ID}}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.ROBOT_AWS_SECRET_ACCESS_KEY}}
     - name: Build Documentation
-      run: cargo +nightly doc --no-deps --all --all-features
+      run: cargo doc --no-deps --all --all-features
       env:
         RUSTDOCFLAGS: "--cfg docsrs"
         RUSTFLAGS: "--cfg docsrs"
