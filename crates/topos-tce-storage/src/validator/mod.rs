@@ -1,3 +1,19 @@
+//! Validator's context store and storage
+//!
+//! The [`ValidatorStore`] is responsible for managing the different data that are required by the
+//! TCE network in order to broadcast certificates. It is composed of two main parts:
+//!
+//! - a [`FullNodeStore`]
+//! - a [`ValidatorPendingTables`]
+//!
+//! ## Responsibilities
+//!
+//! This store is used in place where the [`FullNodeStore`] is not enough, it allows to access the
+//! different pending pools and to manage them but also to access the [`FullNodeStore`] in order to
+//! persist or update [`Certificate`] or `streams`.
+//!
+//! Pending pools and how they behave is decribed in the [`ValidatorPendingTables`] documentation.
+//!
 use std::{
     collections::HashMap,
     path::PathBuf,
@@ -33,8 +49,11 @@ mod tables;
 /// The [`ValidatorStore`] is composed of a [`FullNodeStore`] and a [`ValidatorPendingTables`].
 ///
 /// As the [`FullNodeStore`] is responsible of keeping and managing every data that are persistent,
-/// the [`ValidatorStore`] is forwarding everything to it. The crucial point is that the
-/// [`ValidatorStore`] is managing the different pending pool using the [`ValidatorPendingTables`].
+/// the [`ValidatorStore`] is delegating many of the [`WriteStore`] and [`ReadStore`] to it.
+///
+/// The crucial point is that the [`ValidatorStore`] is managing the different pending pool using a [`ValidatorPendingTables`].
+///
+/// Pending pools and how they behave is decribed in the [`ValidatorPendingTables`] documentation.
 ///
 pub struct ValidatorStore {
     pub(crate) pending_tables: ValidatorPendingTables,
@@ -42,6 +61,7 @@ pub struct ValidatorStore {
 }
 
 impl ValidatorStore {
+    /// Open a [`ValidatorStore`] at the given `path` and using the given [`FullNodeStore`]
     pub fn open(
         path: PathBuf,
         fullnode_store: Arc<FullNodeStore>,

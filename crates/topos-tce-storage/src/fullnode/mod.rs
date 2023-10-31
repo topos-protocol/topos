@@ -24,7 +24,7 @@ use crate::{
 
 use self::locking::LockGuards;
 
-mod locking;
+pub mod locking;
 
 /// Store to manage FullNode data
 ///

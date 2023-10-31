@@ -1,8 +1,8 @@
-use std::{collections::BTreeSet, fs::create_dir_all, path::PathBuf, sync::atomic::AtomicU64};
+use std::{fs::create_dir_all, path::PathBuf, sync::atomic::AtomicU64};
 
 use rocksdb::ColumnFamilyDescriptor;
 use topos_core::{
-    types::{stream::CertificateSourceStreamPosition, CertificateDelivered, ProofOfDelivery},
+    types::ProofOfDelivery,
     uci::{Certificate, CertificateId},
 };
 use tracing::warn;
@@ -14,23 +14,45 @@ use crate::{
         db::{default_options, init_with_cfs},
         db_column::DBColumn,
     },
-    types::{EpochId, EpochSummary},
+    types::{CertificatesColumn, EpochId, EpochSummary, PendingCertificatesColumn, StreamsColumn},
     PendingCertificateId,
 };
 
-/// Volatile and pending data
+/// Volatile and pending data used by Validator
+///
+/// It contains data that is not yet delivered.
+///
+/// When a [`Certificate`] is received, it can either be added to the pending
+/// pool or to the precedence pool.
+///
+/// ## Pending pool
+///
+/// The pending pool is used to store certificates that are ready to be validated and broadcast.
+/// Meaning that the previous [`Certificate`] has been delivered and the [`Certificate`] is
+/// ready to be broadcast.
+///
+/// The ordering inside the pending pool is a FIFO queue, each [`Certificate`] in the pool gets
+/// assigned to a unique [`PendingCertificateId`](type@crate::PendingCertificateId).
+///
+/// ## Precedence pool
+///
+/// The precedence pool is used to store certificates that are not yet ready to be broadcast,
+/// mostly waiting for the previous certificate to be delivered. However, the [`Certificate`] is
+/// already validated.
+///
+/// When a [`Certificate`] is delivered, the [`ValidatorStore`](struct@super::ValidatorStore) will
+/// check for any [`Certificate`] in the precedence pool and if one is found, it is moved to the
+/// pending pool, ready to be broadcast.
+///
 pub struct ValidatorPendingTables {
     pub(crate) next_pending_id: AtomicU64,
-    #[allow(unused)]
-    fetching_pool: BTreeSet<CertificateId>, // Not sure to keep it
-    pub(crate) pending_pool: DBColumn<PendingCertificateId, Certificate>,
+    pub(crate) pending_pool: PendingCertificatesColumn,
     pub(crate) pending_pool_index: DBColumn<CertificateId, PendingCertificateId>,
     pub(crate) precedence_pool: DBColumn<CertificateId, Certificate>,
-    #[allow(unused)]
-    expiration_tracker: (), // Unknown
 }
 
 impl ValidatorPendingTables {
+    /// Open the [`ValidatorPendingTables`] at the given path.
     pub fn open(mut path: PathBuf) -> Self {
         path.push("pending");
         if !path.exists() {
@@ -49,19 +71,18 @@ impl ValidatorPendingTables {
         Self {
             // TODO: Fetch it from the storage
             next_pending_id: AtomicU64::new(0),
-            fetching_pool: BTreeSet::new(),
             pending_pool: DBColumn::reopen(&db, cfs::PENDING_POOL),
             pending_pool_index: DBColumn::reopen(&db, cfs::PENDING_POOL_INDEX),
             precedence_pool: DBColumn::reopen(&db, cfs::PRECEDENCE_POOL),
-            expiration_tracker: (),
         }
     }
 }
 
 /// Data that shouldn't be purged at all.
+// TODO: TP-774: Rename and move to FullNode domain
 pub struct ValidatorPerpetualTables {
-    pub(crate) certificates: DBColumn<CertificateId, CertificateDelivered>,
-    pub(crate) streams: DBColumn<CertificateSourceStreamPosition, CertificateId>,
+    pub(crate) certificates: CertificatesColumn,
+    pub(crate) streams: StreamsColumn,
     #[allow(unused)]
     epoch_chain: DBColumn<EpochId, EpochSummary>,
     pub(crate) unverified: DBColumn<CertificateId, ProofOfDelivery>,

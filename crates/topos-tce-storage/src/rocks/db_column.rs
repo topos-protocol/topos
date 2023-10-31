@@ -176,6 +176,7 @@ impl DBBatch {
         }
     }
 
+    #[allow(unused)]
     pub(crate) fn delete<K, V, Key>(
         mut self,
         db: &DBColumn<K, V>,

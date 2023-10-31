@@ -2,7 +2,7 @@ use std::{fs::create_dir_all, path::PathBuf};
 
 use rocksdb::ColumnFamilyDescriptor;
 use topos_core::{
-    types::stream::{CertificateTargetStreamPosition, Position},
+    types::stream::Position,
     uci::{CertificateId, SubnetId},
 };
 use tracing::warn;
@@ -13,9 +13,8 @@ use crate::{
         constants,
         db::{default_options, init_with_cfs},
         db_column::DBColumn,
-        TargetSourceListKey,
     },
-    types::CertificateSequenceNumber,
+    types::{CertificateSequenceNumber, TargetSourceListColumn, TargetStreamsColumn},
 };
 
 #[allow(unused)]
@@ -24,8 +23,8 @@ pub(crate) struct IndexStore {
 }
 
 pub struct IndexTables {
-    pub(crate) target_streams: DBColumn<CertificateTargetStreamPosition, CertificateId>,
-    pub(crate) target_source_list: DBColumn<TargetSourceListKey, Position>,
+    pub(crate) target_streams: TargetStreamsColumn,
+    pub(crate) target_source_list: TargetSourceListColumn,
     pub(crate) source_list: DBColumn<SubnetId, (CertificateId, Position)>,
     pub(crate) source_list_per_target: DBColumn<(SubnetId, SubnetId), bool>,
 }
