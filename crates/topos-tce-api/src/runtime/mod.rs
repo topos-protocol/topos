@@ -1,8 +1,7 @@
 use futures::{stream::FuturesUnordered, FutureExt, StreamExt, TryFutureExt};
 use std::future::Future;
 use std::{
-    collections::{hash_map::Entry, HashMap, HashSet},
-    future,
+    collections::{HashMap, HashSet},
     pin::Pin,
     sync::Arc,
     time::Duration,
@@ -13,16 +12,10 @@ use tokio::{
     task::JoinHandle,
 };
 use tonic_health::server::HealthReporter;
+use topos_core::api::grpc::checkpoints::TargetStreamPosition;
+use topos_core::api::grpc::tce::v1::api_service_server::ApiServiceServer;
 use topos_core::uci::{Certificate, SubnetId};
-use topos_core::{api::grpc::checkpoints::TargetStreamPosition, types::CertificateDelivered};
-use topos_core::{
-    api::grpc::tce::v1::api_service_server::ApiServiceServer,
-    types::stream::CertificateTargetStreamPosition,
-};
-use topos_tce_storage::{
-    types::CertificateDeliveredWithPositions, FetchCertificatesFilter, FetchCertificatesPosition,
-    StorageClient,
-};
+use topos_tce_storage::{types::CertificateDeliveredWithPositions, StorageClient};
 
 use tracing::{debug, error, info};
 use uuid::Uuid;
@@ -52,6 +45,7 @@ pub(crate) use self::commands::InternalRuntimeCommand;
 pub use self::commands::RuntimeCommand;
 pub use self::events::RuntimeEvent;
 
+use crate::runtime::task::Task;
 use task::SyncTasks;
 
 pub(crate) type Streams =
@@ -327,95 +321,12 @@ impl Runtime {
                             .insert(stream_id);
                     }
 
-                    // TODO: Refactor this using a better handle, FuturesUnordered + Killswitch
-                    // What we can do here is:
-                    // Put each task on
-                    let task = async move {
-                        info!("Sync task started for stream {}", stream_id);
-                        let mut collector: Vec<(CertificateDelivered, FetchCertificatesPosition)> =
-                            Vec::new();
+                    let mut task =
+                        Task::new(stream_id, target_subnet_stream_positions, storage, notifier);
 
-                        for (target_subnet_id, mut source) in target_subnet_stream_positions {
-                            // return list of subnets that target this subnet
-                            let source_subnet_list = storage
-                                .get_target_source_subnet_list(target_subnet_id)
-                                .await;
+                    self.running_tasks.push(task.run());
 
-                            info!(
-                                "Stream sync task detected {:?} as source list",
-                                source_subnet_list
-                            );
-                            if let Ok(source_subnet_list) = source_subnet_list {
-                                for source_subnet_id in source_subnet_list {
-                                    if let Entry::Vacant(entry) = source.entry(source_subnet_id) {
-                                        entry.insert(TargetStreamPosition {
-                                            target_subnet_id,
-                                            source_subnet_id,
-                                            position: 0,
-                                            certificate_id: None,
-                                        });
-                                    }
-                                }
-                            }
-
-                            for (
-                                _,
-                                TargetStreamPosition {
-                                    target_subnet_id,
-                                    source_subnet_id,
-                                    position,
-                                    ..
-                                },
-                            ) in source
-                            {
-                                if let Ok(certificates_with_positions) = storage
-                                    .fetch_certificates(FetchCertificatesFilter::Target {
-                                        target_stream_position: CertificateTargetStreamPosition {
-                                            target_subnet_id,
-                                            source_subnet_id,
-                                            position: position.into(),
-                                        },
-                                        limit: 100,
-                                    })
-                                    .await
-                                {
-                                    collector.extend(certificates_with_positions)
-                                }
-                            }
-                        }
-
-                        for (CertificateDelivered { certificate, .. }, position) in collector {
-                            info!(
-                                "Stream sync task for {} is sending {}",
-                                stream_id, certificate.id
-                            );
-                            // TODO: catch error on send
-                            if let FetchCertificatesPosition::Target(
-                                CertificateTargetStreamPosition {
-                                    target_subnet_id,
-                                    source_subnet_id,
-                                    position,
-                                },
-                            ) = position
-                            {
-                                _ = notifier
-                                    .send(StreamCommand::PushCertificate {
-                                        positions: vec![TargetStreamPosition {
-                                            target_subnet_id,
-                                            source_subnet_id,
-                                            position: *position,
-                                            certificate_id: Some(certificate.id),
-                                        }],
-                                        certificate,
-                                    })
-                                    .await;
-                            } else {
-                                error!("Invalid certificate position fetched");
-                            }
-                        }
-                    };
-
-                    self.running_tasks.push(stream_id, task);
+                    self.tasks.push(stream_id);
                 }
             }
 
