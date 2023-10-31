@@ -56,7 +56,7 @@ impl Task {
     }
 
     pub(crate) async fn run(&mut self) {
-        info!("Sync task started for stream {}", stream_id);
+        info!("Sync task started for stream {}", self.stream_id);
         let mut collector: Vec<(CertificateDelivered, FetchCertificatesPosition)> = Vec::new();
 
         for (target_subnet_id, mut source) in self.target_subnet_stream_positions {
@@ -112,7 +112,7 @@ impl Task {
         for (CertificateDelivered { certificate, .. }, position) in collector {
             info!(
                 "Stream sync task for {} is sending {}",
-                stream_id, certificate.id
+                self.stream_id, certificate.id
             );
 
             if let FetchCertificatesPosition::Target(CertificateTargetStreamPosition {
