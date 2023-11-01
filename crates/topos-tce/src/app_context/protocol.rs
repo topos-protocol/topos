@@ -34,7 +34,7 @@ impl AppContext {
                 info!("Sending Gossip for certificate {}", cert_id);
                 if let Err(e) = self
                     .network_client
-                    .publish::<DoubleEchoRequest>(topos_p2p::TOPOS_GOSSIP, request)
+                    .publish(topos_p2p::TOPOS_GOSSIP, request)
                     .await
                 {
                     error!("Unable to send Gossip due to error: {e}");
@@ -57,7 +57,7 @@ impl AppContext {
 
                 if let Err(e) = self
                     .network_client
-                    .publish::<DoubleEchoRequest>(topos_p2p::TOPOS_ECHO, request)
+                    .publish(topos_p2p::TOPOS_ECHO, request)
                     .await
                 {
                     error!("Unable to send Echo due to error: {e}");
@@ -79,7 +79,7 @@ impl AppContext {
 
                 if let Err(e) = self
                     .network_client
-                    .publish::<DoubleEchoRequest>(topos_p2p::TOPOS_READY, request)
+                    .publish(topos_p2p::TOPOS_READY, request)
                     .await
                 {
                     error!("Unable to send Ready due to error: {e}");
