@@ -31,9 +31,7 @@ impl AppContext {
                         double_echo_request::Request::Gossip(GossipRequest {
                             certificate: Some(certificate),
                         }) => {
-                            if let Ok(cert) =
-                                uci::Certificate::try_from(certificate)
-                            {
+                            if let Ok(cert) = uci::Certificate::try_from(certificate) {
                                 let channel = self.tce_cli.get_double_echo_channel();
                                 if let hash_map::Entry::Vacant(entry) =
                                     self.delivery_latency.entry(cert.id)

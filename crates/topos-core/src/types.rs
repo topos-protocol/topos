@@ -1,7 +1,5 @@
-use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 use topos_uci::{Certificate, CertificateId};
 
 use crate::errors::GrpcParsingError;
@@ -11,7 +9,6 @@ use topos_api::grpc::{
     checkpoints::SourceStreamPosition,
     tce::v1::{ProofOfDelivery as GrpcProofOfDelivery, SignedReady},
 };
-use topos_crypto::messages::{Address, H160};
 
 pub mod stream;
 
