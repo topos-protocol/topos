@@ -1,4 +1,3 @@
-
 use serde::{Deserialize, Serialize};
 use topos_uci::{Certificate, CertificateId};
 

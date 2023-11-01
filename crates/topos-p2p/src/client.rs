@@ -1,3 +1,4 @@
+use bytes::BytesMut;
 use futures::future::BoxFuture;
 use libp2p::PeerId;
 use tokio::sync::{
@@ -12,6 +13,7 @@ use crate::{
     utils::GrpcOverP2P,
     Command,
 };
+use tracing::error;
 
 #[derive(Clone)]
 pub struct NetworkClient {
@@ -43,15 +45,33 @@ impl NetworkClient {
         Self::send_command_with_receiver(&self.sender, command, receiver).await
     }
 
-    pub fn publish<T: std::fmt::Debug + Into<Vec<u8>>>(
+    pub fn publish<T: std::fmt::Debug + prost::Message>(
         &self,
         topic: &'static str,
-        data: T,
+        message: T,
     ) -> BoxFuture<'static, Result<(), SendError<Command>>> {
-        let data = data.into();
-        let network = self.sender.clone();
+        let mut data = BytesMut::new();
 
-        Box::pin(async move { network.send(Command::Gossip { topic, data }).await })
+        let network = self.sender.clone();
+        match message.encode(&mut data) {
+            Ok(()) => Box::pin(async move {
+                network
+                    .send(Command::Gossip {
+                        topic,
+                        data: data.to_vec(),
+                    })
+                    .await
+            }),
+            Err(e) => {
+                error!("Unable to encode protobuf message bytes: {e}");
+                Box::pin(async move {
+                    Err(SendError(Command::Gossip {
+                        topic,
+                        data: data.to_vec(),
+                    }))
+                })
+            }
+        }
     }
 
     async fn send_command_with_receiver<

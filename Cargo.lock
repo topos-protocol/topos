@@ -7509,6 +7509,7 @@ dependencies = [
  "libp2p-swarm-test",
  "pin-project",
  "prometheus-client",
+ "prost 0.12.1",
  "rand",
  "rstest",
  "serde",

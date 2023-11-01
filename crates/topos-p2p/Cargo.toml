@@ -34,6 +34,7 @@ tracing = { workspace = true, features = ["attributes"] }
 uuid.workspace = true
 void = "1"
 hyper.workspace = true
+prost.workspace = true
 
 [dev-dependencies]
 test-log.workspace = true
