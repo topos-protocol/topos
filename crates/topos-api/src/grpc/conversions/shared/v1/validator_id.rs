@@ -24,9 +24,7 @@ impl TryFrom<ValidatorId> for topos_crypto::validator_id::ValidatorId {
             return Err(Error::InvalidByteLength(hex::encode(other.value)));
         }
         let mut value = [0; VALIDATOR_ID_LENGTH];
-
         value.copy_from_slice(other.value.as_slice());
-
         Ok(H160::from_slice(&value).into())
     }
 }

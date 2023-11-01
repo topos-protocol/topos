@@ -32,7 +32,7 @@ impl AppContext {
                             certificate: Some(certificate),
                         }) => {
                             if let Ok(cert) =
-                                std::convert::TryInto::<uci::Certificate>::try_into(certificate)
+                                uci::Certificate::try_from(certificate)
                             {
                                 let channel = self.tce_cli.get_double_echo_channel();
                                 if let hash_map::Entry::Vacant(entry) =
@@ -42,7 +42,7 @@ impl AppContext {
                                 }
 
                                 spawn(async move {
-                                    info!("Send certificate to be broadcast");
+                                    info!("Send certificate {} to be broadcast", cert.id);
                                     if channel
                                         .send(DoubleEchoCommand::Broadcast {
                                             cert,

@@ -34,25 +34,6 @@ impl ReliableBroadcastParams {
     }
 }
 
-// /// Protocol commands
-// #[derive(Clone, Debug, Serialize, Deserialize)]
-// pub enum TceCommands {
-//     /// Received G-set message
-//     OnGossip { cert: Certificate },
-//     /// When echo reply received
-//     OnEcho {
-//         certificate_id: CertificateId,
-//         signature: Signature,
-//         validator_id: ValidatorId,
-//     },
-//     /// When ready reply received
-//     OnReady {
-//         certificate_id: CertificateId,
-//         signature: Signature,
-//         validator_id: ValidatorId,
-//     },
-// }
-
 /// Protocol events
 #[derive(Clone, Debug)]
 pub enum ProtocolEvents {
