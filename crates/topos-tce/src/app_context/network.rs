@@ -8,9 +8,7 @@ use topos_p2p::Event as NetEvent;
 use topos_tce_broadcast::DoubleEchoCommand;
 use tracing::{error, info, trace};
 
-use topos_core::api::grpc::tce::v1::{
-    double_echo_request, DoubleEchoRequest, Echo, Gossip, Ready,
-};
+use topos_core::api::grpc::tce::v1::{double_echo_request, DoubleEchoRequest, Echo, Gossip, Ready};
 use topos_core::uci;
 
 use crate::AppContext;
@@ -31,8 +29,8 @@ impl AppContext {
                 match double_echo_request {
                     double_echo_request::Request::Gossip(Gossip {
                         certificate: Some(certificate),
-                    }) => {
-                        if let Ok(cert) = uci::Certificate::try_from(certificate) {
+                    }) => match uci::Certificate::try_from(certificate) {
+                        Ok(cert) => {
                             let channel = self.tce_cli.get_double_echo_channel();
                             if let hash_map::Entry::Vacant(entry) =
                                 self.delivery_latency.entry(cert.id)
@@ -57,9 +55,12 @@ impl AppContext {
                                 }
                             });
                         }
-                    }
+                        Err(e) => {
+                            error!("Error converting received certificate {e}");
+                        }
+                    },
                     double_echo_request::Request::Echo(Echo {
-                        certificate: Some(certificate_id),
+                        certificate_id: Some(certificate_id),
                         signature: Some(signature),
                         validator_id: Some(validator_id),
                     }) => {
@@ -86,11 +87,13 @@ impl AppContext {
                                 {
                                     error!("Unable to send Echo, {:?}", e);
                                 }
+                            } else {
+                                error!("Unable to process Echo message due to invalid data");
                             }
                         });
                     }
                     double_echo_request::Request::Ready(Ready {
-                        certificate: Some(certificate_id),
+                        certificate_id: Some(certificate_id),
                         signature: Some(signature),
                         validator_id: Some(validator_id),
                     }) => {

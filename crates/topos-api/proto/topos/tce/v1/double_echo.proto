@@ -12,13 +12,13 @@ message Gossip {
 }
 
 message Echo {
-  topos.shared.v1.CertificateId certificate = 1;
+  topos.shared.v1.CertificateId certificate_id = 1;
   topos.shared.v1.EcdsaSignature signature = 2;
   topos.shared.v1.ValidatorId validator_id = 3;
 }
 
 message Ready {
-  topos.shared.v1.CertificateId certificate = 1;
+  topos.shared.v1.CertificateId certificate_id = 1;
   topos.shared.v1.EcdsaSignature signature = 2;
   topos.shared.v1.ValidatorId validator_id = 3;
 }

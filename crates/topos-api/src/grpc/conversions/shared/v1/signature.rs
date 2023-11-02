@@ -12,7 +12,7 @@ impl From<EcdsaSignature> for topos_crypto::messages::Signature {
 }
 
 impl From<topos_crypto::messages::Signature> for EcdsaSignature {
-    fn from(other: topos_crypto::messages::Signature) -> EcdsaSignature {
+    fn from(other: topos_crypto::messages::Signature) -> Self {
         let mut ecdsa_signature = EcdsaSignature {
             r: vec![0; 32],
             s: vec![0; 32],

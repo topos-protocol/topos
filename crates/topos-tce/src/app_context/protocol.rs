@@ -1,7 +1,5 @@
 use tce_transport::ProtocolEvents;
-use topos_core::api::grpc::tce::v1::{
-    double_echo_request, DoubleEchoRequest, Echo, Gossip, Ready,
-};
+use topos_core::api::grpc::tce::v1::{double_echo_request, DoubleEchoRequest, Echo, Gossip, Ready};
 use tracing::{debug, error, info};
 
 use crate::events::Events;
@@ -49,7 +47,7 @@ impl AppContext {
                 // Send echo message
                 let request = DoubleEchoRequest {
                     request: Some(double_echo_request::Request::Echo(Echo {
-                        certificate: Some(certificate_id.into()),
+                        certificate_id: Some(certificate_id.into()),
                         signature: Some(signature.into()),
                         validator_id: Some(validator_id.into()),
                     })),
@@ -71,7 +69,7 @@ impl AppContext {
             } => {
                 let request = DoubleEchoRequest {
                     request: Some(double_echo_request::Request::Ready(Ready {
-                        certificate: Some(certificate_id.into()),
+                        certificate_id: Some(certificate_id.into()),
                         signature: Some(signature.into()),
                         validator_id: Some(validator_id.into()),
                     })),

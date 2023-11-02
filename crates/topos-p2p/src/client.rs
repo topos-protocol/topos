@@ -45,7 +45,7 @@ impl NetworkClient {
         Self::send_command_with_receiver(&self.sender, command, receiver).await
     }
 
-    pub fn publish<T: std::fmt::Debug + prost::Message>(
+    pub fn publish<T: std::fmt::Debug + prost::Message + 'static>(
         &self,
         topic: &'static str,
         message: T,
@@ -53,25 +53,14 @@ impl NetworkClient {
         let mut data = BytesMut::new();
 
         let network = self.sender.clone();
-        match message.encode(&mut data) {
-            Ok(()) => Box::pin(async move {
-                network
-                    .send(Command::Gossip {
-                        topic,
-                        data: data.to_vec(),
-                    })
-                    .await
-            }),
-            Err(e) => {
-                error!("Unable to encode protobuf message bytes: {e}");
-                Box::pin(async move {
-                    Err(SendError(Command::Gossip {
-                        topic,
-                        data: data.to_vec(),
-                    }))
+        Box::pin(async move {
+            network
+                .send(Command::Gossip {
+                    topic,
+                    data: message.encode_to_vec(),
                 })
-            }
-        }
+                .await
+        })
     }
 
     async fn send_command_with_receiver<

@@ -1457,7 +1457,7 @@ pub struct Gossip {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Echo {
     #[prost(message, optional, tag = "1")]
-    pub certificate: ::core::option::Option<super::super::shared::v1::CertificateId>,
+    pub certificate_id: ::core::option::Option<super::super::shared::v1::CertificateId>,
     #[prost(message, optional, tag = "2")]
     pub signature: ::core::option::Option<super::super::shared::v1::EcdsaSignature>,
     #[prost(message, optional, tag = "3")]
@@ -1468,7 +1468,7 @@ pub struct Echo {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Ready {
     #[prost(message, optional, tag = "1")]
-    pub certificate: ::core::option::Option<super::super::shared::v1::CertificateId>,
+    pub certificate_id: ::core::option::Option<super::super::shared::v1::CertificateId>,
     #[prost(message, optional, tag = "2")]
     pub signature: ::core::option::Option<super::super::shared::v1::EcdsaSignature>,
     #[prost(message, optional, tag = "3")]
