@@ -1,4 +1,3 @@
-use bytes::BytesMut;
 use futures::future::BoxFuture;
 use libp2p::PeerId;
 use tokio::sync::{
@@ -13,7 +12,6 @@ use crate::{
     utils::GrpcOverP2P,
     Command,
 };
-use tracing::error;
 
 #[derive(Clone)]
 pub struct NetworkClient {
@@ -51,7 +49,7 @@ impl NetworkClient {
         message: T,
     ) -> BoxFuture<'static, Result<(), SendError<Command>>> {
         let network = self.sender.clone();
-        
+
         Box::pin(async move {
             network
                 .send(Command::Gossip {
