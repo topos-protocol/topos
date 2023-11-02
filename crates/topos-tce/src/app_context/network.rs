@@ -9,7 +9,7 @@ use topos_tce_broadcast::DoubleEchoCommand;
 use tracing::{error, info, trace};
 
 use topos_core::api::grpc::tce::v1::{
-    double_echo_request, DoubleEchoRequest, EchoRequest, GossipRequest, ReadyRequest,
+    double_echo_request, DoubleEchoRequest, Echo, Gossip, Ready,
 };
 use topos_core::uci;
 
@@ -29,7 +29,7 @@ impl AppContext {
             }) = DoubleEchoRequest::decode(&data[..])
             {
                 match double_echo_request {
-                    double_echo_request::Request::Gossip(GossipRequest {
+                    double_echo_request::Request::Gossip(Gossip {
                         certificate: Some(certificate),
                     }) => {
                         if let Ok(cert) = uci::Certificate::try_from(certificate) {
@@ -58,7 +58,7 @@ impl AppContext {
                             });
                         }
                     }
-                    double_echo_request::Request::Echo(EchoRequest {
+                    double_echo_request::Request::Echo(Echo {
                         certificate: Some(certificate_id),
                         signature: Some(signature),
                         validator_id: Some(validator_id),
@@ -89,7 +89,7 @@ impl AppContext {
                             }
                         });
                     }
-                    double_echo_request::Request::Ready(ReadyRequest {
+                    double_echo_request::Request::Ready(Ready {
                         certificate: Some(certificate_id),
                         signature: Some(signature),
                         validator_id: Some(validator_id),

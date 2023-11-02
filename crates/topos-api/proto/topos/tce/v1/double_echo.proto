@@ -7,17 +7,17 @@ import "topos/shared/v1/signature.proto";
 import "topos/shared/v1/validator_id.proto";
 import "topos/uci/v1/certification.proto";
 
-message GossipRequest {
+message Gossip {
   topos.uci.v1.Certificate certificate = 1;
 }
 
-message EchoRequest {
+message Echo {
   topos.shared.v1.CertificateId certificate = 1;
   topos.shared.v1.EcdsaSignature signature = 2;
   topos.shared.v1.ValidatorId validator_id = 3;
 }
 
-message ReadyRequest {
+message Ready {
   topos.shared.v1.CertificateId certificate = 1;
   topos.shared.v1.EcdsaSignature signature = 2;
   topos.shared.v1.ValidatorId validator_id = 3;
@@ -25,8 +25,8 @@ message ReadyRequest {
 
 message DoubleEchoRequest {
   oneof request {
-    GossipRequest gossip = 1;
-    EchoRequest echo = 2;
-    ReadyRequest ready = 3;
+    Gossip gossip = 1;
+    Echo echo = 2;
+    Ready ready = 3;
   }
 }

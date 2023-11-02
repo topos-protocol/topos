@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package topos.shared.v1;
 
+// Id of the validator in the Topos protocol network
+// This is the same as the validator's H160 address in the Ethereum compatible network
 message ValidatorId {
   // The validator's H160 address
   bytes value = 1;

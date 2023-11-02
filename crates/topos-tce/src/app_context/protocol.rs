@@ -1,6 +1,6 @@
 use tce_transport::ProtocolEvents;
 use topos_core::api::grpc::tce::v1::{
-    double_echo_request, DoubleEchoRequest, EchoRequest, GossipRequest, ReadyRequest,
+    double_echo_request, DoubleEchoRequest, Echo, Gossip, Ready,
 };
 use tracing::{debug, error, info};
 
@@ -26,7 +26,7 @@ impl AppContext {
                 let cert_id = cert.id;
 
                 let request = DoubleEchoRequest {
-                    request: Some(double_echo_request::Request::Gossip(GossipRequest {
+                    request: Some(double_echo_request::Request::Gossip(Gossip {
                         certificate: Some(cert.into()),
                     })),
                 };
@@ -48,7 +48,7 @@ impl AppContext {
             } => {
                 // Send echo message
                 let request = DoubleEchoRequest {
-                    request: Some(double_echo_request::Request::Echo(EchoRequest {
+                    request: Some(double_echo_request::Request::Echo(Echo {
                         certificate: Some(certificate_id.into()),
                         signature: Some(signature.into()),
                         validator_id: Some(validator_id.into()),
@@ -70,7 +70,7 @@ impl AppContext {
                 validator_id,
             } => {
                 let request = DoubleEchoRequest {
-                    request: Some(double_echo_request::Request::Ready(ReadyRequest {
+                    request: Some(double_echo_request::Request::Ready(Ready {
                         certificate: Some(certificate_id.into()),
                         signature: Some(signature.into()),
                         validator_id: Some(validator_id.into()),

@@ -1448,14 +1448,14 @@ pub mod console_service_server {
 #[derive(serde::Deserialize, serde::Serialize)]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct GossipRequest {
+pub struct Gossip {
     #[prost(message, optional, tag = "1")]
     pub certificate: ::core::option::Option<super::super::uci::v1::Certificate>,
 }
 #[derive(serde::Deserialize, serde::Serialize)]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct EchoRequest {
+pub struct Echo {
     #[prost(message, optional, tag = "1")]
     pub certificate: ::core::option::Option<super::super::shared::v1::CertificateId>,
     #[prost(message, optional, tag = "2")]
@@ -1466,7 +1466,7 @@ pub struct EchoRequest {
 #[derive(serde::Deserialize, serde::Serialize)]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ReadyRequest {
+pub struct Ready {
     #[prost(message, optional, tag = "1")]
     pub certificate: ::core::option::Option<super::super::shared::v1::CertificateId>,
     #[prost(message, optional, tag = "2")]
@@ -1488,10 +1488,10 @@ pub mod double_echo_request {
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Request {
         #[prost(message, tag = "1")]
-        Gossip(super::GossipRequest),
+        Gossip(super::Gossip),
         #[prost(message, tag = "2")]
-        Echo(super::EchoRequest),
+        Echo(super::Echo),
         #[prost(message, tag = "3")]
-        Ready(super::ReadyRequest),
+        Ready(super::Ready),
     }
 }

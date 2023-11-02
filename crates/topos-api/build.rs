@@ -58,15 +58,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "#[derive(Eq, Hash, serde::Deserialize, serde::Serialize)]",
         )
         .type_attribute(
-            ".topos.tce.v1.GossipRequest",
+            ".topos.tce.v1.Gossip",
             "#[derive(serde::Deserialize, serde::Serialize)]",
         )
         .type_attribute(
-            ".topos.tce.v1.EchoRequest",
+            ".topos.tce.v1.Echo",
             "#[derive(serde::Deserialize, serde::Serialize)]",
         )
         .type_attribute(
-            ".topos.tce.v1.ReadyRequest",
+            ".topos.tce.v1.Ready",
             "#[derive(serde::Deserialize, serde::Serialize)]",
         )
         .type_attribute(

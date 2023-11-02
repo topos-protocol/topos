@@ -14,6 +14,8 @@ pub struct SubnetId {
     #[prost(bytes = "vec", tag = "1")]
     pub value: ::prost::alloc::vec::Vec<u8>,
 }
+/// Id of the validator in the Topos protocol network
+/// This is the same as the validator's H160 address in the Ethereum compatible network
 #[derive(Eq, Hash, serde::Deserialize, serde::Serialize)]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -106,6 +108,8 @@ pub struct StarkProof {
     #[prost(bytes = "vec", tag = "1")]
     pub value: ::prost::alloc::vec::Vec<u8>,
 }
+/// A signature using the ECDSA algorithm.
+/// Used to sign double echo protocol messages.
 #[derive(Eq, Hash, serde::Deserialize, serde::Serialize)]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
