@@ -2,7 +2,7 @@ use crate::stream::StreamCommand;
 use futures::stream::FuturesUnordered;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
-use std::future::Future;
+use std::future::{Future, IntoFuture};
 use std::pin::Pin;
 use tokio::sync::mpsc::Sender;
 use topos_api::grpc::checkpoints::TargetStreamPosition;
@@ -14,9 +14,7 @@ use tracing::{error, info};
 use uuid::Uuid;
 
 type TargetSubnetStreamPositions = HashMap<SubnetId, HashMap<SubnetId, TargetStreamPosition>>;
-
-pub(crate) type SyncTasks =
-    FuturesUnordered<Pin<Box<dyn Future<Output = (Uuid, TaskStatus)> + Send + 'static>>>;
+pub(crate) type RunningTasks = FuturesUnordered<Pin<Box<dyn Future<Output = TaskStatus> + Send>>>;
 
 /// Status of a sync task
 ///
@@ -29,6 +27,8 @@ pub(crate) enum TaskStatus {
     Error,
     /// The sync task exited gracefully and is done pushing certificates to the stream
     Done,
+    /// The sync task was cancelled externally
+    Cancelled,
 }
 
 pub(crate) struct Task {
@@ -37,6 +37,7 @@ pub(crate) struct Task {
     pub(crate) target_subnet_stream_positions: TargetSubnetStreamPositions,
     pub(crate) storage: StorageClient,
     pub(crate) notifier: Sender<StreamCommand>,
+    pub(crate) exit_signal: tokio::sync::oneshot::Receiver<()>,
 }
 
 impl Task {
@@ -45,104 +46,128 @@ impl Task {
         target_subnet_stream_positions: TargetSubnetStreamPositions,
         storage: StorageClient,
         notifier: Sender<StreamCommand>,
-    ) -> Self {
-        Self {
-            status: TaskStatus::Running,
-            stream_id,
-            target_subnet_stream_positions,
-            storage,
-            notifier,
-        }
+    ) -> (tokio::sync::oneshot::Sender<()>, Self) {
+        let (exit_sender, exit_receiver) = tokio::sync::oneshot::channel();
+        (
+            exit_sender,
+            Self {
+                status: TaskStatus::Running,
+                stream_id,
+                target_subnet_stream_positions,
+                storage,
+                notifier,
+                exit_signal: exit_receiver,
+            },
+        )
     }
+}
 
-    pub(crate) async fn run(&mut self) {
-        info!("Sync task started for stream {}", self.stream_id);
-        let mut collector: Vec<(CertificateDelivered, FetchCertificatesPosition)> = Vec::new();
+impl IntoFuture for Task {
+    type Output = TaskStatus;
 
-        for (target_subnet_id, mut source) in self.target_subnet_stream_positions {
-            let source_subnet_list = self
-                .storage
-                .get_target_source_subnet_list(target_subnet_id)
-                .await;
+    type IntoFuture = Pin<Box<dyn Future<Output = Self::Output> + Send + 'static>>;
 
-            info!(
-                "Stream sync task detected {:?} as source list",
-                source_subnet_list
-            );
-            if let Ok(source_subnet_list) = source_subnet_list {
-                for source_subnet_id in source_subnet_list {
-                    if let Entry::Vacant(entry) = source.entry(source_subnet_id) {
-                        entry.insert(TargetStreamPosition {
-                            target_subnet_id,
-                            source_subnet_id,
-                            position: 0,
-                            certificate_id: None,
-                        });
+    fn into_future(mut self) -> Self::IntoFuture {
+        Box::pin(async move {
+            info!("Sync task started for stream {}", self.stream_id);
+            let mut collector: Vec<(CertificateDelivered, FetchCertificatesPosition)> = Vec::new();
+
+            for (target_subnet_id, mut source) in &mut self.target_subnet_stream_positions {
+                if self.exit_signal.try_recv().is_ok() {
+                    self.status = TaskStatus::Cancelled;
+                    return TaskStatus::Cancelled;
+                }
+                let source_subnet_list = self
+                    .storage
+                    .get_target_source_subnet_list(target_subnet_id.clone())
+                    .await;
+
+                info!(
+                    "Stream sync task detected {:?} as source list",
+                    source_subnet_list
+                );
+                if let Ok(source_subnet_list) = source_subnet_list {
+                    for source_subnet_id in source_subnet_list {
+                        if let Entry::Vacant(entry) = source.entry(source_subnet_id) {
+                            entry.insert(TargetStreamPosition {
+                                target_subnet_id: *target_subnet_id,
+                                source_subnet_id,
+                                position: 0,
+                                certificate_id: None,
+                            });
+                        }
+                    }
+                }
+
+                for (
+                    _,
+                    TargetStreamPosition {
+                        target_subnet_id,
+                        source_subnet_id,
+                        position,
+                        ..
+                    },
+                ) in source
+                {
+                    if self.exit_signal.try_recv().is_ok() {
+                        self.status = TaskStatus::Cancelled;
+                        return TaskStatus::Cancelled;
+                    }
+                    if let Ok(certificates_with_positions) = self
+                        .storage
+                        .fetch_certificates(FetchCertificatesFilter::Target {
+                            target_stream_position: CertificateTargetStreamPosition {
+                                target_subnet_id: *target_subnet_id,
+                                source_subnet_id: *source_subnet_id,
+                                position: (*position).into(),
+                            },
+                            limit: 100,
+                        })
+                        .await
+                    {
+                        collector.extend(certificates_with_positions)
                     }
                 }
             }
 
-            for (
-                _,
-                TargetStreamPosition {
+            for (CertificateDelivered { certificate, .. }, position) in collector {
+                info!(
+                    "Stream sync task for {} is sending {}",
+                    self.stream_id, certificate.id
+                );
+
+                if let FetchCertificatesPosition::Target(CertificateTargetStreamPosition {
                     target_subnet_id,
                     source_subnet_id,
                     position,
-                    ..
-                },
-            ) in source
-            {
-                if let Ok(certificates_with_positions) = self
-                    .storage
-                    .fetch_certificates(FetchCertificatesFilter::Target {
-                        target_stream_position: CertificateTargetStreamPosition {
-                            target_subnet_id,
-                            source_subnet_id,
-                            position: position.into(),
-                        },
-                        limit: 100,
-                    })
-                    .await
+                }) = position
                 {
-                    collector.extend(certificates_with_positions)
-                }
-            }
-        }
-
-        for (CertificateDelivered { certificate, .. }, position) in collector {
-            info!(
-                "Stream sync task for {} is sending {}",
-                self.stream_id, certificate.id
-            );
-
-            if let FetchCertificatesPosition::Target(CertificateTargetStreamPosition {
-                target_subnet_id,
-                source_subnet_id,
-                position,
-            }) = position
-            {
-                if let Err(e) = self
-                    .notifier
-                    .send(StreamCommand::PushCertificate {
-                        positions: vec![TargetStreamPosition {
-                            target_subnet_id,
-                            source_subnet_id,
-                            position: *position,
-                            certificate_id: Some(certificate.id),
-                        }],
-                        certificate,
-                    })
-                    .await
-                {
-                    error!("Error sending certificate to stream: {}", e);
+                    if let Err(e) = self
+                        .notifier
+                        .send(StreamCommand::PushCertificate {
+                            positions: vec![TargetStreamPosition {
+                                target_subnet_id,
+                                source_subnet_id,
+                                position: *position,
+                                certificate_id: Some(certificate.id),
+                            }],
+                            certificate,
+                        })
+                        .await
+                    {
+                        error!("Error sending certificate to stream: {}", e);
+                        self.status = TaskStatus::Error;
+                        return TaskStatus::Error;
+                    }
+                } else {
+                    error!("Invalid certificate position fetched");
                     self.status = TaskStatus::Error;
+                    return TaskStatus::Error;
                 }
-            } else {
-                error!("Invalid certificate position fetched");
-                self.status = TaskStatus::Error;
             }
-        }
 
-        self.status = TaskStatus::Done;
+            self.status = TaskStatus::Done;
+            return TaskStatus::Done;
+        })
     }
 }

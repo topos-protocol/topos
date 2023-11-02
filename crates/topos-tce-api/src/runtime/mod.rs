@@ -1,5 +1,5 @@
 use futures::{stream::FuturesUnordered, FutureExt, StreamExt, TryFutureExt};
-use std::future::Future;
+use std::future::{Future, IntoFuture};
 use std::{
     collections::{HashMap, HashSet},
     pin::Pin,
@@ -45,8 +45,7 @@ pub(crate) use self::commands::InternalRuntimeCommand;
 pub use self::commands::RuntimeCommand;
 pub use self::events::RuntimeEvent;
 
-use crate::runtime::task::Task;
-use task::SyncTasks;
+use crate::runtime::task::{RunningTasks, Task, TaskStatus};
 
 pub(crate) type Streams =
     FuturesUnordered<Pin<Box<dyn Future<Output = Result<Uuid, StreamError>> + Send>>>;
@@ -54,9 +53,9 @@ pub(crate) type Streams =
 pub struct Runtime {
     /// Map of sync tasks and their stream id, so we can cancel them when a new stream
     /// with the same id is registered
-    pub(crate) tasks: HashMap<Uuid, JoinHandle<()>>,
+    pub(crate) tasks: HashMap<Uuid, oneshot::Sender<()>>,
     /// Sync tasks that were registered for this node.
-    pub(crate) running_tasks: SyncTasks,
+    pub(crate) running_tasks: RunningTasks,
 
     pub(crate) broadcast_stream: broadcast::Receiver<CertificateDeliveredWithPositions>,
 
@@ -137,6 +136,10 @@ impl Runtime {
 
                 Some(command) = self.runtime_command_receiver.recv() => {
                     self.handle_runtime_command(command).await;
+                }
+
+                Some(result) = self.running_tasks.next() => {
+                    info!("Task result");
                 }
             }
         };
@@ -294,8 +297,9 @@ impl Runtime {
             } => {
                 info!("Stream {stream_id} is registered as subscriber");
 
-                if let Some(task) = self.tasks.get(&stream_id) {
-                    task.abort();
+                if let Some(exit_sender) = self.tasks.remove(&stream_id) {
+                    // Cancel the previous task
+                    let _ = exit_sender.send(());
                 }
 
                 let storage = self.storage.clone();
@@ -321,12 +325,12 @@ impl Runtime {
                             .insert(stream_id);
                     }
 
-                    let mut task =
+                    let (exit_sender, mut task) =
                         Task::new(stream_id, target_subnet_stream_positions, storage, notifier);
 
-                    self.running_tasks.push(task.run());
+                    self.running_tasks.push(task.into_future());
 
-                    self.tasks.push(stream_id);
+                    self.tasks.insert(stream_id, exit_sender);
                 }
             }
 
