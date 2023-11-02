@@ -26,9 +26,9 @@ topos-crypto = { path = "../topos-crypto" }
 
 [dev-dependencies]
 criterion = { version = "0.5.1", features = ["async_futures", "async_tokio"] }
+rstest = { workspace = true, features = ["async-timeout"] }
 test-log.workspace = true
 env_logger.workspace = true
-rstest.workspace = true
 rand.workspace = true
 hex.workspace = true
 topos-test-sdk = { path = "../topos-test-sdk/" }

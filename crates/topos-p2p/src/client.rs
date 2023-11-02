@@ -43,15 +43,21 @@ impl NetworkClient {
         Self::send_command_with_receiver(&self.sender, command, receiver).await
     }
 
-    pub fn publish<T: std::fmt::Debug + Into<Vec<u8>>>(
+    pub fn publish<T: std::fmt::Debug + prost::Message + 'static>(
         &self,
         topic: &'static str,
-        data: T,
+        message: T,
     ) -> BoxFuture<'static, Result<(), SendError<Command>>> {
-        let data = data.into();
         let network = self.sender.clone();
 
-        Box::pin(async move { network.send(Command::Gossip { topic, data }).await })
+        Box::pin(async move {
+            network
+                .send(Command::Gossip {
+                    topic,
+                    data: message.encode_to_vec(),
+                })
+                .await
+        })
     }
 
     async fn send_command_with_receiver<

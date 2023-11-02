@@ -5,7 +5,7 @@ use ethers::utils::hash_message;
 use std::str::FromStr;
 use thiserror::Error;
 
-pub use ethers::types::{Address, Signature, H160};
+pub use ethers::types::{Address, Signature, H160, U256};
 
 #[derive(Error, Debug)]
 pub enum MessageSignerError {

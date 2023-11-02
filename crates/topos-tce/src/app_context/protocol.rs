@@ -1,8 +1,8 @@
-use tce_transport::{ProtocolEvents, TceCommands};
+use tce_transport::ProtocolEvents;
+use topos_core::api::grpc::tce::v1::{double_echo_request, DoubleEchoRequest, Echo, Gossip, Ready};
 use tracing::{debug, error, info};
 
 use crate::events::Events;
-use crate::messages::NetworkMessage;
 use crate::AppContext;
 
 impl AppContext {
@@ -23,12 +23,16 @@ impl AppContext {
             ProtocolEvents::Gossip { cert } => {
                 let cert_id = cert.id;
 
-                let data = NetworkMessage::from(TceCommands::OnGossip { cert });
+                let request = DoubleEchoRequest {
+                    request: Some(double_echo_request::Request::Gossip(Gossip {
+                        certificate: Some(cert.into()),
+                    })),
+                };
 
                 info!("Sending Gossip for certificate {}", cert_id);
                 if let Err(e) = self
                     .network_client
-                    .publish::<NetworkMessage>(topos_p2p::TOPOS_GOSSIP, data)
+                    .publish(topos_p2p::TOPOS_GOSSIP, request)
                     .await
                 {
                     error!("Unable to send Gossip due to error: {e}");
@@ -41,15 +45,17 @@ impl AppContext {
                 validator_id,
             } => {
                 // Send echo message
-                let data = NetworkMessage::from(TceCommands::OnEcho {
-                    certificate_id,
-                    signature,
-                    validator_id,
-                });
+                let request = DoubleEchoRequest {
+                    request: Some(double_echo_request::Request::Echo(Echo {
+                        certificate_id: Some(certificate_id.into()),
+                        signature: Some(signature.into()),
+                        validator_id: Some(validator_id.into()),
+                    })),
+                };
 
                 if let Err(e) = self
                     .network_client
-                    .publish::<NetworkMessage>(topos_p2p::TOPOS_ECHO, data)
+                    .publish(topos_p2p::TOPOS_ECHO, request)
                     .await
                 {
                     error!("Unable to send Echo due to error: {e}");
@@ -61,15 +67,17 @@ impl AppContext {
                 signature,
                 validator_id,
             } => {
-                let data = NetworkMessage::from(TceCommands::OnReady {
-                    certificate_id,
-                    signature,
-                    validator_id,
-                });
+                let request = DoubleEchoRequest {
+                    request: Some(double_echo_request::Request::Ready(Ready {
+                        certificate_id: Some(certificate_id.into()),
+                        signature: Some(signature.into()),
+                        validator_id: Some(validator_id.into()),
+                    })),
+                };
 
                 if let Err(e) = self
                     .network_client
-                    .publish::<NetworkMessage>(topos_p2p::TOPOS_READY, data)
+                    .publish(topos_p2p::TOPOS_READY, request)
                     .await
                 {
                     error!("Unable to send Ready due to error: {e}");

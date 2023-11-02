@@ -77,7 +77,7 @@ pub enum TceProxyEvent {
     WatchCertificatesChannelFailed,
 }
 
-/// Configuration data for the TCE proxy, used to configure the [`TceProxyWorker`].
+/// Configuration data for the TCE proxy, used to configure the `TceProxyWorker`.
 pub struct TceProxyConfig {
     /// The [`SubnetId`] this config handles certificate proxying for.
     pub subnet_id: SubnetId,

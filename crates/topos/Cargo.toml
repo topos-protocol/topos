@@ -60,7 +60,6 @@ serde_json.workspace = true
 test-log.workspace = true
 env_logger.workspace = true
 rand.workspace = true
-async-stream.workspace = true
 futures.workspace = true
 libp2p = { workspace = true, features = ["identify"] }
 assert_cmd = "2.0.6"

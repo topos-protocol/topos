@@ -1,9 +1,27 @@
 version: "3.3"
 services:
+  init:
+    container_name: init
+    command: sh -c "cp /tmp/libp2p_keys.json /tmp/shared/libp2p_keys.json && \
+                    cp /tmp/validator_bls_keys.json /tmp/shared/validator_bls_keys.json && \
+                    cp /tmp/validator_keys.json /tmp/shared/validator_keys.json && \
+                    chmod a+rwx /tmp/shared/* && ls /tmp && ls /tmp/shared"
+    image: debian:bullseye-slim
+    volumes:
+      - shared:/tmp/shared
+      - ./libp2p_keys.json:/tmp/libp2p_keys.json
+      - ./validator_bls_keys.json:/tmp/validator_bls_keys.json
+      - ./validator_keys.json:/tmp/validator_keys.json
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/shared/libp2p_keys.json"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
 
   boot:
     container_name: boot
-    command: boot node up --name test --home /tmp/node_config --no-edge-process
+    command: node up --name boot --home /tmp/node_config --no-edge-process
     image: ghcr.io/topos-protocol/topos:main
     init: true
     labels:
@@ -14,16 +32,18 @@ services:
       interval: 15s
     volumes:
       - shared:/tmp/shared
-      - ./node_config:/tmp/node_config
-      - ./libp2p_keys.json:/tmp/shared/libp2p_keys.json
-      - ./validator_bls_keys.json:/tmp/shared/validator_bls_keys.json
-      - ./validator_keys.json:/tmp/shared/validator_keys.json
+      - ./node_config/node/boot/config.toml:/tmp/node_config/node/boot/config.toml:ro
+      - ./node_config/node/boot/libp2p/:/tmp/node_config/node/boot/libp2p/:ro
+      - ./node_config/node/boot/consensus/:/tmp/node_config/node/boot/consensus/:ro
+      - ./node_config/subnet/topos/genesis.json:/tmp/node_config/subnet/topos/genesis.json:ro
     build:
       context: ../
       args:
         - TOOLCHAIN_VERSION=stable
-        - FEATURES=tce,network
+        - FEATURES=tce,network,node,subnet
     depends_on:
+      init:
+        condition: service_completed_successfully
       autoheal:
         condition: service_started
     ports:
@@ -36,7 +56,6 @@ services:
       - env/node.env
       - env/telemetry.env
     environment:
-      - TCE_LOCAL_KS=1 # 12D3KooWRhFCXBhmsMnur3up3vJsDoqWh4c39PKXgSWwzAzDHNLn
       - RUST_LOG=topos=debug,topos_tce_storage=info,topos_tce_synchronizer=info
 
   peer:
@@ -50,16 +69,16 @@ services:
       interval: 5s
     volumes:
       - shared:/tmp/shared
-      - ./node_config:/tmp/node_config
-      - ./libp2p_keys.json:/tmp/shared/libp2p_keys.json
-      - ./validator_bls_keys.json:/tmp/shared/validator_bls_keys.json
-      - ./validator_keys.json:/tmp/shared/validator_keys.json
+      - ./node_config/node/test/config.toml:/tmp/node_config/node/test/config.toml
+      - ./node_config/subnet/topos/genesis.json:/tmp/node_config/subnet/topos/genesis.json
     build:
       context: ../
       args:
         - TOOLCHAIN_VERSION=stable
-        - FEATURES=tce
+        - FEATURES=tce,network,node,subnet
     depends_on:
+      init:
+        condition: service_completed_successfully
       autoheal:
         condition: service_started
       boot:
@@ -70,7 +89,7 @@ services:
       - "3000"
       - "4000"
     deploy:
-      replicas: 2
+      replicas: 14
     env_file:
       - env/base.env
       - env/node.env
@@ -86,10 +105,8 @@ services:
       "autoheal": "true"
     volumes:
       - shared:/tmp/shared
-      - ./node_config:/tmp/node_config
-      - ./libp2p_keys.json:/tmp/shared/libp2p_keys.json
-      - ./validator_bls_keys.json:/tmp/shared/validator_bls_keys.json
-      - ./validator_keys.json:/tmp/shared/validator_keys.json
+      - ./node_config/node/test/config.toml:/tmp/node_config/node/test/config.toml
+      - ./node_config/subnet/topos/genesis.json:/tmp/node_config/subnet/topos/genesis.json
     build:
       context: ../
       args:
@@ -144,7 +161,7 @@ services:
       - check
     init: true
     volumes:
-      - shared:/tmp/shared
+      - ./peer_nodes.json:/tmp/peer_nodes.json
     build:
       context: ../
       args:
@@ -159,7 +176,7 @@ services:
     environment:
       - LOCAL_TEST_NET=true
       - RUST_LOG=info,topos=info
-      - TARGET_NODES_PATH=/tmp/shared/peer_nodes.json
+      - TARGET_NODES_PATH=/tmp/peer_nodes.json
 
   autoheal:
     container_name: autoheal

@@ -7400,6 +7400,7 @@ dependencies = [
  "tokio-stream",
  "tonic 0.10.2",
  "tonic-build",
+ "topos-crypto",
  "topos-test-sdk",
  "topos-uci",
  "tracing",
@@ -7476,6 +7477,7 @@ dependencies = [
  "keccak-hash",
  "rstest",
  "secp256k1",
+ "serde",
  "thiserror",
  "topos-core",
 ]
@@ -7507,6 +7509,7 @@ dependencies = [
  "libp2p-swarm-test",
  "pin-project",
  "prometheus-client",
+ "prost 0.12.1",
  "rand",
  "rstest",
  "serde",
@@ -7850,6 +7853,7 @@ dependencies = [
 name = "topos-test-sdk"
 version = "0.1.0"
 dependencies = [
+ "async-stream",
  "async-trait",
  "ethers",
  "futures",

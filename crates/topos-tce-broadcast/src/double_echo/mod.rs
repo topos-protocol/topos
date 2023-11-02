@@ -218,9 +218,8 @@ impl DoubleEcho {
 }
 
 impl DoubleEcho {
-    /// Called to process potentially new certificate:
-    /// - either submitted from API ( [tce_transport::TceCommands::Broadcast] command)
-    /// - or received through the gossip (first step of protocol exchange)
+    /// Called to process new certificate submitted from the API or received on
+    /// the gossip p2p layer
     pub async fn broadcast(&mut self, cert: Certificate, origin: bool) {
         info!("🙌 Starting broadcasting the Certificate {}", &cert.id);
         if self.cert_pre_broadcast_check(&cert).is_err() {

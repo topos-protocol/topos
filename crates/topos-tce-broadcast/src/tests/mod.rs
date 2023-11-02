@@ -166,7 +166,7 @@ async fn reach_delivery_threshold(double_echo: &mut DoubleEcho, cert: &Certifica
 #[rstest]
 #[case::small_config(small_config())]
 #[case(medium_config())]
-#[tokio::test]
+#[test_log::test(tokio::test)]
 #[trace]
 #[timeout(Duration::from_secs(10))]
 async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams) {
@@ -218,7 +218,7 @@ async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams)
 #[rstest]
 #[case::small_config(small_config())]
 #[case(medium_config())]
-#[tokio::test]
+#[test_log::test(tokio::test)]
 #[trace]
 #[timeout(Duration::from_secs(4))]
 async fn trigger_ready_when_reached_enough_ready(#[case] params: TceParams) {

@@ -63,12 +63,8 @@ pub(crate) async fn handle_command(
             .await
             .map_err(Box::<dyn std::error::Error>::from)
             {
-                Err(_) => {
-                    error!("Check failed due to timeout");
-                    std::process::exit(1);
-                }
-                Ok(Err(errors)) => {
-                    error!("Check failed due to errors: {:?}", errors);
+                Err(e) => {
+                    error!("Check failed: {:?}", e);
                     std::process::exit(1);
                 }
                 _ => {

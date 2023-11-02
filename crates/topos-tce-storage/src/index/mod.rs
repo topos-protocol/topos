@@ -1,10 +1,11 @@
-use std::path::PathBuf;
+use std::{fs::create_dir_all, path::PathBuf};
 
 use rocksdb::ColumnFamilyDescriptor;
 use topos_core::{
     types::stream::{CertificateTargetStreamPosition, Position},
     uci::{CertificateId, SubnetId},
 };
+use tracing::warn;
 
 use crate::{
     constant::cfs,
@@ -32,6 +33,10 @@ pub struct IndexTables {
 impl IndexTables {
     pub fn open(mut path: PathBuf) -> Self {
         path.push("index");
+        if !path.exists() {
+            warn!("Path {:?} does not exist, creating it", path);
+            create_dir_all(&path).expect("Cannot create IndexTables directory");
+        }
         let mut options_stream = default_options();
         options_stream.set_prefix_extractor(rocksdb::SliceTransform::create_fixed_prefix(
             constants::TARGET_STREAMS_PREFIX_SIZE,

@@ -64,6 +64,12 @@ pub mod shared {
 
     #[path = "conversions/shared/v1/certificate.rs"]
     pub mod v1_conversions_certificate;
+
+    #[path = "conversions/shared/v1/signature.rs"]
+    pub mod v1_conversions_signature;
+
+    #[path = "conversions/shared/v1/validator_id.rs"]
+    pub mod v1_conversions_validator_id;
 }
 
 #[path = "."]
