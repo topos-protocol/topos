@@ -1445,3 +1445,53 @@ pub mod console_service_server {
         const NAME: &'static str = "topos.tce.v1.ConsoleService";
     }
 }
+#[derive(serde::Deserialize, serde::Serialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Gossip {
+    #[prost(message, optional, tag = "1")]
+    pub certificate: ::core::option::Option<super::super::uci::v1::Certificate>,
+}
+#[derive(serde::Deserialize, serde::Serialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Echo {
+    #[prost(message, optional, tag = "1")]
+    pub certificate_id: ::core::option::Option<super::super::shared::v1::CertificateId>,
+    #[prost(message, optional, tag = "2")]
+    pub signature: ::core::option::Option<super::super::shared::v1::EcdsaSignature>,
+    #[prost(message, optional, tag = "3")]
+    pub validator_id: ::core::option::Option<super::super::shared::v1::ValidatorId>,
+}
+#[derive(serde::Deserialize, serde::Serialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Ready {
+    #[prost(message, optional, tag = "1")]
+    pub certificate_id: ::core::option::Option<super::super::shared::v1::CertificateId>,
+    #[prost(message, optional, tag = "2")]
+    pub signature: ::core::option::Option<super::super::shared::v1::EcdsaSignature>,
+    #[prost(message, optional, tag = "3")]
+    pub validator_id: ::core::option::Option<super::super::shared::v1::ValidatorId>,
+}
+#[derive(serde::Deserialize, serde::Serialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct DoubleEchoRequest {
+    #[prost(oneof = "double_echo_request::Request", tags = "1, 2, 3")]
+    pub request: ::core::option::Option<double_echo_request::Request>,
+}
+/// Nested message and enum types in `DoubleEchoRequest`.
+pub mod double_echo_request {
+    #[derive(serde::Deserialize, serde::Serialize)]
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Request {
+        #[prost(message, tag = "1")]
+        Gossip(super::Gossip),
+        #[prost(message, tag = "2")]
+        Echo(super::Echo),
+        #[prost(message, tag = "3")]
+        Ready(super::Ready),
+    }
+}

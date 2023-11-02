@@ -5,6 +5,7 @@ pub mod keys;
 pub mod keystore;
 pub mod messages;
 pub mod signatures;
+pub mod validator_id;
 
 #[derive(Debug, Error)]
 pub enum Error {

@@ -27,7 +27,6 @@ use tracing::{debug, warn};
 mod app_context;
 pub mod config;
 pub mod events;
-pub mod messages;
 
 pub use app_context::AppContext;
 

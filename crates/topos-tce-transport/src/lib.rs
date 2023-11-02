@@ -34,43 +34,6 @@ impl ReliableBroadcastParams {
     }
 }
 
-/// Protocol commands
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum TceCommands {
-    /// Initialize the instance, signals the environment is ready
-    StartUp,
-    /// Shuts down the instance
-    Shutdown,
-    /// Entry point for new certificate to submit as initial sender
-    OnBroadcast { cert: Certificate },
-    /// Given peer sent EchoSubscribe request
-    OnEchoSubscribeReq {},
-    /// Given peer sent ReadySubscribe request
-    OnReadySubscribeReq {},
-    /// Given peer replied ok to the EchoSubscribe request
-    OnEchoSubscribeOk {},
-    /// Given peer replied ok to the ReadySubscribe request
-    OnReadySubscribeOk {},
-    /// Upon new certificate to start delivery
-    OnStartDelivery { cert: Certificate },
-    /// Received G-set message
-    OnGossip { cert: Certificate },
-    /// When echo reply received
-    OnEcho {
-        certificate_id: CertificateId,
-        signature: Signature,
-        validator_id: ValidatorId,
-    },
-    /// When ready reply received
-    OnReady {
-        certificate_id: CertificateId,
-        signature: Signature,
-        validator_id: ValidatorId,
-    },
-    /// Given peer replied ok to the double echo request
-    OnDoubleEchoOk {},
-}
-
 /// Protocol events
 #[derive(Clone, Debug)]
 pub enum ProtocolEvents {

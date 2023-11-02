@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package topos.tce.v1;
+
+import "topos/shared/v1/certificate.proto";
+import "topos/shared/v1/signature.proto";
+import "topos/shared/v1/validator_id.proto";
+import "topos/uci/v1/certification.proto";
+
+message Gossip {
+  topos.uci.v1.Certificate certificate = 1;
+}
+
+message Echo {
+  topos.shared.v1.CertificateId certificate_id = 1;
+  topos.shared.v1.EcdsaSignature signature = 2;
+  topos.shared.v1.ValidatorId validator_id = 3;
+}
+
+message Ready {
+  topos.shared.v1.CertificateId certificate_id = 1;
+  topos.shared.v1.EcdsaSignature signature = 2;
+  topos.shared.v1.ValidatorId validator_id = 3;
+}
+
+message DoubleEchoRequest {
+  oneof request {
+    Gossip gossip = 1;
+    Echo echo = 2;
+    Ready ready = 3;
+  }
+}
