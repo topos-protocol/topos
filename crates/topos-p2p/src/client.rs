@@ -50,9 +50,8 @@ impl NetworkClient {
         topic: &'static str,
         message: T,
     ) -> BoxFuture<'static, Result<(), SendError<Command>>> {
-        let mut data = BytesMut::new();
-
         let network = self.sender.clone();
+        
         Box::pin(async move {
             network
                 .send(Command::Gossip {
