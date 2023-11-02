@@ -66,12 +66,18 @@ impl AppContext {
                     }) => {
                         let channel = self.tce_cli.get_double_echo_channel();
                         spawn(async move {
-                            let certificate_id = certificate_id.try_into().map_err(|e| {
-                                error!("Invalid certificate id, could not send Echo message: {e}");
+                            let certificate_id = certificate_id.clone().try_into().map_err(|e| {
+                                error!(
+                                    "Invalid certificate id, could not process Echo message: {e}, \
+                                     certificate_id: {certificate_id}"
+                                );
                                 e
                             });
-                            let validator_id = validator_id.try_into().map_err(|e| {
-                                error!("Invalid validator id, could not send Echo message: {e}");
+                            let validator_id = validator_id.clone().try_into().map_err(|e| {
+                                error!(
+                                    "Invalid validator id, could not process Echo message: {e}, \
+                                     validator_id: {validator_id}"
+                                );
                                 e
                             });
                             if let (Ok(certificate_id), Ok(validator_id)) =
@@ -85,7 +91,7 @@ impl AppContext {
                                     })
                                     .await
                                 {
-                                    error!("Unable to send Echo, {:?}", e);
+                                    error!("Unable to pass received Echo message, {:?}", e);
                                 }
                             } else {
                                 error!("Unable to process Echo message due to invalid data");
@@ -99,12 +105,18 @@ impl AppContext {
                     }) => {
                         let channel = self.tce_cli.get_double_echo_channel();
                         spawn(async move {
-                            let certificate_id = certificate_id.try_into().map_err(|e| {
-                                error!("Invalid certificate id, could not send Ready message: {e}");
+                            let certificate_id = certificate_id.clone().try_into().map_err(|e| {
+                                error!(
+                                    "Invalid certificate id, could not process Ready message: \
+                                     {e}, certificate_id: {certificate_id}"
+                                );
                                 e
                             });
-                            let validator_id = validator_id.try_into().map_err(|e| {
-                                error!("Invalid validator id, could not send Ready message: {e}");
+                            let validator_id = validator_id.clone().try_into().map_err(|e| {
+                                error!(
+                                    "Invalid validator id, could not process Ready message: {e}, \
+                                     validator_id: {validator_id}"
+                                );
                                 e
                             });
                             if let (Ok(certificate_id), Ok(validator_id)) =
@@ -118,8 +130,10 @@ impl AppContext {
                                     })
                                     .await
                                 {
-                                    error!("Unable to send Ready, {:?}", e);
+                                    error!("Unable to pass received Ready message, {:?}", e);
                                 }
+                            } else {
+                                error!("Unable to process Ready message due to invalid data");
                             }
                         });
                     }
