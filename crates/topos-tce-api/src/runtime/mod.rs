@@ -53,9 +53,9 @@ pub(crate) type Streams =
 pub struct Runtime {
     /// Map of sync tasks and their stream id, so we can cancel them when a new stream
     /// with the same id is registered
-    pub(crate) tasks: HashMap<Uuid, CancellationToken>,
+    pub(crate) sync_tasks: HashMap<Uuid, CancellationToken>,
     /// Sync tasks that were registered for this node.
-    pub(crate) running_tasks: RunningTasks,
+    pub(crate) running_sync_tasks: RunningTasks,
 
     pub(crate) broadcast_stream: broadcast::Receiver<CertificateDeliveredWithPositions>,
 
@@ -138,7 +138,7 @@ impl Runtime {
                     self.handle_runtime_command(command).await;
                 }
 
-                Some(result) = self.running_tasks.next() => {
+                Some(result) = self.running_sync_tasks.next() => {
                     info!("The task has been completed with result: {:?}", result);
                 }
             }
@@ -297,7 +297,7 @@ impl Runtime {
             } => {
                 info!("Stream {stream_id} is registered as subscriber");
 
-                if let Some(cancel_token) = self.tasks.remove(&stream_id) {
+                if let Some(cancel_token) = self.sync_tasks.remove(&stream_id) {
                     // Cancel the previous task
                     let _ = cancel_token.cancel();
                 }
@@ -337,9 +337,9 @@ impl Runtime {
                         cancel_token,
                     );
 
-                    self.running_tasks.push(task.into_future());
+                    self.running_sync_tasks.push(task.into_future());
 
-                    self.tasks.insert(stream_id, cloned_cancel_token);
+                    self.sync_tasks.insert(stream_id, cloned_cancel_token);
                 }
             }
 
