@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::future::{Future, IntoFuture};
 use std::pin::Pin;
 use tokio::sync::mpsc::Sender;
+use tokio_util::sync::CancellationToken;
 use topos_api::grpc::checkpoints::TargetStreamPosition;
 use topos_core::types::stream::CertificateTargetStreamPosition;
 use topos_core::types::CertificateDelivered;
@@ -14,13 +15,15 @@ use tracing::{error, info};
 use uuid::Uuid;
 
 type TargetSubnetStreamPositions = HashMap<SubnetId, HashMap<SubnetId, TargetStreamPosition>>;
-pub(crate) type RunningTasks = FuturesUnordered<Pin<Box<dyn Future<Output = TaskStatus> + Send>>>;
+pub(crate) type RunningTasks =
+    FuturesUnordered<Pin<Box<dyn Future<Output = SyncTaskStatus> + Send>>>;
 
 /// Status of a sync task
 ///
 /// When registering a stream, a sync task is started to fetch certificates from the storage
 /// and push them to the stream.
-pub(crate) enum TaskStatus {
+#[derive(Debug)]
+pub(crate) enum SyncTaskStatus {
     ///  The sync task is active and started running
     Running,
     /// The sync task failed and reported an error
@@ -31,39 +34,43 @@ pub(crate) enum TaskStatus {
     Cancelled,
 }
 
-pub(crate) struct Task {
-    pub(crate) status: TaskStatus,
+pub(crate) struct SyncTask {
+    /// The status of the SyncTask. Can be used to check if the task is still running
+    pub(crate) status: SyncTaskStatus,
+    /// The stream with which the SyncTask is connected and pushes certificates to
     pub(crate) stream_id: Uuid,
+    /// The positions of each subnet in the stream of where the stream is currently left of
     pub(crate) target_subnet_stream_positions: TargetSubnetStreamPositions,
+    /// The connection to the database layer through a StorageClient
     pub(crate) storage: StorageClient,
+    /// The notifier is used to send certificates to the stream
     pub(crate) notifier: Sender<StreamCommand>,
-    pub(crate) exit_signal: tokio::sync::oneshot::Receiver<()>,
+    /// If a new stream is registered with the same Uuid, the sync task will be cancelled
+    pub(crate) cancel_token: CancellationToken,
 }
 
-impl Task {
+impl SyncTask {
+    /// Creating a new SyncTask which will fetch certificates from the storage and pushes them to the stream
     pub(crate) fn new(
         stream_id: Uuid,
         target_subnet_stream_positions: TargetSubnetStreamPositions,
         storage: StorageClient,
         notifier: Sender<StreamCommand>,
-    ) -> (tokio::sync::oneshot::Sender<()>, Self) {
-        let (exit_sender, exit_receiver) = tokio::sync::oneshot::channel();
-        (
-            exit_sender,
-            Self {
-                status: TaskStatus::Running,
-                stream_id,
-                target_subnet_stream_positions,
-                storage,
-                notifier,
-                exit_signal: exit_receiver,
-            },
-        )
+        cancel_token: CancellationToken,
+    ) -> Self {
+        Self {
+            status: SyncTaskStatus::Running,
+            stream_id,
+            target_subnet_stream_positions,
+            storage,
+            notifier,
+            cancel_token,
+        }
     }
 }
 
-impl IntoFuture for Task {
-    type Output = TaskStatus;
+impl IntoFuture for SyncTask {
+    type Output = SyncTaskStatus;
 
     type IntoFuture = Pin<Box<dyn Future<Output = Self::Output> + Send + 'static>>;
 
@@ -72,10 +79,10 @@ impl IntoFuture for Task {
             info!("Sync task started for stream {}", self.stream_id);
             let mut collector: Vec<(CertificateDelivered, FetchCertificatesPosition)> = Vec::new();
 
-            for (target_subnet_id, mut source) in &mut self.target_subnet_stream_positions {
-                if self.exit_signal.try_recv().is_ok() {
-                    self.status = TaskStatus::Cancelled;
-                    return TaskStatus::Cancelled;
+            for (target_subnet_id, source) in &mut self.target_subnet_stream_positions {
+                if self.cancel_token.is_cancelled() {
+                    self.status = SyncTaskStatus::Cancelled;
+                    return SyncTaskStatus::Cancelled;
                 }
                 let source_subnet_list = self
                     .storage
@@ -109,9 +116,9 @@ impl IntoFuture for Task {
                     },
                 ) in source
                 {
-                    if self.exit_signal.try_recv().is_ok() {
-                        self.status = TaskStatus::Cancelled;
-                        return TaskStatus::Cancelled;
+                    if self.cancel_token.is_cancelled() {
+                        self.status = SyncTaskStatus::Cancelled;
+                        return SyncTaskStatus::Cancelled;
                     }
                     if let Ok(certificates_with_positions) = self
                         .storage
@@ -156,18 +163,18 @@ impl IntoFuture for Task {
                         .await
                     {
                         error!("Error sending certificate to stream: {}", e);
-                        self.status = TaskStatus::Error;
-                        return TaskStatus::Error;
+                        self.status = SyncTaskStatus::Error;
+                        return SyncTaskStatus::Error;
                     }
                 } else {
                     error!("Invalid certificate position fetched");
-                    self.status = TaskStatus::Error;
-                    return TaskStatus::Error;
+                    self.status = SyncTaskStatus::Error;
+                    return SyncTaskStatus::Error;
                 }
             }
 
-            self.status = TaskStatus::Done;
-            return TaskStatus::Done;
+            self.status = SyncTaskStatus::Done;
+            return SyncTaskStatus::Done;
         })
     }
 }

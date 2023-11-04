@@ -9,8 +9,8 @@ use std::{
 use tokio::{
     sync::mpsc::{self, Receiver, Sender},
     sync::{broadcast, oneshot},
-    task::JoinHandle,
 };
+use tokio_util::sync::CancellationToken;
 use tonic_health::server::HealthReporter;
 use topos_core::api::grpc::checkpoints::TargetStreamPosition;
 use topos_core::api::grpc::tce::v1::api_service_server::ApiServiceServer;
@@ -33,7 +33,7 @@ mod commands;
 pub mod error;
 mod events;
 
-mod task;
+mod sync_task;
 #[cfg(test)]
 mod tests;
 
@@ -45,7 +45,7 @@ pub(crate) use self::commands::InternalRuntimeCommand;
 pub use self::commands::RuntimeCommand;
 pub use self::events::RuntimeEvent;
 
-use crate::runtime::task::{RunningTasks, Task, TaskStatus};
+use crate::runtime::sync_task::{RunningTasks, SyncTask};
 
 pub(crate) type Streams =
     FuturesUnordered<Pin<Box<dyn Future<Output = Result<Uuid, StreamError>> + Send>>>;
@@ -53,7 +53,7 @@ pub(crate) type Streams =
 pub struct Runtime {
     /// Map of sync tasks and their stream id, so we can cancel them when a new stream
     /// with the same id is registered
-    pub(crate) tasks: HashMap<Uuid, oneshot::Sender<()>>,
+    pub(crate) tasks: HashMap<Uuid, CancellationToken>,
     /// Sync tasks that were registered for this node.
     pub(crate) running_tasks: RunningTasks,
 
@@ -139,7 +139,7 @@ impl Runtime {
                 }
 
                 Some(result) = self.running_tasks.next() => {
-                    info!("Task result");
+                    info!("The task has been completed with result: {:?}", result);
                 }
             }
         };
@@ -297,9 +297,9 @@ impl Runtime {
             } => {
                 info!("Stream {stream_id} is registered as subscriber");
 
-                if let Some(exit_sender) = self.tasks.remove(&stream_id) {
+                if let Some(cancel_token) = self.tasks.remove(&stream_id) {
                     // Cancel the previous task
-                    let _ = exit_sender.send(());
+                    let _ = cancel_token.cancel();
                 }
 
                 let storage = self.storage.clone();
@@ -325,12 +325,21 @@ impl Runtime {
                             .insert(stream_id);
                     }
 
-                    let (exit_sender, mut task) =
-                        Task::new(stream_id, target_subnet_stream_positions, storage, notifier);
+                    let cancel_token = CancellationToken::new();
+
+                    let cloned_cancel_token = cancel_token.clone();
+
+                    let task = SyncTask::new(
+                        stream_id,
+                        target_subnet_stream_positions,
+                        storage,
+                        notifier,
+                        cancel_token,
+                    );
 
                     self.running_tasks.push(task.into_future());
 
-                    self.tasks.insert(stream_id, exit_sender);
+                    self.tasks.insert(stream_id, cloned_cancel_token);
                 }
             }
 
