@@ -58,6 +58,7 @@ impl SyncTask {
         notifier: Sender<StreamCommand>,
         cancel_token: CancellationToken,
     ) -> Self {
+        println!("CREATED A NEW TASK");
         Self {
             status: SyncTaskStatus::Running,
             stream_id,
@@ -76,6 +77,7 @@ impl IntoFuture for SyncTask {
 
     fn into_future(mut self) -> Self::IntoFuture {
         Box::pin(async move {
+            println!("START FUTURE");
             info!("Sync task started for stream {}", self.stream_id);
             let mut collector: Vec<(CertificateDelivered, FetchCertificatesPosition)> = Vec::new();
 
@@ -86,7 +88,7 @@ impl IntoFuture for SyncTask {
                 }
                 let source_subnet_list = self
                     .storage
-                    .get_target_source_subnet_list(target_subnet_id.clone())
+                    .get_target_source_subnet_list(*target_subnet_id)
                     .await;
 
                 info!(
@@ -106,15 +108,12 @@ impl IntoFuture for SyncTask {
                     }
                 }
 
-                for (
-                    _,
-                    TargetStreamPosition {
-                        target_subnet_id,
-                        source_subnet_id,
-                        position,
-                        ..
-                    },
-                ) in source
+                for TargetStreamPosition {
+                    target_subnet_id,
+                    source_subnet_id,
+                    position,
+                    ..
+                } in source.values_mut()
                 {
                     if self.cancel_token.is_cancelled() {
                         self.status = SyncTaskStatus::Cancelled;
@@ -174,7 +173,7 @@ impl IntoFuture for SyncTask {
             }
 
             self.status = SyncTaskStatus::Done;
-            return SyncTaskStatus::Done;
+            SyncTaskStatus::Done
         })
     }
 }

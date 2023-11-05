@@ -299,7 +299,7 @@ impl Runtime {
 
                 if let Some(cancel_token) = self.sync_tasks.remove(&stream_id) {
                     // Cancel the previous task
-                    let _ = cancel_token.cancel();
+                    cancel_token.cancel();
                 }
 
                 let storage = self.storage.clone();
