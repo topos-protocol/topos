@@ -50,7 +50,7 @@ services:
       - "9090"
       - "1340:1340"
       - "3000:3000"
-      - "4000:4000"
+      - "4030:4030"
     env_file:
       - env/base.env
       - env/node.env
@@ -87,7 +87,7 @@ services:
       - "9090"
       - "1340"
       - "3000"
-      - "4000"
+      - "4030"
     deploy:
       replicas: 14
     env_file:
@@ -121,7 +121,7 @@ services:
       - "9090"
       - "1340"
       - "3000"
-      - "4000"
+      - "4030"
     env_file:
       - env/base.env
       - env/node.env
