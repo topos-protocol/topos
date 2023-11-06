@@ -11,7 +11,7 @@ use topos_core::types::stream::CertificateTargetStreamPosition;
 use topos_core::types::CertificateDelivered;
 use topos_core::uci::SubnetId;
 use topos_tce_storage::{FetchCertificatesFilter, FetchCertificatesPosition, StorageClient};
-use tracing::{error, info};
+use tracing::{debug, error, info};
 use uuid::Uuid;
 
 type TargetSubnetStreamPositions = HashMap<SubnetId, HashMap<SubnetId, TargetStreamPosition>>;
@@ -20,7 +20,7 @@ pub(crate) type RunningTasks =
 
 /// Status of a sync task
 ///
-/// When registering a stream, a sync task is started to fetch certificates from the storage
+/// When registering a stream, a [`SyncTask`] is started to fetch certificates from the storage
 /// and push them to the stream.
 #[derive(Debug)]
 pub(crate) enum SyncTaskStatus {
@@ -34,10 +34,14 @@ pub(crate) enum SyncTaskStatus {
     Cancelled,
 }
 
+/// The [`SyncTask`] is used to fetch certificates from the storage and push them to the stream.
+/// It is created when a new stream is registered and is cancelled when a stream with the same Uuid
+/// is being started. It is using the [`StorageClient`] to fetch certificates from the storage and
+/// a [`Sender`] part of a channel to push certificates to the stream.
 pub(crate) struct SyncTask {
-    /// The status of the SyncTask. Can be used to check if the task is still running
+    /// The status of the [`SyncTask`]. Can be used to check if the task is still running
     pub(crate) status: SyncTaskStatus,
-    /// The stream with which the SyncTask is connected and pushes certificates to
+    /// The stream with which the [`SyncTask`] is connected and pushes certificates to
     pub(crate) stream_id: Uuid,
     /// The positions of each subnet in the stream of where the stream is currently left of
     pub(crate) target_subnet_stream_positions: TargetSubnetStreamPositions,
@@ -58,7 +62,6 @@ impl SyncTask {
         notifier: Sender<StreamCommand>,
         cancel_token: CancellationToken,
     ) -> Self {
-        println!("CREATED A NEW TASK");
         Self {
             status: SyncTaskStatus::Running,
             stream_id,
@@ -77,7 +80,6 @@ impl IntoFuture for SyncTask {
 
     fn into_future(mut self) -> Self::IntoFuture {
         Box::pin(async move {
-            println!("START FUTURE");
             info!("Sync task started for stream {}", self.stream_id);
             let mut collector: Vec<(CertificateDelivered, FetchCertificatesPosition)> = Vec::new();
 
@@ -137,7 +139,7 @@ impl IntoFuture for SyncTask {
             }
 
             for (CertificateDelivered { certificate, .. }, position) in collector {
-                info!(
+                debug!(
                     "Stream sync task for {} is sending {}",
                     self.stream_id, certificate.id
                 );
