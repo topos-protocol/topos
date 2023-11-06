@@ -7674,6 +7674,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-stream",
+ "tokio-util",
  "tonic 0.10.2",
  "tonic-health",
  "tonic-reflection",

@@ -145,7 +145,8 @@ impl RuntimeBuilder {
         };
 
         let runtime = Runtime {
-            sync_tasks: HashMap::new(),
+            sync_tasks: Default::default(),
+            running_sync_tasks: Default::default(),
             broadcast_stream: self
                 .broadcast_stream
                 .expect("Unable to build Runtime, Broadcast Stream is missing"),
