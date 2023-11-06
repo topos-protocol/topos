@@ -139,7 +139,7 @@ impl Runtime {
                 }
 
                 Some(result) = self.running_sync_tasks.next() => {
-                    info!("The task has been completed with result: {:?}", result);
+                    debug!("SyncTask with StreamId: {:?} resulted in {:?}", result.0, result.1);
                 }
             }
         };

@@ -4,6 +4,7 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::future::{Future, IntoFuture};
 use std::pin::Pin;
+use tokio::sync::mpsc::error::SendError;
 use tokio::sync::mpsc::Sender;
 use tokio_util::sync::CancellationToken;
 use topos_api::grpc::checkpoints::TargetStreamPosition;
@@ -16,24 +17,34 @@ use uuid::Uuid;
 
 type TargetSubnetStreamPositions = HashMap<SubnetId, HashMap<SubnetId, TargetStreamPosition>>;
 pub(crate) type RunningTasks =
-    FuturesUnordered<Pin<Box<dyn Future<Output = SyncTaskStatus> + Send>>>;
+    FuturesUnordered<Pin<Box<dyn Future<Output = (Uuid, SyncTaskStatus)> + Send>>>;
 
-/// Status of a sync task
-///
-/// When registering a stream, a [`SyncTask`] is started to fetch certificates from the storage
-/// and push them to the stream.
+/// Status of a [`SyncTask`]
 #[derive(Debug)]
 pub(crate) enum SyncTaskStatus {
     ///  The sync task is active and started running
     Running,
     /// The sync task failed and reported an error
-    Error,
+    Error(Box<SyncTaskError>),
     /// The sync task exited gracefully and is done pushing certificates to the stream
     Done,
-    /// The sync task was cancelled externally
+    /// The sync task was cancelled by a incoming stream with the same Uuid
     Cancelled,
 }
 
+#[derive(Debug)]
+pub(crate) enum SyncTaskError {
+    /// The [`SyncTask`] failed to send a certificate to the stream
+    SendingToStream {
+        error: Box<SendError<StreamCommand>>,
+    },
+    /// Invalid certificate position was being fetched
+    InvalidCertificatePosition,
+}
+
+/// When registering a stream, a [`SyncTask`] is started to fetch certificates from the storage
+/// and push them to the stream.
+///
 /// The [`SyncTask`] is used to fetch certificates from the storage and push them to the stream.
 /// It is created when a new stream is registered and is cancelled when a stream with the same Uuid
 /// is being started. It is using the [`StorageClient`] to fetch certificates from the storage and
@@ -43,7 +54,8 @@ pub(crate) struct SyncTask {
     pub(crate) status: SyncTaskStatus,
     /// The stream with which the [`SyncTask`] is connected and pushes certificates to
     pub(crate) stream_id: Uuid,
-    /// The positions of each subnet in the stream of where the stream is currently left of
+    /// A map of subnet and the subnet pair (target and source subnet id), its position and the
+    /// last certificate id delivered to the stream
     pub(crate) target_subnet_stream_positions: TargetSubnetStreamPositions,
     /// The connection to the database layer through a StorageClient
     pub(crate) storage: StorageClient,
@@ -74,26 +86,26 @@ impl SyncTask {
 }
 
 impl IntoFuture for SyncTask {
-    type Output = SyncTaskStatus;
+    type Output = (Uuid, SyncTaskStatus);
 
     type IntoFuture = Pin<Box<dyn Future<Output = Self::Output> + Send + 'static>>;
 
     fn into_future(mut self) -> Self::IntoFuture {
         Box::pin(async move {
-            info!("Sync task started for stream {}", self.stream_id);
+            debug!("Sync task started for stream {}", self.stream_id);
             let mut collector: Vec<(CertificateDelivered, FetchCertificatesPosition)> = Vec::new();
 
             for (target_subnet_id, source) in &mut self.target_subnet_stream_positions {
                 if self.cancel_token.is_cancelled() {
                     self.status = SyncTaskStatus::Cancelled;
-                    return SyncTaskStatus::Cancelled;
+                    return (self.stream_id, self.status);
                 }
                 let source_subnet_list = self
                     .storage
                     .get_target_source_subnet_list(*target_subnet_id)
                     .await;
 
-                info!(
+                debug!(
                     "Stream sync task detected {:?} as source list",
                     source_subnet_list
                 );
@@ -119,7 +131,7 @@ impl IntoFuture for SyncTask {
                 {
                     if self.cancel_token.is_cancelled() {
                         self.status = SyncTaskStatus::Cancelled;
-                        return SyncTaskStatus::Cancelled;
+                        return (self.stream_id, self.status);
                     }
                     if let Ok(certificates_with_positions) = self
                         .storage
@@ -150,7 +162,7 @@ impl IntoFuture for SyncTask {
                     position,
                 }) = position
                 {
-                    if let Err(e) = self
+                    if let Err(error) = self
                         .notifier
                         .send(StreamCommand::PushCertificate {
                             positions: vec![TargetStreamPosition {
@@ -163,19 +175,24 @@ impl IntoFuture for SyncTask {
                         })
                         .await
                     {
-                        error!("Error sending certificate to stream: {}", e);
-                        self.status = SyncTaskStatus::Error;
-                        return SyncTaskStatus::Error;
+                        error!("Error sending certificate to stream: {}", error);
+                        self.status =
+                            SyncTaskStatus::Error(Box::new(SyncTaskError::SendingToStream {
+                                error: Box::new(error),
+                            }));
+                        return (self.stream_id, self.status);
                     }
                 } else {
                     error!("Invalid certificate position fetched");
-                    self.status = SyncTaskStatus::Error;
-                    return SyncTaskStatus::Error;
+                    self.status =
+                        SyncTaskStatus::Error(Box::from(SyncTaskError::InvalidCertificatePosition));
+                    return (self.stream_id, self.status);
                 }
             }
 
+            info!("The sync task for stream {} is done", self.stream_id);
             self.status = SyncTaskStatus::Done;
-            SyncTaskStatus::Done
+            (self.stream_id, self.status)
         })
     }
 }
