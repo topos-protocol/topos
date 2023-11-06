@@ -5,7 +5,7 @@ use assert_cmd::Command;
 #[test]
 fn help_display() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin("topos")?;
-    cmd.arg("node").arg("push-certificate").arg("-h");
+    cmd.arg("tce").arg("push-certificate").arg("-h");
 
     let output = cmd.assert().success();
 
@@ -50,7 +50,7 @@ async fn assert_delivery() -> Result<(), Box<dyn std::error::Error>> {
         cmd.env("TOPOS_LOG_FORMAT", "json");
         cmd.env("RUST_LOG", "topos=debug");
 
-        cmd.arg("node")
+        cmd.arg("tce")
             .arg("push-certificates")
             .args(["-f", "plain"])
             .arg("-n")
