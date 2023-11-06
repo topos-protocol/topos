@@ -36,6 +36,7 @@ pub(crate) enum SyncTaskStatus {
 pub(crate) enum SyncTaskError {
     /// The [`SyncTask`] failed to send a certificate to the stream
     SendingToStream {
+        #[allow(dead_code)]
         error: Box<SendError<StreamCommand>>,
     },
     /// Invalid certificate position was being fetched
