@@ -7,7 +7,6 @@ use figment::{
 
 use serde::{Deserialize, Serialize};
 
-use crate::components::node::{self, commands::Up};
 use crate::config::{
     base::BaseConfig, edge::EdgeConfig, sequencer::SequencerConfig, tce::TceConfig, Config,
 };
@@ -31,7 +30,7 @@ pub(crate) struct NodeConfig {
 }
 
 impl NodeConfig {
-    pub fn new(from: &Path, cmd: Option<node::commands::Init>) -> Self {
+    pub fn new(from: &Path) -> Self {
         let base = load_config::<BaseConfig>(from);
 
         let mut config = NodeConfig {

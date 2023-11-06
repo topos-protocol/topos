@@ -25,7 +25,7 @@ pub mod services;
 pub(crate) async fn handle_command(
     NodeCommand {
         subcommands,
-        verbose,
+        verbose: _verbose,
         home,
         edge_path,
     }: NodeCommand,
@@ -67,7 +67,7 @@ pub(crate) async fn handle_command(
                 }
             }
 
-            let node_config = NodeConfig::new(&node_path, Some(cmd));
+            let node_config = NodeConfig::new(&node_path);
 
             // Creating the TOML output
             insert_into_toml(&mut config_toml, node_config);
@@ -108,7 +108,7 @@ pub(crate) async fn handle_command(
             }
 
             // FIXME: Handle properly the `cmd`
-            let config = NodeConfig::new(&node_path, None);
+            let config = NodeConfig::new(&node_path);
             info!(
                 "⚙️ Reading the configuration from {}/config.toml",
                 node_path.display()
