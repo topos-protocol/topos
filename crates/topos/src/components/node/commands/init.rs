@@ -15,8 +15,8 @@ pub struct Init {
     pub role: NodeRole,
 
     /// Subnet of your node
-    #[arg(long, env = "TOPOS_NODE_SUBNET_ID", default_value = "topos")]
-    pub subnet_id: Option<String>,
+    #[arg(long, env = "TOPOS_NODE_SUBNET", default_value = "topos")]
+    pub subnet: Option<String>,
 
     /// The path to the SecretsManager config file. Used for Hashicorp Vault.
     /// If omitted, the local FS secrets manager is used

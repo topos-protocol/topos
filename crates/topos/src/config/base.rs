@@ -19,7 +19,7 @@ pub struct BaseConfig {
     #[serde(default = "default_role")]
     pub role: NodeRole,
 
-    #[serde(default = "default_subnet_id")]
+    #[serde(default = "default_subnet")]
     pub subnet_id: String,
 
     #[serde(default = "default_secrets_config")]
@@ -34,7 +34,7 @@ fn default_role() -> NodeRole {
     NodeRole::Validator
 }
 
-fn default_subnet_id() -> String {
+fn default_subnet() -> String {
     "topos".to_string()
 }
 
