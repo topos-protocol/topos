@@ -4,6 +4,7 @@ use serde::Serialize;
 
 #[derive(Args, Debug, Serialize)]
 #[command(about = "Setup your node!", trailing_var_arg = true)]
+#[serde(rename_all = "kebab-case")]
 pub struct Init {
     /// Name to identify your node
     #[arg(long, env = "TOPOS_NODE_NAME", default_value = "default")]
@@ -14,7 +15,7 @@ pub struct Init {
     pub role: NodeRole,
 
     /// Subnet of your node
-    #[arg(long, env = "TOPOS_NODE_SUBNET", default_value = "topos")]
+    #[arg(long, env = "TOPOS_NODE_SUBNET_ID", default_value = "topos")]
     pub subnet_id: Option<String>,
 
     /// The path to the SecretsManager config file. Used for Hashicorp Vault.
