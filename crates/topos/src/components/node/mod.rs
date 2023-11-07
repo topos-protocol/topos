@@ -117,7 +117,7 @@ pub(crate) async fn handle_command(
             // Load genesis pointed by the local config
             let genesis = Genesis::new(
                 home.join("subnet")
-                    .join(config.base.subnet_id.clone())
+                    .join(config.base.subnet.clone())
                     .join("genesis.json"),
             );
 
@@ -129,7 +129,7 @@ pub(crate) async fn handle_command(
 
             info!(
                 "🧢 New joiner: {} for the \"{}\" subnet as {:?}",
-                config.base.name, config.base.subnet_id, config.base.role
+                config.base.name, config.base.subnet, config.base.role
             );
 
             let shutdown_token = CancellationToken::new();
@@ -179,7 +179,7 @@ pub(crate) async fn handle_command(
             }
 
             // TCE
-            if config.base.subnet_id == "topos" {
+            if config.base.subnet == "topos" {
                 info!("Running topos TCE service...",);
                 processes.push(services::spawn_tce_process(
                     config.tce.clone().unwrap(),

@@ -20,7 +20,7 @@ pub struct BaseConfig {
     pub role: NodeRole,
 
     #[serde(default = "default_subnet")]
-    pub subnet_id: String,
+    pub subnet: String,
 
     #[serde(default = "default_secrets_config")]
     pub secrets_config: Option<String>,
@@ -44,7 +44,7 @@ fn default_secrets_config() -> Option<String> {
 
 impl BaseConfig {
     pub fn need_tce(&self) -> bool {
-        self.subnet_id == "topos"
+        self.subnet == "topos"
     }
 
     pub fn need_sequencer(&self) -> bool {
