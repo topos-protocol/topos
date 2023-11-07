@@ -28,9 +28,6 @@ case "$1" in
     ;;
    "peer")
        if [[ ${LOCAL_TEST_NET:-"false"} == "true" ]]; then
-
-           PEER=$($TOPOS_BIN tce keys --from-seed=$HOSTNAME)
-
            export TOPOS_HOME=$TOPOS_HOME
            export TCE_LOCAL_KS=$HOSTNAME
            export TCE_EXT_HOST
