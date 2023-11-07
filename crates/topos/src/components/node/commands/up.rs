@@ -3,6 +3,7 @@ use serde::Serialize;
 
 #[derive(Args, Debug, Serialize)]
 #[command(about = "Spawn your node!")]
+#[serde(rename_all = "kebab-case")]
 pub struct Up {
     /// Name to identify your node
     #[arg(long, env = "TOPOS_NODE_NAME", default_value = "default")]
