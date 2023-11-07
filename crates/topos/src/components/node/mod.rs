@@ -1,12 +1,14 @@
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
-use std::path::Path;
+use std::{path::Path, sync::Arc};
 use std::{
     fs::{create_dir_all, remove_dir_all, OpenOptions},
     io::Write,
 };
-use tokio::{signal, sync::mpsc};
+use tonic::transport::{Channel, Endpoint};
+use tokio::{signal, sync::{mpsc, Mutex}};
 use tokio_util::sync::CancellationToken;
+use tower::Service;
 use tracing::{error, info};
 
 use self::commands::{NodeCommand, NodeCommands};
@@ -16,11 +18,27 @@ use crate::{
     config::{insert_into_toml, node::NodeConfig, node::NodeRole},
     tracing::setup_tracing,
 };
-use services::*;
+use topos_core::api::grpc::tce::v1::{
+    api_service_client::ApiServiceClient, console_service_client::ConsoleServiceClient,
+};
 use topos_wallet::SecretManager;
 
 pub(crate) mod commands;
-pub mod services;
+pub(crate) mod services;
+
+pub(crate) struct NodeService {
+    pub(crate) console_client: Arc<Mutex<ConsoleServiceClient<Channel>>>,
+    pub(crate) _api_client: Arc<Mutex<ApiServiceClient<Channel>>>,
+}
+
+impl NodeService {
+    pub(crate) fn with_grpc_endpoint(endpoint: &str) -> Self {
+        Self {
+            console_client: setup_console_tce_grpc(endpoint),
+            _api_client: setup_api_tce_grpc(endpoint),
+        }
+    }
+}
 
 pub(crate) async fn handle_command(
     NodeCommand {
@@ -58,7 +76,7 @@ pub(crate) async fn handle_command(
 
             // Generate the Edge configuration
             if let Ok(result) =
-                generate_edge_config(edge_path.join(BINARY_NAME), node_path.clone()).await
+                services::process::generate_edge_config(edge_path.join(BINARY_NAME), node_path.clone()).await
             {
                 if result.is_err() {
                     println!("Failed to generate edge config");
@@ -162,7 +180,7 @@ pub(crate) async fn handle_command(
                     data_dir.display(),
                     edge_config.args
                 );
-                processes.push(services::spawn_edge_process(
+                processes.push(services::process::spawn_edge_process(
                     edge_path.join(BINARY_NAME),
                     data_dir,
                     genesis.path.clone(),
@@ -183,7 +201,7 @@ pub(crate) async fn handle_command(
                     "Running sequencer with configuration {:?}",
                     sequencer_config
                 );
-                processes.push(services::spawn_sequencer_process(
+                processes.push(services::process::spawn_sequencer_process(
                     sequencer_config,
                     &keys,
                     (shutdown_token.clone(), shutdown_sender.clone()),
@@ -193,7 +211,7 @@ pub(crate) async fn handle_command(
             // TCE
             if config.base.subnet == "topos" {
                 info!("Running topos TCE service...",);
-                processes.push(services::spawn_tce_process(
+                processes.push(services::process::spawn_tce_process(
                     config.tce.clone().unwrap(),
                     keys,
                     genesis,
@@ -232,7 +250,34 @@ pub(crate) async fn handle_command(
 
             Ok(())
         }
+        Some(NodeCommands::Status(status)) => {
+            let mut node_service = NodeService::with_grpc_endpoint(&status.node_args.node);
+            let exit_code = i32::from(!(node_service.call(status).await?));
+            std::process::exit(exit_code);
+        }
         None => Ok(()),
+    }
+}
+
+fn setup_console_tce_grpc(endpoint: &str) -> Arc<Mutex<ConsoleServiceClient<Channel>>> {
+    match Endpoint::from_shared(endpoint.to_string()) {
+        Ok(endpoint) => Arc::new(Mutex::new(ConsoleServiceClient::new(
+            endpoint.connect_lazy(),
+        ))),
+        Err(e) => {
+            error!("Failure to setup the gRPC API endpoint on {endpoint}: {e}");
+            std::process::exit(1);
+        }
+    }
+}
+
+fn setup_api_tce_grpc(endpoint: &str) -> Arc<Mutex<ApiServiceClient<Channel>>> {
+    match Endpoint::from_shared(endpoint.to_string()) {
+        Ok(endpoint) => Arc::new(Mutex::new(ApiServiceClient::new(endpoint.connect_lazy()))),
+        Err(e) => {
+            error!("Failure to setup the gRPC API endpoint on {endpoint}: {e}");
+            std::process::exit(1);
+        }
     }
 }
 

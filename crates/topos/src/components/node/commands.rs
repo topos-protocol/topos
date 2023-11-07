@@ -5,10 +5,18 @@ use clap::{Args, Subcommand};
 mod init;
 mod peer_id;
 mod up;
+mod status;
 
 pub(crate) use init::Init;
 pub(crate) use peer_id::PeerId;
 pub(crate) use up::Up;
+pub(crate) use status::Status;
+
+#[derive(Args, Debug)]
+pub(crate) struct NodeArgument {
+    #[clap(short, long, default_value = "http://[::1]:1340")]
+    pub(crate) node: String,
+}
 
 /// Utility to manage your nodes in the Topos network
 #[derive(Args, Debug)]
@@ -32,6 +40,7 @@ pub(crate) enum NodeCommands {
     Up(Box<Up>),
     Init(Box<Init>),
     PeerId(Box<PeerId>),
+    Status(Status),
 }
 
 #[cfg(test)]
