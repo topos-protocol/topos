@@ -238,18 +238,6 @@ pub(crate) async fn handle_command(
 
             Ok(())
         }
-        Some(NodeCommands::PeerId(cmd)) => {
-            if let Some(slice) = cmd.from_seed {
-                println!(
-                    "{}",
-                    topos_p2p::utils::local_key_pair_from_slice(slice.as_bytes())
-                        .public()
-                        .to_peer_id()
-                )
-            };
-
-            Ok(())
-        }
         Some(NodeCommands::Status(status)) => {
             let mut node_service = NodeService::with_grpc_endpoint(&status.node_args.node);
             let exit_code = i32::from(!(node_service.call(status).await?));

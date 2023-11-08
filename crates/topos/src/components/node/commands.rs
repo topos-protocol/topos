@@ -3,12 +3,10 @@ use std::path::PathBuf;
 use clap::{Args, Subcommand};
 
 mod init;
-mod peer_id;
 mod up;
 mod status;
 
 pub(crate) use init::Init;
-pub(crate) use peer_id::PeerId;
 pub(crate) use up::Up;
 pub(crate) use status::Status;
 
@@ -39,7 +37,6 @@ pub(crate) struct NodeCommand {
 pub(crate) enum NodeCommands {
     Up(Box<Up>),
     Init(Box<Init>),
-    PeerId(Box<PeerId>),
     Status(Status),
 }
 
