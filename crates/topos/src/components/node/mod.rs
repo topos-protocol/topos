@@ -115,11 +115,21 @@ pub(crate) async fn handle_command(
             );
 
             // Load genesis pointed by the local config
-            let genesis = Genesis::new(
+            let genesis = match Genesis::new(
                 home.join("subnet")
                     .join(config.base.subnet.clone())
                     .join("genesis.json"),
-            );
+            ) {
+                Ok(genesis) => genesis,
+                Err(e) => {
+                    error!(
+                        "Failed to load subnet genesis file: {}\n Could not run node without \
+                         valid genesis file.",
+                        e.to_string()
+                    );
+                    std::process::exit(1);
+                }
+            };
 
             // Get secrets
             let keys = match &config.base.secrets_config {
