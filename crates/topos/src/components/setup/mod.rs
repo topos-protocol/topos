@@ -2,8 +2,6 @@ use self::commands::{SetupCommand, SetupCommands};
 use tokio::{signal, spawn};
 use tracing::{error, info};
 
-use crate::tracing::setup_tracing;
-
 use topos::{install_polygon_edge, list_polygon_edge_releases};
 
 pub(crate) mod commands;
