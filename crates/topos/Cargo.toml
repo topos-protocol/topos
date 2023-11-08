@@ -65,6 +65,7 @@ libp2p = { workspace = true, features = ["identify"] }
 assert_cmd = "2.0.6"
 insta = { version = "1.21", features = ["json", "redactions"] }
 rstest = { workspace = true, features = ["async-timeout"] }
+tempfile = "3.8.0"
 
 [features]
 default = ["tce", "sequencer", "network", "node", "setup", "subnet"]

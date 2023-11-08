@@ -7352,6 +7352,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tar",
+ "tempfile",
  "test-log",
  "thiserror",
  "tokio",

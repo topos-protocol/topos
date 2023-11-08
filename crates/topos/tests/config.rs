@@ -1,6 +1,7 @@
 use assert_cmd::prelude::*;
 use std::path::PathBuf;
 use std::process::Command;
+use tempfile::tempdir;
 use topos::install_polygon_edge;
 
 async fn polygon_edge_path(path: &str) -> String {
@@ -124,12 +125,13 @@ async fn test_handle_command_init_with_custom_name() -> Result<(), Box<dyn std::
     Ok(())
 }
 
-/// Test node init arguments precedence
-/// •  CLI flag should overwrite ENV variable
+/// Test node init env arguments
 #[tokio::test]
-async fn test_command_init_precedence() -> Result<(), Box<dyn std::error::Error>> {
+async fn test_command_init_precedence_env() -> Result<(), Box<dyn std::error::Error>> {
+    let tmp_home_directory = tempdir()?;
+
     // Test node init with env variables
-    let node_init_home_env = "/tmp/topos/test_command_init_precedence_env";
+    let node_init_home_env = tmp_home_directory.path().to_str().unwrap();
     let node_edge_path_env = polygon_edge_path(node_init_home_env).await;
     let node_init_name_env = "TEST_NODE_ENV";
     let node_init_role_env = "full-node";
@@ -161,12 +163,24 @@ async fn test_command_init_precedence() -> Result<(), Box<dyn std::error::Error>
     assert!(config_contents.contains("name = \"TEST_NODE_ENV\""));
     assert!(config_contents.contains("role = \"fullnode\""));
     assert!(config_contents.contains("subnet = \"topos-env\""));
-    std::fs::remove_dir_all(node_init_home_env)?;
+
+    Ok(())
+}
+
+/// Test node cli arguments precedence over env arguments
+#[tokio::test]
+async fn test_command_init_precedence_cli_env() -> Result<(), Box<dyn std::error::Error>> {
+    let tmp_home_dir = tempdir()?;
 
     // Test node init with both cli and env flags
     // Cli arguments should take precedence over env variables
+    let node_init_home_env = tmp_home_dir.path().to_str().unwrap();
+    let node_edge_path_env = polygon_edge_path(node_init_home_env).await;
+    let node_init_name_env = "TEST_NODE_ENV";
+    let node_init_role_env = "full-node";
+    let node_init_subnet_env = "topos-env";
     let node_init_home_cli = "/tmp/topos/test_command_init_precedence_cli";
-    let node_edge_path_cli = polygon_edge_path(node_init_home_cli).await;
+    let node_edge_path_cli = node_edge_path_env.clone();
     let node_init_name_cli = "TEST_NODE_CLI";
     let node_init_role_cli = "sequencer";
     let node_init_subnet_cli = "topos-cli";
@@ -206,7 +220,6 @@ async fn test_command_init_precedence() -> Result<(), Box<dyn std::error::Error>
     assert!(config_contents.contains("name = \"TEST_NODE_CLI\""));
     assert!(config_contents.contains("role = \"sequencer\""));
     assert!(config_contents.contains("subnet = \"topos-cli\""));
-    std::fs::remove_dir_all(node_init_home_cli)?;
 
     Ok(())
 }
