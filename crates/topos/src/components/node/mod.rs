@@ -2,14 +2,17 @@ use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use opentelemetry::global;
 use opentelemetry::sdk::metrics::controllers::BasicController;
-use std::{path::Path, sync::Arc};
 use std::{
     fs::{create_dir_all, remove_dir_all, OpenOptions},
     io::Write,
 };
-use tonic::transport::{Channel, Endpoint};
-use tokio::{signal, sync::{mpsc, Mutex}};
+use std::{path::Path, sync::Arc};
+use tokio::{
+    signal,
+    sync::{mpsc, Mutex},
+};
 use tokio_util::sync::CancellationToken;
+use tonic::transport::{Channel, Endpoint};
 use tower::Service;
 use tracing::{error, info};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
@@ -76,8 +79,11 @@ pub(crate) async fn handle_command(
             let mut config_toml = toml::Table::new();
 
             // Generate the Edge configuration
-            if let Ok(result) =
-                services::process::generate_edge_config(edge_path.join(BINARY_NAME), node_path.clone()).await
+            if let Ok(result) = services::process::generate_edge_config(
+                edge_path.join(BINARY_NAME),
+                node_path.clone(),
+            )
+            .await
             {
                 if result.is_err() {
                     println!("Failed to generate edge config");
@@ -276,7 +282,11 @@ fn setup_api_tce_grpc(endpoint: &str) -> Arc<Mutex<ApiServiceClient<Channel>>> {
     }
 }
 
-pub async fn shutdown(basic_controller: Option<BasicController>, trigger: CancellationToken, mut termination: mpsc::Receiver<()>) {
+pub async fn shutdown(
+    basic_controller: Option<BasicController>,
+    trigger: CancellationToken,
+    mut termination: mpsc::Receiver<()>,
+) {
     trigger.cancel();
     // Wait that all sender get dropped
     info!("Waiting that all components dropped");

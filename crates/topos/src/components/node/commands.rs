@@ -3,12 +3,12 @@ use std::path::PathBuf;
 use clap::{Args, Subcommand};
 
 mod init;
-mod up;
 mod status;
+mod up;
 
 pub(crate) use init::Init;
-pub(crate) use up::Up;
 pub(crate) use status::Status;
+pub(crate) use up::Up;
 
 #[derive(Args, Debug)]
 pub(crate) struct NodeArgument {

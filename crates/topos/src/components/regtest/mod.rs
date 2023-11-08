@@ -1,7 +1,10 @@
 use self::commands::{RegtestCommand, RegtestCommands};
 
 use opentelemetry::global;
-use tokio::{signal, spawn, sync::{mpsc, oneshot},};
+use tokio::{
+    signal, spawn,
+    sync::{mpsc, oneshot},
+};
 use topos_certificate_spammer::CertificateSpammerConfig;
 use tower::Service;
 use tracing::{debug, error, info};
@@ -17,7 +20,7 @@ pub(crate) async fn handle_command(
 ) -> Result<(), Box<dyn std::error::Error>> {
     match subcommands {
         Some(RegtestCommands::PushCertificate(cmd)) => {
-          debug!("Start executing PushCertificate command");
+            debug!("Start executing PushCertificate command");
             match services::push_certificate::check_delivery(
                 cmd.timeout_broadcast,
                 cmd.format,
