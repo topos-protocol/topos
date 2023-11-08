@@ -1,5 +1,6 @@
 ---
 source: crates/topos/tests/node.rs
+assertion_line: 16
 expression: "utils::sanitize_config_folder_path(result)"
 ---
 Utility to manage your nodes in the Topos network
@@ -7,10 +8,10 @@ Utility to manage your nodes in the Topos network
 Usage: topos node [OPTIONS] [COMMAND]
 
 Commands:
-  up       Spawn your node!
-  init     Setup your node!
-  peer-id  
-  help     Print this message or the help of the given subcommand(s)
+  up      Spawn your node!
+  init    Setup your node!
+  status  Get node status
+  help    Print this message or the help of the given subcommand(s)
 
 Options:
       --edge-path <EDGE_PATH>  Installation directory path for Polygon Edge binary [env: TOPOS_POLYGON_EDGE_BIN_PATH=] [default: .]

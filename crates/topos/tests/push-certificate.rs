@@ -5,7 +5,7 @@ use assert_cmd::Command;
 #[test]
 fn help_display() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin("topos")?;
-    cmd.arg("tce").arg("push-certificate").arg("-h");
+    cmd.arg("regtest").arg("push-certificate").arg("-h");
 
     let output = cmd.assert().success();
 

@@ -25,7 +25,6 @@ mod tests {
 
     #[test]
     fn test_run() {
-        unimplemented!();
         assert!(RegtestCommands::has_subcommand("push-certificate"));
         assert!(RegtestCommands::has_subcommand("spam"));
     }
