@@ -2,11 +2,10 @@ use self::commands::{RegtestCommand, RegtestCommands};
 
 use opentelemetry::global;
 use tokio::{
-    signal, spawn,
+    spawn,
     sync::{mpsc, oneshot},
 };
 use topos_certificate_spammer::CertificateSpammerConfig;
-use tower::Service;
 use tracing::{debug, error, info};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
