@@ -164,6 +164,7 @@ async fn test_command_init_name_precedence() -> Result<(), Box<dyn std::error::E
     std::fs::remove_dir_all(node_init_home_env)?;
 
     // Test node init with both cli and env flags
+    // Cli arguments should take precedence over env variables
     let node_init_home_cli = "/tmp/topos/test_command_init_name_precedence_cli";
     let node_edge_path_cli = polygon_edge_path(node_init_home_cli).await;
     let node_init_name_cli = "TEST_NODE_CLI";
