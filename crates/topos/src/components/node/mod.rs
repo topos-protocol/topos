@@ -115,17 +115,19 @@ pub(crate) async fn handle_command(
             );
 
             // Load genesis pointed by the local config
-            let genesis = match Genesis::new(
-                home.join("subnet")
-                    .join(config.base.subnet.clone())
-                    .join("genesis.json"),
-            ) {
+            let genesis_file_path = home
+                .join("subnet")
+                .join(config.base.subnet_id.clone())
+                .join("genesis.json");
+            let genesis = match Genesis::new(genesis_file_path.clone()) {
                 Ok(genesis) => genesis,
                 Err(e) => {
                     error!(
-                        "Failed to load subnet genesis file: {}\n Could not run node without \
-                         valid genesis file.",
-                        e.to_string()
+                        "Could not load genesis.json file on path {} \n Please make sure to have \
+                         a valid genesis.json file for your subnet in the {}/subnet/{} folder.",
+                        genesis_file_path.display(),
+                        home.display(),
+                        &config.base.subnet_id
                     );
                     std::process::exit(1);
                 }

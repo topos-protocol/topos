@@ -1,5 +1,4 @@
 use rlp::Rlp;
-use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::str::FromStr;
 use std::{fs, path::PathBuf};
