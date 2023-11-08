@@ -57,7 +57,7 @@ pub(crate) fn spawn_sequencer_process(
     shutdown: (CancellationToken, mpsc::Sender<()>),
 ) -> JoinHandle<Result<(), Errors>> {
     let config = SequencerConfiguration {
-        subnet_id: None,
+        subnet_id: config.subnet_id,
         public_key: keys.validator_pubkey(),
         subnet_jsonrpc_http: config.subnet_jsonrpc_http,
         subnet_jsonrpc_ws: config.subnet_jsonrpc_ws,

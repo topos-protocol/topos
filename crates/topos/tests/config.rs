@@ -1,6 +1,7 @@
 use assert_cmd::prelude::*;
 use std::path::PathBuf;
 use std::process::Command;
+use tempfile::tempdir;
 use topos::install_polygon_edge;
 
 async fn polygon_edge_path(path: &str) -> String {
@@ -120,6 +121,105 @@ async fn test_handle_command_init_with_custom_name() -> Result<(), Box<dyn std::
     assert!(config_contents.contains("[tce]"));
 
     std::fs::remove_dir_all(temporary_test_folder)?;
+
+    Ok(())
+}
+
+/// Test node init env arguments
+#[tokio::test]
+async fn test_command_init_precedence_env() -> Result<(), Box<dyn std::error::Error>> {
+    let tmp_home_directory = tempdir()?;
+
+    // Test node init with env variables
+    let node_init_home_env = tmp_home_directory.path().to_str().unwrap();
+    let node_edge_path_env = polygon_edge_path(node_init_home_env).await;
+    let node_init_name_env = "TEST_NODE_ENV";
+    let node_init_role_env = "full-node";
+    let node_init_subnet_env = "topos-env";
+
+    let mut cmd = Command::cargo_bin("topos")?;
+    cmd.arg("node")
+        .env("TOPOS_POLYGON_EDGE_BIN_PATH", &node_edge_path_env)
+        .env("TOPOS_HOME", node_init_home_env)
+        .env("TOPOS_NODE_NAME", node_init_name_env)
+        .env("TOPOS_NODE_ROLE", node_init_role_env)
+        .env("TOPOS_NODE_SUBNET", node_init_subnet_env)
+        .arg("init");
+
+    let output = cmd.assert().success();
+    let result: &str = std::str::from_utf8(&output.get_output().stdout)?;
+
+    // Test node init with cli flags
+    assert!(result.contains("Created node config file"));
+    let home = PathBuf::from(node_init_home_env);
+    // Verification: check that the config file was created
+    let config_path = home
+        .join("node")
+        .join(node_init_name_env)
+        .join("config.toml");
+    assert!(config_path.exists());
+    // Check if config file params are according to env params
+    let config_contents = std::fs::read_to_string(&config_path).unwrap();
+    assert!(config_contents.contains("name = \"TEST_NODE_ENV\""));
+    assert!(config_contents.contains("role = \"fullnode\""));
+    assert!(config_contents.contains("subnet = \"topos-env\""));
+
+    Ok(())
+}
+
+/// Test node cli arguments precedence over env arguments
+#[tokio::test]
+async fn test_command_init_precedence_cli_env() -> Result<(), Box<dyn std::error::Error>> {
+    let tmp_home_dir = tempdir()?;
+
+    // Test node init with both cli and env flags
+    // Cli arguments should take precedence over env variables
+    let node_init_home_env = tmp_home_dir.path().to_str().unwrap();
+    let node_edge_path_env = polygon_edge_path(node_init_home_env).await;
+    let node_init_name_env = "TEST_NODE_ENV";
+    let node_init_role_env = "full-node";
+    let node_init_subnet_env = "topos-env";
+    let node_init_home_cli = "/tmp/topos/test_command_init_precedence_cli";
+    let node_edge_path_cli = node_edge_path_env.clone();
+    let node_init_name_cli = "TEST_NODE_CLI";
+    let node_init_role_cli = "sequencer";
+    let node_init_subnet_cli = "topos-cli";
+
+    let mut cmd = Command::cargo_bin("topos")?;
+    cmd.arg("node")
+        .env("TOPOS_POLYGON_EDGE_BIN_PATH", &node_edge_path_env)
+        .env("TOPOS_HOME", node_init_home_env)
+        .env("TOPOS_NODE_NAME", node_init_name_env)
+        .env("TOPOS_NODE_ROLE", node_init_role_env)
+        .env("TOPOS_NODE_SUBNET", node_init_subnet_env)
+        .arg("--edge-path")
+        .arg(node_edge_path_cli)
+        .arg("init")
+        .arg("--name")
+        .arg(node_init_name_cli)
+        .arg("--home")
+        .arg(node_init_home_cli)
+        .arg("--role")
+        .arg(node_init_role_cli)
+        .arg("--subnet")
+        .arg(node_init_subnet_cli);
+
+    let output = cmd.assert().success();
+    let result: &str = std::str::from_utf8(&output.get_output().stdout)?;
+
+    assert!(result.contains("Created node config file"));
+    let home = PathBuf::from(node_init_home_cli);
+    // Verification: check that the config file was created
+    let config_path = home
+        .join("node")
+        .join(node_init_name_cli)
+        .join("config.toml");
+    assert!(config_path.exists());
+    // Check if config file params are according to cli params
+    let config_contents = std::fs::read_to_string(&config_path).unwrap();
+    assert!(config_contents.contains("name = \"TEST_NODE_CLI\""));
+    assert!(config_contents.contains("role = \"sequencer\""));
+    assert!(config_contents.contains("subnet = \"topos-cli\""));
 
     Ok(())
 }
