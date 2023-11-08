@@ -121,7 +121,7 @@ pub(crate) async fn handle_command(
                 .join("genesis.json");
             let genesis = match Genesis::new(genesis_file_path.clone()) {
                 Ok(genesis) => genesis,
-                Err(e) => {
+                Err(_e) => {
                     error!(
                         "Could not load genesis.json file on path {} \n Please make sure to have \
                          a valid genesis.json file for your subnet in the {}/subnet/{} folder.",
