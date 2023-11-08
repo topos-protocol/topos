@@ -127,9 +127,9 @@ async fn test_handle_command_init_with_custom_name() -> Result<(), Box<dyn std::
 /// Test node init arguments precedence
 /// •  CLI flag should overwrite ENV variable
 #[tokio::test]
-async fn test_command_init_name_precedence() -> Result<(), Box<dyn std::error::Error>> {
+async fn test_command_init_precedence() -> Result<(), Box<dyn std::error::Error>> {
     // Test node init with env variables
-    let node_init_home_env = "/tmp/topos/test_command_init_name_precedence_env";
+    let node_init_home_env = "/tmp/topos/test_command_init_precedence_env";
     let node_edge_path_env = polygon_edge_path(node_init_home_env).await;
     let node_init_name_env = "TEST_NODE_ENV";
     let node_init_role_env = "full-node";
@@ -165,7 +165,7 @@ async fn test_command_init_name_precedence() -> Result<(), Box<dyn std::error::E
 
     // Test node init with both cli and env flags
     // Cli arguments should take precedence over env variables
-    let node_init_home_cli = "/tmp/topos/test_command_init_name_precedence_cli";
+    let node_init_home_cli = "/tmp/topos/test_command_init_precedence_cli";
     let node_edge_path_cli = polygon_edge_path(node_init_home_cli).await;
     let node_init_name_cli = "TEST_NODE_CLI";
     let node_init_role_cli = "sequencer";
