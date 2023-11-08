@@ -24,5 +24,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ToposCommand::Setup(cmd) => components::setup::handle_command(cmd).await,
         #[cfg(feature = "node")]
         ToposCommand::Node(cmd) => components::node::handle_command(cmd).await,
+        #[cfg(feature = "regtest")]
+        ToposCommand::Regtest(cmd) => components::regtest::handle_command(cmd).await,
     }
 }

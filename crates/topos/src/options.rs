@@ -7,6 +7,9 @@ use crate::components::setup::commands::SetupCommand;
 #[cfg(feature = "node")]
 use crate::components::node::commands::NodeCommand;
 
+#[cfg(feature = "regtest")]
+use crate::components::regtest::commands::RegtestCommand;
+
 pub(crate) mod input_format;
 
 #[derive(Parser, Debug)]
@@ -49,4 +52,6 @@ pub(crate) enum ToposCommand {
     Setup(SetupCommand),
     #[cfg(feature = "node")]
     Node(NodeCommand),
+    #[cfg(feature = "regtest")]
+    Regtest(RegtestCommand),
 }
