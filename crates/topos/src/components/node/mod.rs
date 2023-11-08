@@ -1,5 +1,7 @@
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
+use opentelemetry::global;
+use opentelemetry::sdk::metrics::controllers::BasicController;
 use std::{path::Path, sync::Arc};
 use std::{
     fs::{create_dir_all, remove_dir_all, OpenOptions},
@@ -10,6 +12,7 @@ use tokio::{signal, sync::{mpsc, Mutex}};
 use tokio_util::sync::CancellationToken;
 use tower::Service;
 use tracing::{error, info};
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 use self::commands::{NodeCommand, NodeCommands};
 use crate::config::genesis::Genesis;
@@ -48,8 +51,6 @@ pub(crate) async fn handle_command(
         edge_path,
     }: NodeCommand,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    setup_tracing(None, None)?;
-
     match subcommands {
         Some(NodeCommands::Init(cmd)) => {
             let cmd = *cmd;
@@ -164,6 +165,12 @@ pub(crate) async fn handle_command(
 
             let shutdown_token = CancellationToken::new();
             let shutdown_trigger = shutdown_token.clone();
+
+            // Setup instrumentation if both otlp agent and otlp service name
+            // are provided as arguments
+            // We may want to use instrumentation in e2e tests
+            let basic_controller = setup_tracing(cmd.otlp_agent, cmd.otlp_service_name)?;
+
             let (shutdown_sender, shutdown_receiver) = mpsc::channel(1);
 
             let mut processes = FuturesUnordered::new();
@@ -224,14 +231,14 @@ pub(crate) async fn handle_command(
             tokio::select! {
                 _ = signal::ctrl_c() => {
                     info!("Received ctrl_c, shutting down application...");
-                    shutdown(shutdown_trigger, shutdown_receiver).await;
+                    shutdown(basic_controller, shutdown_trigger, shutdown_receiver).await;
                 }
                 Some(result) = processes.next() => {
                     info!("Terminate: {result:?}");
                     if let Err(e) = result {
                         error!("Termination: {e}");
                     }
-                    shutdown(shutdown_trigger, shutdown_receiver).await;
+                    shutdown(basic_controller, shutdown_trigger, shutdown_receiver).await;
                     processes.clear();
                 }
             };
@@ -269,10 +276,17 @@ fn setup_api_tce_grpc(endpoint: &str) -> Arc<Mutex<ApiServiceClient<Channel>>> {
     }
 }
 
-pub async fn shutdown(trigger: CancellationToken, mut termination: mpsc::Receiver<()>) {
+pub async fn shutdown(basic_controller: Option<BasicController>, trigger: CancellationToken, mut termination: mpsc::Receiver<()>) {
     trigger.cancel();
     // Wait that all sender get dropped
     info!("Waiting that all components dropped");
     let _ = termination.recv().await;
     info!("Shutdown procedure finished, exiting...");
+    // Shutdown tracing
+    global::shutdown_tracer_provider();
+    if let Some(basic_controller) = basic_controller {
+        if let Err(e) = basic_controller.stop(&tracing::Span::current().context()) {
+            error!("Error stopping tracing: {e}");
+        }
+    }
 }

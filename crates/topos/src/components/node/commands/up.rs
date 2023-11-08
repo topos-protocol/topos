@@ -18,4 +18,12 @@ pub struct Up {
     /// Usable for cases where edge endpoint is available as infura (or similar cloud provider) endpoint
     #[arg(long, env = "TOPOS_NO_EDGE_PROCESS", action)]
     pub no_edge_process: bool,
+    /// Socket of the opentelemetry agent endpoint.
+    /// If not provided open telemetry will not be used
+    #[arg(long, env = "TOPOS_OTLP_AGENT")]
+    pub otlp_agent: Option<String>,
+    /// Otlp service name.
+    /// If not provided open telemetry will not be used
+    #[arg(long, env = "TOPOS_OTLP_SERVICE_NAME")]
+    pub otlp_service_name: Option<String>,
 }
