@@ -117,7 +117,7 @@ pub(crate) async fn handle_command(
             // Load genesis pointed by the local config
             let genesis_file_path = home
                 .join("subnet")
-                .join(config.base.subnet_id.clone())
+                .join(config.base.subnet.clone())
                 .join("genesis.json");
             let genesis = match Genesis::new(genesis_file_path.clone()) {
                 Ok(genesis) => genesis,
@@ -127,7 +127,7 @@ pub(crate) async fn handle_command(
                          a valid genesis.json file for your subnet in the {}/subnet/{} folder.",
                         genesis_file_path.display(),
                         home.display(),
-                        &config.base.subnet_id
+                        &config.base.subnet
                     );
                     std::process::exit(1);
                 }
