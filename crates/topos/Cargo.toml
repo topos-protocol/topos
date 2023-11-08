@@ -66,6 +66,7 @@ assert_cmd = "2.0.6"
 insta = { version = "1.21", features = ["json", "redactions"] }
 rstest = { workspace = true, features = ["async-timeout"] }
 tempfile = "3.8.0"
+subprocess = "0.2.9"
 
 [features]
 default = []

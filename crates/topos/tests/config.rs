@@ -1,11 +1,11 @@
 use assert_cmd::prelude::*;
-use std::fs::remove_dir_all;
+use std::ffi::OsString;
 use std::path::PathBuf;
-use std::process::Command;
+use std::process::{Command, ExitStatus};
 use tempfile::tempdir;
 use topos::install_polygon_edge;
 
-async fn polygon_edge_path(path: &str) -> String {
+async fn setup_polygon_edge(path: &str) -> String {
     let installation_path = std::env::current_dir().unwrap().join(path);
     let binary_path = installation_path.join("polygon-edge");
 
@@ -25,10 +25,43 @@ async fn polygon_edge_path(path: &str) -> String {
     installation_path.to_str().unwrap().to_string()
 }
 
+async fn generate_polygon_edge_genesis_file(
+    polygon_edge_bin: &str,
+    home_path: &str,
+    node_name: &str,
+    subnet: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let genesis_folder_path: PathBuf = PathBuf::from(format!("{}/subnet/{}", home_path, subnet));
+    if !genesis_folder_path.exists() {
+        std::fs::create_dir_all(genesis_folder_path.clone())
+            .expect("Cannot create subnet genesis file folder");
+    }
+    let genesis_file_path = format!("{}/genesis.json", genesis_folder_path.display());
+    println!("Polygon edge path: {}", polygon_edge_bin);
+    let mut cmd = Command::new(polygon_edge_bin);
+    let val_prefix_path = format!("{}/node/{}/", home_path, node_name);
+    cmd.arg("genesis")
+        .arg("--dir")
+        .arg(&genesis_file_path)
+        .arg("--consensus")
+        .arg("ibft")
+        .arg("--ibft-validators-prefix-path")
+        .arg(val_prefix_path)
+        .arg("--bootnode") /* set dummy bootnode, we will not run edge to produce blocks */
+        .arg("/ip4/127.0.0.1/tcp/8545/p2p/16Uiu2HAmNYneHCbJ1Ntz1ojvTdiNGCMGWNT5MGMH28AzKNV66Paa");
+    let output = cmd.assert().success();
+    let output: &str = std::str::from_utf8(&output.get_output().stdout)?;
+    assert!(output.contains(&format!(
+        "Genesis written to {}",
+        genesis_folder_path.display()
+    )));
+    Ok(())
+}
+
 #[tokio::test]
 async fn handle_command_init() -> Result<(), Box<dyn std::error::Error>> {
     let tmp_home_dir = tempdir()?;
-    let path = polygon_edge_path(tmp_home_dir.path().to_str().unwrap()).await;
+    let path = setup_polygon_edge(tmp_home_dir.path().to_str().unwrap()).await;
 
     let mut cmd = Command::cargo_bin("topos")?;
     cmd.arg("node")
@@ -88,7 +121,7 @@ fn nothing_written_if_failure() -> Result<(), Box<dyn std::error::Error>> {
 async fn handle_command_init_with_custom_name() -> Result<(), Box<dyn std::error::Error>> {
     let tmp_home_dir = tempdir()?;
     let node_name = "TEST_NODE";
-    let path = polygon_edge_path(tmp_home_dir.path().to_str().unwrap()).await;
+    let path = setup_polygon_edge(tmp_home_dir.path().to_str().unwrap()).await;
 
     let mut cmd = Command::cargo_bin("topos")?;
     cmd.arg("node")
@@ -172,7 +205,7 @@ async fn command_init_precedence_cli_env() -> Result<(), Box<dyn std::error::Err
     // Test node init with both cli and env flags
     // Cli arguments should take precedence over env variables
     let node_init_home_env = tmp_home_dir.path().to_str().unwrap();
-    let node_edge_path_env = polygon_edge_path(node_init_home_env).await;
+    let node_edge_path_env = setup_polygon_edge(node_init_home_env).await;
     let node_init_name_env = "TEST_NODE_ENV";
     let node_init_role_env = "full-node";
     let node_init_subnet_env = "topos-env";
@@ -218,7 +251,86 @@ async fn command_init_precedence_cli_env() -> Result<(), Box<dyn std::error::Err
     assert!(config_contents.contains("role = \"sequencer\""));
     assert!(config_contents.contains("subnet = \"topos-cli\""));
 
-    remove_dir_all("/tmp/topos/test_command_init_precedence_cli").unwrap();
+    Ok(())
+}
+
+/// Test node up running from config file
+#[test_log::test(tokio::test)]
+async fn command_node_up() -> Result<(), Box<dyn std::error::Error>> {
+    let tmp_home_dir = tempdir()?;
+
+    // Create config file
+    let node_up_home_env = tmp_home_dir.path().to_str().unwrap();
+    let node_edge_path_env = setup_polygon_edge(node_up_home_env).await;
+    let node_up_name_env = "TEST_NODE_UP";
+    let node_up_role_env = "full-node";
+    let node_up_subnet_env = "topos-up-env-subnet";
+
+    let mut cmd = Command::cargo_bin("topos")?;
+    cmd.arg("node")
+        .env("TOPOS_POLYGON_EDGE_BIN_PATH", &node_edge_path_env)
+        .env("TOPOS_HOME", node_up_home_env)
+        .env("TOPOS_NODE_NAME", node_up_name_env)
+        .env("TOPOS_NODE_ROLE", node_up_role_env)
+        .env("TOPOS_NODE_SUBNET", node_up_subnet_env)
+        .arg("init");
+
+    let output = cmd.assert().success();
+    let result: &str = std::str::from_utf8(&output.get_output().stdout)?;
+    assert!(result.contains("Created node config file"));
+
+    // Run node init with cli flags
+    let home = PathBuf::from(node_up_home_env);
+    // Verification: check that the config file was created
+    let config_path = home.join("node").join(node_up_name_env).join("config.toml");
+    assert!(config_path.exists());
+
+    // Generate polygon edge genesis file
+    let polygon_edge_bin = format!("{}/polygon-edge", node_edge_path_env);
+    generate_polygon_edge_genesis_file(
+        &polygon_edge_bin,
+        node_up_home_env,
+        node_up_name_env,
+        node_up_subnet_env,
+    )
+    .await?;
+    let polygon_edge_genesis_path = home
+        .join("subnet")
+        .join(node_up_subnet_env)
+        .join("genesis.json");
+    assert!(polygon_edge_genesis_path.exists());
+
+    let mut cmd = Command::cargo_bin("topos")?;
+    cmd.arg("node")
+        .env("TOPOS_POLYGON_EDGE_BIN_PATH", &node_edge_path_env)
+        .env("TOPOS_HOME", node_up_home_env)
+        .env("TOPOS_NODE_NAME", node_up_name_env)
+        .arg("up");
+    let mut cmd = tokio::process::Command::from(cmd).spawn().unwrap();
+    let output = tokio::time::timeout(std::time::Duration::from_secs(60), cmd.wait())
+        .await;
+
+    // Check if node up was successful
+    match output {
+        Ok(Ok(exit_status)) => {
+                if !exit_status.success() {
+                    println!("Exited with error output {:?}", exit_status.code());
+                    panic!("Node up failed");
+                }
+        }
+        Ok(Err(e)) => {
+            println!("Node exited with error: {e}");
+            // Kill the subprocess
+            cmd.kill().await?;
+            panic!("Node up failed");
+        }
+        Err(e) => {
+            println!("Node up is running, time-outed");
+        }
+    }
+
+    // Cleanup
+    std::fs::remove_dir_all(node_up_home_env)?;
 
     Ok(())
 }
