@@ -49,4 +49,4 @@ serial_test.workspace = true
 byteorder = "1.4.3"
 dockertest = "0.3.1"
 topos-tce-storage = { path = "../topos-tce-storage" }
-topos-test-sdk = { path = "../topos-test-sdk/", features=["tce"] }
+topos-test-sdk = { path = "../topos-test-sdk/" }

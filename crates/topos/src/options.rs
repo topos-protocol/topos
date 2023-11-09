@@ -1,14 +1,9 @@
 use clap::{Parser, Subcommand};
 use std::{ffi::OsString, path::PathBuf};
 
-#[cfg(feature = "setup")]
-use crate::components::setup::commands::SetupCommand;
-
-#[cfg(feature = "node")]
 use crate::components::node::commands::NodeCommand;
-
-#[cfg(feature = "regtest")]
 use crate::components::regtest::commands::RegtestCommand;
+use crate::components::setup::commands::SetupCommand;
 
 pub(crate) mod input_format;
 
@@ -48,10 +43,7 @@ fn get_default_home() -> OsString {
 
 #[derive(Subcommand, Debug)]
 pub(crate) enum ToposCommand {
-    #[cfg(feature = "setup")]
     Setup(SetupCommand),
-    #[cfg(feature = "node")]
     Node(NodeCommand),
-    #[cfg(feature = "regtest")]
     Regtest(RegtestCommand),
 }

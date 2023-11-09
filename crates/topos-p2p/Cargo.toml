@@ -41,5 +41,5 @@ test-log.workspace = true
 env_logger.workspace = true
 rstest = { workspace = true, features = ["async-timeout"] }
 tracing-subscriber.workspace = true
-topos-test-sdk = { path = "../topos-test-sdk/", features = ["tce"] }
+topos-test-sdk = { path = "../topos-test-sdk/" }
 rand.workspace = true

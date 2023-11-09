@@ -7,12 +7,12 @@ edition = "2021"
 workspace = true
 
 [dependencies]
-topos-tce = { path = "../topos-tce/", optional = true }
+topos-tce = { path = "../topos-tce/" }
 topos-p2p = { path = "../topos-p2p" }
-topos-tce-transport = { path = "../topos-tce-transport", optional = true }
-topos-sequencer = { path = "../topos-sequencer", optional = true }
+topos-tce-transport = { path = "../topos-tce-transport" }
+topos-sequencer = { path = "../topos-sequencer" }
 topos-core = { workspace = true, features = ["api"] }
-topos-certificate-spammer = { path = "../topos-certificate-spammer", optional = true }
+topos-certificate-spammer = { path = "../topos-certificate-spammer" }
 topos-tce-broadcast = { path = "../topos-tce-broadcast", optional = true }
 topos-wallet = { path = "../topos-wallet" }
 
@@ -54,7 +54,7 @@ topos-tce-synchronizer = { path = "../topos-tce-synchronizer" }
 topos-tce-gatekeeper = { path = "../topos-tce-gatekeeper" }
 topos-tce-api = { path = "../topos-tce-api" }
 topos-tce-storage = { path = "../topos-tce-storage" }
-topos-test-sdk = { path = "../topos-test-sdk", features = ["tce"] }
+topos-test-sdk = { path = "../topos-test-sdk" }
 serde.workspace = true
 serde_json.workspace = true
 test-log.workspace = true
@@ -68,8 +68,5 @@ rstest = { workspace = true, features = ["async-timeout"] }
 tempfile = "3.8.0"
 
 [features]
-default = ["node", "regtest", "setup"]
+default = []
 broadcast_via_channels = ["default", "topos-tce-broadcast/task-manager-channels"]
-node = []
-setup = []
-regtest = ["topos-certificate-spammer"]

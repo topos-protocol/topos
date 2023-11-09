@@ -1,12 +1,7 @@
-#[cfg(feature = "node")]
 pub(crate) mod base;
-#[cfg(feature = "node")]
 pub(crate) mod edge;
-#[cfg(feature = "node")]
 pub(crate) mod node;
-#[cfg(feature = "sequencer")]
 pub(crate) mod sequencer;
-#[cfg(feature = "tce")]
 pub mod tce;
 
 pub(crate) mod genesis;
