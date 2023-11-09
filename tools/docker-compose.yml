@@ -40,7 +40,6 @@ services:
       context: ../
       args:
         - TOOLCHAIN_VERSION=stable
-        - FEATURES=node,regtest
     depends_on:
       init:
         condition: service_completed_successfully
@@ -75,7 +74,6 @@ services:
       context: ../
       args:
         - TOOLCHAIN_VERSION=stable
-        - FEATURES=node,regtest
     depends_on:
       init:
         condition: service_completed_successfully
@@ -138,7 +136,6 @@ services:
       context: ../
       args:
         - TOOLCHAIN_VERSION=stable
-        - FEATURES=regtest
     volumes:
       - shared:/tmp/shared
     env_file:
@@ -166,7 +163,6 @@ services:
       args:
         - TOOLCHAIN_VERSION=stable
         - GITHUB_TOKEN
-        - FEATURES=regtest
     depends_on:
       boot:
         condition: service_healthy

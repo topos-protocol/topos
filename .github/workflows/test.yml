@@ -60,6 +60,6 @@ jobs:
         with:
           AWS_ACCESS_KEY_ID: ${{ secrets.ROBOT_AWS_ACCESS_KEY_ID}}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.ROBOT_AWS_SECRET_ACCESS_KEY}}
-      - run: cargo nextest run cert_delivery --locked --no-default-features -F node
+      - run: cargo nextest run cert_delivery --locked --no-default-features
         env:
           RUST_LOG: topos=warn
