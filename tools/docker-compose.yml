@@ -22,14 +22,14 @@ services:
   boot:
     container_name: boot
     command: node up --name boot --home /tmp/node_config --no-edge-process
-    image: 469d0c2b4baa
+    image: ghcr.io/topos-protocol/topos:main
     init: true
     labels:
       "autoheal": "true"
       "prometheus-job": "boot"
-#    healthcheck:
-#      test: ./topos tce status --node http://localhost:1340
-#      interval: 15s
+    healthcheck:
+      test: ./topos node status --node http://localhost:1340
+      interval: 15s
     volumes:
       - shared:/tmp/shared
       - ./node_config/node/boot/config.toml:/tmp/node_config/node/boot/config.toml:ro
@@ -59,14 +59,14 @@ services:
       - RUST_LOG=topos=info,topos_tce_storage=info,topos_tce_synchronizer=info
 
   peer:
-    image: 469d0c2b4baa
+    image: ghcr.io/topos-protocol/topos:main
     command: peer node up --name test --home /tmp/node_config --no-edge-process
     init: true
     labels:
       "autoheal": "true"
-#    healthcheck:
-#      test: ./topos tce status --node http://localhost:1340
-#      interval: 5s
+    healthcheck:
+      test: ./topos node status --node http://localhost:1340
+      interval: 5s
     volumes:
       - shared:/tmp/shared
       - ./node_config/node/test/config.toml:/tmp/node_config/node/test/config.toml
@@ -98,7 +98,7 @@ services:
       - RUST_LOG=topos=info,topos_tce_storage=info,topos_tce_synchronizer=info
 
   sync:
-    image: 469d0c2b4baa
+    image: ghcr.io/topos-protocol/topos:main
     command: sync node up --name test --home /tmp/node_config --no-edge-process
     init: true
     labels:
@@ -132,7 +132,7 @@ services:
   spammer:
     container_name: spam
     command: network spam
-    image: 469d0c2b4baa
+    image: ghcr.io/topos-protocol/topos:main
     init: true
     build:
       context: ../
@@ -151,31 +151,31 @@ services:
       peer:
         condition: service_healthy
 
-#  check:
-#    container_name: check
-#    image: 469d0c2b4baa
-#    command: tce push-certificate -f json
-#    profiles:
-#      - CI
-#      - check
-#    init: true
-#    volumes:
-#      - ./peer_nodes.json:/tmp/peer_nodes.json
-#    build:
-#      context: ../
-#      args:
-#        - TOOLCHAIN_VERSION=stable
-#        - GITHUB_TOKEN
-#        - FEATURES=tce
-#    depends_on:
-#      boot:
-#        condition: service_healthy
-#      peer:
-#        condition: service_healthy
-#    environment:
-#      - LOCAL_TEST_NET=true
-#      - RUST_LOG=info,topos=info
-#      - TARGET_NODES_PATH=/tmp/peer_nodes.json
+  check:
+    container_name: check
+    image: ghcr.io/topos-protocol/topos:main
+    command: regtest push-certificate -f json
+    profiles:
+      - CI
+      - check
+    init: true
+    volumes:
+      - ./peer_nodes.json:/tmp/peer_nodes.json
+    build:
+      context: ../
+      args:
+        - TOOLCHAIN_VERSION=stable
+        - GITHUB_TOKEN
+        - FEATURES=tce
+    depends_on:
+      boot:
+        condition: service_healthy
+      peer:
+        condition: service_healthy
+    environment:
+      - LOCAL_TEST_NET=true
+      - RUST_LOG=info,topos=info
+      - TARGET_NODES_PATH=/tmp/peer_nodes.json
 
   autoheal:
     container_name: autoheal
