@@ -5,6 +5,8 @@ use figment::{
     Figment,
 };
 
+use crate::components::node;
+use crate::components::node::commands::Up;
 use serde::{Deserialize, Serialize};
 
 use crate::config::{
@@ -30,16 +32,20 @@ pub(crate) struct NodeConfig {
 }
 
 impl NodeConfig {
-    pub fn new(from: &Path) -> Self {
-        let base = load_config::<BaseConfig>(from);
+    pub fn new(from: &Path, cmd: Option<node::commands::Init>) -> Self {
+        let base = load_config::<BaseConfig>(from, cmd);
 
         let mut config = NodeConfig {
             base: base.clone(),
             sequencer: base
                 .need_sequencer()
-                .then(|| load_config::<SequencerConfig>(from)),
-            tce: base.need_tce().then(|| load_config::<TceConfig>(from)),
-            edge: base.need_edge().then(|| load_config::<EdgeConfig>(from)),
+                .then(|| load_config::<SequencerConfig>(from, None)),
+            tce: base
+                .need_tce()
+                .then(|| load_config::<TceConfig>(from, None)),
+            edge: base
+                .need_edge()
+                .then(|| load_config::<EdgeConfig>(from, None)),
         };
 
         // Make the TCE DB path relative to the folder
@@ -52,6 +58,8 @@ impl NodeConfig {
 }
 
 impl Config for NodeConfig {
+    type Command = Up;
+
     type Output = NodeConfig;
 
     fn profile(&self) -> String {

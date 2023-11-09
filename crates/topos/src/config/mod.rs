@@ -13,10 +13,13 @@ pub(crate) mod genesis;
 
 use std::path::Path;
 
+use figment::providers::Serialized;
 use figment::{error::Kind, Figment};
 use serde::Serialize;
 
 pub(crate) trait Config: Serialize {
+    type Command: Serialize;
+
     /// The configuration type returned (should be Self).
     type Output;
 
@@ -38,12 +41,21 @@ pub(crate) trait Config: Serialize {
         toml::Table::try_from(self)
     }
 
+    /// Load the configuration from the command line command.
+    fn load_from_command(figment: Figment, command: Self::Command) -> Figment {
+        figment.merge(Serialized::defaults(command))
+    }
+
     /// Main function to load the configuration.
     /// It will load the configuration from the file and the command line (if any)
     /// and then extract the configuration from the context in order to build the Config.
     /// The Config is then returned or an error if the configuration is not valid.
-    fn load(home: &Path) -> Result<Self::Output, figment::Error> {
+    fn load(home: &Path, command: Option<Self::Command>) -> Result<Self::Output, figment::Error> {
         let mut figment = Figment::new();
+
+        if let Some(command) = command {
+            figment = Self::load_from_command(figment, command);
+        }
 
         figment = Self::load_from_file(figment, home);
 
@@ -51,8 +63,8 @@ pub(crate) trait Config: Serialize {
     }
 }
 
-pub(crate) fn load_config<T: Config>(node_path: &Path) -> T::Output {
-    match T::load(node_path) {
+pub(crate) fn load_config<T: Config>(node_path: &Path, command: Option<T::Command>) -> T::Output {
+    match T::load(node_path, command) {
         Ok(config) => config,
         Err(figment::Error {
             kind: Kind::MissingField(name),

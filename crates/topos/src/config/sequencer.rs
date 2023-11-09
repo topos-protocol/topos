@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use crate::components::node::commands::Up;
 use crate::config::Config;
 use figment::{
     providers::{Format, Toml},
@@ -55,6 +56,8 @@ fn default_tce_grpc_endpoint() -> String {
 }
 
 impl Config for SequencerConfig {
+    type Command = Up;
+
     type Output = Self;
 
     fn load_from_file(figment: Figment, home: &Path) -> Figment {

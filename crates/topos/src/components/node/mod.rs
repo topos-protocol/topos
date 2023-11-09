@@ -92,7 +92,7 @@ pub(crate) async fn handle_command(
                 }
             }
 
-            let node_config = NodeConfig::new(&node_path);
+            let node_config = NodeConfig::new(&node_path, Some(cmd));
 
             // Creating the TOML output
             insert_into_toml(&mut config_toml, node_config);
@@ -133,7 +133,7 @@ pub(crate) async fn handle_command(
             }
 
             // FIXME: Handle properly the `cmd`
-            let config = NodeConfig::new(&node_path);
+            let config = NodeConfig::new(&node_path, None);
             info!(
                 "⚙️ Reading the configuration from {}/config.toml",
                 node_path.display()

@@ -1,11 +1,11 @@
-use std::{collections::HashMap, path::Path};
-
+use crate::components::node::commands::Up;
 use crate::config::Config;
 use figment::{
     providers::{Format, Toml},
     Figment,
 };
 use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, path::Path};
 
 // TODO: Provides the default arguments here
 // Serde `flatten` and `default` doesn't work together yet
@@ -18,6 +18,8 @@ pub struct EdgeConfig {
 }
 
 impl Config for EdgeConfig {
+    type Command = Up;
+
     type Output = EdgeConfig;
 
     fn load_from_file(figment: Figment, home: &Path) -> Figment {

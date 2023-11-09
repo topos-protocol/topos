@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use crate::components::node::commands::Init;
 use figment::{
     providers::{Format, Toml},
     Figment,
@@ -56,6 +57,8 @@ impl BaseConfig {
 }
 
 impl Config for BaseConfig {
+    type Command = Init;
+
     type Output = Self;
 
     fn load_from_file(figment: Figment, home: &Path) -> Figment {
