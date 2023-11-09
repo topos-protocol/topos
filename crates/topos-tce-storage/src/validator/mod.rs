@@ -1,6 +1,6 @@
 //! Validator's context store and storage
 //!
-//! The [`ValidatorStore`] is responsible for managing the different data that are required by the
+//! The [`ValidatorStore`] is responsible for managing the various kind of data that are required by the
 //! TCE network in order to broadcast certificates. It is composed of two main parts:
 //!
 //! - a [`FullNodeStore`]
@@ -8,11 +8,11 @@
 //!
 //! ## Responsibilities
 //!
-//! This store is used in place where the [`FullNodeStore`] is not enough, it allows to access the
+//! This store is used in places where the [`FullNodeStore`] is not enough, it allows to access the
 //! different pending pools and to manage them but also to access the [`FullNodeStore`] in order to
 //! persist or update [`Certificate`] or `streams`.
 //!
-//! Pending pools and how they behave is decribed in the [`ValidatorPendingTables`] documentation.
+//! Pending pools and their behavior is decribed in the [`ValidatorPendingTables`] documentation.
 //!
 use std::{
     collections::HashMap,
@@ -48,10 +48,11 @@ mod tables;
 ///
 /// The [`ValidatorStore`] is composed of a [`FullNodeStore`] and a [`ValidatorPendingTables`].
 ///
-/// As the [`FullNodeStore`] is responsible of keeping and managing every data that are persistent,
-/// the [`ValidatorStore`] is delegating many of the [`WriteStore`] and [`ReadStore`] to it.
+/// As the [`FullNodeStore`] is responsible of keeping and managing data that are persistent,
+/// the [`ValidatorStore`] is delegating to it many of the [`WriteStore`] and [`ReadStore`]
+/// functionality.
 ///
-/// The crucial point is that the [`ValidatorStore`] is managing the different pending pool using a [`ValidatorPendingTables`].
+/// The key point is that the [`ValidatorStore`] is managing the different pending pools using a [`ValidatorPendingTables`].
 ///
 /// Pending pools and how they behave is decribed in the [`ValidatorPendingTables`] documentation.
 ///
@@ -105,7 +106,7 @@ impl ValidatorStore {
         Ok(self.pending_tables.pending_pool.get(pending_id)?)
     }
 
-    /// Returns the entier pending_pool
+    /// Returns the entire pending_pool
     pub fn get_pending_certificates(
         &self,
     ) -> Result<Vec<(PendingCertificateId, Certificate)>, StorageError> {

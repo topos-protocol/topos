@@ -18,31 +18,35 @@ use crate::{
     PendingCertificateId,
 };
 
-/// Volatile and pending data used by Validator
+/// Pending data used by Validator
 ///
 /// It contains data that is not yet delivered.
 ///
 /// When a [`Certificate`] is received, it can either be added to the pending
 /// pool or to the precedence pool.
 ///
+/// Prior to be inserted in either of the pending or precedence pools, a [`Certificate`]
+/// needs to be validated. A validated certificate means that the proof of the certificate
+/// has be verified using FROST.
+///
 /// ## Pending pool
 ///
-/// The pending pool is used to store certificates that are ready to be validated and broadcast.
-/// Meaning that the previous [`Certificate`] has been delivered and the [`Certificate`] is
-/// ready to be broadcast.
+/// The pending pool stores certificates that are ready to be broadcast.
+/// A [`Certificate`] is ready to be broadcast when it has been validated and its previous [`Certificate`] is
+/// already delivered.
 ///
 /// The ordering inside the pending pool is a FIFO queue, each [`Certificate`] in the pool gets
 /// assigned to a unique [`PendingCertificateId`](type@crate::PendingCertificateId).
 ///
 /// ## Precedence pool
 ///
-/// The precedence pool is used to store certificates that are not yet ready to be broadcast,
-/// mostly waiting for the previous certificate to be delivered. However, the [`Certificate`] is
-/// already validated.
+/// The precedence pool stores certificates that are not yet ready to be broadcast.
+/// Typically waiting for its previous [`Certificate`] to be delivered.
+/// However, the [`Certificate`] is already validated.
 ///
 /// When a [`Certificate`] is delivered, the [`ValidatorStore`](struct@super::ValidatorStore) will
-/// check for any [`Certificate`] in the precedence pool and if one is found, it is moved to the
-/// pending pool, ready to be broadcast.
+/// check for any child [`Certificate`] in the precedence pool waiting to be promoted to the
+/// pending pool in order to be broadcast.
 ///
 pub struct ValidatorPendingTables {
     pub(crate) next_pending_id: AtomicU64,

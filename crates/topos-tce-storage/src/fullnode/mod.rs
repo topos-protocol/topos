@@ -33,10 +33,10 @@ pub mod locking;
 ///
 /// The responsabilities of the [`FullNodeStore`] are:
 ///
-/// - Storing and exposing the certificates that are delivered
-/// - Storing and exposing the current state of the streams and the different positions
+/// - Store and expose the certificates that are delivered
+/// - Store and expose the state of the certificate streams
 ///
-/// To do so, it implements [`ReadStore`] / [`WriteStore`] and use multiple tables and store such
+/// To do so, it implements [`ReadStore`] / [`WriteStore`] by using multiple tables and store such
 /// as [`ValidatorPerpetualTables`], [`EpochValidatorsStore`] and [`IndexTables`]
 pub struct FullNodeStore {
     certificate_lock_guards: LockGuards<CertificateId>,

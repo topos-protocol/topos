@@ -176,25 +176,6 @@ impl DBBatch {
         }
     }
 
-    #[allow(unused)]
-    pub(crate) fn delete<K, V, Key>(
-        mut self,
-        db: &DBColumn<K, V>,
-        key: Key,
-    ) -> Result<Self, InternalStorageError>
-    where
-        K: Serialize,
-        V: Serialize,
-        Key: Borrow<K>,
-    {
-        check_cross_batch(&self.rocksdb, &db.rocksdb)?;
-
-        let key_buffer = be_fix_int_ser(key.borrow())?;
-        self.batch.delete_cf(&db.cf()?, key_buffer);
-
-        Ok(self)
-    }
-
     pub(crate) fn insert_batch<K, V, Key, Value>(
         mut self,
         db: &DBColumn<K, V>,

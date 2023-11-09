@@ -20,8 +20,8 @@ pub trait WriteStore: Send {
     /// Insert a [`CertificateDelivered`] in the storage. Returns its positions
     /// in the source and target streams.
     ///
-    /// Info: The [`ValidatorStore`](struct@super::validator::ValidatorStore) implementation
-    /// is checking for a [`PendingCertificateId`](type@super::PendingCertificateId) and remove if
+    /// The [`ValidatorStore`](struct@super::validator::ValidatorStore) implementation
+    /// checks for a [`PendingCertificateId`](type@super::PendingCertificateId) and remove it if
     /// the certificate is successfully inserted.
     async fn insert_certificate_delivered(
         &self,
@@ -91,7 +91,7 @@ pub trait ReadStore: Send {
         limit: usize,
     ) -> Result<Vec<(CertificateDelivered, CertificateTargetStreamPosition)>, StorageError>;
 
-    /// Returns the list of source subnet that delivered certificates to a target subnet
+    /// Returns the list of source subnets that delivered certificates to a particular target subnet
     fn get_target_source_subnet_list(
         &self,
         target_subnet_id: &SubnetId,
