@@ -131,14 +131,14 @@ services:
 
   spammer:
     container_name: spam
-    command: network spam
+    command: regtest spam
     image: ghcr.io/topos-protocol/topos:main
     init: true
     build:
       context: ../
       args:
         - TOOLCHAIN_VERSION=stable
-        - FEATURES=network
+        - FEATURES=regtest
     volumes:
       - shared:/tmp/shared
     env_file:
@@ -166,7 +166,7 @@ services:
       args:
         - TOOLCHAIN_VERSION=stable
         - GITHUB_TOKEN
-        - FEATURES=tce
+        - FEATURES=regtest
     depends_on:
       boot:
         condition: service_healthy
