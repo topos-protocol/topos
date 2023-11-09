@@ -4,6 +4,7 @@ use crate::{certification::Certification, Error, SubnetRuntimeProxyConfig};
 use opentelemetry::trace::FutureExt;
 use opentelemetry::Context;
 use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -225,27 +226,51 @@ impl SubnetRuntimeProxy {
 
                 // Go to standard mode of listening for new blocks
                 let mut interval = time::interval(SUBNET_BLOCK_TIME);
-                let shutdowned: Option<oneshot::Sender<()>> = loop {
+                let shutdowned: Option<oneshot::Sender<()>> = 'tick_loop: loop {
                     tokio::select! {
                         _ = interval.tick() => {
-                            let next_block_number = latest_acquired_subnet_block_number + 1;
-                            if let Err(e) = SubnetRuntimeProxy::process_next_block(
-                                runtime_proxy.clone(),
-                                &mut subnet_listener,
-                                certification.clone(),
-                                next_block_number as u64
-                            ).await {
-                                match e {
-                                    Error::SubnetError { source: topos_sequencer_subnet_client::Error::BlockNotAvailable(_) } => {
-                                        continue;
-                                    }
-                                    _ => {
-                                        error!("Failed to process next block: {}", e);
-                                        break None;
-                                    }
+                            // Retrieve latest produced block number from the network
+                            let current_subnet_block_number: i128 = match subnet_listener.get_subnet_block_number().await {
+                                Ok(block_number) => {
+                                    block_number as i128
+                                }
+                                Err(e) => {
+                                    error!("Failed to get subnet block number: {:?}, trying again soon...", e);
+                                    continue;
+                                }
+                            };
+
+                            match current_subnet_block_number.cmp(&latest_acquired_subnet_block_number) {
+                                Ordering::Equal => {
+                                    warn!("Next block {} not yet available, trying again soon", latest_acquired_subnet_block_number + 1);
+                                    continue;
+                                }
+                                 Ordering::Less => {
+                                    error!("We have more blocks retrieved than the current subnet node! \
+                                    Current subnet block number = {} latest acquired block number = {} ",
+                                        current_subnet_block_number, latest_acquired_subnet_block_number);
+                                    continue;
+                                }
+                                _ => {
+                                    info!("Acquiring new block(s) [{}..{}] from subnet node...", latest_acquired_subnet_block_number+1,
+                                        current_subnet_block_number);
                                 }
                             }
-                            latest_acquired_subnet_block_number = next_block_number;
+
+                            // Sync all produced blocks since last timer tick
+                            while latest_acquired_subnet_block_number < current_subnet_block_number {
+                                let next_block_number = latest_acquired_subnet_block_number + 1;
+                                if let Err(e) = SubnetRuntimeProxy::process_next_block(
+                                    runtime_proxy.clone(),
+                                    &mut subnet_listener,
+                                    certification.clone(),
+                                    next_block_number as u64
+                                ).await {
+                                    error!("Failed to process next block: {}, trying again soon...", e);
+                                     break 'tick_loop None;
+                                }
+                                latest_acquired_subnet_block_number = next_block_number;
+                            }
                         },
                         shutdown = block_task_shutdown.recv() => {
                             break shutdown;
@@ -337,12 +362,6 @@ impl SubnetRuntimeProxy {
                 }
                 info!("Block {} processed", next_block);
                 Ok(())
-            }
-            Err(topos_sequencer_subnet_client::Error::BlockNotAvailable(block_number)) => {
-                warn!("New block {block_number} not yet available, trying again soon");
-                Err(Error::SubnetError {
-                    source: topos_sequencer_subnet_client::Error::BlockNotAvailable(block_number),
-                })
             }
             Err(e) => {
                 // TODO: Determine if task should end on some type of error

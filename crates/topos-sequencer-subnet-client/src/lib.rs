@@ -132,21 +132,6 @@ impl SubnetClientListener {
         &mut self,
         next_block_number: u64,
     ) -> Result<BlockInfo, Error> {
-        let latest_subnet_block_number = self
-            .provider
-            .get_block_number()
-            .await
-            .map_err(Error::EthersProviderError)?;
-
-        info!(
-            "Finalized block number: next={} and latest={}",
-            next_block_number, latest_subnet_block_number
-        );
-
-        if latest_subnet_block_number.as_u64() < next_block_number {
-            return Err(Error::BlockNotAvailable(next_block_number));
-        }
-
         let block = self
             .provider
             .get_block(next_block_number)
