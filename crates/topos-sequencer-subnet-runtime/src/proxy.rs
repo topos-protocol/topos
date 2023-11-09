@@ -226,6 +226,7 @@ impl SubnetRuntimeProxy {
 
                 // Go to standard mode of listening for new blocks
                 let mut interval = time::interval(SUBNET_BLOCK_TIME);
+                interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
                 let shutdowned: Option<oneshot::Sender<()>> = 'tick_loop: loop {
                     tokio::select! {
                         _ = interval.tick() => {
