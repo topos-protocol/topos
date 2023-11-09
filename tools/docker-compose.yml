@@ -40,7 +40,7 @@ services:
       context: ../
       args:
         - TOOLCHAIN_VERSION=stable
-        - FEATURES=node,subnet
+        - FEATURES=node,regtest
     depends_on:
       init:
         condition: service_completed_successfully
@@ -75,7 +75,7 @@ services:
       context: ../
       args:
         - TOOLCHAIN_VERSION=stable
-        - FEATURES=node,subnet
+        - FEATURES=node,regtest
     depends_on:
       init:
         condition: service_completed_successfully
