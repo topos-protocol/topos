@@ -1,5 +1,4 @@
 use rlp::Rlp;
-use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::str::FromStr;
 use std::{fs, path::PathBuf};
@@ -18,19 +17,23 @@ pub struct Genesis {
     pub json: Value,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("Failed to parse validators")]
     ParseValidators,
+    #[error("Invalid genesis file on path {0}: {1}")]
+    InvalidGenesisFile(String, String),
 }
 
 impl Genesis {
-    pub fn new(path: PathBuf) -> Self {
+    pub fn new(path: PathBuf) -> Result<Self, Error> {
         info!("Reading subnet genesis file {}", path.display());
-        let genesis_file = fs::File::open(&path).expect("opened file");
+        let genesis_file = fs::File::open(&path)
+            .map_err(|e| Error::InvalidGenesisFile(path.display().to_string(), e.to_string()))?;
 
         let json: Value = serde_json::from_reader(genesis_file).expect("genesis json parsed");
 
-        Self { path, json }
+        Ok(Self { path, json })
     }
 
     // Considered as being the set of premined addresses for now
