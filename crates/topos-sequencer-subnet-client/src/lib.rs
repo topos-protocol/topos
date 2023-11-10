@@ -57,12 +57,12 @@ pub struct BlockInfo {
 pub enum Error {
     #[error("new finalized block not available")]
     BlockNotAvailable(u64),
-    #[error("next stream block not available")]
+    #[error("next stream block is not available")]
     StreamBlockNotAvailable,
     #[error("invalid block number: {0}")]
     InvalidBlockNumber(u64),
-    #[error("data not available")]
-    DataNotAvailable,
+    #[error("block number not available")]
+    BlockNumberNotAvailable,
     #[error("failed mutable cast")]
     MutableCastFailed,
     #[error("json error: {source}")]
@@ -211,7 +211,7 @@ impl SubnetClientListener {
         stream: &mut SubscriptionStream<'_, Ws, ethers::types::Block<ethers::types::H256>>,
     ) -> Result<BlockInfo, Error> {
         if let Some(block) = stream.next().await {
-            let block_number = block.number.ok_or(Error::DataNotAvailable)?;
+            let block_number = block.number.ok_or(Error::BlockNumberNotAvailable)?;
             let events = match get_block_events(&self.contract, block_number).await {
                 Ok(events) => events,
                 Err(Error::EventDecodingError(e)) => {
