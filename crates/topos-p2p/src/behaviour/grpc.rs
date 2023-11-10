@@ -326,7 +326,7 @@ impl Behaviour {
         }
     }
 
-    /// Handle the [`DialFailure`] event comming from the [`Swarm`]
+    /// Handle the [`DialFailure`] event coming from the [`Swarm`]
     fn on_dial_failure(
         &mut self,
         DialFailure {

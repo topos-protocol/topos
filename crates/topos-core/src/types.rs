@@ -43,7 +43,7 @@ pub struct ProofOfDelivery {
     pub certificate_id: CertificateId,
     /// The position of the certificate in the source stream
     pub delivery_position: CertificateSourceStreamPosition,
-    /// The list of Ready messages used to proove the certificate's delivery
+    /// The list of Ready messages used to prove the certificate's delivery
     pub readies: Vec<(Ready, Signature)>,
     /// The threshold of Ready messages required to consider the certificate as delivered
     pub threshold: u64,

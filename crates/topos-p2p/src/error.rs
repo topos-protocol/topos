@@ -24,7 +24,7 @@ pub enum P2PError {
     #[error(transparent)]
     CommandError(#[from] CommandExecutionError),
 
-    #[error("An error occured on the Transport layer: {0}")]
+    #[error("An error occurred on the Transport layer: {0}")]
     TransportError(#[from] TransportError<io::Error>),
 
     #[error("Unable to receive expected response of a oneshot channel")]

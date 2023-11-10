@@ -35,7 +35,7 @@ use topos_test_sdk::constants::*;
 // Local test network with default 2 seconds block
 const STANDALONE_SUBNET: &str = "standalone-test";
 const STANDALONE_SUBNET_BLOCK_TIME: u64 = 2;
-// Local test network with 12 seconds block, usefull for multiple transactions in one block tests
+// Local test network with 12 seconds block, useful for multiple transactions in one block tests
 const STANDALONE_SUBNET_WITH_LONG_BLOCKS_BLOCK_TIME: u64 = 12;
 
 const SUBNET_RPC_PORT: u32 = 8545;
@@ -334,7 +334,7 @@ async fn deploy_contracts(
         .send()
         .await
         .map_err(|e| {
-            error!("Unable to initalize topos core contract: {e}");
+            error!("Unable to initialize topos core contract: {e}");
             e
         })?
         .await

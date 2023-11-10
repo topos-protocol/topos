@@ -43,7 +43,7 @@ impl CertificateSourceStreamPosition {
 /// CertificateTargetStreamPosition for the same certificate but never more than
 /// one CertificateTargetStreamPosition per couple (target, source).
 ///
-/// The position of a certificate in a target stream will be the same accross
+/// The position of a certificate in a target stream will be the same across
 /// the entire network.
 #[derive(Debug, Deserialize, Serialize, Clone, Copy)]
 pub struct CertificateTargetStreamPosition {
