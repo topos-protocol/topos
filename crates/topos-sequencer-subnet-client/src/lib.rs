@@ -9,10 +9,10 @@ use ethers::{
     abi::Token,
     core::rand::thread_rng,
     middleware::SignerMiddleware,
-    providers::{Http, Provider, ProviderError, Ws, WsClientError},
+    providers::{Http, Provider, ProviderError, StreamExt, Ws, WsClientError},
     signers::{LocalWallet, Signer, WalletError},
 };
-use ethers_providers::Middleware;
+use ethers_providers::{Middleware, SubscriptionStream};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;
@@ -57,6 +57,8 @@ pub struct BlockInfo {
 pub enum Error {
     #[error("new finalized block not available")]
     BlockNotAvailable(u64),
+    #[error("next stream block not available")]
+    StreamBlockNotAvailable,
     #[error("invalid block number: {0}")]
     InvalidBlockNumber(u64),
     #[error("data not available")]
@@ -127,6 +129,15 @@ impl SubnetClientListener {
         Ok(SubnetClientListener { contract, provider })
     }
 
+    pub async fn new_block_subscription_stream(
+        &self,
+    ) -> Result<SubscriptionStream<Ws, ethers::types::Block<ethers::types::H256>>, Error> {
+        self.provider
+            .subscribe_blocks()
+            .await
+            .map_err(Error::EthersProviderError)
+    }
+
     /// Subscribe and listen to runtime finalized blocks
     pub async fn get_finalized_block(
         &mut self,
@@ -193,6 +204,41 @@ impl SubnetClientListener {
             .await
             .map(|block_number| block_number.as_u64())
             .map_err(Error::EthersProviderError)
+    }
+
+    pub async fn wait_for_new_block(
+        &self,
+        stream: &mut SubscriptionStream<'_, Ws, ethers::types::Block<ethers::types::H256>>,
+    ) -> Result<BlockInfo, Error> {
+        if let Some(block) = stream.next().await {
+            let block_number = block.number.ok_or(Error::DataNotAvailable)?;
+            let events = match get_block_events(&self.contract, block_number).await {
+                Ok(events) => events,
+                Err(Error::EventDecodingError(e)) => {
+                    // FIXME: Happens in block before subnet contract is deployed, seems like bug in ethers
+                    error!("Unable to parse events from block {}: {e}", block_number);
+                    Vec::new()
+                }
+                Err(e) => {
+                    error!("Unable to parse events from block {}: {e}", block_number);
+                    return Err(e);
+                }
+            };
+
+            // Make block info result from all collected info
+            let block_info = BlockInfo {
+                hash: block.hash.unwrap_or_default().to_string(),
+                parent_hash: block.parent_hash.to_string(),
+                number: block_number.to_owned().as_u64(),
+                state_root: block.state_root.0,
+                tx_root_hash: block.transactions_root.0,
+                receipts_root_hash: block.receipts_root.0,
+                events,
+            };
+            Ok(block_info)
+        } else {
+            Err(Error::StreamBlockNotAvailable)
+        }
     }
 }
 
