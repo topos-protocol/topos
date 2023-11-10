@@ -29,7 +29,7 @@ pub(crate) trait Config: Serialize {
 
     /// Return the profile name of the configuration to be used
     /// when generating the file.
-    fn profile(&self) -> String;
+    fn profile() -> String;
 
     /// Convert the configuration to a TOML table.
     fn to_toml(&self) -> Result<toml::Table, toml::ser::Error> {
@@ -38,7 +38,7 @@ pub(crate) trait Config: Serialize {
 
     /// Load the configuration from the command line command.
     fn load_from_command(figment: Figment, command: Self::Command) -> Figment {
-        figment.merge(Serialized::defaults(command))
+        figment.merge(Serialized::from(command, Self::profile()))
     }
 
     /// Main function to load the configuration.
@@ -48,11 +48,11 @@ pub(crate) trait Config: Serialize {
     fn load(home: &Path, command: Option<Self::Command>) -> Result<Self::Output, figment::Error> {
         let mut figment = Figment::new();
 
+        figment = Self::load_from_file(figment, home);
+
         if let Some(command) = command {
             figment = Self::load_from_command(figment, command);
         }
-
-        figment = Self::load_from_file(figment, home);
 
         Self::load_context(figment)
     }

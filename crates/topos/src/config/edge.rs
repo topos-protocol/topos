@@ -36,7 +36,7 @@ impl Config for EdgeConfig {
         figment.extract()
     }
 
-    fn profile(&self) -> String {
+    fn profile() -> String {
         "edge".to_string()
     }
 }

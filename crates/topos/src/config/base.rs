@@ -75,7 +75,7 @@ impl Config for BaseConfig {
         figment.extract()
     }
 
-    fn profile(&self) -> String {
+    fn profile() -> String {
         "base".to_string()
     }
 }

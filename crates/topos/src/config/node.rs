@@ -62,7 +62,7 @@ impl Config for NodeConfig {
 
     type Output = NodeConfig;
 
-    fn profile(&self) -> String {
+    fn profile() -> String {
         "default".to_string()
     }
 

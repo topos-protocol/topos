@@ -107,7 +107,7 @@ impl Config for TceConfig {
 
     type Output = TceConfig;
 
-    fn profile(&self) -> String {
+    fn profile() -> String {
         "tce".to_string()
     }
 

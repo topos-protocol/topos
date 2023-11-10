@@ -74,7 +74,7 @@ impl Config for SequencerConfig {
         figment.extract()
     }
 
-    fn profile(&self) -> String {
+    fn profile() -> String {
         "sequencer".to_string()
     }
 }
