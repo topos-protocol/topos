@@ -8,7 +8,7 @@ use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::sync::{mpsc, oneshot};
-use tokio::time::{self, Duration};
+use tokio::time::Duration;
 use topos_core::api::grpc::checkpoints::TargetStreamPosition;
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
 use topos_sequencer_subnet_client::{self, BlockInfo, SubnetClient, SubnetClientListener};
@@ -250,7 +250,6 @@ impl SubnetRuntimeProxy {
                                         error!("Failed to process next block: {}", e);
                                         break None;
                                     }
-                                    latest_acquired_subnet_block_number = new_block_number;
                                 }
                                 Err(e) => {
                                     error!("Failed to retrieve next block: {}, trying again soon", e);
