@@ -84,8 +84,7 @@ jobs:
   frontend-erc20-e2e:
     runs-on: ubuntu-latest
     needs: docker
-    # if: ${{ github.event_name == 'pull_request' }}
-    if: ${{ false }}  # disable for now because of: TP-768
+    if: ${{ github.event_name == 'pull_request' }}
     steps:
       - name: Set environment
         run: |
