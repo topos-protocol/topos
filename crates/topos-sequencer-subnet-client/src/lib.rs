@@ -171,7 +171,11 @@ impl SubnetClientListener {
             Ok(events) => events,
             Err(Error::EventDecodingError(e)) => {
                 // FIXME: Happens in block before subnet contract is deployed, seems like bug in ethers
-                error!("Unable to parse events from block {}: {e}", block_number);
+                error!(
+                    "Error decoding events from block {}: {e} \nTopos smart contracts may not be \
+                     deployed?",
+                    block_number
+                );
                 Vec::new()
             }
             Err(e) => {
@@ -216,7 +220,11 @@ impl SubnetClientListener {
                 Ok(events) => events,
                 Err(Error::EventDecodingError(e)) => {
                     // FIXME: Happens in block before subnet contract is deployed, seems like bug in ethers
-                    error!("Unable to parse events from block {}: {e}", block_number);
+                    error!(
+                        "Error decoding events from block {}: {e} \nTopos smart contracts may not \
+                         be deployed?",
+                        block_number
+                    );
                     Vec::new()
                 }
                 Err(e) => {

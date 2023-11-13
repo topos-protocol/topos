@@ -374,13 +374,7 @@ impl SubnetRuntimeProxy {
         // Update certificate block history
         certification.append_blocks(vec![block_info]);
 
-        let new_certificates = match certification.generate_certificates().await {
-            Ok(certificates) => certificates,
-            Err(e) => {
-                error!("Unable to generate certificates: {e}");
-                return Err(e);
-            }
-        };
+        let new_certificates = certification.generate_certificates().await?;
 
         debug!("Generated new certificates {new_certificates:?}");
 
