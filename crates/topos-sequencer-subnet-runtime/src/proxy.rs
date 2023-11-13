@@ -253,6 +253,7 @@ impl SubnetRuntimeProxy {
                                 }
                                 Err(e) => {
                                     error!("Failed to retrieve next block: {}, trying again soon", e);
+                                    tokio::time::sleep(Duration::from_millis(1000)).await;
                                     continue;
                                 }
                             }
