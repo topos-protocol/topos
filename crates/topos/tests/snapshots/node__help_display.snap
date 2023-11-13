@@ -8,8 +8,8 @@ Utility to manage your nodes in the Topos network
 Usage: topos node [OPTIONS] [COMMAND]
 
 Commands:
-  up      Spawn your node!
-  init    Setup your node!
+  up      Spawn your node
+  init    Setup your node
   status  Get node status
   help    Print this message or the help of the given subcommand(s)
 

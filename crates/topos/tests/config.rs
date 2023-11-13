@@ -25,7 +25,7 @@ async fn polygon_edge_path(path: &str) -> String {
 }
 
 #[tokio::test]
-async fn test_handle_command_init() -> Result<(), Box<dyn std::error::Error>> {
+async fn handle_command_init() -> Result<(), Box<dyn std::error::Error>> {
     let temporary_test_folder = "/tmp/topos/handle_command_init";
     let path = polygon_edge_path(temporary_test_folder).await;
 
@@ -61,8 +61,31 @@ async fn test_handle_command_init() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+#[tokio::test]
+async fn handle_command_up() -> Result<(), Box<dyn std::error::Error>> {
+    let temporary_test_folder = "/tmp/topos/handle_command_up";
+    let path = polygon_edge_path(temporary_test_folder).await;
+
+    let mut cmd = Command::cargo_bin("topos")?;
+    cmd.arg("node")
+        .arg("--edge-path")
+        .arg(path)
+        .arg("init")
+        .arg("--home")
+        .arg(temporary_test_folder);
+
+    let output = cmd.assert().success();
+    let result: &str = std::str::from_utf8(&output.get_output().stdout)?;
+
+    assert!(result.contains("Created node config file"));
+
+    std::fs::remove_dir_all(temporary_test_folder)?;
+
+    Ok(())
+}
+
 #[test]
-fn test_nothing_written_if_failure() -> Result<(), Box<dyn std::error::Error>> {
+fn nothing_written_if_failure() -> Result<(), Box<dyn std::error::Error>> {
     let temporary_test_folder = "/tmp/topos/test_nothing_written_if_failure";
 
     let mut cmd = Command::cargo_bin("topos")?;
@@ -88,7 +111,7 @@ fn test_nothing_written_if_failure() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[tokio::test]
-async fn test_handle_command_init_with_custom_name() -> Result<(), Box<dyn std::error::Error>> {
+async fn handle_command_init_with_custom_name() -> Result<(), Box<dyn std::error::Error>> {
     let temporary_test_folder = "/tmp/topos/test_handle_command_init_with_custom_name";
     let node_name = "TEST_NODE";
     let path = polygon_edge_path(temporary_test_folder).await;
@@ -127,7 +150,7 @@ async fn test_handle_command_init_with_custom_name() -> Result<(), Box<dyn std::
 
 /// Test node init env arguments
 #[tokio::test]
-async fn test_command_init_precedence_env() -> Result<(), Box<dyn std::error::Error>> {
+async fn command_init_precedence_env() -> Result<(), Box<dyn std::error::Error>> {
     let tmp_home_directory = tempdir()?;
 
     // Test node init with env variables
@@ -151,6 +174,7 @@ async fn test_command_init_precedence_env() -> Result<(), Box<dyn std::error::Er
 
     // Test node init with cli flags
     assert!(result.contains("Created node config file"));
+    println!("YES");
     let home = PathBuf::from(node_init_home_env);
     // Verification: check that the config file was created
     let config_path = home
@@ -160,6 +184,7 @@ async fn test_command_init_precedence_env() -> Result<(), Box<dyn std::error::Er
     assert!(config_path.exists());
     // Check if config file params are according to env params
     let config_contents = std::fs::read_to_string(&config_path).unwrap();
+    println!("{:#?}", config_contents);
     assert!(config_contents.contains("name = \"TEST_NODE_ENV\""));
     assert!(config_contents.contains("role = \"fullnode\""));
     assert!(config_contents.contains("subnet = \"topos-env\""));
@@ -169,7 +194,7 @@ async fn test_command_init_precedence_env() -> Result<(), Box<dyn std::error::Er
 
 /// Test node cli arguments precedence over env arguments
 #[tokio::test]
-async fn test_command_init_precedence_cli_env() -> Result<(), Box<dyn std::error::Error>> {
+async fn command_init_precedence_cli_env() -> Result<(), Box<dyn std::error::Error>> {
     let tmp_home_dir = tempdir()?;
 
     // Test node init with both cli and env flags

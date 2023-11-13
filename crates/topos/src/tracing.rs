@@ -39,7 +39,6 @@ fn build_resources(otlp_service_name: String) -> Vec<KeyValue> {
     resources
 }
 
-#[allow(dead_code)]
 fn create_filter() -> EnvFilter {
     EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("warn,topos=info"))
 }
