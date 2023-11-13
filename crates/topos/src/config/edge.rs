@@ -1,4 +1,4 @@
-use crate::components::node::commands::Up;
+use crate::components::node::commands::Init;
 use crate::config::Config;
 use figment::{
     providers::{Format, Toml},
@@ -18,8 +18,6 @@ pub struct EdgeConfig {
 }
 
 impl Config for EdgeConfig {
-    type Command = Up;
-
     type Output = EdgeConfig;
 
     fn load_from_file(figment: Figment, home: &Path) -> Figment {

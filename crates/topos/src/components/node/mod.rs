@@ -34,14 +34,12 @@ pub(crate) mod services;
 
 pub(crate) struct NodeService {
     pub(crate) console_client: Arc<Mutex<ConsoleServiceClient<Channel>>>,
-    pub(crate) _api_client: Arc<Mutex<ApiServiceClient<Channel>>>,
 }
 
 impl NodeService {
     pub(crate) fn with_grpc_endpoint(endpoint: &str) -> Self {
         Self {
             console_client: setup_console_tce_grpc(endpoint),
-            _api_client: setup_api_tce_grpc(endpoint),
         }
     }
 }
@@ -49,9 +47,9 @@ impl NodeService {
 pub(crate) async fn handle_command(
     NodeCommand {
         subcommands,
-        verbose: _verbose,
         home,
         edge_path,
+        ..
     }: NodeCommand,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match subcommands {
@@ -92,7 +90,7 @@ pub(crate) async fn handle_command(
                 }
             }
 
-            let node_config = NodeConfig::new(&node_path, Some(cmd));
+            let node_config = NodeConfig::new(&node_path, Some(NodeCommands::Init(Box::new(cmd))));
 
             // Creating the TOML output
             insert_into_toml(&mut config_toml, node_config);
@@ -117,9 +115,10 @@ pub(crate) async fn handle_command(
             Ok(())
         }
         Some(NodeCommands::Up(cmd)) => {
-            let cmd = *cmd;
+            let cmd_cloned = cmd.clone();
+            let command = *cmd;
 
-            let name = cmd
+            let name = cmd_cloned
                 .name
                 .as_ref()
                 .expect("No name or default was given for node");
@@ -134,8 +133,8 @@ pub(crate) async fn handle_command(
                 std::process::exit(1);
             }
 
-            let config = NodeConfig::new(&node_path, Some(cmd));
-            info!(
+            let config = NodeConfig::new(&node_path, Some(NodeCommands::Up(Box::new(command))));
+            println!(
                 "⚙️ Reading the configuration from {}/config.toml",
                 node_path.display()
             );
@@ -175,15 +174,15 @@ pub(crate) async fn handle_command(
 
             // Setup instrumentation if both otlp agent and otlp service name
             // are provided as arguments
-            // We may want to use instrumentation in e2e tests
-            let basic_controller = setup_tracing(cmd.otlp_agent, cmd.otlp_service_name)?;
+            let basic_controller =
+                setup_tracing(cmd_cloned.otlp_agent, cmd_cloned.otlp_service_name)?;
 
             let (shutdown_sender, shutdown_receiver) = mpsc::channel(1);
 
             let mut processes = FuturesUnordered::new();
 
             // Edge node
-            if cmd.no_edge_process {
+            if cmd_cloned.no_edge_process {
                 info!("Using external edge node, skip running of local edge instance...")
             } else if let Some(edge_config) = config.edge {
                 let data_dir = node_path.clone();

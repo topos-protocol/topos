@@ -1,7 +1,8 @@
 use super::NodeArgument;
 use clap::Args;
+use serde::Serialize;
 
-#[derive(Args, Debug)]
+#[derive(Args, Debug, Serialize)]
 #[command(about = "Get node status")]
 pub(crate) struct Status {
     #[command(flatten)]

@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use clap::{Args, Subcommand};
+use serde::Serialize;
 
 mod init;
 mod status;
@@ -10,7 +11,7 @@ pub(crate) use init::Init;
 pub(crate) use status::Status;
 pub(crate) use up::Up;
 
-#[derive(Args, Debug)]
+#[derive(Args, Debug, Serialize)]
 pub(crate) struct NodeArgument {
     #[clap(short, long, default_value = "http://[::1]:1340")]
     pub(crate) node: String,
@@ -33,7 +34,7 @@ pub(crate) struct NodeCommand {
     pub(crate) subcommands: Option<NodeCommands>,
 }
 
-#[derive(Subcommand, Debug)]
+#[derive(Subcommand, Debug, Serialize)]
 pub(crate) enum NodeCommands {
     Up(Box<Up>),
     Init(Box<Init>),

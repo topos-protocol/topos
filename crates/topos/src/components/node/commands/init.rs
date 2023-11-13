@@ -3,7 +3,7 @@ use clap::Args;
 use serde::Serialize;
 
 #[derive(Args, Debug, Serialize)]
-#[command(about = "Setup your node!", trailing_var_arg = true)]
+#[command(about = "Setup your node", trailing_var_arg = true)]
 #[serde(rename_all = "kebab-case")]
 pub struct Init {
     /// Name to identify your node

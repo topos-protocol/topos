@@ -18,11 +18,11 @@ use crate::config::genesis::Genesis;
 
 #[derive(Error, Debug)]
 pub enum Errors {
-    #[error("Failure on the TCE")]
+    #[error("TCE error")]
     TceFailure,
-    #[error("Failure on the Sequencer")]
+    #[error("Sequencer error")]
     SequencerFailure,
-    #[error("Failure on the Edge")]
+    #[error("Edge error: {0}")]
     EdgeTerminated(#[from] std::io::Error),
 }
 
@@ -57,7 +57,7 @@ pub(crate) fn spawn_sequencer_process(
     shutdown: (CancellationToken, mpsc::Sender<()>),
 ) -> JoinHandle<Result<(), Errors>> {
     let config = SequencerConfiguration {
-        subnet_id: None,
+        subnet_id: config.subnet_id,
         public_key: keys.validator_pubkey(),
         subnet_jsonrpc_http: config.subnet_jsonrpc_http,
         subnet_jsonrpc_ws: config.subnet_jsonrpc_ws,
@@ -71,7 +71,7 @@ pub(crate) fn spawn_sequencer_process(
     debug!("Sequencer args: {config:?}");
     spawn(async move {
         topos_sequencer::run(config, shutdown).await.map_err(|e| {
-            error!("Failure on the Sequencer: {e:?}");
+            error!("Sequencer failure: {e:?}");
             Errors::SequencerFailure
         })
     })
@@ -99,7 +99,7 @@ pub(crate) fn spawn_tce_process(
         graphql_api_addr: config.graphql_api_addr,
         metrics_api_addr: config.metrics_api_addr,
         storage: StorageConfiguration::RocksDB(Some(config.db_path)),
-        network_bootstrap_timeout: Duration::from_secs(180),
+        network_bootstrap_timeout: Duration::from_secs(90),
         minimum_cluster_size: config
             .minimum_tce_cluster_size
             .unwrap_or(NetworkConfig::MINIMUM_CLUSTER_SIZE),

@@ -7,7 +7,7 @@ use figment::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::components::node::commands::Up;
+use crate::components::node::commands::Init;
 use crate::config::Config;
 use topos_p2p::{Multiaddr, PeerId};
 
@@ -103,13 +103,7 @@ impl TceConfig {
 }
 
 impl Config for TceConfig {
-    type Command = Up;
-
     type Output = TceConfig;
-
-    fn profile() -> String {
-        "tce".to_string()
-    }
 
     fn load_from_file(figment: Figment, home: &Path) -> Figment {
         let home = home.join("config.toml");
@@ -123,5 +117,9 @@ impl Config for TceConfig {
 
     fn load_context(figment: Figment) -> Result<Self::Output, figment::Error> {
         figment.extract()
+    }
+
+    fn profile() -> String {
+        "tce".to_string()
     }
 }

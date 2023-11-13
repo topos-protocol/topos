@@ -1,11 +1,11 @@
 use std::path::Path;
 
-use crate::components::node::commands::Init;
+use crate::components::node::commands::{Init, Up};
 use figment::{
     providers::{Format, Toml},
     Figment,
 };
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 
 use crate::config::node::NodeRole;
 use crate::config::Config;
@@ -57,8 +57,6 @@ impl BaseConfig {
 }
 
 impl Config for BaseConfig {
-    type Command = Init;
-
     type Output = Self;
 
     fn load_from_file(figment: Figment, home: &Path) -> Figment {

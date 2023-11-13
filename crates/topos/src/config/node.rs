@@ -5,15 +5,13 @@ use figment::{
     Figment,
 };
 
-use crate::components::node;
-use crate::components::node::commands::Up;
+use crate::components::node::commands::NodeCommands;
 use serde::{Deserialize, Serialize};
 
 use crate::config::{
-    base::BaseConfig, edge::EdgeConfig, sequencer::SequencerConfig, tce::TceConfig, Config,
+    base::BaseConfig, edge::EdgeConfig, load_config, sequencer::SequencerConfig, tce::TceConfig,
+    Config,
 };
-
-use super::load_config;
 
 #[derive(clap::ValueEnum, Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -32,25 +30,25 @@ pub(crate) struct NodeConfig {
 }
 
 impl NodeConfig {
-    pub fn new(from: &Path, cmd: Option<node::commands::Init>) -> Self {
-        let base = load_config::<BaseConfig>(from, cmd);
+    pub fn new(home: &Path, cmd: Option<NodeCommands>) -> Self {
+        let base = load_config::<BaseConfig>(home, cmd);
 
         let mut config = NodeConfig {
             base: base.clone(),
             sequencer: base
                 .need_sequencer()
-                .then(|| load_config::<SequencerConfig>(from, None)),
+                .then(|| load_config::<SequencerConfig>(home, None)),
             tce: base
                 .need_tce()
-                .then(|| load_config::<TceConfig>(from, None)),
+                .then(|| load_config::<TceConfig>(home, None)),
             edge: base
                 .need_edge()
-                .then(|| load_config::<EdgeConfig>(from, None)),
+                .then(|| load_config::<EdgeConfig>(home, None)),
         };
 
         // Make the TCE DB path relative to the folder
         if let Some(config) = config.tce.as_mut() {
-            config.db_path = from.join(&config.db_path);
+            config.db_path = home.join(&config.db_path);
         }
 
         config
@@ -58,13 +56,7 @@ impl NodeConfig {
 }
 
 impl Config for NodeConfig {
-    type Command = Up;
-
     type Output = NodeConfig;
-
-    fn profile() -> String {
-        "default".to_string()
-    }
 
     fn load_from_file(figment: Figment, home: &Path) -> Figment {
         let home = home.join("config.toml");
@@ -74,5 +66,9 @@ impl Config for NodeConfig {
 
     fn load_context(figment: Figment) -> Result<Self::Output, figment::Error> {
         figment.extract()
+    }
+
+    fn profile() -> String {
+        "default".to_string()
     }
 }

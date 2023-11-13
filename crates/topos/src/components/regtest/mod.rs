@@ -53,7 +53,6 @@ pub(crate) async fn handle_command(
 
             // Setup instrumentation if both otlp agent and otlp service name
             // are provided as arguments
-            // We may want to use instrumentation in e2e tests
             let basic_controller = setup_tracing(cmd.otlp_agent, cmd.otlp_service_name)?;
 
             let (shutdown_sender, shutdown_receiver) = mpsc::channel::<oneshot::Sender<()>>(1);

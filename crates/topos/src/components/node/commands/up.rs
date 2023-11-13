@@ -1,8 +1,8 @@
 use clap::Args;
 use serde::Serialize;
 
-#[derive(Args, Debug, Serialize)]
-#[command(about = "Spawn your node!")]
+#[derive(Args, Clone, Debug, Serialize)]
+#[command(about = "Spawn your node")]
 #[serde(rename_all = "kebab-case")]
 pub struct Up {
     /// Name to identify your node
