@@ -50,8 +50,6 @@ pub(crate) async fn handle_command(
         edge_path,
     }: NodeCommand,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    setup_tracing(verbose, None, None)?;
-
     match subcommands {
         Some(NodeCommands::Init(cmd)) => {
             let cmd = *cmd;
