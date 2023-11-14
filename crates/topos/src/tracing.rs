@@ -197,6 +197,8 @@ pub(crate) fn setup_tracing(
 
         opentelemetry::global::set_text_map_propagator(TraceContextPropagator::new());
 
+        global::set_text_map_propagator(TraceContextPropagator::new());
+
         None
     } else {
         None

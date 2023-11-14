@@ -46,6 +46,7 @@ impl SecretManager {
     }
 
     pub fn from_aws(_secrets_config: &str) -> Self {
+        println!("loading from aws-sm");
         todo!()
     }
 

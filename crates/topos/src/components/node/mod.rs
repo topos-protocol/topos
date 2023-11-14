@@ -1,13 +1,21 @@
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
-use std::path::Path;
+use opentelemetry::global;
+use opentelemetry::sdk::metrics::controllers::BasicController;
 use std::{
     fs::{create_dir_all, remove_dir_all, OpenOptions},
     io::Write,
 };
-use tokio::{signal, sync::mpsc};
+use std::{path::Path, sync::Arc};
+use tokio::{
+    signal,
+    sync::{mpsc, Mutex},
+};
 use tokio_util::sync::CancellationToken;
+use tonic::transport::{Channel, Endpoint};
+use tower::Service;
 use tracing::{error, info};
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 use self::commands::{NodeCommand, NodeCommands};
 use crate::config::genesis::Genesis;
@@ -16,11 +24,23 @@ use crate::{
     config::{insert_into_toml, node::NodeConfig, node::NodeRole},
     tracing::setup_tracing,
 };
-use services::*;
+use topos_core::api::grpc::tce::v1::console_service_client::ConsoleServiceClient;
 use topos_wallet::SecretManager;
 
 pub(crate) mod commands;
-pub mod services;
+pub(crate) mod services;
+
+pub(crate) struct NodeService {
+    pub(crate) console_client: Arc<Mutex<ConsoleServiceClient<Channel>>>,
+}
+
+impl NodeService {
+    pub(crate) fn with_grpc_endpoint(endpoint: &str) -> Self {
+        Self {
+            console_client: setup_console_tce_grpc(endpoint),
+        }
+    }
+}
 
 pub(crate) async fn handle_command(
     NodeCommand {
@@ -30,8 +50,6 @@ pub(crate) async fn handle_command(
         edge_path,
     }: NodeCommand,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    setup_tracing(verbose, None, None)?;
-
     match subcommands {
         Some(NodeCommands::Init(cmd)) => {
             let cmd = *cmd;
@@ -57,8 +75,11 @@ pub(crate) async fn handle_command(
             let mut config_toml = toml::Table::new();
 
             // Generate the Edge configuration
-            if let Ok(result) =
-                generate_edge_config(edge_path.join(BINARY_NAME), node_path.clone()).await
+            if let Ok(result) = services::process::generate_edge_config(
+                edge_path.join(BINARY_NAME),
+                node_path.clone(),
+            )
+            .await
             {
                 if result.is_err() {
                     println!("Failed to generate edge config");
@@ -67,7 +88,7 @@ pub(crate) async fn handle_command(
                 }
             }
 
-            let node_config = NodeConfig::new(&node_path, Some(cmd));
+            let node_config = NodeConfig::new(&node_path, Some(NodeCommands::Init(Box::new(cmd))));
 
             // Creating the TOML output
             insert_into_toml(&mut config_toml, node_config);
@@ -92,7 +113,10 @@ pub(crate) async fn handle_command(
             Ok(())
         }
         Some(NodeCommands::Up(cmd)) => {
-            let name = cmd
+            let cmd_cloned = cmd.clone();
+            let command = *cmd;
+
+            let name = cmd_cloned
                 .name
                 .as_ref()
                 .expect("No name or default was given for node");
@@ -107,9 +131,8 @@ pub(crate) async fn handle_command(
                 std::process::exit(1);
             }
 
-            // FIXME: Handle properly the `cmd`
-            let config = NodeConfig::new(&node_path, None);
-            info!(
+            let config = NodeConfig::new(&node_path, Some(NodeCommands::Up(Box::new(command))));
+            println!(
                 "⚙️ Reading the configuration from {}/config.toml",
                 node_path.display()
             );
@@ -122,7 +145,7 @@ pub(crate) async fn handle_command(
             let genesis = match Genesis::new(genesis_file_path.clone()) {
                 Ok(genesis) => genesis,
                 Err(_) => {
-                    error!(
+                    println!(
                         "Could not load genesis.json file on path {} \n Please make sure to have \
                          a valid genesis.json file for your subnet in the {}/subnet/{} folder.",
                         genesis_file_path.display(),
@@ -146,12 +169,18 @@ pub(crate) async fn handle_command(
 
             let shutdown_token = CancellationToken::new();
             let shutdown_trigger = shutdown_token.clone();
+
+            // Setup instrumentation if both otlp agent and otlp service name
+            // are provided as arguments
+            let basic_controller =
+                setup_tracing(verbose, cmd_cloned.otlp_agent, cmd_cloned.otlp_service_name)?;
+
             let (shutdown_sender, shutdown_receiver) = mpsc::channel(1);
 
             let mut processes = FuturesUnordered::new();
 
             // Edge node
-            if cmd.no_edge_process {
+            if cmd_cloned.no_edge_process {
                 info!("Using external edge node, skip running of local edge instance...")
             } else if let Some(edge_config) = config.edge {
                 let data_dir = node_path.clone();
@@ -162,7 +191,7 @@ pub(crate) async fn handle_command(
                     data_dir.display(),
                     edge_config.args
                 );
-                processes.push(services::spawn_edge_process(
+                processes.push(services::process::spawn_edge_process(
                     edge_path.join(BINARY_NAME),
                     data_dir,
                     genesis.path.clone(),
@@ -183,7 +212,7 @@ pub(crate) async fn handle_command(
                     "Running sequencer with configuration {:?}",
                     sequencer_config
                 );
-                processes.push(services::spawn_sequencer_process(
+                processes.push(services::process::spawn_sequencer_process(
                     sequencer_config,
                     &keys,
                     (shutdown_token.clone(), shutdown_sender.clone()),
@@ -193,7 +222,7 @@ pub(crate) async fn handle_command(
             // TCE
             if config.base.subnet == "topos" {
                 info!("Running topos TCE service...",);
-                processes.push(services::spawn_tce_process(
+                processes.push(services::process::spawn_tce_process(
                     config.tce.clone().unwrap(),
                     keys,
                     genesis,
@@ -206,28 +235,56 @@ pub(crate) async fn handle_command(
             tokio::select! {
                 _ = signal::ctrl_c() => {
                     info!("Received ctrl_c, shutting down application...");
-                    shutdown(shutdown_trigger, shutdown_receiver).await;
+                    shutdown(basic_controller, shutdown_trigger, shutdown_receiver).await;
                 }
                 Some(result) = processes.next() => {
                     info!("Terminate: {result:?}");
                     if let Err(e) = result {
                         error!("Termination: {e}");
                     }
-                    shutdown(shutdown_trigger, shutdown_receiver).await;
+                    shutdown(basic_controller, shutdown_trigger, shutdown_receiver).await;
                     processes.clear();
                 }
             };
 
             Ok(())
         }
+        Some(NodeCommands::Status(status)) => {
+            let mut node_service = NodeService::with_grpc_endpoint(&status.node_args.node);
+            let exit_code = i32::from(!(node_service.call(status).await?));
+            std::process::exit(exit_code);
+        }
         None => Ok(()),
     }
 }
 
-pub async fn shutdown(trigger: CancellationToken, mut termination: mpsc::Receiver<()>) {
+fn setup_console_tce_grpc(endpoint: &str) -> Arc<Mutex<ConsoleServiceClient<Channel>>> {
+    match Endpoint::from_shared(endpoint.to_string()) {
+        Ok(endpoint) => Arc::new(Mutex::new(ConsoleServiceClient::new(
+            endpoint.connect_lazy(),
+        ))),
+        Err(e) => {
+            error!("Failure to setup the gRPC API endpoint on {endpoint}: {e}");
+            std::process::exit(1);
+        }
+    }
+}
+
+pub async fn shutdown(
+    basic_controller: Option<BasicController>,
+    trigger: CancellationToken,
+    mut termination: mpsc::Receiver<()>,
+) {
     trigger.cancel();
     // Wait that all sender get dropped
     info!("Waiting that all components dropped");
     let _ = termination.recv().await;
     info!("Shutdown procedure finished, exiting...");
+    // Shutdown tracing
+    global::shutdown_tracer_provider();
+    if let Some(basic_controller) = basic_controller {
+        if let Err(e) = basic_controller.stop(&tracing::Span::current().context()) {
+            error!("Error stopping tracing: {e}");
+        }
+    }
 }

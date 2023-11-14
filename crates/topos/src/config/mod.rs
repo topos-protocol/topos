@@ -1,24 +1,19 @@
-#[cfg(feature = "node")]
 pub(crate) mod base;
-#[cfg(feature = "node")]
 pub(crate) mod edge;
-#[cfg(feature = "node")]
 pub(crate) mod node;
-#[cfg(feature = "sequencer")]
 pub(crate) mod sequencer;
-#[cfg(feature = "tce")]
 pub mod tce;
 
 pub(crate) mod genesis;
+use crate::components::node::commands::NodeCommands;
 
 use std::path::Path;
 
-use figment::{error::Kind, providers::Serialized, Figment};
+use figment::providers::Serialized;
+use figment::{error::Kind, Figment};
 use serde::Serialize;
 
 pub(crate) trait Config: Serialize {
-    /// The command line command to load the configuration.
-    type Command: Serialize;
     /// The configuration type returned (should be Self).
     type Output;
 
@@ -33,36 +28,39 @@ pub(crate) trait Config: Serialize {
 
     /// Return the profile name of the configuration to be used
     /// when generating the file.
-    fn profile(&self) -> String;
+    fn profile() -> String;
 
     /// Convert the configuration to a TOML table.
     fn to_toml(&self) -> Result<toml::Table, toml::ser::Error> {
         toml::Table::try_from(self)
     }
 
-    /// Load the configuration from the command line command.
-    fn load_from_command(figment: Figment, command: Self::Command) -> Figment {
-        figment.merge(Serialized::defaults(command))
-    }
-
     /// Main function to load the configuration.
     /// It will load the configuration from the file and the command line (if any)
     /// and then extract the configuration from the context in order to build the Config.
     /// The Config is then returned or an error if the configuration is not valid.
-    fn load(home: &Path, command: Option<Self::Command>) -> Result<Self::Output, figment::Error> {
+    fn load(home: &Path, command: Option<NodeCommands>) -> Result<Self::Output, figment::Error> {
         let mut figment = Figment::new();
 
         figment = Self::load_from_file(figment, home);
 
         if let Some(command) = command {
-            figment = Self::load_from_command(figment, command);
+            match command {
+                NodeCommands::Up(up) => {
+                    figment = figment.merge(Serialized::from(up, Self::profile()))
+                }
+                NodeCommands::Init(init) => {
+                    figment = figment.merge(Serialized::from(init, Self::profile()))
+                }
+                _ => (),
+            }
         }
 
         Self::load_context(figment)
     }
 }
 
-pub(crate) fn load_config<T: Config>(node_path: &Path, command: Option<T::Command>) -> T::Output {
+pub(crate) fn load_config<T: Config>(node_path: &Path, command: Option<NodeCommands>) -> T::Output {
     match T::load(node_path, command) {
         Ok(config) => config,
         Err(figment::Error {

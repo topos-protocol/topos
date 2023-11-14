@@ -1,13 +1,10 @@
-use std::{collections::HashMap, path::Path};
-
 use crate::config::Config;
 use figment::{
     providers::{Format, Toml},
     Figment,
 };
 use serde::{Deserialize, Serialize};
-
-use crate::components::subnet::commands::Run;
+use std::{collections::HashMap, path::Path};
 
 // TODO: Provides the default arguments here
 // Serde `flatten` and `default` doesn't work together yet
@@ -20,8 +17,6 @@ pub struct EdgeConfig {
 }
 
 impl Config for EdgeConfig {
-    type Command = Run;
-
     type Output = EdgeConfig;
 
     fn load_from_file(figment: Figment, home: &Path) -> Figment {
@@ -38,7 +33,7 @@ impl Config for EdgeConfig {
         figment.extract()
     }
 
-    fn profile(&self) -> String {
+    fn profile() -> String {
         "edge".to_string()
     }
 }

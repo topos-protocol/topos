@@ -10,9 +10,9 @@ use topos_core::api::grpc::tce::v1::StatusRequest;
 use tower::Service;
 use tracing::{debug, error};
 
-use crate::components::tce::{commands::Status, TCEService};
+use crate::components::node::{commands::Status, NodeService};
 
-impl Service<Status> for TCEService {
+impl Service<Status> for NodeService {
     type Response = bool;
 
     type Error = std::io::Error;

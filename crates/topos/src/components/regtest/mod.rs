@@ -1,4 +1,4 @@
-use self::commands::{NetworkCommand, NetworkCommands};
+use self::commands::{RegtestCommand, RegtestCommands};
 
 use opentelemetry::global;
 use tokio::{
@@ -6,21 +6,43 @@ use tokio::{
     sync::{mpsc, oneshot},
 };
 use topos_certificate_spammer::CertificateSpammerConfig;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 use crate::tracing::setup_tracing;
 
 pub(crate) mod commands;
+pub(crate) mod services;
 
 pub(crate) async fn handle_command(
-    NetworkCommand {
-        subcommands,
+    RegtestCommand {
         verbose,
-    }: NetworkCommand,
+        subcommands,
+    }: RegtestCommand,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match subcommands {
-        Some(NetworkCommands::Spam(cmd)) => {
+        Some(RegtestCommands::PushCertificate(cmd)) => {
+            debug!("Start executing PushCertificate command");
+            match services::push_certificate::check_delivery(
+                cmd.timeout_broadcast,
+                cmd.format,
+                cmd.nodes,
+                cmd.timeout,
+            )
+            .await
+            .map_err(Box::<dyn std::error::Error>::from)
+            {
+                Err(e) => {
+                    error!("Check failed: {:?}", e);
+                    std::process::exit(1);
+                }
+                _ => {
+                    info!("Check passed");
+                    Ok(())
+                }
+            }
+        }
+        Some(RegtestCommands::Spam(cmd)) => {
             let config = CertificateSpammerConfig {
                 target_nodes: cmd.target_nodes,
                 target_nodes_path: cmd.target_nodes_path,
@@ -34,7 +56,6 @@ pub(crate) async fn handle_command(
 
             // Setup instrumentation if both otlp agent and otlp service name
             // are provided as arguments
-            // We may want to use instrumentation in e2e tests
             let basic_controller = setup_tracing(verbose, cmd.otlp_agent, cmd.otlp_service_name)?;
 
             let (shutdown_sender, shutdown_receiver) = mpsc::channel::<oneshot::Sender<()>>(1);

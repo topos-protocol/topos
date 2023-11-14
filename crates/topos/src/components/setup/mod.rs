@@ -2,22 +2,15 @@ use self::commands::{SetupCommand, SetupCommands};
 use tokio::{signal, spawn};
 use tracing::{error, info};
 
-use crate::tracing::setup_tracing;
-
 use topos::{install_polygon_edge, list_polygon_edge_releases};
 
 pub(crate) mod commands;
 
 pub(crate) async fn handle_command(
-    SetupCommand {
-        subcommands,
-        verbose,
-    }: SetupCommand,
+    SetupCommand { subcommands }: SetupCommand,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match subcommands {
         Some(SetupCommands::Subnet(cmd)) => {
-            setup_tracing(verbose, None, None)?;
-
             spawn(async move {
                 if cmd.list_releases {
                     info!(

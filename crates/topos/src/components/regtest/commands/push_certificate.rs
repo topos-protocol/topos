@@ -3,6 +3,7 @@ use clap::Args;
 use crate::options::input_format::InputFormat;
 
 #[derive(Args, Debug)]
+#[command(about = "Push a certificate to a TCE process")]
 pub(crate) struct PushCertificate {
     #[arg(short, long="format", value_enum, default_value_t = InputFormat::Plain)]
     pub(crate) format: InputFormat,

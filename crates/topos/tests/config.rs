@@ -1,4 +1,5 @@
 use assert_cmd::prelude::*;
+use std::fs::remove_dir_all;
 use std::path::PathBuf;
 use std::process::Command;
 use tempfile::tempdir;
@@ -25,9 +26,9 @@ async fn polygon_edge_path(path: &str) -> String {
 }
 
 #[tokio::test]
-async fn test_handle_command_init() -> Result<(), Box<dyn std::error::Error>> {
-    let temporary_test_folder = "/tmp/topos/handle_command_init";
-    let path = polygon_edge_path(temporary_test_folder).await;
+async fn handle_command_init() -> Result<(), Box<dyn std::error::Error>> {
+    let tmp_home_dir = tempdir()?;
+    let path = polygon_edge_path(tmp_home_dir.path().to_str().unwrap()).await;
 
     let mut cmd = Command::cargo_bin("topos")?;
     cmd.arg("node")
@@ -35,14 +36,14 @@ async fn test_handle_command_init() -> Result<(), Box<dyn std::error::Error>> {
         .arg(path)
         .arg("init")
         .arg("--home")
-        .arg(temporary_test_folder);
+        .arg(tmp_home_dir.path().to_str().unwrap());
 
     let output = cmd.assert().success();
     let result: &str = std::str::from_utf8(&output.get_output().stdout)?;
 
     assert!(result.contains("Created node config file"));
 
-    let home = PathBuf::from(temporary_test_folder);
+    let home = PathBuf::from(tmp_home_dir.path());
 
     // Verification: check that the config file was created
     let config_path = home.join("node").join("default").join("config.toml");
@@ -56,14 +57,12 @@ async fn test_handle_command_init() -> Result<(), Box<dyn std::error::Error>> {
     assert!(config_contents.contains("[edge]"));
     assert!(config_contents.contains("[tce]"));
 
-    std::fs::remove_dir_all(temporary_test_folder)?;
-
     Ok(())
 }
 
 #[test]
-fn test_nothing_written_if_failure() -> Result<(), Box<dyn std::error::Error>> {
-    let temporary_test_folder = "/tmp/topos/test_nothing_written_if_failure";
+fn nothing_written_if_failure() -> Result<(), Box<dyn std::error::Error>> {
+    let tmp_home_dir = tempdir()?;
 
     let mut cmd = Command::cargo_bin("topos")?;
     cmd.arg("node")
@@ -71,35 +70,33 @@ fn test_nothing_written_if_failure() -> Result<(), Box<dyn std::error::Error>> {
         .arg("./inexistent/folder/") // Command will fail
         .arg("init")
         .arg("--home")
-        .arg(temporary_test_folder);
+        .arg(tmp_home_dir.path().to_str().unwrap());
 
     // Should fail
     cmd.assert().failure();
 
-    let home = PathBuf::from(temporary_test_folder);
+    let home = PathBuf::from(tmp_home_dir.path().to_str().unwrap());
 
     // Check that files were NOT created
     let config_path = home.join("node").join("default");
     assert!(!config_path.exists());
 
-    std::fs::remove_dir_all(temporary_test_folder)?;
-
     Ok(())
 }
 
 #[tokio::test]
-async fn test_handle_command_init_with_custom_name() -> Result<(), Box<dyn std::error::Error>> {
-    let temporary_test_folder = "/tmp/topos/test_handle_command_init_with_custom_name";
+async fn handle_command_init_with_custom_name() -> Result<(), Box<dyn std::error::Error>> {
+    let tmp_home_dir = tempdir()?;
     let node_name = "TEST_NODE";
-    let path = polygon_edge_path(temporary_test_folder).await;
+    let path = polygon_edge_path(tmp_home_dir.path().to_str().unwrap()).await;
 
     let mut cmd = Command::cargo_bin("topos")?;
     cmd.arg("node")
         .arg("--edge-path")
-        .arg(path)
+        .arg(path.clone())
         .arg("init")
         .arg("--home")
-        .arg(temporary_test_folder)
+        .arg(tmp_home_dir.path().to_str().unwrap())
         .arg("--name")
         .arg(node_name);
 
@@ -108,7 +105,7 @@ async fn test_handle_command_init_with_custom_name() -> Result<(), Box<dyn std::
 
     assert!(result.contains("Created node config file"));
 
-    let home = PathBuf::from(temporary_test_folder);
+    let home = PathBuf::from(path);
 
     // Verification: check that the config file was created
     let config_path = home.join("node").join(node_name).join("config.toml");
@@ -120,14 +117,12 @@ async fn test_handle_command_init_with_custom_name() -> Result<(), Box<dyn std::
     assert!(config_contents.contains(node_name));
     assert!(config_contents.contains("[tce]"));
 
-    std::fs::remove_dir_all(temporary_test_folder)?;
-
     Ok(())
 }
 
 /// Test node init env arguments
 #[tokio::test]
-async fn test_command_init_precedence_env() -> Result<(), Box<dyn std::error::Error>> {
+async fn command_init_precedence_env() -> Result<(), Box<dyn std::error::Error>> {
     let tmp_home_directory = tempdir()?;
 
     // Test node init with env variables
@@ -151,6 +146,7 @@ async fn test_command_init_precedence_env() -> Result<(), Box<dyn std::error::Er
 
     // Test node init with cli flags
     assert!(result.contains("Created node config file"));
+
     let home = PathBuf::from(node_init_home_env);
     // Verification: check that the config file was created
     let config_path = home
@@ -160,6 +156,7 @@ async fn test_command_init_precedence_env() -> Result<(), Box<dyn std::error::Er
     assert!(config_path.exists());
     // Check if config file params are according to env params
     let config_contents = std::fs::read_to_string(&config_path).unwrap();
+    println!("{:#?}", config_contents);
     assert!(config_contents.contains("name = \"TEST_NODE_ENV\""));
     assert!(config_contents.contains("role = \"fullnode\""));
     assert!(config_contents.contains("subnet = \"topos-env\""));
@@ -169,7 +166,7 @@ async fn test_command_init_precedence_env() -> Result<(), Box<dyn std::error::Er
 
 /// Test node cli arguments precedence over env arguments
 #[tokio::test]
-async fn test_command_init_precedence_cli_env() -> Result<(), Box<dyn std::error::Error>> {
+async fn command_init_precedence_cli_env() -> Result<(), Box<dyn std::error::Error>> {
     let tmp_home_dir = tempdir()?;
 
     // Test node init with both cli and env flags
@@ -220,6 +217,8 @@ async fn test_command_init_precedence_cli_env() -> Result<(), Box<dyn std::error
     assert!(config_contents.contains("name = \"TEST_NODE_CLI\""));
     assert!(config_contents.contains("role = \"sequencer\""));
     assert!(config_contents.contains("subnet = \"topos-cli\""));
+
+    remove_dir_all("/tmp/topos/test_command_init_precedence_cli").unwrap();
 
     Ok(())
 }

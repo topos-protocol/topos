@@ -11,13 +11,13 @@ workspace = true
 topos-core = { workspace = true, features = ["uci", "api"] }
 topos-crypto = { path = "../topos-crypto/" }
 topos-p2p = { path = "../topos-p2p/" }
-topos-tce = { path = "../topos-tce/", optional = true }
-topos-tce-api = { path = "../topos-tce-api/", optional = true }
-topos-tce-broadcast = { path = "../topos-tce-broadcast/", optional = true }
-topos-tce-gatekeeper = { path = "../topos-tce-gatekeeper/", optional = true }
+topos-tce = { path = "../topos-tce/" }
+topos-tce-api = { path = "../topos-tce-api/" }
+topos-tce-broadcast = { path = "../topos-tce-broadcast/" }
+topos-tce-gatekeeper = { path = "../topos-tce-gatekeeper/" }
 topos-tce-storage = { path = "../topos-tce-storage/" }
-topos-tce-synchronizer = { path = "../topos-tce-synchronizer/", optional = true }
-topos-tce-transport = { path = "../topos-tce-transport/", optional = true }
+topos-tce-synchronizer = { path = "../topos-tce-synchronizer/" }
+topos-tce-transport = { path = "../topos-tce-transport/" }
 
 hex.workspace = true
 ethers.workspace = true
@@ -41,18 +41,6 @@ tokio-util.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 async-stream.workspace = true
-
-[features]
-default = []
-tce = [
-    "topos-core/api",
-    "topos-tce",
-    "topos-tce-api",
-    "topos-tce-broadcast",
-    "topos-tce-gatekeeper",
-    "topos-tce-synchronizer",
-    "topos-tce-transport",
-]
 
 [build-dependencies]
 tonic-build.workspace = true
