@@ -5,9 +5,20 @@ use opentelemetry::trace::TracerProvider;
 use opentelemetry::{global, KeyValue};
 use opentelemetry_otlp::{SpanExporterBuilder, WithExportConfig};
 use std::time::Duration;
+use tracing::Level;
 use tracing_subscriber::{
     prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer,
 };
+
+fn verbose_to_level(verbose: u8) -> Level {
+    match verbose {
+        0 => Level::ERROR,
+        1 => Level::WARN,
+        2 => Level::INFO,
+        3 => Level::DEBUG,
+        _ => Level::TRACE,
+    }
+}
 
 fn build_resources(otlp_service_name: String) -> Vec<KeyValue> {
     let mut resources = Vec::new();
@@ -39,13 +50,18 @@ fn build_resources(otlp_service_name: String) -> Vec<KeyValue> {
     resources
 }
 
-fn create_filter() -> EnvFilter {
-    EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("warn,topos=info"))
+fn create_filter(verbose: u8) -> EnvFilter {
+    if verbose > 0 {
+        EnvFilter::try_new(format!("warn,topos={}", verbose_to_level(verbose).as_str())).unwrap()
+    } else {
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("warn,topos=info"))
+    }
 }
 
 // Setup tracing
 // If otlp agent and otlp service name are provided, opentelemetry collection will be used
 pub(crate) fn setup_tracing(
+    verbose: u8,
     otlp_agent: Option<String>,
     otlp_service_name: Option<String>,
 ) -> Result<Option<BasicController>, Box<dyn std::error::Error>> {
@@ -57,9 +73,18 @@ pub(crate) fn setup_tracing(
             .as_ref()
             .map(|s| s.as_str())
         {
-            Ok("json") => tracing_subscriber::fmt::layer().json().boxed(),
-            Ok("pretty") => tracing_subscriber::fmt::layer().pretty().boxed(),
-            _ => tracing_subscriber::fmt::layer().compact().boxed(),
+            Ok("json") => tracing_subscriber::fmt::layer()
+                .json()
+                .with_filter(create_filter(verbose))
+                .boxed(),
+            Ok("pretty") => tracing_subscriber::fmt::layer()
+                .pretty()
+                .with_filter(create_filter(verbose))
+                .boxed(),
+            _ => tracing_subscriber::fmt::layer()
+                .compact()
+                .with_filter(create_filter(verbose))
+                .boxed(),
         },
     );
 
@@ -163,7 +188,14 @@ pub(crate) fn setup_tracing(
 
         let _ = global::set_tracer_provider(provider);
 
-        layers.push(tracing_opentelemetry::layer().with_tracer(tracer).boxed());
+        layers.push(
+            tracing_opentelemetry::layer()
+                .with_tracer(tracer)
+                .with_filter(create_filter(verbose))
+                .boxed(),
+        );
+
+        opentelemetry::global::set_text_map_propagator(TraceContextPropagator::new());
 
         global::set_text_map_propagator(TraceContextPropagator::new());
 

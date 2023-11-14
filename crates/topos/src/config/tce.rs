@@ -7,7 +7,6 @@ use figment::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::components::node::commands::Init;
 use crate::config::Config;
 use topos_p2p::{Multiaddr, PeerId};
 

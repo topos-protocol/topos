@@ -47,11 +47,13 @@ impl NodeService {
 pub(crate) async fn handle_command(
     NodeCommand {
         subcommands,
+        verbose,
         home,
         edge_path,
-        ..
     }: NodeCommand,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    setup_tracing(verbose, None, None)?;
+
     match subcommands {
         Some(NodeCommands::Init(cmd)) => {
             let cmd = *cmd;
@@ -175,7 +177,7 @@ pub(crate) async fn handle_command(
             // Setup instrumentation if both otlp agent and otlp service name
             // are provided as arguments
             let basic_controller =
-                setup_tracing(cmd_cloned.otlp_agent, cmd_cloned.otlp_service_name)?;
+                setup_tracing(verbose, cmd_cloned.otlp_agent, cmd_cloned.otlp_service_name)?;
 
             let (shutdown_sender, shutdown_receiver) = mpsc::channel(1);
 
@@ -265,16 +267,6 @@ fn setup_console_tce_grpc(endpoint: &str) -> Arc<Mutex<ConsoleServiceClient<Chan
         Ok(endpoint) => Arc::new(Mutex::new(ConsoleServiceClient::new(
             endpoint.connect_lazy(),
         ))),
-        Err(e) => {
-            error!("Failure to setup the gRPC API endpoint on {endpoint}: {e}");
-            std::process::exit(1);
-        }
-    }
-}
-
-fn setup_api_tce_grpc(endpoint: &str) -> Arc<Mutex<ApiServiceClient<Channel>>> {
-    match Endpoint::from_shared(endpoint.to_string()) {
-        Ok(endpoint) => Arc::new(Mutex::new(ApiServiceClient::new(endpoint.connect_lazy()))),
         Err(e) => {
             error!("Failure to setup the gRPC API endpoint on {endpoint}: {e}");
             std::process::exit(1);

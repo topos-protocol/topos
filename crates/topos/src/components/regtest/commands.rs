@@ -9,6 +9,9 @@ pub(crate) use spam::Spam;
 /// Run test commands (e.g., pushing a certificate to a TCE node)
 #[derive(Args, Debug)]
 pub(crate) struct RegtestCommand {
+    #[clap(from_global)]
+    pub(crate) verbose: u8,
+
     #[clap(subcommand)]
     pub(crate) subcommands: Option<RegtestCommands>,
 }

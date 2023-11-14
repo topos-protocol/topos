@@ -1,11 +1,10 @@
 use std::path::Path;
 
-use crate::components::node::commands::{Init, Up};
 use figment::{
     providers::{Format, Toml},
     Figment,
 };
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 
 use crate::config::node::NodeRole;
 use crate::config::Config;

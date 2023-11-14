@@ -1,4 +1,3 @@
-use crate::components::node::commands::Init;
 use crate::config::Config;
 use figment::{
     providers::{Format, Toml},

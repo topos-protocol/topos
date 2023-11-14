@@ -5,7 +5,7 @@ pub(crate) mod sequencer;
 pub mod tce;
 
 pub(crate) mod genesis;
-use crate::components::node::commands::{Init, NodeCommands, Up};
+use crate::components::node::commands::NodeCommands;
 
 use std::path::Path;
 
@@ -45,7 +45,15 @@ pub(crate) trait Config: Serialize {
         figment = Self::load_from_file(figment, home);
 
         if let Some(command) = command {
-            figment = figment.merge(Serialized::from(command, Self::profile()))
+            match command {
+                NodeCommands::Up(up) => {
+                    figment = figment.merge(Serialized::from(up, Self::profile()))
+                }
+                NodeCommands::Init(init) => {
+                    figment = figment.merge(Serialized::from(init, Self::profile()))
+                }
+                _ => (),
+            }
         }
 
         Self::load_context(figment)
