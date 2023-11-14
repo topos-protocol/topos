@@ -27,8 +27,6 @@ jobs:
   docker:
     name: Build and push docker image to GitHub Container Registry
     runs-on: ubuntu-latest-16-core
-    outputs:
-      tags: ${{ steps.meta.outputs.tags }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -68,17 +66,6 @@ jobs:
           aws configure set aws_secret_access_key ${{ env.AWS_SECRET_ACCESS_KEY }} --profile default
           aws configure set aws_session_token ${{ env.AWS_SESSION_TOKEN }} --profile default
 
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v4
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch,suffix=${{ inputs.features != env.DEFAULT_FEATURES && format('-{0}', inputs.features) || '' }}
-            type=ref,event=pr,suffix=${{ inputs.features != env.DEFAULT_FEATURES && format('-{0}', inputs.features) || '' }}
-            type=semver,suffix=${{ inputs.features != env.DEFAULT_FEATURES && format('-{0}', inputs.features) || '' }},pattern={{version}}
-            type=semver,suffix=${{ inputs.features != env.DEFAULT_FEATURES && format('-{0}', inputs.features) || '' }},pattern={{major}}.{{minor}}
-
       - name: Push to GitHub Container Registry
         uses: docker/build-push-action@v3
         with:
@@ -87,7 +74,6 @@ jobs:
           # push only images targeting topos (e.g.: exclude test, lint, etc.)
           push: ${{ inputs.target == 'topos' }}
           target: ${{ inputs.target }}
-          tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           secret-files: |
             "aws=${{ github.workspace }}/.aws/credentials"
