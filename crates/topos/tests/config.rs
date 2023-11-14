@@ -1,5 +1,4 @@
 use assert_cmd::prelude::*;
-use std::fs;
 use std::fs::remove_dir_all;
 use std::path::PathBuf;
 use std::process::Command;
