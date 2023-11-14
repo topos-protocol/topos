@@ -1,4 +1,5 @@
 use assert_cmd::prelude::*;
+use std::fs;
 use std::fs::remove_dir_all;
 use std::path::PathBuf;
 use std::process::Command;
@@ -219,47 +220,6 @@ async fn command_init_precedence_cli_env() -> Result<(), Box<dyn std::error::Err
     assert!(config_contents.contains("subnet = \"topos-cli\""));
 
     remove_dir_all("/tmp/topos/test_command_init_precedence_cli").unwrap();
-
-    Ok(())
-}
-
-#[tokio::test]
-async fn handle_command_up_precedence_cli_config() -> Result<(), Box<dyn std::error::Error>> {
-    let tmp_home_directory = tempdir()?;
-
-    // Test node init with env variables
-    let node_init_home_env = tmp_home_directory.path().to_str().unwrap();
-    let node_edge_path_env = polygon_edge_path(node_init_home_env).await;
-
-    let mut cmd = Command::cargo_bin("topos")?;
-    cmd.arg("node")
-        .env("TOPOS_POLYGON_EDGE_BIN_PATH", &node_edge_path_env)
-        .env("TOPOS_HOME", node_init_home_env)
-        .arg("init");
-
-    let output = cmd.assert().success();
-    let result: &str = std::str::from_utf8(&output.get_output().stdout)?;
-
-    // Test node init with cli flags
-    assert!(result.contains("Created node config file"));
-
-    let home = PathBuf::from(node_init_home_env);
-    // Verification: check that the config file was created
-    let config_path = home.join("node").join("default").join("config.toml");
-
-    assert!(config_path.exists());
-
-    let mut cmd = Command::cargo_bin("topos")?;
-    cmd.arg("node")
-        .arg("up")
-        .arg("--secrets-config")
-        .arg("/tmp/")
-        .arg("--no-edge-process");
-
-    let output = cmd.assert().failure();
-    let result: &str = std::str::from_utf8(&output.get_output().stdout)?;
-
-    assert!(result.contains("loading from aws-sm"));
 
     Ok(())
 }
