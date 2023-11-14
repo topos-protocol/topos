@@ -14,6 +14,10 @@ TOPOS_HOME=/tmp/node_config
 NODE="http://$HOSTNAME:1340"
 TCE_EXT_HOST="/dns4/$HOSTNAME"
 FIXED_BOOT_PEER_ID="BOOT_NODE_1"
+export TOPOS_HOME=$TOPOS_HOME
+
+mkdir -p $TOPOS_HOME/node/test/libp2p
+mkdir -p $TOPOS_HOME/node/test/consensus
 
 random_entry () {
     local seed=$(hostname -i | tr -d ".")
@@ -31,12 +35,8 @@ case "$1" in
 
            PEER=$($TOPOS_BIN tce keys --from-seed=$HOSTNAME)
 
-           export TOPOS_HOME=$TOPOS_HOME
            export TCE_LOCAL_KS=$HOSTNAME
            export TCE_EXT_HOST
-
-           mkdir -p $TOPOS_HOME/node/test/libp2p
-           mkdir -p $TOPOS_HOME/node/test/consensus
 
            LIBP2P_KEY=$(random_entry /tmp/shared/libp2p_keys.json)
            echo -n $LIBP2P_KEY > $TOPOS_HOME/node/test/libp2p/libp2p.key
