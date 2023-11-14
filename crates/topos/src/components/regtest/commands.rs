@@ -6,7 +6,7 @@ mod spam;
 pub(crate) use push_certificate::PushCertificate;
 pub(crate) use spam::Spam;
 
-/// Run test commands (e.g., pushing a certificate to a TCE node)
+/// Run test commands (e.g., pushing a certificate to a TCE process)
 #[derive(Args, Debug)]
 pub(crate) struct RegtestCommand {
     #[clap(from_global)]

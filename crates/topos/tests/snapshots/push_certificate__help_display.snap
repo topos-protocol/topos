@@ -3,7 +3,7 @@ source: crates/topos/tests/push-certificate.rs
 assertion_line: 19
 expression: "utils::sanitize_config_folder_path(result)"
 ---
-Push a certificate to a TCE node
+Push a certificate to a TCE process
 
 Usage: topos regtest push-certificate [OPTIONS]
 
