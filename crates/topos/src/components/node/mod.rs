@@ -24,9 +24,7 @@ use crate::{
     config::{insert_into_toml, node::NodeConfig, node::NodeRole},
     tracing::setup_tracing,
 };
-use topos_core::api::grpc::tce::v1::{
-    api_service_client::ApiServiceClient, console_service_client::ConsoleServiceClient,
-};
+use topos_core::api::grpc::tce::v1::console_service_client::ConsoleServiceClient;
 use topos_wallet::SecretManager;
 
 pub(crate) mod commands;
