@@ -307,16 +307,15 @@ async fn command_node_up() -> Result<(), Box<dyn std::error::Error>> {
         .env("TOPOS_NODE_NAME", node_up_name_env)
         .arg("up");
     let mut cmd = tokio::process::Command::from(cmd).spawn().unwrap();
-    let output = tokio::time::timeout(std::time::Duration::from_secs(60), cmd.wait())
-        .await;
+    let output = tokio::time::timeout(std::time::Duration::from_secs(60), cmd.wait()).await;
 
     // Check if node up was successful
     match output {
         Ok(Ok(exit_status)) => {
-                if !exit_status.success() {
-                    println!("Exited with error output {:?}", exit_status.code());
-                    panic!("Node up failed");
-                }
+            if !exit_status.success() {
+                println!("Exited with error output {:?}", exit_status.code());
+                panic!("Node up failed");
+            }
         }
         Ok(Err(e)) => {
             println!("Node exited with error: {e}");
