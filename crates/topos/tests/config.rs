@@ -160,7 +160,7 @@ async fn command_init_precedence_env() -> Result<(), Box<dyn std::error::Error>>
 
     // Test node init with env variables
     let node_init_home_env = tmp_home_directory.path().to_str().unwrap();
-    let node_edge_path_env = polygon_edge_path(node_init_home_env).await;
+    let node_edge_path_env = setup_polygon_edge(node_init_home_env).await;
     let node_init_name_env = "TEST_NODE_ENV";
     let node_init_role_env = "full-node";
     let node_init_subnet_env = "topos-env";
