@@ -1,7 +1,6 @@
 use assert_cmd::prelude::*;
-use std::ffi::OsString;
 use std::path::PathBuf;
-use std::process::{Command, ExitStatus};
+use std::process::Command;
 use tempfile::tempdir;
 use topos::install_polygon_edge;
 
@@ -323,7 +322,7 @@ async fn command_node_up() -> Result<(), Box<dyn std::error::Error>> {
             cmd.kill().await?;
             panic!("Node up failed");
         }
-        Err(e) => {
+        Err(_) => {
             println!("Node up is running correctly, time-outed");
             // Kill the subprocess
             cmd.kill().await?;
