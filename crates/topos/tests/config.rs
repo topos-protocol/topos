@@ -325,7 +325,9 @@ async fn command_node_up() -> Result<(), Box<dyn std::error::Error>> {
             panic!("Node up failed");
         }
         Err(e) => {
-            println!("Node up is running, time-outed");
+            println!("Node up is running correctly, time-outed");
+            // Kill the subprocess
+            cmd.kill().await?;
         }
     }
 
