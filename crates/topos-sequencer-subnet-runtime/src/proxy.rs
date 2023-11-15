@@ -8,15 +8,12 @@ use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::sync::{mpsc, oneshot};
-use tokio::time::{self, Duration};
+use tokio::time::Duration;
 use topos_core::api::grpc::checkpoints::TargetStreamPosition;
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
-use topos_sequencer_subnet_client::{self, SubnetClient, SubnetClientListener};
+use topos_sequencer_subnet_client::{self, BlockInfo, SubnetClient, SubnetClientListener};
 use tracing::{debug, error, field, info, info_span, instrument, warn, Instrument, Span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
-
-/// Arbitrary tick duration for fetching new finalized blocks
-const SUBNET_BLOCK_TIME: Duration = Duration::new(2, 0);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Authorities {
@@ -205,7 +202,7 @@ impl SubnetRuntimeProxy {
                     while latest_acquired_subnet_block_number < current_subnet_block_number {
                         let next_block_number = latest_acquired_subnet_block_number + 1;
                         info!("Retrieving historical block {}", next_block_number);
-                        if let Err(e) = SubnetRuntimeProxy::process_next_block(
+                        if let Err(e) = SubnetRuntimeProxy::retrieve_and_process_block(
                             runtime_proxy.clone(),
                             &mut subnet_listener,
                             certification.clone(),
@@ -223,30 +220,44 @@ impl SubnetRuntimeProxy {
                     }
                 }
 
+                // Create a new subscription stream to listen for new blocks from subnet node
+                let mut subscription_stream =
+                    match subnet_listener.new_block_subscription_stream().await {
+                        Ok(stream) => stream,
+                        Err(e) => {
+                            panic!(
+                                "Failed to open subnet node block subscription stream, unable to \
+                                 proceed with certificate generation: {e}"
+                            )
+                        }
+                    };
+
+                info!("Block subscription stream opened, listening for new blocks...");
+
                 // Go to standard mode of listening for new blocks
-                let mut interval = time::interval(SUBNET_BLOCK_TIME);
                 let shutdowned: Option<oneshot::Sender<()>> = loop {
                     tokio::select! {
-                        _ = interval.tick() => {
-                            let next_block_number = latest_acquired_subnet_block_number + 1;
-                            if let Err(e) = SubnetRuntimeProxy::process_next_block(
-                                runtime_proxy.clone(),
-                                &mut subnet_listener,
-                                certification.clone(),
-                                next_block_number as u64
-                            ).await {
-                                match e {
-                                    Error::SubnetError { source: topos_sequencer_subnet_client::Error::BlockNotAvailable(_) } => {
-                                        continue;
-                                    }
-                                    _ => {
+                        result = subnet_listener.wait_for_new_block(&mut subscription_stream) => {
+                            match result {
+                                Ok(block) => {
+                                    let new_block_number = block.number as i128;
+                                    info!("Successfully received new block {} from the subnet subscription", new_block_number);
+                                    if let Err(e) = SubnetRuntimeProxy::process_block(
+                                        runtime_proxy.clone(),
+                                        certification.clone(),
+                                        block
+                                    ).await {
                                         error!("Failed to process next block: {}", e);
                                         break None;
                                     }
                                 }
+                                Err(e) => {
+                                    error!("Failed to retrieve next block: {}, trying again soon", e);
+                                    tokio::time::sleep(Duration::from_millis(1000)).await;
+                                    continue;
+                                }
                             }
-                            latest_acquired_subnet_block_number = next_block_number;
-                        },
+                        }
                         shutdown = block_task_shutdown.recv() => {
                             break shutdown;
                         }
@@ -303,7 +314,7 @@ impl SubnetRuntimeProxy {
         Ok(runtime_proxy)
     }
 
-    async fn process_next_block(
+    async fn retrieve_and_process_block(
         subnet_runtime_proxy: Arc<Mutex<SubnetRuntimeProxy>>,
         subnet_listener: &mut SubnetClientListener,
         certification: Arc<Mutex<Certification>>,
@@ -350,6 +361,28 @@ impl SubnetRuntimeProxy {
                 Err(Error::SubnetError { source: e })
             }
         }
+    }
+
+    async fn process_block(
+        subnet_runtime_proxy: Arc<Mutex<SubnetRuntimeProxy>>,
+        certification: Arc<Mutex<Certification>>,
+        block_info: BlockInfo,
+    ) -> Result<(), Error> {
+        let mut certification = certification.lock().await;
+        let block_number = block_info.number;
+
+        // Update certificate block history
+        certification.append_blocks(vec![block_info]);
+
+        let new_certificates = certification.generate_certificates().await?;
+
+        debug!("Generated new certificates {new_certificates:?}");
+
+        for cert in new_certificates {
+            Self::send_new_certificate(subnet_runtime_proxy.clone(), cert, block_number).await
+        }
+        info!("Block {} processed", block_number);
+        Ok(())
     }
 
     /// Dispatch newly generated certificate to TCE client
