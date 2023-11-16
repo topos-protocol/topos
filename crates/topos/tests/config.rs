@@ -49,8 +49,7 @@ async fn generate_polygon_edge_genesis_file(
         .arg(val_prefix_path)
         .arg("--bootnode") /* set dummy bootnode, we will not run edge to produce blocks */
         .arg("/ip4/127.0.0.1/tcp/8545/p2p/16Uiu2HAmNYneHCbJ1Ntz1ojvTdiNGCMGWNT5MGMH28AzKNV66Paa");
-    cmd
-        .assert()
+    cmd.assert()
         .success()
         .stdout(predicate::str::contains(format!(
             "Genesis written to {}",
