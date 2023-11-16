@@ -1,4 +1,5 @@
 use assert_cmd::prelude::*;
+use predicates::prelude::*;
 use std::path::PathBuf;
 use std::process::Command;
 use tempfile::tempdir;
@@ -48,12 +49,13 @@ async fn generate_polygon_edge_genesis_file(
         .arg(val_prefix_path)
         .arg("--bootnode") /* set dummy bootnode, we will not run edge to produce blocks */
         .arg("/ip4/127.0.0.1/tcp/8545/p2p/16Uiu2HAmNYneHCbJ1Ntz1ojvTdiNGCMGWNT5MGMH28AzKNV66Paa");
-    let output = cmd.assert().success();
-    let output: &str = std::str::from_utf8(&output.get_output().stdout)?;
-    assert!(output.contains(&format!(
-        "Genesis written to {}",
-        genesis_folder_path.display()
-    )));
+    let output = cmd
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(format!(
+            "Genesis written to {}",
+            genesis_folder_path.display()
+        )));
     Ok(())
 }
 
