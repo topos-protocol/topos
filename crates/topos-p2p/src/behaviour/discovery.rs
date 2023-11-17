@@ -55,10 +55,6 @@ impl DiscoveryBehaviour {
             kademlia.add_address(&known_peer.0, known_peer.1.clone());
         }
 
-        // if let Err(store_error) = kademlia.start_providing("topos-tce".as_bytes().to_vec().into()) {
-        //     warn!(reason = %store_error, "Could not start providing Kademlia protocol `topos-tce`")
-        // }
-
         Self { inner: kademlia }
     }
 

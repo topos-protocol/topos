@@ -17,7 +17,6 @@ pub(crate) use behaviour::Behaviour;
 pub use client::NetworkClient;
 pub use client::RetryPolicy;
 pub(crate) use command::Command;
-pub use command::NotReadyMessage;
 pub use event::Event;
 use http::Request;
 use http::Response;

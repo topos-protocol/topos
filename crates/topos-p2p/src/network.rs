@@ -199,9 +199,7 @@ impl<'a> NetworkBuilder<'a> {
                     .take()
                     .expect("P2P runtime expect a MultiAddr"),
                 bootstrapped: false,
-                pending_dial: HashMap::new(),
                 active_listeners: HashSet::new(),
-                peers: HashSet::new(),
                 pending_record_requests: HashMap::new(),
                 shutdown,
             },

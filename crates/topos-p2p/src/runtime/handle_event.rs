@@ -71,14 +71,6 @@ impl
                 if let Some(_peer_id) = peer_id {
                     error!("OutgoingConnectionError {error:?}");
                 }
-
-                if let Some(peer_id) = peer_id {
-                    if let Some(sender) = self.pending_dial.remove(&peer_id) {
-                        if sender.send(Err(crate::error::P2PError::DialError)).is_err() {
-                            warn!("Could not notify dial failure because initiator is dropped");
-                        }
-                    }
-                }
             }
 
             SwarmEvent::ConnectionEstablished {
@@ -88,15 +80,6 @@ impl
                     "Connection established with peer {peer_id} as {:?}",
                     endpoint.to_endpoint()
                 );
-                if let Some(sender) = self.pending_dial.remove(&peer_id) {
-                    self.peers.insert(peer_id);
-                    if sender.send(Ok(())).is_err() {
-                        warn!(
-                            %peer_id,
-                            "Could not notify successful dial with {peer_id}: initiator dropped"
-                        );
-                    }
-                }
             }
 
             incoming_connection_error @ SwarmEvent::IncomingConnectionError { .. } => {
@@ -120,17 +103,6 @@ impl
 
             SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
                 debug!("ConnectionClosed {peer_id} because of {cause:?}");
-                if self.peers.remove(&peer_id) {
-                    _ = self
-                        .event_sender
-                        .try_send(Event::PeerDisconnected { peer_id });
-
-                    let peers = self.peers.iter().cloned().collect();
-
-                    _ = self
-                        .event_sender
-                        .try_send(Event::PeersChanged { new_peers: peers });
-                }
             }
 
             SwarmEvent::Dialing { peer_id, .. } => {}

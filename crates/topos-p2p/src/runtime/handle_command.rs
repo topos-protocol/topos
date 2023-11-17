@@ -41,39 +41,6 @@ impl Runtime {
                 }
             }
 
-            Command::Dial {
-                peer_id,
-                peer_addr,
-                sender,
-            } if peer_id != *self.swarm.local_peer_id() => {
-                info!("Sending an active Dial");
-                // let handler = self.new_handler();
-                match (self.peers.get(&peer_id), self.pending_dial.entry(peer_id)) {
-                    (None, Entry::Vacant(entry)) => {
-                        _ = self.swarm.dial(peer_addr);
-                        entry.insert(sender);
-                    }
-
-                    _ => {
-                        if sender.send(Err(P2PError::AlreadyDialed(peer_id))).is_err() {
-                            warn!(
-                                "Could not notify that {peer_id} was already dialed because \
-                                 initiator is dropped"
-                            );
-                        }
-                    }
-                }
-            }
-
-            Command::Dial { sender, .. } => {
-                if sender.send(Err(P2PError::CantDialSelf)).is_err() {
-                    warn!(
-                        reason = %P2PError::CantDialSelf,
-                        "Unable to notify Dial failure because initiator is dropped",
-                    );
-                }
-            }
-
             Command::Disconnect { sender } if self.swarm.listeners().count() == 0 => {
                 if sender.send(Err(P2PError::AlreadyDisconnected)).is_err() {
                     warn!(
