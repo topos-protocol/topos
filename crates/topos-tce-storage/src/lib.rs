@@ -32,7 +32,7 @@
 //! Here's the list of the different stores and their responsibilities:
 //!
 //! - The [`EpochValidatorsStore`](struct@epoch::EpochValidatorsStore) is responsible for managing the list of validators for each `epoch`.
-//! - The [`FullNodeStore`](struct@fullnode::FullNodeStore) is responsible for managing all persistent data such as [`Certificate`] delivered and associated `streams`.
+//! - The [`FullNodeStore`](struct@fullnode::FullNodeStore) is responsible for managing all persistent data such as [`Certificate`](struct@topos_core::uci::Certificate) delivered and associated `streams`.
 //! - The [`IndexStore`](struct@index::IndexStore) is responsible for managing indexes and collect information about the broadcast and the network.
 //! - The [`ValidatorStore`](struct@validator::ValidatorStore) is responsible for managing the pending data that one validator needs to keep track, such as the certificates pool.
 //!
@@ -41,9 +41,9 @@
 //! Next, we've the list of the different tables and their responsibilities:
 //!
 //! - The [`EpochValidatorsTables`](struct@epoch::EpochValidatorsTables) is responsible for storing the list of validators for each `epoch`.
-//! - The [`ValidatorPerpetualTables`](struct@validator::ValidatorPerpetualTables) is responsible for storing the delivered [`Certificate`]s and the persistent data related to the Broadcast.
+//! - The [`ValidatorPerpetualTables`](struct@validator::ValidatorPerpetualTables) is responsible for storing the delivered [`Certificate`](struct@topos_core::uci::Certificate)s and the persistent data related to the Broadcast.
 //! - The [`ValidatorPendingTables`](struct@validator::ValidatorPendingTables) is responsible for storing the pending data, such as the certificates pool.
-//! - The [`IndexTables`](struct@index::IndexTables) is responsible for storing indexes about the delivery of [`Certificate`]s such as `target subnet stream`.
+//! - The [`IndexTables`](struct@index::IndexTables) is responsible for storing indexes about the delivery of [`Certificate`](struct@topos_core::uci::Certificate)s such as `target subnet stream`.
 //!
 //! ## Special Considerations
 //!

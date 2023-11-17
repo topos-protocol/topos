@@ -7,8 +7,8 @@ use arc_swap::ArcSwap;
 use crate::errors::StorageError;
 use crate::types::{EpochId, Validators};
 
-pub(crate) use self::tables::EpochValidatorsTables;
-pub(crate) use self::tables::ValidatorPerEpochTables;
+pub use self::tables::EpochValidatorsTables;
+pub use self::tables::ValidatorPerEpochTables;
 
 mod tables;
 
