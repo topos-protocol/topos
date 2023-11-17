@@ -1,3 +1,19 @@
+//! Validator's context store and storage
+//!
+//! The [`ValidatorStore`] is responsible for managing the various kind of data that are required by the
+//! TCE network in order to broadcast certificates. It is composed of two main parts:
+//!
+//! - a [`FullNodeStore`]
+//! - a [`ValidatorPendingTables`]
+//!
+//! ## Responsibilities
+//!
+//! This store is used in places where the [`FullNodeStore`] is not enough, it allows to access the
+//! different pending pools and to manage them but also to access the [`FullNodeStore`] in order to
+//! persist or update [`Certificate`] or `streams`.
+//!
+//! Pending pools and their behavior is decribed in the [`ValidatorPendingTables`] documentation.
+//!
 use std::{
     collections::HashMap,
     path::PathBuf,
@@ -23,18 +39,30 @@ use crate::{
     CertificatePositions, CertificateTargetStreamPosition, PendingCertificateId, SourceHead,
 };
 
-pub(crate) use self::tables::ValidatorPendingTables;
+pub use self::tables::ValidatorPendingTables;
 pub use self::tables::ValidatorPerpetualTables;
 
 mod tables;
 
-/// Contains all persistent data about the validator
+/// Store to manage Validator data
+///
+/// The [`ValidatorStore`] is composed of a [`FullNodeStore`] and a [`ValidatorPendingTables`].
+///
+/// As the [`FullNodeStore`] is responsible of keeping and managing data that are persistent,
+/// the [`ValidatorStore`] is delegating to it many of the [`WriteStore`] and [`ReadStore`]
+/// functionality.
+///
+/// The key point is that the [`ValidatorStore`] is managing the different pending pools using a [`ValidatorPendingTables`].
+///
+/// Pending pools and how they behave is decribed in the [`ValidatorPendingTables`] documentation.
+///
 pub struct ValidatorStore {
     pub(crate) pending_tables: ValidatorPendingTables,
     pub(crate) fullnode_store: Arc<FullNodeStore>,
 }
 
 impl ValidatorStore {
+    /// Open a [`ValidatorStore`] at the given `path` and using the given [`FullNodeStore`]
     pub fn open(
         path: PathBuf,
         fullnode_store: Arc<FullNodeStore>,
@@ -48,14 +76,19 @@ impl ValidatorStore {
         Ok(store)
     }
 
+    /// Returns the [`FullNodeStore`] used by the [`ValidatorStore`]
     pub fn get_fullnode_store(&self) -> Arc<FullNodeStore> {
         self.fullnode_store.clone()
     }
 
+    /// Returns the number of certificates in the pending pool
     pub fn count_pending_certificates(&self) -> Result<usize, StorageError> {
         Ok(self.pending_tables.pending_pool.iter()?.count())
     }
 
+    /// Try to return the [`PendingCertificateId`] for a [`CertificateId`]
+    ///
+    /// Return `Ok(None)` if the `certificate_id` is not found.
     pub fn get_pending_id(
         &self,
         certificate_id: &CertificateId,
@@ -63,6 +96,9 @@ impl ValidatorStore {
         Ok(self.pending_tables.pending_pool_index.get(certificate_id)?)
     }
 
+    /// Try to return the [`Certificate`] for a [`PendingCertificateId`]
+    ///
+    /// Return `Ok(None)` if the `pending_id` is not found.
     pub fn get_pending_certificate(
         &self,
         pending_id: &PendingCertificateId,
@@ -70,6 +106,7 @@ impl ValidatorStore {
         Ok(self.pending_tables.pending_pool.get(pending_id)?)
     }
 
+    /// Returns the entire pending_pool
     pub fn get_pending_certificates(
         &self,
     ) -> Result<Vec<(PendingCertificateId, Certificate)>, StorageError> {

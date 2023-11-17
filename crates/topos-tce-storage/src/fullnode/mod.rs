@@ -24,8 +24,20 @@ use crate::{
 
 use self::locking::LockGuards;
 
-mod locking;
+pub mod locking;
 
+/// Store to manage FullNode data
+///
+/// The [`FullNodeStore`] is responsible for storing and exposing the data that is
+/// needed by a full node to perform its duties.
+///
+/// The responsabilities of the [`FullNodeStore`] are:
+///
+/// - Store and expose the certificates that are delivered
+/// - Store and expose the state of the certificate streams
+///
+/// To do so, it implements [`ReadStore`] / [`WriteStore`] by using multiple tables and store such
+/// as [`ValidatorPerpetualTables`], [`EpochValidatorsStore`] and [`IndexTables`]
 pub struct FullNodeStore {
     certificate_lock_guards: LockGuards<CertificateId>,
     subnet_lock_guards: LockGuards<SubnetId>,

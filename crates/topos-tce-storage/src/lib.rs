@@ -1,11 +1,86 @@
-use errors::InternalStorageError;
-use rocks::iterator::ColumnIterator;
+//! The library provides the storage layer for the Topos TCE.
+//! It is responsible for storing and retrieving the [certificates](https://docs.topos.technology/content/module-1/4-protocol.html#certificates), managing the
+//! pending certificates pool and the certificate status, storing different
+//! metadata related to the protocol and the internal state of the TCE.
+//!
+//! The storage layer is implemented using RocksDB.
+//! The library exposes multiple stores that are used by the TCE.
+//!
+//!
+//! ## Architecture
+//!
+//! The storage layer is composed of multiple stores that are used by the TCE.
+//! Each store is described in detail in its own module.
+//!
+//! Those stores are mainly used in `topos-tce-broadcast`, `topos-tce-api` and
+//! `topos-tce-synchronizer`.
+//!
+//! As an overview, the storage layer is composed of the following stores:
+//!
+//!<picture>
+//!  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/topos-protocol/topos/assets/1394604/5bb3c9b1-ac5a-4f59-bd14-29a02163272e">
+//!  <img alt="Text changing depending on mode. Light: 'So light!' Dark: 'So dark!'" src="https://github.com/topos-protocol/topos/assets/1394604/e4bd859e-2a6d-40dc-8e84-2a708aa8a2d8">
+//!</picture>
+//!
+//! ### Definitions and Responsibilities
+//!
+//! As illustrated above, multiple `stores` are exposed in the library using various `tables`.
+//!
+//! The difference between a `store` and a `table` is that the `table` is responsible for storing
+//! the data while the `store` manages the data access and its behavior.
+//!
+//! Here's the list of the different stores and their responsibilities:
+//!
+//! - The [`EpochValidatorsStore`](struct@epoch::EpochValidatorsStore) is responsible for managing the list of validators for each `epoch`.
+//! - The [`FullNodeStore`](struct@fullnode::FullNodeStore) is responsible for managing all persistent data such as [`Certificate`] delivered and associated `streams`.
+//! - The [`IndexStore`](struct@index::IndexStore) is responsible for managing indexes and collect information about the broadcast and the network.
+//! - The [`ValidatorStore`](struct@validator::ValidatorStore) is responsible for managing the pending data that one validator needs to keep track, such as the certificates pool.
+//!
+//! For more information about a `store`, see the related doc.
+//!
+//! Next, we've the list of the different tables and their responsibilities:
+//!
+//! - The [`EpochValidatorsTables`](struct@epoch::EpochValidatorsTables) is responsible for storing the list of validators for each `epoch`.
+//! - The [`ValidatorPerpetualTables`](struct@validator::ValidatorPerpetualTables) is responsible for storing the delivered [`Certificate`]s and the persistent data related to the Broadcast.
+//! - The [`ValidatorPendingTables`](struct@validator::ValidatorPendingTables) is responsible for storing the pending data, such as the certificates pool.
+//! - The [`IndexTables`](struct@index::IndexTables) is responsible for storing indexes about the delivery of [`Certificate`]s such as `target subnet stream`.
+//!
+//! ## Special Considerations
+//!
+//! When using the storage layer, be aware of the following:
+//! - The storage layer uses [rocksdb](https://rocksdb.org/) as the backend, which means don't need an external service, as `rocksdb` is an embedded key-value store.
+//! - The storage layer uses [`Arc`](struct@std::sync::Arc) to share the stores between threads. It also means that a `store` is only instantiated once.
+//! - Some storage methods are batching multiple writes into a single transaction.
+//!
+//! ## Design Philosophy
+//!
+//! The choice of using [rocksdb](https://rocksdb.org/) as a backend was made because it matches a lot of the conditions
+//! that we were expected, such as being embedded and having good performances when reading and
+//! writing our data.
+//!
+//! Splitting storage into multiple `stores` and `tables` allows us to have a strong separation of concerns directly at the storage level.
+//!
+//! However, `RocksDB` is not the best fit when it comes to compose or filter data based on the data
+//! itself.
+//!
+//! As mentioned above, the different stores are using [`Arc`](struct@std::sync::Arc), allowing a single store to be instantiated once
+//! and then shared between threads. This is very useful when it comes to the [`FullNodeStore`](struct@fullnode::FullNodeStore) as it is used
+//! in various places but should provide single entry point to the data.
+//!
+//! It also means that the store is immutable thus can be shared easily between threads,
+//! which is a good thing for the concurrency.
+//! However, some stores are implementing the [`WriteStore`](trait@store::WriteStore) trait in order to
+//! insert or mutate data, managing locks on resources and preventing any other query to mutate the data
+//! currently in processing. For more information about the locks see [`locking`](module@fullnode::locking)
+//!
+//! The rest of the mutation on the data are handled by [rocksdb](https://rocksdb.org/) itself.
+//!
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use topos_core::{
     types::stream::{CertificateSourceStreamPosition, CertificateTargetStreamPosition, Position},
-    uci::{Certificate, CertificateId, SubnetId},
+    uci::{CertificateId, SubnetId},
 };
 
 // v2
@@ -16,7 +91,6 @@ pub mod epoch;
 pub mod fullnode;
 pub mod index;
 pub mod types;
-/// Everything that is needed to participate to the protocol
 pub mod validator;
 
 // v1
@@ -71,109 +145,4 @@ pub struct SourceHead {
     pub subnet_id: SubnetId,
     /// Position of the Certificate
     pub position: Position,
-}
-
-/// Define possible status of a certificate
-#[derive(Debug, Deserialize, Serialize)]
-pub enum CertificateStatus {
-    Pending,
-    Delivered,
-}
-
-/// The `Storage` trait defines methods to interact and manage with the persistency layer
-#[async_trait::async_trait]
-pub trait Storage: Sync + Send + 'static {
-    async fn get_pending_certificate(
-        &self,
-        certificate_id: CertificateId,
-    ) -> Result<(PendingCertificateId, Certificate), InternalStorageError>;
-
-    /// Add a pending certificate to the pool
-    async fn add_pending_certificate(
-        &self,
-        certificate: &Certificate,
-    ) -> Result<PendingCertificateId, InternalStorageError>;
-
-    /// Persist the certificate with given status
-    async fn persist(
-        &self,
-        certificate: &Certificate,
-        pending_certificate_id: Option<PendingCertificateId>,
-    ) -> Result<CertificatePositions, InternalStorageError>;
-
-    /// Update the certificate entry with new status
-    async fn update(
-        &self,
-        certificate_id: &CertificateId,
-        status: CertificateStatus,
-    ) -> Result<(), InternalStorageError>;
-
-    /// Returns the source heads of given subnets
-    async fn get_source_heads(
-        &self,
-        subnets: Vec<SubnetId>,
-    ) -> Result<Vec<crate::SourceHead>, InternalStorageError>;
-
-    /// Returns the certificate data given their id
-    async fn get_certificates(
-        &self,
-        certificate_ids: Vec<CertificateId>,
-    ) -> Result<Vec<Certificate>, InternalStorageError>;
-
-    /// Returns the certificate data given its id
-    async fn get_certificate(
-        &self,
-        certificate_id: CertificateId,
-    ) -> Result<Certificate, InternalStorageError>;
-
-    /// Returns the certificate emitted by given subnet
-    /// Ranged by position since emitted Certificate are totally ordered
-    async fn get_certificates_by_source(
-        &self,
-        source_subnet_id: SubnetId,
-        from: Position,
-        limit: usize,
-    ) -> Result<Vec<CertificateId>, InternalStorageError>;
-
-    /// Returns the certificate received by given subnet
-    /// Ranged by timestamps since received Certificate are not referrable by position
-    async fn get_certificates_by_target(
-        &self,
-        target_subnet_id: SubnetId,
-        source_subnet_id: SubnetId,
-        from: Position,
-        limit: usize,
-    ) -> Result<Vec<CertificateId>, InternalStorageError>;
-
-    /// Returns all the known Certificate that are not delivered yet
-    async fn get_pending_certificates(
-        &self,
-    ) -> Result<Vec<(PendingCertificateId, Certificate)>, InternalStorageError>;
-
-    /// Returns the next Certificate that are not delivered yet
-    async fn get_next_pending_certificate(
-        &self,
-        starting_at: Option<usize>,
-    ) -> Result<Option<(PendingCertificateId, Certificate)>, InternalStorageError>;
-
-    /// Remove a certificate from pending pool
-    async fn remove_pending_certificate(
-        &self,
-        index: PendingCertificateId,
-    ) -> Result<(), InternalStorageError>;
-
-    async fn get_target_stream_iterator(
-        &self,
-        target: SubnetId,
-        source: SubnetId,
-        position: Position,
-    ) -> Result<
-        ColumnIterator<'_, CertificateTargetStreamPosition, CertificateId>,
-        InternalStorageError,
-    >;
-
-    async fn get_source_list_by_target(
-        &self,
-        target: SubnetId,
-    ) -> Result<Vec<SubnetId>, InternalStorageError>;
 }

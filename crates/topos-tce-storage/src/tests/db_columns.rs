@@ -2,13 +2,13 @@ use rstest::rstest;
 use test_log::test;
 use topos_core::types::stream::CertificateSourceStreamPosition;
 use topos_core::uci::Certificate;
+use topos_test_sdk::certificates::create_certificate_at_position;
 use topos_test_sdk::constants::SOURCE_SUBNET_ID_1;
 
+use crate::rocks::map::Map;
 use crate::tests::{PREV_CERTIFICATE_ID, SOURCE_STORAGE_SUBNET_ID};
-use crate::{
-    rocks::{map::Map, CertificatesColumn, PendingCertificatesColumn, SourceStreamsColumn},
-    Position,
-};
+use crate::types::{CertificatesColumn, PendingCertificatesColumn, StreamsColumn};
+use crate::Position;
 
 use super::support::columns::{certificates_column, pending_column, source_streams_column};
 
@@ -29,11 +29,14 @@ async fn can_persist_a_delivered_certificate(certificates_column: CertificatesCo
         Certificate::new_with_default_fields(PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID_1, &Vec::new())
             .unwrap();
 
+    let certificate = create_certificate_at_position(Position::ZERO, certificate);
     assert!(certificates_column
-        .insert(&certificate.id, &certificate)
+        .insert(&certificate.certificate.id, &certificate)
         .is_ok());
     assert_eq!(
-        certificates_column.get(&certificate.id).unwrap(),
+        certificates_column
+            .get(&certificate.certificate.id)
+            .unwrap(),
         Some(certificate)
     );
 }
@@ -42,25 +45,26 @@ async fn can_persist_a_delivered_certificate(certificates_column: CertificatesCo
 #[test(tokio::test)]
 async fn delivered_certificate_position_are_incremented(
     certificates_column: CertificatesColumn,
-    source_streams_column: SourceStreamsColumn,
+    source_streams_column: StreamsColumn,
 ) {
     let certificate =
         Certificate::new_with_default_fields(PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID_1, &[]).unwrap();
 
+    let certificate = create_certificate_at_position(Position::ZERO, certificate);
     assert!(certificates_column
-        .insert(&certificate.id, &certificate)
+        .insert(&certificate.certificate.id, &certificate)
         .is_ok());
     assert!(source_streams_column
         .insert(
             &CertificateSourceStreamPosition::new(SOURCE_STORAGE_SUBNET_ID, Position::ZERO),
-            &certificate.id
+            &certificate.certificate.id
         )
         .is_ok());
 }
 
 #[rstest]
 #[test(tokio::test)]
-async fn position_can_be_fetch_for_one_subnet(source_streams_column: SourceStreamsColumn) {
+async fn position_can_be_fetch_for_one_subnet(source_streams_column: StreamsColumn) {
     let certificate =
         Certificate::new_with_default_fields(PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID_1, &[]).unwrap();
 
