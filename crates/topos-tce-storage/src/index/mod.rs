@@ -14,13 +14,10 @@ use crate::{
         db::{default_options, init_with_cfs},
         db_column::DBColumn,
     },
-    types::{CertificateSequenceNumber, TargetSourceListColumn, TargetStreamsColumn},
+    types::{TargetSourceListColumn, TargetStreamsColumn},
 };
 
-#[allow(unused)]
-pub(crate) struct IndexStore {
-    certificate_order: DBColumn<CertificateSequenceNumber, CertificateId>,
-}
+pub struct IndexStore {}
 
 pub struct IndexTables {
     pub(crate) target_streams: TargetStreamsColumn,
