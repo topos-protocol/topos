@@ -1,5 +1,3 @@
-use std::collections::hash_map::Entry;
-
 use crate::{error::P2PError, protocol_name, Command, Runtime};
 use libp2p::{kad::record::Key, PeerId};
 use topos_metrics::P2P_MESSAGE_SENT_ON_GOSSIPSUB_TOTAL;

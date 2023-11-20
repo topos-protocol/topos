@@ -1,12 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    behaviour::discovery::{PendingDials, PendingRecordRequest},
-    config::NetworkConfig,
-    error::P2PError,
-    event::ComposedEvent,
-    runtime::handle_event::EventHandler,
-    Behaviour, Command, Event,
+    behaviour::discovery::PendingRecordRequest, config::NetworkConfig, error::P2PError,
+    event::ComposedEvent, runtime::handle_event::EventHandler, Behaviour, Command, Event,
 };
 use libp2p::{
     core::transport::ListenerId,

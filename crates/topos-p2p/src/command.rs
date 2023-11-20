@@ -1,7 +1,6 @@
 use std::fmt::Display;
 
 use libp2p::{Multiaddr, PeerId};
-use serde::{Deserialize, Serialize};
 use tokio::sync::oneshot;
 
 use crate::{

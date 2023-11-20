@@ -14,7 +14,6 @@ use libp2p::{
 use tokio::sync::oneshot;
 use tracing::info;
 
-pub type PendingDials = HashMap<PeerId, oneshot::Sender<Result<(), P2PError>>>;
 pub type PendingRecordRequest = oneshot::Sender<Result<Vec<Multiaddr>, CommandExecutionError>>;
 
 /// DiscoveryBehaviour is responsible to discover and manage connections with peers
