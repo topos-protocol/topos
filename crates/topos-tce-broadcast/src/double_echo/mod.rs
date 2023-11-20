@@ -11,7 +11,7 @@ use topos_core::{
 use topos_crypto::messages::{MessageSigner, Signature};
 use topos_tce_storage::types::CertificateDeliveredWithPositions;
 use topos_tce_storage::validator::ValidatorStore;
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
 pub mod broadcast_state;
 
@@ -156,7 +156,7 @@ impl DoubleEcho {
                                 DoubleEchoCommand::Echo { certificate_id, validator_id, signature } => {
                                     // Check if source is part of known_validators
                                     if !self.validators.contains(&validator_id) {
-                                        return error!("ECHO message comes from non-validator: {}", validator_id);
+                                        return debug!("ECHO message comes from non-validator: {}", validator_id);
                                     }
 
                                     let mut payload = Vec::new();
@@ -164,7 +164,7 @@ impl DoubleEcho {
                                     payload.extend_from_slice(validator_id.as_bytes());
 
                                     if let Err(e) = self.message_signer.verify_signature(signature, &payload, validator_id.address()) {
-                                        return error!("ECHO messag signature cannot be verified from: {}", e);
+                                        return debug!("ECHO messag signature cannot be verified from: {}", e);
                                     }
 
                                     self.handle_echo(certificate_id, validator_id, signature).await
@@ -172,7 +172,7 @@ impl DoubleEcho {
                                 DoubleEchoCommand::Ready { certificate_id, validator_id, signature } => {
                                     // Check if source is part of known_validators
                                     if !self.validators.contains(&validator_id) {
-                                        return error!("READY message comes from non-validator: {}", validator_id);
+                                        return debug!("READY message comes from non-validator: {}", validator_id);
                                     }
 
                                     let mut payload = Vec::new();
@@ -180,7 +180,7 @@ impl DoubleEcho {
                                     payload.extend_from_slice(validator_id.as_bytes());
 
                                     if let Err(e) = self.message_signer.verify_signature(signature, &payload, validator_id.address()) {
-                                        return error!("READY message signature cannot be verified from: {}", e);
+                                        return debug!("READY message signature cannot be verified from: {}", e);
                                     }
 
                                     self.handle_ready(certificate_id, validator_id, signature).await
