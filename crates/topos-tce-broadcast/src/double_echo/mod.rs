@@ -11,7 +11,7 @@ use topos_core::{
 use topos_crypto::messages::{MessageSigner, Signature};
 use topos_tce_storage::types::CertificateDeliveredWithPositions;
 use topos_tce_storage::validator::ValidatorStore;
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
 pub mod broadcast_state;
 
