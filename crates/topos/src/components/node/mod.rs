@@ -221,13 +221,15 @@ pub(crate) async fn handle_command(
 
             // TCE
             if config.base.subnet == "topos" {
-                info!("Running topos TCE service...",);
-                processes.push(services::process::spawn_tce_process(
-                    config.tce.clone().unwrap(),
-                    keys,
-                    genesis,
-                    (shutdown_token.clone(), shutdown_sender.clone()),
-                ));
+                if let Some(tce_config) = config.tce {
+                    info!("Running topos TCE service...",);
+                    processes.push(services::process::spawn_tce_process(
+                        tce_config,
+                        keys,
+                        genesis,
+                        (shutdown_token.clone(), shutdown_sender.clone()),
+                    ));
+                }
             }
 
             drop(shutdown_sender);
