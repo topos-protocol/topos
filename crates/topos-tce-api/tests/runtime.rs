@@ -29,6 +29,8 @@ use topos_test_sdk::networking::get_available_addr;
 use topos_test_sdk::storage::{create_fullnode_store, create_validator_store, storage_client};
 use topos_test_sdk::tce::public_api::{broadcast_stream, create_public_api, PublicApiContext};
 
+mod grpc;
+
 #[rstest]
 #[timeout(Duration::from_secs(4))]
 #[test(tokio::test)]
