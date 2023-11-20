@@ -1,9 +1,6 @@
-use std::{borrow::Cow, collections::HashMap};
+use std::borrow::Cow;
 
-use crate::{
-    config::DiscoveryConfig,
-    error::{CommandExecutionError, P2PError},
-};
+use crate::{config::DiscoveryConfig, error::CommandExecutionError};
 use libp2p::kad::KademliaEvent;
 use libp2p::{
     identity::Keypair,
