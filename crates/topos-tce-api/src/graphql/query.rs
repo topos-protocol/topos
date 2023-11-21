@@ -16,8 +16,6 @@ use topos_core::types::stream::CertificateSourceStreamPosition;
 use topos_tce_storage::fullnode::FullNodeStore;
 use topos_tce_storage::store::ReadStore;
 
-use tracing::debug;
-
 use crate::runtime::InternalRuntimeCommand;
 use crate::stream::TransientStream;
 
@@ -57,7 +55,6 @@ impl CertificateQuery for QueryRoot {
                 )
                 .map_err(|_| GraphQLServerError::StorageError)?;
 
-            debug!("Returned from storage: {certificates_with_position:?}");
             certificates.extend(
                 certificates_with_position
                     .into_iter()

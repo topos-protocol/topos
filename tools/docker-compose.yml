@@ -118,14 +118,14 @@ services:
       - "9090"
       - "1340"
       - "3000"
-      - "4030"
+      - "4031:4030"
     env_file:
       - env/base.env
       - env/node.env
       - env/telemetry.env
     environment:
       - RUST_LOG=topos=info
-
+      - TOPOS_SYNC_INTERVAL=60
 
   spammer:
     container_name: spam
@@ -137,7 +137,7 @@ services:
       args:
         - TOOLCHAIN_VERSION=stable
     volumes:
-      - shared:/tmp/shared
+      - ./peer_nodes.json:/tmp/shared/peer_nodes.json
     env_file:
       - env/base.env
       - env/telemetry.env

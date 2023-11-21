@@ -67,6 +67,9 @@ impl IntoFuture for CheckpointSynchronizer {
                 self.config.sync_interval_seconds,
             ));
 
+            // The first tick completes immediately
+            _ = interval.tick().await;
+
             loop {
                 tokio::select! {
                     _tick = interval.tick() => {
@@ -158,7 +161,7 @@ impl CheckpointSynchronizer {
             checkpoint,
         };
 
-        debug!("Asking {} for latest checkpoint", peer);
+        debug!("Asking {} for its latest checkpoint", peer);
         let mut client: SynchronizerServiceClient<_> = self
             .network
             .new_grpc_client::<SynchronizerServiceClient<_>, SynchronizerServiceServer<SynchronizerService>>(peer)
@@ -194,7 +197,7 @@ impl CheckpointSynchronizer {
             let len = proofs.len();
             let unverified_certs = self.store.insert_unverified_proofs(proofs)?;
 
-            debug!("Persist {} unverified proofs", len);
+            debug!("Persist {} unverified proofs of delivery", len);
             certs.extend(&unverified_certs[..]);
         }
 

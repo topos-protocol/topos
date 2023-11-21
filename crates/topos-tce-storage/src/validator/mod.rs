@@ -229,7 +229,7 @@ impl ValidatorStore {
             .into_iter()
             .map(|proof| {
                 debug!(
-                    "Certificate Sync: unverified proof for {} inserted",
+                    "Certificate Sync: unverified proof of delivery for {} inserted",
                     proof.certificate_id
                 );
                 (proof.certificate_id, proof)
@@ -262,7 +262,7 @@ impl ValidatorStore {
             .await?;
 
             debug!(
-                "Certificate Sync: unverified proof as been removed for {}",
+                "Certificate Sync: unverified proof of delivery as been removed for {}",
                 certificate_id
             );
             self.fullnode_store
