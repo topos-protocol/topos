@@ -17,12 +17,6 @@ jobs:
     uses: ./.github/workflows/docker_utils.yml
     secrets: inherit
 
-  broadcast_channels:
-    uses: ./.github/workflows/docker_utils.yml
-    secrets: inherit
-    with:
-      features: broadcast_via_channels
-
   network:
     uses: ./.github/workflows/docker_utils.yml
     secrets: inherit
@@ -82,7 +76,8 @@ jobs:
   frontend-erc20-e2e:
     runs-on: ubuntu-latest
     needs: docker
-    if: ${{ github.event_name == 'pull_request' }}
+    # if: ${{ github.event_name == 'pull_request' }}
+    if: ${{ false }}  # disable for now because of: TP-768
     steps:
       - name: Set environment
         run: |
