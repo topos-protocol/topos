@@ -43,7 +43,5 @@ impl From<void::Void> for ComposedEvent {
 
 #[derive(Debug)]
 pub enum Event {
-    PeerDisconnected { peer_id: PeerId },
-    PeersChanged { new_peers: Vec<PeerId> },
     Gossip { from: PeerId, data: Vec<u8> },
 }

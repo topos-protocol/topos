@@ -1,7 +1,6 @@
 use std::fmt::Display;
 
 use libp2p::{Multiaddr, PeerId};
-use serde::{Deserialize, Serialize};
 use tokio::sync::oneshot;
 
 use crate::{
@@ -13,16 +12,6 @@ use crate::{
 pub enum Command {
     /// Executed when the node is starting
     StartListening {
-        peer_addr: Multiaddr,
-        sender: oneshot::Sender<Result<(), P2PError>>,
-    },
-
-    /// Command to initiate a dial with another peer.
-    /// If we already dialled the peer, an error is returned
-    /// If the peer that we want to dial is self, an error is returned
-    /// If we can't initiate a dial with the peer, an error is returned
-    Dial {
-        peer_id: PeerId,
         peer_addr: Multiaddr,
         sender: oneshot::Sender<Result<(), P2PError>>,
     },
@@ -64,7 +53,6 @@ impl Display for Command {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Command::StartListening { .. } => write!(f, "StartListening"),
-            Command::Dial { peer_id, .. } => write!(f, "Dial({peer_id})"),
             Command::ConnectedPeers { .. } => write!(f, "ConnectedPeers"),
             Command::Disconnect { .. } => write!(f, "Disconnect"),
             Command::Gossip { .. } => write!(f, "GossipMessage"),
@@ -73,6 +61,3 @@ impl Display for Command {
         }
     }
 }
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NotReadyMessage {}

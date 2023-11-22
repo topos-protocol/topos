@@ -200,16 +200,17 @@ async fn command_init_precedence_env() -> Result<(), Box<dyn std::error::Error>>
 /// Test node cli arguments precedence over env arguments
 #[tokio::test]
 async fn command_init_precedence_cli_env() -> Result<(), Box<dyn std::error::Error>> {
-    let tmp_home_dir = tempdir()?;
+    let tmp_home_dir_env = tempdir()?;
+    let tmp_home_dir_cli = tempdir()?;
 
     // Test node init with both cli and env flags
     // Cli arguments should take precedence over env variables
-    let node_init_home_env = tmp_home_dir.path().to_str().unwrap();
+    let node_init_home_env = tmp_home_dir_env.path().to_str().unwrap();
     let node_edge_path_env = setup_polygon_edge(node_init_home_env).await;
     let node_init_name_env = "TEST_NODE_ENV";
     let node_init_role_env = "full-node";
     let node_init_subnet_env = "topos-env";
-    let node_init_home_cli = "/tmp/topos/test_command_init_precedence_cli";
+    let node_init_home_cli = tmp_home_dir_cli.path().to_str().unwrap();
     let node_edge_path_cli = node_edge_path_env.clone();
     let node_init_name_cli = "TEST_NODE_CLI";
     let node_init_role_cli = "sequencer";

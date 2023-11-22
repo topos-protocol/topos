@@ -1,9 +1,6 @@
-use std::{borrow::Cow, collections::HashMap};
+use std::borrow::Cow;
 
-use crate::{
-    config::DiscoveryConfig,
-    error::{CommandExecutionError, P2PError},
-};
+use crate::{config::DiscoveryConfig, error::CommandExecutionError};
 use libp2p::kad::KademliaEvent;
 use libp2p::{
     identity::Keypair,
@@ -14,7 +11,6 @@ use libp2p::{
 use tokio::sync::oneshot;
 use tracing::info;
 
-pub type PendingDials = HashMap<PeerId, oneshot::Sender<Result<(), P2PError>>>;
 pub type PendingRecordRequest = oneshot::Sender<Result<Vec<Multiaddr>, CommandExecutionError>>;
 
 /// DiscoveryBehaviour is responsible to discover and manage connections with peers
@@ -54,10 +50,6 @@ impl DiscoveryBehaviour {
             );
             kademlia.add_address(&known_peer.0, known_peer.1.clone());
         }
-
-        // if let Err(store_error) = kademlia.start_providing("topos-tce".as_bytes().to_vec().into()) {
-        //     warn!(reason = %store_error, "Could not start providing Kademlia protocol `topos-tce`")
-        // }
 
         Self { inner: kademlia }
     }

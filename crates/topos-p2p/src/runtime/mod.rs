@@ -1,12 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    behaviour::discovery::{PendingDials, PendingRecordRequest},
-    config::NetworkConfig,
-    error::P2PError,
-    event::ComposedEvent,
-    runtime::handle_event::EventHandler,
-    Behaviour, Command, Event,
+    behaviour::discovery::PendingRecordRequest, config::NetworkConfig, error::P2PError,
+    event::ComposedEvent, runtime::handle_event::EventHandler, Behaviour, Command, Event,
 };
 use libp2p::{
     core::transport::ListenerId,
@@ -23,6 +19,7 @@ use tracing::{debug, error, info, warn};
 
 pub struct Runtime {
     pub(crate) config: NetworkConfig,
+    // TODO: check if needed
     pub(crate) peer_set: HashSet<PeerId>,
     pub(crate) swarm: Swarm<Behaviour>,
     pub(crate) command_receiver: mpsc::Receiver<Command>,
@@ -33,12 +30,6 @@ pub struct Runtime {
     pub(crate) addresses: Multiaddr,
     pub(crate) bootstrapped: bool,
     pub(crate) is_boot_node: bool,
-
-    /// Contains peer ids of dialled node
-    pub peers: HashSet<PeerId>,
-
-    /// Holds the pending dials and their sender
-    pub pending_dial: PendingDials,
 
     /// Contains current listenerId of the swarm
     pub active_listeners: HashSet<ListenerId>,

@@ -1,5 +1,3 @@
-use std::collections::hash_map::Entry;
-
 use crate::{error::P2PError, protocol_name, Command, Runtime};
 use libp2p::{kad::record::Key, PeerId};
 use topos_metrics::P2P_MESSAGE_SENT_ON_GOSSIPSUB_TOTAL;
@@ -38,39 +36,6 @@ impl Runtime {
                     .is_err()
                 {
                     warn!("Unable to notify ConnectedPeers response: initiator is dropped");
-                }
-            }
-
-            Command::Dial {
-                peer_id,
-                peer_addr,
-                sender,
-            } if peer_id != *self.swarm.local_peer_id() => {
-                info!("Sending an active Dial");
-                // let handler = self.new_handler();
-                match (self.peers.get(&peer_id), self.pending_dial.entry(peer_id)) {
-                    (None, Entry::Vacant(entry)) => {
-                        _ = self.swarm.dial(peer_addr);
-                        entry.insert(sender);
-                    }
-
-                    _ => {
-                        if sender.send(Err(P2PError::AlreadyDialed(peer_id))).is_err() {
-                            warn!(
-                                "Could not notify that {peer_id} was already dialed because \
-                                 initiator is dropped"
-                            );
-                        }
-                    }
-                }
-            }
-
-            Command::Dial { sender, .. } => {
-                if sender.send(Err(P2PError::CantDialSelf)).is_err() {
-                    warn!(
-                        reason = %P2PError::CantDialSelf,
-                        "Unable to notify Dial failure because initiator is dropped",
-                    );
                 }
             }
 
