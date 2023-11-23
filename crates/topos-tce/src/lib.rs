@@ -164,7 +164,6 @@ pub async fn run(
         topos_tce_synchronizer::Synchronizer::builder()
             .with_shutdown(shutdown.0.child_token())
             .with_store(validator_store.clone())
-            .with_gatekeeper_client(gatekeeper_client.clone())
             .with_network_client(network_client.clone())
             .build()?;
 

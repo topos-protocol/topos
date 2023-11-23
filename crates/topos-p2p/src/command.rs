@@ -47,6 +47,11 @@ pub enum Command {
         id: uuid::Uuid,
         response: oneshot::Sender<OutboundConnection>,
     },
+
+    /// Ask for a random known peer
+    RandomKnownPeer {
+        sender: oneshot::Sender<Result<PeerId, P2PError>>,
+    },
 }
 
 impl Display for Command {
@@ -54,6 +59,7 @@ impl Display for Command {
         match self {
             Command::StartListening { .. } => write!(f, "StartListening"),
             Command::ConnectedPeers { .. } => write!(f, "ConnectedPeers"),
+            Command::RandomKnownPeer { .. } => write!(f, "RandomKnownPeer"),
             Command::Disconnect { .. } => write!(f, "Disconnect"),
             Command::Gossip { .. } => write!(f, "GossipMessage"),
             Command::NewProxiedQuery { .. } => write!(f, "NewProxiedQuery"),

@@ -65,4 +65,7 @@ pub enum CommandExecutionError {
 
     #[error("Connection with a peer has failed")]
     ConnectionClosed,
+
+    #[error("Internal error: {0}")]
+    Internal(String),
 }

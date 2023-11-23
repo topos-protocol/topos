@@ -1,5 +1,11 @@
-use crate::{error::P2PError, protocol_name, Command, Runtime};
+use std::collections::hash_map::Entry;
+
+use crate::{
+    error::{CommandExecutionError, P2PError},
+    protocol_name, Command, Runtime,
+};
 use libp2p::{kad::record::Key, PeerId};
+use rand::{seq::SliceRandom, thread_rng};
 use topos_metrics::P2P_MESSAGE_SENT_ON_GOSSIPSUB_TOTAL;
 use tracing::{debug, error, info, warn};
 
@@ -36,6 +42,36 @@ impl Runtime {
                     .is_err()
                 {
                     warn!("Unable to notify ConnectedPeers response: initiator is dropped");
+                }
+            }
+            Command::RandomKnownPeer { sender } => {
+                if self.peer_set.is_empty() {
+                    sender.send(Err(P2PError::CommandError(
+                        CommandExecutionError::Internal(
+                            "Asked for one random peer but there is currently no known peer"
+                                .to_string(),
+                        ),
+                    )));
+
+                    return;
+                }
+
+                let mut range: Vec<u32> = (0..(self.peer_set.len() as u32)).collect();
+                range.shuffle(&mut thread_rng());
+
+                if sender
+                    .send(
+                        range
+                            .first()
+                            .and_then(|index| self.peer_set.iter().nth((*index) as usize).cloned())
+                            .ok_or(P2PError::CommandError(CommandExecutionError::Internal(
+                                "Unable to find a random peer for RandomKnownPeer command"
+                                    .to_string(),
+                            ))),
+                    )
+                    .is_err()
+                {
+                    warn!("Unable to notify RandomKnownPeer response: initiator is dropped");
                 }
             }
 
