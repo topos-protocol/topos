@@ -30,3 +30,7 @@ message DoubleEchoRequest {
     Ready ready = 3;
   }
 }
+
+message Batch {
+  repeated DoubleEchoRequest messages = 1;
+}

@@ -1,4 +1,5 @@
 use libp2p::{identify, kad::KademliaEvent, PeerId};
+use topos_api::grpc::tce::v1::DoubleEchoRequest;
 
 use crate::behaviour::grpc;
 
@@ -43,5 +44,8 @@ impl From<void::Void> for ComposedEvent {
 
 #[derive(Debug)]
 pub enum Event {
-    Gossip { from: PeerId, data: Vec<u8> },
+    Gossip {
+        from: PeerId,
+        message: DoubleEchoRequest,
+    },
 }

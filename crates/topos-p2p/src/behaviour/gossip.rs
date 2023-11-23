@@ -10,37 +10,44 @@ use libp2p::{
     identity::Keypair,
     swarm::{NetworkBehaviour, THandlerInEvent, ToSwarm},
 };
+use prost::Message as ProstMessage;
 use serde::{Deserialize, Serialize};
+use topos_api::grpc::tce::v1::{Batch, DoubleEchoRequest};
 use topos_metrics::{
     P2P_DUPLICATE_MESSAGE_ID_RECEIVED_TOTAL, P2P_GOSSIP_BATCH_SIZE,
     P2P_MESSAGE_SERIALIZE_FAILURE_TOTAL,
 };
-use tracing::{debug, error};
+use tracing::{debug, error, info};
 
 use crate::{constants, event::ComposedEvent, TOPOS_ECHO, TOPOS_GOSSIP, TOPOS_READY};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct Batch {
-    pub(crate) data: Vec<Vec<u8>>,
-}
+// #[derive(Debug, Clone, Serialize, Deserialize)]
+// pub(crate) struct Batch {
+//     pub(crate) data: Vec<Vec<u8>>,
+// }
 
 pub struct Behaviour {
     batch_size: usize,
     gossipsub: gossipsub::Behaviour,
-    echo_queue: VecDeque<Vec<u8>>,
-    ready_queue: VecDeque<Vec<u8>>,
+    echo_queue: VecDeque<DoubleEchoRequest>,
+    ready_queue: VecDeque<DoubleEchoRequest>,
     tick: tokio::time::Interval,
     cache: HashSet<MessageId>,
 }
 
 impl Behaviour {
-    pub fn publish(&mut self, topic: &'static str, data: Vec<u8>) -> Result<usize, &'static str> {
+    pub fn publish(
+        &mut self,
+        topic: &'static str,
+        message: DoubleEchoRequest,
+    ) -> Result<usize, &'static str> {
         match topic {
             TOPOS_GOSSIP => {
+                let data = message.encode_to_vec();
                 _ = self.gossipsub.publish(IdentTopic::new(topic), data);
             }
-            TOPOS_ECHO => self.echo_queue.push_back(data),
-            TOPOS_READY => self.ready_queue.push_back(data),
+            TOPOS_ECHO => self.echo_queue.push_back(message),
+            TOPOS_READY => self.ready_queue.push_back(message),
             _ => return Err("Invalid topic"),
         }
 
@@ -158,49 +165,42 @@ impl NetworkBehaviour for Behaviour {
         if self.tick.poll_tick(cx).is_ready() {
             // Publish batch
             if !self.echo_queue.is_empty() {
-                let mut echos = Batch { data: Vec::new() };
+                let mut echos = Batch {
+                    messages: Vec::new(),
+                };
                 for _ in 0..self.batch_size {
-                    if let Some(data) = self.echo_queue.pop_front() {
-                        echos.data.push(data);
+                    if let Some(request) = self.echo_queue.pop_front() {
+                        echos.messages.push(request);
                     } else {
                         break;
                     }
                 }
 
-                debug!("Publishing {} echos", echos.data.len());
-                if let Ok(msg) = bincode::serialize::<Batch>(&echos) {
-                    P2P_GOSSIP_BATCH_SIZE.observe(echos.data.len() as f64);
-
-                    match self.gossipsub.publish(IdentTopic::new(TOPOS_ECHO), msg) {
-                        Ok(message_id) => debug!("Published echo {}", message_id),
-                        Err(error) => error!("Failed to publish echo: {}", error),
-                    }
-                } else {
-                    P2P_MESSAGE_SERIALIZE_FAILURE_TOTAL
-                        .with_label_values(&["echo"])
-                        .inc();
+                debug!("Publishing {} echos", echos.messages.len());
+                let msg = echos.encode_to_vec();
+                P2P_GOSSIP_BATCH_SIZE.observe(echos.messages.len() as f64);
+                match self.gossipsub.publish(IdentTopic::new(TOPOS_ECHO), msg) {
+                    Ok(message_id) => debug!("Published echo {}", message_id),
+                    Err(error) => error!("Failed to publish echo: {}", error),
                 }
             }
 
             if !self.ready_queue.is_empty() {
-                let mut readies = Batch { data: Vec::new() };
+                let mut readies = Batch {
+                    messages: Vec::new(),
+                };
                 for _ in 0..self.batch_size {
                     if let Some(data) = self.ready_queue.pop_front() {
-                        readies.data.push(data);
+                        readies.messages.push(data);
                     } else {
                         break;
                     }
                 }
 
-                debug!("Publishing {} readies", readies.data.len());
-                if let Ok(msg) = bincode::serialize::<Batch>(&readies) {
-                    P2P_GOSSIP_BATCH_SIZE.observe(readies.data.len() as f64);
-                    _ = self.gossipsub.publish(IdentTopic::new(TOPOS_READY), msg);
-                } else {
-                    P2P_MESSAGE_SERIALIZE_FAILURE_TOTAL
-                        .with_label_values(&["ready"])
-                        .inc();
-                }
+                debug!("Publishing {} readies", readies.messages.len());
+                let msg = readies.encode_to_vec();
+                P2P_GOSSIP_BATCH_SIZE.observe(readies.messages.len() as f64);
+                _ = self.gossipsub.publish(IdentTopic::new(TOPOS_READY), msg);
             }
         }
 

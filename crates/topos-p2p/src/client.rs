@@ -5,6 +5,7 @@ use tokio::sync::{
     oneshot,
 };
 use tonic::transport::NamedService;
+use topos_api::grpc::tce::v1::DoubleEchoRequest;
 use topos_api::grpc::GrpcClient;
 
 use crate::{
@@ -43,21 +44,14 @@ impl NetworkClient {
         Self::send_command_with_receiver(&self.sender, command, receiver).await
     }
 
-    pub fn publish<T: std::fmt::Debug + prost::Message + 'static>(
+    pub fn publish(
         &self,
         topic: &'static str,
-        message: T,
+        message: DoubleEchoRequest,
     ) -> BoxFuture<'static, Result<(), SendError<Command>>> {
         let network = self.sender.clone();
 
-        Box::pin(async move {
-            network
-                .send(Command::Gossip {
-                    topic,
-                    data: message.encode_to_vec(),
-                })
-                .await
-        })
+        Box::pin(async move { network.send(Command::Gossip { topic, message }).await })
     }
 
     async fn send_command_with_receiver<

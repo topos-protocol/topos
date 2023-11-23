@@ -90,8 +90,8 @@ impl Runtime {
                 }
             }
 
-            Command::Gossip { topic, data } => {
-                match self.swarm.behaviour_mut().gossipsub.publish(topic, data) {
+            Command::Gossip { topic, message } => {
+                match self.swarm.behaviour_mut().gossipsub.publish(topic, message) {
                     Ok(message_id) => {
                         debug!("Published message to {topic}");
                         P2P_MESSAGE_SENT_ON_GOSSIPSUB_TOTAL.inc();

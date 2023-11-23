@@ -5,10 +5,9 @@ use topos_metrics::{
 };
 use tracing::{debug, error};
 
-use crate::{
-    behaviour::gossip::Batch, constants, event::GossipEvent, Event, Runtime, TOPOS_ECHO,
-    TOPOS_GOSSIP, TOPOS_READY,
-};
+use crate::{constants, event::GossipEvent, Event, Runtime, TOPOS_ECHO, TOPOS_GOSSIP, TOPOS_READY};
+use prost::Message;
+use topos_api::grpc::tce::v1::{Batch, DoubleEchoRequest};
 
 use super::EventHandler;
 
@@ -30,25 +29,34 @@ impl EventHandler<GossipEvent> for Runtime {
                 TOPOS_GOSSIP => {
                     P2P_MESSAGE_RECEIVED_ON_GOSSIP_TOTAL.inc();
 
-                    if let Err(e) = self
-                        .event_sender
-                        .send(Event::Gossip {
-                            from: source,
-                            data: message,
-                        })
-                        .await
-                    {
-                        error!("Failed to send gossip event to runtime: {:?}", e);
+                    match DoubleEchoRequest::decode(&message[..]) {
+                        Ok(request) => {
+                            if let Err(e) = self
+                                .event_sender
+                                .send(Event::Gossip {
+                                    from: source,
+                                    message: request,
+                                })
+                                .await
+                            {
+                                error!("Failed to send gossip event to runtime: {:?}", e);
+                            }
+                        }
+                        Err(e) => {
+                            error!("Unable to parse received double echo message: {:?}", e);
+                        }
                     }
                 }
                 TOPOS_ECHO => {
                     P2P_MESSAGE_RECEIVED_ON_ECHO_TOTAL.inc();
-
-                    if let Ok(msg) = bincode::deserialize::<Batch>(&message) {
-                        for data in msg.data {
+                    if let Ok(Batch { messages }) = Batch::decode(&message[..]) {
+                        for message in messages {
                             if let Err(e) = self
                                 .event_sender
-                                .send(Event::Gossip { from: source, data })
+                                .send(Event::Gossip {
+                                    from: source,
+                                    message,
+                                })
                                 .await
                             {
                                 error!("Failed to send gossip event to runtime: {:?}", e);
@@ -63,11 +71,14 @@ impl EventHandler<GossipEvent> for Runtime {
                 TOPOS_READY => {
                     P2P_MESSAGE_RECEIVED_ON_READY_TOTAL.inc();
 
-                    if let Ok(msg) = bincode::deserialize::<Batch>(&message) {
-                        for data in msg.data {
+                    if let Ok(Batch { messages }) = Batch::decode(&message[..]) {
+                        for message in messages {
                             if let Err(e) = self
                                 .event_sender
-                                .send(Event::Gossip { from: source, data })
+                                .send(Event::Gossip {
+                                    from: source,
+                                    message,
+                                })
                                 .await
                             {
                                 error!("Failed to send gossip event to runtime: {:?}", e);

@@ -2,6 +2,7 @@ use std::fmt::Display;
 
 use libp2p::{Multiaddr, PeerId};
 use tokio::sync::oneshot;
+use topos_api::grpc::tce::v1::DoubleEchoRequest;
 
 use crate::{
     behaviour::grpc::connection::OutboundConnection,
@@ -31,10 +32,9 @@ pub enum Command {
         to: PeerId,
         sender: oneshot::Sender<Result<Vec<Multiaddr>, CommandExecutionError>>,
     },
-
     Gossip {
         topic: &'static str,
-        data: Vec<u8>,
+        message: DoubleEchoRequest,
     },
 
     /// Ask for the creation of a new proxy connection for a gRPC query.

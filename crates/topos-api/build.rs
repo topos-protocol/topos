@@ -74,6 +74,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "#[derive(serde::Deserialize, serde::Serialize)]",
         )
         .type_attribute(
+            ".topos.tce.v1.Batch",
+            "#[derive(serde::Deserialize, serde::Serialize)]",
+        )
+        .type_attribute(
             ".topos.uci.v1.Certificate",
             "#[derive(Eq, Hash, serde::Deserialize, serde::Serialize)]",
         )
