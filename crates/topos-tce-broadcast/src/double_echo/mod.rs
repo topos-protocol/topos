@@ -156,7 +156,8 @@ impl DoubleEcho {
                                 DoubleEchoCommand::Echo { certificate_id, validator_id, signature } => {
                                     // Check if source is part of known_validators
                                     if !self.validators.contains(&validator_id) {
-                                        return debug!("ECHO message comes from non-validator: {}", validator_id);
+                                        debug!("ECHO message comes from non-validator: {}", validator_id);
+                                        continue;
                                     }
 
                                     let mut payload = Vec::new();
@@ -164,7 +165,8 @@ impl DoubleEcho {
                                     payload.extend_from_slice(validator_id.as_bytes());
 
                                     if let Err(e) = self.message_signer.verify_signature(signature, &payload, validator_id.address()) {
-                                        return debug!("ECHO messag signature cannot be verified from: {}", e);
+                                        debug!("ECHO message signature cannot be verified from: {}", e);
+                                        continue;
                                     }
 
                                     self.handle_echo(certificate_id, validator_id, signature).await
@@ -172,7 +174,8 @@ impl DoubleEcho {
                                 DoubleEchoCommand::Ready { certificate_id, validator_id, signature } => {
                                     // Check if source is part of known_validators
                                     if !self.validators.contains(&validator_id) {
-                                        return debug!("READY message comes from non-validator: {}", validator_id);
+                                        debug!("READY message comes from non-validator: {}", validator_id);
+                                        continue;
                                     }
 
                                     let mut payload = Vec::new();
@@ -180,7 +183,8 @@ impl DoubleEcho {
                                     payload.extend_from_slice(validator_id.as_bytes());
 
                                     if let Err(e) = self.message_signer.verify_signature(signature, &payload, validator_id.address()) {
-                                        return debug!("READY message signature cannot be verified from: {}", e);
+                                        debug!("READY message signature cannot be verified from: {}", e);
+                                        continue;
                                     }
 
                                     self.handle_ready(certificate_id, validator_id, signature).await
