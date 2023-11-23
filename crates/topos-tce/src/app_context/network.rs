@@ -1,4 +1,3 @@
-use prost::Message;
 use std::collections::hash_map;
 
 use tokio::spawn;
@@ -8,7 +7,7 @@ use topos_p2p::Event as NetEvent;
 use topos_tce_broadcast::DoubleEchoCommand;
 use tracing::{error, info, trace};
 
-use topos_core::api::grpc::tce::v1::{double_echo_request, DoubleEchoRequest, Echo, Gossip, Ready};
+use topos_core::api::grpc::tce::v1::{double_echo_request, Echo, Gossip, Ready};
 use topos_core::uci;
 
 use crate::AppContext;

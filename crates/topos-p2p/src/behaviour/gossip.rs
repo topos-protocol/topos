@@ -11,20 +11,11 @@ use libp2p::{
     swarm::{NetworkBehaviour, THandlerInEvent, ToSwarm},
 };
 use prost::Message as ProstMessage;
-use serde::{Deserialize, Serialize};
 use topos_api::grpc::tce::v1::{Batch, DoubleEchoRequest};
-use topos_metrics::{
-    P2P_DUPLICATE_MESSAGE_ID_RECEIVED_TOTAL, P2P_GOSSIP_BATCH_SIZE,
-    P2P_MESSAGE_SERIALIZE_FAILURE_TOTAL,
-};
-use tracing::{debug, error, info};
+use topos_metrics::{P2P_DUPLICATE_MESSAGE_ID_RECEIVED_TOTAL, P2P_GOSSIP_BATCH_SIZE};
+use tracing::{debug, error};
 
 use crate::{constants, event::ComposedEvent, TOPOS_ECHO, TOPOS_GOSSIP, TOPOS_READY};
-
-// #[derive(Debug, Clone, Serialize, Deserialize)]
-// pub(crate) struct Batch {
-//     pub(crate) data: Vec<Vec<u8>>,
-// }
 
 pub struct Behaviour {
     batch_size: usize,
