@@ -36,14 +36,6 @@ impl Genesis {
         Ok(Self { path, json })
     }
 
-    // Considered as being the set of premined addresses for now
-    // TODO: Parse properly genesis.extraData instead
-    pub fn validator_count(&self) -> usize {
-        self.json["genesis"]["alloc"]
-            .as_object()
-            .map_or(0, |v| v.len())
-    }
-
     // TODO: parse directly with serde
     pub fn boot_peers(&self, port: Option<u16>) -> Vec<(PeerId, Multiaddr)> {
         match self.json["bootnodes"].as_array() {

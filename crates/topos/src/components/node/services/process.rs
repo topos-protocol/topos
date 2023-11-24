@@ -83,18 +83,21 @@ pub(crate) fn spawn_tce_process(
     genesis: Genesis,
     shutdown: (CancellationToken, mpsc::Sender<()>),
 ) -> JoinHandle<Result<(), Errors>> {
+    let validators = genesis.validators().expect("Cannot parse validators");
+    let tce_params = ReliableBroadcastParams::new(validators.len());
+
     let tce_config = TceConfiguration {
         boot_peers: genesis
             .boot_peers(Some(topos_p2p::constants::TCE_BOOTNODE_PORT))
             .into_iter()
             .chain(config.parse_boot_peers())
             .collect::<Vec<_>>(),
-        validators: genesis.validators().expect("Cannot parse validators"),
+        validators,
         auth_key: keys.network.map(AuthKey::PrivateKey),
         signing_key: keys.validator.map(AuthKey::PrivateKey),
         tce_addr: format!("/ip4/{}", config.libp2p_api_addr.ip()),
         tce_local_port: config.libp2p_api_addr.port(),
-        tce_params: ReliableBroadcastParams::new(genesis.validator_count()),
+        tce_params,
         api_addr: config.grpc_api_addr,
         graphql_api_addr: config.graphql_api_addr,
         metrics_api_addr: config.metrics_api_addr,
