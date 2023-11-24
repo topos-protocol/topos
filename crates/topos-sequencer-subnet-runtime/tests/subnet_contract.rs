@@ -47,7 +47,6 @@ const POLYGON_EDGE_CONTAINER: &str = "ghcr.io/topos-protocol/polygon-edge";
 const POLYGON_EDGE_CONTAINER_TAG: &str = "develop";
 const SUBNET_STARTUP_DELAY: u64 = 5; // seconds left for subnet startup
 const TEST_SUBNET_ID: &str = "6464646464646464646464646464646464646464646464646464646464646464";
-const ZERO_ADDRESS: &str = "0000000000000000000000000000000000000000";
 const TOKEN_SYMBOL: &str = "TKX";
 
 // Accounts pre-filled in STANDALONE_SUBNET_WITH_LONG_BLOCKS
@@ -1501,7 +1500,6 @@ async fn test_subnet_multiple_send_token_in_a_block(
     info!("Sending multiple transactions in parallel");
     let mut handles = Vec::new();
     for i in 1..=number_of_send_token_transactions {
-        let i_erc20_address = i_erc20.address();
         let (target_subnet, i_erc20_messaging) = target_subnets.pop().unwrap();
         let i_erc20_messaging_address = i_erc20_messaging.address();
         let handle = tokio::spawn(async move {
