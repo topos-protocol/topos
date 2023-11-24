@@ -22,6 +22,7 @@ pub(crate) async fn handle_command(
 ) -> Result<(), Box<dyn std::error::Error>> {
     match subcommands {
         Some(RegtestCommands::PushCertificate(cmd)) => {
+            _ = setup_tracing(verbose, None, None)?;
             debug!("Start executing PushCertificate command");
             match services::push_certificate::check_delivery(
                 cmd.timeout_broadcast,
