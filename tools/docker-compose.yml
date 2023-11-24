@@ -151,7 +151,7 @@ services:
   check:
     container_name: check
     image: ghcr.io/topos-protocol/topos:main
-    command: regtest push-certificate -f json
+    command: regtest push-certificate -f json --timeout-broadcast=5
     profiles:
       - CI
       - check
