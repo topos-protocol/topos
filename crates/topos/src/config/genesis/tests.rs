@@ -20,7 +20,8 @@ pub fn genesis() -> Genesis {
 
 #[rstest]
 pub fn test_correct_validator_count(genesis: &Genesis) {
-    assert_eq!(4, genesis.validator_count());
+    let validators = genesis.validators().unwrap();
+    assert_eq!(validators.len(), 4);
 }
 
 #[rstest]
@@ -39,7 +40,6 @@ pub fn test_extract_validators(genesis: &Genesis) {
     let third = ValidatorId::from_str("0xb4973cdb10894d1d1547673bd758589034c2bba5").unwrap();
     let fourth = ValidatorId::from_str("0xc16d83893cb61872206d4e271b813015d3242d94").unwrap();
 
-    assert_eq!(validators.len(), 4);
     assert_eq!(validators.get(&first), Some(&first));
     assert_eq!(validators.get(&second), Some(&second));
     assert_eq!(validators.get(&third), Some(&third));
