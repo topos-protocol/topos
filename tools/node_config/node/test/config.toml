@@ -11,3 +11,4 @@ graphql-api-addr = "0.0.0.0:4030"
 grpc-api-addr = "0.0.0.0:1340"
 libp2p-api-addr = "0.0.0.0:9090"
 metrics-api-addr = "0.0.0.0:3000"
+node-sync-interval = 60

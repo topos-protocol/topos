@@ -125,7 +125,6 @@ services:
       - env/telemetry.env
     environment:
       - RUST_LOG=topos=info
-      - TOPOS_SYNC_INTERVAL=60
 
   spammer:
     container_name: spam

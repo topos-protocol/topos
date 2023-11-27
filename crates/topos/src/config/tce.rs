@@ -10,6 +10,8 @@ use serde::{Deserialize, Serialize};
 use crate::config::Config;
 use topos_p2p::{Multiaddr, PeerId};
 
+const DEFAULT_NODE_SYNC_INTERVAL: u64 = 1;
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "kebab-case")]
 pub struct TceConfig {
@@ -44,6 +46,14 @@ pub struct TceConfig {
     /// Otlp service name
     /// If not provided open telemetry will not be used
     pub otlp_service_name: Option<String>,
+
+    /// Interval in seconds to sync the node with the network
+    #[serde(default = "default_node_sync_interval")]
+    pub node_sync_interval: u64,
+}
+
+fn default_node_sync_interval() -> u64 {
+    DEFAULT_NODE_SYNC_INTERVAL
 }
 
 fn default_db_path() -> PathBuf {

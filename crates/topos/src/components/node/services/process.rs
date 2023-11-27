@@ -104,6 +104,7 @@ pub(crate) fn spawn_tce_process(
             .minimum_tce_cluster_size
             .unwrap_or(NetworkConfig::MINIMUM_CLUSTER_SIZE),
         version: env!("TOPOS_VERSION"),
+        node_sync_interval: config.node_sync_interval,
     };
 
     debug!("TCE args: {tce_config:?}");

@@ -166,12 +166,7 @@ pub async fn run(
             .with_store(validator_store.clone())
             .with_gatekeeper_client(gatekeeper_client.clone())
             .with_network_client(network_client.clone())
-            .with_sync_interval_seconds(
-                std::env::var("TOPOS_SYNC_INTERVAL")
-                    .unwrap_or("1".to_string())
-                    .parse()
-                    .unwrap_or(1),
-            )
+            .with_sync_interval_seconds(config.node_sync_interval)
             .build()?;
 
     spawn(synchronizer_runtime.into_future());

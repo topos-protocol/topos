@@ -31,6 +31,7 @@ pub struct TceConfiguration {
     pub network_bootstrap_timeout: Duration,
     pub minimum_cluster_size: usize,
     pub version: &'static str,
+    pub node_sync_interval: u64,
 }
 
 #[derive(Debug)]
