@@ -87,11 +87,7 @@ pub(crate) fn spawn_tce_process(
     let tce_params = ReliableBroadcastParams::new(validators.len());
 
     let tce_config = TceConfiguration {
-        boot_peers: genesis
-            .boot_peers(Some(topos_p2p::constants::TCE_BOOTNODE_PORT))
-            .into_iter()
-            .chain(config.parse_boot_peers())
-            .collect::<Vec<_>>(),
+        boot_peers: config.parse_boot_peers(),
         validators,
         auth_key: keys.network.map(AuthKey::PrivateKey),
         signing_key: keys.validator.map(AuthKey::PrivateKey),

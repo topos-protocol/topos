@@ -37,6 +37,7 @@ impl Genesis {
     }
 
     // TODO: parse directly with serde
+    #[allow(unused)]
     pub fn boot_peers(&self, port: Option<u16>) -> Vec<(PeerId, Multiaddr)> {
         match self.json["bootnodes"].as_array() {
             Some(v) => v

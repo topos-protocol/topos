@@ -16,8 +16,8 @@ pub struct TceConfig {
     /// Storage database path, if not set RAM storage is used
     #[serde(default = "default_db_path")]
     pub db_path: PathBuf,
-    /// Array of extra boot nodes to connect to
-    pub extra_boot_peers: Option<String>,
+    /// Boot peers for the p2p network
+    pub boot_peers: String,
     /// Ip for the p2p Multiaddr
     pub tce_ext_host: Option<String>,
     /// Port for the p2p Multiaddr
@@ -80,9 +80,8 @@ const fn default_metrics_api_addr() -> SocketAddr {
 
 impl TceConfig {
     pub fn parse_boot_peers(&self) -> Vec<(PeerId, Multiaddr)> {
-        self.extra_boot_peers
+        self.boot_peers
             .clone()
-            .unwrap_or_default()
             .split(&[',', ' '])
             .map(|s| s.to_string())
             .collect::<Vec<String>>()
