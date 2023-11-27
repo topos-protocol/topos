@@ -47,7 +47,7 @@ const POLYGON_EDGE_CONTAINER: &str = "ghcr.io/topos-protocol/polygon-edge";
 const POLYGON_EDGE_CONTAINER_TAG: &str = "develop";
 const SUBNET_STARTUP_DELAY: u64 = 5; // seconds left for subnet startup
 const TEST_SUBNET_ID: &str = "6464646464646464646464646464646464646464646464646464646464646464";
-const ZERO_ADDRESS: &str = "0000000000000000000000000000000000000000";
+const TOKEN_SYMBOL: &str = "TKX";
 
 // Accounts pre-filled in STANDALONE_SUBNET_WITH_LONG_BLOCKS
 // Account Alith 0xf24FF3a9CF04c71Dbc94D0b566f7A27B94566cac
@@ -417,16 +417,14 @@ async fn deploy_test_token(
 
     // Deploy token
     let token_name: Token = Token::String("Test Token".to_string());
-    let token_symbol: Token = Token::String("TKX".to_string());
+    let token_symbol: Token = Token::String(TOKEN_SYMBOL.to_string());
     let token_mint_cap: Token = Token::Uint(U256::from(100_000_000));
-    let token_address_zero: Token = Token::Address(ZERO_ADDRESS.parse()?);
     let token_daily_mint_limit: Token = Token::Uint(U256::from(100));
     let token_initial_supply: Token = Token::Uint(U256::from(10_000_000));
     let token_encoded_params: ethers::types::Bytes = ethers::abi::encode(&[
         token_name.clone(),
         token_symbol.clone(),
         token_mint_cap,
-        token_address_zero,
         token_daily_mint_limit,
         token_initial_supply,
     ])
@@ -1008,7 +1006,7 @@ async fn test_subnet_send_token_processing(
         .i_erc20_messaging
         .send_token(
             TARGET_SUBNET_ID_2.into(),
-            i_erc20.address(),
+            TOKEN_SYMBOL.into(),
             "00000000000000000000000000000000000000AA".parse()?,
             U256::from(2),
         )
@@ -1502,7 +1500,6 @@ async fn test_subnet_multiple_send_token_in_a_block(
     info!("Sending multiple transactions in parallel");
     let mut handles = Vec::new();
     for i in 1..=number_of_send_token_transactions {
-        let i_erc20_address = i_erc20.address();
         let (target_subnet, i_erc20_messaging) = target_subnets.pop().unwrap();
         let i_erc20_messaging_address = i_erc20_messaging.address();
         let handle = tokio::spawn(async move {
@@ -1515,7 +1512,7 @@ async fn test_subnet_multiple_send_token_in_a_block(
             if let Err(e) = i_erc20_messaging
                 .send_token(
                     target_subnet.into(),
-                    i_erc20_address,
+                    TOKEN_SYMBOL.into(),
                     "00000000000000000000000000000000000000AA".parse().unwrap(),
                     U256::from(i),
                 )
