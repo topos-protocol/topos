@@ -93,5 +93,4 @@ jobs:
           workflow_file_name: frontend:erc20-messaging.yml
           ref: main
           wait_interval: 60
-          # Remove "local-erc20-messaging-infra-ref" when https://github.com/topos-protocol/local-erc20-messaging-infra/pull/37 is merged
-          client_payload: '{ "local-erc20-messaging-infra-ref": "chore-sanitize-updates", "topos-docker-tag": "${{ env.docker_tag }}" }'
+          client_payload: '{ "topos-docker-tag": "${{ env.docker_tag }}" }'
