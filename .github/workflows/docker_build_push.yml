@@ -91,6 +91,8 @@ jobs:
           repo: e2e-tests
           github_token: ${{ secrets.ROBOT_PAT_TRIGGER_E2E_WORKFLOWS }}
           workflow_file_name: frontend:erc20-messaging.yml
-          ref: main
+          # Replace by main when https://github.com/topos-protocol/e2e-tests/pull/25 is merged
+          ref: chore/fixing-container-name
           wait_interval: 60
-          client_payload: '{ "topos-docker-tag": "${{ env.docker_tag }}" }'
+          # Remove "local-erc20-messaging-infra-ref" when https://github.com/topos-protocol/local-erc20-messaging-infra/pull/37 is merged
+          client_payload: '{ "local-erc20-messaging-infra-ref": "chore-sanitize-updates", "topos-docker-tag": "${{ env.docker_tag }}" }'
