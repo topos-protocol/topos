@@ -10,6 +10,8 @@ use serde::{Deserialize, Serialize};
 use crate::config::Config;
 use topos_p2p::{Multiaddr, PeerId};
 
+const DEFAULT_IP: std::net::Ipv4Addr = std::net::Ipv4Addr::new(0, 0, 0, 0);
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "kebab-case")]
 pub struct TceConfig {
@@ -51,31 +53,19 @@ fn default_db_path() -> PathBuf {
 }
 
 const fn default_libp2p_api_addr() -> SocketAddr {
-    SocketAddr::V4(std::net::SocketAddrV4::new(
-        std::net::Ipv4Addr::new(0, 0, 0, 1),
-        9090,
-    ))
+    SocketAddr::V4(std::net::SocketAddrV4::new(DEFAULT_IP, 9090))
 }
 
 const fn default_grpc_api_addr() -> SocketAddr {
-    SocketAddr::V4(std::net::SocketAddrV4::new(
-        std::net::Ipv4Addr::new(0, 0, 0, 1),
-        1340,
-    ))
+    SocketAddr::V4(std::net::SocketAddrV4::new(DEFAULT_IP, 1340))
 }
 
 const fn default_graphql_api_addr() -> SocketAddr {
-    SocketAddr::V4(std::net::SocketAddrV4::new(
-        std::net::Ipv4Addr::new(0, 0, 0, 1),
-        4030,
-    ))
+    SocketAddr::V4(std::net::SocketAddrV4::new(DEFAULT_IP, 4030))
 }
 
 const fn default_metrics_api_addr() -> SocketAddr {
-    SocketAddr::V4(std::net::SocketAddrV4::new(
-        std::net::Ipv4Addr::new(0, 0, 0, 1),
-        3000,
-    ))
+    SocketAddr::V4(std::net::SocketAddrV4::new(DEFAULT_IP, 3000))
 }
 
 impl TceConfig {
