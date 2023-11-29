@@ -12,7 +12,6 @@ JQ=$(which jq)
 TOPOS_BIN=/usr/src/app/topos
 TOPOS_HOME=/tmp/node_config
 NODE="http://$HOSTNAME:1340"
-TCE_EXT_HOST="/dns4/$HOSTNAME"
 NODE_LIST_PATH=/tmp/shared/peer_nodes.json
 export TOPOS_HOME=$TOPOS_HOME
 
