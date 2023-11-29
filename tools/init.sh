@@ -14,7 +14,6 @@ TOPOS_HOME=/tmp/node_config
 NODE="http://$HOSTNAME:1340"
 TCE_EXT_HOST="/dns4/$HOSTNAME"
 NODE_LIST_PATH=/tmp/shared/peer_nodes.json
-FIXED_BOOT_PEER_ID="BOOT_NODE_1"
 export TOPOS_HOME=$TOPOS_HOME
 
 mkdir -p $TOPOS_HOME/node/test
