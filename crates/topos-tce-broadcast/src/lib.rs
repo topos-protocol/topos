@@ -58,10 +58,7 @@ mod constant;
 pub mod double_echo;
 pub mod sampler;
 
-#[cfg(feature = "task-manager-channels")]
-pub mod task_manager_channels;
-#[cfg(not(feature = "task-manager-channels"))]
-pub mod task_manager_futures;
+pub mod task_manager;
 
 #[cfg(test)]
 mod tests;

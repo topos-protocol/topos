@@ -70,4 +70,3 @@ predicates = "3.0.3"
 
 [features]
 default = []
-broadcast_via_channels = ["default", "topos-tce-broadcast/task-manager-channels"]
