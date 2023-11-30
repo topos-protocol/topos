@@ -90,15 +90,16 @@ impl Runtime {
                 }
             }
 
-            Command::Gossip { topic, data } => {
-                match self.swarm.behaviour_mut().gossipsub.publish(topic, data) {
-                    Ok(message_id) => {
-                        debug!("Published message to {topic}");
-                        P2P_MESSAGE_SENT_ON_GOSSIPSUB_TOTAL.inc();
-                    }
-                    Err(err) => error!("Failed to publish message to {topic}: {err}"),
+            Command::Gossip {
+                topic,
+                data: message,
+            } => match self.swarm.behaviour_mut().gossipsub.publish(topic, message) {
+                Ok(message_id) => {
+                    debug!("Published message to {topic}");
+                    P2P_MESSAGE_SENT_ON_GOSSIPSUB_TOTAL.inc();
                 }
-            }
+                Err(err) => error!("Failed to publish message to {topic}: {err}"),
+            },
         }
     }
 }

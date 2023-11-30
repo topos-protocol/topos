@@ -31,7 +31,6 @@ pub enum Command {
         to: PeerId,
         sender: oneshot::Sender<Result<Vec<Multiaddr>, CommandExecutionError>>,
     },
-
     Gossip {
         topic: &'static str,
         data: Vec<u8>,

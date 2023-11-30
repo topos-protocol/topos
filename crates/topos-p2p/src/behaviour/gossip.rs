@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashSet, VecDeque},
+    collections::{HashMap, HashSet, VecDeque},
     env,
     task::Poll,
     time::Duration,
@@ -10,37 +10,34 @@ use libp2p::{
     identity::Keypair,
     swarm::{NetworkBehaviour, THandlerInEvent, ToSwarm},
 };
-use serde::{Deserialize, Serialize};
-use topos_metrics::{
-    P2P_DUPLICATE_MESSAGE_ID_RECEIVED_TOTAL, P2P_GOSSIP_BATCH_SIZE,
-    P2P_MESSAGE_SERIALIZE_FAILURE_TOTAL,
-};
+use prost::Message as ProstMessage;
+use topos_api::grpc::tce::v1::Batch;
+use topos_metrics::{P2P_DUPLICATE_MESSAGE_ID_RECEIVED_TOTAL, P2P_GOSSIP_BATCH_SIZE};
 use tracing::{debug, error};
 
 use crate::{constants, event::ComposedEvent, TOPOS_ECHO, TOPOS_GOSSIP, TOPOS_READY};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct Batch {
-    pub(crate) data: Vec<Vec<u8>>,
-}
+const MAX_BATCH_SIZE: usize = 10;
 
 pub struct Behaviour {
     batch_size: usize,
     gossipsub: gossipsub::Behaviour,
-    echo_queue: VecDeque<Vec<u8>>,
-    ready_queue: VecDeque<Vec<u8>>,
+    pending: HashMap<&'static str, VecDeque<Vec<u8>>>,
     tick: tokio::time::Interval,
     cache: HashSet<MessageId>,
 }
 
 impl Behaviour {
-    pub fn publish(&mut self, topic: &'static str, data: Vec<u8>) -> Result<usize, &'static str> {
+    pub fn publish(
+        &mut self,
+        topic: &'static str,
+        message: Vec<u8>,
+    ) -> Result<usize, &'static str> {
         match topic {
             TOPOS_GOSSIP => {
-                _ = self.gossipsub.publish(IdentTopic::new(topic), data);
+                _ = self.gossipsub.publish(IdentTopic::new(topic), message);
             }
-            TOPOS_ECHO => self.echo_queue.push_back(data),
-            TOPOS_READY => self.ready_queue.push_back(data),
+            TOPOS_ECHO | TOPOS_READY => self.pending.entry(topic).or_default().push_back(message),
             _ => return Err("Invalid topic"),
         }
 
@@ -66,7 +63,7 @@ impl Behaviour {
     pub async fn new(peer_key: Keypair) -> Self {
         let batch_size = env::var("TOPOS_GOSSIP_BATCH_SIZE")
             .map(|v| v.parse::<usize>())
-            .unwrap_or(Ok(10))
+            .unwrap_or(Ok(MAX_BATCH_SIZE))
             .unwrap();
         let gossipsub = gossipsub::ConfigBuilder::default()
             .max_transmit_size(2 * 1024 * 1024)
@@ -88,8 +85,12 @@ impl Behaviour {
         Self {
             batch_size,
             gossipsub,
-            echo_queue: VecDeque::new(),
-            ready_queue: VecDeque::new(),
+            pending: [
+                (TOPOS_ECHO, VecDeque::new()),
+                (TOPOS_READY, VecDeque::new()),
+            ]
+            .into_iter()
+            .collect(),
             tick: tokio::time::interval(Duration::from_millis(
                 env::var("TOPOS_GOSSIP_INTERVAL")
                     .map(|v| v.parse::<u64>())
@@ -157,49 +158,20 @@ impl NetworkBehaviour for Behaviour {
     ) -> Poll<ToSwarm<Self::ToSwarm, THandlerInEvent<Self>>> {
         if self.tick.poll_tick(cx).is_ready() {
             // Publish batch
-            if !self.echo_queue.is_empty() {
-                let mut echos = Batch { data: Vec::new() };
-                for _ in 0..self.batch_size {
-                    if let Some(data) = self.echo_queue.pop_front() {
-                        echos.data.push(data);
-                    } else {
-                        break;
+            for (topic, queue) in self.pending.iter_mut() {
+                if !queue.is_empty() {
+                    let num_of_message = queue.len().min(self.batch_size);
+                    let batch = Batch {
+                        messages: queue.drain(0..num_of_message).collect(),
+                    };
+
+                    debug!("Publishing {} {}", batch.messages.len(), topic);
+                    let msg = batch.encode_to_vec();
+                    P2P_GOSSIP_BATCH_SIZE.observe(batch.messages.len() as f64);
+                    match self.gossipsub.publish(IdentTopic::new(*topic), msg) {
+                        Ok(message_id) => debug!("Published {} {}", topic, message_id),
+                        Err(error) => error!("Failed to publish {}: {}", topic, error),
                     }
-                }
-
-                debug!("Publishing {} echos", echos.data.len());
-                if let Ok(msg) = bincode::serialize::<Batch>(&echos) {
-                    P2P_GOSSIP_BATCH_SIZE.observe(echos.data.len() as f64);
-
-                    match self.gossipsub.publish(IdentTopic::new(TOPOS_ECHO), msg) {
-                        Ok(message_id) => debug!("Published echo {}", message_id),
-                        Err(error) => error!("Failed to publish echo: {}", error),
-                    }
-                } else {
-                    P2P_MESSAGE_SERIALIZE_FAILURE_TOTAL
-                        .with_label_values(&["echo"])
-                        .inc();
-                }
-            }
-
-            if !self.ready_queue.is_empty() {
-                let mut readies = Batch { data: Vec::new() };
-                for _ in 0..self.batch_size {
-                    if let Some(data) = self.ready_queue.pop_front() {
-                        readies.data.push(data);
-                    } else {
-                        break;
-                    }
-                }
-
-                debug!("Publishing {} readies", readies.data.len());
-                if let Ok(msg) = bincode::serialize::<Batch>(&readies) {
-                    P2P_GOSSIP_BATCH_SIZE.observe(readies.data.len() as f64);
-                    _ = self.gossipsub.publish(IdentTopic::new(TOPOS_READY), msg);
-                } else {
-                    P2P_MESSAGE_SERIALIZE_FAILURE_TOTAL
-                        .with_label_values(&["ready"])
-                        .inc();
                 }
             }
         }
