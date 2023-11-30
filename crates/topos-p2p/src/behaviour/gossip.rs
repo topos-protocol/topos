@@ -34,14 +34,9 @@ impl Behaviour {
     ) -> Result<usize, &'static str> {
         match topic {
             TOPOS_GOSSIP => {
-                let data = message.encode_to_vec();
-                _ = self.gossipsub.publish(IdentTopic::new(topic), data);
+                _ = self.gossipsub.publish(IdentTopic::new(topic), message);
             }
-            TOPOS_ECHO | TOPOS_READY => self
-                .pending
-                .entry(topic)
-                .or_default()
-                .push_back(message),
+            TOPOS_ECHO | TOPOS_READY => self.pending.entry(topic).or_default().push_back(message),
             _ => return Err("Invalid topic"),
         }
 
