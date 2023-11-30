@@ -44,8 +44,5 @@ impl From<void::Void> for ComposedEvent {
 
 #[derive(Debug)]
 pub enum Event {
-    Gossip {
-        from: PeerId,
-        message: DoubleEchoRequest,
-    },
+    Gossip { from: PeerId, data: Vec<u8> },
 }

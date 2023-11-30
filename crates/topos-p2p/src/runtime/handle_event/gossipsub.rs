@@ -29,22 +29,15 @@ impl EventHandler<GossipEvent> for Runtime {
                 TOPOS_GOSSIP => {
                     P2P_MESSAGE_RECEIVED_ON_GOSSIP_TOTAL.inc();
 
-                    match DoubleEchoRequest::decode(&message[..]) {
-                        Ok(request) => {
-                            if let Err(e) = self
-                                .event_sender
-                                .send(Event::Gossip {
-                                    from: source,
-                                    message: request,
-                                })
-                                .await
-                            {
-                                error!("Failed to send gossip event to runtime: {:?}", e);
-                            }
-                        }
-                        Err(e) => {
-                            error!("Unable to parse received double echo message: {:?}", e);
-                        }
+                    if let Err(e) = self
+                        .event_sender
+                        .send(Event::Gossip {
+                            from: source,
+                            data: message,
+                        })
+                        .await
+                    {
+                        error!("Failed to send gossip event to runtime: {:?}", e);
                     }
                 }
                 TOPOS_ECHO => {
@@ -55,7 +48,7 @@ impl EventHandler<GossipEvent> for Runtime {
                                 .event_sender
                                 .send(Event::Gossip {
                                     from: source,
-                                    message,
+                                    data: message,
                                 })
                                 .await
                             {
@@ -77,7 +70,7 @@ impl EventHandler<GossipEvent> for Runtime {
                                 .event_sender
                                 .send(Event::Gossip {
                                     from: source,
-                                    message,
+                                    data: message,
                                 })
                                 .await
                             {

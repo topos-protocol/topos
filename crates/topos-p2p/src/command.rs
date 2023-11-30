@@ -34,7 +34,7 @@ pub enum Command {
     },
     Gossip {
         topic: &'static str,
-        message: DoubleEchoRequest,
+        data: Vec<u8>,
     },
 
     /// Ask for the creation of a new proxy connection for a gRPC query.

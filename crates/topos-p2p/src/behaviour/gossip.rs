@@ -1,5 +1,6 @@
+use http_body_util::BodyExt;
 use std::{
-    collections::{HashSet, VecDeque},
+    collections::{HashMap, HashSet, VecDeque},
     env,
     task::Poll,
     time::Duration,
@@ -20,8 +21,7 @@ use crate::{constants, event::ComposedEvent, TOPOS_ECHO, TOPOS_GOSSIP, TOPOS_REA
 pub struct Behaviour {
     batch_size: usize,
     gossipsub: gossipsub::Behaviour,
-    echo_queue: VecDeque<DoubleEchoRequest>,
-    ready_queue: VecDeque<DoubleEchoRequest>,
+    pending: HashMap<&'static str, VecDeque<Vec<u8>>>,
     tick: tokio::time::Interval,
     cache: HashSet<MessageId>,
 }
@@ -30,15 +30,18 @@ impl Behaviour {
     pub fn publish(
         &mut self,
         topic: &'static str,
-        message: DoubleEchoRequest,
+        message: Vec<u8>,
     ) -> Result<usize, &'static str> {
         match topic {
             TOPOS_GOSSIP => {
                 let data = message.encode_to_vec();
                 _ = self.gossipsub.publish(IdentTopic::new(topic), data);
             }
-            TOPOS_ECHO => self.echo_queue.push_back(message),
-            TOPOS_READY => self.ready_queue.push_back(message),
+            TOPOS_ECHO | TOPOS_READY => self
+                .pending
+                .entry(topic)
+                .or_default()
+                .push_back(message),
             _ => return Err("Invalid topic"),
         }
 
@@ -86,8 +89,12 @@ impl Behaviour {
         Self {
             batch_size,
             gossipsub,
-            echo_queue: VecDeque::new(),
-            ready_queue: VecDeque::new(),
+            pending: [
+                (TOPOS_ECHO, VecDeque::new()),
+                (TOPOS_READY, VecDeque::new()),
+            ]
+            .into_iter()
+            .collect(),
             tick: tokio::time::interval(Duration::from_millis(
                 env::var("TOPOS_GOSSIP_INTERVAL")
                     .map(|v| v.parse::<u64>())
@@ -155,43 +162,27 @@ impl NetworkBehaviour for Behaviour {
     ) -> Poll<ToSwarm<Self::ToSwarm, THandlerInEvent<Self>>> {
         if self.tick.poll_tick(cx).is_ready() {
             // Publish batch
-            if !self.echo_queue.is_empty() {
-                let mut echos = Batch {
-                    messages: Vec::new(),
-                };
-                for _ in 0..self.batch_size {
-                    if let Some(request) = self.echo_queue.pop_front() {
-                        echos.messages.push(request);
-                    } else {
-                        break;
+            for (topic, queue) in self.pending.iter_mut() {
+                if !queue.is_empty() {
+                    let mut batch = Batch {
+                        messages: Vec::new(),
+                    };
+                    for _ in 0..queue.len() {
+                        if let Some(request) = queue.pop_front() {
+                            batch.messages.push(request);
+                        } else {
+                            break;
+                        }
+                    }
+
+                    debug!("Publishing {} {}", batch.messages.len(), topic);
+                    let msg = batch.encode_to_vec();
+                    P2P_GOSSIP_BATCH_SIZE.observe(batch.messages.len() as f64);
+                    match self.gossipsub.publish(IdentTopic::new(*topic), msg) {
+                        Ok(message_id) => debug!("Published {} {}", topic, message_id),
+                        Err(error) => error!("Failed to publish {}: {}", topic, error),
                     }
                 }
-
-                debug!("Publishing {} echos", echos.messages.len());
-                let msg = echos.encode_to_vec();
-                P2P_GOSSIP_BATCH_SIZE.observe(echos.messages.len() as f64);
-                match self.gossipsub.publish(IdentTopic::new(TOPOS_ECHO), msg) {
-                    Ok(message_id) => debug!("Published echo {}", message_id),
-                    Err(error) => error!("Failed to publish echo: {}", error),
-                }
-            }
-
-            if !self.ready_queue.is_empty() {
-                let mut readies = Batch {
-                    messages: Vec::new(),
-                };
-                for _ in 0..self.batch_size {
-                    if let Some(data) = self.ready_queue.pop_front() {
-                        readies.messages.push(data);
-                    } else {
-                        break;
-                    }
-                }
-
-                debug!("Publishing {} readies", readies.messages.len());
-                let msg = readies.encode_to_vec();
-                P2P_GOSSIP_BATCH_SIZE.observe(readies.messages.len() as f64);
-                _ = self.gossipsub.publish(IdentTopic::new(TOPOS_READY), msg);
             }
         }
 
