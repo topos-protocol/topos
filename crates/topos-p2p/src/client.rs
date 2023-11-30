@@ -5,7 +5,6 @@ use tokio::sync::{
     oneshot,
 };
 use tonic::transport::NamedService;
-use topos_api::grpc::tce::v1::DoubleEchoRequest;
 use topos_api::grpc::GrpcClient;
 
 use crate::{

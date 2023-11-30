@@ -2,7 +2,6 @@ use std::fmt::Display;
 
 use libp2p::{Multiaddr, PeerId};
 use tokio::sync::oneshot;
-use topos_api::grpc::tce::v1::DoubleEchoRequest;
 
 use crate::{
     behaviour::grpc::connection::OutboundConnection,

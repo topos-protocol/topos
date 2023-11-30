@@ -40,30 +40,12 @@ impl EventHandler<GossipEvent> for Runtime {
                         error!("Failed to send gossip event to runtime: {:?}", e);
                     }
                 }
-                TOPOS_ECHO => {
-                    P2P_MESSAGE_RECEIVED_ON_ECHO_TOTAL.inc();
-                    if let Ok(Batch { messages }) = Batch::decode(&message[..]) {
-                        for message in messages {
-                            if let Err(e) = self
-                                .event_sender
-                                .send(Event::Gossip {
-                                    from: source,
-                                    data: message,
-                                })
-                                .await
-                            {
-                                error!("Failed to send gossip event to runtime: {:?}", e);
-                            }
-                        }
+                TOPOS_ECHO | TOPOS_READY => {
+                    if topic == TOPOS_ECHO {
+                        P2P_MESSAGE_RECEIVED_ON_ECHO_TOTAL.inc();
                     } else {
-                        P2P_MESSAGE_DESERIALIZE_FAILURE_TOTAL
-                            .with_label_values(&["echo"])
-                            .inc();
+                        P2P_MESSAGE_RECEIVED_ON_READY_TOTAL.inc();
                     }
-                }
-                TOPOS_READY => {
-                    P2P_MESSAGE_RECEIVED_ON_READY_TOTAL.inc();
-
                     if let Ok(Batch { messages }) = Batch::decode(&message[..]) {
                         for message in messages {
                             if let Err(e) = self
@@ -74,12 +56,12 @@ impl EventHandler<GossipEvent> for Runtime {
                                 })
                                 .await
                             {
-                                error!("Failed to send gossip event to runtime: {:?}", e);
+                                error!("Failed to send gossip {} event to runtime: {:?}", topic, e);
                             }
                         }
                     } else {
                         P2P_MESSAGE_DESERIALIZE_FAILURE_TOTAL
-                            .with_label_values(&["ready"])
+                            .with_label_values(&[topic])
                             .inc();
                     }
                 }

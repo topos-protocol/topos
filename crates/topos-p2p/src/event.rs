@@ -1,5 +1,4 @@
 use libp2p::{identify, kad::KademliaEvent, PeerId};
-use topos_api::grpc::tce::v1::DoubleEchoRequest;
 
 use crate::behaviour::grpc;
 
