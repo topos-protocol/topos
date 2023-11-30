@@ -1,4 +1,3 @@
-use http_body_util::BodyExt;
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     env,
@@ -12,11 +11,13 @@ use libp2p::{
     swarm::{NetworkBehaviour, THandlerInEvent, ToSwarm},
 };
 use prost::Message as ProstMessage;
-use topos_api::grpc::tce::v1::{Batch, DoubleEchoRequest};
+use topos_api::grpc::tce::v1::Batch;
 use topos_metrics::{P2P_DUPLICATE_MESSAGE_ID_RECEIVED_TOTAL, P2P_GOSSIP_BATCH_SIZE};
 use tracing::{debug, error};
 
 use crate::{constants, event::ComposedEvent, TOPOS_ECHO, TOPOS_GOSSIP, TOPOS_READY};
+
+const MAX_BATCH_SIZE: usize = 10;
 
 pub struct Behaviour {
     batch_size: usize,
@@ -62,7 +63,7 @@ impl Behaviour {
     pub async fn new(peer_key: Keypair) -> Self {
         let batch_size = env::var("TOPOS_GOSSIP_BATCH_SIZE")
             .map(|v| v.parse::<usize>())
-            .unwrap_or(Ok(10))
+            .unwrap_or(Ok(MAX_BATCH_SIZE))
             .unwrap();
         let gossipsub = gossipsub::ConfigBuilder::default()
             .max_transmit_size(2 * 1024 * 1024)
@@ -159,8 +160,9 @@ impl NetworkBehaviour for Behaviour {
             // Publish batch
             for (topic, queue) in self.pending.iter_mut() {
                 if !queue.is_empty() {
-                    let mut batch = Batch {
-                        messages: queue.drain(0..queue.len()).collect(),
+                    let num_of_message = queue.len().min(self.batch_size);
+                    let batch = Batch {
+                        messages: queue.drain(0..num_of_message).collect(),
                     };
 
                     debug!("Publishing {} {}", batch.messages.len(), topic);
