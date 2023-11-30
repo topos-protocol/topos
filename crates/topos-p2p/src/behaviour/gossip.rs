@@ -165,15 +165,8 @@ impl NetworkBehaviour for Behaviour {
             for (topic, queue) in self.pending.iter_mut() {
                 if !queue.is_empty() {
                     let mut batch = Batch {
-                        messages: Vec::new(),
+                        messages: queue.drain(0..queue.len()).collect(),
                     };
-                    for _ in 0..queue.len() {
-                        if let Some(request) = queue.pop_front() {
-                            batch.messages.push(request);
-                        } else {
-                            break;
-                        }
-                    }
 
                     debug!("Publishing {} {}", batch.messages.len(), topic);
                     let msg = batch.encode_to_vec();
