@@ -1499,6 +1499,6 @@ pub mod double_echo_request {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Batch {
-    #[prost(message, repeated, tag = "1")]
-    pub messages: ::prost::alloc::vec::Vec<DoubleEchoRequest>,
+    #[prost(bytes = "vec", repeated, tag = "1")]
+    pub messages: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
 }

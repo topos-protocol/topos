@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package topos.tce.v1;
+
+import "topos/tce/v1/double_echo.proto";
+
+message Batch {
+  repeated bytes messages = 1;
+}
