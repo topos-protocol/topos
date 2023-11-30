@@ -5,7 +5,7 @@ use crate::{
     protocol_name, Command, Runtime,
 };
 use libp2p::{kad::record::Key, PeerId};
-use rand::{seq::SliceRandom, thread_rng};
+use rand::{seq::SliceRandom, thread_rng, Rng};
 use topos_metrics::P2P_MESSAGE_SENT_ON_GOSSIPSUB_TOTAL;
 use tracing::{debug, error, info, warn};
 
@@ -56,19 +56,13 @@ impl Runtime {
                     return;
                 }
 
-                let mut range: Vec<u32> = (0..(self.peer_set.len() as u32)).collect();
-                range.shuffle(&mut thread_rng());
-
+                let selected_peer: usize = thread_rng().gen_range(0..(self.peer_set.len()));
                 if sender
-                    .send(
-                        range
-                            .first()
-                            .and_then(|index| self.peer_set.iter().nth((*index) as usize).cloned())
-                            .ok_or(P2PError::CommandError(CommandExecutionError::Internal(
-                                "Unable to find a random peer for RandomKnownPeer command"
-                                    .to_string(),
-                            ))),
-                    )
+                    .send(self.peer_set.iter().nth(selected_peer).cloned().ok_or(
+                        P2PError::CommandError(CommandExecutionError::Internal(
+                            "Unable to find a random peer for RandomKnownPeer command".to_string(),
+                        )),
+                    ))
                     .is_err()
                 {
                     warn!("Unable to notify RandomKnownPeer response: initiator is dropped");

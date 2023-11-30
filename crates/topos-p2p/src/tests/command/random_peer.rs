@@ -70,7 +70,7 @@ async fn return_a_peer() {
 #[rstest]
 #[test(tokio::test)]
 #[timeout(Duration::from_secs(5))]
-async fn return_a_random_peer_between_100() {
+async fn return_a_random_peer_among_100() {
     let local = NodeConfig::from_seed(1);
 
     let (client, _, runtime) = crate::network::builder()
