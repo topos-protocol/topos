@@ -33,9 +33,6 @@ rand.workspace = true
 hex.workspace = true
 topos-test-sdk = { path = "../topos-test-sdk/" }
 
-[features]
-task-manager-channels = []
-
 [[bench]]
 name = "double_echo"
 path = "benches/double_echo.rs"

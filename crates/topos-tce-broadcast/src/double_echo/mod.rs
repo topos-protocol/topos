@@ -76,14 +76,13 @@ impl DoubleEcho {
         }
     }
 
-    #[cfg(not(feature = "task-manager-channels"))]
     pub fn spawn_task_manager(
         &mut self,
         task_manager_message_receiver: mpsc::Receiver<DoubleEchoCommand>,
     ) -> mpsc::Receiver<(CertificateId, TaskStatus)> {
         let (task_completion_sender, task_completion_receiver) = mpsc::channel(2048);
 
-        let (task_manager, shutdown_receiver) = crate::task_manager_futures::TaskManager::new(
+        let (task_manager, shutdown_receiver) = crate::task_manager::TaskManager::new(
             task_manager_message_receiver,
             task_completion_sender,
             self.subscriptions.clone(),
@@ -93,29 +92,6 @@ impl DoubleEcho {
             self.message_signer.clone(),
             self.validator_store.clone(),
             self.broadcast_sender.clone(),
-        );
-
-        tokio::spawn(task_manager.run(shutdown_receiver));
-
-        task_completion_receiver
-    }
-
-    #[cfg(feature = "task-manager-channels")]
-    pub fn spawn_task_manager(
-        &mut self,
-        task_manager_message_receiver: mpsc::Receiver<DoubleEchoCommand>,
-    ) -> mpsc::Receiver<(CertificateId, TaskStatus)> {
-        let (task_completion_sender, task_completion_receiver) = mpsc::channel(2048);
-
-        let (task_manager, shutdown_receiver) = crate::task_manager_channels::TaskManager::new(
-            task_manager_message_receiver,
-            task_completion_sender,
-            self.subscriptions.clone(),
-            self.event_sender.clone(),
-            self.validator_id,
-            self.message_signer.clone(),
-            self.params.clone(),
-            self.validator_store.clone(),
         );
 
         tokio::spawn(task_manager.run(shutdown_receiver));
