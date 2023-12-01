@@ -47,10 +47,7 @@ impl Runtime {
             Command::RandomKnownPeer { sender } => {
                 if self.peer_set.is_empty() {
                     sender.send(Err(P2PError::CommandError(
-                        CommandExecutionError::Internal(
-                            "Asked for one random peer but there is currently no known peer"
-                                .to_string(),
-                        ),
+                        CommandExecutionError::NoKnownPeer,
                     )));
 
                     return;
@@ -58,11 +55,13 @@ impl Runtime {
 
                 let selected_peer: usize = thread_rng().gen_range(0..(self.peer_set.len()));
                 if sender
-                    .send(self.peer_set.iter().nth(selected_peer).cloned().ok_or(
-                        P2PError::CommandError(CommandExecutionError::Internal(
-                            "Unable to find a random peer for RandomKnownPeer command".to_string(),
-                        )),
-                    ))
+                    .send(
+                        self.peer_set
+                            .iter()
+                            .nth(selected_peer)
+                            .cloned()
+                            .ok_or(P2PError::CommandError(CommandExecutionError::NoKnownPeer)),
+                    )
                     .is_err()
                 {
                     warn!("Unable to notify RandomKnownPeer response: initiator is dropped");

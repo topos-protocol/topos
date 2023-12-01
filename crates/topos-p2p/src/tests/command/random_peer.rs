@@ -31,8 +31,8 @@ async fn no_random_peer() {
     assert!(matches!(
         result,
         Err(P2PError::CommandError(
-            crate::error::CommandExecutionError::Internal(error)
-        )) if error == "Asked for one random peer but there is currently no known peer"
+            crate::error::CommandExecutionError::NoKnownPeer
+        ))
     ));
 }
 

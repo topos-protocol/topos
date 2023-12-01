@@ -92,7 +92,6 @@ impl IntoFuture for Gatekeeper {
 impl Gatekeeper {
     pub(crate) const DEFAULT_TICK_DURATION: u64 = 10;
 
-    #[allow(dead_code)]
     pub fn builder() -> GatekeeperBuilder {
         GatekeeperBuilder::default()
     }
