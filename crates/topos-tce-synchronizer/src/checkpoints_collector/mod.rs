@@ -25,7 +25,6 @@ use topos_core::{
 };
 
 use topos_p2p::{error::P2PError, NetworkClient, PeerId};
-use topos_tce_gatekeeper::GatekeeperClient;
 use topos_tce_storage::{errors::StorageError, store::ReadStore, validator::ValidatorStore};
 use tracing::{debug, error, warn};
 use uuid::Uuid;
@@ -44,7 +43,6 @@ pub struct CheckpointSynchronizer {
     pub(crate) config: CheckpointsCollectorConfig,
 
     pub(crate) network: NetworkClient,
-    pub(crate) gatekeeper: GatekeeperClient,
     #[allow(unused)]
     pub(crate) store: Arc<ValidatorStore>,
 
@@ -98,7 +96,7 @@ impl IntoFuture for CheckpointSynchronizer {
 
 #[derive(Debug, thiserror::Error)]
 enum SyncError {
-    #[error("Unable to fetch target peer from gatekeeper")]
+    #[error("Unable to fetch target peer from network layer")]
     UnableToFetchTargetPeer,
 
     #[error("Unable to parse subnet id")]
@@ -215,11 +213,10 @@ impl CheckpointSynchronizer {
         certificate_ids: Vec<CertificateId>,
     ) -> Result<Vec<Certificate>, SyncError> {
         let target_peer = self
-            .gatekeeper
-            .get_random_peers(1)
+            .network
+            .random_known_peer()
             .await
-            .map_err(|_| SyncError::UnableToFetchTargetPeer)
-            .map(|peers| peers.last().cloned().ok_or(SyncError::NoPeerAvailable))??;
+            .map_err(|_| SyncError::UnableToFetchTargetPeer)?;
 
         let request_id: Option<APIUuid> = Some(Uuid::new_v4().into());
         let req = FetchCertificatesRequest {
@@ -253,11 +250,10 @@ impl CheckpointSynchronizer {
     async fn initiate_request(&mut self) -> Result<(), SyncError> {
         //  1. Ask a random peer for the diff between local and its latest checkpoint
         let target_peer = self
-            .gatekeeper
-            .get_random_peers(1)
+            .network
+            .random_known_peer()
             .await
-            .map_err(|_| SyncError::UnableToFetchTargetPeer)
-            .map(|peers| peers.last().cloned().ok_or(SyncError::NoPeerAvailable))??;
+            .map_err(|_| SyncError::UnableToFetchTargetPeer)?;
 
         let diff = self.ask_for_checkpoint(target_peer).await?;
 

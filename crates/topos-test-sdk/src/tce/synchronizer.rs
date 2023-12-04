@@ -23,7 +23,6 @@ pub async fn create_synchronizer(
         topos_tce_synchronizer::Synchronizer::builder()
             .with_shutdown(shutdown)
             .with_store(store)
-            .with_gatekeeper_client(gatekeeper_client)
             .with_network_client(network_client)
             .build()
             .expect("Can't create the Synchronizer");

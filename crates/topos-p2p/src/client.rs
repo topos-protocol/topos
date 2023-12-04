@@ -36,6 +36,16 @@ impl NetworkClient {
             .await
     }
 
+    pub async fn random_known_peer(&self) -> Result<PeerId, P2PError> {
+        let (sender, receiver) = oneshot::channel();
+        Self::send_command_with_receiver(
+            &self.sender,
+            Command::RandomKnownPeer { sender },
+            receiver,
+        )
+        .await
+    }
+
     pub async fn disconnect(&self) -> Result<(), P2PError> {
         let (sender, receiver) = oneshot::channel();
         let command = Command::Disconnect { sender };

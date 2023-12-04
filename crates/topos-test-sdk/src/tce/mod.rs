@@ -213,12 +213,6 @@ pub async fn start_node(
     let validator_store =
         create_validator_store(certificates, futures::future::ready(fullnode_store.clone())).await;
 
-    let known_peers = peers
-        .iter()
-        .map(|p| p.keypair.public().to_peer_id())
-        .filter(|&p| p != peer_id)
-        .collect::<Vec<_>>();
-
     let router = GrpcRouter::new(tonic::transport::Server::builder()).add_service(
         SynchronizerServiceServer::new(SynchronizerService {
             validator_store: validator_store.clone(),
@@ -257,8 +251,7 @@ pub async fn start_node(
     )
     .await;
 
-    let (gatekeeper_client, gatekeeper_join_handle) =
-        create_gatekeeper(peer_id, known_peers).await.unwrap();
+    let (gatekeeper_client, gatekeeper_join_handle) = create_gatekeeper().await.unwrap();
 
     let (synchronizer_stream, synchronizer_join_handle) = create_synchronizer(
         gatekeeper_client.clone(),

@@ -52,7 +52,7 @@ pub enum CommandExecutionError {
     UnableToSendCommand(Command),
 
     #[error("Unable to perform query: {0}")]
-    RequestOutbandFailure(#[from] OutboundFailure),
+    RequestOutboundFailure(#[from] OutboundFailure),
 
     #[error("Unable to receive expected response of a oneshot channel")]
     UnableToReceiveCommandResponse(#[from] oneshot::error::RecvError),
@@ -65,4 +65,7 @@ pub enum CommandExecutionError {
 
     #[error("Connection with a peer has failed")]
     ConnectionClosed,
+
+    #[error("No known peer in the peer set")]
+    NoKnownPeer,
 }

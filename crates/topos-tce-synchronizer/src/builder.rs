@@ -4,7 +4,6 @@ use tokio::{spawn, sync::mpsc};
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_util::sync::CancellationToken;
 use topos_p2p::NetworkClient;
-use topos_tce_gatekeeper::GatekeeperClient;
 use topos_tce_storage::validator::ValidatorStore;
 
 use crate::{
@@ -15,7 +14,6 @@ use crate::{
 };
 
 pub struct SynchronizerBuilder {
-    gatekeeper_client: Option<GatekeeperClient>,
     network_client: Option<NetworkClient>,
     store: Option<Arc<ValidatorStore>>,
     sync_interval_seconds: u64,
@@ -28,7 +26,6 @@ pub struct SynchronizerBuilder {
 impl Default for SynchronizerBuilder {
     fn default() -> Self {
         Self {
-            gatekeeper_client: None,
             network_client: None,
             store: None,
             sync_interval_seconds: 1,
@@ -64,13 +61,7 @@ impl SynchronizerBuilder {
                         CheckpointsCollectorError::NoNetworkClient,
                     ))?;
                 },
-                gatekeeper: if let Some(gatekeeper) = self.gatekeeper_client {
-                    gatekeeper
-                } else {
-                    return Err(SynchronizerError::CheckpointsCollectorError(
-                        CheckpointsCollectorError::NoGatekeeperClient,
-                    ))?;
-                },
+
                 store: if let Some(store) = self.store {
                     store
                 } else {
@@ -99,12 +90,6 @@ impl SynchronizerBuilder {
 impl SynchronizerBuilder {
     pub fn with_store(mut self, store: Arc<ValidatorStore>) -> Self {
         self.store = Some(store);
-
-        self
-    }
-
-    pub fn with_gatekeeper_client(mut self, gatekeeper_client: GatekeeperClient) -> Self {
-        self.gatekeeper_client = Some(gatekeeper_client);
 
         self
     }

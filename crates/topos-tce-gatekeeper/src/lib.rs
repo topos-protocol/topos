@@ -26,7 +26,6 @@ pub struct Gatekeeper {
     pub(crate) commands: mpsc::Receiver<GatekeeperCommand>,
     pub(crate) tick_duration: Duration,
 
-    peer_list: Vec<PeerId>,
     subnet_list: Vec<SubnetId>,
 }
 
@@ -40,18 +39,8 @@ impl Default for Gatekeeper {
             shutdown,
             commands: commands_recv,
             tick_duration,
-            peer_list: Vec::default(),
             subnet_list: Vec::default(),
         }
-    }
-}
-
-#[async_trait::async_trait]
-impl CommandHandler<GetAllPeers> for Gatekeeper {
-    type Error = GatekeeperError;
-
-    async fn handle(&mut self, _command: GetAllPeers) -> Result<Vec<PeerId>, Self::Error> {
-        Ok(self.peer_list.clone())
     }
 }
 
@@ -61,39 +50,6 @@ impl CommandHandler<GetAllSubnets> for Gatekeeper {
 
     async fn handle(&mut self, _command: GetAllSubnets) -> Result<Vec<SubnetId>, Self::Error> {
         Ok(self.subnet_list.clone())
-    }
-}
-
-#[async_trait::async_trait]
-impl CommandHandler<GetRandomPeers> for Gatekeeper {
-    type Error = GatekeeperError;
-
-    async fn handle(
-        &mut self,
-        GetRandomPeers { number }: GetRandomPeers,
-    ) -> Result<Vec<PeerId>, Self::Error> {
-        let peer_list_len = self.peer_list.len();
-
-        if number > peer_list_len {
-            return Err(GatekeeperError::InvalidCommand(format!(
-                "Asked for {number} random peers when the Gatekeeper have {peer_list_len}"
-            )));
-        }
-
-        let mut range: Vec<u32> = (0..(peer_list_len as u32)).collect();
-        range.shuffle(&mut thread_rng());
-
-        let iterator = range.iter().take(number);
-
-        let mut peers = Vec::new();
-
-        for index in iterator {
-            if let Some(peer) = self.peer_list.get(*index as usize) {
-                peers.push(*peer);
-            }
-        }
-
-        Ok(peers)
     }
 }
 
@@ -113,12 +69,6 @@ impl IntoFuture for Gatekeeper {
                         break sender;
                     }
                     Some(command) = self.commands.recv() => match command {
-                        GatekeeperCommand::GetAllPeers(command, response_channel) => {
-                            _ = response_channel.send(self.handle(command).await)
-                        },
-                        GatekeeperCommand::GetRandomPeers(command, response_channel) => {
-                            _ = response_channel.send(self.handle(command).await)
-                        },
                         GatekeeperCommand::GetAllSubnets(command, response_channel) => {
                             _ = response_channel.send(self.handle(command).await)
                         },
@@ -142,7 +92,6 @@ impl IntoFuture for Gatekeeper {
 impl Gatekeeper {
     pub(crate) const DEFAULT_TICK_DURATION: u64 = 10;
 
-    #[allow(dead_code)]
     pub fn builder() -> GatekeeperBuilder {
         GatekeeperBuilder::default()
     }
@@ -169,24 +118,8 @@ pub enum GatekeeperError {
 RegisterCommands!(
     name = GatekeeperCommand,
     error = GatekeeperError,
-    commands = [GetAllPeers, GetRandomPeers, GetAllSubnets]
+    commands = [GetAllSubnets]
 );
-
-#[derive(Debug)]
-pub struct GetAllPeers;
-
-impl Command for GetAllPeers {
-    type Result = Vec<PeerId>;
-}
-
-#[derive(Debug)]
-pub struct GetRandomPeers {
-    number: usize,
-}
-
-impl Command for GetRandomPeers {
-    type Result = Vec<PeerId>;
-}
 
 #[derive(Debug)]
 pub struct GetAllSubnets;
