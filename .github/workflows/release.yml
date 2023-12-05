@@ -17,17 +17,40 @@ jobs:
     runs-on: ubuntu-latest-16-core
     strategy:
       matrix:
-        target: [ x86_64-unknown-linux-gnu ]
+        include:
+        - build: stable-x86
+          rust: stable
+          target: i686-unknown-linux-gnu
+        - build: stable-aarch64
+          rust: stable
+          target: aarch64-unknown-linux-gnu
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install-rust
         with:
+          toolchain: ${{ matrix.rust }}
           target: ${{ matrix.target }}
           AWS_ACCESS_KEY_ID: ${{ secrets.ROBOT_AWS_ACCESS_KEY_ID}}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.ROBOT_AWS_SECRET_ACCESS_KEY}}
 
+      - name: Set target variables
+        shell: bash
+        run: |
+          echo "TARGET_FLAGS=--target ${{ matrix.target }}" >> $GITHUB_ENV
+          echo "TARGET_DIR=./target/${{ matrix.target }}" >> $GITHUB_ENV
+
+      - name: Show command used for Cargo
+        shell: bash
+        run: |
+          echo "target flag is: ${{ env.TARGET_FLAGS }}"
+          echo "target dir is: ${{ env.TARGET_DIR }}"
+
       - name: cargo build (release) for ${{ matrix.target }}
-        run: cargo build --release --target=${{ matrix.target }}
+        shell: bash
+        run: |
+          cargo build --release ${{ env.TARGET_FLAGS }}
+          bin="target/${{ matrix.target }}/release/topos"
+          echo "BIN=$bin" >> $GITHUB_ENV
 
       - name: Rename binary
         shell: bash
