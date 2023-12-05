@@ -20,7 +20,7 @@ jobs:
         include:
         - build: stable-x86
           rust: stable
-          target: i686-unknown-linux-gnu
+          target: x86_64-unknown-linux-gnu
         - build: stable-aarch64
           rust: stable
           target: aarch64-unknown-linux-gnu
