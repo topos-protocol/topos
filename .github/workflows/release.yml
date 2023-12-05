@@ -10,28 +10,57 @@ env:
   CARGO_NET_RETRY: 10
   RUSTUP_MAX_RETRIES: 10
   RUST_BACKTRACE: short
+  CARGO: cargo
+  CROSS_VERSION: v0.2.5
 
 jobs:
   release-build:
     timeout-minutes: 30
-    runs-on: ubuntu-latest-16-core
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         include:
         - build: stable-x86
           rust: stable
+          os: ubuntu-latest-16-core
           target: x86_64-unknown-linux-gnu
         - build: stable-aarch64
           rust: stable
+          os: ubuntu-latest-16-core
           target: aarch64-unknown-linux-gnu
     steps:
       - uses: actions/checkout@v4
+      - name: Install packages (Ubuntu)
+        if: matrix.os == 'ubuntu-latest-16-core'
+        shell: bash
+        run: |
+            if ! command -V sudo; then
+              apt-get update
+              apt-get install -y --no-install-recommends sudo
+            fi
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends \
+            zsh xz-utils liblz4-tool musl-tools brotli zstd
+
       - uses: ./.github/actions/install-rust
         with:
           toolchain: ${{ matrix.rust }}
           target: ${{ matrix.target }}
+          with_cache: false
           AWS_ACCESS_KEY_ID: ${{ secrets.ROBOT_AWS_ACCESS_KEY_ID}}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.ROBOT_AWS_SECRET_ACCESS_KEY}}
+
+      - name: Use Cross
+        if: matrix.os == 'ubuntu-latest-16-core' && matrix.target != ''
+        shell: bash
+        run: |
+          dir="$RUNNER_TEMP/cross-download"
+          mkdir "$dir"
+          echo "$dir" >> $GITHUB_PATH
+          cd "$dir"
+          curl -LO "https://github.com/cross-rs/cross/releases/download/$CROSS_VERSION/cross-x86_64-unknown-linux-musl.tar.gz"
+          tar xf cross-x86_64-unknown-linux-musl.tar.gz
+          echo "CARGO=cross" >> $GITHUB_ENV
 
       - name: Set target variables
         shell: bash
@@ -42,13 +71,14 @@ jobs:
       - name: Show command used for Cargo
         shell: bash
         run: |
+          echo "cargo command is: ${{ env.CARGO }}"
           echo "target flag is: ${{ env.TARGET_FLAGS }}"
           echo "target dir is: ${{ env.TARGET_DIR }}"
 
-      - name: cargo build (release) for ${{ matrix.target }}
+      - name: Build release binary
         shell: bash
         run: |
-          cargo build --release ${{ env.TARGET_FLAGS }}
+          ${{ env.CARGO }} build --release ${{ env.TARGET_FLAGS }}
           bin="target/${{ matrix.target }}/release/topos"
           echo "BIN=$bin" >> $GITHUB_ENV
 
@@ -59,7 +89,7 @@ jobs:
           export version=${GITHUB_REF#refs/*/}
           echo "arch=${arch}" >> $GITHUB_ENV
           echo "version=${version}" >> $GITHUB_ENV
-          mv ./target/${{ matrix.target }}/release/topos topos-${version}-${arch}
+          mv $BIN topos-${version}-${arch}
           tar -czvf topos-${version}-${arch}.tgz topos-${version}-${arch}
 
       - name: Upload release artifacts for ${{ matrix.target }} architecture
