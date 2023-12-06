@@ -49,12 +49,12 @@ Find more about how topos works in the [documentation](https://docs.topos.techno
 
 The `TOOLCHAIN_VERSION` needs to be defined through `(stable|nightly-2022-07-20|...)`
 
-Build topos docker image:
+Build Topos docker image:
 
 ```
 DOCKER_BUILDKIT=1 docker build . --build-arg TOOLCHAIN_VERSION=[...] -t topos:latest
 ```
-Run topos docker image:
+Run Topos docker image:
 
 ```
 docker run -it --rm topos:latest --help
