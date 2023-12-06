@@ -92,7 +92,7 @@ jobs:
           secret-files: |
             "aws=${{ github.workspace }}/.aws/credentials"
           build-args: |
-            TOOLCHAIN_VERSION=${{ inputs.toolchain_version }}
+            RUSTUP_TOOLCHAIN=${{ inputs.toolchain_version }}
             SCCACHE_S3_KEY_PREFIX=${{ inputs.target }}
             SCCACHE_BUCKET=cicd-devnet-1-sccache
             SCCACHE_REGION=us-east-1

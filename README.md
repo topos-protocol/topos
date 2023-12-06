@@ -47,12 +47,12 @@ Find more about how topos works in the [documentation](https://docs.topos.techno
 
 ### Topos Docker image
 
-The `TOOLCHAIN_VERSION` needs to be defined through `(stable|nightly-2022-07-20|...)`
+The `RUSTUP_TOOLCHAIN` needs to be defined through `(stable|nightly-2022-07-20|...)`
 
 Build Topos docker image:
 
 ```
-DOCKER_BUILDKIT=1 docker build . --build-arg TOOLCHAIN_VERSION=[...] -t topos:latest
+DOCKER_BUILDKIT=1 docker build . --build-arg RUSTUP_TOOLCHAIN=[...] -t topos:latest
 ```
 Run Topos docker image:
 
