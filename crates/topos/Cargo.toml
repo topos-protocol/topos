@@ -46,6 +46,7 @@ once_cell = "1.17.1"
 toml = "0.7.4"
 regex = "1"
 rlp = "0.5.1"
+openssl = { version = "0.10.61", features = ["vendored"] }
 
 [dev-dependencies]
 topos-tce-broadcast = { path = "../topos-tce-broadcast" }
