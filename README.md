@@ -45,10 +45,25 @@ topos --help
 
 Find more about how topos works in the [documentation](https://docs.topos.technology/).
 
+### Topos Docker image
+
+The `TOOLCHAIN_VERSION` needs to be defined through `(stable|nightly-2022-07-20|...)`
+
+Build topos docker image:
+
+```
+DOCKER_BUILDKIT=1 docker build . --build-arg TOOLCHAIN_VERSION=[...] -t topos:latest
+```
+Run topos docker image:
+
+```
+docker run -it --rm topos:latest --help
+```
+
+
 ## Development
 
 Contributions are very welcomed, the guidelines are outlined in [`CONTRIBUTING.md`](https://github.com/topos-protocol/.github/blob/main/CONTRIBUTING.md).<br />
-Running a minimal local setup with docker compose is described [here](./tools/README.md).
 
 ## Support
 

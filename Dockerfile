@@ -28,8 +28,6 @@ ENV PATH="${PATH}:/usr/src/app"
 WORKDIR /usr/src/app
 
 COPY --from=build /usr/src/app/target/release/topos .
-COPY tools/init.sh ./init.sh
-COPY tools/liveness.sh /tmp/liveness.sh
 
 RUN apt-get update && apt-get install -y \
     ca-certificates \
@@ -40,4 +38,4 @@ RUN apt-get update && apt-get install -y \
 RUN mkdir /tmp/node_config
 RUN mkdir /tmp/shared
 
-ENTRYPOINT ["./init.sh"]
+ENTRYPOINT ["./topos"]
