@@ -314,11 +314,11 @@ async fn cert_delivery() {
     }
 }
 
-/// Picks a random peer and sends it a certificate. All other peers listen for broadcast certs.
-/// Three possible outcomes:
-/// 1. No errors, returns Ok
-/// 2. There were errors, returns a list of all errors encountered
-/// 3. timeout
+// Picks a random peer and sends it a certificate. All other peers listen for broadcast certs.
+// Three possible outcomes:
+// 1. No errors, returns Ok
+// 2. There were errors, returns a list of all errors encountered
+// 3. timeout
 async fn check_certificate_delivery(
     timeout_broadcast: u64,
     peers: Vec<Uri>,
