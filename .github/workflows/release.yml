@@ -24,31 +24,24 @@ jobs:
           rust: stable
           os: ubuntu-latest-16-core
           target: x86_64-unknown-linux-gnu
+
+        - build: linux
+          rust: stable
+          os: ubuntu-latest-16-core
+          target: x86_64-unknown-linux-musl
+
         - build: stable-aarch64
           rust: stable
           os: ubuntu-latest-16-core
           target: aarch64-unknown-linux-gnu
+
     steps:
       - uses: actions/checkout@v4
-      - name: Install packages (Ubuntu)
-        if: matrix.os == 'ubuntu-latest-16-core'
-        shell: bash
-        run: |
-            if ! command -V sudo; then
-              apt-get update
-              apt-get install -y --no-install-recommends sudo
-            fi
-            sudo apt-get update
-            sudo apt-get install -y --no-install-recommends \
-            zsh xz-utils liblz4-tool musl-tools brotli zstd
-
       - uses: ./.github/actions/install-rust
         with:
           toolchain: ${{ matrix.rust }}
           target: ${{ matrix.target }}
           with_cache: false
-          AWS_ACCESS_KEY_ID: ${{ secrets.ROBOT_AWS_ACCESS_KEY_ID}}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.ROBOT_AWS_SECRET_ACCESS_KEY}}
 
       - name: Use Cross
         if: matrix.os == 'ubuntu-latest-16-core' && matrix.target != ''
