@@ -46,6 +46,7 @@ pub(crate) async fn handle_command(
     NodeCommand {
         subcommands,
         verbose,
+        no_color,
         home,
         edge_path,
     }: NodeCommand,
@@ -172,8 +173,12 @@ pub(crate) async fn handle_command(
 
             // Setup instrumentation if both otlp agent and otlp service name
             // are provided as arguments
-            let basic_controller =
-                setup_tracing(verbose, cmd_cloned.otlp_agent, cmd_cloned.otlp_service_name)?;
+            let basic_controller = setup_tracing(
+                verbose,
+                no_color,
+                cmd_cloned.otlp_agent,
+                cmd_cloned.otlp_service_name,
+            )?;
 
             let (shutdown_sender, shutdown_receiver) = mpsc::channel(1);
 

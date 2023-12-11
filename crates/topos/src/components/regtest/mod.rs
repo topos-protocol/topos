@@ -22,7 +22,7 @@ pub(crate) async fn handle_command(
 ) -> Result<(), Box<dyn std::error::Error>> {
     match subcommands {
         Some(RegtestCommands::PushCertificate(cmd)) => {
-            _ = setup_tracing(verbose, None, None)?;
+            _ = setup_tracing(verbose, false, None, None)?;
             debug!("Start executing PushCertificate command");
             match services::push_certificate::check_delivery(
                 cmd.timeout_broadcast,
@@ -57,7 +57,8 @@ pub(crate) async fn handle_command(
 
             // Setup instrumentation if both otlp agent and otlp service name
             // are provided as arguments
-            let basic_controller = setup_tracing(verbose, cmd.otlp_agent, cmd.otlp_service_name)?;
+            let basic_controller =
+                setup_tracing(verbose, false, cmd.otlp_agent, cmd.otlp_service_name)?;
 
             let (shutdown_sender, shutdown_receiver) = mpsc::channel::<oneshot::Sender<()>>(1);
             let mut runtime = spawn(topos_certificate_spammer::run(config, shutdown_receiver));
