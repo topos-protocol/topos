@@ -19,6 +19,10 @@ pub(crate) struct Opt {
     )]
     pub(crate) verbose: u8,
 
+    /// Disable color in logs
+    #[arg(long, global = true, env = "TOPOS_LOG_NOCOLOR")]
+    no_color: bool,
+
     /// Home directory for the configuration
     #[arg(
         long,

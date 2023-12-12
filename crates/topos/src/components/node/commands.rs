@@ -24,6 +24,9 @@ pub(crate) struct NodeCommand {
     pub(crate) verbose: u8,
 
     #[clap(from_global)]
+    pub(crate) no_color: bool,
+
+    #[clap(from_global)]
     pub(crate) home: PathBuf,
 
     /// Installation directory path for Polygon Edge binary

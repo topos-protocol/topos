@@ -62,10 +62,13 @@ fn create_filter(verbose: u8) -> EnvFilter {
 // If otlp agent and otlp service name are provided, opentelemetry collection will be used
 pub(crate) fn setup_tracing(
     verbose: u8,
+    no_color: bool,
     otlp_agent: Option<String>,
     otlp_service_name: Option<String>,
 ) -> Result<Option<BasicController>, Box<dyn std::error::Error>> {
     let mut layers = Vec::new();
+
+    let ansi = !no_color;
 
     layers.push(
         match std::env::var("TOPOS_LOG_FORMAT")
@@ -75,14 +78,17 @@ pub(crate) fn setup_tracing(
         {
             Ok("json") => tracing_subscriber::fmt::layer()
                 .json()
+                .with_ansi(ansi)
                 .with_filter(create_filter(verbose))
                 .boxed(),
             Ok("pretty") => tracing_subscriber::fmt::layer()
                 .pretty()
+                .with_ansi(ansi)
                 .with_filter(create_filter(verbose))
                 .boxed(),
             _ => tracing_subscriber::fmt::layer()
                 .compact()
+                .with_ansi(ansi)
                 .with_filter(create_filter(verbose))
                 .boxed(),
         },

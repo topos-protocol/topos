@@ -1,6 +1,5 @@
 ---
 source: crates/topos/tests/node.rs
-assertion_line: 16
 expression: "utils::sanitize_config_folder_path(result)"
 ---
 Utility to manage your nodes in the Topos network
@@ -16,6 +15,7 @@ Commands:
 Options:
       --edge-path <EDGE_PATH>  Installation directory path for Polygon Edge binary [env: TOPOS_POLYGON_EDGE_BIN_PATH=] [default: .]
   -v, --verbose...             Defines the verbosity level
+      --no-color               Disable color in logs [env: TOPOS_LOG_NOCOLOR=]
       --home <HOME>            Home directory for the configuration [env: TOPOS_HOME=] [default: /home/runner/.config/topos]
   -h, --help                   Print help
 
