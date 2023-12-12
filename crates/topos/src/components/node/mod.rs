@@ -75,17 +75,21 @@ pub(crate) async fn handle_command(
             // Generate the configuration as per the role
             let mut config_toml = toml::Table::new();
 
-            // Generate the Edge configuration
-            if let Ok(result) = services::process::generate_edge_config(
-                edge_path.join(BINARY_NAME),
-                node_path.clone(),
-            )
-            .await
-            {
-                if result.is_err() {
-                    println!("Failed to generate edge config");
-                    remove_dir_all(node_path).expect("failed to remove config folder");
-                    std::process::exit(1);
+            if cmd.no_edge_process {
+                println!("Init the node without polygon-edge process...");
+            } else {
+                // Generate the Edge configuration
+                if let Ok(result) = services::process::generate_edge_config(
+                    edge_path.join(BINARY_NAME),
+                    node_path.clone(),
+                )
+                .await
+                {
+                    if result.is_err() {
+                        println!("Failed to generate edge config");
+                        remove_dir_all(node_path).expect("failed to remove config folder");
+                        std::process::exit(1);
+                    }
                 }
             }
 

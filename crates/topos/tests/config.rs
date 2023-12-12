@@ -93,6 +93,38 @@ async fn handle_command_init() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+#[tokio::test]
+async fn handle_command_init_without_polygon_edge() -> Result<(), Box<dyn std::error::Error>> {
+    let tmp_home_dir = tempdir()?;
+
+    let mut cmd = Command::cargo_bin("topos")?;
+    cmd.arg("node")
+        .arg("init")
+        .arg("--home")
+        .arg(tmp_home_dir.path().to_str().unwrap())
+        .arg("--no-edge-process");
+
+    let output = cmd.assert().success();
+    let result: &str = std::str::from_utf8(&output.get_output().stdout)?;
+
+    assert!(result.contains("Created node config file"));
+
+    let home = PathBuf::from(tmp_home_dir.path());
+
+    // Verification: check that the config file was created
+    let config_path = home.join("node").join("default").join("config.toml");
+    assert!(config_path.exists());
+
+    // Further verification might include checking the contents of the config file
+    let config_contents = std::fs::read_to_string(&config_path).unwrap();
+
+    assert!(config_contents.contains("[base]"));
+    assert!(config_contents.contains("name = \"default\""));
+    assert!(config_contents.contains("[tce]"));
+
+    Ok(())
+}
+
 #[test]
 fn nothing_written_if_failure() -> Result<(), Box<dyn std::error::Error>> {
     let tmp_home_dir = tempdir()?;

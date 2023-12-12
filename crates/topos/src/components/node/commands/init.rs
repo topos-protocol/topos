@@ -22,4 +22,9 @@ pub struct Init {
     /// If omitted, the local FS secrets manager is used
     #[arg(long, env = "TOPOS_SECRETS_MANAGER")]
     pub secrets_config: Option<String>,
+
+    /// For certain use cases, we manually provide private keys to a running node, and don't want to
+    /// rely on polygon-edge during runtime. Example: A sequencer which runs for an external EVM chain
+    #[arg(long, env = "TOPOS_NO_EDGE_PROCESS", action)]
+    pub no_edge_process: bool,
 }
