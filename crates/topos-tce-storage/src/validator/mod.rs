@@ -86,6 +86,11 @@ impl ValidatorStore {
         Ok(self.pending_tables.pending_pool.iter()?.count())
     }
 
+    /// Returns the number of certificates in the precedence pool
+    pub fn count_precedence_pool_certificates(&self) -> Result<usize, StorageError> {
+        Ok(self.pending_tables.precedence_pool.iter()?.count())
+    }
+
     /// Try to return the [`PendingCertificateId`] for a [`CertificateId`]
     ///
     /// Return `Ok(None)` if the `certificate_id` is not found.
@@ -375,6 +380,10 @@ impl ValidatorStore {
     }
 }
 impl ReadStore for ValidatorStore {
+    fn count_certificates_delivered(&self) -> Result<usize, StorageError> {
+        self.fullnode_store.count_certificates_delivered()
+    }
+
     fn get_source_head(&self, subnet_id: &SubnetId) -> Result<Option<SourceHead>, StorageError> {
         self.fullnode_store.get_source_head(subnet_id)
     }

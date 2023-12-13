@@ -227,6 +227,10 @@ impl WriteStore for FullNodeStore {
 }
 
 impl ReadStore for FullNodeStore {
+    fn count_certificates_delivered(&self) -> Result<usize, StorageError> {
+        Ok(self.perpetual_tables.certificates.iter()?.count())
+    }
+
     fn get_source_head(&self, subnet_id: &SubnetId) -> Result<Option<SourceHead>, StorageError> {
         Ok(self
             .index_tables
