@@ -160,10 +160,9 @@ impl CheckpointSynchronizer {
         let mut client: SynchronizerServiceClient<_> = self
             .network
             .new_grpc_client::<SynchronizerServiceClient<_>, SynchronizerServiceServer<SynchronizerService>>(peer)
-            .await
-            .unwrap();
+            .await?;
 
-        let response: CheckpointResponse = client.fetch_checkpoint(req).await.unwrap().into_inner();
+        let response: CheckpointResponse = client.fetch_checkpoint(req).await?.into_inner();
 
         let diff = response
             .checkpoint_diff
