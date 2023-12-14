@@ -1,7 +1,10 @@
 use config::TceConfiguration;
 use futures::StreamExt;
 use opentelemetry::global;
-use std::{future::IntoFuture, sync::Arc};
+use std::{
+    future::IntoFuture,
+    sync::{atomic::AtomicBool, Arc},
+};
 use tokio::{
     spawn,
     sync::{broadcast, mpsc},
@@ -9,7 +12,7 @@ use tokio::{
 use tokio_stream::wrappers::BroadcastStream;
 use tokio_util::sync::CancellationToken;
 use topos_core::api::grpc::tce::v1::synchronizer_service_server::SynchronizerServiceServer;
-use topos_crypto::messages::MessageSigner;
+use topos_crypto::{messages::MessageSigner, validator_id::ValidatorId};
 use topos_p2p::{
     utils::{local_key_pair, local_key_pair_from_slice},
     GrpcContext, GrpcRouter, Multiaddr,
@@ -24,9 +27,12 @@ use topos_tce_storage::{
 };
 use topos_tce_synchronizer::SynchronizerService;
 use tracing::{debug, warn};
+
 mod app_context;
 pub mod config;
 pub mod events;
+#[cfg(test)]
+mod tests;
 
 pub use app_context::AppContext;
 
@@ -52,7 +58,8 @@ pub async fn run(
         _ => return Err(Box::try_from("Error, no singing key".to_string()).unwrap()),
     };
 
-    let public_address = message_signer.public_address.to_string();
+    let validator_id: ValidatorId = message_signer.public_address.into();
+    let public_address = validator_id.to_string();
 
     warn!("Public node address: {public_address}");
 
@@ -70,6 +77,7 @@ pub async fn run(
     // Remove myself from the bootnode list
     let mut boot_peers = config.boot_peers.clone();
     boot_peers.retain(|(p, _)| *p != peer_id);
+    let is_validator = config.validators.contains(&validator_id);
 
     debug!("Starting the Storage");
     let path = if let StorageConfiguration::RocksDB(Some(ref path)) = config.storage {
@@ -144,7 +152,7 @@ pub async fn run(
     let (tce_cli, tce_stream) = ReliableBroadcastClient::new(
         ReliableBroadcastConfig {
             tce_params: config.tce_params.clone(),
-            validator_id: message_signer.public_address.into(),
+            validator_id,
             validators: config.validators.clone(),
             message_signer,
         },
@@ -182,6 +190,7 @@ pub async fn run(
 
     // setup transport-tce-storage-api connector
     let (app_context, _tce_stream) = AppContext::new(
+        is_validator,
         storage_client,
         tce_cli,
         network_client,

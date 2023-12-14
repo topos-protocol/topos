@@ -1,6 +1,6 @@
 use tce_transport::ProtocolEvents;
 use topos_core::api::grpc::tce::v1::{double_echo_request, DoubleEchoRequest, Echo, Gossip, Ready};
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 use crate::events::Events;
 use crate::AppContext;
@@ -43,7 +43,7 @@ impl AppContext {
                 certificate_id,
                 signature,
                 validator_id,
-            } => {
+            } if self.is_validator => {
                 // Send echo message
                 let request = DoubleEchoRequest {
                     request: Some(double_echo_request::Request::Echo(Echo {
@@ -66,7 +66,7 @@ impl AppContext {
                 certificate_id,
                 signature,
                 validator_id,
-            } => {
+            } if self.is_validator => {
                 let request = DoubleEchoRequest {
                     request: Some(double_echo_request::Request::Ready(Ready {
                         certificate_id: Some(certificate_id.into()),
@@ -83,10 +83,16 @@ impl AppContext {
                     error!("Unable to send Ready due to error: {e}");
                 }
             }
-
-            evt => {
-                debug!("Unhandled event: {:?}", evt);
+            ProtocolEvents::BroadcastFailed { certificate_id } => {
+                warn!("Broadcast failed for certificate {certificate_id}")
             }
+            ProtocolEvents::AlreadyDelivered { certificate_id } => {
+                info!("Certificate {certificate_id} already delivered")
+            }
+            ProtocolEvents::Die => {
+                error!("The DoubleEcho unexpectedly died, this is unrecoverable")
+            }
+            _ => {}
         }
     }
 }

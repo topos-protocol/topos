@@ -16,7 +16,7 @@ use std::convert::Infallible;
 pub(crate) use behaviour::Behaviour;
 pub use client::NetworkClient;
 pub use client::RetryPolicy;
-pub(crate) use command::Command;
+pub use command::Command;
 pub use event::Event;
 use http::Request;
 use http::Response;
@@ -102,6 +102,10 @@ pub mod utils {
     }
 
     impl GrpcOverP2P {
+        pub fn new(proxy_sender: mpsc::Sender<Command>) -> Self {
+            Self { proxy_sender }
+        }
+
         pub async fn create<C, S>(&self, peer: PeerId) -> Result<C::Output, P2PError>
         where
             C: GrpcClient<Output = C>,

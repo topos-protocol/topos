@@ -24,7 +24,7 @@ use tracing::{error, info, warn};
 
 mod api;
 mod network;
-mod protocol;
+pub(crate) mod protocol;
 
 /// Top-level transducer main app context & driver (alike)
 ///
@@ -35,6 +35,7 @@ mod protocol;
 /// config+data as input and runs app returning data as output
 ///
 pub struct AppContext {
+    pub is_validator: bool,
     pub events: mpsc::Sender<Events>,
     pub tce_cli: ReliableBroadcastClient,
     pub network_client: NetworkClient,
@@ -55,6 +56,7 @@ impl AppContext {
 
     /// Factory
     pub fn new(
+        is_validator: bool,
         pending_storage: StorageClient,
         tce_cli: ReliableBroadcastClient,
         network_client: NetworkClient,
@@ -65,6 +67,7 @@ impl AppContext {
         let (events, receiver) = mpsc::channel(100);
         (
             Self {
+                is_validator,
                 events,
                 tce_cli,
                 network_client,
