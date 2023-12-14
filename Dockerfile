@@ -34,6 +34,7 @@ COPY tools/liveness.sh /tmp/liveness.sh
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     jq \
+    net-tools \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
