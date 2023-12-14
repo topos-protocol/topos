@@ -208,6 +208,7 @@ pub async fn start_node(
     validators: HashSet<ValidatorId>,
     message_signer: Arc<MessageSigner>,
 ) -> TceContext {
+    let is_validator = validators.contains(&validator_id);
     let peer_id = config.keypair.public().to_peer_id();
     let fullnode_store = create_fullnode_store(vec![]).await;
     let validator_store =
@@ -261,6 +262,7 @@ pub async fn start_node(
     .await;
 
     let (app, event_stream) = AppContext::new(
+        is_validator,
         storage_client,
         tce_cli,
         network_client,

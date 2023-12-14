@@ -45,6 +45,7 @@ axum = "0.6.18"
 axum-prometheus = "0.3.3"
 
 [dev-dependencies]
+topos-test-sdk = { path = "../topos-test-sdk/" }
 async-stream.workspace = true
 async-trait.workspace = true
 hyper.workspace = true
@@ -52,6 +53,7 @@ libp2p.workspace = true
 rand.workspace = true
 rand_core.workspace = true
 rand_distr.workspace = true
+rstest.workspace = true
 tonic.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 tracing.workspace = true

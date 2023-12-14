@@ -1,3 +1,18 @@
+//! Everything related to the double_echo implementation
+//!
+//! ## Messages and roles
+//!
+//! In order to prevent many non validator's messages to be published on the
+//! gossip topics, messages are filtered when the [`DoubleEcho`] is producing events.
+//!
+//! For `validator` nothing changed, for `fullnode` and `sentry` node, their `Echo` and
+//! `Ready` messages are filtered, they still produce `Gossip` messages tho.
+//!
+//! It doesn't mean that a `fullnode` will stop propagate messages from
+//! `validators`, it only prevents a non validator to publish messages that will
+//! be ignored by others. `fullnode` still consumes Echo and Ready coming from
+//! validators and use those messages to build their state.
+
 use crate::TaskStatus;
 use crate::{DoubleEchoCommand, SubscriptionsView};
 use std::collections::HashSet;

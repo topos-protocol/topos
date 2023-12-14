@@ -43,8 +43,7 @@ pub enum ProtocolEvents {
     AlreadyDelivered {
         certificate_id: CertificateId,
     },
-    /// Emitted to get peers list, expected that Commands.ApplyPeers will come as reaction
-    NeedPeers,
+
     /// (pb.Broadcast)
     Broadcast {
         certificate_id: CertificateId,

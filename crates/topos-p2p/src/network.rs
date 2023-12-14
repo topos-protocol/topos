@@ -169,9 +169,7 @@ impl<'a> NetworkBuilder<'a> {
             .build();
         let (shutdown_channel, shutdown) = mpsc::channel::<oneshot::Sender<()>>(1);
 
-        let grpc_over_p2p = GrpcOverP2P {
-            proxy_sender: command_sender.clone(),
-        };
+        let grpc_over_p2p = GrpcOverP2P::new(command_sender.clone());
 
         Ok((
             NetworkClient {
