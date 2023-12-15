@@ -6,6 +6,7 @@ use topos_tce_api::RuntimeError;
 use topos_tce_api::RuntimeEvent as ApiEvent;
 use topos_tce_storage::errors::{InternalStorageError, StorageError};
 use topos_tce_storage::types::PendingResult;
+use tracing::debug;
 use tracing::{error, warn};
 
 impl AppContext {
@@ -22,11 +23,30 @@ impl AppContext {
                     .validator_store
                     .insert_pending_certificate(&certificate)
                 {
-                    Ok(Some(pending_id)) => sender.send(Ok(PendingResult::InPending(pending_id))),
-                    Ok(None) => sender.send(Ok(PendingResult::AwaitPrecedence)),
+                    Ok(Some(pending_id)) => {
+                        debug!(
+                            "Certificate {} has been inserted into pending pool",
+                            certificate.id
+                        );
+
+                        sender.send(Ok(PendingResult::InPending(pending_id)))
+                    }
+                    Ok(None) => {
+                        debug!(
+                            "Certificate {} has been inserted into precedence pool",
+                            certificate.id
+                        );
+                        sender.send(Ok(PendingResult::AwaitPrecedence))
+                    }
                     Err(StorageError::InternalStorage(
                         InternalStorageError::CertificateAlreadyExists,
-                    )) => sender.send(Ok(PendingResult::AlreadyDelivered)),
+                    )) => {
+                        debug!(
+                            "Certificate {} has been already delivered, skipping",
+                            certificate.id
+                        );
+                        sender.send(Ok(PendingResult::AlreadyDelivered))
+                    }
                     Err(error) => {
                         error!(
                             "Unable to insert pending certificate {}: {}",
@@ -36,6 +56,7 @@ impl AppContext {
                         sender.send(Err(error.into()))
                     }
                 };
+
                 _ = self
                     .tce_cli
                     .broadcast_new_certificate(*certificate, true)

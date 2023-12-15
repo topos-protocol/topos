@@ -6,7 +6,7 @@ use tokio::spawn;
 use topos_metrics::CERTIFICATE_DELIVERY_LATENCY;
 use topos_p2p::Event as NetEvent;
 use topos_tce_broadcast::DoubleEchoCommand;
-use tracing::{error, info, trace};
+use tracing::{debug, error, info, trace};
 
 use topos_core::api::grpc::tce::v1::{double_echo_request, DoubleEchoRequest, Echo, Gossip, Ready};
 use topos_core::uci;
@@ -21,7 +21,7 @@ impl AppContext {
             &evt
         );
 
-        let NetEvent::Gossip { data, .. } = evt;
+        let NetEvent::Gossip { data, from } = evt;
         if let Ok(DoubleEchoRequest {
             request: Some(double_echo_request),
         }) = DoubleEchoRequest::decode(&data[..])
@@ -38,6 +38,10 @@ impl AppContext {
                         }
 
                         spawn(async move {
+                            debug!(
+                                "Received certificate {} from Gossip message from {}",
+                                cert.id, from
+                            );
                             info!("Send certificate {} to be broadcast", cert.id);
                             if channel
                                 .send(DoubleEchoCommand::Broadcast {
