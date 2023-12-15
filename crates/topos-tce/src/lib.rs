@@ -3,6 +3,7 @@ use futures::StreamExt;
 use opentelemetry::global;
 use std::{
     future::IntoFuture,
+    panic::UnwindSafe,
     sync::{atomic::AtomicBool, Arc},
 };
 use tokio::{
@@ -22,11 +23,12 @@ use topos_tce_storage::{
     epoch::{EpochValidatorsStore, ValidatorPerEpochStore},
     fullnode::FullNodeStore,
     index::IndexTables,
+    store::ReadStore,
     validator::{ValidatorPerpetualTables, ValidatorStore},
     StorageClient,
 };
 use topos_tce_synchronizer::SynchronizerService;
-use tracing::{debug, warn};
+use tracing::{debug, info, warn};
 
 mod app_context;
 pub mod config;
@@ -115,6 +117,27 @@ pub async fn run(
                 validator_store: validator_store.clone(),
             }),
         ),
+    );
+
+    let certificates_synced = fullnode_store
+        .count_certificates_delivered()
+        .map_err(|error| format!("Unable to count certificates delivered: {error}"))
+        .unwrap();
+
+    let pending_certificates = validator_store
+        .count_pending_certificates()
+        .map_err(|error| format!("Unable to count pending certificates: {error}"))
+        .unwrap();
+
+    let precedence_pool_certificates = validator_store
+        .count_precedence_pool_certificates()
+        .map_err(|error| format!("Unable to count precedence pool certificates: {error}"))
+        .unwrap();
+
+    info!(
+        "Storage initialized with {} certificates delivered, {} pending certificates and {} \
+         certificates in the precedence pool",
+        certificates_synced, pending_certificates, precedence_pool_certificates
     );
 
     let (network_client, event_stream, unbootstrapped_runtime) = topos_p2p::network::builder()

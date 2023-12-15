@@ -42,6 +42,9 @@ pub trait WriteStore: Send {
 /// [`ValidatorStore`](struct@super::validator::ValidatorStore) and
 /// [`FullNodeStore`](struct@super::fullnode::FullNodeStore) to read data.
 pub trait ReadStore: Send {
+    /// Returns the number of certificates delivered
+    fn count_certificates_delivered(&self) -> Result<usize, StorageError>;
+
     /// Try to get a SourceHead of a subnet
     ///
     /// Returns `Ok(None)` if the subnet is not found, meaning that no certificate are currently
