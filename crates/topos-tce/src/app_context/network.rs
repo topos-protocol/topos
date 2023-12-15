@@ -36,12 +36,11 @@ impl AppContext {
                         {
                             entry.insert(CERTIFICATE_DELIVERY_LATENCY.start_timer());
                         }
-
+                        debug!(
+                            "Received certificate {} from Gossip message from {}",
+                            cert.id, from
+                        );
                         spawn(async move {
-                            debug!(
-                                "Received certificate {} from Gossip message from {}",
-                                cert.id, from
-                            );
                             info!("Send certificate {} to be broadcast", cert.id);
                             if channel
                                 .send(DoubleEchoCommand::Broadcast {

@@ -25,6 +25,9 @@ use topos_test_sdk::{
 
 use crate::AppContext;
 
+mod api;
+mod network;
+
 #[rstest]
 #[tokio::test]
 async fn non_validator_publish_gossip(
@@ -91,7 +94,7 @@ async fn non_validator_do_not_publish_ready(
 }
 
 #[fixture]
-async fn setup_test(
+pub async fn setup_test(
     #[future] create_validator_store: Arc<ValidatorStore>,
     #[future] create_public_api: (PublicApiContext, impl Stream<Item = RuntimeEvent>),
 ) -> (
