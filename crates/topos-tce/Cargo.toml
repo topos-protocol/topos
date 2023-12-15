@@ -59,6 +59,7 @@ tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 tracing.workspace = true
 test-log.workspace = true
 cucumber = "0.13.0"
+env_logger.workspace = true
 
 [features]
 default = []

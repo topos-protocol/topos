@@ -7626,6 +7626,7 @@ dependencies = [
  "bytes",
  "clap 4.4.6",
  "cucumber",
+ "env_logger 0.10.0",
  "futures",
  "hex",
  "hyper",

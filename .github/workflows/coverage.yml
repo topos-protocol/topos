@@ -33,6 +33,7 @@ jobs:
 
       - name: Run tests
         env:
+          RUST_LOG: debug
           RUSTFLAGS: "-Cinstrument-coverage"
           RUSTDOCFLAGS: "-Cinstrument-coverage"
           LLVM_PROFILE_FILE: "codecov-instrumentation-%p-%m.profraw"
