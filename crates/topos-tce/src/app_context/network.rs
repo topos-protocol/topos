@@ -82,9 +82,16 @@ impl AppContext {
                             );
                             e
                         });
+
                         if let (Ok(certificate_id), Ok(validator_id)) =
                             (certificate_id, validator_id)
                         {
+                            debug!(
+                                "Received Echo message, certificate_id: {certificate_id}, \
+                                 validator_id: {validator_id} from {from}",
+                                certificate_id = certificate_id,
+                                validator_id = validator_id
+                            );
                             if let Err(e) = channel
                                 .send(DoubleEchoCommand::Echo {
                                     signature: signature.into(),
@@ -124,6 +131,12 @@ impl AppContext {
                         if let (Ok(certificate_id), Ok(validator_id)) =
                             (certificate_id, validator_id)
                         {
+                            debug!(
+                                "Received Ready message, certificate_id: {certificate_id}, \
+                                 validator_id: {validator_id} from {from}",
+                                certificate_id = certificate_id,
+                                validator_id = validator_id
+                            );
                             if let Err(e) = channel
                                 .send(DoubleEchoCommand::Ready {
                                     signature: signature.into(),
