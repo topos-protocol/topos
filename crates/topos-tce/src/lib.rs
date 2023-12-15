@@ -3,6 +3,7 @@ use futures::StreamExt;
 use opentelemetry::global;
 use std::{
     future::IntoFuture,
+    panic::UnwindSafe,
     sync::{atomic::AtomicBool, Arc},
 };
 use tokio::{
@@ -120,15 +121,18 @@ pub async fn run(
 
     let certificates_synced = fullnode_store
         .count_certificates_delivered()
-        .expect("Unable to count certificates delivered");
+        .map_err(|error| format!("Unable to count certificates delivered: {error}"))
+        .unwrap();
 
     let pending_certificates = validator_store
         .count_pending_certificates()
-        .expect("Unable to count pending certificates");
+        .map_err(|error| format!("Unable to count pending certificates: {error}"))
+        .unwrap();
 
     let precedence_pool_certificates = validator_store
         .count_precedence_pool_certificates()
-        .expect("Unable to count precedence pool certificates");
+        .map_err(|error| format!("Unable to count precedence pool certificates: {error}"))
+        .unwrap();
 
     info!(
         "Storage initialized with {} certificates delivered, {} pending certificates and {} \
