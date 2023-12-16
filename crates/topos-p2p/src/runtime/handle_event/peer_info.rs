@@ -20,7 +20,6 @@ impl EventHandler<Box<IdentifyEvent>> for Runtime {
             if !self.peer_set.contains(&peer_id)
                 && protocol_version.as_bytes() == PEER_INFO_PROTOCOL.as_bytes()
             {
-                self.swarm.add_external_address(observed_addr);
                 self.peer_set.insert(peer_id);
                 for addr in listen_addrs {
                     info!(
