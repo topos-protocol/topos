@@ -76,8 +76,8 @@ pub async fn run(
 
     let addr: Multiaddr = format!("/ip4/0.0.0.0/tcp/{}", config.tce_local_port).parse()?;
 
-    // Remove myself from the bootnode list
     let mut boot_peers = config.boot_peers.clone();
+    // Remove myself from the bootnode list
     boot_peers.retain(|(p, _)| *p != peer_id);
     let is_validator = config.validators.contains(&validator_id);
 

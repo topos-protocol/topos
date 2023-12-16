@@ -86,8 +86,12 @@ impl
                 error!("{:?}", incoming_connection_error);
             }
 
-            SwarmEvent::IncomingConnection { local_addr, .. } => {
-                info!("IncomingConnection {local_addr}")
+            SwarmEvent::IncomingConnection {
+                local_addr,
+                connection_id,
+                send_back_addr,
+            } => {
+                debug!("IncomingConnection {local_addr} | {connection_id} | {send_back_addr}")
             }
             SwarmEvent::ListenerClosed {
                 listener_id,
@@ -105,13 +109,25 @@ impl
                 debug!("ConnectionClosed {peer_id} because of {cause:?}");
             }
 
-            SwarmEvent::Dialing { peer_id, .. } => {}
+            SwarmEvent::Dialing {
+                peer_id,
+                connection_id,
+            } => {
+                debug!("Dialing {peer_id:?} | {connection_id}");
+            }
 
             SwarmEvent::Behaviour(event) => {
                 self.handle(event).await;
             }
 
-            event => error!("Unhandled event: {event:?}"),
+            SwarmEvent::ExpiredListenAddr {
+                listener_id,
+                address,
+            } => error!("Unhandled ExpiredListenAddr {listener_id:?} | {address}"),
+
+            SwarmEvent::ListenerError { listener_id, error } => {
+                error!("Unhandled ListenerError {listener_id:?} | {error}")
+            }
         }
     }
 }
