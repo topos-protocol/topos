@@ -62,8 +62,10 @@ impl Runtime {
 
         self.bootstrapped = true;
 
+        debug!("Added external address: {:?}", self.addresses);
         self.swarm.add_external_address(self.addresses.clone());
 
+        debug!("Starting to listen on {:?}", self.listening_on);
         let addr = self.listening_on.clone();
         if let Err(error) = self.swarm.listen_on(addr) {
             error!(
