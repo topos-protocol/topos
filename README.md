@@ -27,6 +27,8 @@
 
 ## Getting Started
 
+Test cla. Test cla.
+
 **Install Rust**
 
 The first step is to install Rust along with `cargo` by following the instructions [here](https://doc.rust-lang.org/book/ch01-01-installation.html#installing-rustup-on-linux-or-macos).
