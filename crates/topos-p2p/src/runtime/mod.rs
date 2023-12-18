@@ -10,6 +10,7 @@ use libp2p::{
         record::Key, BootstrapOk, KademliaEvent, PutRecordError, QueryId, QueryResult, Quorum,
         Record,
     },
+    multiaddr::Protocol,
     swarm::SwarmEvent,
     Multiaddr, PeerId, Swarm,
 };
@@ -217,10 +218,38 @@ impl Runtime {
                             event => warn!("Unhandle Kademlia event during Bootstrap: {event:?}"),
                         }
                     }
-                    SwarmEvent::ConnectionEstablished { .. } => {}
-                    SwarmEvent::Dialing { .. } => {}
-                    SwarmEvent::IncomingConnection { .. } => {}
-                    SwarmEvent::NewListenAddr { .. } => {}
+                    SwarmEvent::ConnectionEstablished {
+                        peer_id,
+                        connection_id,
+                        endpoint,
+                        ..
+                    } => {
+                        info!(
+                            "Connection established with peer {peer_id} as {:?} (connection_id \
+                             {connection_id:?})",
+                            endpoint.to_endpoint()
+                        );
+                    }
+                    SwarmEvent::Dialing {
+                        peer_id,
+                        connection_id,
+                    } => debug!("Dialing {peer_id:?} | {connection_id}"),
+                    SwarmEvent::IncomingConnection {
+                        connection_id,
+                        local_addr,
+                        send_back_addr,
+                    } => debug!(
+                        "IncomingConnection {local_addr} | {connection_id} | {send_back_addr}"
+                    ),
+                    SwarmEvent::NewListenAddr {
+                        listener_id,
+                        address,
+                    } => {
+                        info!(
+                            "Local node is listening on {:?}",
+                            address.with(Protocol::P2p(self.local_peer_id)),
+                        );
+                    }
                     SwarmEvent::Behaviour(ComposedEvent::Gossipsub(_)) => {}
 
                     SwarmEvent::IncomingConnectionError {
