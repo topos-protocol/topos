@@ -74,7 +74,7 @@ pub async fn run(
     let external_addr: Multiaddr =
         format!("{}/tcp/{}", config.tce_addr, config.tce_local_port).parse()?;
 
-    let addr: Multiaddr = format!("/ip4/0.0.0.0/tcp/{}", config.tce_local_port).parse()?;
+    let addr: Multiaddr = format!("{}/tcp/{}", config.tce_addr, config.tce_local_port).parse()?;
 
     let mut boot_peers = config.boot_peers.clone();
     // Remove myself from the bootnode list
