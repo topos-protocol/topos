@@ -12,7 +12,9 @@ pub struct PeerInfoBehaviour {
 impl PeerInfoBehaviour {
     pub(crate) fn new(identify_protocol: &'static str, peer_key: &Keypair) -> PeerInfoBehaviour {
         let ident_config = IdentifyConfig::new(identify_protocol.to_string(), peer_key.public())
-            .with_push_listen_addr_updates(true);
+            .with_push_listen_addr_updates(true)
+            .with_cache_size(0);
+
         let identify = Identify::new(ident_config);
 
         Self { identify }
