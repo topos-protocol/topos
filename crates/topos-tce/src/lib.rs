@@ -71,11 +71,6 @@ pub async fn run(
 
     tracing::Span::current().record("peer_id", &peer_id.to_string());
 
-    let external_addr: Multiaddr =
-        format!("{}/tcp/{}", config.tce_addr, config.tce_local_port).parse()?;
-
-    let addr: Multiaddr = format!("/ip4/0.0.0.0/tcp/{}", config.tce_local_port).parse()?;
-
     let mut boot_peers = config.boot_peers.clone();
     // Remove myself from the bootnode list
     boot_peers.retain(|(p, _)| *p != peer_id);
@@ -142,9 +137,9 @@ pub async fn run(
 
     let (network_client, event_stream, unbootstrapped_runtime) = topos_p2p::network::builder()
         .peer_key(key)
-        .listen_addr(addr)
+        .listen_addresses(config.listen_addresses.clone())
         .minimum_cluster_size(config.minimum_cluster_size)
-        .exposed_addresses(external_addr)
+        .advertised_addresses(config.advertised_addresses.clone())
         .known_peers(&boot_peers)
         .grpc_context(grpc_context)
         .build()

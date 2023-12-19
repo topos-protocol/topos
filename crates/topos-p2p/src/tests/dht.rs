@@ -4,6 +4,7 @@ use futures::StreamExt;
 use libp2p::{
     kad::{record::Key, KademliaEvent, PutRecordOk, QueryResult, Record},
     swarm::SwarmEvent,
+    Multiaddr,
 };
 use rstest::rstest;
 use test_log::test;
@@ -23,8 +24,8 @@ async fn put_value_in_dht() {
     let (_, _, runtime) = crate::network::builder()
         .peer_key(peer_2.keypair.clone())
         .known_peers(&[(peer_1.peer_id(), peer_1.addr.clone())])
-        .exposed_addresses(peer_2.addr.clone())
-        .listen_addr(peer_2.addr.clone())
+        .advertised_addresses(vec![peer_2.addr.clone()])
+        .listen_addresses(vec![peer_2.addr.clone()])
         .minimum_cluster_size(1)
         .discovery_config(
             DiscoveryConfig::default().with_replication_factor(NonZeroUsize::new(1).unwrap()),
@@ -40,7 +41,14 @@ async fn put_value_in_dht() {
     _ = kad
         .inner
         .put_record(
-            Record::new(input_key.clone(), runtime.addresses.to_vec()),
+            Record::new(
+                input_key.clone(),
+                runtime
+                    .advertised_addresses
+                    .first()
+                    .map(Multiaddr::to_vec)
+                    .unwrap(),
+            ),
             libp2p::kad::Quorum::One,
         )
         .unwrap();

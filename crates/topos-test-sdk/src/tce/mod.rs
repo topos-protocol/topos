@@ -156,7 +156,7 @@ impl NodeConfig {
         create_network_worker(
             self.seed,
             self.port,
-            self.addr.clone(),
+            vec![self.addr.clone()],
             peers,
             self.minimum_cluster_size,
             router,

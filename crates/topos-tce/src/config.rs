@@ -25,12 +25,12 @@ pub struct TceConfiguration {
     pub api_addr: SocketAddr,
     pub graphql_api_addr: SocketAddr,
     pub metrics_api_addr: SocketAddr,
-    pub tce_addr: String,
-    pub tce_local_port: u16,
     pub storage: StorageConfiguration,
     pub network_bootstrap_timeout: Duration,
     pub minimum_cluster_size: usize,
     pub version: &'static str,
+    pub listen_addresses: Vec<Multiaddr>,
+    pub advertised_addresses: Vec<Multiaddr>,
 }
 
 #[derive(Debug)]

@@ -26,9 +26,8 @@ pub struct Runtime {
     pub(crate) command_receiver: mpsc::Receiver<Command>,
     pub(crate) event_sender: mpsc::Sender<Event>,
     pub(crate) local_peer_id: PeerId,
-    pub(crate) listening_on: Multiaddr,
-    #[allow(unused)]
-    pub(crate) addresses: Multiaddr,
+    pub(crate) listening_on: Vec<Multiaddr>,
+    pub(crate) advertised_addresses: Vec<Multiaddr>,
     pub(crate) bootstrapped: bool,
     pub(crate) is_boot_node: bool,
 
@@ -62,16 +61,19 @@ impl Runtime {
 
         self.bootstrapped = true;
 
-        self.swarm.add_external_address(self.addresses.clone());
+        debug!("Added external addresses: {:?}", self.advertised_addresses);
+        for address in &self.advertised_addresses {
+            self.swarm.add_external_address(address.clone());
+        }
 
-        let addr = self.listening_on.clone();
-        if let Err(error) = self.swarm.listen_on(addr) {
-            error!(
-                "Couldn't start listening on {} because of {error:?}",
-                self.listening_on
-            );
+        debug!("Starting to listen on {:?}", self.listening_on);
+        let addresses = self.listening_on.clone();
+        for addr in addresses {
+            if let Err(error) = self.swarm.listen_on(addr.clone()) {
+                error!("Couldn't start listening on {} because of {error:?}", addr);
 
-            return Err(Box::new(error));
+                return Err(Box::new(error));
+            }
         }
 
         debug!("Starting a boot node ? {:?}", self.is_boot_node);
@@ -114,7 +116,13 @@ impl Runtime {
                             let key = Key::new(&self.local_peer_id.to_string());
                             addr_query_id = if let Ok(query_id_record) =
                                 self.swarm.behaviour_mut().discovery.inner.put_record(
-                                    Record::new(key, self.addresses.to_vec()),
+                                    Record::new(
+                                        key,
+                                        self.advertised_addresses
+                                            .first()
+                                            .map(Multiaddr::to_vec)
+                                            .expect("No Addresses to advertize"),
+                                    ),
                                     Quorum::Majority,
                                 ) {
                                 Some(query_id_record)
@@ -170,7 +178,13 @@ impl Runtime {
                                 let key = Key::new(&self.local_peer_id.to_string());
                                 if let Ok(query_id_record) =
                                     self.swarm.behaviour_mut().discovery.inner.put_record(
-                                        Record::new(key, self.addresses.to_vec()),
+                                        Record::new(
+                                            key,
+                                            self.advertised_addresses
+                                                .first()
+                                                .map(Multiaddr::to_vec)
+                                                .expect("No Addresses to advertize"),
+                                        ),
                                         Quorum::Majority,
                                     )
                                 {

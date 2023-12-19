@@ -39,8 +39,8 @@ const TWO_HOURS: Duration = Duration::from_secs(60 * 60 * 2);
 pub struct NetworkBuilder<'a> {
     discovery_protocol: Option<&'static str>,
     peer_key: Option<Keypair>,
-    listen_addr: Option<Multiaddr>,
-    exposed_addresses: Option<Multiaddr>,
+    listen_addresses: Option<Vec<Multiaddr>>,
+    advertised_addresses: Option<Vec<Multiaddr>>,
     store: Option<MemoryStore>,
     known_peers: &'a [(PeerId, Multiaddr)],
     local_port: Option<u8>,
@@ -79,14 +79,14 @@ impl<'a> NetworkBuilder<'a> {
         self
     }
 
-    pub fn exposed_addresses(mut self, addr: Multiaddr) -> Self {
-        self.exposed_addresses = Some(addr);
+    pub fn advertised_addresses(mut self, addresses: Vec<Multiaddr>) -> Self {
+        self.advertised_addresses = Some(addresses);
 
         self
     }
 
-    pub fn listen_addr(mut self, addr: Multiaddr) -> Self {
-        self.listen_addr = Some(addr);
+    pub fn listen_addresses(mut self, addresses: Vec<Multiaddr>) -> Self {
+        self.listen_addresses = Some(addresses);
 
         self
     }
@@ -171,6 +171,21 @@ impl<'a> NetworkBuilder<'a> {
 
         let grpc_over_p2p = GrpcOverP2P::new(command_sender.clone());
 
+        let listen_addr = self
+            .listen_addresses
+            .take()
+            .expect("Node cannot listen for connection on empty address");
+
+        let advertised_addresses = if let Some(addresses) = self.advertised_addresses.take() {
+            if addresses.is_empty() {
+                listen_addr.clone()
+            } else {
+                addresses
+            }
+        } else {
+            listen_addr.clone()
+        };
+
         Ok((
             NetworkClient {
                 retry_ttl: self.config.client_retry_ttl,
@@ -188,14 +203,8 @@ impl<'a> NetworkBuilder<'a> {
                 command_receiver,
                 event_sender,
                 local_peer_id: peer_id,
-                listening_on: self
-                    .listen_addr
-                    .take()
-                    .expect("P2P runtime expect a MultiAddr"),
-                addresses: self
-                    .exposed_addresses
-                    .take()
-                    .expect("P2P runtime expect a MultiAddr"),
+                listening_on: listen_addr,
+                advertised_addresses,
                 bootstrapped: false,
                 active_listeners: HashSet::new(),
                 pending_record_requests: HashMap::new(),

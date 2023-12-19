@@ -12,7 +12,7 @@ use super::NodeConfig;
 pub async fn create_network_worker(
     seed: u8,
     _port: u16,
-    addr: Multiaddr,
+    addr: Vec<Multiaddr>,
     peers: &[NodeConfig],
     minimum_cluster_size: usize,
     router: Option<GrpcRouter>,
@@ -50,8 +50,8 @@ pub async fn create_network_worker(
     topos_p2p::network::builder()
         .peer_key(key.clone())
         .known_peers(&known_peers)
-        .exposed_addresses(addr.clone())
-        .listen_addr(addr)
+        .advertised_addresses(addr.clone())
+        .listen_addresses(addr)
         .minimum_cluster_size(minimum_cluster_size)
         .grpc_context(grpc_context)
         .build()
@@ -74,7 +74,7 @@ pub async fn bootstrap_network(
     Box<dyn Error>,
 > {
     let (network_client, network_stream, runtime) =
-        create_network_worker(seed, port, addr, peers, minimum_cluster_size, router).await?;
+        create_network_worker(seed, port, vec![addr], peers, minimum_cluster_size, router).await?;
 
     let runtime = runtime.bootstrap().await?;
 
