@@ -1,5 +1,6 @@
 use prost::Message;
 use std::collections::hash_map;
+use topos_tce_storage::errors::{InternalStorageError, StorageError};
 
 use tokio::spawn;
 
@@ -40,6 +41,36 @@ impl AppContext {
                             "Received certificate {} from Gossip message from {}",
                             cert.id, from
                         );
+
+                        match self.validator_store.insert_pending_certificate(&cert) {
+                            Ok(Some(pending_id)) => {
+                                debug!(
+                                    "Certificate {} has been inserted into pending pool",
+                                    cert.id
+                                );
+                            }
+                            Ok(None) => {
+                                debug!(
+                                    "Certificate {} has been inserted into precedence pool",
+                                    cert.id
+                                );
+                            }
+                            Err(StorageError::InternalStorage(
+                                InternalStorageError::CertificateAlreadyExists,
+                            )) => {
+                                debug!(
+                                    "Certificate {} has been already delivered, skipping",
+                                    cert.id
+                                );
+                            }
+                            Err(error) => {
+                                error!(
+                                    "Unable to insert pending certificate {}: {}",
+                                    cert.id, error
+                                );
+                            }
+                        }
+
                         spawn(async move {
                             info!("Send certificate {} to be broadcast", cert.id);
                             if channel

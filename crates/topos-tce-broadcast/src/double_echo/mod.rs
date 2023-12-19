@@ -24,6 +24,7 @@ use topos_core::{
     uci::{Certificate, CertificateId},
 };
 use topos_crypto::messages::{MessageSigner, Signature};
+use topos_tce_storage::store::ReadStore;
 use topos_tce_storage::types::CertificateDeliveredWithPositions;
 use topos_tce_storage::validator::ValidatorStore;
 use tracing::{debug, error, info, warn};
@@ -37,8 +38,6 @@ pub struct DoubleEcho {
     event_sender: mpsc::Sender<ProtocolEvents>,
     /// Channel to receive shutdown signal
     pub(crate) shutdown: mpsc::Receiver<oneshot::Sender<()>>,
-    /// Delivered certificate ids to avoid processing twice the same certificate
-    delivered_certificates: HashSet<CertificateId>,
     /// The threshold parameters for the double echo
     pub params: ReliableBroadcastParams,
     /// The connection to the TaskManager to forward DoubleEchoCommand messages
@@ -85,7 +84,6 @@ impl DoubleEcho {
                 network_size: validators.len(),
             },
             shutdown,
-            delivered_certificates: Default::default(),
             validator_store,
             broadcast_sender,
         }
@@ -190,10 +188,8 @@ impl DoubleEcho {
                     }
                 }
 
-                Some((certificate_id, status)) = task_completion.recv() => {
-                    if let TaskStatus::Success = status {
-                        self.delivered_certificates.insert(certificate_id);
-                    }
+                Some((_certificate_id, _status)) = task_completion.recv() => {
+
                 }
 
                 else => {
@@ -227,23 +223,29 @@ impl DoubleEcho {
             return;
         }
 
-        if self.delivered_certificates.get(&cert.id).is_some() {
-            self.event_sender
+        match self.validator_store.get_certificate(&cert.id) {
+            Ok(Some(_)) => self
+                .event_sender
                 .try_send(ProtocolEvents::AlreadyDelivered {
                     certificate_id: cert.id,
                 })
-                .unwrap();
-
-            return;
-        }
-
-        if self
-            .delivery_state_for_new_cert(cert, origin)
-            .await
-            .is_none()
-        {
-            error!("Ill-formed samples");
-            _ = self.event_sender.try_send(ProtocolEvents::Die);
+                .unwrap(),
+            Ok(None) => {
+                if self
+                    .delivery_state_for_new_cert(cert, origin)
+                    .await
+                    .is_none()
+                {
+                    error!("Ill-formed samples");
+                    _ = self.event_sender.try_send(ProtocolEvents::Die);
+                }
+            }
+            Err(storage_error) => {
+                error!(
+                    "Unable to broadcast the Certificate {} due to {:?}",
+                    &cert.id, storage_error
+                );
+            }
         }
     }
 
@@ -297,15 +299,25 @@ impl DoubleEcho {
         validator_id: ValidatorId,
         signature: Signature,
     ) {
-        if self.delivered_certificates.get(&certificate_id).is_none() {
-            let _ = self
-                .task_manager_message_sender
-                .send(DoubleEchoCommand::Echo {
-                    validator_id,
-                    certificate_id,
-                    signature,
-                })
-                .await;
+        match self.validator_store.get_certificate(&certificate_id) {
+            Err(storage_error) => error!(
+                "Unable to get the Certificate {} due to {:?}",
+                &certificate_id, storage_error
+            ),
+            Ok(Some(_)) => debug!(
+                "Certificate {} already delivered, ignoring echo",
+                &certificate_id
+            ),
+            Ok(None) => {
+                let _ = self
+                    .task_manager_message_sender
+                    .send(DoubleEchoCommand::Echo {
+                        validator_id,
+                        certificate_id,
+                        signature,
+                    })
+                    .await;
+            }
         }
     }
 
@@ -315,15 +327,25 @@ impl DoubleEcho {
         validator_id: ValidatorId,
         signature: Signature,
     ) {
-        if self.delivered_certificates.get(&certificate_id).is_none() {
-            let _ = self
-                .task_manager_message_sender
-                .send(DoubleEchoCommand::Ready {
-                    validator_id,
-                    certificate_id,
-                    signature,
-                })
-                .await;
+        match self.validator_store.get_certificate(&certificate_id) {
+            Err(storage_error) => error!(
+                "Unable to get the Certificate {} due to {:?}",
+                &certificate_id, storage_error
+            ),
+            Ok(Some(_)) => debug!(
+                "Certificate {} already delivered, ignoring echo",
+                &certificate_id
+            ),
+            Ok(None) => {
+                let _ = self
+                    .task_manager_message_sender
+                    .send(DoubleEchoCommand::Ready {
+                        validator_id,
+                        certificate_id,
+                        signature,
+                    })
+                    .await;
+            }
         }
     }
 }
