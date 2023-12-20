@@ -508,14 +508,14 @@ async fn run_check_certificate_delivery(
 
 #[rstest]
 #[test(tokio::test)]
-#[timeout(Duration::from_secs(30))]
+#[timeout(Duration::from_secs(20))]
 async fn push_and_deliver_cert_5() -> Result<(), Box<dyn std::error::Error>> {
     run_check_certificate_delivery(5, 5, 20).await
 }
 
 #[rstest]
 #[test(tokio::test)]
-#[timeout(Duration::from_secs(60))]
+#[timeout(Duration::from_secs(20))]
 async fn push_and_deliver_cert_9() -> Result<(), Box<dyn std::error::Error>> {
     run_check_certificate_delivery(9, 5, 20).await
 }
