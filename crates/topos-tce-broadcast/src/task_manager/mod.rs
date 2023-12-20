@@ -5,10 +5,13 @@ use std::collections::HashMap;
 use std::future::IntoFuture;
 use std::pin::Pin;
 use std::sync::Arc;
+use std::time::Duration;
 use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
 use tokio::sync::broadcast;
 use tokio::{spawn, sync::mpsc};
+use tokio_util::sync::CancellationToken;
 use topos_core::types::ValidatorId;
+use topos_core::uci::Certificate;
 use topos_core::uci::CertificateId;
 use topos_metrics::CERTIFICATE_PROCESSING_FROM_API_TOTAL;
 use topos_metrics::CERTIFICATE_PROCESSING_FROM_GOSSIP_TOTAL;
@@ -17,7 +20,9 @@ use topos_metrics::DOUBLE_ECHO_ACTIVE_TASKS_COUNT;
 use topos_tce_storage::store::ReadStore;
 use topos_tce_storage::types::CertificateDeliveredWithPositions;
 use topos_tce_storage::validator::ValidatorStore;
+use topos_tce_storage::PendingCertificateId;
 use tracing::debug;
+use tracing::error;
 use tracing::warn;
 
 pub mod task;
@@ -47,10 +52,10 @@ pub struct TaskManager {
     pub buffered_messages: HashMap<CertificateId, Vec<DoubleEchoCommand>>,
     pub thresholds: ReliableBroadcastParams,
     pub validator_id: ValidatorId,
-    pub shutdown_sender: mpsc::Sender<()>,
     pub validator_store: Arc<ValidatorStore>,
     pub broadcast_sender: broadcast::Sender<CertificateDeliveredWithPositions>,
 
+    pub latest_pending_id: PendingCertificateId,
     pub precedence: HashMap<CertificateId, Task>,
 }
 
@@ -66,35 +71,45 @@ impl TaskManager {
         message_signer: Arc<MessageSigner>,
         validator_store: Arc<ValidatorStore>,
         broadcast_sender: broadcast::Sender<CertificateDeliveredWithPositions>,
-    ) -> (Self, mpsc::Receiver<()>) {
-        let (shutdown_sender, shutdown_receiver) = mpsc::channel(1);
-
-        (
-            Self {
-                message_receiver,
-                task_completion_sender,
-                subscriptions,
-                event_sender,
-                tasks: HashMap::new(),
-                running_tasks: FuturesUnordered::new(),
-                buffered_messages: Default::default(),
-                validator_id,
-                message_signer,
-                thresholds,
-                shutdown_sender,
-                validator_store,
-                broadcast_sender,
-                precedence: HashMap::new(),
-            },
-            shutdown_receiver,
-        )
+    ) -> Self {
+        Self {
+            message_receiver,
+            task_completion_sender,
+            subscriptions,
+            event_sender,
+            tasks: HashMap::new(),
+            running_tasks: FuturesUnordered::new(),
+            buffered_messages: Default::default(),
+            validator_id,
+            message_signer,
+            thresholds,
+            validator_store,
+            broadcast_sender,
+            latest_pending_id: 0,
+            precedence: HashMap::new(),
+        }
     }
 
-    pub async fn run(mut self, mut shutdown_receiver: mpsc::Receiver<()>) {
+    pub async fn run(mut self, mut shutdown_receiver: CancellationToken) {
+        let mut interval = tokio::time::interval(Duration::from_secs(1));
+
         loop {
             tokio::select! {
                 biased;
 
+                _ = interval.tick() => {
+                    match self.validator_store.get_next_pending_certificates(&self.latest_pending_id, 1000) {
+                        Ok(pendings) => {
+                            for (pending_id, certificate) in pendings {
+                                self.create_task(&certificate, true);
+                                self.latest_pending_id = pending_id + 1;
+                            }
+                        }
+                        Err(error) => {
+                            error!("Error while fetching pending certificates: {:?}", error);
+                        }
+                    }
+                }
                 Some(msg) = self.message_receiver.recv() => {
                     match msg {
                         DoubleEchoCommand::Echo { certificate_id, .. } | DoubleEchoCommand::Ready { certificate_id, .. } => {
@@ -109,46 +124,8 @@ impl TaskManager {
                         }
                         DoubleEchoCommand::Broadcast { ref cert, need_gossip } => {
                             debug!("Received broadcast message for certificate {} ", cert.id);
-                            match self.tasks.entry(cert.id) {
-                                std::collections::hash_map::Entry::Vacant(entry) => {
-                                    let broadcast_state = BroadcastState::new(
-                                        cert.clone(),
-                                        self.validator_id,
-                                        self.thresholds.echo_threshold,
-                                        self.thresholds.ready_threshold,
-                                        self.thresholds.delivery_threshold,
-                                        self.event_sender.clone(),
-                                        self.subscriptions.clone(),
-                                        need_gossip,
-                                        self.message_signer.clone(),
-                                    );
 
-                                    let (task, task_context) = Task::new(
-                                        cert.id,
-                                        broadcast_state,
-                                        self.validator_store.clone(),
-                                        self.broadcast_sender.clone()
-                                    );
-
-                                    let prev = self.validator_store.get_certificate(&cert.prev_id);
-                                    if matches!(prev, Ok(Some(_))) || cert.prev_id == topos_core::uci::INITIAL_CERTIFICATE_ID  {
-                                        Self::start_task(
-                                            &self.running_tasks,
-                                            task,
-                                            task_context.sink.clone(),
-                                            self.buffered_messages.remove(&cert.id),
-                                            need_gossip
-                                        );
-                                    } else {
-                                        debug!("Received broadcast message for certificate {} but the previous certificate {} is not available yet", cert.id, cert.prev_id);
-                                        self.precedence.insert(cert.prev_id, task);
-                                    }
-                                    entry.insert(task_context);
-                                }
-                                std::collections::hash_map::Entry::Occupied(_) => {
-                                    debug!("Received broadcast message for certificate {} but it is already being processed", cert.id);
-                                },
-                            }
+                            self.create_task(cert, need_gossip)
                         }
                     }
                 }
@@ -177,9 +154,15 @@ impl TaskManager {
                     }
                 }
 
-                _ = shutdown_receiver.recv() => {
+                // _ = shutdown_receiver.recv() => {
+                _ = shutdown_receiver.cancelled() => {
                     warn!("Task Manager shutting down");
 
+                    warn!("There is still {} active tasks", self.tasks.len());
+                    if !self.tasks.is_empty() {
+                        debug!("Certificate still in broadcast: {:?}", self.tasks.keys());
+                    }
+                    warn!("There is still {} buffered messages", self.buffered_messages.len());
                     for task in self.tasks.iter() {
                         task.1.shutdown_sender.send(()).await.unwrap();
                     }
@@ -216,10 +199,57 @@ impl TaskManager {
             CERTIFICATE_PROCESSING_FROM_GOSSIP_TOTAL.inc();
         }
     }
-}
 
-impl Drop for TaskManager {
-    fn drop(&mut self) {
-        _ = self.shutdown_sender.try_send(());
+    fn create_task(&mut self, cert: &Certificate, need_gossip: bool) {
+        match self.tasks.entry(cert.id) {
+            std::collections::hash_map::Entry::Vacant(entry) => {
+                let broadcast_state = BroadcastState::new(
+                    cert.clone(),
+                    self.validator_id,
+                    self.thresholds.echo_threshold,
+                    self.thresholds.ready_threshold,
+                    self.thresholds.delivery_threshold,
+                    self.event_sender.clone(),
+                    self.subscriptions.clone(),
+                    need_gossip,
+                    self.message_signer.clone(),
+                );
+
+                let (task, task_context) = Task::new(
+                    cert.id,
+                    broadcast_state,
+                    self.validator_store.clone(),
+                    self.broadcast_sender.clone(),
+                );
+
+                let prev = self.validator_store.get_certificate(&cert.prev_id);
+                if matches!(prev, Ok(Some(_)))
+                    || cert.prev_id == topos_core::uci::INITIAL_CERTIFICATE_ID
+                {
+                    Self::start_task(
+                        &self.running_tasks,
+                        task,
+                        task_context.sink.clone(),
+                        self.buffered_messages.remove(&cert.id),
+                        need_gossip,
+                    );
+                } else {
+                    debug!(
+                        "Received broadcast message for certificate {} but the previous \
+                         certificate {} is not available yet",
+                        cert.id, cert.prev_id
+                    );
+                    self.precedence.insert(cert.prev_id, task);
+                }
+                entry.insert(task_context);
+            }
+            std::collections::hash_map::Entry::Occupied(_) => {
+                debug!(
+                    "Received broadcast message for certificate {} but it is already being \
+                     processed",
+                    cert.id
+                );
+            }
+        }
     }
 }

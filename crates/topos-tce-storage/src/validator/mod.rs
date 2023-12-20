@@ -118,6 +118,19 @@ impl ValidatorStore {
         Ok(self.pending_tables.pending_pool.iter()?.collect())
     }
 
+    pub fn get_next_pending_certificates(
+        &self,
+        from: &PendingCertificateId,
+        number: usize,
+    ) -> Result<Vec<(PendingCertificateId, Certificate)>, StorageError> {
+        Ok(self
+            .pending_tables
+            .pending_pool
+            .iter_at(from)?
+            .take(number)
+            .collect())
+    }
+
     // TODO: Performance issue on this one as we iter over all the pending certificates
     // We need to improve how we request the pending certificates.
     pub fn get_pending_certificates_for_subnets(
@@ -196,11 +209,19 @@ impl ValidatorStore {
             ));
         }
 
+        if self
+            .pending_tables
+            .pending_pool_index
+            .get(&certificate.id)?
+            .is_some()
+        {
+            return Err(StorageError::InternalStorage(
+                InternalStorageError::CertificateAlreadyPending,
+            ));
+        }
+
         let prev_delivered = certificate.prev_id == INITIAL_CERTIFICATE_ID
-            || self
-                .fullnode_store
-                .get_certificate(&certificate.prev_id)?
-                .is_some();
+            || self.get_certificate(&certificate.prev_id)?.is_some();
 
         if prev_delivered {
             let id = self

@@ -10,6 +10,7 @@ use topos_core::{
 };
 
 use crate::{
+    errors::StorageError,
     rocks::map::Map,
     store::{ReadStore, WriteStore},
     validator::ValidatorStore,
@@ -354,17 +355,22 @@ async fn pending_certificate_can_be_removed(store: Arc<ValidatorStore>) {
 
     assert!(matches!(pending_column.get(&pending_id), Ok(None)));
 
-    let _ = store.insert_pending_certificate(&certificate).unwrap();
-
     let pending_id = store
         .insert_pending_certificate(&certificate)
         .unwrap()
         .unwrap();
 
+    assert!(matches!(
+        store.insert_pending_certificate(&certificate),
+        Err(StorageError::InternalStorage(
+            crate::errors::InternalStorageError::CertificateAlreadyPending
+        ))
+    ));
+
     assert!(pending_column.get(&pending_id).is_ok());
     store.delete_pending_certificate(&pending_id).unwrap();
 
-    assert!(pending_column.iter().unwrap().next().is_some());
+    assert!(pending_column.iter().unwrap().next().is_none());
 }
 
 #[rstest]

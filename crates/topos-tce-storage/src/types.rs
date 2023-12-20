@@ -35,6 +35,7 @@ pub(crate) type TargetSourceListColumn = DBColumn<TargetSourceListKey, Position>
 #[derive(Debug, Clone)]
 pub enum PendingResult {
     AlreadyDelivered,
+    AlreadyPending,
     AwaitPrecedence,
     InPending(PendingCertificateId),
 }

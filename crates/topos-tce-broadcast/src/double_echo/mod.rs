@@ -19,6 +19,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
 use tokio::sync::{broadcast, mpsc, oneshot};
+use tokio_util::sync::CancellationToken;
 use topos_core::{
     types::ValidatorId,
     uci::{Certificate, CertificateId},
@@ -52,6 +53,8 @@ pub struct DoubleEcho {
     pub validators: HashSet<ValidatorId>,
     pub validator_store: Arc<ValidatorStore>,
     pub broadcast_sender: broadcast::Sender<CertificateDeliveredWithPositions>,
+
+    pub task_manager_cancellation: CancellationToken,
 }
 
 impl DoubleEcho {
@@ -86,6 +89,7 @@ impl DoubleEcho {
             shutdown,
             validator_store,
             broadcast_sender,
+            task_manager_cancellation: CancellationToken::new(),
         }
     }
 
@@ -95,7 +99,7 @@ impl DoubleEcho {
     ) -> mpsc::Receiver<(CertificateId, TaskStatus)> {
         let (task_completion_sender, task_completion_receiver) = mpsc::channel(2048);
 
-        let (task_manager, shutdown_receiver) = crate::task_manager::TaskManager::new(
+        let task_manager = crate::task_manager::TaskManager::new(
             task_manager_message_receiver,
             task_completion_sender,
             self.subscriptions.clone(),
@@ -107,7 +111,7 @@ impl DoubleEcho {
             self.broadcast_sender.clone(),
         );
 
-        tokio::spawn(task_manager.run(shutdown_receiver));
+        tokio::spawn(task_manager.run(self.task_manager_cancellation.child_token()));
 
         task_completion_receiver
     }
@@ -133,6 +137,7 @@ impl DoubleEcho {
 
                 shutdown = self.shutdown.recv() => {
                         warn!("Double echo shutdown signal received {:?}", shutdown);
+                        self.task_manager_cancellation.cancel();
                         break shutdown;
                 },
                 Some(command) = self.command_receiver.recv() => {

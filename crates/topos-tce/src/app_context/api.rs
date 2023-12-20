@@ -39,6 +39,15 @@ impl AppContext {
                         sender.send(Ok(PendingResult::AwaitPrecedence))
                     }
                     Err(StorageError::InternalStorage(
+                        InternalStorageError::CertificateAlreadyPending,
+                    )) => {
+                        debug!(
+                            "Certificate {} has been already added to the pending pool, skipping",
+                            certificate.id
+                        );
+                        sender.send(Ok(PendingResult::AlreadyPending))
+                    }
+                    Err(StorageError::InternalStorage(
                         InternalStorageError::CertificateAlreadyExists,
                     )) => {
                         debug!(
@@ -56,11 +65,6 @@ impl AppContext {
                         sender.send(Err(error.into()))
                     }
                 };
-
-                _ = self
-                    .tce_cli
-                    .broadcast_new_certificate(*certificate, true)
-                    .await;
             }
 
             ApiEvent::GetSourceHead { subnet_id, sender } => {
