@@ -8,7 +8,7 @@ use std::{
 };
 use std::{path::Path, sync::Arc};
 use tokio::{
-    signal,
+    signal::{self, unix::SignalKind},
     sync::{mpsc, Mutex},
 };
 use tokio_util::sync::CancellationToken;
@@ -241,7 +241,13 @@ pub(crate) async fn handle_command(
 
             drop(shutdown_sender);
 
+            let mut sigterm_stream = signal::unix::signal(SignalKind::terminate())?;
+
             tokio::select! {
+                _ = sigterm_stream.recv() => {
+                    info!("Received SIGTERM, shutting down application...");
+                    shutdown(basic_controller, shutdown_trigger, shutdown_receiver).await;
+                }
                 _ = signal::ctrl_c() => {
                     info!("Received ctrl_c, shutting down application...");
                     shutdown(basic_controller, shutdown_trigger, shutdown_receiver).await;
