@@ -68,6 +68,7 @@ insta = { version = "1.21", features = ["json", "redactions"] }
 rstest = { workspace = true, features = ["async-timeout"] }
 tempfile = "3.8.0"
 predicates = "3.0.3"
+sysinfo = "0.29.11"
 
 [features]
 default = []
