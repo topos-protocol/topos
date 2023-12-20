@@ -47,7 +47,7 @@ Find more about how topos works in the [documentation](https://docs.topos.techno
 
 ### Topos Docker image
 
-The `RUSTUP_TOOLCHAIN` needs to be defined through `(stable|nightly-2022-07-20|...)`
+The docker images use `stable` Rust toolchain by default. You can use a different one by defining `RUSTUP_TOOLCHAIN` argument, the list of available toolchain is [here](https://github.com/topos-protocol/topos-ci-docker/pkgs/container/rust_builder)
 
 Build Topos docker image:
 

@@ -1,4 +1,4 @@
-ARG RUSTUP_TOOLCHAIN
+ARG RUSTUP_TOOLCHAIN=stable
 FROM --platform=${BUILDPLATFORM:-linux/amd64} ghcr.io/topos-protocol/rust_builder:bullseye-${RUSTUP_TOOLCHAIN} AS base
 
 ARG FEATURES
