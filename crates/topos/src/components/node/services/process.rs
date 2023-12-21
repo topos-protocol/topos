@@ -90,8 +90,8 @@ pub(crate) fn spawn_tce_process(
     if let Some(socket) = config.libp2p_api_addr {
         warn!(
             "`libp2p_api_addr` is deprecated in favor of `listen_addresses` and \
-             `advertised_addresses` and will be removed in the next version. In order to keep \
-             your node running, `libp2p_api_addr` will be used."
+             `public_addresses` and will be removed in the next version. In order to keep your \
+             node running, `libp2p_api_addr` will be used."
         );
 
         let addr: Multiaddr = format!("/ip4/{}/tcp/{}", socket.ip(), socket.port())
@@ -99,7 +99,7 @@ pub(crate) fn spawn_tce_process(
             .expect("Unable to generate Multiaddr from `libp2p_api_addr`");
 
         config.p2p.listen_addresses = vec![addr.clone()];
-        config.p2p.advertised_addresses = vec![addr];
+        config.p2p.public_addresses = vec![addr];
     }
 
     let tce_config = TceConfiguration {
@@ -112,7 +112,7 @@ pub(crate) fn spawn_tce_process(
         auth_key: keys.network.map(AuthKey::PrivateKey),
         signing_key: keys.validator.map(AuthKey::PrivateKey),
         listen_addresses: config.p2p.listen_addresses,
-        advertised_addresses: config.p2p.advertised_addresses,
+        public_addresses: config.p2p.public_addresses,
         tce_params,
         api_addr: config.grpc_api_addr,
         graphql_api_addr: config.graphql_api_addr,

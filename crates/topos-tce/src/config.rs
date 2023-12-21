@@ -30,7 +30,7 @@ pub struct TceConfiguration {
     pub minimum_cluster_size: usize,
     pub version: &'static str,
     pub listen_addresses: Vec<Multiaddr>,
-    pub advertised_addresses: Vec<Multiaddr>,
+    pub public_addresses: Vec<Multiaddr>,
 }
 
 #[derive(Debug)]

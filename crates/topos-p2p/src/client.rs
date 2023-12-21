@@ -23,13 +23,6 @@ pub struct NetworkClient {
 }
 
 impl NetworkClient {
-    pub async fn start_listening(&self, peer_addr: libp2p::Multiaddr) -> Result<(), P2PError> {
-        let (sender, receiver) = oneshot::channel();
-        let command = Command::StartListening { peer_addr, sender };
-
-        Self::send_command_with_receiver(&self.sender, command, receiver).await
-    }
-
     pub async fn connected_peers(&self) -> Result<Vec<PeerId>, P2PError> {
         let (sender, receiver) = oneshot::channel();
         Self::send_command_with_receiver(&self.sender, Command::ConnectedPeers { sender }, receiver)

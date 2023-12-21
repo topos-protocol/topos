@@ -27,7 +27,7 @@ pub struct Runtime {
     pub(crate) event_sender: mpsc::Sender<Event>,
     pub(crate) local_peer_id: PeerId,
     pub(crate) listening_on: Vec<Multiaddr>,
-    pub(crate) advertised_addresses: Vec<Multiaddr>,
+    pub(crate) public_addresses: Vec<Multiaddr>,
     pub(crate) bootstrapped: bool,
     pub(crate) is_boot_node: bool,
 
@@ -45,13 +45,6 @@ mod handle_command;
 mod handle_event;
 
 impl Runtime {
-    fn start_listening(&mut self, peer_addr: Multiaddr) -> Result<(), P2PError> {
-        self.swarm
-            .listen_on(peer_addr)
-            .map(|_| ())
-            .map_err(Into::into)
-    }
-
     pub async fn bootstrap(mut self) -> Result<Self, Box<dyn std::error::Error>> {
         if self.bootstrapped {
             return Err(Box::new(P2PError::BootstrapError(
@@ -61,20 +54,19 @@ impl Runtime {
 
         self.bootstrapped = true;
 
-        debug!("Added external addresses: {:?}", self.advertised_addresses);
-        for address in &self.advertised_addresses {
+        debug!("Added public addresses: {:?}", self.public_addresses);
+        for address in &self.public_addresses {
             self.swarm.add_external_address(address.clone());
         }
 
         let dht_address = self
-            .advertised_addresses
+            .public_addresses
             .first()
             .map(Multiaddr::to_vec)
-            .ok_or(P2PError::MissingAdvertisedAddresses)?;
+            .ok_or(P2PError::MissingPublicAddresses)?;
 
         debug!("Starting to listen on {:?}", self.listening_on);
-        let addresses = self.listening_on.clone();
-        for addr in addresses {
+        for addr in &self.listening_on {
             if let Err(error) = self.swarm.listen_on(addr.clone()) {
                 error!("Couldn't start listening on {} because of {error:?}", addr);
 

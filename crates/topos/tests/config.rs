@@ -416,6 +416,7 @@ async fn command_node_up_with_old_config(
         .env("TOPOS_POLYGON_EDGE_BIN_PATH", &node_edge_path_env)
         .env("TOPOS_NODE_NAME", node_up_name_env)
         .env("TOPOS_HOME", node_up_home_env)
+        .env("RUST_LOG", "topos=info")
         .arg("up")
         .stdout(Stdio::piped())
         .spawn()?;
@@ -426,6 +427,7 @@ async fn command_node_up_with_old_config(
     let stdout = join.join().unwrap()?.stdout;
     let stdout = String::from_utf8_lossy(&stdout);
 
+    println!("STDOUT: {}", stdout);
     assert!(stdout.contains(r#"Local node is listening on "/ip4/127.0.0.1/tcp/9091/p2p/"#));
 
     // Cleanup

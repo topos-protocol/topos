@@ -59,15 +59,15 @@ pub struct P2PConfig {
     #[serde(default = "default_listen_addresses")]
     pub listen_addresses: Vec<Multiaddr>,
     /// List of multiaddresses to advertise to the network
-    #[serde(default = "default_advertised_addresses")]
-    pub advertised_addresses: Vec<Multiaddr>,
+    #[serde(default = "default_public_addresses")]
+    pub public_addresses: Vec<Multiaddr>,
 }
 
 impl Default for P2PConfig {
     fn default() -> Self {
         Self {
             listen_addresses: default_listen_addresses(),
-            advertised_addresses: default_advertised_addresses(),
+            public_addresses: default_public_addresses(),
         }
     }
 }
@@ -99,7 +99,7 @@ fn default_listen_addresses() -> Vec<Multiaddr> {
     )]
 }
 
-fn default_advertised_addresses() -> Vec<Multiaddr> {
+fn default_public_addresses() -> Vec<Multiaddr> {
     vec![format!(
         "/ip4/{}/tcp/{}",
         default_libp2p_api_addr().ip(),
@@ -108,7 +108,7 @@ fn default_advertised_addresses() -> Vec<Multiaddr> {
     .parse()
     .expect(
         r#"
-        Advertised multiaddresses generation failure.
+        Public multiaddresses generation failure.
         This is a critical bug that need to be report on `https://github.com/topos-protocol/topos/issues`
     "#,
     )]

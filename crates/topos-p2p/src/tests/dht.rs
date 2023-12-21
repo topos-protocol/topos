@@ -24,7 +24,7 @@ async fn put_value_in_dht() {
     let (_, _, runtime) = crate::network::builder()
         .peer_key(peer_2.keypair.clone())
         .known_peers(&[(peer_1.peer_id(), peer_1.addr.clone())])
-        .advertised_addresses(vec![peer_2.addr.clone()])
+        .public_addresses(vec![peer_2.addr.clone()])
         .listen_addresses(vec![peer_2.addr.clone()])
         .minimum_cluster_size(1)
         .discovery_config(
@@ -44,7 +44,7 @@ async fn put_value_in_dht() {
             Record::new(
                 input_key.clone(),
                 runtime
-                    .advertised_addresses
+                    .public_addresses
                     .first()
                     .map(Multiaddr::to_vec)
                     .unwrap(),

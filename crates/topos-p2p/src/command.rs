@@ -10,12 +10,6 @@ use crate::{
 
 #[derive(Debug)]
 pub enum Command {
-    /// Executed when the node is starting
-    StartListening {
-        peer_addr: Multiaddr,
-        sender: oneshot::Sender<Result<(), P2PError>>,
-    },
-
     /// Command to ask for the current connected peer id list
     ConnectedPeers {
         sender: oneshot::Sender<Result<Vec<PeerId>, P2PError>>,
@@ -56,7 +50,6 @@ pub enum Command {
 impl Display for Command {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Command::StartListening { .. } => write!(f, "StartListening"),
             Command::ConnectedPeers { .. } => write!(f, "ConnectedPeers"),
             Command::RandomKnownPeer { .. } => write!(f, "RandomKnownPeer"),
             Command::Disconnect { .. } => write!(f, "Disconnect"),

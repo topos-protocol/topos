@@ -139,7 +139,7 @@ pub async fn run(
         .peer_key(key)
         .listen_addresses(config.listen_addresses.clone())
         .minimum_cluster_size(config.minimum_cluster_size)
-        .advertised_addresses(config.advertised_addresses.clone())
+        .public_addresses(config.public_addresses.clone())
         .known_peers(&boot_peers)
         .grpc_context(grpc_context)
         .build()
