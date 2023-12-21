@@ -322,9 +322,9 @@ async fn cert_delivery() {
 async fn check_certificate_delivery(
     timeout_broadcast: u64,
     peers: Vec<Uri>,
-    timeout: u64,
+    timeout: Duration,
 ) -> Result<Result<(), Vec<String>>, Elapsed> {
-    tokio::time::timeout(Duration::from_secs(timeout), async move {
+    tokio::time::timeout(timeout, async move {
         let random_peer: Uri = peers
             .choose(&mut rand::thread_rng())
             .ok_or_else(|| {
@@ -456,11 +456,9 @@ async fn check_certificate_delivery(
 async fn run_check_certificate_delivery(
     number_of_nodes: usize,
     timeout_broadcast: u64,
-    timeout: u64,
+    timeout: Duration,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut peers_context = create_network(number_of_nodes, vec![]).await;
-
-    let mut status: Vec<bool> = Vec::new();
 
     for (_peer_id, client) in peers_context.iter_mut() {
         let response = client
@@ -469,10 +467,8 @@ async fn run_check_certificate_delivery(
             .await
             .expect("Can't get status");
 
-        status.push(response.into_inner().has_active_sample);
+        assert!(response.into_inner().has_active_sample);
     }
-
-    assert!(status.iter().all(|s| *s));
 
     let nodes = peers_context
         .iter()
@@ -510,12 +506,12 @@ async fn run_check_certificate_delivery(
 #[test(tokio::test)]
 #[timeout(Duration::from_secs(20))]
 async fn push_and_deliver_cert_5() -> Result<(), Box<dyn std::error::Error>> {
-    run_check_certificate_delivery(5, 5, 20).await
+    run_check_certificate_delivery(5, 5, Duration::from_secs(20)).await
 }
 
 #[rstest]
 #[test(tokio::test)]
 #[timeout(Duration::from_secs(20))]
 async fn push_and_deliver_cert_9() -> Result<(), Box<dyn std::error::Error>> {
-    run_check_certificate_delivery(9, 5, 20).await
+    run_check_certificate_delivery(9, 5, Duration::from_secs(20)).await
 }
