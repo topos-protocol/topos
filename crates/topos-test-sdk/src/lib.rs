@@ -6,9 +6,19 @@ pub mod sequencer;
 pub mod storage;
 pub mod tce;
 
-use std::{collections::HashSet, net::SocketAddr, sync::Mutex};
+use std::{
+    collections::HashSet,
+    net::SocketAddr,
+    path::PathBuf,
+    str::FromStr,
+    sync::Mutex,
+    thread,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 use lazy_static::lazy_static;
+use rand::Rng;
+use rstest::fixture;
 
 lazy_static! {
     pub static ref PORT_MAPPING: Mutex<HashSet<u16>> = Mutex::new(HashSet::new());
@@ -91,4 +101,29 @@ fn next_available_port() -> SocketAddr {
     let _incoming = listener.accept().expect("Can't accept an available port");
 
     addr
+}
+
+#[fixture]
+fn folder_name() -> &'static str {
+    Box::leak(Box::new(
+        thread::current().name().unwrap().replace("::", "_"),
+    ))
+}
+
+#[fixture]
+pub fn create_folder(folder_name: &str) -> PathBuf {
+    let dir = env!("TOPOS_TEST_SDK_TMP");
+    let mut temp_dir =
+        std::path::PathBuf::from_str(dir).expect("Unable to read CARGO_TARGET_TMPDIR");
+    let time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+    let mut rng = rand::thread_rng();
+
+    temp_dir.push(format!(
+        "{}/data_{}_{}",
+        folder_name,
+        time.as_nanos(),
+        rng.gen::<u64>()
+    ));
+
+    temp_dir
 }

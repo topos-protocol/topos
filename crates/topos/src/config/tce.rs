@@ -25,6 +25,9 @@ pub struct TceConfig {
     /// Connection degree for the GossipSub overlay
     pub minimum_tce_cluster_size: Option<usize>,
 
+    /// libp2p addresses
+    pub libp2p_api_addr: Option<SocketAddr>,
+
     /// P2P configuration
     #[serde(default)]
     pub p2p: P2PConfig,
@@ -44,6 +47,9 @@ pub struct TceConfig {
     /// Otlp service name
     /// If not provided open telemetry will not be used
     pub otlp_service_name: Option<String>,
+
+    #[serde(default = "default_network_bootstrap_timeout")]
+    pub(crate) network_bootstrap_timeout: u64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -68,6 +74,10 @@ impl Default for P2PConfig {
 
 fn default_db_path() -> PathBuf {
     PathBuf::from("./tce_rocksdb")
+}
+
+const fn default_network_bootstrap_timeout() -> u64 {
+    90
 }
 
 const fn default_libp2p_api_addr() -> SocketAddr {

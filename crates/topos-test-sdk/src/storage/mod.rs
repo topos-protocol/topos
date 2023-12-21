@@ -15,12 +15,7 @@ use topos_tce_storage::{
     validator::ValidatorStore, StorageClient,
 };
 
-#[fixture]
-fn folder_name() -> &'static str {
-    Box::leak(Box::new(
-        thread::current().name().unwrap().replace("::", "_"),
-    ))
-}
+use crate::folder_name;
 
 #[fixture(certificates = Vec::new())]
 pub async fn storage_client(certificates: Vec<CertificateDelivered>) -> StorageClient {
@@ -31,20 +26,11 @@ pub async fn storage_client(certificates: Vec<CertificateDelivered>) -> StorageC
 
 #[fixture]
 pub fn create_folder(folder_name: &str) -> PathBuf {
-    let dir = env!("TOPOS_TEST_SDK_TMP");
-    let mut temp_dir =
-        std::path::PathBuf::from_str(dir).expect("Unable to read CARGO_TARGET_TMPDIR");
-    let time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
-    let mut rng = rand::thread_rng();
+    let mut path = crate::create_folder(folder_name);
 
-    temp_dir.push(format!(
-        "{}/data_{}_{}/rocksdb",
-        folder_name,
-        time.as_nanos(),
-        rng.gen::<u64>()
-    ));
+    path.push("rocksdb");
 
-    temp_dir
+    path
 }
 
 #[fixture(certificates = Vec::new())]

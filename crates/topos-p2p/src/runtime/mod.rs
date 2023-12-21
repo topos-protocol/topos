@@ -66,6 +66,12 @@ impl Runtime {
             self.swarm.add_external_address(address.clone());
         }
 
+        let dht_address = self
+            .advertised_addresses
+            .first()
+            .map(Multiaddr::to_vec)
+            .ok_or(P2PError::MissingAdvertisedAddresses)?;
+
         debug!("Starting to listen on {:?}", self.listening_on);
         let addresses = self.listening_on.clone();
         for addr in addresses {
@@ -116,13 +122,7 @@ impl Runtime {
                             let key = Key::new(&self.local_peer_id.to_string());
                             addr_query_id = if let Ok(query_id_record) =
                                 self.swarm.behaviour_mut().discovery.inner.put_record(
-                                    Record::new(
-                                        key,
-                                        self.advertised_addresses
-                                            .first()
-                                            .map(Multiaddr::to_vec)
-                                            .expect("No Addresses to advertize"),
-                                    ),
+                                    Record::new(key, dht_address.clone()),
                                     Quorum::Majority,
                                 ) {
                                 Some(query_id_record)
@@ -178,13 +178,7 @@ impl Runtime {
                                 let key = Key::new(&self.local_peer_id.to_string());
                                 if let Ok(query_id_record) =
                                     self.swarm.behaviour_mut().discovery.inner.put_record(
-                                        Record::new(
-                                            key,
-                                            self.advertised_addresses
-                                                .first()
-                                                .map(Multiaddr::to_vec)
-                                                .expect("No Addresses to advertize"),
-                                        ),
+                                        Record::new(key, dht_address.clone()),
                                         Quorum::Majority,
                                     )
                                 {

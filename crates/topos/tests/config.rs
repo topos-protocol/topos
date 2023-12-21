@@ -1,9 +1,19 @@
-use assert_cmd::prelude::*;
+use assert_cmd::{assert, prelude::*};
+use libp2p::swarm::dial_opts::DialOpts;
+use libp2p::swarm::{DialError, ListenError, SwarmEvent};
+use libp2p::{build_multiaddr, Multiaddr, PeerId, Swarm};
 use predicates::prelude::*;
 use std::path::PathBuf;
-use std::process::Command;
+use std::process::{Command, Stdio};
+use std::thread;
+use std::time::Duration;
 use tempfile::tempdir;
+use tokio::fs::OpenOptions;
+use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
+use toml::map::Map;
+use toml::Value;
 use topos::install_polygon_edge;
+use topos_test_sdk::create_folder;
 
 use crate::utils::setup_polygon_edge;
 
@@ -314,6 +324,109 @@ async fn command_node_up() -> Result<(), Box<dyn std::error::Error>> {
             cmd.kill().await?;
         }
     }
+
+    // Cleanup
+    std::fs::remove_dir_all(node_up_home_env)?;
+
+    Ok(())
+}
+
+/// Test node up running from config file
+#[rstest::rstest]
+#[test_log::test(tokio::test)]
+async fn command_node_up_with_old_config(
+    create_folder: PathBuf,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let tmp_home_dir = create_folder;
+
+    // Create config file
+    let node_up_home_env = tmp_home_dir.to_str().unwrap();
+    let node_edge_path_env = setup_polygon_edge(node_up_home_env).await;
+    let node_up_role_env = "validator";
+    let node_up_name_env = "test_node_up_old_config";
+    let node_up_subnet_env = "topos";
+
+    let mut cmd = Command::cargo_bin("topos")?;
+    cmd.arg("node")
+        .env("TOPOS_POLYGON_EDGE_BIN_PATH", &node_edge_path_env)
+        .env("TOPOS_HOME", node_up_home_env)
+        .env("TOPOS_NODE_NAME", node_up_name_env)
+        .env("TOPOS_NODE_SUBNET", node_up_subnet_env)
+        .arg("init");
+
+    let output = cmd.assert().success();
+    let result: &str = std::str::from_utf8(&output.get_output().stdout)?;
+    assert!(result.contains("Created node config file"));
+
+    // Run node init with cli flags
+    let home = PathBuf::from(node_up_home_env);
+    // Verification: check that the config file was created
+    let config_path = home.join("node").join(node_up_name_env).join("config.toml");
+    println!("config path {:?}", config_path);
+    assert!(config_path.exists());
+
+    let mut file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(config_path.clone())
+        .await?;
+
+    let mut buf = String::new();
+    let _ = file.read_to_string(&mut buf).await?;
+
+    let mut current: Map<String, Value> = toml::from_str(&buf)?;
+    let tce = current.get_mut("tce").unwrap();
+
+    if let Value::Table(tce_table) = tce {
+        tce_table.insert(
+            "libp2p-api-addr".to_string(),
+            Value::String("0.0.0.0:9091".to_string()),
+        );
+        tce_table.insert("network-bootstrap-timeout".to_string(), Value::Integer(5));
+        tce_table.remove("p2p");
+    } else {
+        panic!("TCE configuration table malformed");
+    }
+
+    file.set_len(0).await;
+    file.seek(std::io::SeekFrom::Start(0)).await;
+    file.write_all(toml::to_string(&current)?.as_bytes()).await;
+
+    drop(file);
+
+    // Generate polygon edge genesis file
+    let polygon_edge_bin = format!("{}/polygon-edge", node_edge_path_env);
+    println!("polygon_edge_bin {:?}", polygon_edge_bin);
+    utils::generate_polygon_edge_genesis_file(
+        &polygon_edge_bin,
+        node_up_home_env,
+        node_up_name_env,
+        node_up_subnet_env,
+    )
+    .await?;
+    let polygon_edge_genesis_path = home
+        .join("subnet")
+        .join(node_up_subnet_env)
+        .join("genesis.json");
+    assert!(polygon_edge_genesis_path.exists());
+
+    let mut cmd = Command::cargo_bin("topos")?;
+    let child = cmd
+        .arg("node")
+        .env("TOPOS_POLYGON_EDGE_BIN_PATH", &node_edge_path_env)
+        .env("TOPOS_NODE_NAME", node_up_name_env)
+        .env("TOPOS_HOME", node_up_home_env)
+        .arg("up")
+        .stdout(Stdio::piped())
+        .spawn()?;
+
+    let join = thread::spawn(move || child.wait_with_output());
+    tokio::time::sleep(Duration::from_secs(10)).await;
+
+    let stdout = join.join().unwrap()?.stdout;
+    let stdout = String::from_utf8_lossy(&stdout);
+
+    assert!(stdout.contains(r#"Local node is listening on "/ip4/127.0.0.1/tcp/9091/p2p/"#));
 
     // Cleanup
     std::fs::remove_dir_all(node_up_home_env)?;
