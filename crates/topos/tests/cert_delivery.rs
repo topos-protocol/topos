@@ -323,7 +323,7 @@ async fn cert_delivery() {
 // 2. There were errors, returns a list of all errors encountered
 // 3. timeout
 async fn assert_certificate_full_delivery(
-    timeout_broadcast: u64,
+    timeout_broadcast: Duration,
     peers: Vec<Uri>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     use std::io::{Error, ErrorKind};
@@ -418,7 +418,7 @@ async fn assert_certificate_full_delivery(
         })
         .await?;
 
-    tokio::time::sleep(Duration::from_secs(timeout_broadcast)).await;
+    tokio::time::sleep(timeout_broadcast).await;
 
     join_all(join_handlers)
         .await
@@ -437,7 +437,7 @@ async fn assert_certificate_full_delivery(
 
 async fn run_assert_certificate_full_delivery(
     number_of_nodes: usize,
-    timeout_broadcast: u64,
+    timeout_broadcast: Duration,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut peers_context = create_network(number_of_nodes, vec![]).await;
 
@@ -490,5 +490,5 @@ async fn run_assert_certificate_full_delivery(
 async fn push_and_deliver_cert(
     #[case] number_of_nodes: usize,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    run_assert_certificate_full_delivery(number_of_nodes, 5).await
+    run_assert_certificate_full_delivery(number_of_nodes, Duration::from_secs(5)).await
 }
