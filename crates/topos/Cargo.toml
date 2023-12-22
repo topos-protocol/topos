@@ -69,6 +69,7 @@ rstest = { workspace = true, features = ["async-timeout"] }
 tempfile = "3.8.0"
 predicates = "3.0.3"
 sysinfo = "0.29.11"
+serial_test = {version = "0.9.0"}
 
 [features]
 default = []

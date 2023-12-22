@@ -1,9 +1,7 @@
 use clap::{Args, Subcommand};
 
-mod push_certificate;
 mod spam;
 
-pub(crate) use push_certificate::PushCertificate;
 pub(crate) use spam::Spam;
 
 /// Run test commands (e.g., pushing a certificate to a TCE process)
@@ -18,7 +16,6 @@ pub(crate) struct RegtestCommand {
 
 #[derive(Subcommand, Debug)]
 pub(crate) enum RegtestCommands {
-    PushCertificate(Box<PushCertificate>),
     Spam(Box<Spam>),
 }
 
@@ -28,7 +25,6 @@ mod tests {
 
     #[test]
     fn test_run() {
-        assert!(RegtestCommands::has_subcommand("push-certificate"));
         assert!(RegtestCommands::has_subcommand("spam"));
     }
 }

@@ -1,23 +1,28 @@
 use futures::{future::join_all, StreamExt};
 use libp2p::PeerId;
-use rand::seq::IteratorRandom;
+use rand::seq::{IteratorRandom, SliceRandom};
 use rstest::*;
+use serial_test::serial;
 use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 use test_log::test;
 use tokio::spawn;
 use tokio::sync::mpsc;
+use tonic::transport::Uri;
 use topos_core::{
     api::grpc::{
         shared::v1::checkpoints::TargetCheckpoint,
         tce::v1::{
+            api_service_client::ApiServiceClient,
+            console_service_client::ConsoleServiceClient,
             watch_certificates_request::OpenStream,
             watch_certificates_response::{CertificatePushed, Event},
             StatusRequest, SubmitCertificateRequest,
         },
     },
-    uci::{Certificate, SubnetId, SUBNET_ID_LENGTH},
+    uci::{Certificate, SubnetId, CERTIFICATE_ID_LENGTH, SUBNET_ID_LENGTH},
 };
+use topos_tce_transport::ReliableBroadcastParams;
 use topos_test_sdk::{certificates::create_certificate_chains, tce::create_network};
 use tracing::{debug, info, warn};
 
@@ -36,6 +41,7 @@ fn get_subset_of_subnets(subnets: &[SubnetId], subset_size: usize) -> Vec<Subnet
 #[rstest]
 #[test(tokio::test)]
 #[timeout(Duration::from_secs(10))]
+#[serial]
 async fn start_a_cluster() {
     let mut peers_context = create_network(5, vec![]).await;
 
@@ -57,6 +63,7 @@ async fn start_a_cluster() {
 #[rstest]
 #[tokio::test]
 #[timeout(Duration::from_secs(30))]
+#[serial]
 // FIXME: This test is flaky, it fails sometimes because of gRPC connection error (StreamClosed)
 async fn cert_delivery() {
     let subscriber = tracing_subscriber::FmtSubscriber::builder()
@@ -308,4 +315,180 @@ async fn cert_delivery() {
     {
         panic!("Timeout waiting for command");
     }
+}
+
+// Picks a random peer and sends it a certificate. All other peers listen for broadcast certs.
+// Three possible outcomes:
+// 1. No errors, returns Ok
+// 2. There were errors, returns a list of all errors encountered
+// 3. timeout
+async fn assert_certificate_full_delivery(
+    timeout_broadcast: Duration,
+    peers: Vec<Uri>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    use std::io::{Error, ErrorKind};
+    let random_peer: Uri = peers
+        .choose(&mut rand::thread_rng())
+        .ok_or_else(|| {
+            Error::new(
+                ErrorKind::Other,
+                "Unable to select a random peer from the list: {peers:?}",
+            )
+        })?
+        .try_into()?;
+
+    let pushed_certificate = Certificate::new_with_default_fields(
+        [0u8; CERTIFICATE_ID_LENGTH],
+        [1u8; SUBNET_ID_LENGTH].into(),
+        &[[2u8; SUBNET_ID_LENGTH].into()],
+    )?;
+    let certificate_id = pushed_certificate.id;
+
+    let mut join_handlers = Vec::new();
+
+    // check that all nodes delivered the certificate
+    for peer in peers {
+        join_handlers.push(tokio::spawn(async move {
+            let peer_string = peer.clone();
+            let mut client = ConsoleServiceClient::connect(peer_string.clone())
+                .await
+                .map_err(|_| (peer_string.clone(), "Unable to connect to the api console"))?;
+
+            let result = client.status(StatusRequest {}).await.map_err(|_| {
+                (
+                    peer_string.clone(),
+                    "Unable to get the status from the api console",
+                )
+            })?;
+
+            let status = result.into_inner();
+            if !status.has_active_sample {
+                return Err((peer_string, "failed to find active sample"));
+            }
+
+            let mut client = ApiServiceClient::connect(peer_string.clone())
+                .await
+                .map_err(|_| (peer_string.clone(), "Unable to connect to the TCE api"))?;
+
+            let in_stream = async_stream::stream! {
+                yield OpenStream {
+                    target_checkpoint: Some(TargetCheckpoint {
+                        target_subnet_ids: vec![[2u8; SUBNET_ID_LENGTH].into()],
+                        positions: vec![]
+                    }),
+                    source_checkpoint: None
+                }.into()
+            };
+
+            let response = client.watch_certificates(in_stream).await.map_err(|_| {
+                (
+                    peer_string.clone(),
+                    "Unable to execute the watch_certificates on TCE api",
+                )
+            })?;
+            let mut resp_stream = response.into_inner();
+            async move {
+                while let Some(received) = resp_stream.next().await {
+                    let received = received.unwrap();
+                    if let Some(Event::CertificatePushed(CertificatePushed {
+                        certificate: Some(certificate),
+                        ..
+                    })) = received.event
+                    {
+                        // unwrap is safe because we are sure that the certificate is present
+                        if certificate_id == certificate.id.unwrap() {
+                            debug!("Received the certificate on {}", peer_string);
+                            return Ok(());
+                        }
+                    }
+                }
+
+                Err((peer_string.clone(), "didn't receive any certificate"))
+            }
+            .await
+        }));
+    }
+
+    let mut client = ApiServiceClient::connect(random_peer.clone()).await?;
+
+    // submit a certificate to one node
+    _ = client
+        .submit_certificate(SubmitCertificateRequest {
+            certificate: Some(pushed_certificate.into()),
+        })
+        .await?;
+
+    tokio::time::sleep(timeout_broadcast).await;
+
+    join_all(join_handlers)
+        .await
+        .iter()
+        .for_each(|result| match result {
+            Err(e) => {
+                panic!("Join error: {e}");
+            }
+            Ok(Err((peer, error))) => {
+                panic!("Peer {peer} error: {error}");
+            }
+            _ => {}
+        });
+    Ok(())
+}
+
+async fn run_assert_certificate_full_delivery(
+    number_of_nodes: usize,
+    timeout_broadcast: Duration,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut peers_context = create_network(number_of_nodes, vec![]).await;
+
+    for (_peer_id, client) in peers_context.iter_mut() {
+        let response = client
+            .console_grpc_client
+            .status(StatusRequest {})
+            .await
+            .expect("Can't get status");
+
+        assert!(response.into_inner().has_active_sample);
+    }
+
+    let nodes = peers_context
+        .iter()
+        .map(|peer| peer.1.api_entrypoint.clone())
+        .collect::<Vec<_>>();
+
+    debug!("Nodes used in test: {:?}", nodes);
+
+    let assertion = async move {
+        let peers: Vec<tonic::transport::Uri> = nodes
+            .into_iter()
+            .map(TryInto::try_into)
+            .collect::<Result<_, _>>()
+            .map_err(|e| format!("Unable to parse node list: {e}"))
+            .expect("Valid node list");
+
+        match assert_certificate_full_delivery(timeout_broadcast, peers).await {
+            Ok(()) => {
+                info!("Check certificate delivery passed for network of {number_of_nodes}!");
+            }
+            Err(e) => {
+                panic!("Test error: {e}");
+            }
+        }
+    };
+
+    assertion.await;
+    Ok(())
+}
+
+#[rstest]
+#[case(5usize)]
+#[case(9usize)]
+#[test_log::test(tokio::test)]
+#[trace]
+#[timeout(Duration::from_secs(20))]
+#[serial]
+async fn push_and_deliver_cert(
+    #[case] number_of_nodes: usize,
+) -> Result<(), Box<dyn std::error::Error>> {
+    run_assert_certificate_full_delivery(number_of_nodes, Duration::from_secs(5)).await
 }
