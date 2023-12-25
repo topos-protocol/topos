@@ -1,6 +1,7 @@
 use config::TceConfiguration;
 use futures::StreamExt;
 use opentelemetry::global;
+use std::process::ExitStatus;
 use std::{
     future::IntoFuture,
     panic::UnwindSafe,
@@ -46,7 +47,7 @@ const BROADCAST_CHANNEL_SIZE: usize = 10_000;
 pub async fn run(
     config: &TceConfiguration,
     shutdown: (CancellationToken, mpsc::Sender<()>),
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<ExitStatus, Box<dyn std::error::Error>> {
     topos_metrics::init_metrics();
 
     let key = match config.auth_key.as_ref() {
@@ -234,5 +235,5 @@ pub async fn run(
         .await;
 
     global::shutdown_tracer_provider();
-    Ok(())
+    Ok(ExitStatus::default())
 }
