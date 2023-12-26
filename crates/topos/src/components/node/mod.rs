@@ -270,7 +270,6 @@ pub(crate) async fn handle_command(
                     shutdown(basic_controller, shutdown_trigger, shutdown_receiver).await;
                 }
                 Some(result) = processes.next() => {
-                    info!("Terminate: {result:?}");
                     shutdown(basic_controller, shutdown_trigger, shutdown_receiver).await;
                     processes.clear();
                     match result {
@@ -286,7 +285,8 @@ pub(crate) async fn handle_command(
                             error!("Terminating with error: {e}");
                             std::process::exit(1);
                         }
-                        Err(_) => {
+                        Err(e) => {
+                            error!("Terminating with error: {e}");
                             std::process::exit(1);
                         }
                     }

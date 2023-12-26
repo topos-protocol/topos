@@ -35,17 +35,14 @@ pub fn generate_edge_config(
     info!("Generating the configuration at {config_path:?}");
     info!("Polygon-edge binary located at: {edge_path:?}");
     spawn(async move {
-        match CommandConfig::new(edge_path)
+        CommandConfig::new(edge_path)
             .init(&config_path)
             .spawn()
             .await
-        {
-            Ok(status) => Ok(status),
-            Err(e) => {
-                println!("Failed to run the edge binary: {e:?}");
-                Err(Errors::EdgeTerminated(e))
-            }
-        }
+            .map_err(|e| {
+                error!("Failed to generate the edge configuration: {e:?}");
+                Errors::EdgeTerminated(e)
+            })
     })
 }
 
@@ -123,13 +120,10 @@ pub fn spawn_edge_process(
     edge_args: HashMap<String, String>,
 ) -> JoinHandle<Result<ExitStatus, Errors>> {
     spawn(async move {
-        match CommandConfig::new(edge_path)
+        CommandConfig::new(edge_path)
             .server(&data_dir, &genesis_path, edge_args)
             .spawn()
             .await
-        {
-            Ok(status) => Ok(status),
-            Err(e) => Err(Errors::EdgeTerminated(e)),
-        }
+            .map_err(|e| Errors::EdgeTerminated(e))
     })
 }

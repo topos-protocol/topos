@@ -103,8 +103,8 @@ impl CommandConfig {
         let exit_status = running_out?;
 
         info!(
-            "The Edge process is terminated with exit status {:?}; exit code: {:?}, exit signal {:?}, \
-             success: {:?}, raw code: {}",
+            "The Edge process is terminated with exit status {:?}; exit code: {:?}, exit signal \
+             {:?}, success: {:?}, raw code: {}",
             exit_status,
             exit_status.code(),
             exit_status.signal(),
