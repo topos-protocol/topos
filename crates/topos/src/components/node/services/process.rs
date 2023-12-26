@@ -124,6 +124,6 @@ pub fn spawn_edge_process(
             .server(&data_dir, &genesis_path, edge_args)
             .spawn()
             .await
-            .map_err(|e| Errors::EdgeTerminated(e))
+            .map_err(Errors::EdgeTerminated)
     })
 }
