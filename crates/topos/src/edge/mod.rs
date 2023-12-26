@@ -1,5 +1,6 @@
 use serde_json::Value;
 use std::collections::HashMap;
+use std::os::unix::prelude::ExitStatusExt;
 use std::path::{Path, PathBuf};
 use std::process::{ExitStatus, Stdio};
 use tokio::{
@@ -99,8 +100,18 @@ impl CommandConfig {
 
         let (running_out, _) = tokio::join!(running, logging);
 
-        info!("The Edge process is terminated with exit status: {running_out:?}");
-        running_out
+        let exit_status = running_out?;
+
+        info!(
+            "The Edge process is terminated with exit status {:?}; exit code: {:?}, exit signal {:?}, \
+             success: {:?}, raw code: {}",
+            exit_status,
+            exit_status.code(),
+            exit_status.signal(),
+            exit_status.success(),
+            exit_status.into_raw(),
+        );
+        Ok(exit_status)
     }
 }
 
