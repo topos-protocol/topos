@@ -16,6 +16,7 @@ use topos_tce_api::RuntimeClient as ApiClient;
 use topos_tce_api::RuntimeEvent as ApiEvent;
 use topos_tce_broadcast::ReliableBroadcastClient;
 use topos_tce_gatekeeper::GatekeeperClient;
+use topos_tce_storage::store::ReadStore;
 use topos_tce_storage::types::CertificateDeliveredWithPositions;
 use topos_tce_storage::validator::ValidatorStore;
 use topos_tce_storage::StorageClient;
@@ -127,6 +128,7 @@ impl AppContext {
                 // Shutdown signal
                 _ = shutdown.0.cancelled() => {
                     info!("Shutting down TCE app context...");
+
                     if let Err(e) = self.shutdown().await {
                         error!("Error shutting down TCE app context: {e}");
                     }
@@ -147,6 +149,29 @@ impl AppContext {
         self.gatekeeper.shutdown().await?;
         self.network_client.shutdown().await?;
 
+        let certificates_synced = self
+            .validator_store
+            .count_certificates_delivered()
+            .map_err(|error| format!("Unable to count certificates delivered: {error}"))
+            .unwrap();
+
+        let pending_certificates = self
+            .validator_store
+            .count_pending_certificates()
+            .map_err(|error| format!("Unable to count pending certificates: {error}"))
+            .unwrap();
+
+        let precedence_pool_certificates = self
+            .validator_store
+            .count_precedence_pool_certificates()
+            .map_err(|error| format!("Unable to count precedence pool certificates: {error}"))
+            .unwrap();
+
+        info!(
+            "Stopping with {} certificates delivered, {} pending certificates and {} certificates \
+             in the precedence pool",
+            certificates_synced, pending_certificates, precedence_pool_certificates
+        );
         Ok(())
     }
 }
