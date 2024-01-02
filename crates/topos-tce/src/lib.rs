@@ -144,6 +144,7 @@ pub async fn run(
         .public_addresses(config.public_addresses.clone())
         .known_peers(&boot_peers)
         .grpc_context(grpc_context)
+        .is_bootnode(config.is_bootnode)
         .build()
         .await?;
 

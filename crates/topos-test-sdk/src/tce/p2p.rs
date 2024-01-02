@@ -54,6 +54,7 @@ pub async fn create_network_worker(
         .listen_addresses(addr)
         .minimum_cluster_size(minimum_cluster_size)
         .grpc_context(grpc_context)
+        .is_bootnode(seed == 1)
         .build()
         .await
 }

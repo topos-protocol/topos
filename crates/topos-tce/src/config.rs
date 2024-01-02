@@ -31,6 +31,7 @@ pub struct TceConfiguration {
     pub version: &'static str,
     pub listen_addresses: Vec<Multiaddr>,
     pub public_addresses: Vec<Multiaddr>,
+    pub is_bootnode: bool,
 }
 
 #[derive(Debug)]

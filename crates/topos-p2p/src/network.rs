@@ -200,7 +200,6 @@ impl<'a> NetworkBuilder<'a> {
                 swarm,
                 config: self.config,
                 peer_set: self.known_peers.iter().map(|(p, _)| *p).collect(),
-                is_boot_node: self.known_peers.is_empty(),
                 command_receiver,
                 event_sender,
                 local_peer_id: peer_id,
@@ -212,5 +211,11 @@ impl<'a> NetworkBuilder<'a> {
                 shutdown,
             },
         ))
+    }
+
+    pub fn is_bootnode(mut self, is_bootnode: bool) -> Self {
+        self.config.is_bootnode = is_bootnode;
+
+        self
     }
 }

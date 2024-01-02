@@ -98,6 +98,7 @@ pub(crate) fn spawn_tce_process(
     }
 
     let tce_config = TceConfiguration {
+        is_bootnode: config.p2p.is_bootnode.unwrap_or_default(),
         boot_peers: genesis
             .boot_peers(Some(topos_p2p::constants::TCE_BOOTNODE_PORT))
             .into_iter()
