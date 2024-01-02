@@ -59,9 +59,9 @@ impl AppContext {
                                 InternalStorageError::CertificateAlreadyPending,
                             )) => {
                                 debug!(
-                                    "Certificate {} has been already added to the pending pool, \
-                                     skipping",
-                                    cert.id
+                                    "Certificate {} from subnet {} has been inserted into \
+                                     precedence pool waiting for {}",
+                                    cert.id, cert.source_subnet_id, cert.prev_id
                                 );
                             }
                             Err(StorageError::InternalStorage(

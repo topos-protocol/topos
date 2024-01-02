@@ -56,7 +56,6 @@ pub struct TaskManager {
     pub broadcast_sender: broadcast::Sender<CertificateDeliveredWithPositions>,
 
     pub latest_pending_id: PendingCertificateId,
-    pub precedence: HashMap<CertificateId, Task>,
 }
 
 impl TaskManager {
@@ -86,7 +85,6 @@ impl TaskManager {
             validator_store,
             broadcast_sender,
             latest_pending_id: 0,
-            precedence: HashMap::new(),
         }
     }
 
@@ -98,9 +96,12 @@ impl TaskManager {
                 biased;
 
                 _ = interval.tick() => {
+                    debug!("Checking for next pending_certificates");
                     match self.validator_store.get_next_pending_certificates(&self.latest_pending_id, 1000) {
                         Ok(pendings) => {
+                            debug!("Received {} pending certificates", pendings.len());
                             for (pending_id, certificate) in pendings {
+                                debug!("Creating task for pending certificate {} if needed", certificate.id);
                                 self.create_task(&certificate, true);
                                 self.latest_pending_id = pending_id + 1;
                             }
@@ -133,24 +134,12 @@ impl TaskManager {
 
                 Some((certificate_id, status)) = self.running_tasks.next() => {
                     if let TaskStatus::Success = status {
+                        debug!("Task for certificate {} finished successfully", certificate_id);
                         self.tasks.remove(&certificate_id);
                         DOUBLE_ECHO_ACTIVE_TASKS_COUNT.dec();
                         let _ = self.task_completion_sender.send((certificate_id, status)).await;
-                        if let Some(task) = self.precedence.remove(&certificate_id) {
-                            if let Some(context) = self.tasks.get(&task.certificate_id) {
-
-                                let certificate_id= task.certificate_id;
-                                Self::start_task(
-                                    &self.running_tasks,
-                                    task,
-                                    context.sink.clone(),
-                                    self.buffered_messages.remove(&certificate_id),
-                                    false
-                                );
-                            }
-
-
-                        }
+                    } else {
+                        debug!("Task for certificate {} finished unsuccessfully", certificate_id);
                     }
                 }
 
@@ -239,7 +228,6 @@ impl TaskManager {
                          certificate {} is not available yet",
                         cert.id, cert.prev_id
                     );
-                    self.precedence.insert(cert.prev_id, task);
                 }
                 entry.insert(task_context);
             }

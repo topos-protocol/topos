@@ -25,16 +25,17 @@ impl AppContext {
                 {
                     Ok(Some(pending_id)) => {
                         debug!(
-                            "Certificate {} has been inserted into pending pool",
-                            certificate.id
+                            "Certificate {} from subnet {} has been inserted into pending pool",
+                            certificate.id, certificate.source_subnet_id
                         );
 
                         sender.send(Ok(PendingResult::InPending(pending_id)))
                     }
                     Ok(None) => {
                         debug!(
-                            "Certificate {} has been inserted into precedence pool",
-                            certificate.id
+                            "Certificate {} from subnet {} has been inserted into precedence pool \
+                             waiting for {}",
+                            certificate.id, certificate.source_subnet_id, certificate.prev_id
                         );
                         sender.send(Ok(PendingResult::AwaitPrecedence))
                     }
