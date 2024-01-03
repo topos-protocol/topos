@@ -99,6 +99,10 @@ jobs:
           files: |
             topos-${{ env.version }}-${{ env.arch }}.tgz
 
+  notify-release:
+    needs: release-build
+    runs-on: ubuntu-latest
+    steps:
       - name: Send Slack notification
         uses: slackapi/slack-github-action@v1.24.0
         with:
