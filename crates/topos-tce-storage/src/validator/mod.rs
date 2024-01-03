@@ -494,6 +494,9 @@ impl WriteStore for ValidatorStore {
             .get(&certificate.certificate.id)
         {
             self.insert_pending_certificate(&certificate)?;
+            self.pending_tables
+                .precedence_pool
+                .delete(&certificate.prev_id)?;
         }
 
         Ok(position)
