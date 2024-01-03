@@ -1,5 +1,6 @@
 use crate::app_context::AppContext;
 use std::io::ErrorKind::InvalidInput;
+use std::process::ExitStatus;
 use tokio::{
     spawn,
     sync::{
@@ -171,7 +172,7 @@ pub async fn launch(
 pub async fn run(
     config: SequencerConfiguration,
     shutdown: (CancellationToken, mpsc::Sender<()>),
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<ExitStatus, Box<dyn std::error::Error>> {
     let shutdown_appcontext = shutdown.clone();
 
     let (ctx_send, mut ctx_recv) = oneshot::channel::<AppContext>();
@@ -200,5 +201,5 @@ pub async fn run(
 
     info!("Exited sequencer");
 
-    Ok(())
+    Ok(ExitStatus::default())
 }

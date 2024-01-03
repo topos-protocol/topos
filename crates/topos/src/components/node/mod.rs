@@ -79,13 +79,30 @@ pub(crate) async fn handle_command(
                 println!("Init the node without polygon-edge process...");
             } else {
                 // Generate the Edge configuration
-                if let Ok(result) = services::process::generate_edge_config(
+                match services::process::generate_edge_config(
                     edge_path.join(BINARY_NAME),
                     node_path.clone(),
                 )
                 .await
                 {
-                    if result.is_err() {
+                    Ok(Ok(status)) => {
+                        if let Some(0) = status.code() {
+                            println!("Edge configuration successfully generated");
+                        } else {
+                            println!(
+                                "Edge configuration generation terminated with error status: {:?}",
+                                status
+                            );
+                            remove_dir_all(node_path).expect("failed to remove config folder");
+                            std::process::exit(1);
+                        }
+                    }
+                    Ok(Err(e)) => {
+                        println!("Failed to generate edge config with error {e}");
+                        remove_dir_all(node_path).expect("failed to remove config folder");
+                        std::process::exit(1);
+                    }
+                    Err(e) => {
                         println!("Failed to generate edge config");
                         remove_dir_all(node_path).expect("failed to remove config folder");
                         std::process::exit(1);
@@ -253,12 +270,26 @@ pub(crate) async fn handle_command(
                     shutdown(basic_controller, shutdown_trigger, shutdown_receiver).await;
                 }
                 Some(result) = processes.next() => {
-                    info!("Terminate: {result:?}");
-                    if let Err(e) = result {
-                        error!("Termination: {e}");
-                    }
                     shutdown(basic_controller, shutdown_trigger, shutdown_receiver).await;
                     processes.clear();
+                    match result {
+                        Ok(Ok(status)) => {
+                            if let Some(0) = status.code() {
+                                info!("Terminating with success error code");
+                            } else {
+                                info!("Terminating with error status: {:?}", status);
+                                std::process::exit(1);
+                            }
+                        }
+                        Ok(Err(e)) => {
+                            error!("Terminating with error: {e}");
+                            std::process::exit(1);
+                        }
+                        Err(e) => {
+                            error!("Terminating with error: {e}");
+                            std::process::exit(1);
+                        }
+                    }
                 }
             };
 

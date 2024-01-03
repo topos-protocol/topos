@@ -3,6 +3,7 @@ use crate::config::tce::TceConfig;
 use crate::edge::CommandConfig;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::process::ExitStatus;
 use std::time::Duration;
 use thiserror::Error;
 use tokio::{spawn, sync::mpsc, task::JoinHandle};
@@ -29,25 +30,19 @@ pub enum Errors {
 pub fn generate_edge_config(
     edge_path: PathBuf,
     config_path: PathBuf,
-) -> JoinHandle<Result<(), Errors>> {
+) -> JoinHandle<Result<ExitStatus, Errors>> {
     // Create the Polygon Edge config
     info!("Generating the configuration at {config_path:?}");
     info!("Polygon-edge binary located at: {edge_path:?}");
     spawn(async move {
-        match CommandConfig::new(edge_path)
+        CommandConfig::new(edge_path)
             .init(&config_path)
             .spawn()
             .await
-        {
-            Ok(status) => {
-                info!("Edge process terminated: {status:?}");
-                Ok(())
-            }
-            Err(e) => {
-                println!("Failed to run the edge binary: {e:?}");
-                Err(Errors::EdgeTerminated(e))
-            }
-        }
+            .map_err(|e| {
+                error!("Failed to generate the edge configuration: {e:?}");
+                Errors::EdgeTerminated(e)
+            })
     })
 }
 
@@ -55,7 +50,7 @@ pub(crate) fn spawn_sequencer_process(
     config: SequencerConfig,
     keys: &SecretManager,
     shutdown: (CancellationToken, mpsc::Sender<()>),
-) -> JoinHandle<Result<(), Errors>> {
+) -> JoinHandle<Result<ExitStatus, Errors>> {
     let config = SequencerConfiguration {
         subnet_id: config.subnet_id,
         public_key: keys.validator_pubkey(),
@@ -82,7 +77,7 @@ pub(crate) fn spawn_tce_process(
     keys: SecretManager,
     genesis: Genesis,
     shutdown: (CancellationToken, mpsc::Sender<()>),
-) -> JoinHandle<Result<(), Errors>> {
+) -> JoinHandle<Result<ExitStatus, Errors>> {
     let validators = genesis.validators().expect("Cannot parse validators");
     let tce_params = ReliableBroadcastParams::new(validators.len());
 
@@ -123,18 +118,12 @@ pub fn spawn_edge_process(
     data_dir: PathBuf,
     genesis_path: PathBuf,
     edge_args: HashMap<String, String>,
-) -> JoinHandle<Result<(), Errors>> {
+) -> JoinHandle<Result<ExitStatus, Errors>> {
     spawn(async move {
-        match CommandConfig::new(edge_path)
+        CommandConfig::new(edge_path)
             .server(&data_dir, &genesis_path, edge_args)
             .spawn()
             .await
-        {
-            Ok(status) => {
-                info!("Edge process terminated: {status:?}");
-                Ok(())
-            }
-            Err(e) => Err(Errors::EdgeTerminated(e)),
-        }
+            .map_err(Errors::EdgeTerminated)
     })
 }
