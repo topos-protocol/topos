@@ -28,10 +28,7 @@ impl<T: Hash + Eq + PartialEq> LockGuards<T> {
     }
 
     pub async fn get_lock(&self, key: T) -> Arc<Mutex<()>> {
-        let mut hasher = self.random_state.build_hasher();
-        key.hash(&mut hasher);
-
-        let hash: usize = hasher.finish().try_into().unwrap();
+        let hash = self.random_state.hash_one(&key) as usize;
         let lock_shard = hash % self.locks.len();
 
         let lock = {

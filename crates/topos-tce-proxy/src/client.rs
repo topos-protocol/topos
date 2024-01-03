@@ -251,7 +251,7 @@ impl TceClientBuilder {
                                             }
                                         };
                                         // Currently only one target stream position is expected
-                                        let position: TargetStreamPosition = match certificate_pushed.positions.get(0) {
+                                        let position: TargetStreamPosition = match certificate_pushed.positions.first() {
                                             Some(p) => {
                                                 if let Ok(p) = TryInto::<TargetStreamPosition>::try_into(p.clone()) {
                                                     p

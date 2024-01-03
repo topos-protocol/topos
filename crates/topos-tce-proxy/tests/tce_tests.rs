@@ -469,7 +469,7 @@ async fn test_tce_open_stream_with_checkpoint(
                         received_certificate,
                         *expected_first_certificate_from_subnet
                     );
-                    let received_position = positions.get(0).unwrap();
+                    let received_position = positions.first().unwrap();
                     assert_eq!(*expected_position, received_position.position);
                     assert_eq!(
                         received_position.target_subnet_id.as_ref().unwrap(),

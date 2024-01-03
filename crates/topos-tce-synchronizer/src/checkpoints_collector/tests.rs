@@ -100,7 +100,7 @@ async fn check_fetch_certificates() {
         certificates: certificates
             .clone()
             .into_iter()
-            .map(|c| c.certificate.id.try_into().unwrap())
+            .map(|c| c.certificate.id.into())
             .collect(),
     };
 
@@ -115,7 +115,7 @@ async fn check_fetch_certificates() {
 
     let expected = certificates
         .into_iter()
-        .map(|c| c.certificate.try_into().unwrap())
+        .map(|c| c.certificate.into())
         .collect::<Vec<topos_core::api::grpc::uci::v1::Certificate>>();
 
     assert_eq!(res.certificates, expected);
