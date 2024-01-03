@@ -102,6 +102,7 @@ jobs:
   notify-release:
     needs: release-build
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'release'}} && ${{ github.event.release.prerelease == 'false' }}
     steps:
       - name: Send Slack notification
         uses: slackapi/slack-github-action@v1.24.0
