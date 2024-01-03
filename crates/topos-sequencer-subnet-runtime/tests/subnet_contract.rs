@@ -1,15 +1,12 @@
 #![allow(unknown_lints)]
-#![allow(hidden_glob_reexports)]
+use crate::common::abi;
 use dockertest::{
     Composition, DockerTest, Image, LogAction, LogOptions, LogPolicy, LogSource, PullPolicy, Source,
 };
 use ethers::{
     abi::{ethabi::ethereum_types::U256, Address},
-    contract::abigen,
-    core::k256::ecdsa::SigningKey,
     core::types::Filter,
     middleware::SignerMiddleware,
-    prelude::Wallet,
     providers::{Http, Middleware, Provider},
     signers::{LocalWallet, Signer},
     types::{Block, H256},
@@ -70,63 +67,6 @@ const CERTIFICATE_ID_2: CertificateId = CERTIFICATE_ID_7;
 const CERTIFICATE_ID_3: CertificateId = CERTIFICATE_ID_8;
 const DEFAULT_GAS: u64 = 5_000_000;
 
-//TODO I haven't find a way to parametrize version, macro accepts strictly string literal
-// `topos-smart-contracts` build artifacts directory must be copied to the root topos directory to run these tests
-abigen!(
-    TokenDeployerContract,
-    "./artifacts/contracts/topos-core/TokenDeployer.sol/TokenDeployer.json"
-);
-abigen!(
-    ToposCoreContract,
-    "./artifacts/contracts/topos-core/ToposCore.sol/ToposCore.json"
-);
-abigen!(
-    ToposCoreProxyContract,
-    "./artifacts/contracts/topos-core/ToposCoreProxy.sol/ToposCoreProxy.json"
-);
-abigen!(
-    ToposMessagingContract,
-    "./artifacts/contracts/topos-core/ToposMessaging.sol/ToposMessaging.json"
-);
-abigen!(
-    ERC20MessagingContract,
-    "./artifacts/contracts/examples/ERC20Messaging.sol/ERC20Messaging.json"
-);
-abigen!(
-    IToposCore,
-    "./artifacts/contracts/interfaces/IToposCore.sol/IToposCore.json"
-);
-abigen!(
-    IToposMessaging,
-    "./artifacts/contracts/interfaces/IToposMessaging.sol/IToposMessaging.json"
-);
-abigen!(
-    IERC20Messaging,
-    "./artifacts/contracts/interfaces/IERC20Messaging.sol/IERC20Messaging.json"
-);
-
-abigen!(
-    IERC20,
-    r"[
-       function totalSupply() external view returns (uint)
-
-       function balanceOf(address account) external view returns (uint)
-
-       function transfer(address recipient, uint amount) external returns (bool)
-
-       function allowance(address owner, address spender) external view returns (uint)
-
-       function approve(address spender, uint amount) external returns (bool)
-
-       function transferFrom(address sender, address recipient, uint amount) external returns (bool)
-       ]"
-);
-
-type IToposCoreClient = IToposCore<SignerMiddleware<Provider<Http>, Wallet<SigningKey>>>;
-type IToposMessagingClient = IToposMessaging<SignerMiddleware<Provider<Http>, Wallet<SigningKey>>>;
-type IERC20Client = IERC20<SignerMiddleware<Provider<Http>, Wallet<SigningKey>>>;
-type IERC20MessagingClient = IERC20Messaging<SignerMiddleware<Provider<Http>, Wallet<SigningKey>>>;
-
 fn spawn_subnet_node(
     stop_subnet_receiver: tokio::sync::oneshot::Receiver<()>,
     subnet_ready_sender: tokio::sync::oneshot::Sender<()>,
@@ -185,9 +125,9 @@ fn spawn_subnet_node(
 
 #[allow(dead_code)]
 struct Context {
-    pub i_topos_core: IToposCoreClient,
-    pub i_topos_messaging: IToposMessagingClient,
-    pub i_erc20_messaging: IERC20MessagingClient,
+    pub i_topos_core: abi::IToposCoreClient,
+    pub i_topos_messaging: abi::IToposMessagingClient,
+    pub i_erc20_messaging: abi::IERC20MessagingClient,
     pub subnet_node_handle: Option<tokio::task::JoinHandle<()>>,
     pub subnet_stop_sender: Option<tokio::sync::oneshot::Sender<()>>,
     pub port: u32,
@@ -229,7 +169,7 @@ async fn create_new_erc20msg_client(
     deploy_key: &str,
     endpoint: &str,
     erc20_messaging_contract_address: Address,
-) -> Result<IERC20MessagingClient, Box<dyn std::error::Error>> {
+) -> Result<abi::IERC20MessagingClient, Box<dyn std::error::Error>> {
     let wallet: LocalWallet = deploy_key.parse()?;
     let http_provider =
         Provider::<Http>::try_from(endpoint)?.interval(std::time::Duration::from_millis(20u64));
@@ -238,7 +178,7 @@ async fn create_new_erc20msg_client(
         http_provider,
         wallet.with_chain_id(chain_id.as_u64()),
     ));
-    Ok(IERC20Messaging::new(
+    Ok(abi::IERC20Messaging::new(
         erc20_messaging_contract_address,
         client,
     ))
@@ -248,7 +188,7 @@ async fn create_new_erc20_client(
     deploy_key: &str,
     endpoint: &str,
     erc20_contract_address: Address,
-) -> Result<IERC20Client, Box<dyn std::error::Error>> {
+) -> Result<abi::IERC20Client, Box<dyn std::error::Error>> {
     let wallet: LocalWallet = deploy_key.parse()?;
     let http_provider =
         Provider::<Http>::try_from(endpoint)?.interval(std::time::Duration::from_millis(20u64));
@@ -257,7 +197,7 @@ async fn create_new_erc20_client(
         http_provider,
         wallet.with_chain_id(chain_id.as_u64()),
     ));
-    let i_erc20 = IERC20::new(erc20_contract_address, client);
+    let i_erc20 = abi::IERC20::new(erc20_contract_address, client);
     Ok(i_erc20)
 }
 
@@ -266,9 +206,9 @@ async fn deploy_contracts(
     endpoint: &str,
 ) -> Result<
     (
-        IToposCoreClient,
-        IToposMessagingClient,
-        IERC20MessagingClient,
+        abi::IToposCoreClient,
+        abi::IToposMessagingClient,
+        abi::IERC20MessagingClient,
     ),
     Box<dyn std::error::Error>,
 > {
@@ -286,7 +226,7 @@ async fn deploy_contracts(
 
     // Deploying contracts
     info!("Deploying TokenDeployer contract...");
-    let token_deployer_contract = TokenDeployerContract::deploy(client.clone(), ())?
+    let token_deployer_contract = abi::TokenDeployerContract::deploy(client.clone(), ())?
         .gas(DEFAULT_GAS)
         .chain_id(chain_id.as_u64())
         .legacy()
@@ -298,7 +238,7 @@ async fn deploy_contracts(
     );
 
     info!("Deploying ToposCore contract...");
-    let topos_core_contract = ToposCoreContract::deploy(client.clone(), ())?
+    let topos_core_contract = abi::ToposCoreContract::deploy(client.clone(), ())?
         .gas(DEFAULT_GAS)
         .chain_id(chain_id.as_u64())
         .legacy()
@@ -315,7 +255,7 @@ async fn deploy_contracts(
 
     info!("Deploying ToposCoreProxy contract...");
     let topos_core_proxy_contract =
-        ToposCoreProxyContract::deploy(client.clone(), topos_core_contact_address)?
+        abi::ToposCoreProxyContract::deploy(client.clone(), topos_core_contact_address)?
             .gas(DEFAULT_GAS)
             .chain_id(chain_id.as_u64())
             .legacy()
@@ -325,7 +265,7 @@ async fn deploy_contracts(
         "ToposCoreProxy contract deployed to 0x{:x}",
         topos_core_proxy_contract.address()
     );
-    let i_topos_core = IToposCore::new(topos_core_proxy_contract.address(), client.clone());
+    let i_topos_core = abi::IToposCore::new(topos_core_proxy_contract.address(), client.clone());
 
     if let Err(e) = i_topos_core
         .initialize(admin_account, new_admin_threshold)
@@ -343,7 +283,7 @@ async fn deploy_contracts(
     }
 
     info!("Deploying ERC20Messaging contract...");
-    let erc20_messaging_contract = ERC20MessagingContract::deploy(
+    let erc20_messaging_contract = abi::ERC20MessagingContract::deploy(
         client.clone(),
         (
             token_deployer_contract.address(),
@@ -361,8 +301,8 @@ async fn deploy_contracts(
     );
 
     let i_topos_messaging =
-        IToposMessaging::new(erc20_messaging_contract.address(), client.clone());
-    let i_erc20_messaging = IERC20Messaging::new(erc20_messaging_contract.address(), client);
+        abi::IToposMessaging::new(erc20_messaging_contract.address(), client.clone());
+    let i_erc20_messaging = abi::IERC20Messaging::new(erc20_messaging_contract.address(), client);
 
     // Set network subnet id
     info!(
@@ -401,7 +341,7 @@ async fn deploy_test_token(
     deploy_key: &str,
     endpoint: &str,
     topos_messaging_address: Address,
-) -> Result<IERC20Client, Box<dyn std::error::Error>> {
+) -> Result<abi::IERC20Client, Box<dyn std::error::Error>> {
     use ethers::abi::Token;
 
     let wallet: LocalWallet = deploy_key.parse()?;
@@ -413,7 +353,7 @@ async fn deploy_test_token(
         wallet.with_chain_id(chain_id.as_u64()),
     ));
 
-    let ierc20_messaging = IERC20Messaging::new(topos_messaging_address, client.clone());
+    let ierc20_messaging = abi::IERC20Messaging::new(topos_messaging_address, client.clone());
 
     // Deploy token
     let token_name: Token = Token::String("Test Token".to_string());
@@ -454,13 +394,13 @@ async fn deploy_test_token(
     }
 
     let events = ierc20_messaging
-        .event::<ierc20_messaging::TokenDeployedFilter>()
+        .event::<abi::ierc20_messaging::TokenDeployedFilter>()
         .from_block(0);
     let events = events.query().await?;
     let token_address = events[0].token_address;
     info!("Token contract deployed to {}", token_address.to_string());
 
-    let i_erc20 = IERC20Client::new(token_address, client);
+    let i_erc20 = abi::IERC20Client::new(token_address, client);
 
     Ok(i_erc20)
 }
