@@ -123,6 +123,10 @@ impl ValidatorStore {
         from: &PendingCertificateId,
         number: usize,
     ) -> Result<Vec<(PendingCertificateId, Certificate)>, StorageError> {
+        debug!(
+            "Get next pending certificates from {} (max: {})",
+            from, number
+        );
         Ok(self
             .pending_tables
             .pending_pool
@@ -204,6 +208,7 @@ impl ValidatorStore {
         certificate: &Certificate,
     ) -> Result<Option<PendingCertificateId>, StorageError> {
         if self.get_certificate(&certificate.id)?.is_some() {
+            debug!("Certificate {} is already delivered", certificate.id);
             return Err(StorageError::InternalStorage(
                 InternalStorageError::CertificateAlreadyExists,
             ));
@@ -215,6 +220,10 @@ impl ValidatorStore {
             .get(&certificate.id)?
             .is_some()
         {
+            debug!(
+                "Certificate {} is already in the pending pool",
+                certificate.id
+            );
             return Err(StorageError::InternalStorage(
                 InternalStorageError::CertificateAlreadyPending,
             ));
@@ -234,11 +243,19 @@ impl ValidatorStore {
                 .pending_pool_index
                 .insert(&certificate.id, &id)?;
 
+            debug!(
+                "Certificate {} is now in the pending pool at index: {}",
+                certificate.id, id
+            );
             Ok(Some(id))
         } else {
             self.pending_tables
                 .precedence_pool
                 .insert(&certificate.prev_id, certificate)?;
+            debug!(
+                "Certificate {} is now in the precedence pool, {} isn't delivered yet",
+                certificate.id, certificate.prev_id
+            );
 
             Ok(None)
         }
@@ -488,15 +505,19 @@ impl WriteStore for ValidatorStore {
             _ = self.pending_tables.pending_pool.delete(&pending_id);
         }
 
-        if let Ok(Some(certificate)) = self
+        if let Ok(Some(next_certificate)) = self
             .pending_tables
             .precedence_pool
             .get(&certificate.certificate.id)
         {
-            self.insert_pending_certificate(&certificate)?;
+            debug!(
+                "Delivered certificate {} unlocks {} for broadcast",
+                certificate.certificate.id, next_certificate.id
+            );
+            self.insert_pending_certificate(&next_certificate)?;
             self.pending_tables
                 .precedence_pool
-                .delete(&certificate.prev_id)?;
+                .delete(&certificate.certificate.id)?;
         }
 
         Ok(position)

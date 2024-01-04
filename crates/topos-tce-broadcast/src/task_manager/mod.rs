@@ -103,7 +103,7 @@ impl TaskManager {
                             for (pending_id, certificate) in pendings {
                                 debug!("Creating task for pending certificate {} if needed", certificate.id);
                                 self.create_task(&certificate, true);
-                                self.latest_pending_id = pending_id + 1;
+                                self.latest_pending_id = pending_id;
                             }
                         }
                         Err(error) => {
