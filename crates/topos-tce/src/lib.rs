@@ -58,7 +58,7 @@ pub async fn run(
 
     let message_signer = match &config.signing_key {
         Some(AuthKey::PrivateKey(pk)) => Arc::new(MessageSigner::new(&pk[..])?),
-        _ => return Err(Box::try_from("Error, no singing key".to_string()).unwrap()),
+        _ => return Err(Box::from("Error, no singing key".to_string())),
     };
 
     let validator_id: ValidatorId = message_signer.public_address.into();

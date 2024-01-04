@@ -318,6 +318,7 @@ pub async fn start_pool(
 ) -> HashMap<PeerId, TceContext> {
     let mut clients = HashMap::new();
     let peers = build_peer_config_pool(peer_number);
+    println!("Peer configs: {:?}", peers);
 
     let mut validators = Vec::new();
     let mut message_signers = Vec::new();

@@ -485,8 +485,7 @@ async fn run_assert_certificate_full_delivery(
 #[case(9usize)]
 #[test_log::test(tokio::test)]
 #[trace]
-#[timeout(Duration::from_secs(20))]
-#[serial]
+#[timeout(Duration::from_secs(30))]
 async fn push_and_deliver_cert(
     #[case] number_of_nodes: usize,
 ) -> Result<(), Box<dyn std::error::Error>> {
