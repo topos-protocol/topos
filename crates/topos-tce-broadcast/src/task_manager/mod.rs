@@ -95,7 +95,7 @@ impl TaskManager {
             tokio::select! {
                 biased;
 
-                _ = interval.tick() => {
+                _ = interval.tick(), if !shutdown_receiver.is_cancelled() => {
                     debug!("Checking for next pending_certificates");
                     match self.validator_store.get_next_pending_certificates(&self.latest_pending_id, 1000) {
                         Ok(pendings) => {
@@ -103,7 +103,7 @@ impl TaskManager {
                             for (pending_id, certificate) in pendings {
                                 debug!("Creating task for pending certificate {} if needed", certificate.id);
                                 self.create_task(&certificate, true);
-                                self.latest_pending_id = pending_id;
+                                self.latest_pending_id = pending_id + 1;
                             }
                         }
                         Err(error) => {
@@ -123,10 +123,13 @@ impl TaskManager {
                                     .push(msg);
                             };
                         }
-                        DoubleEchoCommand::Broadcast { ref cert, need_gossip } => {
+                        DoubleEchoCommand::Broadcast { ref cert, need_gossip } if !shutdown_receiver.is_cancelled() => {
                             debug!("Received broadcast message for certificate {} ", cert.id);
 
                             self.create_task(cert, need_gossip)
+                        }
+                        DoubleEchoCommand::Broadcast{..} => {
+                            // Ignored due to shutdown
                         }
                     }
                 }
@@ -141,22 +144,22 @@ impl TaskManager {
                     } else {
                         debug!("Task for certificate {} finished unsuccessfully", certificate_id);
                     }
+
+                    if shutdown_receiver.is_cancelled() && self.tasks.is_empty() {
+                        break;
+                    }
                 }
 
-                // _ = shutdown_receiver.recv() => {
                 _ = shutdown_receiver.cancelled() => {
                     warn!("Task Manager shutting down");
 
                     warn!("There is still {} active tasks", self.tasks.len());
                     if !self.tasks.is_empty() {
                         debug!("Certificate still in broadcast: {:?}", self.tasks.keys());
+                        warn!("There is still {} buffered messages", self.buffered_messages.len());
+                    } else {
+                        break;
                     }
-                    warn!("There is still {} buffered messages", self.buffered_messages.len());
-                    for task in self.tasks.iter() {
-                        task.1.shutdown_sender.send(()).await.unwrap();
-                    }
-
-                    break;
                 }
             }
         }
