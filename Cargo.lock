@@ -7750,7 +7750,6 @@ dependencies = [
  "test-log",
  "thiserror",
  "tokio",
- "topos-commands",
  "topos-core",
  "topos-p2p",
  "tracing",
