@@ -11,7 +11,7 @@ use rocksdb::{
 };
 
 use bincode::Options;
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::errors::InternalStorageError;
 
@@ -278,7 +278,7 @@ where
 }
 
 /// Serialize a value using a fix length serialize and a big endian endianness
-fn be_fix_int_ser<S>(t: &S) -> Result<Vec<u8>, InternalStorageError>
+pub(crate) fn be_fix_int_ser<S>(t: &S) -> Result<Vec<u8>, InternalStorageError>
 where
     S: Serialize + ?Sized,
 {
