@@ -7489,13 +7489,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "topos-commands"
-version = "0.1.0"
-dependencies = [
- "async-trait",
-]
-
-[[package]]
 name = "topos-core"
 version = "0.1.0"
 dependencies = [
@@ -7776,7 +7769,6 @@ dependencies = [
  "test-log",
  "thiserror",
  "tokio",
- "topos-commands",
  "topos-core",
  "topos-p2p",
  "tracing",
