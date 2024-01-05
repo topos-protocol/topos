@@ -38,8 +38,6 @@ const SUBNET_RPC_PORT: u32 = 8545;
 const TEST_SECRET_ETHEREUM_KEY: &str =
     "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
 const TEST_ETHEREUM_ACCOUNT: &str = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
-const POLYGON_EDGE_CONTAINER: &str = "ghcr.io/topos-protocol/polygon-edge";
-const POLYGON_EDGE_CONTAINER_TAG: &str = "develop";
 const SUBNET_STARTUP_DELAY: u64 = 5; // seconds left for subnet startup
 const TEST_SUBNET_ID: &str = "6464646464646464646464646464646464646464646464646464646464646464";
 const TOKEN_SYMBOL: &str = "TKX";
@@ -434,9 +432,10 @@ async fn context_running_subnet_node(
     let subnet_node_handle = match spawn_subnet_node(port, block_time) {
         Ok(subnet_node_handle) => subnet_node_handle,
         Err(e) => {
-            panic!("Failed to start the polygon edge subnet node as part of test context: {e}");
+            panic!("Failed to start the subnet node as part of test context: {e}");
         }
     };
+    // Wait a bit for anvil subprocess to spin itself up
     tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
     info!("Subnet node started...");
 
