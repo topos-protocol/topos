@@ -19,7 +19,6 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
 use tokio::sync::{broadcast, mpsc, oneshot};
-use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use topos_core::{
     types::ValidatorId,
@@ -97,7 +96,7 @@ impl DoubleEcho {
     pub fn spawn_task_manager(
         &mut self,
         task_manager_message_receiver: mpsc::Receiver<DoubleEchoCommand>,
-    ) -> (JoinHandle<()>, mpsc::Receiver<(CertificateId, TaskStatus)>) {
+    ) -> mpsc::Receiver<(CertificateId, TaskStatus)> {
         let (task_completion_sender, task_completion_receiver) = mpsc::channel(2048);
 
         let task_manager = crate::task_manager::TaskManager::new(
@@ -112,9 +111,9 @@ impl DoubleEcho {
             self.broadcast_sender.clone(),
         );
 
-        let handler = tokio::spawn(task_manager.run(self.task_manager_cancellation.child_token()));
+        tokio::spawn(task_manager.run(self.task_manager_cancellation.child_token()));
 
-        (handler, task_completion_receiver)
+        task_completion_receiver
     }
 
     /// DoubleEcho main loop
@@ -128,9 +127,7 @@ impl DoubleEcho {
         mut self,
         task_manager_message_receiver: mpsc::Receiver<DoubleEchoCommand>,
     ) {
-        let mut shutdown_notifier: Option<oneshot::Sender<()>> = None;
-        let (mut task_manager_termination, mut task_completion) =
-            self.spawn_task_manager(task_manager_message_receiver);
+        let mut task_completion = self.spawn_task_manager(task_manager_message_receiver);
 
         info!("DoubleEcho started");
 
@@ -138,19 +135,15 @@ impl DoubleEcho {
             tokio::select! {
                 biased;
 
-                _ = &mut task_manager_termination => {
-                    break shutdown_notifier;
-                }
-
                 shutdown = self.shutdown.recv() => {
                         warn!("Double echo shutdown signal received {:?}", shutdown);
                         self.task_manager_cancellation.cancel();
-                        shutdown_notifier = shutdown;
+                        break shutdown;
                 },
                 Some(command) = self.command_receiver.recv() => {
                     match command {
 
-                        DoubleEchoCommand::Broadcast { need_gossip, cert } if !self.task_manager_cancellation.is_cancelled() => self.broadcast(cert, need_gossip).await,
+                        DoubleEchoCommand::Broadcast { need_gossip, cert } => self.broadcast(cert, need_gossip).await,
 
                         command if self.subscriptions.is_some() => {
                             match command {
