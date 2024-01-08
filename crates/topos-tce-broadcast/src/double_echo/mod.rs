@@ -138,7 +138,9 @@ impl DoubleEcho {
                 Some(command) = self.command_receiver.recv() => {
                     match command {
 
-                        DoubleEchoCommand::Broadcast { need_gossip, cert } => self.broadcast(cert, need_gossip).await,
+                        DoubleEchoCommand::Broadcast { need_gossip, cert } => {
+                            _ = self.broadcast(cert, need_gossip).await;
+                        },
 
                         command if self.subscriptions.is_some() => {
                             match command {
@@ -188,10 +190,6 @@ impl DoubleEcho {
                     }
                 }
 
-                Some((_certificate_id, _status)) = task_completion.recv() => {
-
-                }
-
                 else => {
                     warn!("Break the tokio loop for the double echo");
                     break None;
@@ -224,12 +222,14 @@ impl DoubleEcho {
         }
 
         match self.validator_store.get_certificate(&cert.id) {
-            Ok(Some(_)) => self
-                .event_sender
-                .try_send(ProtocolEvents::AlreadyDelivered {
-                    certificate_id: cert.id,
-                })
-                .unwrap(),
+            Ok(Some(_)) => {
+                _ = self
+                    .event_sender
+                    .send(ProtocolEvents::AlreadyDelivered {
+                        certificate_id: cert.id,
+                    })
+                    .await;
+            }
             Ok(None) => {
                 if self
                     .delivery_state_for_new_cert(cert, origin)
