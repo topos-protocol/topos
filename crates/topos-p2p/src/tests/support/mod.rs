@@ -19,8 +19,8 @@ pub async fn dummy_peer() -> (NetworkClient, PeerAddr) {
 
     let (client, _stream, runtime): (_, _, Runtime) = NetworkBuilder::default()
         .peer_key(key)
-        .listen_addr(addr_dummy.clone())
-        .exposed_addresses(addr_dummy)
+        .listen_addresses(vec![addr_dummy.clone()])
+        .public_addresses(vec![addr_dummy])
         .build()
         .await
         .unwrap();

@@ -41,6 +41,9 @@ pub enum P2PError {
 
     #[error("Unable to create gRPC client")]
     UnableToCreateGrpcClient(#[from] OutboundConnectionError),
+
+    #[error("Public addresses is empty")]
+    MissingPublicAddresses,
 }
 
 #[derive(Error, Debug)]

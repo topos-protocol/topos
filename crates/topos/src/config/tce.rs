@@ -1,11 +1,13 @@
 use std::path::Path;
 use std::{net::SocketAddr, path::PathBuf};
 
+use figment::providers::Serialized;
 use figment::{
     providers::{Format, Toml},
     Figment,
 };
-use serde::{Deserialize, Serialize};
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::config::Config;
 use topos_p2p::{Multiaddr, PeerId};
@@ -20,17 +22,16 @@ pub struct TceConfig {
     pub db_path: PathBuf,
     /// Array of extra boot nodes to connect to
     pub extra_boot_peers: Option<String>,
-    /// Ip for the p2p Multiaddr
-    pub tce_ext_host: Option<String>,
-    /// Port for the p2p Multiaddr
-    pub tce_local_port: Option<u16>,
-    /// Local peer secret key seed (optional, used for testing)
-    pub local_key_seed: Option<String>,
     /// Connection degree for the GossipSub overlay
     pub minimum_tce_cluster_size: Option<usize>,
-    /// gRPC API Addr
-    #[serde(default = "default_libp2p_api_addr")]
-    pub libp2p_api_addr: SocketAddr,
+
+    /// libp2p addresses
+    pub libp2p_api_addr: Option<SocketAddr>,
+
+    /// P2P configuration
+    #[serde(default)]
+    pub p2p: P2PConfig,
+
     /// gRPC API Addr
     #[serde(default = "default_grpc_api_addr")]
     pub grpc_api_addr: SocketAddr,
@@ -46,14 +47,71 @@ pub struct TceConfig {
     /// Otlp service name
     /// If not provided open telemetry will not be used
     pub otlp_service_name: Option<String>,
+
+    #[serde(default = "default_network_bootstrap_timeout")]
+    pub(crate) network_bootstrap_timeout: u64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "kebab-case")]
+pub struct P2PConfig {
+    /// List of multiaddresses to listen for incoming connections
+    #[serde(default = "default_listen_addresses")]
+    pub listen_addresses: Vec<Multiaddr>,
+    /// List of multiaddresses to advertise to the network
+    #[serde(default = "default_public_addresses")]
+    pub public_addresses: Vec<Multiaddr>,
+}
+
+impl Default for P2PConfig {
+    fn default() -> Self {
+        Self {
+            listen_addresses: default_listen_addresses(),
+            public_addresses: default_public_addresses(),
+        }
+    }
 }
 
 fn default_db_path() -> PathBuf {
     PathBuf::from("./tce_rocksdb")
 }
 
+const fn default_network_bootstrap_timeout() -> u64 {
+    90
+}
+
 const fn default_libp2p_api_addr() -> SocketAddr {
     SocketAddr::V4(std::net::SocketAddrV4::new(DEFAULT_IP, 9090))
+}
+
+fn default_listen_addresses() -> Vec<Multiaddr> {
+    vec![format!(
+        "/ip4/{}/tcp/{}",
+        default_libp2p_api_addr().ip(),
+        default_libp2p_api_addr().port()
+    )
+    .parse()
+    .expect(
+        r#"
+        Listen multiaddresses generation failure.
+        This is a critical bug that need to be report on `https://github.com/topos-protocol/topos/issues`
+    "#,
+    )]
+}
+
+fn default_public_addresses() -> Vec<Multiaddr> {
+    vec![format!(
+        "/ip4/{}/tcp/{}",
+        default_libp2p_api_addr().ip(),
+        default_libp2p_api_addr().port()
+    )
+    .parse()
+    .expect(
+        r#"
+        Public multiaddresses generation failure.
+        This is a critical bug that need to be report on `https://github.com/topos-protocol/topos/issues`
+    "#,
+    )]
 }
 
 const fn default_grpc_api_addr() -> SocketAddr {

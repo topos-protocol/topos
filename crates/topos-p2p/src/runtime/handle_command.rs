@@ -26,11 +26,6 @@ impl Runtime {
 
                 _ = response.send(connection);
             }
-            Command::StartListening { peer_addr, sender } => {
-                if sender.send(self.start_listening(peer_addr)).is_err() {
-                    warn!("Unable to notify StartListening response: initiator is dropped");
-                }
-            }
 
             Command::ConnectedPeers { sender } => {
                 if sender

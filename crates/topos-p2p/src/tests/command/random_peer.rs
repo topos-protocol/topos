@@ -15,8 +15,8 @@ async fn no_random_peer() {
 
     let (client, _, runtime) = crate::network::builder()
         .peer_key(local.keypair.clone())
-        .exposed_addresses(local.addr.clone())
-        .listen_addr(local.addr.clone())
+        .public_addresses(vec![local.addr.clone()])
+        .listen_addresses(vec![local.addr.clone()])
         .build()
         .await
         .expect("Unable to create p2p network");
@@ -46,8 +46,8 @@ async fn return_a_peer() {
 
     let (client, _, runtime) = crate::network::builder()
         .peer_key(local.keypair.clone())
-        .exposed_addresses(local.addr.clone())
-        .listen_addr(local.addr.clone())
+        .public_addresses(vec![local.addr.clone()])
+        .listen_addresses(vec![local.addr.clone()])
         .build()
         .await
         .expect("Unable to create p2p network");
@@ -75,8 +75,8 @@ async fn return_a_random_peer_among_100() {
 
     let (client, _, runtime) = crate::network::builder()
         .peer_key(local.keypair.clone())
-        .exposed_addresses(local.addr.clone())
-        .listen_addr(local.addr.clone())
+        .public_addresses(vec![local.addr.clone()])
+        .listen_addresses(vec![local.addr.clone()])
         .build()
         .await
         .expect("Unable to create p2p network");

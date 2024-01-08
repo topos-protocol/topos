@@ -9,11 +9,12 @@ use thiserror::Error;
 use tokio::{spawn, sync::mpsc, task::JoinHandle};
 use tokio_util::sync::CancellationToken;
 use topos_p2p::config::NetworkConfig;
+use topos_p2p::Multiaddr;
 use topos_sequencer::SequencerConfiguration;
 use topos_tce::config::{AuthKey, StorageConfiguration, TceConfiguration};
 use topos_tce_transport::ReliableBroadcastParams;
 use topos_wallet::SecretManager;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 use crate::config::genesis::Genesis;
 
@@ -73,13 +74,28 @@ pub(crate) fn spawn_sequencer_process(
 }
 
 pub(crate) fn spawn_tce_process(
-    config: TceConfig,
+    mut config: TceConfig,
     keys: SecretManager,
     genesis: Genesis,
     shutdown: (CancellationToken, mpsc::Sender<()>),
 ) -> JoinHandle<Result<ExitStatus, Errors>> {
     let validators = genesis.validators().expect("Cannot parse validators");
     let tce_params = ReliableBroadcastParams::new(validators.len());
+
+    if let Some(socket) = config.libp2p_api_addr {
+        warn!(
+            "`libp2p_api_addr` is deprecated in favor of `listen_addresses` and \
+             `public_addresses` and will be removed in the next version. In order to keep your \
+             node running, `libp2p_api_addr` will be used."
+        );
+
+        let addr: Multiaddr = format!("/ip4/{}/tcp/{}", socket.ip(), socket.port())
+            .parse()
+            .expect("Unable to generate Multiaddr from `libp2p_api_addr`");
+
+        config.p2p.listen_addresses = vec![addr.clone()];
+        config.p2p.public_addresses = vec![addr];
+    }
 
     let tce_config = TceConfiguration {
         boot_peers: genesis
@@ -90,14 +106,14 @@ pub(crate) fn spawn_tce_process(
         validators,
         auth_key: keys.network.map(AuthKey::PrivateKey),
         signing_key: keys.validator.map(AuthKey::PrivateKey),
-        tce_addr: format!("/ip4/{}", config.libp2p_api_addr.ip()),
-        tce_local_port: config.libp2p_api_addr.port(),
+        listen_addresses: config.p2p.listen_addresses,
+        public_addresses: config.p2p.public_addresses,
         tce_params,
         api_addr: config.grpc_api_addr,
         graphql_api_addr: config.graphql_api_addr,
         metrics_api_addr: config.metrics_api_addr,
         storage: StorageConfiguration::RocksDB(Some(config.db_path)),
-        network_bootstrap_timeout: Duration::from_secs(90),
+        network_bootstrap_timeout: Duration::from_secs(config.network_bootstrap_timeout),
         minimum_cluster_size: config
             .minimum_tce_cluster_size
             .unwrap_or(NetworkConfig::MINIMUM_CLUSTER_SIZE),
