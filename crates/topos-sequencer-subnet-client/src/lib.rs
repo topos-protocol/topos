@@ -21,7 +21,7 @@ pub use topos_core::uci::{
     Address, Certificate, CertificateId, ReceiptsRootHash, StateRoot, SubnetId, TxRootHash,
     CERTIFICATE_ID_LENGTH, SUBNET_ID_LENGTH,
 };
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 const PUSH_CERTIFICATE_GAS_LIMIT: u64 = 1000000;
 
@@ -171,7 +171,7 @@ impl SubnetClientListener {
             Ok(events) => events,
             Err(Error::EventDecodingError(e)) => {
                 // FIXME: Happens in block before subnet contract is deployed, seems like bug in ethers
-                error!(
+                warn!(
                     "Error decoding events from block {}: {e}. Topos smart contracts may not be \
                      deployed before the parsed block?",
                     block_number
@@ -220,7 +220,7 @@ impl SubnetClientListener {
                 Ok(events) => events,
                 Err(Error::EventDecodingError(e)) => {
                     // FIXME: Happens in block before subnet contract is deployed, seems like bug in ethers
-                    error!(
+                    warn!(
                         "Error decoding events from block {}: {e}. Topos smart contracts may not \
                          be deployed before the parsed block?",
                         block_number
