@@ -17,6 +17,7 @@ use topos_metrics::DOUBLE_ECHO_ACTIVE_TASKS_COUNT;
 use topos_tce_storage::store::ReadStore;
 use topos_tce_storage::types::CertificateDeliveredWithPositions;
 use topos_tce_storage::validator::ValidatorStore;
+use tracing::debug;
 use tracing::warn;
 
 pub mod task;
@@ -107,6 +108,7 @@ impl TaskManager {
                             };
                         }
                         DoubleEchoCommand::Broadcast { ref cert, need_gossip } => {
+                            debug!("Received broadcast message for certificate {} ", cert.id);
                             match self.tasks.entry(cert.id) {
                                 std::collections::hash_map::Entry::Vacant(entry) => {
                                     let broadcast_state = BroadcastState::new(
@@ -138,11 +140,14 @@ impl TaskManager {
                                             need_gossip
                                         );
                                     } else {
+                                        debug!("Received broadcast message for certificate {} but the previous certificate {} is not available yet", cert.id, cert.prev_id);
                                         self.precedence.insert(cert.prev_id, task);
                                     }
                                     entry.insert(task_context);
                                 }
-                                std::collections::hash_map::Entry::Occupied(_) => {},
+                                std::collections::hash_map::Entry::Occupied(_) => {
+                                    debug!("Received broadcast message for certificate {} but it is already being processed", cert.id);
+                                },
                             }
                         }
                     }

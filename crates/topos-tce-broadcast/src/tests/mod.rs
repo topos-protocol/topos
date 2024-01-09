@@ -10,6 +10,8 @@ use topos_crypto::messages::MessageSigner;
 use topos_test_sdk::constants::*;
 use topos_test_sdk::storage::create_validator_store;
 
+mod task_manager;
+
 const CHANNEL_SIZE: usize = 10;
 const PRIVATE_KEY: &str = "d6f8d1fe6d0f3606ccb15ef383910f10d83ca77bf3d73007f12fef023dabaab9";
 
