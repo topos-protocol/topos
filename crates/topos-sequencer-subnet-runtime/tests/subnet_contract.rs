@@ -440,7 +440,7 @@ async fn context_running_subnet_node(
         Err(e) => {
             if e.kind() == std::io::ErrorKind::NotFound {
                 panic!(
-                    "Could not find Anvil binary. Please install and add to path Foundy tools \
+                    "Could not find Anvil binary. Please install and add to path Foundry tools \
                      including Anvil"
                 );
             } else {
