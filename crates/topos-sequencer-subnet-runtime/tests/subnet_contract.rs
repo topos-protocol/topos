@@ -347,6 +347,12 @@ async fn deploy_test_token(
         .event::<abi::ierc20_messaging::TokenDeployedFilter>()
         .from_block(0);
     let events = events.query().await?;
+    if events.is_empty() {
+        panic!(
+            "Missing TokenDeployed event. Token contract is not deployed to test subnet. Could \
+             not execute test"
+        );
+    }
     let token_address = events[0].token_address;
     info!("Token contract deployed to {}", token_address.to_string());
 
@@ -432,7 +438,14 @@ async fn context_running_subnet_node(
     let subnet_node_handle = match spawn_subnet_node(port, block_time) {
         Ok(subnet_node_handle) => subnet_node_handle,
         Err(e) => {
-            panic!("Failed to start the subnet node as part of test context: {e}");
+            if e.kind() == std::io::ErrorKind::NotFound {
+                panic!(
+                    "Could not find Anvil binary. Please install and add to path Foundy tools \
+                     including Anvil"
+                );
+            } else {
+                panic!("Failed to start the Anvil subnet node as part of test context: {e}");
+            }
         }
     };
     // Wait a bit for anvil subprocess to spin itself up
