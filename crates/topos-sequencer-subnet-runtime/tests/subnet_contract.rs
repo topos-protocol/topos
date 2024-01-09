@@ -1,8 +1,5 @@
 #![allow(unknown_lints)]
 use crate::common::abi;
-use dockertest::{
-    Composition, DockerTest, Image, LogAction, LogOptions, LogPolicy, LogSource, PullPolicy, Source,
-};
 use ethers::{
     abi::{ethabi::ethereum_types::U256, Address},
     core::types::Filter,
@@ -14,6 +11,7 @@ use ethers::{
 use rstest::*;
 use serial_test::serial;
 use std::collections::HashSet;
+use std::process::{Child, Command};
 use std::sync::Arc;
 use test_log::test;
 use tokio::sync::{oneshot, Mutex};
@@ -38,27 +36,22 @@ const STANDALONE_SUBNET_WITH_LONG_BLOCKS_BLOCK_TIME: u64 = 12;
 const SUBNET_RPC_PORT: u32 = 8545;
 // Account 0x4AAb25B4fAd0Beaac466050f3A7142A502f4Cf0a
 const TEST_SECRET_ETHEREUM_KEY: &str =
-    "d7e2e00b43c12cf17239d4755ed744df6ca70a933fc7c8bbb7da1342a5ff2e38";
-const TEST_ETHEREUM_ACCOUNT: &str = "0x4AAb25B4fAd0Beaac466050f3A7142A502f4Cf0a";
-const POLYGON_EDGE_CONTAINER: &str = "ghcr.io/topos-protocol/polygon-edge";
-const POLYGON_EDGE_CONTAINER_TAG: &str = "develop";
+    "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+const TEST_ETHEREUM_ACCOUNT: &str = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 const SUBNET_STARTUP_DELAY: u64 = 5; // seconds left for subnet startup
 const TEST_SUBNET_ID: &str = "6464646464646464646464646464646464646464646464646464646464646464";
 const TOKEN_SYMBOL: &str = "TKX";
 
 // Accounts pre-filled in STANDALONE_SUBNET_WITH_LONG_BLOCKS
-// Account Alith 0xf24FF3a9CF04c71Dbc94D0b566f7A27B94566cac
 const TEST_ACCOUNT_ALITH_KEY: &str =
-    "5fb92d6e98884f76de468fa3f6278f8807c48bebc13595d45af5bdc4da702133";
-const TEST_ACCOUNT_ALITH_ACCOUNT: &str = "0xf24FF3a9CF04c71Dbc94D0b566f7A27B94566cac";
-// Account Balathar 0x3Cd0A705a2DC65e5b1E1205896BaA2be8A07c6e0
+    "59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
+const TEST_ACCOUNT_ALITH_ACCOUNT: &str = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
 const TEST_ACCOUNT_BALATHAR_KEY: &str =
-    "8075991ce870b93a8870eca0c0f91913d12f47948ca0fd25b49c6fa7cdbeee8b";
-const TEST_ACCOUNT_BALATHAR_ACCOUNT: &str = "0x3Cd0A705a2DC65e5b1E1205896BaA2be8A07c6e0";
-// Account Cezar 0x5283ac54A7B9669F6415168DC7a5FcEe05019E45
+    "5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a";
+const TEST_ACCOUNT_BALATHAR_ACCOUNT: &str = "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC";
 const TEST_ACCOUNT_CEZAR_KEY: &str =
-    "11eddfae7abe45531b3f18342c8062969323a7131d3043f1a33c40df74803cc7";
-const TEST_ACCOUNT_CEZAR_ACCOUNT: &str = "0x5283ac54A7B9669F6415168DC7a5FcEe05019E45";
+    "7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6";
+const TEST_ACCOUNT_CEZAR_ACCOUNT: &str = "0x90F79bf6EB2c4f870365E785982E1f101E93b906";
 
 const PREV_CERTIFICATE_ID_1: CertificateId = CERTIFICATE_ID_4;
 const PREV_CERTIFICATE_ID_2: CertificateId = CERTIFICATE_ID_5;
@@ -68,59 +61,21 @@ const CERTIFICATE_ID_3: CertificateId = CERTIFICATE_ID_8;
 const DEFAULT_GAS: u64 = 5_000_000;
 
 fn spawn_subnet_node(
-    stop_subnet_receiver: tokio::sync::oneshot::Receiver<()>,
-    subnet_ready_sender: tokio::sync::oneshot::Sender<()>,
     port: u32,
     block_time: u64, // Block time in seconds
-) -> Result<tokio::task::JoinHandle<()>, Box<dyn std::error::Error>> {
-    let subnet_test_type = STANDALONE_SUBNET;
-    let subnet_startup_delay = SUBNET_STARTUP_DELAY * (block_time / 2);
-    let block_time_str = block_time.to_string() + "s";
-    let handle = tokio::task::spawn_blocking(move || {
-        let source = Source::DockerHub;
-        let img = Image::with_repository(POLYGON_EDGE_CONTAINER)
-            .source(Source::Local)
-            .tag(POLYGON_EDGE_CONTAINER_TAG)
-            .pull_policy(PullPolicy::IfNotPresent);
-        let mut polygon_edge_node = Composition::with_image(img);
-        polygon_edge_node.env("BLOCK_TIME", block_time_str.clone());
+) -> std::io::Result<Child> {
+    // Ignore output, too verbose
+    let child = Command::new("anvil")
+        .args([
+            "--block-time",
+            &block_time.to_string(),
+            "--port",
+            &port.to_string(),
+        ])
+        .stdout(std::process::Stdio::null())
+        .spawn();
 
-        // Define docker options
-        polygon_edge_node.port_map(SUBNET_RPC_PORT, port);
-
-        let mut polygon_edge_node_docker = DockerTest::new().with_default_source(source);
-
-        // Setup command for polygon edge binary
-        let cmd: Vec<String> = vec![subnet_test_type.to_string()];
-        polygon_edge_node_docker.add_composition(
-            polygon_edge_node
-                .with_log_options(Some(LogOptions {
-                    action: LogAction::Forward,
-                    policy: LogPolicy::OnError,
-                    source: LogSource::StdErr,
-                }))
-                .with_cmd(cmd),
-        );
-        polygon_edge_node_docker.run(|ops| async move {
-            let container = ops.handle(POLYGON_EDGE_CONTAINER);
-            info!(
-                "Running container with id: {} name: {} ...",
-                container.id(),
-                container.name(),
-            );
-            // TODO: use polling of network block number or some other means to learn when subnet node has started
-            tokio::time::sleep(tokio::time::Duration::from_secs(subnet_startup_delay)).await;
-            subnet_ready_sender
-                .send(())
-                .expect("subnet ready channel available");
-
-            info!("Waiting for signal to close...");
-            stop_subnet_receiver.await.unwrap();
-            info!("Container id={} execution finished", container.id());
-        })
-    });
-
-    Ok(handle)
+    child
 }
 
 #[allow(dead_code)]
@@ -128,25 +83,18 @@ struct Context {
     pub i_topos_core: abi::IToposCoreClient,
     pub i_topos_messaging: abi::IToposMessagingClient,
     pub i_erc20_messaging: abi::IERC20MessagingClient,
-    pub subnet_node_handle: Option<tokio::task::JoinHandle<()>>,
-    pub subnet_stop_sender: Option<tokio::sync::oneshot::Sender<()>>,
+    pub subnet_node_handle: Option<std::process::Child>,
     pub port: u32,
 }
 
 impl Context {
     pub async fn shutdown(mut self) -> Result<(), Box<dyn std::error::Error>> {
-        // Send shutdown message to subnet node
-        self.subnet_stop_sender
-            .take()
-            .expect("valid subnet stop channel")
-            .send(())
-            .expect("invalid subnet stop channel");
-
         // Wait for the subnet node to close
         self.subnet_node_handle
             .take()
             .expect("Valid subnet node handle")
-            .await?;
+            .kill()
+            .expect("Could not kill anvil subprocess");
         Ok(())
     }
 
@@ -155,13 +103,15 @@ impl Context {
     }
 
     pub fn jsonrpc_ws(&self) -> String {
-        format!("ws://127.0.0.1:{}/ws", self.port)
+        format!("ws://127.0.0.1:{}", self.port)
     }
 }
 
 impl Drop for Context {
     fn drop(&mut self) {
-        // TODO: cleanup if necessary
+        if let Some(mut child) = self.subnet_node_handle.take() {
+            child.kill().expect("Could not kill anvil subprocess");
+        }
     }
 }
 
@@ -397,6 +347,12 @@ async fn deploy_test_token(
         .event::<abi::ierc20_messaging::TokenDeployedFilter>()
         .from_block(0);
     let events = events.query().await?;
+    if events.is_empty() {
+        panic!(
+            "Missing TokenDeployed event. Token contract is not deployed to test subnet. Could \
+             not execute test"
+        );
+    }
     let token_address = events[0].token_address;
     info!("Token contract deployed to {}", token_address.to_string());
 
@@ -474,23 +430,26 @@ async fn context_running_subnet_node(
     #[default(8545)] port: u32,
     #[default(STANDALONE_SUBNET_BLOCK_TIME)] block_time: u64,
 ) -> Context {
-    let (subnet_stop_sender, subnet_stop_receiver) = oneshot::channel::<()>();
-    let (subnet_ready_sender, subnet_ready_receiver) = oneshot::channel::<()>();
     info!(
         "Starting subnet node on port {}, block time: {}s",
         port, block_time
     );
 
-    let subnet_node_handle =
-        match spawn_subnet_node(subnet_stop_receiver, subnet_ready_sender, port, block_time) {
-            Ok(subnet_node_handle) => subnet_node_handle,
-            Err(e) => {
-                panic!("Failed to start the polygon edge subnet node as part of test context: {e}");
+    let subnet_node_handle = match spawn_subnet_node(port, block_time) {
+        Ok(subnet_node_handle) => subnet_node_handle,
+        Err(e) => {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                panic!(
+                    "Could not find Anvil binary. Please install and add to path Foundry tools \
+                     including Anvil"
+                );
+            } else {
+                panic!("Failed to start the Anvil subnet node as part of test context: {e}");
             }
-        };
-    subnet_ready_receiver
-        .await
-        .expect("subnet ready channel error");
+        }
+    };
+    // Wait a bit for anvil subprocess to spin itself up
+    tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
     info!("Subnet node started...");
 
     // Deploy contracts
@@ -504,7 +463,6 @@ async fn context_running_subnet_node(
                 i_topos_messaging,
                 i_erc20_messaging,
                 subnet_node_handle: Some(subnet_node_handle),
-                subnet_stop_sender: Some(subnet_stop_sender),
                 port,
             }
         }
@@ -580,7 +538,7 @@ async fn test_create_runtime() -> Result<(), Box<dyn std::error::Error>> {
         SubnetRuntimeProxyConfig {
             subnet_id: SOURCE_SUBNET_ID_1,
             http_endpoint: format!("http://localhost:{SUBNET_RPC_PORT}"),
-            ws_endpoint: format!("ws://localhost:{SUBNET_RPC_PORT}/ws"),
+            ws_endpoint: format!("ws://localhost:{SUBNET_RPC_PORT}"),
             subnet_contract_address: "0x0000000000000000000000000000000000000000".to_string(),
             verifier: 0,
             source_head_certificate_id: None,

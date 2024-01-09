@@ -7607,7 +7607,6 @@ name = "topos-sequencer-subnet-runtime"
 version = "0.1.0"
 dependencies = [
  "byteorder",
- "dockertest",
  "env_logger 0.10.0",
  "ethers",
  "fs_extra",

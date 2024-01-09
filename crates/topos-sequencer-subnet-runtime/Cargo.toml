@@ -41,7 +41,6 @@ secp256k1.workspace = true
 serial_test.workspace = true
 tiny-keccak.workspace = true
 ethers.workspace = true
-dockertest = "0.3.1"
 fs_extra = "1.3"
 
 
