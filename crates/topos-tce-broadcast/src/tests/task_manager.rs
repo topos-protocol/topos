@@ -5,6 +5,7 @@ use tokio::{
     spawn,
     sync::{broadcast, mpsc},
 };
+use tokio_util::sync::CancellationToken;
 use topos_crypto::{messages::MessageSigner, validator_id::ValidatorId};
 use topos_tce_storage::validator::ValidatorStore;
 use topos_test_sdk::{
@@ -23,6 +24,7 @@ async fn can_start(#[future] create_validator_store: Arc<ValidatorStore>) {
     let (task_completion_sender, _) = mpsc::channel(1);
     let (event_sender, _) = mpsc::channel(1);
     let (broadcast_sender, _) = broadcast::channel(1);
+    let shutdown = CancellationToken::new();
     let validator_id = ValidatorId::default();
     let thresholds = tce_transport::ReliableBroadcastParams {
         echo_threshold: 1,
@@ -35,7 +37,7 @@ async fn can_start(#[future] create_validator_store: Arc<ValidatorStore>) {
             .unwrap(),
     );
 
-    let (mut manager, shutdown_receiver) = TaskManager::new(
+    let mut manager = TaskManager::new(
         message_receiver,
         task_completion_sender,
         SubscriptionsView::default(),
@@ -47,7 +49,7 @@ async fn can_start(#[future] create_validator_store: Arc<ValidatorStore>) {
         broadcast_sender,
     );
 
-    spawn(manager.run(shutdown_receiver));
+    spawn(manager.run(shutdown));
 
     let certificates = create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], 2);
     let parent = certificates

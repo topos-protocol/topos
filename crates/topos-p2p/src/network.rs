@@ -79,14 +79,14 @@ impl<'a> NetworkBuilder<'a> {
         self
     }
 
-    pub fn public_addresses(mut self, addresses: Vec<Multiaddr>) -> Self {
-        self.public_addresses = Some(addresses);
+    pub fn public_addresses<M: Into<Vec<Multiaddr>>>(mut self, addresses: M) -> Self {
+        self.public_addresses = Some(addresses.into());
 
         self
     }
 
-    pub fn listen_addresses(mut self, addresses: Vec<Multiaddr>) -> Self {
-        self.listen_addresses = Some(addresses);
+    pub fn listen_addresses<M: Into<Vec<Multiaddr>>>(mut self, addresses: M) -> Self {
+        self.listen_addresses = Some(addresses.into());
 
         self
     }

@@ -15,8 +15,8 @@ async fn no_random_peer() {
 
     let (client, _, runtime) = crate::network::builder()
         .peer_key(local.keypair.clone())
-        .exposed_addresses(local.addr.clone())
-        .listen_addr(local.addr.clone())
+        .public_addresses(&[local.addr.clone()])
+        .listen_addresses(&[local.addr.clone()])
         .public_addresses(vec![local.addr.clone()])
         .listen_addresses(vec![local.addr.clone()])
         .is_bootnode(true)

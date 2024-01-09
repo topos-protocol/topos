@@ -500,7 +500,7 @@ async fn get_pending_certificates(store: Arc<ValidatorStore>) {
     let mut expected_pending_certificates = certificates_for_source_subnet_1[10..]
         .iter()
         .enumerate()
-        .map(|(index, certificate)| (index as u64, certificate.certificate.clone()))
+        .map(|(index, certificate)| ((index as u64 + 1), certificate.certificate.clone()))
         .collect::<Vec<_>>();
 
     expected_pending_certificates.extend(
@@ -509,7 +509,7 @@ async fn get_pending_certificates(store: Arc<ValidatorStore>) {
             .enumerate()
             .map(|(index, certificate)| {
                 (
-                    index as u64 + expected_pending_certificates.len() as u64,
+                    (index as u64 + 1) + expected_pending_certificates.len() as u64,
                     certificate.certificate.clone(),
                 )
             })

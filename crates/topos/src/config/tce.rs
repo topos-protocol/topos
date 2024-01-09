@@ -61,6 +61,8 @@ pub struct P2PConfig {
     /// List of multiaddresses to advertise to the network
     #[serde(default = "default_public_addresses")]
     pub public_addresses: Vec<Multiaddr>,
+
+    pub is_bootnode: Option<bool>,
 }
 
 impl Default for P2PConfig {
@@ -68,6 +70,7 @@ impl Default for P2PConfig {
         Self {
             listen_addresses: default_listen_addresses(),
             public_addresses: default_public_addresses(),
+            is_bootnode: None,
         }
     }
 }
