@@ -1,10 +1,10 @@
 use crate::config::sequencer::SequencerConfig;
 use crate::config::tce::TceConfig;
 use crate::edge::CommandConfig;
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::ExitStatus;
 use std::time::Duration;
+use std::{collections::HashMap, task::Wake};
 use thiserror::Error;
 use tokio::{spawn, sync::mpsc, task::JoinHandle};
 use tokio_util::sync::CancellationToken;
@@ -79,6 +79,22 @@ pub(crate) fn spawn_tce_process(
     genesis: Genesis,
     shutdown: (CancellationToken, mpsc::Sender<()>),
 ) -> JoinHandle<Result<ExitStatus, Errors>> {
+    let boot_peers = genesis
+        .boot_peers(Some(topos_p2p::constants::TCE_BOOTNODE_PORT))
+        .into_iter()
+        .chain(config.parse_boot_peers())
+        .collect::<Vec<_>>();
+    let auth_key = keys.network.map(AuthKey::PrivateKey);
+    config.p2p.is_bootnode = if let Some(AuthKey::PrivateKey(ref k)) = auth_key {
+        let peer_id = topos_p2p::utils::keypair_from_protobuf_encoding(&k[..])
+            .public()
+            .to_peer_id();
+
+        Some(boot_peers.iter().any(|(p, _)| p == &peer_id))
+    } else {
+        None
+    };
+
     let validators = genesis.validators().expect("Cannot parse validators");
     let tce_params = ReliableBroadcastParams::new(validators.len());
 
@@ -99,13 +115,9 @@ pub(crate) fn spawn_tce_process(
 
     let tce_config = TceConfiguration {
         is_bootnode: config.p2p.is_bootnode.unwrap_or_default(),
-        boot_peers: genesis
-            .boot_peers(Some(topos_p2p::constants::TCE_BOOTNODE_PORT))
-            .into_iter()
-            .chain(config.parse_boot_peers())
-            .collect::<Vec<_>>(),
+        boot_peers,
         validators,
-        auth_key: keys.network.map(AuthKey::PrivateKey),
+        auth_key,
         signing_key: keys.validator.map(AuthKey::PrivateKey),
         listen_addresses: config.p2p.listen_addresses,
         public_addresses: config.p2p.public_addresses,
