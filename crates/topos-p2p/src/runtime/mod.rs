@@ -81,14 +81,8 @@ impl Runtime {
 
             // We were able to send the DHT query, starting the bootstrap
             // We may want to remove the bootstrap at some point
-            if self
-                .swarm
-                .behaviour_mut()
-                .discovery
-                .inner
-                .bootstrap()
-                .is_err()
-            {
+            if let Err(error) = self.swarm.behaviour_mut().discovery.inner.bootstrap() {
+                error!("Unable to start kademlia bootstrap: {error:?}");
                 return Err(Box::new(P2PError::BootstrapError(
                     "Unable to start kademlia bootstrap",
                 )));
