@@ -5,6 +5,7 @@ pub mod client;
 pub mod worker;
 
 use opentelemetry::Context;
+use std::time::Duration;
 use tonic::transport::channel;
 use topos_core::api::grpc::checkpoints::TargetStreamPosition;
 use topos_core::{
@@ -12,6 +13,9 @@ use topos_core::{
     uci::{Certificate, SubnetId},
 };
 use tracing::{error, info};
+
+// Maksimum backoff retry timeout in seconds (12 hours)
+const TCE_CONNECT_BACKOFF_TIMEOUT: Duration = Duration::from_secs(12 * 3600);
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -75,6 +79,8 @@ pub enum TceProxyEvent {
     },
     /// Failed watching certificates channel. Requires a restart of the sequencer tce proxy to recover.
     WatchCertificatesChannelFailed,
+    /// Failure in communication with the TCE grpc service. Sequencer needs to be restarted
+    TceServiceFailure,
 }
 
 /// Configuration data for the TCE proxy, used to configure the `TceProxyWorker`.
@@ -104,7 +110,11 @@ async fn connect_to_tce_service_with_retry(
             })?;
         Ok(ApiServiceClient::new(channel))
     };
-    backoff::future::retry(backoff::ExponentialBackoff::default(), op)
+    let backoff_configuration = backoff::ExponentialBackoff {
+        max_elapsed_time: Some(TCE_CONNECT_BACKOFF_TIMEOUT),
+        ..Default::default()
+    };
+    backoff::future::retry(backoff_configuration, op)
         .await
         .map_err(|e| {
             error!("Failed to connect to the TCE at {}: {e}", &endpoint);

@@ -1,4 +1,4 @@
-use crate::app_context::AppContext;
+use crate::app_context::{AppContext, AppContextStatus};
 use std::io::ErrorKind::InvalidInput;
 use std::process::ExitStatus;
 use tokio::{
@@ -17,7 +17,7 @@ use tracing::{debug, info, warn};
 
 mod app_context;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SequencerConfiguration {
     pub subnet_id: Option<String>,
     pub public_key: Option<Vec<u8>>,
@@ -30,52 +30,11 @@ pub struct SequencerConfiguration {
     pub start_block: Option<u64>,
 }
 
-pub async fn launch(
+async fn launch_workers(
     config: SequencerConfiguration,
     ctx_send: Sender<AppContext>,
+    subnet_id: SubnetId,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    debug!("Starting topos-sequencer application");
-
-    // If subnetID is specified as command line argument, use it
-    let subnet_id: SubnetId = if let Some(pk) = &config.public_key {
-        SubnetId::try_from(&pk[1..]).unwrap()
-    } else if let Some(subnet_id) = &config.subnet_id {
-        if &subnet_id[0..2] != "0x" {
-            return Err(Box::new(std::io::Error::new(
-                InvalidInput,
-                "Subnet id must start with `0x`",
-            )));
-        }
-        hex::decode(&subnet_id[2..])?.as_slice().try_into()?
-    }
-    // Get subnet id from the subnet node if not provided via the command line argument
-    // It will retry using backoff algorithm, but if it fails (default max backoff elapsed time is 15 min) we can not proceed
-    else {
-        let http_endpoint =
-            topos_sequencer_subnet_runtime::derive_endpoints(&config.subnet_jsonrpc_http)
-                .map_err(|e| {
-                    Box::new(std::io::Error::new(
-                        InvalidInput,
-                        format!("Invalid subnet endpoint: {e}"),
-                    ))
-                })?
-                .0;
-        match SubnetRuntimeProxyWorker::get_subnet_id(
-            &http_endpoint,
-            config.subnet_contract_address.as_str(),
-        )
-        .await
-        {
-            Ok(subnet_id) => {
-                info!("Retrieved subnet id from the subnet node {subnet_id}");
-                subnet_id
-            }
-            Err(e) => {
-                panic!("Unable to get subnet id from the subnet {e}");
-            }
-        }
-    };
-
     let (http_endpoint, mut ws_endpoint) =
         topos_sequencer_subnet_runtime::derive_endpoints(&config.subnet_jsonrpc_http)?;
 
@@ -83,7 +42,6 @@ pub async fn launch(
         // Use explicitly provided websocket subnet endpoint
         ws_endpoint = config_ws_endpoint.clone();
     }
-
     // Instantiate subnet runtime proxy, handling interaction with subnet node
     let subnet_runtime_proxy_worker = match SubnetRuntimeProxyWorker::new(
         SubnetRuntimeProxyConfig {
@@ -169,37 +127,95 @@ pub async fn launch(
     Ok(())
 }
 
+pub async fn launch(
+    config: SequencerConfiguration,
+    ctx_send: Sender<AppContext>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    debug!("Starting topos-sequencer application");
+
+    // If subnetID is specified as command line argument, use it
+    let subnet_id: SubnetId = if let Some(pk) = &config.public_key {
+        SubnetId::try_from(&pk[1..]).unwrap()
+    } else if let Some(subnet_id) = &config.subnet_id {
+        if &subnet_id[0..2] != "0x" {
+            return Err(Box::new(std::io::Error::new(
+                InvalidInput,
+                "Subnet id must start with `0x`",
+            )));
+        }
+        hex::decode(&subnet_id[2..])?.as_slice().try_into()?
+    }
+    // Get subnet id from the subnet node if not provided via the command line argument
+    // It will retry using backoff algorithm, but if it fails (default max backoff elapsed time is 15 min) we can not proceed
+    else {
+        let http_endpoint =
+            topos_sequencer_subnet_runtime::derive_endpoints(&config.subnet_jsonrpc_http)
+                .map_err(|e| {
+                    Box::new(std::io::Error::new(
+                        InvalidInput,
+                        format!("Invalid subnet endpoint: {e}"),
+                    ))
+                })?
+                .0;
+        match SubnetRuntimeProxyWorker::get_subnet_id(
+            &http_endpoint,
+            config.subnet_contract_address.as_str(),
+        )
+        .await
+        {
+            Ok(subnet_id) => {
+                info!("Retrieved subnet id from the subnet node {subnet_id}");
+                subnet_id
+            }
+            Err(e) => {
+                panic!("Unable to get subnet id from the subnet {e}");
+            }
+        }
+    };
+
+    launch_workers(config, ctx_send, subnet_id).await
+}
+
 pub async fn run(
     config: SequencerConfiguration,
     shutdown: (CancellationToken, mpsc::Sender<()>),
 ) -> Result<ExitStatus, Box<dyn std::error::Error>> {
-    let shutdown_appcontext = shutdown.clone();
+    loop {
+        let shutdown_appcontext = shutdown.clone();
 
-    let (ctx_send, mut ctx_recv) = oneshot::channel::<AppContext>();
+        let (ctx_send, mut ctx_recv) = oneshot::channel::<AppContext>();
 
-    let launching = spawn(async move {
-        let _ = launch(config, ctx_send).await;
-    });
+        let config = config.clone();
+        let launching = spawn(async move {
+            let _ = launch(config, ctx_send).await;
+        });
 
-    let app_context: Option<AppContext> = tokio::select! {
-        app = &mut ctx_recv => {
-            Some(app.unwrap())
-        },
+        let app_context: Option<AppContext> = tokio::select! {
+            app = &mut ctx_recv => {
+                Some(app.unwrap())
+            },
 
-        // Shutdown signal
-        _ = shutdown.0.cancelled() => {
-            info!("Stopping Sequencer launch...");
-            drop(shutdown.1);
-            launching.abort();
-            None
+            // Shutdown signal
+            _ = shutdown.0.cancelled() => {
+                info!("Stopping Sequencer launch...");
+                drop(shutdown.1);
+                launching.abort();
+                return Ok(ExitStatus::default());
+            }
+        };
+
+        if let Some(mut app) = app_context {
+            match app.run(shutdown_appcontext).await {
+                AppContextStatus::Restarting => {
+                    // We finish the loop, restarting sequencer here
+                    warn!("Restarting sequencer...");
+                    tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+                }
+                AppContextStatus::Finished => {
+                    info!("Sequencer app finished, exiting...");
+                    return Ok(ExitStatus::default());
+                }
+            }
         }
-    };
-
-    if let Some(mut app) = app_context {
-        app.run(shutdown_appcontext).await;
     }
-
-    info!("Exited sequencer");
-
-    Ok(ExitStatus::default())
 }

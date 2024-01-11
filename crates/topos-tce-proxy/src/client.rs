@@ -1,8 +1,9 @@
 use crate::{Error, TceProxyEvent};
 use base64ct::{Base64, Encoding};
-use futures::stream::FuturesUnordered;
+use futures::stream::FuturesOrdered;
 use opentelemetry::trace::FutureExt;
 use std::collections::HashMap;
+use std::time::Duration;
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::StreamExt;
 
@@ -24,6 +25,9 @@ use tracing_opentelemetry::OpenTelemetrySpanExt;
 const CERTIFICATE_OUTBOUND_CHANNEL_SIZE: usize = 100;
 const CERTIFICATE_INBOUND_CHANNEL_SIZE: usize = 100;
 const TCE_PROXY_COMMAND_CHANNEL_SIZE: usize = 100;
+
+// Maksimum backoff retry timeout in seconds (1 hour)
+const TCE_SUBMIT_CERTIFICATE_BACKOFF_TIMEOUT: Duration = Duration::from_secs(3600);
 
 pub(crate) enum TceClientCommand {
     // Get head certificate that was sent to the TCE node for this subnet
@@ -327,16 +331,32 @@ impl TceClientBuilder {
             .ok_or(Error::InvalidTceEndpoint)?
             .clone();
 
+        let tce_proxy_event_sender = self.tce_proxy_event_sender.clone();
+
         tokio::spawn(async move {
-            let mut certificate_to_send = FuturesUnordered::new();
+            let mut certificate_to_send = FuturesOrdered::new();
             info!(
                 "Entering tce proxy command loop for stream {}",
                 &tce_endpoint
             );
             loop {
                 tokio::select! {
-                    Some(_) = certificate_to_send.next() => {
-                        continue;
+                    Some(result) = certificate_to_send.next() => {
+                        match result {
+                            Ok(()) => {
+                                // All good, after one certificate is submitted carry on
+                                continue;
+                            }
+                            Err(e) => {
+                                // Backoff maximum period timeout. We need to restart sequencer.
+                                error!("Failed to submit certificate to the tce network, backoff timeout with error: {e}. Restarting sequencer...");
+                                if let Some(tce_proxy_event_sender) = tce_proxy_event_sender.clone() {
+                                    if let Err(e) = tce_proxy_event_sender.send(TceProxyEvent::TceServiceFailure).await {
+                                          error!("Unable to send tce communication failure signal: {e}");
+                                    }
+                                }
+                            }
+                        }
                     }
                     Some(sender) = shutdown.recv() => {
                         info!("Shutdown tce proxy command received...");
@@ -353,15 +373,21 @@ impl TceClientBuilder {
                     command = tce_command_receiver.recv() => {
                         match command {
                            Some(TceClientCommand::SendCertificate {cert, span}) =>  {
+                                // Send new ceritficate to the TCE network
                                 let cert_id = cert.id;
                                 let previous_cert_id = cert.prev_id;
                                 let span = info_span!(parent: &span, "SendCertificate", %cert_id, %previous_cert_id, %tce_endpoint);
                                 let context = span.context();
 
+                // REMOVE DEBUG CODE
+                                if (!certificate_to_send.is_empty()) {
+                                    continue;
+                                }
+
                                 let tce_endpoint = tce_endpoint.clone();
                                 let tce_grpc_client = tce_grpc_client.clone();
                                 let context_backoff = context.clone();
-                                certificate_to_send.push(async move {
+                                certificate_to_send.push_back(async move {
                                     debug!("Submitting certificate {} to the TCE using backoff strategy...", &tce_endpoint);
                                     let cert = cert.clone();
                                     let op = || async {
@@ -383,12 +409,16 @@ impl TceClientBuilder {
                                                 &cert_id, &previous_cert_id, &tce_endpoint);
                                         })
                                         .map_err(|e| {
-                                            error!("Failed to submit the Certificate to the TCE at {}, will retry: {e}", &tce_endpoint);
+                                            error!("Failed to submit the Certificate to the TCE at {}, error: {e}", &tce_endpoint);
                                             new_tce_proxy_backoff_err(e)
                                         })
                                     };
 
-                                    backoff::future::retry(backoff::ExponentialBackoff::default(), op)
+                                    let backoff_configuration = backoff::ExponentialBackoff {
+                                        max_elapsed_time: Some(TCE_SUBMIT_CERTIFICATE_BACKOFF_TIMEOUT),
+                                        ..Default::default()
+                                    };
+                                    backoff::future::retry(backoff_configuration, op)
                                         .await
                                         .map_err(|e| {
                                             error!("Failed to submit certificate to the TCE: {e}");

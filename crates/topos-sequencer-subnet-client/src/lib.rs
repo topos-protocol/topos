@@ -24,6 +24,10 @@ pub use topos_core::uci::{
 use tracing::{error, info, warn};
 
 const PUSH_CERTIFICATE_GAS_LIMIT: u64 = 1000000;
+// Maksimum backoff retry timeout in seconds (12 hours)
+const SUBNET_CONNECT_BACKOFF_TIMEOUT: Duration = Duration::from_secs(12 * 3600);
+const SUBNET_GET_CHECKPOINTS_BACKOFF_TIMEOUT: Duration = Duration::from_secs(12 * 3600);
+const SUBNET_GET_SUBNET_ID_BACKOFF_TIMEOUT: Duration = Duration::from_secs(12 * 3600);
 
 pub type BlockData = Vec<u8>;
 pub type BlockNumber = u64;
@@ -272,7 +276,11 @@ pub async fn connect_to_subnet_listener_with_retry(
         }
     };
 
-    backoff::future::retry(backoff::ExponentialBackoff::default(), op).await
+    let backoff_configuration = backoff::ExponentialBackoff {
+        max_elapsed_time: Some(SUBNET_CONNECT_BACKOFF_TIMEOUT),
+        ..Default::default()
+    };
+    backoff::future::retry(backoff_configuration, op).await
 }
 
 // Subnet client for calling target network smart contract
@@ -427,7 +435,11 @@ impl SubnetClient {
             Ok(target_stream_positions)
         };
 
-        backoff::future::retry(backoff::ExponentialBackoff::default(), op).await
+        let backoff_configuration = backoff::ExponentialBackoff {
+            max_elapsed_time: Some(SUBNET_GET_CHECKPOINTS_BACKOFF_TIMEOUT),
+            ..Default::default()
+        };
+        backoff::future::retry(backoff_configuration, op).await
     }
 
     /// Ask subnet for its subnet id
@@ -444,8 +456,11 @@ impl SubnetClient {
                 })?;
             Ok(SubnetId::from_array(subnet_id))
         };
-
-        backoff::future::retry(backoff::ExponentialBackoff::default(), op).await
+        let backoff_configuration = backoff::ExponentialBackoff {
+            max_elapsed_time: Some(SUBNET_GET_SUBNET_ID_BACKOFF_TIMEOUT),
+            ..Default::default()
+        };
+        backoff::future::retry(backoff_configuration, op).await
     }
 }
 
@@ -484,6 +499,9 @@ pub async fn connect_to_subnet_with_retry(
             }
         }
     };
-
-    backoff::future::retry(backoff::ExponentialBackoff::default(), op).await
+    let backoff_configuration = backoff::ExponentialBackoff {
+        max_elapsed_time: Some(SUBNET_CONNECT_BACKOFF_TIMEOUT),
+        ..Default::default()
+    };
+    backoff::future::retry(backoff_configuration, op).await
 }

@@ -180,7 +180,8 @@ impl SubnetRuntimeProxy {
                                 }
                             }
                             _ = block_task_shutdown.recv() => {
-                                None
+                                info!("Shutting down sync missing blocks task");
+                                return;
                             }
                     };
                     let current_subnet_block_number = current_subnet_block_number
@@ -202,17 +203,23 @@ impl SubnetRuntimeProxy {
                     while latest_acquired_subnet_block_number < current_subnet_block_number {
                         let next_block_number = latest_acquired_subnet_block_number + 1;
                         info!("Retrieving historical block {}", next_block_number);
-                        if let Err(e) = SubnetRuntimeProxy::retrieve_and_process_block(
-                            runtime_proxy.clone(),
-                            &mut subnet_listener,
-                            certification.clone(),
-                            next_block_number as u64,
-                        )
-                        .await
-                        {
-                            panic!("Unable to perform subnet block sync: {}, closing", e);
-                        } else {
-                            latest_acquired_subnet_block_number = next_block_number;
+                        tokio::select! {
+                            result = SubnetRuntimeProxy::retrieve_and_process_block(
+                                runtime_proxy.clone(),
+                                &mut subnet_listener,
+                                certification.clone(),
+                                next_block_number as u64,
+                            ) => {
+                                if let Err(e) = result {
+                                    panic!("Unable to perform subnet block sync: {}, closing", e);
+                                } else {
+                                    latest_acquired_subnet_block_number = next_block_number;
+                                }
+                            }
+                            _ = block_task_shutdown.recv() => {
+                                info!("Shutting down sync missing blocks task during synchronization");
+                                return;
+                            }
                         }
 
                         // Give it a little rest for other threads to do their job
