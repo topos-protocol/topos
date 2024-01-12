@@ -253,7 +253,8 @@ impl ValidatorStore {
                 .precedence_pool
                 .insert(&certificate.prev_id, certificate)?;
             debug!(
-                "Certificate {} is now in the precedence pool, {} isn't delivered yet",
+                "Certificate {} is now in the precedence pool, because the previous certificate \
+                 {} isn't delivered yet",
                 certificate.id, certificate.prev_id
             );
 

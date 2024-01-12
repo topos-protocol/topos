@@ -19,18 +19,6 @@ lazy_static! {
             .ok()
             .and_then(|s| s.parse().ok())
             .unwrap_or(2048);
-    /// Size of the channel to send updated subscriptions views to the double echo
-    pub static ref SUBSCRIPTION_VIEW_CHANNEL_SIZE: usize =
-        std::env::var("TOPOS_SUBSCRIPTION_VIEW_CHANNEL_SIZE")
-            .ok()
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(2048);
-    /// Size of the channel to send updated subscriptions views to the double echo
-    pub static ref BROADCAST_TASK_COMPLETION_CHANNEL_SIZE: usize =
-        std::env::var("BROADCAST_TASK_COMPLETION_CHANNEL_SIZE")
-            .ok()
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(2048);
     /// Capacity alert threshold for the double echo command channel
     pub static ref COMMAND_CHANNEL_CAPACITY: usize = COMMAND_CHANNEL_SIZE
         .checked_mul(10)
@@ -39,10 +27,10 @@ lazy_static! {
             r
         })
         .unwrap_or(*COMMAND_CHANNEL_SIZE);
-    /// Size of the double echo buffer
-    pub static ref TOPOS_DOUBLE_ECHO_MAX_BUFFER_SIZE: usize =
-        std::env::var("TOPOS_BROADCAST_MAX_BUFFER_SIZE")
-            .ok()
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(crate::double_echo::DoubleEcho::MAX_BUFFER_SIZE);
+    ///
+    pub static ref PENDING_LIMIT_PER_REQUEST_TO_STORAGE: usize =
+        std::env::var("TOPOS_PENDING_LIMIT_PER_REQUEST_TO_STORAGE")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(1000);
 }

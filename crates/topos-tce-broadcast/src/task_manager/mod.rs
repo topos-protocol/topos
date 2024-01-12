@@ -27,6 +27,7 @@ use tracing::warn;
 
 pub mod task;
 
+use crate::constant::PENDING_LIMIT_PER_REQUEST_TO_STORAGE;
 use crate::double_echo::broadcast_state::BroadcastState;
 use crate::sampler::SubscriptionsView;
 use crate::DoubleEchoCommand;
@@ -97,7 +98,7 @@ impl TaskManager {
 
                 _ = interval.tick() => {
                     debug!("Checking for next pending_certificates");
-                    match self.validator_store.get_next_pending_certificates(&self.latest_pending_id, 1000) {
+                    match self.validator_store.get_next_pending_certificates(&self.latest_pending_id, *PENDING_LIMIT_PER_REQUEST_TO_STORAGE) {
                         Ok(pendings) => {
                             debug!("Received {} pending certificates", pendings.len());
                             for (pending_id, certificate) in pendings {
@@ -146,11 +147,11 @@ impl TaskManager {
                 _ = shutdown_receiver.cancelled() => {
                     warn!("Task Manager shutting down");
 
-                    warn!("There is still {} active tasks", self.tasks.len());
+                    warn!("There are still {} active tasks", self.tasks.len());
                     if !self.tasks.is_empty() {
-                        debug!("Certificate still in broadcast: {:?}", self.tasks.keys());
+                        debug!("Certificates still in broadcast: {:?}", self.tasks.keys());
                     }
-                    warn!("There is still {} buffered messages", self.buffered_messages.len());
+                    warn!("There are still {} buffered messages", self.buffered_messages.len());
                     for task in self.tasks.iter() {
                         task.1.shutdown_sender.send(()).await.unwrap();
                     }
