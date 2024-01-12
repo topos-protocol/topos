@@ -10,6 +10,9 @@ pub enum InternalStorageError {
     #[error("The certificate already exists")]
     CertificateAlreadyExists,
 
+    #[error("The certificate is already in pending")]
+    CertificateAlreadyPending,
+
     #[error("Unable to find a certificate: {0:?}")]
     CertificateNotFound(CertificateId),
 

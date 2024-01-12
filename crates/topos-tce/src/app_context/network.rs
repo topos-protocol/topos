@@ -56,6 +56,15 @@ impl AppContext {
                                 );
                             }
                             Err(StorageError::InternalStorage(
+                                InternalStorageError::CertificateAlreadyPending,
+                            )) => {
+                                debug!(
+                                    "Certificate {} from subnet {} has been inserted into \
+                                     precedence pool waiting for {}",
+                                    cert.id, cert.source_subnet_id, cert.prev_id
+                                );
+                            }
+                            Err(StorageError::InternalStorage(
                                 InternalStorageError::CertificateAlreadyExists,
                             )) => {
                                 debug!(
@@ -70,23 +79,6 @@ impl AppContext {
                                 );
                             }
                         }
-
-                        spawn(async move {
-                            info!("Send certificate {} to be broadcast", cert.id);
-                            if channel
-                                .send(DoubleEchoCommand::Broadcast {
-                                    cert,
-                                    need_gossip: false,
-                                })
-                                .await
-                                .is_err()
-                            {
-                                error!(
-                                    "Unable to send broadcast_new_certificate command, Receiver \
-                                     was dropped"
-                                );
-                            }
-                        });
                     }
                     Err(e) => {
                         error!("Error converting received certificate {e}");

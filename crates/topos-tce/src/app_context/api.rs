@@ -25,18 +25,28 @@ impl AppContext {
                 {
                     Ok(Some(pending_id)) => {
                         debug!(
-                            "Certificate {} has been inserted into pending pool",
-                            certificate.id
+                            "Certificate {} from subnet {} has been inserted into pending pool",
+                            certificate.id, certificate.source_subnet_id
                         );
 
                         sender.send(Ok(PendingResult::InPending(pending_id)))
                     }
                     Ok(None) => {
                         debug!(
-                            "Certificate {} has been inserted into precedence pool",
-                            certificate.id
+                            "Certificate {} from subnet {} has been inserted into precedence pool \
+                             waiting for {}",
+                            certificate.id, certificate.source_subnet_id, certificate.prev_id
                         );
                         sender.send(Ok(PendingResult::AwaitPrecedence))
+                    }
+                    Err(StorageError::InternalStorage(
+                        InternalStorageError::CertificateAlreadyPending,
+                    )) => {
+                        debug!(
+                            "Certificate {} has been already added to the pending pool, skipping",
+                            certificate.id
+                        );
+                        sender.send(Ok(PendingResult::AlreadyPending))
                     }
                     Err(StorageError::InternalStorage(
                         InternalStorageError::CertificateAlreadyExists,
@@ -56,11 +66,6 @@ impl AppContext {
                         sender.send(Err(error.into()))
                     }
                 };
-
-                _ = self
-                    .tce_cli
-                    .broadcast_new_certificate(*certificate, true)
-                    .await;
             }
 
             ApiEvent::GetSourceHead { subnet_id, sender } => {

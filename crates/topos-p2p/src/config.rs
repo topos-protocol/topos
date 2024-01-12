@@ -7,6 +7,7 @@ pub struct NetworkConfig {
     pub discovery: DiscoveryConfig,
     pub yamux_max_buffer_size: usize,
     pub yamux_window_size: Option<u32>,
+    pub is_bootnode: bool,
 }
 
 impl Default for NetworkConfig {
@@ -18,6 +19,7 @@ impl Default for NetworkConfig {
             discovery: Default::default(),
             yamux_max_buffer_size: usize::MAX,
             yamux_window_size: None,
+            is_bootnode: false,
         }
     }
 }

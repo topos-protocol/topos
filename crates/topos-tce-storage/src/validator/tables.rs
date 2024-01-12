@@ -1,5 +1,10 @@
-use std::{fs::create_dir_all, path::PathBuf, sync::atomic::AtomicU64};
+use std::{
+    fs::create_dir_all,
+    path::PathBuf,
+    sync::atomic::{AtomicU64, Ordering},
+};
 
+use bincode::Options;
 use rocksdb::ColumnFamilyDescriptor;
 use topos_core::{
     types::ProofOfDelivery,
@@ -71,11 +76,38 @@ impl ValidatorPendingTables {
 
         let db = init_with_cfs(&path, default_options(), cfs)
             .unwrap_or_else(|_| panic!("Cannot open DB at {:?}", path));
+        let pending_pool = DBColumn::reopen(&db, cfs::PENDING_POOL);
+        let next_pending_id = {
+            let cf = pending_pool
+                .rocksdb
+                .cf_handle(cfs::PENDING_POOL)
+                .expect("Cannot get cf handle for pending pool");
+            let mut pending_iterator = pending_pool.rocksdb.raw_iterator_cf(&cf);
+
+            pending_iterator.seek_to_last();
+            if pending_iterator.valid() {
+                AtomicU64::new(
+                    pending_iterator
+                        .key()
+                        .map(|key| {
+                            bincode::DefaultOptions::new()
+                                .with_big_endian()
+                                .with_fixint_encoding()
+                                .deserialize(key)
+                                .unwrap_or(0)
+                        })
+                        .unwrap_or(0),
+                )
+            } else {
+                AtomicU64::new(0)
+            }
+        };
+
+        next_pending_id.fetch_add(1, Ordering::Relaxed);
 
         Self {
-            // TODO: Fetch it from the storage
-            next_pending_id: AtomicU64::new(0),
-            pending_pool: DBColumn::reopen(&db, cfs::PENDING_POOL),
+            next_pending_id,
+            pending_pool,
             pending_pool_index: DBColumn::reopen(&db, cfs::PENDING_POOL_INDEX),
             precedence_pool: DBColumn::reopen(&db, cfs::PRECEDENCE_POOL),
         }

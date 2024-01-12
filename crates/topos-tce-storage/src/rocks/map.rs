@@ -13,6 +13,9 @@ where
     /// Returns an Iterator over the whole CF
     fn iter(&'a self) -> Result<Self::Iterator, InternalStorageError>;
 
+    /// Returns an Iterator over the CF starting from index
+    fn iter_at<I: Serialize>(&'a self, index: &I) -> Result<Self::Iterator, InternalStorageError>;
+
     /// Returns an Iterator over the whole CF with mode configured
     fn iter_with_mode(
         &'a self,

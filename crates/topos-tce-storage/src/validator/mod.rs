@@ -118,6 +118,23 @@ impl ValidatorStore {
         Ok(self.pending_tables.pending_pool.iter()?.collect())
     }
 
+    pub fn get_next_pending_certificates(
+        &self,
+        from: &PendingCertificateId,
+        number: usize,
+    ) -> Result<Vec<(PendingCertificateId, Certificate)>, StorageError> {
+        debug!(
+            "Get next pending certificates from {} (max: {})",
+            from, number
+        );
+        Ok(self
+            .pending_tables
+            .pending_pool
+            .iter_at(from)?
+            .take(number)
+            .collect())
+    }
+
     // TODO: Performance issue on this one as we iter over all the pending certificates
     // We need to improve how we request the pending certificates.
     pub fn get_pending_certificates_for_subnets(
@@ -191,16 +208,29 @@ impl ValidatorStore {
         certificate: &Certificate,
     ) -> Result<Option<PendingCertificateId>, StorageError> {
         if self.get_certificate(&certificate.id)?.is_some() {
+            debug!("Certificate {} is already delivered", certificate.id);
             return Err(StorageError::InternalStorage(
                 InternalStorageError::CertificateAlreadyExists,
             ));
         }
 
+        if self
+            .pending_tables
+            .pending_pool_index
+            .get(&certificate.id)?
+            .is_some()
+        {
+            debug!(
+                "Certificate {} is already in the pending pool",
+                certificate.id
+            );
+            return Err(StorageError::InternalStorage(
+                InternalStorageError::CertificateAlreadyPending,
+            ));
+        }
+
         let prev_delivered = certificate.prev_id == INITIAL_CERTIFICATE_ID
-            || self
-                .fullnode_store
-                .get_certificate(&certificate.prev_id)?
-                .is_some();
+            || self.get_certificate(&certificate.prev_id)?.is_some();
 
         if prev_delivered {
             let id = self
@@ -213,11 +243,20 @@ impl ValidatorStore {
                 .pending_pool_index
                 .insert(&certificate.id, &id)?;
 
+            debug!(
+                "Certificate {} is now in the pending pool at index: {}",
+                certificate.id, id
+            );
             Ok(Some(id))
         } else {
             self.pending_tables
                 .precedence_pool
                 .insert(&certificate.prev_id, certificate)?;
+            debug!(
+                "Certificate {} is now in the precedence pool, because the previous certificate \
+                 {} isn't delivered yet",
+                certificate.id, certificate.prev_id
+            );
 
             Ok(None)
         }
@@ -467,12 +506,19 @@ impl WriteStore for ValidatorStore {
             _ = self.pending_tables.pending_pool.delete(&pending_id);
         }
 
-        if let Ok(Some(certificate)) = self
+        if let Ok(Some(next_certificate)) = self
             .pending_tables
             .precedence_pool
             .get(&certificate.certificate.id)
         {
-            self.insert_pending_certificate(&certificate)?;
+            debug!(
+                "Delivered certificate {} unlocks {} for broadcast",
+                certificate.certificate.id, next_certificate.id
+            );
+            self.insert_pending_certificate(&next_certificate)?;
+            self.pending_tables
+                .precedence_pool
+                .delete(&certificate.certificate.id)?;
         }
 
         Ok(position)

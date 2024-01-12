@@ -11,7 +11,7 @@ use rocksdb::{
 };
 
 use bincode::Options;
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::errors::InternalStorageError;
 
@@ -222,6 +222,13 @@ where
         Ok(ColumnIterator::new(raw_iterator))
     }
 
+    fn iter_at<I: Serialize>(&'a self, index: &I) -> Result<Self::Iterator, InternalStorageError> {
+        let mut raw_iterator = self.rocksdb.raw_iterator_cf(&self.cf()?);
+
+        raw_iterator.seek(be_fix_int_ser(index)?);
+        Ok(ColumnIterator::new(raw_iterator))
+    }
+
     fn iter_with_mode(
         &'a self,
         mode: IteratorMode<'_>,
@@ -271,7 +278,7 @@ where
 }
 
 /// Serialize a value using a fix length serialize and a big endian endianness
-fn be_fix_int_ser<S>(t: &S) -> Result<Vec<u8>, InternalStorageError>
+pub(crate) fn be_fix_int_ser<S>(t: &S) -> Result<Vec<u8>, InternalStorageError>
 where
     S: Serialize + ?Sized,
 {

@@ -29,7 +29,6 @@ pub struct Runtime {
     pub(crate) listening_on: Vec<Multiaddr>,
     pub(crate) public_addresses: Vec<Multiaddr>,
     pub(crate) bootstrapped: bool,
-    pub(crate) is_boot_node: bool,
 
     /// Contains current listenerId of the swarm
     pub active_listeners: HashSet<ListenerId>,
@@ -74,22 +73,16 @@ impl Runtime {
             }
         }
 
-        debug!("Starting a boot node ? {:?}", self.is_boot_node);
-        if !self.is_boot_node {
+        debug!("Starting a boot node ? {:?}", self.config.is_bootnode);
+        if !self.config.is_bootnode {
             // First we need to be known and known some peers before publishing our addresses to
             // the network.
             let mut publish_retry = self.config.publish_retry;
 
             // We were able to send the DHT query, starting the bootstrap
             // We may want to remove the bootstrap at some point
-            if self
-                .swarm
-                .behaviour_mut()
-                .discovery
-                .inner
-                .bootstrap()
-                .is_err()
-            {
+            if let Err(error) = self.swarm.behaviour_mut().discovery.inner.bootstrap() {
+                error!("Unable to start kademlia bootstrap: {error:?}");
                 return Err(Box::new(P2PError::BootstrapError(
                     "Unable to start kademlia bootstrap",
                 )));
