@@ -7364,7 +7364,7 @@ dependencies = [
 
 [[package]]
 name = "topos"
-version = "0.1.0"
+version = "0.0.11"
 dependencies = [
  "assert_cmd",
  "async-stream",
@@ -7424,7 +7424,7 @@ dependencies = [
 
 [[package]]
 name = "topos-api"
-version = "0.1.0"
+version = "0.0.11"
 dependencies = [
  "async-graphql",
  "async-stream",
@@ -7452,7 +7452,7 @@ dependencies = [
 
 [[package]]
 name = "topos-certificate-spammer"
-version = "0.1.0"
+version = "0.0.11"
 dependencies = [
  "clap 4.4.6",
  "futures",
@@ -7479,7 +7479,7 @@ dependencies = [
 
 [[package]]
 name = "topos-clock"
-version = "0.1.0"
+version = "0.0.11"
 dependencies = [
  "chrono",
  "futures",
@@ -7490,7 +7490,7 @@ dependencies = [
 
 [[package]]
 name = "topos-core"
-version = "0.1.0"
+version = "0.0.11"
 dependencies = [
  "bincode",
  "hex",
@@ -7503,7 +7503,7 @@ dependencies = [
 
 [[package]]
 name = "topos-crypto"
-version = "0.1.0"
+version = "0.0.11"
 dependencies = [
  "byteorder",
  "eth-keystore",
@@ -7519,7 +7519,7 @@ dependencies = [
 
 [[package]]
 name = "topos-metrics"
-version = "0.1.0"
+version = "0.0.11"
 dependencies = [
  "lazy_static",
  "prometheus",
@@ -7527,7 +7527,7 @@ dependencies = [
 
 [[package]]
 name = "topos-p2p"
-version = "0.1.0"
+version = "0.0.11"
 dependencies = [
  "async-trait",
  "bincode",
@@ -7567,7 +7567,7 @@ dependencies = [
 
 [[package]]
 name = "topos-sequencer"
-version = "0.1.0"
+version = "0.0.11"
 dependencies = [
  "hex",
  "opentelemetry",
@@ -7586,7 +7586,7 @@ dependencies = [
 
 [[package]]
 name = "topos-sequencer-subnet-client"
-version = "0.1.0"
+version = "0.0.11"
 dependencies = [
  "backoff",
  "ethers",
@@ -7604,7 +7604,7 @@ dependencies = [
 
 [[package]]
 name = "topos-sequencer-subnet-runtime"
-version = "0.1.0"
+version = "0.0.11"
 dependencies = [
  "byteorder",
  "env_logger 0.10.0",
@@ -7634,7 +7634,7 @@ dependencies = [
 
 [[package]]
 name = "topos-tce"
-version = "0.1.0"
+version = "0.0.11"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -7684,7 +7684,7 @@ dependencies = [
 
 [[package]]
 name = "topos-tce-api"
-version = "0.1.0"
+version = "0.0.11"
 dependencies = [
  "async-graphql",
  "async-graphql-axum",
@@ -7730,7 +7730,7 @@ dependencies = [
 
 [[package]]
 name = "topos-tce-broadcast"
-version = "0.1.0"
+version = "0.0.11"
 dependencies = [
  "byteorder",
  "criterion",
@@ -7759,7 +7759,7 @@ dependencies = [
 
 [[package]]
 name = "topos-tce-gatekeeper"
-version = "0.1.0"
+version = "0.0.11"
 dependencies = [
  "async-trait",
  "env_logger 0.10.0",
@@ -7777,7 +7777,7 @@ dependencies = [
 
 [[package]]
 name = "topos-tce-proxy"
-version = "0.1.0"
+version = "0.0.11"
 dependencies = [
  "async-stream",
  "backoff",
@@ -7813,7 +7813,7 @@ dependencies = [
 
 [[package]]
 name = "topos-tce-storage"
-version = "0.1.0"
+version = "0.0.11"
 dependencies = [
  "arc-swap",
  "async-stream",
@@ -7841,7 +7841,7 @@ dependencies = [
 
 [[package]]
 name = "topos-tce-synchronizer"
-version = "0.1.0"
+version = "0.0.11"
 dependencies = [
  "async-trait",
  "env_logger 0.10.0",
@@ -7867,7 +7867,7 @@ dependencies = [
 
 [[package]]
 name = "topos-tce-transport"
-version = "0.1.0"
+version = "0.0.11"
 dependencies = [
  "clap 4.4.6",
  "serde",
@@ -7878,7 +7878,7 @@ dependencies = [
 
 [[package]]
 name = "topos-telemetry"
-version = "0.1.0"
+version = "0.0.11"
 dependencies = [
  "opentelemetry",
  "serde",
@@ -7889,7 +7889,7 @@ dependencies = [
 
 [[package]]
 name = "topos-test-sdk"
-version = "0.1.0"
+version = "0.0.11"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -7923,7 +7923,7 @@ dependencies = [
 
 [[package]]
 name = "topos-uci"
-version = "0.1.1"
+version = "0.0.11"
 dependencies = [
  "ethereum-types 0.13.1",
  "hex",
@@ -7934,7 +7934,7 @@ dependencies = [
 
 [[package]]
 name = "topos-wallet"
-version = "0.1.0"
+version = "0.0.11"
 dependencies = [
  "byteorder",
  "eth-keystore",

@@ -5,6 +5,11 @@ members = [
     "crates/*"
 ]
 
+[workspace.package]
+version = "0.0.11"
+edition = "2021"
+rust-version = "1.65"
+
 [workspace.lints.rust]
 # Deny
 missing_docs = "allow"
