@@ -96,12 +96,9 @@ impl DoubleEcho {
     pub fn spawn_task_manager(
         &mut self,
         task_manager_message_receiver: mpsc::Receiver<DoubleEchoCommand>,
-    ) -> mpsc::Receiver<(CertificateId, TaskStatus)> {
-        let (task_completion_sender, task_completion_receiver) = mpsc::channel(2048);
-
+    ) {
         let task_manager = crate::task_manager::TaskManager::new(
             task_manager_message_receiver,
-            task_completion_sender,
             self.subscriptions.clone(),
             self.event_sender.clone(),
             self.validator_id,
@@ -112,8 +109,6 @@ impl DoubleEcho {
         );
 
         tokio::spawn(task_manager.run(self.task_manager_cancellation.child_token()));
-
-        task_completion_receiver
     }
 
     /// DoubleEcho main loop
@@ -127,7 +122,7 @@ impl DoubleEcho {
         mut self,
         task_manager_message_receiver: mpsc::Receiver<DoubleEchoCommand>,
     ) {
-        let mut task_completion = self.spawn_task_manager(task_manager_message_receiver);
+        _ = self.spawn_task_manager(task_manager_message_receiver);
 
         info!("DoubleEcho started");
 

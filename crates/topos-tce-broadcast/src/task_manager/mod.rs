@@ -43,7 +43,6 @@ type RunningTasks =
 /// or existing tasks will receive the messages.
 pub struct TaskManager {
     pub message_receiver: mpsc::Receiver<DoubleEchoCommand>,
-    pub task_completion_sender: mpsc::Sender<(CertificateId, TaskStatus)>,
     pub subscriptions: SubscriptionsView,
     pub event_sender: mpsc::Sender<ProtocolEvents>,
     pub tasks: HashMap<CertificateId, TaskContext>,
@@ -63,7 +62,6 @@ impl TaskManager {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         message_receiver: mpsc::Receiver<DoubleEchoCommand>,
-        task_completion_sender: mpsc::Sender<(CertificateId, TaskStatus)>,
         subscriptions: SubscriptionsView,
         event_sender: mpsc::Sender<ProtocolEvents>,
         validator_id: ValidatorId,
@@ -74,7 +72,6 @@ impl TaskManager {
     ) -> Self {
         Self {
             message_receiver,
-            task_completion_sender,
             subscriptions,
             event_sender,
             tasks: HashMap::new(),
@@ -138,7 +135,6 @@ impl TaskManager {
                         debug!("Task for certificate {} finished successfully", certificate_id);
                         self.tasks.remove(&certificate_id);
                         DOUBLE_ECHO_ACTIVE_TASKS_COUNT.dec();
-                        let _ = self.task_completion_sender.send((certificate_id, status)).await;
                     } else {
                         debug!("Task for certificate {} finished unsuccessfully", certificate_id);
                     }
