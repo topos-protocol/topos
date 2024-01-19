@@ -51,17 +51,18 @@ impl AppContext {
                             }
                             Ok(None) => {
                                 debug!(
-                                    "Certificate {} has been inserted into precedence pool",
-                                    cert.id
+                                    "Certificate {} from subnet {} has been inserted into \
+                                     precedence pool waiting for {}",
+                                    cert.id, cert.source_subnet_id, cert.prev_id
                                 );
                             }
                             Err(StorageError::InternalStorage(
                                 InternalStorageError::CertificateAlreadyPending,
                             )) => {
                                 debug!(
-                                    "Certificate {} from subnet {} has been inserted into \
-                                     precedence pool waiting for {}",
-                                    cert.id, cert.source_subnet_id, cert.prev_id
+                                    "Certificate {} has been already added to the pending pool, \
+                                     skipping",
+                                    cert.id
                                 );
                             }
                             Err(StorageError::InternalStorage(
