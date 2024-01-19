@@ -13,7 +13,6 @@
 //! be ignored by others. `fullnode` still consumes Echo and Ready coming from
 //! validators and use those messages to build their state.
 
-use crate::TaskStatus;
 use crate::{DoubleEchoCommand, SubscriptionsView};
 use std::collections::HashSet;
 use std::sync::Arc;

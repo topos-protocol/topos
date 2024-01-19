@@ -86,7 +86,7 @@ impl TaskManager {
         }
     }
 
-    pub async fn run(mut self, mut shutdown_receiver: CancellationToken) {
+    pub async fn run(mut self, shutdown_receiver: CancellationToken) {
         let mut interval = tokio::time::interval(Duration::from_secs(1));
 
         loop {
