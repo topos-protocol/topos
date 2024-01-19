@@ -22,7 +22,6 @@ use topos_core::{
     },
     uci::{Certificate, SubnetId, CERTIFICATE_ID_LENGTH, SUBNET_ID_LENGTH},
 };
-use topos_tce_transport::ReliableBroadcastParams;
 use topos_test_sdk::{certificates::create_certificate_chains, tce::create_network};
 use tracing::{debug, info, warn};
 

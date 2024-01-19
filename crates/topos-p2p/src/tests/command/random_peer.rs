@@ -24,7 +24,7 @@ async fn no_random_peer() {
         .await
         .expect("Unable to create p2p network");
 
-    let mut runtime = runtime.bootstrap().await.unwrap();
+    let runtime = runtime.bootstrap().await.unwrap();
 
     spawn(runtime.run());
 

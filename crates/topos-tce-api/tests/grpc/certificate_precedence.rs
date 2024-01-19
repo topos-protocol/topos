@@ -2,15 +2,13 @@ use base64ct::{Base64, Encoding};
 use rstest::rstest;
 use std::sync::Arc;
 use test_log::test;
-use tokio_stream::Stream;
 use topos_api::grpc::tce::v1::{GetLastPendingCertificatesRequest, LastPendingCertificate};
 use topos_core::uci::Certificate;
-use topos_tce_api::RuntimeEvent;
 use topos_test_sdk::{
     certificates::create_certificate_chain,
     constants::{SOURCE_SUBNET_ID_1, TARGET_SUBNET_ID_1},
     storage::{create_fullnode_store, create_validator_store, storage_client},
-    tce::public_api::{broadcast_stream, create_public_api, PublicApiContext},
+    tce::public_api::{broadcast_stream, create_public_api},
 };
 
 use topos_tce_storage::{types::CertificateDeliveredWithPositions, validator::ValidatorStore};
@@ -22,12 +20,12 @@ async fn fetch_latest_pending_certificates() {
     let validator_store: Arc<ValidatorStore> =
         create_validator_store(vec![], futures::future::ready(fullnode_store.clone())).await;
 
-    let (tx, rx): (
+    let (_, _): (
         _,
         tokio::sync::broadcast::Receiver<CertificateDeliveredWithPositions>,
     ) = tokio::sync::broadcast::channel(10);
 
-    let (mut api_context, _) = create_public_api(
+    let (api_context, _) = create_public_api(
         storage_client(vec![]),
         broadcast_stream(),
         futures::future::ready(validator_store.clone()),
@@ -73,12 +71,12 @@ async fn fetch_latest_pending_certificates_with_conflicts() {
     let validator_store: Arc<ValidatorStore> =
         create_validator_store(vec![], futures::future::ready(fullnode_store.clone())).await;
 
-    let (tx, rx): (
+    let (_, _): (
         _,
         tokio::sync::broadcast::Receiver<CertificateDeliveredWithPositions>,
     ) = tokio::sync::broadcast::channel(10);
 
-    let (mut api_context, _) = create_public_api(
+    let (api_context, _) = create_public_api(
         storage_client(vec![]),
         broadcast_stream(),
         futures::future::ready(validator_store.clone()),
