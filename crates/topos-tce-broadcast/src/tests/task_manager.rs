@@ -21,7 +21,6 @@ use crate::{sampler::SubscriptionsView, task_manager::TaskManager};
 async fn can_start(#[future] create_validator_store: Arc<ValidatorStore>) {
     let validator_store = create_validator_store.await;
     let (message_sender, message_receiver) = mpsc::channel(1);
-    let (task_completion_sender, _) = mpsc::channel(1);
     let (event_sender, _) = mpsc::channel(1);
     let (broadcast_sender, _) = broadcast::channel(1);
     let shutdown = CancellationToken::new();
@@ -39,7 +38,6 @@ async fn can_start(#[future] create_validator_store: Arc<ValidatorStore>) {
 
     let mut manager = TaskManager::new(
         message_receiver,
-        task_completion_sender,
         SubscriptionsView::default(),
         event_sender,
         validator_id,
