@@ -122,7 +122,7 @@ impl DoubleEcho {
         mut self,
         task_manager_message_receiver: mpsc::Receiver<DoubleEchoCommand>,
     ) {
-        _ = self.spawn_task_manager(task_manager_message_receiver);
+        self.spawn_task_manager(task_manager_message_receiver);
 
         info!("DoubleEcho started");
 
