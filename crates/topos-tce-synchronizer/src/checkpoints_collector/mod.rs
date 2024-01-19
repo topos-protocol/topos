@@ -104,9 +104,6 @@ enum SyncError {
     #[allow(unused)]
     UnableToParseSubnetId,
 
-    #[error("Gatekeeper returned no peer")]
-    NoPeerAvailable,
-
     #[error(transparent)]
     GrpcParsingError(#[from] GrpcParsingError),
 

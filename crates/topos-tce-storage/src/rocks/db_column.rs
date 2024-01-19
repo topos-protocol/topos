@@ -11,7 +11,7 @@ use rocksdb::{
 };
 
 use bincode::Options;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Serialize};
 
 use crate::errors::InternalStorageError;
 

@@ -1,6 +1,6 @@
 use tce_transport::ProtocolEvents;
 use topos_core::api::grpc::tce::v1::{double_echo_request, DoubleEchoRequest, Echo, Gossip, Ready};
-use tracing::{debug, error, info, warn};
+use tracing::{error, info, warn};
 
 use crate::events::Events;
 use crate::AppContext;

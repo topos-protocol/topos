@@ -1,11 +1,9 @@
-use std::collections::hash_map::Entry;
-
 use crate::{
     error::{CommandExecutionError, P2PError},
     protocol_name, Command, Runtime,
 };
 use libp2p::{kad::record::Key, PeerId};
-use rand::{seq::SliceRandom, thread_rng, Rng};
+use rand::{thread_rng, Rng};
 use topos_metrics::P2P_MESSAGE_SENT_ON_GOSSIPSUB_TOTAL;
 use tracing::{debug, error, info, warn};
 
@@ -41,7 +39,7 @@ impl Runtime {
             }
             Command::RandomKnownPeer { sender } => {
                 if self.peer_set.is_empty() {
-                    sender.send(Err(P2PError::CommandError(
+                    let _ = sender.send(Err(P2PError::CommandError(
                         CommandExecutionError::NoKnownPeer,
                     )));
 
