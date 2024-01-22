@@ -20,11 +20,6 @@ async fn fetch_latest_pending_certificates() {
     let validator_store: Arc<ValidatorStore> =
         create_validator_store(vec![], futures::future::ready(fullnode_store.clone())).await;
 
-    let (_, _): (
-        _,
-        tokio::sync::broadcast::Receiver<CertificateDeliveredWithPositions>,
-    ) = tokio::sync::broadcast::channel(10);
-
     let (api_context, _) = create_public_api(
         storage_client(vec![]),
         broadcast_stream(),
@@ -70,11 +65,6 @@ async fn fetch_latest_pending_certificates_with_conflicts() {
     let fullnode_store = create_fullnode_store(vec![]).await;
     let validator_store: Arc<ValidatorStore> =
         create_validator_store(vec![], futures::future::ready(fullnode_store.clone())).await;
-
-    let (_, _): (
-        _,
-        tokio::sync::broadcast::Receiver<CertificateDeliveredWithPositions>,
-    ) = tokio::sync::broadcast::channel(10);
 
     let (api_context, _) = create_public_api(
         storage_client(vec![]),
