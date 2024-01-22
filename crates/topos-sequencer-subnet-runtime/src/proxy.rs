@@ -176,8 +176,9 @@ impl SubnetRuntimeProxy {
                                         Some(block_number as i128)
                                     }
                                     Err(e) => {
-                                        error!("Failed to get subnet block number: {:?}", e);
-                                        None
+                                        error!("Failed to get subnet block number: {:?}, trying again...", e);
+                                        tokio::time::sleep(Duration::from_secs(10)).await;
+                                        continue;
                                     }
                                 }
                             }
@@ -213,7 +214,9 @@ impl SubnetRuntimeProxy {
                                 next_block_number as u64,
                             ) => {
                                 if let Err(e) = result {
-                                    panic!("Unable to perform subnet block sync: {}, closing", e);
+                                    error!("Unable to perform initial subnet block sync: {e}, trying again...");
+                                    tokio::time::sleep(Duration::from_secs(10)).await;
+                                    continue;
                                 } else {
                                     latest_acquired_subnet_block_number = next_block_number;
                                 }
