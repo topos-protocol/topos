@@ -26,7 +26,7 @@ async fn handle_gossip(
         Arc<MessageSigner>,
     ),
 ) {
-    let (mut context, mut p2p_receiver, message_signer) = setup_test.await;
+    let (mut context, _, _) = setup_test.await;
     let mut certificates = create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], 1);
     let certificate = certificates.pop().unwrap().certificate;
 
@@ -52,7 +52,7 @@ async fn handle_echo(
         Arc<MessageSigner>,
     ),
 ) {
-    let (mut context, mut p2p_receiver, message_signer) = setup_test.await;
+    let (mut context, _, message_signer) = setup_test.await;
     let mut certificates = create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], 1);
     let certificate = certificates.pop().unwrap().certificate;
     let validator_id: ValidatorId = message_signer.public_address.into();
@@ -81,7 +81,7 @@ async fn handle_ready(
         Arc<MessageSigner>,
     ),
 ) {
-    let (mut context, mut p2p_receiver, message_signer) = setup_test.await;
+    let (mut context, _, message_signer) = setup_test.await;
     let mut certificates = create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], 1);
     let certificate = certificates.pop().unwrap().certificate;
     let validator_id: ValidatorId = message_signer.public_address.into();
@@ -110,7 +110,7 @@ async fn handle_already_delivered(
         Arc<MessageSigner>,
     ),
 ) {
-    let (mut context, mut p2p_receiver, message_signer) = setup_test.await;
+    let (mut context, _, _) = setup_test.await;
     let mut certificates = create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], 1);
     let certificate_delivered = certificates.pop().unwrap();
     let certificate = certificate_delivered.certificate.clone();

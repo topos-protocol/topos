@@ -6,6 +6,7 @@ pub mod sequencer;
 pub mod storage;
 pub mod tce;
 
+use rand::Rng;
 use std::{
     collections::HashSet,
     net::SocketAddr,
@@ -17,7 +18,6 @@ use std::{
 };
 
 use lazy_static::lazy_static;
-use rand::Rng;
 use rstest::fixture;
 
 lazy_static! {

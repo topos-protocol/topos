@@ -102,7 +102,7 @@ pub(crate) async fn handle_command(
                         remove_dir_all(node_path).expect("failed to remove config folder");
                         std::process::exit(1);
                     }
-                    Err(e) => {
+                    Err(_) => {
                         println!("Failed to generate edge config");
                         remove_dir_all(node_path).expect("failed to remove config folder");
                         std::process::exit(1);

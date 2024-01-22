@@ -1,6 +1,6 @@
 use std::{
     collections::{hash_map::RandomState, HashMap},
-    hash::{BuildHasher, Hash, Hasher},
+    hash::{BuildHasher, Hash},
     sync::Arc,
 };
 

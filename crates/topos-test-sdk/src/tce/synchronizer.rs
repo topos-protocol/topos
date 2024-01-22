@@ -11,7 +11,7 @@ use topos_tce_synchronizer::SynchronizerError;
 use topos_tce_synchronizer::SynchronizerEvent;
 
 pub async fn create_synchronizer(
-    gatekeeper_client: GatekeeperClient,
+    _: GatekeeperClient,
     network_client: NetworkClient,
     store: Arc<ValidatorStore>,
 ) -> (

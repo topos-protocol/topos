@@ -1,6 +1,6 @@
 use std::future::IntoFuture;
 
-use rstest::{fixture, rstest};
+use rstest::fixture;
 use test_log::test;
 use tokio::spawn;
 use topos_p2p::PeerId;

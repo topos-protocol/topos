@@ -14,7 +14,7 @@ use std::collections::HashSet;
 use std::process::{Child, Command};
 use std::sync::Arc;
 use test_log::test;
-use tokio::sync::{oneshot, Mutex};
+use tokio::sync::Mutex;
 use topos_core::uci::{Certificate, CertificateId, SubnetId, SUBNET_ID_LENGTH};
 use topos_sequencer_subnet_runtime::proxy::{SubnetRuntimeProxyCommand, SubnetRuntimeProxyEvent};
 use tracing::{error, info, warn, Span};
@@ -28,7 +28,6 @@ use topos_sequencer_subnet_runtime::{SubnetRuntimeProxyConfig, SubnetRuntimeProx
 use topos_test_sdk::constants::*;
 
 // Local test network with default 2 seconds block
-const STANDALONE_SUBNET: &str = "standalone-test";
 const STANDALONE_SUBNET_BLOCK_TIME: u64 = 2;
 // Local test network with 12 seconds block, usefull for multiple transactions in one block tests
 const STANDALONE_SUBNET_WITH_LONG_BLOCKS_BLOCK_TIME: u64 = 12;
@@ -38,7 +37,6 @@ const SUBNET_RPC_PORT: u32 = 8545;
 const TEST_SECRET_ETHEREUM_KEY: &str =
     "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
 const TEST_ETHEREUM_ACCOUNT: &str = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
-const SUBNET_STARTUP_DELAY: u64 = 5; // seconds left for subnet startup
 const TEST_SUBNET_ID: &str = "6464646464646464646464646464646464646464646464646464646464646464";
 const TOKEN_SYMBOL: &str = "TKX";
 

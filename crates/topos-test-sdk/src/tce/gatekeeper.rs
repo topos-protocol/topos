@@ -1,7 +1,6 @@
 use std::error::Error;
 use std::future::IntoFuture;
 
-use libp2p::PeerId;
 use tokio::spawn;
 use tokio::task::JoinHandle;
 
