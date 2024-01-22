@@ -1,7 +1,11 @@
-use crate::*;
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::fmt::Debug;
+
+use super::{
+    CertificateId, Error, Frost, ReceiptsRootHash, StarkProof, StateRoot, SubnetId, TxRootHash,
+    CERTIFICATE_ID_LENGTH, DUMMY_FROST_VERIF_DELAY, DUMMY_STARK_DELAY,
+};
 
 /// Certificate - main exchange item
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -167,6 +171,8 @@ impl Certificate {
 
 #[cfg(test)]
 mod tests {
+    use crate::uci::SUBNET_ID_LENGTH;
+
     use super::*;
     const PREV_CERTIFICATE_ID: CertificateId =
         CertificateId::from_array([1u8; CERTIFICATE_ID_LENGTH]);

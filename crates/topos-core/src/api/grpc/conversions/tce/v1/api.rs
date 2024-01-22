@@ -1,4 +1,4 @@
-use crate::grpc::tce::v1::{
+use crate::api::grpc::tce::v1::{
     watch_certificates_request::{Command, OpenStream},
     watch_certificates_response::{CertificatePushed, Event, StreamOpened},
     WatchCertificatesRequest, WatchCertificatesResponse,

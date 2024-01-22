@@ -1,6 +1,6 @@
-use crate::graphql::certificate::{Certificate, CertificateId};
-use crate::graphql::checkpoint::SourceCheckpoint;
-use crate::graphql::errors::GraphQLServerError;
+use crate::api::graphql::certificate::{Certificate, CertificateId};
+use crate::api::graphql::checkpoint::SourceCheckpoint;
+use crate::api::graphql::errors::GraphQLServerError;
 
 use async_graphql::Context;
 use async_trait::async_trait;

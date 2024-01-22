@@ -23,8 +23,8 @@ pub struct Certificate {
     pub verifier: u32,
 }
 
-impl From<&topos_core::uci::Certificate> for Certificate {
-    fn from(uci_cert: &topos_core::uci::Certificate) -> Self {
+impl From<&crate::uci::Certificate> for Certificate {
+    fn from(uci_cert: &crate::uci::Certificate) -> Self {
         Self {
             id: uci_cert.id.to_string(),
             prev_id: uci_cert.prev_id.to_string(),
@@ -40,8 +40,8 @@ impl From<&topos_core::uci::Certificate> for Certificate {
     }
 }
 
-impl From<&topos_core::uci::SubnetId> for SubnetId {
-    fn from(uci_id: &topos_core::uci::SubnetId) -> Self {
+impl From<&crate::uci::SubnetId> for SubnetId {
+    fn from(uci_id: &crate::uci::SubnetId) -> Self {
         Self {
             value: uci_id.to_string(),
         }

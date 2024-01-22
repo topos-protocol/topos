@@ -13,7 +13,7 @@ pub struct SubnetId {
     pub value: String,
 }
 
-impl TryFrom<&SubnetId> for topos_core::uci::SubnetId {
+impl TryFrom<&SubnetId> for crate::uci::SubnetId {
     type Error = GraphQLServerError;
 
     fn try_from(value: &SubnetId) -> Result<Self, Self::Error> {
@@ -24,9 +24,9 @@ impl TryFrom<&SubnetId> for topos_core::uci::SubnetId {
     }
 }
 
-impl PartialEq<topos_core::uci::SubnetId> for SubnetId {
-    fn eq(&self, other: &topos_core::uci::SubnetId) -> bool {
-        if let Ok(current) = topos_core::uci::SubnetId::from_str(&self.value) {
+impl PartialEq<crate::uci::SubnetId> for SubnetId {
+    fn eq(&self, other: &crate::uci::SubnetId) -> bool {
+        if let Ok(current) = crate::uci::SubnetId::from_str(&self.value) {
             other.as_array().eq(current.as_array())
         } else {
             warn!("Unexpected parsing error for subnet id during comparaison");

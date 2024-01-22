@@ -1,4 +1,4 @@
-use topos_core::uci::SUBNET_ID_LENGTH;
+use crate::uci::SUBNET_ID_LENGTH;
 
 use super::v1::SubnetId;
 use base64ct::{Base64, Encoding};
@@ -15,7 +15,7 @@ pub enum Error {
     ValidationError(SubnetId),
 
     #[error("Unable to parse UCI field ({0}))")]
-    UCI(#[from] topos_core::uci::Error),
+    UCI(#[from] crate::uci::Error),
 
     #[error("Missing mandatory field: {0}")]
     MissingField(&'static str),
@@ -53,15 +53,15 @@ impl TryFrom<SubnetId> for [u8; SUBNET_ID_LENGTH] {
     }
 }
 
-impl From<topos_core::uci::SubnetId> for SubnetId {
-    fn from(value: topos_core::uci::SubnetId) -> Self {
+impl From<crate::uci::SubnetId> for SubnetId {
+    fn from(value: crate::uci::SubnetId) -> Self {
         SubnetId {
             value: value.as_array().to_vec(),
         }
     }
 }
 
-impl TryFrom<SubnetId> for topos_core::uci::SubnetId {
+impl TryFrom<SubnetId> for crate::uci::SubnetId {
     type Error = Error;
 
     fn try_from(value: SubnetId) -> Result<Self, Self::Error> {

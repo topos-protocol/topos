@@ -5,7 +5,7 @@ use tokio::sync::{
     oneshot,
 };
 use tonic::transport::NamedService;
-use topos_api::grpc::GrpcClient;
+use topos_core::api::grpc::GrpcClient;
 
 use crate::{
     error::{CommandExecutionError, P2PError},

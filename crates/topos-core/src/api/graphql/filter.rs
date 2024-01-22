@@ -1,4 +1,4 @@
-use crate::graphql::subnet::SubnetId;
+use crate::api::graphql::subnet::SubnetId;
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, async_graphql::OneofObject)]
 pub enum SubnetFilter {

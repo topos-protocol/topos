@@ -1,10 +1,10 @@
 use prost::{bytes::Bytes, Message};
 
-use crate::grpc::tce::v1::{
+use crate::api::grpc::tce::v1::{
     CheckpointRequest, CheckpointResponse, FetchCertificatesRequest, FetchCertificatesResponse,
 };
 
-use crate::grpc::ConversionError;
+use crate::api::grpc::ConversionError;
 
 macro_rules! impl_to_vec_conversion {
     ($($type: ident),*) => {

@@ -3,7 +3,7 @@ use std::fmt::{Debug, Display};
 use std::hash::Hash;
 use std::str::FromStr;
 
-use crate::{Error, SUBNET_ID_LENGTH};
+use super::{Error, SUBNET_ID_LENGTH};
 
 #[derive(Serialize, Hash, Deserialize, Default, PartialEq, Eq, Clone, Copy)]
 pub struct SubnetId {
