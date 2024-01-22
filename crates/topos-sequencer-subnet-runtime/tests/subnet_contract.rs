@@ -824,7 +824,7 @@ async fn test_subnet_id_call(
         }
     };
 
-    let expected_subnet_id = hex::decode(TEST_SUBNET_ID)
+    let expected_subnet_id: SubnetId = hex::decode(TEST_SUBNET_ID)
         .unwrap()
         .as_slice()
         .try_into()

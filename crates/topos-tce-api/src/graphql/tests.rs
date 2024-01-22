@@ -10,7 +10,7 @@ use futures::{SinkExt, StreamExt};
 use rstest::rstest;
 use test_log::test;
 use tokio::sync::{mpsc, oneshot};
-use topos_core::uci::{Certificate, INITIAL_CERTIFICATE_ID};
+use topos_core::uci::{Certificate, SubnetId, INITIAL_CERTIFICATE_ID};
 use topos_test_sdk::constants::{SOURCE_SUBNET_ID_2, TARGET_SUBNET_ID_3};
 use uuid::Uuid;
 
@@ -136,7 +136,8 @@ async fn open_watch_certificate_delivered() {
     )
     .unwrap();
 
-    assert_eq!(certificate.source_subnet_id, SOURCE_SUBNET_ID_2,);
+    let subnet_id: SubnetId = (&certificate.source_subnet_id).try_into().unwrap();
+    assert_eq!(subnet_id, SOURCE_SUBNET_ID_2,);
     assert_eq!(
         serde_json::from_str::<serde_json::Value>(&stream.next().await.unwrap().unwrap_text())
             .unwrap(),

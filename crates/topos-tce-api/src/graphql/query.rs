@@ -8,7 +8,7 @@ use topos_core::api::graphql::errors::GraphQLServerError;
 use topos_core::api::graphql::filter::SubnetFilter;
 use topos_core::api::graphql::{
     certificate::{Certificate, CertificateId},
-    checkpoint::SourceCheckpoint,
+    checkpoint::SourceCheckpointInput,
     query::CertificateQuery,
 };
 use topos_core::types::stream::CertificateSourceStreamPosition;
@@ -29,7 +29,7 @@ pub(crate) type ServiceSchema = Schema<QueryRoot, EmptyMutation, SubscriptionRoo
 impl CertificateQuery for QueryRoot {
     async fn certificates_per_subnet(
         ctx: &Context<'_>,
-        from_source_checkpoint: SourceCheckpoint,
+        from_source_checkpoint: SourceCheckpointInput,
         first: usize,
     ) -> Result<Vec<Certificate>, GraphQLServerError> {
         let store = ctx.data::<Arc<FullNodeStore>>().map_err(|_| {
@@ -41,9 +41,11 @@ impl CertificateQuery for QueryRoot {
         let mut certificates = Vec::default();
 
         for (index, _) in from_source_checkpoint.source_subnet_ids.iter().enumerate() {
-            let subnet_id = topos_core::uci::SubnetId::try_from(
-                &from_source_checkpoint.positions[index].source_subnet_id,
-            )?;
+            let subnet_id: topos_core::uci::SubnetId = (&from_source_checkpoint.positions[index]
+                .source_subnet_id)
+                .try_into()
+                .map_err(|_| GraphQLServerError::ParseSubnetId)?;
+
             let position = from_source_checkpoint.positions[index].position.into();
 
             let certificates_with_position = store
@@ -97,7 +99,7 @@ impl QueryRoot {
     async fn certificates(
         &self,
         ctx: &Context<'_>,
-        from_source_checkpoint: SourceCheckpoint,
+        from_source_checkpoint: SourceCheckpointInput,
         first: usize,
     ) -> Result<Vec<Certificate>, GraphQLServerError> {
         Self::certificates_per_subnet(ctx, from_source_checkpoint, first).await
