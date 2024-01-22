@@ -558,11 +558,11 @@ async fn can_query_graphql_endpoint_for_certificates(
             certificates(
                 fromSourceCheckpoint: {{
                     sourceSubnetIds: [
-                        {{ value: "{SOURCE_SUBNET_ID_1}" }}
+                        "{SOURCE_SUBNET_ID_1}"
                     ],
                     positions: [
                         {{
-                            sourceSubnetId: {{ value: "{SOURCE_SUBNET_ID_1}" }},
+                            sourceSubnetId:"{SOURCE_SUBNET_ID_1}",
                             position: 0,
                         }}
                     ]
@@ -573,11 +573,9 @@ async fn can_query_graphql_endpoint_for_certificates(
                 prevId
                 proof
                 signature
-                sourceSubnetId {{ value }}
+                sourceSubnetId
                 stateRoot
-                targetSubnets {{
-                    value
-                }}
+                targetSubnets
                 txRootHash
                 receiptsRootHash
                 verifier
