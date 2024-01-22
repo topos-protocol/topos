@@ -1,6 +1,6 @@
 use crate::grpc::checkpoints::StreamPositionError;
 use crate::grpc::shared::v1 as shared_v1;
-use topos_uci::{CertificateId, SubnetId};
+use topos_core::uci::{CertificateId, SubnetId};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TargetStreamPosition {

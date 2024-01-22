@@ -7,7 +7,6 @@ edition = "2021"
 workspace = true
 
 [dependencies]
-topos-uci = { path = "../topos-uci", optional = true }
 topos-api = { path = "../topos-api", optional = true }
 topos-crypto = { path = "../topos-crypto" }
 serde.workspace = true
@@ -18,7 +17,7 @@ hex.workspace = true
 [features]
 default = []
 
-uci = ["topos-uci"]
+uci = []
 api = ["topos-api"]
 
 [package.metadata.docs.rs]

@@ -12,7 +12,6 @@ grpc = []
 graphql = []
 
 [dependencies]
-topos-uci = { path = "../topos-uci"}
 topos-crypto = { path = "../topos-crypto"}
 
 tonic = { workspace = true, default-features = false, features = [

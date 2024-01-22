@@ -3,7 +3,7 @@ use std::{fmt, ops::Deref};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use topos_uci::SubnetId;
+use topos_core::uci::SubnetId;
 
 /// Represents the place of a certificate in the stream of the Source Subnet
 ///

@@ -4,11 +4,11 @@
 use crate::grpc::shared::v1_conversions_subnet::Error;
 use crate::grpc::uci::v1 as proto_v1;
 
-impl TryFrom<proto_v1::Certificate> for topos_uci::Certificate {
+impl TryFrom<proto_v1::Certificate> for topos_core::uci::Certificate {
     type Error = Error;
 
     fn try_from(certificate: proto_v1::Certificate) -> Result<Self, Self::Error> {
-        Ok(topos_uci::Certificate {
+        Ok(topos_core::uci::Certificate {
             prev_id: certificate
                 .prev_id
                 .ok_or(Error::MissingField("certificate.prev_id"))?
@@ -37,7 +37,7 @@ impl TryFrom<proto_v1::Certificate> for topos_uci::Certificate {
                 .target_subnets
                 .into_iter()
                 .map(TryInto::try_into)
-                .collect::<Result<Vec<topos_uci::SubnetId>, _>>()?,
+                .collect::<Result<Vec<topos_core::uci::SubnetId>, _>>()?,
             verifier: certificate.verifier,
             id: certificate
                 .id
@@ -51,8 +51,8 @@ impl TryFrom<proto_v1::Certificate> for topos_uci::Certificate {
     }
 }
 
-impl From<topos_uci::Certificate> for proto_v1::Certificate {
-    fn from(certificate: topos_uci::Certificate) -> Self {
+impl From<topos_core::uci::Certificate> for proto_v1::Certificate {
+    fn from(certificate: topos_core::uci::Certificate) -> Self {
         proto_v1::Certificate {
             prev_id: Some(crate::grpc::shared::v1::CertificateId {
                 value: certificate.prev_id.into(),
@@ -128,7 +128,7 @@ fn test_proto_uci_certificate_conversion_id_random_0x() {
             ],
         }),
     };
-    if let Err(e) = topos_uci::Certificate::try_from(valid_cert) {
+    if let Err(e) = topos_core::uci::Certificate::try_from(valid_cert) {
         panic!("Unable to perform certificate conversion: {e}");
     };
 }
@@ -155,12 +155,13 @@ fn test_proto_uci_certificate_conversion_id_starts_with_0x() {
         signature: Some(Frost { value: Vec::new() }),
         ..Default::default()
     };
-    let cert: topos_uci::Certificate = match topos_uci::Certificate::try_from(valid_cert) {
-        Ok(cert) => cert,
-        Err(e) => {
-            panic!("Unable to perform certificate conversion: {e}");
-        }
-    };
+    let cert: topos_core::uci::Certificate =
+        match topos_core::uci::Certificate::try_from(valid_cert) {
+            Ok(cert) => cert,
+            Err(e) => {
+                panic!("Unable to perform certificate conversion: {e}");
+            }
+        };
     println!(
         "First certificate converted prev_id={}, id={}",
         cert.prev_id, cert.id
@@ -183,12 +184,13 @@ fn test_proto_uci_certificate_conversion_id_starts_with_0x() {
         signature: Some(Frost { value: Vec::new() }),
         ..Default::default()
     };
-    let cert_2: topos_uci::Certificate = match topos_uci::Certificate::try_from(valid_cert_2) {
-        Ok(cert) => cert,
-        Err(e) => {
-            panic!("Unable to perform certificate conversion: {e}");
-        }
-    };
+    let cert_2: topos_core::uci::Certificate =
+        match topos_core::uci::Certificate::try_from(valid_cert_2) {
+            Ok(cert) => cert,
+            Err(e) => {
+                panic!("Unable to perform certificate conversion: {e}");
+            }
+        };
 
     println!(
         "Second certificate converted prev_id={}, id={}",

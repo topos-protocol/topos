@@ -1,4 +1,4 @@
-use topos_uci::CERTIFICATE_ID_LENGTH;
+use topos_core::uci::CERTIFICATE_ID_LENGTH;
 
 use super::v1::CertificateId;
 
@@ -22,15 +22,15 @@ impl From<[u8; CERTIFICATE_ID_LENGTH]> for CertificateId {
     }
 }
 
-impl From<topos_uci::CertificateId> for CertificateId {
-    fn from(value: topos_uci::CertificateId) -> Self {
+impl From<topos_core::uci::CertificateId> for CertificateId {
+    fn from(value: topos_core::uci::CertificateId) -> Self {
         CertificateId {
             value: value.as_array().to_vec(),
         }
     }
 }
 
-impl TryFrom<CertificateId> for topos_uci::CertificateId {
+impl TryFrom<CertificateId> for topos_core::uci::CertificateId {
     type Error = Error;
 
     fn try_from(value: CertificateId) -> Result<Self, Self::Error> {
@@ -45,7 +45,7 @@ impl TryFrom<CertificateId> for topos_uci::CertificateId {
     }
 }
 
-impl PartialEq<CertificateId> for topos_uci::CertificateId {
+impl PartialEq<CertificateId> for topos_core::uci::CertificateId {
     fn eq(&self, other: &CertificateId) -> bool {
         if other.value.len() != CERTIFICATE_ID_LENGTH {
             return false;

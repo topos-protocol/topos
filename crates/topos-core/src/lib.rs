@@ -1,7 +1,7 @@
 #[cfg(feature = "uci")]
 #[cfg_attr(docsrs, doc(cfg(feature = "uci")))]
 #[doc(inline)]
-pub use topos_uci as uci;
+pub mod uci;
 
 #[cfg(feature = "api")]
 #[cfg_attr(docsrs, doc(cfg(feature = "api")))]

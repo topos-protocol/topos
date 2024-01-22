@@ -41,7 +41,6 @@ base64ct.workspace = true
 [dev-dependencies]
 topos-tce-transport = { path = "../topos-tce-transport" }
 topos-tce = { path = "../topos-tce" }
-topos-uci = { path = "../topos-uci"}
 rstest = { workspace = true, features = ["async-timeout"] }
 test-log.workspace = true
 env_logger.workspace = true

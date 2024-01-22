@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use topos_uci::{Certificate, CertificateId};
+use topos_core::uci::{Certificate, CertificateId};
 
 use crate::errors::GrpcParsingError;
 
