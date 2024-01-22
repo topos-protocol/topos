@@ -14,7 +14,8 @@ use tokio_util::sync::CancellationToken;
 use tonic_health::server::HealthReporter;
 use topos_core::api::grpc::checkpoints::TargetStreamPosition;
 use topos_core::api::grpc::tce::v1::api_service_server::ApiServiceServer;
-use topos_core::uci::{Certificate, SubnetId};
+use topos_core::types::CertificateDelivered;
+use topos_core::uci::SubnetId;
 use topos_tce_storage::{types::CertificateDeliveredWithPositions, StorageClient};
 
 use tracing::{debug, error, info};
@@ -60,7 +61,7 @@ pub struct Runtime {
     pub(crate) broadcast_stream: broadcast::Receiver<CertificateDeliveredWithPositions>,
 
     pub(crate) storage: StorageClient,
-    pub(crate) transient_streams: HashMap<Uuid, Sender<Arc<Certificate>>>,
+    pub(crate) transient_streams: HashMap<Uuid, Sender<Arc<CertificateDelivered>>>,
     /// Streams that are currently active (with a valid handshake)
     pub(crate) active_streams: HashMap<Uuid, Sender<StreamCommand>>,
     /// Streams that are currently in negotiation
@@ -99,8 +100,8 @@ impl Runtime {
                 }
 
                 Ok(certificate_delivered) = self.broadcast_stream.recv() => {
-                    let certificate = certificate_delivered.0.certificate;
-                    let certificate_id = certificate.id;
+                    let certificate = certificate_delivered.0;
+                    let certificate_id = certificate.certificate.id;
                     let positions = certificate_delivered.1;
                     let cmd = RuntimeCommand::DispatchCertificate {
                         certificate,
@@ -183,13 +184,17 @@ impl Runtime {
             } => {
                 info!(
                     "Received DispatchCertificate for certificate cert_id: {:?}",
-                    certificate.id
+                    certificate.certificate.id
                 );
                 // Collect target subnets from certificate cross chain transaction list
-                let target_subnets = certificate.target_subnets.iter().collect::<HashSet<_>>();
+                let target_subnets = certificate
+                    .certificate
+                    .target_subnets
+                    .iter()
+                    .collect::<HashSet<_>>();
                 debug!(
                     "Dispatching certificate cert_id: {:?} to target subnets: {:?}",
-                    &certificate.id, target_subnets
+                    &certificate.certificate.id, target_subnets
                 );
 
                 // Notify all the transient streams that a new certificate is available
@@ -228,7 +233,7 @@ impl Runtime {
                                     error!(
                                         "Invalid target stream position for cert id {}, target \
                                          subnet id {target_subnet_id}, dispatch failed",
-                                        &certificate.id
+                                        &certificate.certificate.id
                                     );
                                 }
                             }

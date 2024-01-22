@@ -11,6 +11,7 @@ use tonic::transport::Uri;
 use topos_core::api::graphql::certificate::Certificate as GraphQLCertificate;
 use topos_core::api::grpc::shared::v1::checkpoints::TargetCheckpoint;
 use topos_core::api::grpc::shared::v1::positions::TargetStreamPosition;
+use topos_core::types::stream::Position;
 use topos_core::types::CertificateDelivered;
 use topos_core::{
     api::grpc::tce::v1::{
@@ -23,7 +24,9 @@ use topos_core::{
 use topos_tce_api::{Runtime, RuntimeEvent};
 use topos_tce_storage::types::CertificateDeliveredWithPositions;
 use topos_tce_storage::StorageClient;
-use topos_test_sdk::certificates::create_certificate_chain;
+use topos_test_sdk::certificates::{
+    create_certificate, create_certificate_at_position, create_certificate_chain,
+};
 use topos_test_sdk::constants::*;
 use topos_test_sdk::networking::get_available_addr;
 use topos_test_sdk::storage::{create_fullnode_store, create_validator_store, storage_client};
@@ -77,12 +80,14 @@ async fn runtime_can_dispatch_a_cert(
     // Wait for client to be ready
     tokio::time::sleep(Duration::from_millis(10)).await;
 
-    let cert = topos_core::uci::Certificate::new_with_default_fields(
-        PREV_CERTIFICATE_ID,
-        SOURCE_SUBNET_ID_1,
-        &[TARGET_SUBNET_ID_1],
-    )
-    .unwrap();
+    let cert = create_certificate_at_position(
+        Position::ZERO,
+        create_certificate(
+            SOURCE_SUBNET_ID_1,
+            &[TARGET_SUBNET_ID_1],
+            Some(PREV_CERTIFICATE_ID),
+        ),
+    );
 
     let mut target_positions = std::collections::HashMap::new();
     target_positions.insert(
@@ -91,7 +96,7 @@ async fn runtime_can_dispatch_a_cert(
             position: 0,
             source_subnet_id: SOURCE_SUBNET_ID_1,
             target_subnet_id: TARGET_SUBNET_ID_1,
-            certificate_id: Some(cert.id),
+            certificate_id: Some(cert.certificate.id),
         },
     );
 
@@ -102,7 +107,7 @@ async fn runtime_can_dispatch_a_cert(
         .await;
 
     let certificate_received = rx.await.unwrap();
-    assert_eq!(cert, certificate_received);
+    assert_eq!(cert.certificate, certificate_received);
     drop(api_context.api_context.take());
 }
 
@@ -153,12 +158,10 @@ async fn can_catchup_with_old_certs(
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     let last = certificates.last().map(|c| c.certificate.id).unwrap();
-    let cert = topos_core::uci::Certificate::new_with_default_fields(
-        last,
-        SOURCE_SUBNET_ID_1,
-        &[TARGET_SUBNET_ID_1],
-    )
-    .unwrap();
+    let cert = create_certificate_at_position(
+        certificates.len().try_into().unwrap(),
+        create_certificate(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], Some(last)),
+    );
 
     let mut target_positions = std::collections::HashMap::new();
     target_positions.insert(
@@ -167,7 +170,7 @@ async fn can_catchup_with_old_certs(
             position: certificates.len() as u64,
             source_subnet_id: SOURCE_SUBNET_ID_1,
             target_subnet_id: TARGET_SUBNET_ID_1,
-            certificate_id: Some(cert.id),
+            certificate_id: Some(cert.certificate.id),
         },
     );
 
@@ -189,7 +192,7 @@ async fn can_catchup_with_old_certs(
     }
 
     let certificate_received = rx.recv().await.unwrap();
-    assert_eq!(cert, certificate_received);
+    assert_eq!(cert.certificate, certificate_received);
     drop(api_context.api_context.take());
 }
 
@@ -278,12 +281,10 @@ async fn can_catchup_with_old_certs_with_position(
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     let last = certificates.last().map(|c| c.certificate.id).unwrap();
-    let cert = topos_core::uci::Certificate::new_with_default_fields(
-        last,
-        SOURCE_SUBNET_ID_1,
-        &[TARGET_SUBNET_ID_1],
-    )
-    .unwrap();
+    let cert = create_certificate_at_position(
+        certificates.len().try_into().unwrap(),
+        create_certificate(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], Some(last)),
+    );
 
     let mut target_positions = std::collections::HashMap::new();
     target_positions.insert(
@@ -292,7 +293,7 @@ async fn can_catchup_with_old_certs_with_position(
             position: certificates.len() as u64,
             source_subnet_id: SOURCE_SUBNET_ID_1,
             target_subnet_id: TARGET_SUBNET_ID_1,
-            certificate_id: Some(cert.id),
+            certificate_id: Some(cert.certificate.id),
         },
     );
 
@@ -313,7 +314,7 @@ async fn can_catchup_with_old_certs_with_position(
     }
 
     let certificate_received = rx.recv().await.unwrap();
-    assert_eq!(cert, certificate_received);
+    assert_eq!(cert.certificate, certificate_received);
 }
 
 #[test(tokio::test)]
@@ -516,12 +517,10 @@ async fn can_query_graphql_endpoint_for_certificates(
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     let last = certificates.last().map(|c| c.certificate.id).unwrap();
-    let cert = topos_core::uci::Certificate::new_with_default_fields(
-        last,
-        SOURCE_SUBNET_ID_1,
-        &[TARGET_SUBNET_ID_1],
-    )
-    .unwrap();
+    let cert = create_certificate_at_position(
+        certificates.len().try_into().unwrap(),
+        create_certificate(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], Some(last)),
+    );
 
     let mut target_positions = std::collections::HashMap::new();
     target_positions.insert(
@@ -530,7 +529,7 @@ async fn can_query_graphql_endpoint_for_certificates(
             position: certificates.len() as u64,
             source_subnet_id: SOURCE_SUBNET_ID_1,
             target_subnet_id: TARGET_SUBNET_ID_1,
-            certificate_id: Some(cert.id),
+            certificate_id: Some(cert.certificate.id),
         },
     );
 
@@ -579,6 +578,12 @@ async fn can_query_graphql_endpoint_for_certificates(
                 txRootHash
                 receiptsRootHash
                 verifier
+                positions {{
+                  source {{
+                    sourceSubnetId
+                    position
+                  }}
+                }}
             }}
         }}
         "#

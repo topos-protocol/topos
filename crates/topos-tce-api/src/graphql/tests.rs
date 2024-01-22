@@ -10,8 +10,14 @@ use futures::{SinkExt, StreamExt};
 use rstest::rstest;
 use test_log::test;
 use tokio::sync::{mpsc, oneshot};
-use topos_core::uci::{Certificate, SubnetId, INITIAL_CERTIFICATE_ID};
-use topos_test_sdk::constants::{SOURCE_SUBNET_ID_2, TARGET_SUBNET_ID_3};
+use topos_core::{
+    types::stream::Position,
+    uci::{SubnetId, INITIAL_CERTIFICATE_ID},
+};
+use topos_test_sdk::{
+    certificates::{create_certificate, create_certificate_at_position},
+    constants::{SOURCE_SUBNET_ID_2, TARGET_SUBNET_ID_3},
+};
 use uuid::Uuid;
 
 #[rstest]
@@ -67,12 +73,14 @@ async fn open_watch_certificate_delivered() {
 
                 tokio::time::sleep(Duration::from_millis(10)).await;
 
-                let certificate = Certificate::new_with_default_fields(
-                    INITIAL_CERTIFICATE_ID,
-                    SOURCE_SUBNET_ID_2,
-                    &[TARGET_SUBNET_ID_3],
-                )
-                .unwrap();
+                let certificate = create_certificate_at_position(
+                    Position::ZERO,
+                    create_certificate(
+                        SOURCE_SUBNET_ID_2,
+                        &[TARGET_SUBNET_ID_3],
+                        Some(INITIAL_CERTIFICATE_ID),
+                    ),
+                );
 
                 _ = notify.send(Arc::new(certificate)).await;
             }
@@ -119,6 +127,12 @@ async fn open_watch_certificate_delivered() {
                                 txRootHash
                                 receiptsRootHash
                                 verifier
+                                positions {
+                                  source {
+                                    sourceSubnetId
+                                    position
+                                  }
+                                }
                               }
                             }"
             },

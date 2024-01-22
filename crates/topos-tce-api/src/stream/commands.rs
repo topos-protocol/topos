@@ -1,10 +1,10 @@
 use topos_core::api::grpc::checkpoints::TargetStreamPosition;
-use topos_core::uci::Certificate;
+use topos_core::types::CertificateDelivered;
 
 #[derive(Debug)]
 pub enum StreamCommand {
     PushCertificate {
-        certificate: Certificate,
+        certificate: CertificateDelivered,
         positions: Vec<TargetStreamPosition>,
     },
 }

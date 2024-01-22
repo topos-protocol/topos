@@ -14,7 +14,7 @@ use crate::constants::SOURCE_SUBNET_ID_1;
 use crate::constants::TARGET_SUBNET_ID_1;
 
 #[fixture]
-fn create_certificate(
+pub fn create_certificate(
     #[default(SOURCE_SUBNET_ID_1)] source_subnet: SubnetId,
     #[default(&[TARGET_SUBNET_ID_1])] target_subnets: &[SubnetId],
     #[default(None)] previous_certificate_id: Option<CertificateId>,
