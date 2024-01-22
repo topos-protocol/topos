@@ -141,6 +141,8 @@ impl SubnetRuntimeProxy {
                                 latest_acquired_subnet_block_number = position;
                             }
                             Err(e) => {
+                                // This panic should not happen unless other task retrieving source head certificate has failed
+                                // In that case, close the tread with panin
                                 panic!(
                                     "Failed to get source head certificate, unable to proceed \
                                      with certificate generation: {e}"
