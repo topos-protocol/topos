@@ -14,7 +14,7 @@ use std::collections::HashSet;
 use std::process::{Child, Command};
 use std::sync::Arc;
 use test_log::test;
-use tokio::sync::{oneshot, Mutex};
+use tokio::sync::Mutex;
 use topos_core::uci::{Certificate, CertificateId, SubnetId, SUBNET_ID_LENGTH};
 use topos_sequencer_subnet_runtime::proxy::{SubnetRuntimeProxyCommand, SubnetRuntimeProxyEvent};
 use tracing::{error, info, warn, Span};
