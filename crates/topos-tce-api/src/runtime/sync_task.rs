@@ -25,6 +25,7 @@ pub(crate) enum SyncTaskStatus {
     ///  The sync task is active and started running
     Running,
     /// The sync task failed and reported an error
+    #[allow(dead_code)]
     Error(Box<SyncTaskError>),
     /// The sync task exited gracefully and is done pushing certificates to the stream
     Done,
