@@ -11,7 +11,7 @@ use topos_test_sdk::{
     tce::public_api::{broadcast_stream, create_public_api},
 };
 
-use topos_tce_storage::{types::CertificateDeliveredWithPositions, validator::ValidatorStore};
+use topos_tce_storage::validator::ValidatorStore;
 
 #[rstest]
 #[test(tokio::test)]

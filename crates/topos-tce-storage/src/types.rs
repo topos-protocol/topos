@@ -56,7 +56,8 @@ pub struct CheckpointSummary {
     sequence_number: usize,
     checkpoint_data: Vec<SourceStreamPosition>,
 }
-pub struct VerifiedCheckpointSummary((), ());
+#[allow(unused)]
+pub struct VerifiedCheckpointSummary(CheckpointSummary, ValidatorQuorumSignatureInfo);
 
 #[allow(unused)]
 pub struct ValidatorQuorumSignatureInfo {
