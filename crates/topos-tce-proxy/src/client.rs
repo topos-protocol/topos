@@ -26,7 +26,7 @@ const CERTIFICATE_OUTBOUND_CHANNEL_SIZE: usize = 100;
 const CERTIFICATE_INBOUND_CHANNEL_SIZE: usize = 100;
 const TCE_PROXY_COMMAND_CHANNEL_SIZE: usize = 100;
 
-// Maksimum backoff retry timeout in seconds (1 hour)
+// Maximum backoff retry timeout in seconds (1 hour)
 const TCE_SUBMIT_CERTIFICATE_BACKOFF_TIMEOUT: Duration = Duration::from_secs(3600);
 
 pub(crate) enum TceClientCommand {
@@ -378,12 +378,6 @@ impl TceClientBuilder {
                                 let previous_cert_id = cert.prev_id;
                                 let span = info_span!(parent: &span, "SendCertificate", %cert_id, %previous_cert_id, %tce_endpoint);
                                 let context = span.context();
-
-                // REMOVE DEBUG CODE
-                                if (!certificate_to_send.is_empty()) {
-                                    continue;
-                                }
-
                                 let tce_endpoint = tce_endpoint.clone();
                                 let tce_grpc_client = tce_grpc_client.clone();
                                 let context_backoff = context.clone();

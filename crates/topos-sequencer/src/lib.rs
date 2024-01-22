@@ -59,7 +59,7 @@ async fn launch_workers(
     {
         Ok(subnet_runtime_proxy) => subnet_runtime_proxy,
         Err(e) => {
-            panic!("Unable to instantiate runtime proxy, error: {e}");
+            return Err(Box::new(e));
         }
     };
 
@@ -68,14 +68,13 @@ async fn launch_workers(
     let target_subnet_stream_positions = match subnet_runtime_proxy_worker.get_checkpoints().await {
         Ok(checkpoints) => checkpoints,
         Err(e) => {
-            panic!("Unable to get checkpoints from the subnet {e}");
+            return Err(Box::new(e));
         }
     };
 
     // Launch Tce proxy worker for handling interaction with TCE node
-    // For initialization it will retry using backoff algorithm, but if it fails (default max backoff elapsed time is 15 min) we can not proceed
+    // For initialization it will retry using backoff algorithm, but if it fails we can not proceed and we restart sequencer
     // Once it is initialized, TCE proxy will try reconnecting in the loop (with backoff) if TCE becomes unavailable
-    // TODO: Revise this approach?
     let (tce_proxy_worker, source_head_certificate_id) = match TceProxyWorker::new(TceProxyConfig {
         subnet_id,
         tce_endpoint: config.tce_grpc_endpoint.clone(),
@@ -192,7 +191,13 @@ pub async fn run(
 
         let app_context: Option<AppContext> = tokio::select! {
             app = &mut ctx_recv => {
-                Some(app.unwrap())
+                match app {
+                    Ok(context) => Some(context),
+                    Err(e) => {
+                        info!("Application initialized with error: {e}");
+                        None
+                    }
+                }
             },
 
             // Shutdown signal
@@ -216,6 +221,9 @@ pub async fn run(
                     return Ok(ExitStatus::default());
                 }
             }
+        } else {
+            warn!("Sequencer startup sequencer failed, restarting sequencer...");
+            tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
         }
     }
 }

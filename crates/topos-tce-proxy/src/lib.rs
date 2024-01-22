@@ -14,7 +14,7 @@ use topos_core::{
 };
 use tracing::{error, info};
 
-// Maksimum backoff retry timeout in seconds (12 hours)
+// Maximum backoff retry timeout in seconds (12 hours)
 const TCE_CONNECT_BACKOFF_TIMEOUT: Duration = Duration::from_secs(12 * 3600);
 
 #[derive(Debug, thiserror::Error)]

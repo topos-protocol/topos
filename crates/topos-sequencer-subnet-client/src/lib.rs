@@ -24,10 +24,10 @@ pub use topos_core::uci::{
 use tracing::{error, info, warn};
 
 const PUSH_CERTIFICATE_GAS_LIMIT: u64 = 1000000;
-// Maksimum backoff retry timeout in seconds (12 hours)
+// Maximum backoff retry timeout in seconds (12 hours)
 const SUBNET_CONNECT_BACKOFF_TIMEOUT: Duration = Duration::from_secs(12 * 3600);
-const SUBNET_GET_CHECKPOINTS_BACKOFF_TIMEOUT: Duration = Duration::from_secs(12 * 3600);
-const SUBNET_GET_SUBNET_ID_BACKOFF_TIMEOUT: Duration = Duration::from_secs(12 * 3600);
+const SUBNET_GET_CHECKPOINTS_BACKOFF_TIMEOUT: Duration = Duration::from_secs(3600);
+const SUBNET_GET_SUBNET_ID_BACKOFF_TIMEOUT: Duration = Duration::from_secs(3600);
 
 pub type BlockData = Vec<u8>;
 pub type BlockNumber = u64;
