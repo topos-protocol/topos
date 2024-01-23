@@ -25,6 +25,11 @@ pub struct AppContext {
     pub tce_proxy_worker: TceProxyWorker,
 }
 
+pub enum AppContextStatus {
+    Finished,
+    Restarting,
+}
+
 impl AppContext {
     /// Factory
     pub fn new(
@@ -40,7 +45,10 @@ impl AppContext {
     }
 
     /// Main processing loop
-    pub(crate) async fn run(&mut self, shutdown: (CancellationToken, mpsc::Sender<()>)) {
+    pub(crate) async fn run(
+        &mut self,
+        shutdown: (CancellationToken, mpsc::Sender<()>),
+    ) -> AppContextStatus {
         loop {
             tokio::select! {
 
@@ -50,11 +58,24 @@ impl AppContext {
                     self.on_subnet_runtime_proxy_event(evt).await;
                 },
 
-
                 // TCE event handling
                 Ok(tce_evt) = self.tce_proxy_worker.next_event() => {
                     debug!("tce_proxy_worker.next_event(): {:?}", &tce_evt);
-                    self.on_tce_proxy_event(tce_evt).await;
+                    match tce_evt {
+                        TceProxyEvent::TceServiceFailure | TceProxyEvent::WatchCertificatesChannelFailed => {
+                            // Unrecoverable failure in interaction with the TCE. Sequencer needs to be restarted
+                            warn!(
+                                "Unrecoverable failure in sequencer <-> tce interaction. Shutting down sequencer \
+                                 sequencer..."
+                            );
+                            if let Err(e) = self.shutdown().await {
+                                warn!("Error happened during shutdown: {e:?}");
+                            }
+                            warn!("Shutdown finished, restarting sequencer...");
+                            return AppContextStatus::Restarting;
+                        },
+                        _ => self.on_tce_proxy_event(tce_evt).await,
+                    }
                 },
 
                 // Shutdown signal
@@ -65,7 +86,7 @@ impl AppContext {
                     }
                     // Drop the sender to notify the Sequencer termination
                     drop(shutdown.1);
-                    break;
+                    return AppContextStatus::Finished;
                 }
             }
         }
@@ -101,65 +122,29 @@ impl AppContext {
     }
 
     async fn on_tce_proxy_event(&mut self, evt: TceProxyEvent) {
-        match evt {
-            TceProxyEvent::NewDeliveredCerts { certificates, ctx } => {
-                let span = info_span!("Sequencer app context");
-                span.set_parent(ctx);
-
-                async {
-                    // New certificates acquired from TCE
-                    for (cert, cert_position) in certificates {
-                        self.subnet_runtime_proxy_worker
-                            .eval(SubnetRuntimeProxyCommand::OnNewDeliveredCertificate {
-                                certificate: cert,
-                                position: cert_position,
-                                ctx: Span::current().context(),
-                            })
-                            .await
-                            .expect("Propagate new delivered Certificate to the runtime");
-                    }
+        if let TceProxyEvent::NewDeliveredCerts { certificates, ctx } = evt {
+            let span = info_span!("Sequencer app context");
+            span.set_parent(ctx);
+            async {
+                // New certificates acquired from TCE
+                for (cert, cert_position) in certificates {
+                    self.subnet_runtime_proxy_worker
+                        .eval(SubnetRuntimeProxyCommand::OnNewDeliveredCertificate {
+                            certificate: cert,
+                            position: cert_position,
+                            ctx: Span::current().context(),
+                        })
+                        .await
+                        .expect("Propagate new delivered Certificate to the runtime");
                 }
-                .with_context(span.context())
-                .instrument(span)
-                .await
             }
-            TceProxyEvent::WatchCertificatesChannelFailed => {
-                warn!("Restarting tce proxy worker...");
-                let config = &self.tce_proxy_worker.config;
-                // Here try to restart tce proxy
-                _ = self.tce_proxy_worker.shutdown().await;
-
-                // TODO: Retrieve subnet checkpoint from where to start receiving certificates, again
-                let (tce_proxy_worker, _source_head_certificate_id) =
-                    match TceProxyWorker::new(topos_tce_proxy::TceProxyConfig {
-                        subnet_id: config.subnet_id,
-                        tce_endpoint: config.tce_endpoint.clone(),
-                        positions: Vec::new(), // TODO: acquire from subnet
-                    })
-                    .await
-                    {
-                        Ok((tce_proxy_worker, source_head_certificate)) => {
-                            info!(
-                                "TCE proxy client is restarted for the source subnet {:?} from \
-                                 the head {:?}",
-                                config.subnet_id, source_head_certificate
-                            );
-                            let source_head_certificate_id =
-                                source_head_certificate.map(|cert| cert.0.id);
-                            (tce_proxy_worker, source_head_certificate_id)
-                        }
-                        Err(e) => {
-                            panic!("Unable to create TCE Proxy: {e}");
-                        }
-                    };
-
-                self.tce_proxy_worker = tce_proxy_worker;
-            }
+            .with_context(span.context())
+            .instrument(span)
+            .await
         }
     }
 
     // Shutdown app
-    #[allow(dead_code)]
     async fn shutdown(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         self.tce_proxy_worker.shutdown().await?;
         self.subnet_runtime_proxy_worker.shutdown().await?;
