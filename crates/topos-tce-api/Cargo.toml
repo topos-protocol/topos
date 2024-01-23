@@ -8,7 +8,6 @@ workspace = true
 
 [dependencies]
 topos-p2p = { path = "../topos-p2p" }
-topos-api = { path = "../topos-api", features = ["graphql"] }
 topos-core = { workspace = true, features = ["uci", "api"] }
 topos-metrics = { path = "../topos-metrics" }
 topos-tce-storage = { path = "../topos-tce-storage" }

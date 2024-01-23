@@ -634,7 +634,7 @@ async fn test_tce_proxy_submit_certificate(
 
 async fn create_tce_client(
     endpoint: &str,
-    source_subnet_id: topos_uci::SubnetId,
+    source_subnet_id: topos_core::uci::SubnetId,
 ) -> Result<
     (
         TceClient,
@@ -827,7 +827,7 @@ async fn test_tce_client_submit_and_get_certificate_delivered(
         &[TARGET_SUBNET_ID_1],
         5,
     ));
-    let expected_certs: HashSet<topos_uci::CertificateId> = certificates
+    let expected_certs: HashSet<topos_core::uci::CertificateId> = certificates
         .iter()
         .map(|cert| cert.certificate.id)
         .collect();

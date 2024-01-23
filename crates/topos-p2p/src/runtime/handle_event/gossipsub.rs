@@ -7,7 +7,7 @@ use tracing::{debug, error};
 
 use crate::{constants, event::GossipEvent, Event, Runtime, TOPOS_ECHO, TOPOS_GOSSIP, TOPOS_READY};
 use prost::Message;
-use topos_api::grpc::tce::v1::Batch;
+use topos_core::api::grpc::tce::v1::Batch;
 
 use super::EventHandler;
 

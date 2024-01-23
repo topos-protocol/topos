@@ -5,9 +5,9 @@ use async_graphql::{Context, EmptyMutation, Object, Schema, Subscription};
 use async_trait::async_trait;
 use futures::{Stream, StreamExt};
 use tokio::sync::{mpsc, oneshot};
-use topos_api::graphql::errors::GraphQLServerError;
-use topos_api::graphql::filter::SubnetFilter;
-use topos_api::graphql::{
+use topos_core::api::graphql::errors::GraphQLServerError;
+use topos_core::api::graphql::filter::SubnetFilter;
+use topos_core::api::graphql::{
     certificate::{Certificate, CertificateId},
     checkpoint::SourceCheckpoint,
     query::CertificateQuery,

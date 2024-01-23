@@ -1,4 +1,4 @@
-use topos_api::grpc::checkpoints::StreamPositionError;
+use crate::api::grpc::checkpoints::StreamPositionError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum GrpcParsingError {

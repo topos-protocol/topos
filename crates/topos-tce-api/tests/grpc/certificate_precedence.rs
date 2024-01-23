@@ -2,7 +2,7 @@ use base64ct::{Base64, Encoding};
 use rstest::rstest;
 use std::sync::Arc;
 use test_log::test;
-use topos_api::grpc::tce::v1::{GetLastPendingCertificatesRequest, LastPendingCertificate};
+use topos_core::api::grpc::tce::v1::{GetLastPendingCertificatesRequest, LastPendingCertificate};
 use topos_core::uci::Certificate;
 use topos_test_sdk::{
     certificates::create_certificate_chain,

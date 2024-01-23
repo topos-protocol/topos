@@ -7423,34 +7423,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "topos-api"
-version = "0.1.0"
-dependencies = [
- "async-graphql",
- "async-stream",
- "async-trait",
- "base64ct",
- "env_logger 0.10.0",
- "futures",
- "hex",
- "prost 0.12.1",
- "rstest",
- "serde",
- "test-log",
- "thiserror",
- "tokio",
- "tokio-stream",
- "tonic 0.10.2",
- "tonic-build",
- "topos-crypto",
- "topos-test-sdk",
- "topos-uci",
- "tracing",
- "tracing-subscriber",
- "uuid 1.4.1",
-]
-
-[[package]]
 name = "topos-certificate-spammer"
 version = "0.1.0"
 dependencies = [
@@ -7492,13 +7464,29 @@ dependencies = [
 name = "topos-core"
 version = "0.1.0"
 dependencies = [
+ "async-graphql",
+ "async-stream",
+ "async-trait",
+ "base64ct",
  "bincode",
+ "env_logger 0.10.0",
+ "ethereum-types 0.13.1",
+ "futures",
  "hex",
+ "prost 0.12.1",
+ "rstest",
  "serde",
+ "test-log",
  "thiserror",
- "topos-api",
+ "tokio",
+ "tokio-stream",
+ "tonic 0.10.2",
+ "tonic-build",
  "topos-crypto",
- "topos-uci",
+ "topos-test-sdk",
+ "tracing",
+ "tracing-subscriber",
+ "uuid 1.4.1",
 ]
 
 [[package]]
@@ -7555,7 +7543,7 @@ dependencies = [
  "tokio-stream",
  "tokio-util",
  "tonic 0.10.2",
- "topos-api",
+ "topos-core",
  "topos-metrics",
  "topos-test-sdk",
  "tower",
@@ -7715,7 +7703,6 @@ dependencies = [
  "tonic 0.10.2",
  "tonic-health",
  "tonic-reflection",
- "topos-api",
  "topos-core",
  "topos-metrics",
  "topos-p2p",
@@ -7804,7 +7791,6 @@ dependencies = [
  "topos-tce-transport",
  "topos-telemetry",
  "topos-test-sdk",
- "topos-uci",
  "tracing",
  "tracing-opentelemetry",
  "tracing-subscriber",
@@ -7919,17 +7905,6 @@ dependencies = [
  "topos-tce-transport",
  "tower",
  "tracing",
-]
-
-[[package]]
-name = "topos-uci"
-version = "0.1.1"
-dependencies = [
- "ethereum-types 0.13.1",
- "hex",
- "serde",
- "thiserror",
- "topos-crypto",
 ]
 
 [[package]]

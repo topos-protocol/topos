@@ -5,7 +5,7 @@ use std::sync::Arc;
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::{Request, Response, Status, Streaming};
-use topos_api::grpc::tce::v1::LastPendingCertificate;
+use topos_core::api::grpc::tce::v1::LastPendingCertificate;
 use topos_core::api::grpc::tce::v1::{
     api_service_server::ApiService, GetLastPendingCertificatesRequest,
     GetLastPendingCertificatesResponse, GetSourceHeadRequest, GetSourceHeadResponse,

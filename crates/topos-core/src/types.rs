@@ -1,10 +1,10 @@
+use crate::uci::{Certificate, CertificateId};
 use serde::{Deserialize, Serialize};
-use topos_uci::{Certificate, CertificateId};
 
 use crate::errors::GrpcParsingError;
 
 use self::stream::CertificateSourceStreamPosition;
-use topos_api::grpc::{
+use crate::api::grpc::{
     checkpoints::SourceStreamPosition,
     tce::v1::{ProofOfDelivery as GrpcProofOfDelivery, SignedReady},
 };
