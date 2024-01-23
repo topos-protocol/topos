@@ -142,7 +142,7 @@ impl SubnetRuntimeProxy {
                             }
                             Err(e) => {
                                 // This panic should not happen unless other task retrieving source head certificate has failed
-                                // In that case, close the tread with panin
+                                // In that case, close the tread with panic
                                 panic!(
                                     "Failed to get source head certificate, unable to proceed \
                                      with certificate generation: {e}"

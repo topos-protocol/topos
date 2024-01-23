@@ -134,7 +134,7 @@ pub async fn launch(
 
     // If subnetID is specified as command line argument, use it
     let subnet_id: SubnetId = if let Some(pk) = &config.public_key {
-        SubnetId::try_from(&pk[1..]).unwrap()
+        SubnetId::try_from(&pk[1..]).expect("Can parse public key into a SubnetID")
     } else if let Some(subnet_id) = &config.subnet_id {
         if &subnet_id[0..2] != "0x" {
             return Err(Box::new(std::io::Error::new(
