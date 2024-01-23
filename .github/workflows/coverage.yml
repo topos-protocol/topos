@@ -45,7 +45,6 @@ jobs:
             -t lcov \
             --branch \
             --ignore-not-existing \
-            --ignore 'crates/topos-api/src/grpc/generated/*' \
             --ignore 'crates/topos-test-sdk/src/grpc/behaviour/*' \
             --ignore '../**' \
             --ignore '/*' \
