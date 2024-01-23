@@ -1,10 +1,6 @@
 mod utils;
 
-use std::{
-    path::PathBuf,
-    process::{Command, ExitStatus},
-    thread,
-};
+use std::{path::PathBuf, process::Command};
 
 use assert_cmd::prelude::*;
 use sysinfo::{Pid, PidExt, ProcessExt, Signal, System, SystemExt};
@@ -81,7 +77,7 @@ async fn command_node_up_sigterm() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut cmd = tokio::process::Command::from(cmd).spawn().unwrap();
     let pid = cmd.id().unwrap();
-    let sigterm_wait = tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+    let _ = tokio::time::sleep(std::time::Duration::from_secs(10)).await;
 
     let s = System::new_all();
     if let Some(process) = s.process(Pid::from_u32(pid)) {

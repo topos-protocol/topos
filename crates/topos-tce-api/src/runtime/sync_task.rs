@@ -7,7 +7,7 @@ use std::pin::Pin;
 use tokio::sync::mpsc::error::SendError;
 use tokio::sync::mpsc::Sender;
 use tokio_util::sync::CancellationToken;
-use topos_api::grpc::checkpoints::TargetStreamPosition;
+use topos_core::api::grpc::checkpoints::TargetStreamPosition;
 use topos_core::types::stream::CertificateTargetStreamPosition;
 use topos_core::types::CertificateDelivered;
 use topos_core::uci::SubnetId;
@@ -25,6 +25,7 @@ pub(crate) enum SyncTaskStatus {
     ///  The sync task is active and started running
     Running,
     /// The sync task failed and reported an error
+    #[allow(dead_code)]
     Error(Box<SyncTaskError>),
     /// The sync task exited gracefully and is done pushing certificates to the stream
     Done,

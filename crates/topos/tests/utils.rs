@@ -3,10 +3,11 @@ use predicates::prelude::*;
 use regex::Regex;
 use std::path::PathBuf;
 use std::process::Command;
-use tempfile::tempdir;
 use topos::install_polygon_edge;
 
+// Have to allow dead_code because clippy doesn't recognize it is being used in the tests
 #[cfg(test)]
+#[allow(dead_code)]
 pub fn sanitize_config_folder_path(cmd_out: &str) -> String {
     // Sanitize the result here:
     // When run locally, we get /Users/<username>/.config/topos
@@ -17,6 +18,8 @@ pub fn sanitize_config_folder_path(cmd_out: &str) -> String {
         .to_string()
 }
 
+// Have to allow dead_code because clippy doesn't recognize it is being used in the tests
+#[allow(dead_code)]
 pub async fn setup_polygon_edge(path: &str) -> String {
     let installation_path = std::env::current_dir().unwrap().join(path);
     let binary_path = installation_path.join("polygon-edge");
@@ -37,6 +40,8 @@ pub async fn setup_polygon_edge(path: &str) -> String {
     installation_path.to_str().unwrap().to_string()
 }
 
+// Have to allow dead_code because clippy doesn't recognize it is being used in the tests
+#[allow(dead_code)]
 pub async fn generate_polygon_edge_genesis_file(
     polygon_edge_bin: &str,
     home_path: &str,

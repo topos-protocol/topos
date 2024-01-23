@@ -2,11 +2,7 @@ use config::TceConfiguration;
 use futures::StreamExt;
 use opentelemetry::global;
 use std::process::ExitStatus;
-use std::{
-    future::IntoFuture,
-    panic::UnwindSafe,
-    sync::{atomic::AtomicBool, Arc},
-};
+use std::{future::IntoFuture, sync::Arc};
 use tokio::{
     spawn,
     sync::{broadcast, mpsc},
@@ -17,7 +13,7 @@ use topos_core::api::grpc::tce::v1::synchronizer_service_server::SynchronizerSer
 use topos_crypto::{messages::MessageSigner, validator_id::ValidatorId};
 use topos_p2p::{
     utils::{local_key_pair, local_key_pair_from_slice},
-    GrpcContext, GrpcRouter, Multiaddr,
+    GrpcContext, GrpcRouter,
 };
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
 use topos_tce_storage::{

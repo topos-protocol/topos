@@ -1,15 +1,10 @@
 use libp2p::PeerId;
 use rstest::{fixture, rstest};
-use std::{
-    collections::{HashMap, HashSet},
-    future::IntoFuture,
-    net::SocketAddr,
-    sync::Arc,
-};
+use std::{collections::HashSet, future::IntoFuture, sync::Arc};
 use tce_transport::ProtocolEvents;
 use tokio_stream::Stream;
 use topos_tce_api::RuntimeEvent;
-use topos_tce_gatekeeper::{Gatekeeper, GatekeeperClient};
+use topos_tce_gatekeeper::Gatekeeper;
 
 use tokio::sync::{broadcast, mpsc};
 use topos_crypto::messages::MessageSigner;
@@ -104,12 +99,12 @@ pub async fn setup_test(
 ) {
     let validator_store = create_validator_store.await;
     let is_validator = false;
-    let mut message_signer = Arc::new(MessageSigner::new(&[5u8; 32]).unwrap());
+    let message_signer = Arc::new(MessageSigner::new(&[5u8; 32]).unwrap());
     let validator_id = message_signer.public_address.into();
 
-    let (broadcast_sender, broadcast_receiver) = broadcast::channel(1);
+    let (broadcast_sender, _) = broadcast::channel(1);
 
-    let (tce_cli, tce_stream) = ReliableBroadcastClient::new(
+    let (tce_cli, _) = ReliableBroadcastClient::new(
         ReliableBroadcastConfig {
             tce_params: tce_transport::ReliableBroadcastParams::default(),
             validator_id,
@@ -122,7 +117,7 @@ pub async fn setup_test(
     .await;
 
     let (shutdown_p2p, _) = mpsc::channel(1);
-    let (p2p_sender, mut p2p_receiver) = mpsc::channel(1);
+    let (p2p_sender, p2p_receiver) = mpsc::channel(1);
     let grpc_over_p2p = GrpcOverP2P::new(p2p_sender.clone());
     let network_client = NetworkClient {
         retry_ttl: 10,
@@ -135,9 +130,9 @@ pub async fn setup_test(
     let (api_context, _api_stream) = create_public_api.await;
     let api_client = api_context.client;
 
-    let (gatekeeper_client, gatekeeper) = Gatekeeper::builder().into_future().await.unwrap();
+    let (gatekeeper_client, _) = Gatekeeper::builder().into_future().await.unwrap();
 
-    let (mut context, _) = AppContext::new(
+    let (context, _) = AppContext::new(
         is_validator,
         StorageClient::new(validator_store.clone()),
         tce_cli,

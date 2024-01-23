@@ -2,7 +2,6 @@ use std::{future::IntoFuture, time::Duration};
 
 use builder::GatekeeperBuilder;
 use futures::{future::BoxFuture, FutureExt};
-use rand::seq::SliceRandom;
 use thiserror::Error;
 use tokio::{
     sync::{mpsc, oneshot},
@@ -16,14 +15,11 @@ mod client;
 mod tests;
 
 pub use client::GatekeeperClient;
-use topos_core::uci::SubnetId;
 use tracing::{info, warn};
 
 pub struct Gatekeeper {
     pub(crate) shutdown: mpsc::Receiver<oneshot::Sender<()>>,
     pub(crate) tick_duration: Duration,
-
-    subnet_list: Vec<SubnetId>,
 }
 
 impl Default for Gatekeeper {
@@ -34,7 +30,6 @@ impl Default for Gatekeeper {
         Self {
             shutdown,
             tick_duration,
-            subnet_list: Vec::default(),
         }
     }
 }

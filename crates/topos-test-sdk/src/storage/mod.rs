@@ -1,12 +1,6 @@
-use rand::Rng;
 use rstest::fixture;
+use std::path::PathBuf;
 use std::sync::Arc;
-use std::thread;
-use std::{
-    path::PathBuf,
-    str::FromStr,
-    time::{SystemTime, UNIX_EPOCH},
-};
 
 use topos_core::types::CertificateDelivered;
 use topos_tce_storage::{

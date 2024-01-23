@@ -133,7 +133,7 @@ async fn open_watch_certificate_delivered() {
         &serde_json::from_str::<serde_json::Value>(&stream.next().await.unwrap().unwrap_text())
             .unwrap();
 
-    let certificate = serde_json::from_value::<topos_api::graphql::certificate::Certificate>(
+    let certificate = serde_json::from_value::<topos_core::api::graphql::certificate::Certificate>(
         certificate["payload"]["data"]["watchDeliveredCertificates"].clone(),
     )
     .unwrap();

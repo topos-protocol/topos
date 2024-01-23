@@ -1,13 +1,11 @@
 use std::path::Path;
 use std::{net::SocketAddr, path::PathBuf};
 
-use figment::providers::Serialized;
 use figment::{
     providers::{Format, Toml},
     Figment,
 };
-use serde::de::DeserializeOwned;
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 
 use crate::config::Config;
 use topos_p2p::{Multiaddr, PeerId};

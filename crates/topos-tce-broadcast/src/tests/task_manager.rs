@@ -36,7 +36,7 @@ async fn can_start(#[future] create_validator_store: Arc<ValidatorStore>) {
             .unwrap(),
     );
 
-    let mut manager = TaskManager::new(
+    let manager = TaskManager::new(
         message_receiver,
         SubscriptionsView::default(),
         event_sender,
@@ -60,21 +60,21 @@ async fn can_start(#[future] create_validator_store: Arc<ValidatorStore>) {
         .take()
         .expect("Failed to create certificate");
 
-    message_sender
+    let _ = message_sender
         .send(crate::DoubleEchoCommand::Broadcast {
             need_gossip: false,
             cert: child.certificate.clone(),
         })
         .await;
 
-    message_sender
+    let _ = message_sender
         .send(crate::DoubleEchoCommand::Broadcast {
             need_gossip: false,
             cert: parent.certificate.clone(),
         })
         .await;
 
-    message_sender
+    let _ = message_sender
         .send(crate::DoubleEchoCommand::Broadcast {
             need_gossip: false,
             cert: parent.certificate.clone(),

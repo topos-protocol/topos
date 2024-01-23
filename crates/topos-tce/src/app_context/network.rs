@@ -7,7 +7,7 @@ use tokio::spawn;
 use topos_metrics::CERTIFICATE_DELIVERY_LATENCY;
 use topos_p2p::Event as NetEvent;
 use topos_tce_broadcast::DoubleEchoCommand;
-use tracing::{debug, error, info, trace};
+use tracing::{debug, error, trace};
 
 use topos_core::api::grpc::tce::v1::{double_echo_request, DoubleEchoRequest, Echo, Gossip, Ready};
 use topos_core::uci;
@@ -32,7 +32,6 @@ impl AppContext {
                     certificate: Some(certificate),
                 }) => match uci::Certificate::try_from(certificate) {
                     Ok(cert) => {
-                        let channel = self.tce_cli.get_double_echo_channel();
                         if let hash_map::Entry::Vacant(entry) = self.delivery_latency.entry(cert.id)
                         {
                             entry.insert(CERTIFICATE_DELIVERY_LATENCY.start_timer());
@@ -43,7 +42,7 @@ impl AppContext {
                         );
 
                         match self.validator_store.insert_pending_certificate(&cert) {
-                            Ok(Some(pending_id)) => {
+                            Ok(Some(_)) => {
                                 debug!(
                                     "Certificate {} has been inserted into pending pool",
                                     cert.id

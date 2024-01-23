@@ -1,10 +1,10 @@
 use crate::config::sequencer::SequencerConfig;
 use crate::config::tce::TceConfig;
 use crate::edge::CommandConfig;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::ExitStatus;
 use std::time::Duration;
-use std::{collections::HashMap, task::Wake};
 use thiserror::Error;
 use tokio::{spawn, sync::mpsc, task::JoinHandle};
 use tokio_util::sync::CancellationToken;

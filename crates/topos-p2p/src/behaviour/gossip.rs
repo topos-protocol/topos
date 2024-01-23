@@ -11,7 +11,7 @@ use libp2p::{
     swarm::{NetworkBehaviour, THandlerInEvent, ToSwarm},
 };
 use prost::Message as ProstMessage;
-use topos_api::grpc::tce::v1::Batch;
+use topos_core::api::grpc::tce::v1::Batch;
 use topos_metrics::{P2P_DUPLICATE_MESSAGE_ID_RECEIVED_TOTAL, P2P_GOSSIP_BATCH_SIZE};
 use tracing::{debug, error};
 

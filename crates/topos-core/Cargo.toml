@@ -7,19 +7,48 @@ edition = "2021"
 workspace = true
 
 [dependencies]
-topos-uci = { path = "../topos-uci", optional = true }
-topos-api = { path = "../topos-api", optional = true }
 topos-crypto = { path = "../topos-crypto" }
-serde.workspace = true
 bincode.workspace = true
 thiserror.workspace = true
 hex.workspace = true
+ethereum-types.workspace = true
 
+tonic = { workspace = true, default-features = false, features = [
+    "prost",
+    "codegen",
+    "transport",
+] }
+
+async-graphql.workspace = true
+async-trait.workspace = true
+base64ct.workspace = true
+prost.workspace = true
+serde = { workspace = true, features = ["derive"] }
+tracing.workspace = true
+uuid.workspace = true
+
+[build-dependencies]
+tonic-build = { version = "0.10", default-features = false, features = [
+    "prost", "transport"
+] }
+
+[dev-dependencies]
+async-stream.workspace = true
+env_logger.workspace = true
+futures.workspace = true
+rstest.workspace = true
+test-log.workspace = true
+tokio-stream.workspace = true
+tokio.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
+tracing.workspace = true
+
+topos-test-sdk = { path = "../topos-test-sdk/" }
 [features]
 default = []
 
-uci = ["topos-uci"]
-api = ["topos-api"]
+uci = []
+api = []
 
 [package.metadata.docs.rs]
 all-features = true

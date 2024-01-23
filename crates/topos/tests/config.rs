@@ -1,8 +1,4 @@
-use assert_cmd::{assert, prelude::*};
-use libp2p::swarm::dial_opts::DialOpts;
-use libp2p::swarm::{DialError, ListenError, SwarmEvent};
-use libp2p::{build_multiaddr, Multiaddr, PeerId, Swarm};
-use predicates::prelude::*;
+use assert_cmd::prelude::*;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::thread;
@@ -12,7 +8,6 @@ use tokio::fs::OpenOptions;
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 use toml::map::Map;
 use toml::Value;
-use topos::install_polygon_edge;
 use topos_test_sdk::create_folder;
 
 use crate::utils::setup_polygon_edge;
@@ -342,7 +337,6 @@ async fn command_node_up_with_old_config(
     // Create config file
     let node_up_home_env = tmp_home_dir.to_str().unwrap();
     let node_edge_path_env = setup_polygon_edge(node_up_home_env).await;
-    let node_up_role_env = "validator";
     let node_up_name_env = "test_node_up_old_config";
     let node_up_subnet_env = "topos";
 
@@ -388,9 +382,9 @@ async fn command_node_up_with_old_config(
         panic!("TCE configuration table malformed");
     }
 
-    file.set_len(0).await;
-    file.seek(std::io::SeekFrom::Start(0)).await;
-    file.write_all(toml::to_string(&current)?.as_bytes()).await;
+    let _ = file.set_len(0).await;
+    let _ = file.seek(std::io::SeekFrom::Start(0)).await;
+    let _ = file.write_all(toml::to_string(&current)?.as_bytes()).await;
 
     drop(file);
 
