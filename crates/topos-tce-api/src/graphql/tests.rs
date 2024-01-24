@@ -113,11 +113,9 @@ async fn open_watch_certificate_delivered() {
                                 prevId
                                 proof
                                 signature
-                                sourceSubnetId { value }
+                                sourceSubnetId
                                 stateRoot
-                                targetSubnets {
-                                  value
-                                }
+                                targetSubnets
                                 txRootHash
                                 receiptsRootHash
                                 verifier

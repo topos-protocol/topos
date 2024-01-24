@@ -1,18 +1,18 @@
-use async_graphql::{InputObject, SimpleObject};
+use async_graphql::{NewType, SimpleObject};
 use serde::{Deserialize, Serialize};
+
+use crate::uci;
 
 use super::subnet::SubnetId;
 
-#[derive(Debug, Default, Serialize, Deserialize, InputObject)]
-pub struct CertificateId {
-    pub value: String,
-}
+#[derive(Serialize, Deserialize, Debug, NewType)]
+pub struct CertificateId(String);
 
-#[derive(Debug, Default, Serialize, Deserialize, SimpleObject)]
+#[derive(Serialize, Deserialize, Debug, SimpleObject)]
 #[serde(rename_all = "camelCase")]
 pub struct Certificate {
-    pub id: String,
-    pub prev_id: String,
+    pub id: CertificateId,
+    pub prev_id: CertificateId,
     pub proof: String,
     pub signature: String,
     pub source_subnet_id: SubnetId,
@@ -26,8 +26,8 @@ pub struct Certificate {
 impl From<&crate::uci::Certificate> for Certificate {
     fn from(uci_cert: &crate::uci::Certificate) -> Self {
         Self {
-            id: uci_cert.id.to_string(),
-            prev_id: uci_cert.prev_id.to_string(),
+            id: CertificateId(uci_cert.id.to_string()),
+            prev_id: CertificateId(uci_cert.prev_id.to_string()),
             proof: hex::encode(&uci_cert.proof),
             signature: hex::encode(&uci_cert.signature),
             source_subnet_id: SubnetId::from(&uci_cert.source_subnet_id),
@@ -40,10 +40,10 @@ impl From<&crate::uci::Certificate> for Certificate {
     }
 }
 
-impl From<&crate::uci::SubnetId> for SubnetId {
-    fn from(uci_id: &crate::uci::SubnetId) -> Self {
-        Self {
-            value: uci_id.to_string(),
-        }
+impl TryFrom<CertificateId> for crate::uci::CertificateId {
+    type Error = uci::Error;
+
+    fn try_from(value: CertificateId) -> Result<Self, Self::Error> {
+        crate::uci::CertificateId::try_from(value.0.as_bytes())
     }
 }

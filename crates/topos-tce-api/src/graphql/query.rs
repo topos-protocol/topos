@@ -1,4 +1,3 @@
-use std::str::FromStr;
 use std::sync::Arc;
 
 use async_graphql::{Context, EmptyMutation, Object, Schema, Subscription};
@@ -81,8 +80,6 @@ impl CertificateQuery for QueryRoot {
         store
             .get_certificate(
                 &certificate_id
-                    .value
-                    .as_bytes()
                     .try_into()
                     .map_err(|_| GraphQLServerError::ParseCertificateId)?,
             )
@@ -138,16 +135,13 @@ impl SubscriptionRoot {
             })?
             .map_err(|e| GraphQLServerError::TransientStream(e.to_string()))?;
 
-        let filter: Option<(FilterIs, topos_core::uci::SubnetId)> =
-            filter
-                .map(|value| match value {
-                    SubnetFilter::Target(id) => topos_core::uci::SubnetId::from_str(&id.value)
-                        .map(|v| (FilterIs::Target, v)),
-                    SubnetFilter::Source(id) => topos_core::uci::SubnetId::from_str(&id.value)
-                        .map(|v| (FilterIs::Source, v)),
-                })
-                .map_or(Ok(None), |v| v.map(Some))
-                .map_err(|_| GraphQLServerError::ParseSubnetId)?;
+        let filter: Option<(FilterIs, topos_core::uci::SubnetId)> = filter
+            .map(|value| match value {
+                SubnetFilter::Target(ref id) => id.try_into().map(|v| (FilterIs::Target, v)),
+                SubnetFilter::Source(ref id) => id.try_into().map(|v| (FilterIs::Source, v)),
+            })
+            .map_or(Ok(None), |v| v.map(Some))
+            .map_err(|_| GraphQLServerError::ParseSubnetId)?;
 
         Ok(stream
             .filter(move |c| {
