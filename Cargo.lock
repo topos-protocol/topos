@@ -7364,7 +7364,7 @@ dependencies = [
 
 [[package]]
 name = "topos"
-version = "0.1.0"
+version = "0.0.11"
 dependencies = [
  "assert_cmd",
  "async-stream",
