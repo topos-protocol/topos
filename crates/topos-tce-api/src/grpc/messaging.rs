@@ -5,7 +5,8 @@ use topos_core::api::grpc::tce::v1::watch_certificates_request::OpenStream as Gr
 use topos_core::api::grpc::tce::v1::watch_certificates_response::CertificatePushed as GrpcCertificatePushed;
 use topos_core::api::grpc::tce::v1::watch_certificates_response::Event;
 use topos_core::api::grpc::tce::v1::watch_certificates_response::StreamOpened as GrpcStreamOpened;
-use topos_core::uci::{Certificate, SubnetId};
+use topos_core::types::CertificateDelivered;
+use topos_core::uci::SubnetId;
 
 pub enum InboundMessage {
     OpenStream(OpenStream),
@@ -17,7 +18,7 @@ pub struct OpenStream {
 
 #[derive(Debug)]
 pub struct CertificatePushed {
-    pub(crate) certificate: Certificate,
+    pub(crate) certificate: CertificateDelivered,
     pub(crate) positions: Vec<TargetStreamPosition>,
 }
 
@@ -71,7 +72,7 @@ impl From<OutboundMessage> for Event {
             }
             OutboundMessage::CertificatePushed(certificate_pushed) => {
                 Self::CertificatePushed(GrpcCertificatePushed {
-                    certificate: Some(certificate_pushed.certificate.into()),
+                    certificate: Some(certificate_pushed.certificate.certificate.into()),
                     positions: certificate_pushed
                         .positions
                         .into_iter()

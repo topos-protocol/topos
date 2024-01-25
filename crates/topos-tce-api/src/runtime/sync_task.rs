@@ -152,10 +152,10 @@ impl IntoFuture for SyncTask {
                 }
             }
 
-            for (CertificateDelivered { certificate, .. }, position) in collector {
+            for (certificate, position) in collector {
                 debug!(
                     "Stream sync task for {} is sending {}",
-                    self.stream_id, certificate.id
+                    self.stream_id, certificate.certificate.id
                 );
 
                 if let FetchCertificatesPosition::Target(CertificateTargetStreamPosition {
@@ -171,7 +171,7 @@ impl IntoFuture for SyncTask {
                                 target_subnet_id,
                                 source_subnet_id,
                                 position: *position,
-                                certificate_id: Some(certificate.id),
+                                certificate_id: Some(certificate.certificate.id),
                             }],
                             certificate,
                         })

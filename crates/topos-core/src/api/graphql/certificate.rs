@@ -1,14 +1,20 @@
 use async_graphql::{NewType, SimpleObject};
 use serde::{Deserialize, Serialize};
 
-use crate::uci;
+use crate::{types::CertificateDelivered, uci};
 
-use super::subnet::SubnetId;
+use super::{checkpoint::SourceStreamPosition, subnet::SubnetId};
 
 #[derive(Serialize, Deserialize, Debug, NewType)]
 pub struct CertificateId(String);
 
 #[derive(Serialize, Deserialize, Debug, SimpleObject)]
+#[serde(rename_all = "camelCase")]
+pub struct CertificatePositions {
+    source: SourceStreamPosition,
+}
+
+#[derive(Debug, Serialize, Deserialize, SimpleObject)]
 #[serde(rename_all = "camelCase")]
 pub struct Certificate {
     pub id: CertificateId,
@@ -21,10 +27,19 @@ pub struct Certificate {
     pub tx_root_hash: String,
     pub receipts_root_hash: String,
     pub verifier: u32,
+    pub positions: CertificatePositions,
 }
 
-impl From<&crate::uci::Certificate> for Certificate {
-    fn from(uci_cert: &crate::uci::Certificate) -> Self {
+#[derive(Debug, Serialize, Deserialize, SimpleObject)]
+pub struct Ready {
+    message: String,
+    signature: String,
+}
+
+impl From<&CertificateDelivered> for Certificate {
+    fn from(value: &CertificateDelivered) -> Self {
+        let uci_cert = &value.certificate;
+
         Self {
             id: CertificateId(uci_cert.id.to_string()),
             prev_id: CertificateId(uci_cert.prev_id.to_string()),
@@ -36,6 +51,9 @@ impl From<&crate::uci::Certificate> for Certificate {
             tx_root_hash: hex::encode(uci_cert.tx_root_hash),
             receipts_root_hash: format!("0x{}", hex::encode(uci_cert.receipts_root_hash)),
             verifier: uci_cert.verifier,
+            positions: CertificatePositions {
+                source: (&value.proof_of_delivery.delivery_position).into(),
+            },
         }
     }
 }

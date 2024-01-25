@@ -62,7 +62,7 @@ impl CertificateQuery for QueryRoot {
             certificates.extend(
                 certificates_with_position
                     .into_iter()
-                    .map(|(c, _)| c.certificate.as_ref().into()),
+                    .map(|(ref c, _)| c.into()),
             );
         }
 
@@ -87,7 +87,7 @@ impl CertificateQuery for QueryRoot {
             )
             .map_err(|_| GraphQLServerError::StorageError)
             .and_then(|c| {
-                c.map(|c| Certificate::from(&c.certificate))
+                c.map(|ref c| c.into())
                     .ok_or(GraphQLServerError::StorageError)
             })
     }
@@ -151,8 +151,8 @@ impl SubscriptionRoot {
                     filter
                         .as_ref()
                         .map(|v| match v {
-                            (FilterIs::Source, id) => id == &c.source_subnet_id,
-                            (FilterIs::Target, id) => c.target_subnets.contains(id),
+                            (FilterIs::Source, id) => id == &c.certificate.source_subnet_id,
+                            (FilterIs::Target, id) => c.certificate.target_subnets.contains(id),
                         })
                         .unwrap_or(true),
                 )

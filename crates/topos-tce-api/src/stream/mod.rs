@@ -10,7 +10,8 @@ use tokio::{
 };
 use tonic::Status;
 use topos_core::api::grpc::checkpoints::{TargetCheckpoint, TargetStreamPosition};
-use topos_core::uci::{Certificate, SubnetId};
+use topos_core::types::CertificateDelivered;
+use topos_core::uci::SubnetId;
 use tracing::{debug, error, info, trace, warn};
 use uuid::Uuid;
 
@@ -40,13 +41,13 @@ pub(crate) use self::errors::{HandshakeError, StreamErrorKind};
 /// implementation to notify the `runtime` when ended.
 #[derive(Debug)]
 pub struct TransientStream {
-    pub(crate) inner: mpsc::Receiver<Arc<Certificate>>,
+    pub(crate) inner: mpsc::Receiver<Arc<CertificateDelivered>>,
     pub(crate) stream_id: Uuid,
     pub(crate) notifier: Option<oneshot::Sender<Uuid>>,
 }
 
 impl futures::Stream for TransientStream {
-    type Item = Arc<Certificate>;
+    type Item = Arc<CertificateDelivered>;
 
     fn poll_next(
         mut self: std::pin::Pin<&mut Self>,
@@ -168,7 +169,7 @@ impl Stream {
                 certificate,
                 positions,
             } => {
-                let certificate_id = certificate.id;
+                let certificate_id = certificate.certificate.id;
                 if let Err(error) = self
                     .outbound_stream
                     .send(Ok((
