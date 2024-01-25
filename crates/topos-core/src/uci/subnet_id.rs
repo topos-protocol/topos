@@ -88,6 +88,16 @@ impl FromStr for SubnetId {
     }
 }
 
+impl PartialEq<[u8]> for SubnetId {
+    fn eq(&self, other: &[u8]) -> bool {
+        if let Ok(current) = Self::try_from(other) {
+            self.as_array().eq(current.as_array())
+        } else {
+            false
+        }
+    }
+}
+
 impl SubnetId {
     pub const fn from_array(id: [u8; SUBNET_ID_LENGTH]) -> Self {
         Self { id }
