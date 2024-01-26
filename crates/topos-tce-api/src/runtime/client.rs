@@ -5,8 +5,9 @@ use super::RuntimeCommand;
 use futures::Future;
 use tokio::sync::{mpsc, oneshot, RwLock};
 use topos_core::api::grpc::checkpoints::TargetStreamPosition;
+use topos_core::api::grpc::tce::v1::StatusResponse;
+use topos_core::types::CertificateDelivered;
 use topos_core::uci::SubnetId;
-use topos_core::{api::grpc::tce::v1::StatusResponse, uci::Certificate};
 use tracing::error;
 
 #[derive(Clone, Debug)]
@@ -19,7 +20,7 @@ pub struct RuntimeClient {
 impl RuntimeClient {
     pub fn dispatch_certificate(
         &self,
-        certificate: Certificate,
+        certificate: CertificateDelivered,
         positions: HashMap<SubnetId, TargetStreamPosition>,
     ) -> impl Future<Output = ()> + 'static + Send {
         let sender = self.command_sender.clone();

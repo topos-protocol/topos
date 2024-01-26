@@ -23,6 +23,12 @@ pub struct CertificateDelivered {
     pub proof_of_delivery: ProofOfDelivery,
 }
 
+impl AsRef<CertificateDelivered> for CertificateDelivered {
+    fn as_ref(&self) -> &Self {
+        self
+    }
+}
+
 /// Certificate's Proof of Delivery
 ///
 /// This structure is used to prove that a certificate has been delivered.

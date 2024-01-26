@@ -2,8 +2,9 @@ use rstest::*;
 use std::time::Duration;
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::StreamExt;
-use topos_core::uci::{Certificate, SUBNET_ID_LENGTH};
-use topos_test_sdk::constants::{PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID_2, TARGET_SUBNET_ID_1};
+use topos_core::uci::SUBNET_ID_LENGTH;
+use topos_test_sdk::certificates::create_certificate_chain;
+use topos_test_sdk::constants::{SOURCE_SUBNET_ID_2, TARGET_SUBNET_ID_1};
 use uuid::Uuid;
 
 use self::utils::StreamBuilder;
@@ -116,17 +117,8 @@ async fn subscribing_to_one_target_with_position() -> Result<(), Box<dyn std::er
 async fn receive_expected_certificate_from_zero() -> Result<(), Box<dyn std::error::Error>> {
     let (mut tx, stream, mut context) = StreamBuilder::default().build();
 
-    let first = Certificate::new_with_default_fields(
-        PREV_CERTIFICATE_ID,
-        SOURCE_SUBNET_ID_2,
-        &[TARGET_SUBNET_ID_1],
-    )
-    .unwrap();
-    let second =
-        Certificate::new_with_default_fields(first.id, SOURCE_SUBNET_ID_2, &[TARGET_SUBNET_ID_1])
-            .unwrap();
-
-    let expected_certificates = vec![first, second];
+    let expected_certificates =
+        create_certificate_chain(SOURCE_SUBNET_ID_2, &[TARGET_SUBNET_ID_1], 2);
 
     let join = spawn(stream.run());
 
@@ -166,9 +158,9 @@ async fn receive_expected_certificate_from_zero() -> Result<(), Box<dyn std::err
                 certificate: expected_certificate.clone(),
                 positions: vec![topos_core::api::grpc::checkpoints::TargetStreamPosition {
                     position: index as u64,
-                    certificate_id: Some(expected_certificate.id),
+                    certificate_id: Some(expected_certificate.certificate.id),
                     target_subnet_id: [1u8; SUBNET_ID_LENGTH].into(),
-                    source_subnet_id: expected_certificate.source_subnet_id,
+                    source_subnet_id: expected_certificate.certificate.source_subnet_id,
                 }],
             })
             .await
@@ -183,7 +175,7 @@ async fn receive_expected_certificate_from_zero() -> Result<(), Box<dyn std::err
                 && certificate_pushed.positions[0].position == expected_position as u64,
             ),
             "Expected CertificatePushed with {}, received: {:?}",
-            expected_certificate.id,
+            expected_certificate.certificate.id,
             msg
         );
     }
