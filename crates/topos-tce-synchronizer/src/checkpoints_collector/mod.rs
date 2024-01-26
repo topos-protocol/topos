@@ -171,8 +171,10 @@ impl CheckpointSynchronizer {
             .checkpoint_diff
             .into_iter()
             .map(|v| {
-                let subnet =
-                    SubnetId::from_str(&v.key[..]).map_err(|_| SyncError::UnableToParseSubnetId)?;
+                let subnet = SubnetId::from_str(&v.key[..]).map_err(|e| {
+                    warn!("Unable to parse subnet id: {}", e);
+                    SyncError::UnableToParseSubnetId
+                })?;
                 let proofs = v
                     .value
                     .into_iter()
@@ -218,7 +220,10 @@ impl CheckpointSynchronizer {
             .gatekeeper
             .get_random_peers(1)
             .await
-            .map_err(|_| SyncError::UnableToFetchTargetPeer)
+            .map_err(|e| {
+                warn!("Unable to fetch target peer from gatekeeper: {}", e);
+                SyncError::UnableToFetchTargetPeer
+            })
             .map(|peers| peers.last().cloned().ok_or(SyncError::NoPeerAvailable))??;
 
         let request_id: Option<APIUuid> = Some(Uuid::new_v4().into());
@@ -256,7 +261,10 @@ impl CheckpointSynchronizer {
             .gatekeeper
             .get_random_peers(1)
             .await
-            .map_err(|_| SyncError::UnableToFetchTargetPeer)
+            .map_err(|e| {
+                warn!("Unable to fetch target peer from gatekeeper: {}", e);
+                SyncError::UnableToFetchTargetPeer
+            })
             .map(|peers| peers.last().cloned().ok_or(SyncError::NoPeerAvailable))??;
 
         let diff = self.ask_for_checkpoint(target_peer).await?;
