@@ -11,6 +11,9 @@ mod double_echo;
 mod p2p;
 mod storage;
 
+#[cfg(test)]
+mod tests;
+
 pub use api::*;
 pub use double_echo::*;
 pub use p2p::*;
