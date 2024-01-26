@@ -141,6 +141,8 @@ impl SubnetRuntimeProxy {
                                 latest_acquired_subnet_block_number = position;
                             }
                             Err(e) => {
+                                // This panic should not happen unless other task retrieving source head certificate has failed
+                                // In that case, close the tread with panic
                                 panic!(
                                     "Failed to get source head certificate, unable to proceed \
                                      with certificate generation: {e}"
@@ -174,13 +176,15 @@ impl SubnetRuntimeProxy {
                                         Some(block_number as i128)
                                     }
                                     Err(e) => {
-                                        error!("Failed to get subnet block number: {:?}", e);
-                                        None
+                                        error!("Failed to get subnet block number: {:?}, trying again...", e);
+                                        tokio::time::sleep(Duration::from_secs(10)).await;
+                                        continue;
                                     }
                                 }
                             }
                             _ = block_task_shutdown.recv() => {
-                                None
+                                info!("Shutting down sync missing blocks task");
+                                return;
                             }
                     };
                     let current_subnet_block_number = current_subnet_block_number
@@ -202,17 +206,25 @@ impl SubnetRuntimeProxy {
                     while latest_acquired_subnet_block_number < current_subnet_block_number {
                         let next_block_number = latest_acquired_subnet_block_number + 1;
                         info!("Retrieving historical block {}", next_block_number);
-                        if let Err(e) = SubnetRuntimeProxy::retrieve_and_process_block(
-                            runtime_proxy.clone(),
-                            &mut subnet_listener,
-                            certification.clone(),
-                            next_block_number as u64,
-                        )
-                        .await
-                        {
-                            panic!("Unable to perform subnet block sync: {}, closing", e);
-                        } else {
-                            latest_acquired_subnet_block_number = next_block_number;
+                        tokio::select! {
+                            result = SubnetRuntimeProxy::retrieve_and_process_block(
+                                runtime_proxy.clone(),
+                                &mut subnet_listener,
+                                certification.clone(),
+                                next_block_number as u64,
+                            ) => {
+                                if let Err(e) = result {
+                                    error!("Unable to perform initial subnet block sync: {e}, trying again...");
+                                    tokio::time::sleep(Duration::from_secs(10)).await;
+                                    continue;
+                                } else {
+                                    latest_acquired_subnet_block_number = next_block_number;
+                                }
+                            }
+                            _ = block_task_shutdown.recv() => {
+                                info!("Shutting down sync missing blocks task during synchronization");
+                                return;
+                            }
                         }
 
                         // Give it a little rest for other threads to do their job

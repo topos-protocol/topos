@@ -1,18 +1,24 @@
-use async_graphql::{InputObject, SimpleObject};
+use async_graphql::{NewType, SimpleObject};
 use serde::{Deserialize, Serialize};
 
-use super::subnet::SubnetId;
+use crate::{types::CertificateDelivered, uci};
 
-#[derive(Debug, Default, Serialize, Deserialize, InputObject)]
-pub struct CertificateId {
-    pub value: String,
+use super::{checkpoint::SourceStreamPosition, subnet::SubnetId};
+
+#[derive(Serialize, Deserialize, Debug, NewType)]
+pub struct CertificateId(String);
+
+#[derive(Serialize, Deserialize, Debug, SimpleObject)]
+#[serde(rename_all = "camelCase")]
+pub struct CertificatePositions {
+    source: SourceStreamPosition,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize, SimpleObject)]
+#[derive(Debug, Serialize, Deserialize, SimpleObject)]
 #[serde(rename_all = "camelCase")]
 pub struct Certificate {
-    pub id: String,
-    pub prev_id: String,
+    pub id: CertificateId,
+    pub prev_id: CertificateId,
     pub proof: String,
     pub signature: String,
     pub source_subnet_id: SubnetId,
@@ -21,29 +27,41 @@ pub struct Certificate {
     pub tx_root_hash: String,
     pub receipts_root_hash: String,
     pub verifier: u32,
+    pub positions: CertificatePositions,
 }
 
-impl From<&crate::uci::Certificate> for Certificate {
-    fn from(uci_cert: &crate::uci::Certificate) -> Self {
+#[derive(Debug, Serialize, Deserialize, SimpleObject)]
+pub struct Ready {
+    message: String,
+    signature: String,
+}
+
+impl From<&CertificateDelivered> for Certificate {
+    fn from(value: &CertificateDelivered) -> Self {
+        let uci_cert = &value.certificate;
+
         Self {
-            id: uci_cert.id.to_string(),
-            prev_id: uci_cert.prev_id.to_string(),
+            id: CertificateId(uci_cert.id.to_string()),
+            prev_id: CertificateId(uci_cert.prev_id.to_string()),
             proof: hex::encode(&uci_cert.proof),
             signature: hex::encode(&uci_cert.signature),
-            source_subnet_id: SubnetId::from(&uci_cert.source_subnet_id),
+            source_subnet_id: (&uci_cert.source_subnet_id).into(),
             state_root: hex::encode(uci_cert.state_root),
-            target_subnets: uci_cert.target_subnets.iter().map(SubnetId::from).collect(),
+            target_subnets: uci_cert.target_subnets.iter().map(Into::into).collect(),
             tx_root_hash: hex::encode(uci_cert.tx_root_hash),
             receipts_root_hash: format!("0x{}", hex::encode(uci_cert.receipts_root_hash)),
             verifier: uci_cert.verifier,
+            positions: CertificatePositions {
+                source: (&value.proof_of_delivery.delivery_position).into(),
+            },
         }
     }
 }
 
-impl From<&crate::uci::SubnetId> for SubnetId {
-    fn from(uci_id: &crate::uci::SubnetId) -> Self {
-        Self {
-            value: uci_id.to_string(),
-        }
+impl TryFrom<CertificateId> for crate::uci::CertificateId {
+    type Error = uci::Error;
+
+    fn try_from(value: CertificateId) -> Result<Self, Self::Error> {
+        crate::uci::CertificateId::try_from(value.0.as_bytes())
     }
 }

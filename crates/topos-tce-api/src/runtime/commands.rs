@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use tokio::sync::{mpsc::Sender, oneshot};
 use topos_core::api::grpc::checkpoints::TargetStreamPosition;
+use topos_core::types::CertificateDelivered;
 use topos_core::uci::{Certificate, SubnetId};
 use topos_tce_storage::types::PendingResult;
 use uuid::Uuid;
@@ -13,7 +14,7 @@ use super::error::RuntimeError;
 pub enum RuntimeCommand {
     /// Dispatch certificate to gRPC API Runtime in order to push it to listening open streams
     DispatchCertificate {
-        certificate: Certificate,
+        certificate: CertificateDelivered,
         positions: HashMap<SubnetId, TargetStreamPosition>,
     },
 }

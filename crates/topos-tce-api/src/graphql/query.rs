@@ -1,4 +1,3 @@
-use std::str::FromStr;
 use std::sync::Arc;
 
 use async_graphql::{Context, EmptyMutation, Object, Schema, Subscription};
@@ -9,7 +8,7 @@ use topos_core::api::graphql::errors::GraphQLServerError;
 use topos_core::api::graphql::filter::SubnetFilter;
 use topos_core::api::graphql::{
     certificate::{Certificate, CertificateId},
-    checkpoint::SourceCheckpoint,
+    checkpoint::SourceCheckpointInput,
     query::CertificateQuery,
 };
 use topos_core::types::stream::CertificateSourceStreamPosition;
@@ -30,7 +29,7 @@ pub(crate) type ServiceSchema = Schema<QueryRoot, EmptyMutation, SubscriptionRoo
 impl CertificateQuery for QueryRoot {
     async fn certificates_per_subnet(
         ctx: &Context<'_>,
-        from_source_checkpoint: SourceCheckpoint,
+        from_source_checkpoint: SourceCheckpointInput,
         first: usize,
     ) -> Result<Vec<Certificate>, GraphQLServerError> {
         let store = ctx.data::<Arc<FullNodeStore>>().map_err(|_| {
@@ -42,9 +41,11 @@ impl CertificateQuery for QueryRoot {
         let mut certificates = Vec::default();
 
         for (index, _) in from_source_checkpoint.source_subnet_ids.iter().enumerate() {
-            let subnet_id = topos_core::uci::SubnetId::try_from(
-                &from_source_checkpoint.positions[index].source_subnet_id,
-            )?;
+            let subnet_id: topos_core::uci::SubnetId = (&from_source_checkpoint.positions[index]
+                .source_subnet_id)
+                .try_into()
+                .map_err(|_| GraphQLServerError::ParseSubnetId)?;
+
             let position = from_source_checkpoint.positions[index].position.into();
 
             let certificates_with_position = store
@@ -61,7 +62,7 @@ impl CertificateQuery for QueryRoot {
             certificates.extend(
                 certificates_with_position
                     .into_iter()
-                    .map(|(c, _)| c.certificate.as_ref().into()),
+                    .map(|(ref c, _)| c.into()),
             );
         }
 
@@ -81,14 +82,12 @@ impl CertificateQuery for QueryRoot {
         store
             .get_certificate(
                 &certificate_id
-                    .value
-                    .as_bytes()
                     .try_into()
                     .map_err(|_| GraphQLServerError::ParseCertificateId)?,
             )
             .map_err(|_| GraphQLServerError::StorageError)
             .and_then(|c| {
-                c.map(|c| Certificate::from(&c.certificate))
+                c.map(|ref c| c.into())
                     .ok_or(GraphQLServerError::StorageError)
             })
     }
@@ -100,7 +99,7 @@ impl QueryRoot {
     async fn certificates(
         &self,
         ctx: &Context<'_>,
-        from_source_checkpoint: SourceCheckpoint,
+        from_source_checkpoint: SourceCheckpointInput,
         first: usize,
     ) -> Result<Vec<Certificate>, GraphQLServerError> {
         Self::certificates_per_subnet(ctx, from_source_checkpoint, first).await
@@ -138,16 +137,13 @@ impl SubscriptionRoot {
             })?
             .map_err(|e| GraphQLServerError::TransientStream(e.to_string()))?;
 
-        let filter: Option<(FilterIs, topos_core::uci::SubnetId)> =
-            filter
-                .map(|value| match value {
-                    SubnetFilter::Target(id) => topos_core::uci::SubnetId::from_str(&id.value)
-                        .map(|v| (FilterIs::Target, v)),
-                    SubnetFilter::Source(id) => topos_core::uci::SubnetId::from_str(&id.value)
-                        .map(|v| (FilterIs::Source, v)),
-                })
-                .map_or(Ok(None), |v| v.map(Some))
-                .map_err(|_| GraphQLServerError::ParseSubnetId)?;
+        let filter: Option<(FilterIs, topos_core::uci::SubnetId)> = filter
+            .map(|value| match value {
+                SubnetFilter::Target(ref id) => id.try_into().map(|v| (FilterIs::Target, v)),
+                SubnetFilter::Source(ref id) => id.try_into().map(|v| (FilterIs::Source, v)),
+            })
+            .map_or(Ok(None), |v| v.map(Some))
+            .map_err(|_| GraphQLServerError::ParseSubnetId)?;
 
         Ok(stream
             .filter(move |c| {
@@ -155,8 +151,8 @@ impl SubscriptionRoot {
                     filter
                         .as_ref()
                         .map(|v| match v {
-                            (FilterIs::Source, id) => id == &c.source_subnet_id,
-                            (FilterIs::Target, id) => c.target_subnets.contains(id),
+                            (FilterIs::Source, id) => id == &c.certificate.source_subnet_id,
+                            (FilterIs::Target, id) => c.certificate.target_subnets.contains(id),
                         })
                         .unwrap_or(true),
                 )
