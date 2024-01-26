@@ -151,6 +151,10 @@ impl GrpcSynchronizerService for SynchronizerService {
         request: Request<CheckpointRequest>,
     ) -> Result<Response<CheckpointResponse>, Status> {
         let request = request.into_inner();
+        info!(
+            "Received checkpoint request (request_id: {:?})",
+            request.request_id
+        );
         let res: Result<Vec<_>, _> = request
             .checkpoint
             .into_iter()
@@ -165,8 +169,9 @@ impl GrpcSynchronizerService for SynchronizerService {
             Ok(value) => value,
         };
 
-        let diff = if let Ok(diff) = self.validator_store.get_checkpoint_diff(res) {
-            diff.into_iter()
+        let diff = match self.validator_store.get_checkpoint_diff(res) {
+            Ok(diff) => diff
+                .into_iter()
                 .map(|(key, value)| {
                     let v: Vec<_> = value
                         .into_iter()
@@ -189,9 +194,11 @@ impl GrpcSynchronizerService for SynchronizerService {
                         value: v,
                     }
                 })
-                .collect()
-        } else {
-            Vec::new()
+                .collect(),
+            Err(error) => {
+                warn!("Unable to get checkpoint diff: {}", error);
+                Vec::new()
+            }
         };
 
         let response = CheckpointResponse {
