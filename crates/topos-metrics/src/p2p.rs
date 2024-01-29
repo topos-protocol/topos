@@ -61,7 +61,7 @@ lazy_static! {
         register_int_counter_vec_with_registry!(
             "p2p_message_deserialize_failure_total",
             "Number of message deserialization failure.",
-            &["echo", "ready", "gossip"],
+            &["topic"],
             TOPOS_METRIC_REGISTRY
         )
         .unwrap();
@@ -69,7 +69,7 @@ lazy_static! {
         register_int_counter_vec_with_registry!(
             "p2p_message_serialize_failure_total",
             "Number of message serialization failure.",
-            &["echo", "ready", "gossip"],
+            &["topic"],
             TOPOS_METRIC_REGISTRY
         )
         .unwrap();
