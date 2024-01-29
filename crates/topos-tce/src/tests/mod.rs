@@ -1,9 +1,9 @@
 use libp2p::PeerId;
 use rstest::{fixture, rstest};
 use std::{collections::HashSet, future::IntoFuture, sync::Arc};
-use tce_transport::ProtocolEvents;
 use tokio_stream::Stream;
 use topos_tce_api::RuntimeEvent;
+use topos_tce_broadcast::event::ProtocolEvents;
 use topos_tce_gatekeeper::Gatekeeper;
 
 use tokio::sync::{broadcast, mpsc};
@@ -106,7 +106,7 @@ pub async fn setup_test(
 
     let (tce_cli, _) = ReliableBroadcastClient::new(
         ReliableBroadcastConfig {
-            tce_params: tce_transport::ReliableBroadcastParams::default(),
+            tce_params: topos_config::tce::broadcast::ReliableBroadcastParams::default(),
             validator_id,
             validators: HashSet::new(),
             message_signer: message_signer.clone(),

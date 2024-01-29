@@ -7719,7 +7719,6 @@ dependencies = [
  "topos-tce-gatekeeper",
  "topos-tce-storage",
  "topos-tce-synchronizer",
- "topos-tce-transport",
  "topos-test-sdk",
  "topos-wallet",
  "tower",
@@ -7807,16 +7806,13 @@ dependencies = [
  "tokio-util",
  "toml 0.7.8",
  "tonic 0.10.2",
- "topos-certificate-spammer",
  "topos-core",
  "topos-p2p",
- "topos-sequencer",
  "topos-tce-api",
  "topos-tce-broadcast",
  "topos-tce-gatekeeper",
  "topos-tce-storage",
  "topos-tce-synchronizer",
- "topos-tce-transport",
  "topos-test-sdk",
  "topos-wallet",
  "tower",
@@ -8030,7 +8026,6 @@ dependencies = [
  "topos-tce-gatekeeper",
  "topos-tce-storage",
  "topos-tce-synchronizer",
- "topos-tce-transport",
  "topos-telemetry",
  "topos-test-sdk",
  "tracing",
@@ -8103,11 +8098,11 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tokio-util",
+ "topos-config",
  "topos-core",
  "topos-crypto",
  "topos-metrics",
  "topos-tce-storage",
- "topos-tce-transport",
  "topos-test-sdk",
  "tracing",
  "tracing-subscriber",
@@ -8157,7 +8152,6 @@ dependencies = [
  "topos-core",
  "topos-tce",
  "topos-tce-storage",
- "topos-tce-transport",
  "topos-telemetry",
  "topos-test-sdk",
  "tracing",
@@ -8221,17 +8215,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "topos-tce-transport"
-version = "0.1.0"
-dependencies = [
- "clap 4.4.18",
- "serde",
- "topos-core",
- "topos-crypto",
- "tracing",
-]
-
-[[package]]
 name = "topos-telemetry"
 version = "0.1.0"
 dependencies = [
@@ -8262,6 +8245,7 @@ dependencies = [
  "tokio-util",
  "tonic 0.10.2",
  "tonic-build",
+ "topos-config",
  "topos-core",
  "topos-crypto",
  "topos-p2p",
@@ -8271,7 +8255,6 @@ dependencies = [
  "topos-tce-gatekeeper",
  "topos-tce-storage",
  "topos-tce-synchronizer",
- "topos-tce-transport",
  "tower",
  "tracing",
 ]

@@ -19,8 +19,8 @@ tokio-stream = { workspace = true, features = ["sync"] }
 tokio-util.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 tracing.workspace = true
-tce_transport = { package = "topos-tce-transport", path = "../topos-tce-transport"}
 topos-core = { workspace = true, features = ["uci"] }
+topos-config = { path = "../topos-config/" }
 topos-metrics = { path = "../topos-metrics/" }
 topos-tce-storage = { path = "../topos-tce-storage/" }
 topos-crypto = { path = "../topos-crypto" }

@@ -32,16 +32,17 @@
 //!
 //! The implementation is based on the paper: [Topos: A Secure, Trustless, and Decentralized Interoperability Protocol](https://arxiv.org/pdf/2206.03481.pdf)
 //!
+use crate::event::ProtocolEvents;
 use double_echo::DoubleEcho;
 use futures::Stream;
 use std::collections::HashSet;
 use std::sync::Arc;
-use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
 use thiserror::Error;
 use tokio::spawn;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
+use topos_config::tce::broadcast::ReliableBroadcastParams;
 use topos_core::types::ValidatorId;
 use topos_core::uci::{Certificate, CertificateId};
 use topos_crypto::messages::{MessageSigner, Signature};
@@ -56,6 +57,7 @@ pub type Peer = String;
 
 mod constant;
 pub mod double_echo;
+pub mod event;
 pub mod sampler;
 
 pub mod task_manager;

@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 use std::str::FromStr;
 use std::sync::Arc;
-use tce_transport::ReliableBroadcastParams;
 use tokio::sync::{broadcast, mpsc, oneshot};
+use topos_config::tce::broadcast::ReliableBroadcastParams;
 use topos_core::types::ValidatorId;
 use topos_crypto::messages::MessageSigner;
 use topos_tce_broadcast::double_echo::DoubleEcho;

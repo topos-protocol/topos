@@ -6,10 +6,10 @@ use thiserror::Error;
 use tokio::{spawn, sync::mpsc, task::JoinHandle};
 use tokio_util::sync::CancellationToken;
 use topos_config::sequencer::SequencerConfig;
+use topos_config::tce::broadcast::ReliableBroadcastParams;
 use topos_config::tce::{AuthKey, StorageConfiguration, TceConfig};
 use topos_p2p::Multiaddr;
 use topos_sequencer::SequencerConfiguration;
-use topos_tce_transport::ReliableBroadcastParams;
 use topos_wallet::SecretManager;
 use tracing::{debug, error, info, warn};
 
