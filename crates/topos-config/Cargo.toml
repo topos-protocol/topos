@@ -1,14 +1,11 @@
 [package]
-name = "topos"
-version = "0.0.11"
+name = "topos-config"
+version = "0.1.0"
 edition = "2021"
 
-[lints]
-workspace = true
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-topos-config = { path = "../topos-config/" }
-topos-tce = { path = "../topos-tce/" }
 topos-p2p = { path = "../topos-p2p" }
 topos-tce-transport = { path = "../topos-tce-transport" }
 topos-sequencer = { path = "../topos-sequencer" }
@@ -72,5 +69,7 @@ predicates = "3.0.3"
 sysinfo = "0.29.11"
 serial_test = {version = "0.9.0"}
 
-[features]
-default = []
+
+
+[lints]
+workspace = true

@@ -1,7 +1,7 @@
-use config::TceConfiguration;
 use futures::StreamExt;
 use opentelemetry::global;
 use std::process::ExitStatus;
+use std::time::Duration;
 use std::{future::IntoFuture, sync::Arc};
 use tokio::{
     spawn,
@@ -9,6 +9,7 @@ use tokio::{
 };
 use tokio_stream::wrappers::BroadcastStream;
 use tokio_util::sync::CancellationToken;
+use topos_config::tce::TceConfig;
 use topos_core::api::grpc::tce::v1::synchronizer_service_server::SynchronizerServiceServer;
 use topos_crypto::{messages::MessageSigner, validator_id::ValidatorId};
 use topos_p2p::{
@@ -28,27 +29,26 @@ use topos_tce_synchronizer::SynchronizerService;
 use tracing::{debug, info, warn};
 
 mod app_context;
-pub mod config;
 pub mod events;
 #[cfg(test)]
 mod tests;
 
 pub use app_context::AppContext;
 
-use crate::config::{AuthKey, StorageConfiguration};
+use topos_config::tce::{AuthKey, StorageConfiguration};
 
 // TODO: Estimate on the max broadcast throughput, could need to be override by config
 const BROADCAST_CHANNEL_SIZE: usize = 10_000;
 
 pub async fn run(
-    config: &TceConfiguration,
+    config: &TceConfig,
     shutdown: (CancellationToken, mpsc::Sender<()>),
 ) -> Result<ExitStatus, Box<dyn std::error::Error>> {
     topos_metrics::init_metrics();
 
     let key = match config.auth_key.as_ref() {
-        Some(AuthKey::Seed(seed)) => local_key_pair_from_slice(seed),
-        Some(AuthKey::PrivateKey(pk)) => topos_p2p::utils::keypair_from_protobuf_encoding(pk),
+        Some(AuthKey::Seed(seed)) => local_key_pair_from_slice(&seed[..]),
+        Some(AuthKey::PrivateKey(pk)) => topos_p2p::utils::keypair_from_protobuf_encoding(&pk[..]),
         None => local_key_pair(None),
     };
 
@@ -135,18 +135,18 @@ pub async fn run(
 
     let (network_client, event_stream, unbootstrapped_runtime) = topos_p2p::network::builder()
         .peer_key(key)
-        .listen_addresses(config.listen_addresses.clone())
+        .listen_addresses(config.p2p.listen_addresses.clone())
         .minimum_cluster_size(config.minimum_cluster_size)
-        .public_addresses(config.public_addresses.clone())
+        .public_addresses(config.p2p.public_addresses.clone())
         .known_peers(&boot_peers)
         .grpc_context(grpc_context)
-        .is_bootnode(config.is_bootnode)
+        .is_bootnode(config.p2p.is_bootnode)
         .build()
         .await?;
 
     debug!("Starting the p2p network");
     let network_runtime = tokio::time::timeout(
-        config.network_bootstrap_timeout,
+        Duration::from_secs(config.network_bootstrap_timeout),
         unbootstrapped_runtime.bootstrap(),
     )
     .await??;
@@ -196,7 +196,7 @@ pub async fn run(
     let (api_client, api_stream, _ctx) = topos_tce_api::Runtime::builder()
         .with_peer_id(peer_id.to_string())
         .with_broadcast_stream(broadcast_receiver.resubscribe())
-        .serve_grpc_addr(config.api_addr)
+        .serve_grpc_addr(config.grpc_api_addr)
         .serve_graphql_addr(config.graphql_api_addr)
         .serve_metrics_addr(config.metrics_api_addr)
         .store(validator_store.clone())

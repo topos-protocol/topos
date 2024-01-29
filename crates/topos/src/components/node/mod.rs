@@ -18,12 +18,10 @@ use tracing::{error, info};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 use self::commands::{NodeCommand, NodeCommands};
-use crate::config::genesis::Genesis;
 use crate::edge::BINARY_NAME;
-use crate::{
-    config::{insert_into_toml, node::NodeConfig, node::NodeRole},
-    tracing::setup_tracing,
-};
+use crate::tracing::setup_tracing;
+use topos_config::genesis::Genesis;
+use topos_config::{insert_into_toml, node::NodeConfig, node::NodeRole};
 use topos_core::api::grpc::tce::v1::console_service_client::ConsoleServiceClient;
 use topos_wallet::SecretManager;
 
@@ -110,7 +108,7 @@ pub(crate) async fn handle_command(
                 }
             }
 
-            let node_config = NodeConfig::new(&node_path, Some(NodeCommands::Init(Box::new(cmd))));
+            let node_config = NodeConfig::new(&node_path, Some(cmd));
 
             // Creating the TOML output
             insert_into_toml(&mut config_toml, node_config);
@@ -153,7 +151,7 @@ pub(crate) async fn handle_command(
                 std::process::exit(1);
             }
 
-            let config = NodeConfig::new(&node_path, Some(NodeCommands::Up(Box::new(command))));
+            let config = NodeConfig::new(&node_path, Some(command));
             println!(
                 "⚙️ Reading the configuration from {}/config.toml",
                 node_path.display()
@@ -249,7 +247,7 @@ pub(crate) async fn handle_command(
             if config.base.subnet == "topos" {
                 info!("Running topos TCE service...",);
                 processes.push(services::process::spawn_tce_process(
-                    config.tce.clone().unwrap(),
+                    config.tce.unwrap(),
                     keys,
                     genesis,
                     (shutdown_token.clone(), shutdown_sender.clone()),

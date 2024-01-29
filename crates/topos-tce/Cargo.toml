@@ -32,6 +32,7 @@ bytes.workspace = true
 prost.workspace = true
 
 tce_transport = { package = "topos-tce-transport", path = "../topos-tce-transport" }
+topos-config = { path = "../topos-config" }
 topos-p2p = { path = "../topos-p2p" }
 topos-metrics = { path = "../topos-metrics" }
 topos-tce-api = { path = "../topos-tce-api"}

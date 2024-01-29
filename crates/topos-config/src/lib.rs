@@ -1,11 +1,9 @@
 pub(crate) mod base;
 pub(crate) mod edge;
-pub(crate) mod node;
-pub(crate) mod sequencer;
+pub mod genesis;
+pub mod node;
+pub mod sequencer;
 pub mod tce;
-
-pub(crate) mod genesis;
-use crate::components::node::commands::NodeCommands;
 
 use std::path::Path;
 
@@ -13,7 +11,7 @@ use figment::providers::Serialized;
 use figment::{error::Kind, Figment};
 use serde::Serialize;
 
-pub(crate) trait Config: Serialize {
+pub trait Config: Serialize {
     /// The configuration type returned (should be Self).
     type Output;
 
@@ -39,28 +37,23 @@ pub(crate) trait Config: Serialize {
     /// It will load the configuration from the file and the command line (if any)
     /// and then extract the configuration from the context in order to build the Config.
     /// The Config is then returned or an error if the configuration is not valid.
-    fn load(home: &Path, command: Option<NodeCommands>) -> Result<Self::Output, figment::Error> {
+    fn load<S: Serialize>(home: &Path, command: Option<S>) -> Result<Self::Output, figment::Error> {
         let mut figment = Figment::new();
 
         figment = Self::load_from_file(figment, home);
 
         if let Some(command) = command {
-            match command {
-                NodeCommands::Up(up) => {
-                    figment = figment.merge(Serialized::from(up, Self::profile()))
-                }
-                NodeCommands::Init(init) => {
-                    figment = figment.merge(Serialized::from(init, Self::profile()))
-                }
-                _ => (),
-            }
+            figment = figment.merge(Serialized::from(command, Self::profile()))
         }
 
         Self::load_context(figment)
     }
 }
 
-pub(crate) fn load_config<T: Config>(node_path: &Path, command: Option<NodeCommands>) -> T::Output {
+pub(crate) fn load_config<T: Config, S: Serialize>(
+    node_path: &Path,
+    command: Option<S>,
+) -> T::Output {
     match T::load(node_path, command) {
         Ok(config) => config,
         Err(figment::Error {
@@ -77,7 +70,7 @@ pub(crate) fn load_config<T: Config>(node_path: &Path, command: Option<NodeComma
     }
 }
 
-pub(crate) fn insert_into_toml<T: Config>(config_toml: &mut toml::Table, config: T) {
+pub fn insert_into_toml<T: Config>(config_toml: &mut toml::Table, config: T) {
     let full = config.to_toml().expect("failed to convert config to toml");
 
     // Flatten the top level

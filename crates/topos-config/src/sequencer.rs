@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::config::Config;
+use crate::Config;
 use figment::{
     providers::{Format, Toml},
     Figment,

@@ -1,6 +1,6 @@
-use crate::config::node::NodeRole;
 use clap::Args;
 use serde::Serialize;
+use topos_config::node::NodeRole;
 
 #[derive(Args, Debug, Serialize)]
 #[command(about = "Setup your node", trailing_var_arg = true)]
