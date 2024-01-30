@@ -7372,7 +7372,6 @@ dependencies = [
  "clap 4.4.6",
  "dirs",
  "env_logger 0.10.0",
- "figment",
  "flate2",
  "futures",
  "hex",

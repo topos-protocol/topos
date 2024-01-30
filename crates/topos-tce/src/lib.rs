@@ -136,7 +136,7 @@ pub async fn run(
     let (network_client, event_stream, unbootstrapped_runtime) = topos_p2p::network::builder()
         .peer_key(key)
         .listen_addresses(config.p2p.listen_addresses.clone())
-        .minimum_cluster_size(config.minimum_cluster_size)
+        .minimum_cluster_size(config.minimum_tce_cluster_size)
         .public_addresses(config.p2p.public_addresses.clone())
         .known_peers(&boot_peers)
         .grpc_context(grpc_context)

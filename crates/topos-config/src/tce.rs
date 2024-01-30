@@ -43,8 +43,7 @@ pub struct TceConfig {
     pub validators: HashSet<ValidatorId>,
     #[serde(skip)]
     pub storage: StorageConfiguration,
-    #[serde(skip)]
-    pub minimum_cluster_size: usize,
+
     #[serde(skip)]
     pub version: &'static str,
 

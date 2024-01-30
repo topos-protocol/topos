@@ -20,9 +20,6 @@ pub enum NodeRole {
     FullNode,
 }
 
-#[derive(Serialize)]
-struct Noop {}
-
 #[derive(Serialize, Deserialize, Debug)]
 pub struct NodeConfig {
     pub base: BaseConfig,
@@ -32,20 +29,20 @@ pub struct NodeConfig {
 }
 
 impl NodeConfig {
-    pub fn new<T: Serialize>(home: &Path, cmd: Option<T>) -> Self {
-        let base = load_config::<BaseConfig, _>(home, cmd);
+    pub fn new<S: Serialize>(home: &Path, config: Option<S>) -> Self {
+        let base = load_config::<BaseConfig, _>(home, config);
 
         let mut config = NodeConfig {
             base: base.clone(),
             sequencer: base
                 .need_sequencer()
-                .then(|| load_config::<SequencerConfig, Noop>(home, None)),
+                .then(|| load_config::<SequencerConfig, ()>(home, None)),
             tce: base
                 .need_tce()
-                .then(|| load_config::<TceConfig, Noop>(home, None)),
+                .then(|| load_config::<TceConfig, ()>(home, None)),
             edge: base
                 .need_edge()
-                .then(|| load_config::<EdgeConfig, Noop>(home, None)),
+                .then(|| load_config::<EdgeConfig, ()>(home, None)),
         };
 
         // Make the TCE DB path relative to the folder
