@@ -4,8 +4,6 @@ pub(crate) mod components;
 pub(crate) mod options;
 mod tracing;
 
-mod edge;
-
 use crate::options::ToposCommand;
 use tracing_log::LogTracer;
 

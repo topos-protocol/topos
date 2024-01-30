@@ -1,5 +1,5 @@
 pub(crate) mod base;
-pub(crate) mod edge;
+pub mod edge;
 pub mod genesis;
 pub mod node;
 pub mod sequencer;

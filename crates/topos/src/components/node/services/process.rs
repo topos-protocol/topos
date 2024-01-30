@@ -1,17 +1,17 @@
-use crate::edge::CommandConfig;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::ExitStatus;
 use thiserror::Error;
 use tokio::{spawn, sync::mpsc, task::JoinHandle};
 use tokio_util::sync::CancellationToken;
+use topos_config::edge::command::CommandConfig;
 use topos_config::sequencer::SequencerConfig;
 use topos_config::tce::broadcast::ReliableBroadcastParams;
 use topos_config::tce::{AuthKey, StorageConfiguration, TceConfig};
 use topos_p2p::Multiaddr;
 use topos_sequencer::SequencerConfiguration;
 use topos_wallet::SecretManager;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, warn};
 
 use topos_config::genesis::Genesis;
 
@@ -23,25 +23,6 @@ pub enum Errors {
     SequencerFailure,
     #[error("Edge error: {0}")]
     EdgeTerminated(#[from] std::io::Error),
-}
-
-pub fn generate_edge_config(
-    edge_path: PathBuf,
-    config_path: PathBuf,
-) -> JoinHandle<Result<ExitStatus, Errors>> {
-    // Create the Polygon Edge config
-    info!("Generating the configuration at {config_path:?}");
-    info!("Polygon-edge binary located at: {edge_path:?}");
-    spawn(async move {
-        CommandConfig::new(edge_path)
-            .init(&config_path)
-            .spawn()
-            .await
-            .map_err(|e| {
-                error!("Failed to generate the edge configuration: {e:?}");
-                Errors::EdgeTerminated(e)
-            })
-    })
 }
 
 pub(crate) fn spawn_sequencer_process(
