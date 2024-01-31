@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::Path;
 use std::{net::SocketAddr, path::PathBuf};
 
@@ -6,22 +7,54 @@ use figment::{
     Figment,
 };
 use serde::{Deserialize, Serialize};
+use topos_core::types::ValidatorId;
+use topos_p2p::config::NetworkConfig;
+use topos_tce_transport::ReliableBroadcastParams;
 
-use crate::config::Config;
+use crate::Config;
 use topos_p2p::{Multiaddr, PeerId};
 
 const DEFAULT_IP: std::net::Ipv4Addr = std::net::Ipv4Addr::new(0, 0, 0, 0);
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Debug)]
+pub enum AuthKey {
+    Seed(Vec<u8>),
+    PrivateKey(Vec<u8>),
+}
+#[derive(Default, Debug)]
+pub enum StorageConfiguration {
+    #[default]
+    RAM,
+    RocksDB(Option<PathBuf>),
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "kebab-case")]
 pub struct TceConfig {
+    #[serde(skip)]
+    pub auth_key: Option<AuthKey>,
+    #[serde(skip)]
+    pub signing_key: Option<AuthKey>,
+    #[serde(skip)]
+    pub tce_params: ReliableBroadcastParams,
+    #[serde(skip)]
+    pub boot_peers: Vec<(PeerId, Multiaddr)>,
+    #[serde(skip)]
+    pub validators: HashSet<ValidatorId>,
+    #[serde(skip)]
+    pub storage: StorageConfiguration,
+
+    #[serde(skip)]
+    pub version: &'static str,
+
     /// Storage database path, if not set RAM storage is used
     #[serde(default = "default_db_path")]
     pub db_path: PathBuf,
     /// Array of extra boot nodes to connect to
     pub extra_boot_peers: Option<String>,
     /// Connection degree for the GossipSub overlay
-    pub minimum_tce_cluster_size: Option<usize>,
+    #[serde(default = "default_minimum_tce_cluster_size")]
+    pub minimum_tce_cluster_size: usize,
 
     /// libp2p addresses
     pub libp2p_api_addr: Option<SocketAddr>,
@@ -47,7 +80,7 @@ pub struct TceConfig {
     pub otlp_service_name: Option<String>,
 
     #[serde(default = "default_network_bootstrap_timeout")]
-    pub(crate) network_bootstrap_timeout: u64,
+    pub network_bootstrap_timeout: u64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -60,7 +93,8 @@ pub struct P2PConfig {
     #[serde(default = "default_public_addresses")]
     pub public_addresses: Vec<Multiaddr>,
 
-    pub is_bootnode: Option<bool>,
+    #[serde(skip)]
+    pub is_bootnode: bool,
 }
 
 impl Default for P2PConfig {
@@ -68,7 +102,7 @@ impl Default for P2PConfig {
         Self {
             listen_addresses: default_listen_addresses(),
             public_addresses: default_public_addresses(),
-            is_bootnode: None,
+            is_bootnode: false,
         }
     }
 }
@@ -113,6 +147,10 @@ fn default_public_addresses() -> Vec<Multiaddr> {
         This is a critical bug that need to be report on `https://github.com/topos-protocol/topos/issues`
     "#,
     )]
+}
+
+const fn default_minimum_tce_cluster_size() -> usize {
+    NetworkConfig::MINIMUM_CLUSTER_SIZE
 }
 
 const fn default_grpc_api_addr() -> SocketAddr {

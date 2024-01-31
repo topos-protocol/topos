@@ -5,10 +5,9 @@ use figment::{
     Figment,
 };
 
-use crate::components::node::commands::NodeCommands;
 use serde::{Deserialize, Serialize};
 
-use crate::config::{
+use crate::{
     base::BaseConfig, edge::EdgeConfig, load_config, sequencer::SequencerConfig, tce::TceConfig,
     Config,
 };
@@ -21,29 +20,29 @@ pub enum NodeRole {
     FullNode,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub(crate) struct NodeConfig {
-    pub(crate) base: BaseConfig,
-    pub(crate) tce: Option<TceConfig>,
-    pub(crate) sequencer: Option<SequencerConfig>,
-    pub(crate) edge: Option<EdgeConfig>,
+#[derive(Serialize, Deserialize, Debug)]
+pub struct NodeConfig {
+    pub base: BaseConfig,
+    pub tce: Option<TceConfig>,
+    pub sequencer: Option<SequencerConfig>,
+    pub edge: Option<EdgeConfig>,
 }
 
 impl NodeConfig {
-    pub fn new(home: &Path, cmd: Option<NodeCommands>) -> Self {
-        let base = load_config::<BaseConfig>(home, cmd);
+    pub fn new<S: Serialize>(home: &Path, config: Option<S>) -> Self {
+        let base = load_config::<BaseConfig, _>(home, config);
 
         let mut config = NodeConfig {
             base: base.clone(),
             sequencer: base
                 .need_sequencer()
-                .then(|| load_config::<SequencerConfig>(home, None)),
+                .then(|| load_config::<SequencerConfig, ()>(home, None)),
             tce: base
                 .need_tce()
-                .then(|| load_config::<TceConfig>(home, None)),
+                .then(|| load_config::<TceConfig, ()>(home, None)),
             edge: base
                 .need_edge()
-                .then(|| load_config::<EdgeConfig>(home, None)),
+                .then(|| load_config::<EdgeConfig, ()>(home, None)),
         };
 
         // Make the TCE DB path relative to the folder

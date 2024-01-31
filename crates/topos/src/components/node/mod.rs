@@ -18,12 +18,10 @@ use tracing::{error, info};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 use self::commands::{NodeCommand, NodeCommands};
-use crate::config::genesis::Genesis;
 use crate::edge::BINARY_NAME;
-use crate::{
-    config::{insert_into_toml, node::NodeConfig, node::NodeRole},
-    tracing::setup_tracing,
-};
+use crate::tracing::setup_tracing;
+use topos_config::{genesis::Genesis, Config};
+use topos_config::{node::NodeConfig, node::NodeRole};
 use topos_core::api::grpc::tce::v1::console_service_client::ConsoleServiceClient;
 use topos_wallet::SecretManager;
 
@@ -72,9 +70,6 @@ pub(crate) async fn handle_command(
                 std::process::exit(1);
             }
 
-            // Generate the configuration as per the role
-            let mut config_toml = toml::Table::new();
-
             if cmd.no_edge_process {
                 println!("Init the node without polygon-edge process...");
             } else {
@@ -110,10 +105,17 @@ pub(crate) async fn handle_command(
                 }
             }
 
-            let node_config = NodeConfig::new(&node_path, Some(NodeCommands::Init(Box::new(cmd))));
+            let node_config = NodeConfig::new(&node_path, Some(cmd));
 
             // Creating the TOML output
-            insert_into_toml(&mut config_toml, node_config);
+            let config_toml = match node_config.to_toml() {
+                Ok(config) => config,
+                Err(error) => {
+                    println!("Failed to generate TOML config: {error}");
+                    remove_dir_all(node_path).expect("failed to remove config folder");
+                    std::process::exit(1);
+                }
+            };
 
             let config_path = node_path.join("config.toml");
             let mut node_config_file = OpenOptions::new()
@@ -124,7 +126,7 @@ pub(crate) async fn handle_command(
                 .expect("failed to create default node file");
 
             node_config_file
-                .write_all(toml::to_string(&config_toml).unwrap().as_bytes())
+                .write_all(config_toml.to_string().as_bytes())
                 .expect("failed to write to default node file");
 
             println!(
@@ -153,7 +155,7 @@ pub(crate) async fn handle_command(
                 std::process::exit(1);
             }
 
-            let config = NodeConfig::new(&node_path, Some(NodeCommands::Up(Box::new(command))));
+            let config = NodeConfig::new(&node_path, Some(command));
             println!(
                 "⚙️ Reading the configuration from {}/config.toml",
                 node_path.display()
@@ -249,7 +251,7 @@ pub(crate) async fn handle_command(
             if config.base.subnet == "topos" {
                 info!("Running topos TCE service...",);
                 processes.push(services::process::spawn_tce_process(
-                    config.tce.clone().unwrap(),
+                    config.tce.unwrap(),
                     keys,
                     genesis,
                     (shutdown_token.clone(), shutdown_sender.clone()),

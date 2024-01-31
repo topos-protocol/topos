@@ -6,8 +6,8 @@ use figment::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::config::node::NodeRole;
-use crate::config::Config;
+use crate::node::NodeRole;
+use crate::Config;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "kebab-case")]

@@ -1,22 +1,19 @@
-use crate::config::sequencer::SequencerConfig;
-use crate::config::tce::TceConfig;
 use crate::edge::CommandConfig;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::ExitStatus;
-use std::time::Duration;
 use thiserror::Error;
 use tokio::{spawn, sync::mpsc, task::JoinHandle};
 use tokio_util::sync::CancellationToken;
-use topos_p2p::config::NetworkConfig;
+use topos_config::sequencer::SequencerConfig;
+use topos_config::tce::{AuthKey, StorageConfiguration, TceConfig};
 use topos_p2p::Multiaddr;
 use topos_sequencer::SequencerConfiguration;
-use topos_tce::config::{AuthKey, StorageConfiguration, TceConfiguration};
 use topos_tce_transport::ReliableBroadcastParams;
 use topos_wallet::SecretManager;
 use tracing::{debug, error, info, warn};
 
-use crate::config::genesis::Genesis;
+use topos_config::genesis::Genesis;
 
 #[derive(Error, Debug)]
 pub enum Errors {
@@ -79,24 +76,25 @@ pub(crate) fn spawn_tce_process(
     genesis: Genesis,
     shutdown: (CancellationToken, mpsc::Sender<()>),
 ) -> JoinHandle<Result<ExitStatus, Errors>> {
-    let boot_peers = genesis
+    config.boot_peers = genesis
         .boot_peers(Some(topos_p2p::constants::TCE_BOOTNODE_PORT))
         .into_iter()
         .chain(config.parse_boot_peers())
         .collect::<Vec<_>>();
-    let auth_key = keys.network.map(AuthKey::PrivateKey);
-    config.p2p.is_bootnode = if let Some(AuthKey::PrivateKey(ref k)) = auth_key {
+    config.auth_key = keys.network.map(AuthKey::PrivateKey);
+    config.signing_key = keys.validator.map(AuthKey::PrivateKey);
+    config.p2p.is_bootnode = if let Some(AuthKey::PrivateKey(ref k)) = config.auth_key {
         let peer_id = topos_p2p::utils::keypair_from_protobuf_encoding(&k[..])
             .public()
             .to_peer_id();
 
-        Some(boot_peers.iter().any(|(p, _)| p == &peer_id))
+        config.boot_peers.iter().any(|(p, _)| p == &peer_id)
     } else {
-        None
+        false
     };
 
-    let validators = genesis.validators().expect("Cannot parse validators");
-    let tce_params = ReliableBroadcastParams::new(validators.len());
+    config.validators = genesis.validators().expect("Cannot parse validators");
+    config.tce_params = ReliableBroadcastParams::new(config.validators.len());
 
     if let Some(socket) = config.libp2p_api_addr {
         warn!(
@@ -113,29 +111,12 @@ pub(crate) fn spawn_tce_process(
         config.p2p.public_addresses = vec![addr];
     }
 
-    let tce_config = TceConfiguration {
-        is_bootnode: config.p2p.is_bootnode.unwrap_or_default(),
-        boot_peers,
-        validators,
-        auth_key,
-        signing_key: keys.validator.map(AuthKey::PrivateKey),
-        listen_addresses: config.p2p.listen_addresses,
-        public_addresses: config.p2p.public_addresses,
-        tce_params,
-        api_addr: config.grpc_api_addr,
-        graphql_api_addr: config.graphql_api_addr,
-        metrics_api_addr: config.metrics_api_addr,
-        storage: StorageConfiguration::RocksDB(Some(config.db_path)),
-        network_bootstrap_timeout: Duration::from_secs(config.network_bootstrap_timeout),
-        minimum_cluster_size: config
-            .minimum_tce_cluster_size
-            .unwrap_or(NetworkConfig::MINIMUM_CLUSTER_SIZE),
-        version: env!("TOPOS_VERSION"),
-    };
+    config.version = env!("TOPOS_VERSION");
+    config.storage = StorageConfiguration::RocksDB(Some(config.db_path.clone()));
 
-    debug!("TCE args: {tce_config:?}");
+    debug!("TCE args: {config:?}");
     spawn(async move {
-        topos_tce::run(&tce_config, shutdown).await.map_err(|e| {
+        topos_tce::run(&config, shutdown).await.map_err(|e| {
             error!("TCE process terminated: {e:?}");
             Errors::TceFailure
         })
