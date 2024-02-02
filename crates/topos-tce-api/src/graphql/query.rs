@@ -112,6 +112,23 @@ impl QueryRoot {
     ) -> Result<Certificate, GraphQLServerError> {
         Self::certificate_by_id(ctx, certificate_id).await
     }
+
+    async fn get_checkpoint(&self, ctx: &Context<'_>) -> Result<Vec<String>, GraphQLServerError> {
+        let store = ctx.data::<Arc<FullNodeStore>>().map_err(|_| {
+            tracing::error!("Failed to get store from context");
+
+            GraphQLServerError::ParseDataConnector
+        })?;
+
+        let checkpoint = store
+            .get_checkpoint()
+            .map_err(|_| GraphQLServerError::StorageError)?;
+
+        Ok(checkpoint
+            .iter()
+            .map(|v| format!("{}:{}", v.0, v.1.position))
+            .collect())
+    }
 }
 
 pub struct SubscriptionRoot;
