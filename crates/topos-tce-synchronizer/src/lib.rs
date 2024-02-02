@@ -28,7 +28,8 @@ use topos_core::{
     uci::CertificateId,
 };
 use topos_tce_storage::{store::ReadStore, validator::ValidatorStore};
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
+use uuid::Uuid;
 
 pub struct Synchronizer {
     pub(crate) shutdown: CancellationToken,
@@ -143,6 +144,12 @@ impl GrpcSynchronizerService for SynchronizerService {
         request: Request<CheckpointRequest>,
     ) -> Result<Response<CheckpointResponse>, Status> {
         let request = request.into_inner();
+        let id = request
+            .request_id
+            .map(|id| id.into())
+            .unwrap_or(Uuid::new_v4());
+        info!("Received request for checkpoint (request_id: {})", id);
+
         let res: Result<Vec<_>, _> = request
             .checkpoint
             .into_iter()
@@ -151,40 +158,61 @@ impl GrpcSynchronizerService for SynchronizerService {
 
         let res = match res {
             Err(error) => {
-                error!("{}", error);
+                error!("Invalid checkpoint for request {}: {}", id, error);
                 return Err(Status::invalid_argument("Invalid checkpoint"));
             }
             Ok(value) => value,
         };
 
-        let diff = if let Ok(diff) = self.validator_store.get_checkpoint_diff(res) {
-            diff.into_iter()
-                .map(|(key, value)| {
-                    let v: Vec<_> = value
-                        .into_iter()
-                        .map(|v| ProofOfDelivery {
-                            delivery_position: Some(SourceStreamPosition {
-                                source_subnet_id: Some(v.delivery_position.subnet_id.into()),
-                                position: *v.delivery_position.position,
-                                certificate_id: Some(v.certificate_id.into()),
-                            }),
-                            readies: v
-                                .readies
-                                .into_iter()
-                                .map(|(ready, signature)| SignedReady { ready, signature })
-                                .collect(),
-                            threshold: v.threshold,
-                        })
-                        .collect();
-                    CheckpointMapFieldEntry {
-                        key: key.to_string(),
-                        value: v,
-                    }
-                })
-                .collect()
-        } else {
-            Vec::new()
+        info!("Request {} contains {} proof_of_delivery", id, res.len());
+        debug!("Request {} contains {:?}", id, res);
+        let diff = match self.validator_store.get_checkpoint_diff(res) {
+            Ok(diff) => {
+                debug!(
+                    "Fetched checkpoint diff from storage for request {}, got {:?}",
+                    id, diff
+                );
+                diff.into_iter()
+                    .map(|(key, value)| {
+                        let v: Vec<_> = value
+                            .into_iter()
+                            .map(|v| ProofOfDelivery {
+                                delivery_position: Some(SourceStreamPosition {
+                                    source_subnet_id: Some(v.delivery_position.subnet_id.into()),
+                                    position: *v.delivery_position.position,
+                                    certificate_id: Some(v.certificate_id.into()),
+                                }),
+                                readies: v
+                                    .readies
+                                    .into_iter()
+                                    .map(|(ready, signature)| SignedReady { ready, signature })
+                                    .collect(),
+                                threshold: v.threshold,
+                            })
+                            .collect();
+                        CheckpointMapFieldEntry {
+                            key: key.to_string(),
+                            value: v,
+                        }
+                    })
+                    .collect()
+            }
+            Err(error) => {
+                error!(
+                    "Error while fetching checkpoint diff for request {}: {}",
+                    id, error
+                );
+                Vec::new()
+            }
         };
+
+        info!(
+            "Responding to request {} with checkpoint diff containing {:?}",
+            id,
+            diff.iter()
+                .map(|v| (v.key.clone(), v.value.len()))
+                .collect::<Vec<_>>()
+        );
 
         let response = CheckpointResponse {
             request_id: request.request_id,
