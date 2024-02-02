@@ -165,7 +165,7 @@ impl GrpcSynchronizerService for SynchronizerService {
         };
 
         info!("Request {} contains {} proof_of_delivery", id, res.len());
-        debug!("Request {} contains {}", id, res.len());
+        debug!("Request {} contains {:?}", id, res);
         let diff = match self.validator_store.get_checkpoint_diff(res) {
             Ok(diff) => {
                 debug!(
