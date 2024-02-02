@@ -230,13 +230,20 @@ impl BroadcastState {
 
     fn reached_delivery_threshold(&self) -> bool {
         // If reached the delivery threshold, I can deliver
-        match self
+        let delivery_threshold = match self
             .subscriptions_view
             .network_size
             .checked_sub(self.subscriptions_view.ready.len())
         {
             Some(consumed) => consumed >= self.delivery_threshold,
             None => false,
-        }
+        };
+
+        debug!(
+            "📝 Certificate {} reached Delivery threshold: {}",
+            &self.certificate.id, delivery_threshold
+        );
+
+        delivery_threshold
     }
 }

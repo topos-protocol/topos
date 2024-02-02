@@ -148,20 +148,25 @@ impl CheckpointSynchronizer {
                 .collect()
         };
 
-        let checkpoint_len = checkpoint.len();
-        let req = CheckpointRequest {
-            request_id: Some(request_id.into()),
-            checkpoint,
-        };
-
         debug!(
             "Asking {} for latest checkpoint (request_id: {})",
             peer, request_id
         );
         debug!(
-            "Payload's request {} contains: {} proof_of_delivery",
-            request_id, checkpoint_len
+            "Payload's request {} contains: {} subnets",
+            request_id,
+            checkpoint.len()
         );
+        debug!(
+            "Payload's request {} contains: {:?}",
+            request_id, checkpoint
+        );
+
+        let req = CheckpointRequest {
+            request_id: Some(request_id.into()),
+            checkpoint,
+        };
+
         let mut client: SynchronizerServiceClient<_> = self
             .network
             .new_grpc_client::<SynchronizerServiceClient<_>, SynchronizerServiceServer<SynchronizerService>>(peer)
