@@ -29,6 +29,7 @@ use topos_core::{
 };
 use topos_tce_storage::{store::ReadStore, validator::ValidatorStore};
 use tracing::{error, info, warn};
+use uuid::Uuid;
 
 pub struct Synchronizer {
     pub(crate) shutdown: CancellationToken,
@@ -143,6 +144,12 @@ impl GrpcSynchronizerService for SynchronizerService {
         request: Request<CheckpointRequest>,
     ) -> Result<Response<CheckpointResponse>, Status> {
         let request = request.into_inner();
+        let id = request
+            .request_id
+            .map(|id| id.into())
+            .unwrap_or(Uuid::new_v4());
+        info!("Received request for checkpoint (request_id: {})", id);
+
         let res: Result<Vec<_>, _> = request
             .checkpoint
             .into_iter()
@@ -151,14 +158,16 @@ impl GrpcSynchronizerService for SynchronizerService {
 
         let res = match res {
             Err(error) => {
-                error!("{}", error);
+                error!("Invalid checkpoint for request {}: {}", id, error);
                 return Err(Status::invalid_argument("Invalid checkpoint"));
             }
             Ok(value) => value,
         };
 
-        let diff = if let Ok(diff) = self.validator_store.get_checkpoint_diff(res) {
-            diff.into_iter()
+        info!("Request {} contains {} proof_of_delivery", id, res.len());
+        let diff = match self.validator_store.get_checkpoint_diff(res) {
+            Ok(diff) => diff
+                .into_iter()
                 .map(|(key, value)| {
                     let v: Vec<_> = value
                         .into_iter()
@@ -181,9 +190,14 @@ impl GrpcSynchronizerService for SynchronizerService {
                         value: v,
                     }
                 })
-                .collect()
-        } else {
-            Vec::new()
+                .collect(),
+            Err(error) => {
+                error!(
+                    "Error while fetching checkpoint diff for request {}: {}",
+                    id, error
+                );
+                Vec::new()
+            }
         };
 
         let response = CheckpointResponse {
