@@ -166,31 +166,37 @@ impl GrpcSynchronizerService for SynchronizerService {
 
         info!("Request {} contains {} proof_of_delivery", id, res.len());
         let diff = match self.validator_store.get_checkpoint_diff(res) {
-            Ok(diff) => diff
-                .into_iter()
-                .map(|(key, value)| {
-                    let v: Vec<_> = value
-                        .into_iter()
-                        .map(|v| ProofOfDelivery {
-                            delivery_position: Some(SourceStreamPosition {
-                                source_subnet_id: Some(v.delivery_position.subnet_id.into()),
-                                position: *v.delivery_position.position,
-                                certificate_id: Some(v.certificate_id.into()),
-                            }),
-                            readies: v
-                                .readies
-                                .into_iter()
-                                .map(|(ready, signature)| SignedReady { ready, signature })
-                                .collect(),
-                            threshold: v.threshold,
-                        })
-                        .collect();
-                    CheckpointMapFieldEntry {
-                        key: key.to_string(),
-                        value: v,
-                    }
-                })
-                .collect(),
+            Ok(diff) => {
+                info!(
+                    "Fetched checkpoint diff from storage for request {}, got {:?}",
+                    id,
+                    diff.iter().map(|(s, v)| (s, v.len())).collect::<Vec<_>>()
+                );
+                diff.into_iter()
+                    .map(|(key, value)| {
+                        let v: Vec<_> = value
+                            .into_iter()
+                            .map(|v| ProofOfDelivery {
+                                delivery_position: Some(SourceStreamPosition {
+                                    source_subnet_id: Some(v.delivery_position.subnet_id.into()),
+                                    position: *v.delivery_position.position,
+                                    certificate_id: Some(v.certificate_id.into()),
+                                }),
+                                readies: v
+                                    .readies
+                                    .into_iter()
+                                    .map(|(ready, signature)| SignedReady { ready, signature })
+                                    .collect(),
+                                threshold: v.threshold,
+                            })
+                            .collect();
+                        CheckpointMapFieldEntry {
+                            key: key.to_string(),
+                            value: v,
+                        }
+                    })
+                    .collect()
+            }
             Err(error) => {
                 error!(
                     "Error while fetching checkpoint diff for request {}: {}",
@@ -199,6 +205,14 @@ impl GrpcSynchronizerService for SynchronizerService {
                 Vec::new()
             }
         };
+
+        info!(
+            "Responding to request {} with checkpoint diff containing {:?}",
+            id,
+            diff.iter()
+                .map(|v| (v.key.clone(), v.value.len()))
+                .collect::<Vec<_>>()
+        );
 
         let response = CheckpointResponse {
             request_id: request.request_id,
