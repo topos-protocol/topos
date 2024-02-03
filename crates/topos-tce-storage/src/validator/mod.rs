@@ -343,6 +343,7 @@ impl ValidatorStore {
             .into_iter()
             .map(|v| (v.delivery_position.subnet_id, vec![v]))
             .collect();
+        println!("from_positions: {:?}", from_positions);
 
         // Request the local head checkpoint
         let subnets: HashMap<SubnetId, Position> = self
@@ -352,6 +353,7 @@ impl ValidatorStore {
             .iter()?
             .map(|(subnet_id, (_, position))| (subnet_id, position))
             .collect();
+        println!("subnets: {:?}", subnets);
 
         // For every local known subnets we want to iterate and check if there
         // is a delta between the from_position and our head position.
@@ -362,10 +364,12 @@ impl ValidatorStore {
                 if local_position <= position.delivery_position.position {
                     continue;
                 }
+
                 self.fullnode_store
                     .perpetual_tables
                     .streams
-                    .prefix_iter_at(&subnet, &position)?
+                    .prefix_iter(&(&subnet, &position.delivery_position.position))?
+                    .skip(1)
                     .take(100)
                     .map(|(_, v)| v)
                     .collect()
@@ -373,7 +377,7 @@ impl ValidatorStore {
                 self.fullnode_store
                     .perpetual_tables
                     .streams
-                    .prefix_iter(&subnet)?
+                    .prefix_iter(&(&subnet, Position::ZERO))?
                     .take(100)
                     .map(|(_, v)| v)
                     .collect()
