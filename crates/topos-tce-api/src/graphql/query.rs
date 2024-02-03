@@ -4,6 +4,7 @@ use async_graphql::{Context, EmptyMutation, Object, Schema, Subscription};
 use async_trait::async_trait;
 use futures::{Stream, StreamExt};
 use tokio::sync::{mpsc, oneshot};
+use topos_core::api::graphql::checkpoint::SourceStreamPosition;
 use topos_core::api::graphql::errors::GraphQLServerError;
 use topos_core::api::graphql::filter::SubnetFilter;
 use topos_core::api::graphql::{
@@ -113,7 +114,12 @@ impl QueryRoot {
         Self::certificate_by_id(ctx, certificate_id).await
     }
 
-    async fn get_checkpoint(&self, ctx: &Context<'_>) -> Result<Vec<String>, GraphQLServerError> {
+    /// This endpoint is used to get the current checkpoint of the source streams.
+    /// The checkpoint is the position of the last certificate delivered for each source stream.
+    async fn get_checkpoint(
+        &self,
+        ctx: &Context<'_>,
+    ) -> Result<Vec<SourceStreamPosition>, GraphQLServerError> {
         let store = ctx.data::<Arc<FullNodeStore>>().map_err(|_| {
             tracing::error!("Failed to get store from context");
 
@@ -126,7 +132,10 @@ impl QueryRoot {
 
         Ok(checkpoint
             .iter()
-            .map(|v| format!("{}:{}", v.0, v.1.position))
+            .map(|(subnet_id, head)| SourceStreamPosition {
+                source_subnet_id: subnet_id.into(),
+                position: *head.position,
+            })
             .collect())
     }
 }

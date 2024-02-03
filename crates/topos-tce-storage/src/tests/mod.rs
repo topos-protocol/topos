@@ -21,6 +21,7 @@ use self::support::store;
 use topos_test_sdk::certificates::create_certificate_chain;
 use topos_test_sdk::constants::*;
 
+mod checkpoints;
 mod db_columns;
 mod pending_certificates;
 mod position;

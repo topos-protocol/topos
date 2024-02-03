@@ -28,7 +28,7 @@ use topos_core::{
     uci::CertificateId,
 };
 use topos_tce_storage::{store::ReadStore, validator::ValidatorStore};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info, trace, warn};
 use uuid::Uuid;
 
 pub struct Synchronizer {
@@ -148,7 +148,7 @@ impl GrpcSynchronizerService for SynchronizerService {
             .request_id
             .map(|id| id.into())
             .unwrap_or(Uuid::new_v4());
-        info!("Received request for checkpoint (request_id: {})", id);
+        debug!("Received request for checkpoint (request_id: {})", id);
 
         let res: Result<Vec<_>, _> = request
             .checkpoint
@@ -164,8 +164,8 @@ impl GrpcSynchronizerService for SynchronizerService {
             Ok(value) => value,
         };
 
-        info!("Request {} contains {} proof_of_delivery", id, res.len());
-        debug!("Request {} contains {:?}", id, res);
+        debug!("Request {} contains {} proof_of_delivery", id, res.len());
+        trace!("Request {} contains {:?}", id, res);
         let diff = match self.validator_store.get_checkpoint_diff(res) {
             Ok(diff) => {
                 debug!(
@@ -206,7 +206,7 @@ impl GrpcSynchronizerService for SynchronizerService {
             }
         };
 
-        info!(
+        debug!(
             "Responding to request {} with checkpoint diff containing {:?}",
             id,
             diff.iter()

@@ -149,17 +149,8 @@ impl CheckpointSynchronizer {
         };
 
         debug!(
-            "Asking {} for latest checkpoint (request_id: {})",
-            peer, request_id
-        );
-        debug!(
-            "Payload's request {} contains: {} subnets",
-            request_id,
-            checkpoint.len()
-        );
-        debug!(
-            "Payload's request {} contains: {:?}",
-            request_id, checkpoint
+            "Asking {} for latest checkpoint (request_id: {}), with local checkpoint: {:?}",
+            peer, request_id, checkpoint
         );
 
         let req = CheckpointRequest {
@@ -174,18 +165,13 @@ impl CheckpointSynchronizer {
 
         let response: CheckpointResponse = client.fetch_checkpoint(req).await?.into_inner();
 
-        info!(
-            "Response from {} contains {} subnets",
-            request_id,
-            response.checkpoint_diff.len()
-        );
         let diff = response
             .checkpoint_diff
             .into_iter()
             .map(|v| {
                 let subnet =
                     SubnetId::from_str(&v.key[..]).map_err(|_| SyncError::UnableToParseSubnetId)?;
-                info!("Subnet: {} contains {} PoD", subnet, v.value.len());
+
                 let proofs = v
                     .value
                     .into_iter()
@@ -287,6 +273,7 @@ impl CheckpointSynchronizer {
                     let certificate_id = certificate.id;
                     match store.synchronize_certificate(certificate).await {
                         Ok(_) => debug!("Certificate {} synchronized", certificate_id),
+                        Err(StorageError::InternalStorage(topos_tce_storage::errors::InternalStorageError::CertificateAlreadyExists)) => {}
                         Err(e) => error!("Failed to sync because of: {:?}", e),
                     }
                 });
