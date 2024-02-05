@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+/// Broadcast threshold configurations
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct ReliableBroadcastParams {
     /// Echo threshold
@@ -11,7 +12,7 @@ pub struct ReliableBroadcastParams {
 }
 
 impl ReliableBroadcastParams {
-    pub fn new(n: usize) -> Self {
+    pub const fn new(n: usize) -> Self {
         let f: usize = n / 3;
 
         Self {
