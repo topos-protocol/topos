@@ -1,5 +1,6 @@
 //! Utility to spam dummy certificates
 
+use http::Uri;
 use opentelemetry::trace::FutureExt;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -201,14 +202,17 @@ pub async fn run(
 
     // Is list of nodes is specified in the command line use them otherwise use
     // config file provided nodes
-    let target_nodes = if args.kubernetes {
-        // Kubernetes mode
+    let target_nodes = if args.benchmark {
         if let (Some(dns), Some(number)) = (args.dns, args.number) {
-            (1..=number)
+            if dns.replace("{N}", &0.to_string()).parse::<Uri>().is_err() {
+                return Err(Error::BenchmarkConfigError("Invalid DNS pattern".into()));
+            }
+
+            (0..number)
                 .map(|n| dns.replace("{N}", &n.to_string()))
                 .collect::<Vec<String>>()
         } else {
-            return Err(Error::KubernetesConfigError(
+            return Err(Error::BenchmarkConfigError(
                 "DNS pattern or number of nodes not specified".into(),
             ));
         }

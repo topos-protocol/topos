@@ -68,8 +68,8 @@ pub struct Spam {
     #[arg(long, env = "TOPOS_OTLP_SERVICE_NAME")]
     pub otlp_service_name: Option<String>,
     /// Flag to indicate usage of Kubernetes.
-    #[arg(long, env = "TOPOS_NETWORK_SPAMMER_KUBERNETES")]
-    pub kubernetes: bool,
+    #[arg(long, env = "TOPOS_NETWORK_SPAMMER_BENCHMARK")]
+    pub benchmark: bool,
     /// DNS template for generating target node addresses.
     /// e.g. `--dns="http://validator-{N}:1340"`
     #[arg(long, env = "TOPOS_NETWORK_SPAMMER_DNS")]

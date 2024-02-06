@@ -7737,6 +7737,7 @@ dependencies = [
  "clap 4.4.18",
  "futures",
  "hex",
+ "http",
  "lazy_static",
  "opentelemetry",
  "rand",

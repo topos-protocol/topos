@@ -8,7 +8,7 @@ pub struct CertificateSpammerConfig {
     pub nb_batches: Option<u64>,
     pub batch_interval: u64,
     pub target_subnets: Option<Vec<String>>,
-    pub kubernetes: bool,
+    pub benchmark: bool,
     pub dns: Option<String>,
     pub number: Option<u32>,
 }

@@ -24,6 +24,7 @@ opentelemetry.workspace = true
 tiny-keccak.workspace = true
 uuid.workspace = true
 lazy_static.workspace = true
+http.workspace = true
 
 toml = "0.5.9"
 
