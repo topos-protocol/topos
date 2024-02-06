@@ -67,6 +67,16 @@ pub struct Spam {
     /// If not provided open telemetry will not be used
     #[arg(long, env = "TOPOS_OTLP_SERVICE_NAME")]
     pub otlp_service_name: Option<String>,
+    /// Flag to indicate usage of Kubernetes.
+    #[arg(long, env = "TOPOS_NETWORK_SPAMMER_KUBERNETES")]
+    pub kubernetes: bool,
+    /// DNS template for generating target node addresses.
+    /// e.g. `--dns="http://validator-{N}:1340"`
+    #[arg(long, env = "TOPOS_NETWORK_SPAMMER_DNS")]
+    pub dns: Option<String>,
+    /// Number of nodes to generate based on the DNS template.
+    #[arg(long, env = "TOPOS_NETWORK_SPAMMER_NUMBER")]
+    pub number: Option<u32>,
 }
 
 impl Spam {}

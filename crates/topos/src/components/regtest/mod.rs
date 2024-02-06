@@ -30,6 +30,9 @@ pub(crate) async fn handle_command(
                 nb_batches: cmd.nb_batches,
                 batch_interval: cmd.batch_interval,
                 target_subnets: cmd.target_subnets,
+                kubernetes: cmd.kubernetes,
+                dns: cmd.dns,
+                number: cmd.number,
             };
 
             // Setup instrumentation if both otlp agent and otlp service name

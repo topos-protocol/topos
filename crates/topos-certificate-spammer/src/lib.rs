@@ -201,7 +201,18 @@ pub async fn run(
 
     // Is list of nodes is specified in the command line use them otherwise use
     // config file provided nodes
-    let target_nodes = if let Some(nodes) = args.target_nodes {
+    let target_nodes = if args.kubernetes {
+        // Kubernetes mode
+        if let (Some(dns), Some(number)) = (args.dns, args.number) {
+            (1..=number)
+                .map(|n| dns.replace("{N}", &n.to_string()))
+                .collect::<Vec<String>>()
+        } else {
+            return Err(Error::KubernetesConfigError(
+                "DNS pattern or number of nodes not specified".into(),
+            ));
+        }
+    } else if let Some(nodes) = args.target_nodes {
         nodes
     } else if let Some(target_nodes_path) = args.target_nodes_path {
         let json_str = std::fs::read_to_string(target_nodes_path)
