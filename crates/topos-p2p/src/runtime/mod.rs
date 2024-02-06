@@ -1,25 +1,15 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    behaviour::discovery::PendingRecordRequest, config::NetworkConfig, error::P2PError,
-    event::ComposedEvent, runtime::handle_event::EventHandler, Behaviour, Command, Event,
+    behaviour::discovery::PendingRecordRequest, error::P2PError,
+    runtime::handle_event::EventHandler, Behaviour, Command, Event,
 };
-use libp2p::{
-    core::transport::ListenerId,
-    kad::{
-        record::Key, BootstrapOk, Event as KademliaEvent, PutRecordError, QueryId, QueryResult,
-        Quorum, Record,
-    },
-    multiaddr::Protocol,
-    swarm::SwarmEvent,
-    Multiaddr, PeerId, Swarm,
-};
+use libp2p::{core::transport::ListenerId, kad::QueryId, Multiaddr, PeerId, Swarm};
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::StreamExt;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info};
 
 pub struct Runtime {
-    pub(crate) config: NetworkConfig,
     // TODO: check if needed
     pub(crate) peer_set: HashSet<PeerId>,
     pub(crate) swarm: Swarm<Behaviour>,
@@ -28,7 +18,6 @@ pub struct Runtime {
     pub(crate) local_peer_id: PeerId,
     pub(crate) listening_on: Vec<Multiaddr>,
     pub(crate) public_addresses: Vec<Multiaddr>,
-    pub(crate) bootstrapped: bool,
 
     /// Contains current listenerId of the swarm
     pub active_listeners: HashSet<ListenerId>,
@@ -38,31 +27,19 @@ pub struct Runtime {
 
     /// Shutdown signal receiver from the client
     pub(crate) shutdown: mpsc::Receiver<oneshot::Sender<()>>,
+
+    pub(crate) current_bootstrap_id: Option<QueryId>,
 }
 
 mod handle_command;
 mod handle_event;
 
 impl Runtime {
-    pub async fn bootstrap(mut self) -> Result<Self, Box<dyn std::error::Error>> {
-        if self.bootstrapped {
-            return Err(Box::new(P2PError::BootstrapError(
-                "Network is already bootstrapped or in bootstrap",
-            )));
-        }
-
-        self.bootstrapped = true;
-
+    pub async fn bootstrap(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         debug!("Added public addresses: {:?}", self.public_addresses);
         for address in &self.public_addresses {
             self.swarm.add_external_address(address.clone());
         }
-
-        let dht_address = self
-            .public_addresses
-            .first()
-            .map(Multiaddr::to_vec)
-            .ok_or(P2PError::MissingPublicAddresses)?;
 
         debug!("Starting to listen on {:?}", self.listening_on);
         for addr in &self.listening_on {
@@ -73,201 +50,27 @@ impl Runtime {
             }
         }
 
-        debug!("Starting a boot node ? {:?}", self.config.is_bootnode);
-        if !self.config.is_bootnode {
-            // First we need to be known and known some peers before publishing our addresses to
-            // the network.
-            let mut publish_retry = self.config.publish_retry;
-
-            // We were able to send the DHT query, starting the bootstrap
-            // We may want to remove the bootstrap at some point
-            if let Err(error) = self.swarm.behaviour_mut().discovery.inner.bootstrap() {
-                error!("Unable to start kademlia bootstrap: {error:?}");
-                return Err(Box::new(P2PError::BootstrapError(
-                    "Unable to start kademlia bootstrap",
-                )));
-            }
-
-            // The AddrAnnoucer is responsible of publishing those addresses
-            let mut addr_query_id: Option<QueryId> = None;
-
-            while let Some(event) = self.swarm.next().await {
-                match event {
-                    SwarmEvent::Behaviour(ComposedEvent::PeerInfo(event)) => {
-                        info!("Received peer_info, {event:?}");
-                        // Validate peer_info here
-                        self.handle(event).await;
-                        if addr_query_id.is_none()
-                            && self.peer_set.len() >= self.config.minimum_cluster_size
-                        {
-                            warn!(
-                                "Publishing our addresses to the network ! We have {} peers",
-                                self.peer_set.len()
-                            );
-                            let key = Key::new(&self.local_peer_id.to_string());
-                            addr_query_id = if let Ok(query_id_record) =
-                                self.swarm.behaviour_mut().discovery.inner.put_record(
-                                    Record::new(key, dht_address.clone()),
-                                    Quorum::Majority,
-                                ) {
-                                Some(query_id_record)
-                            } else {
-                                return Err(Box::new(P2PError::BootstrapError(
-                                    "Unable to send the addr Record to DHT",
-                                )));
-                            };
-                        }
-                    }
-                    SwarmEvent::Behaviour(ComposedEvent::Kademlia(kademlia_event)) => {
-                        match *kademlia_event {
-                            KademliaEvent::OutboundQueryProgressed {
-                                id,
-                                result:
-                                    QueryResult::PutRecord(Err(PutRecordError::QuorumFailed {
-                                        key,
-                                        success,
-                                        quorum,
-                                    })),
-                                stats,
-                                ..
-                            } if Some(id) == addr_query_id && publish_retry == 0 => {
-                                debug!(
-                                    "QuorumFailure on DHT addr publication: key: {key:?}, \
-                                     success: {success:?}, quorum: {quorum:?}, stats: {stats:?}"
-                                );
-                                return Err(Box::new(P2PError::BootstrapError(
-                                    "Unable to send the addr Record to DHT",
-                                )));
-                            }
-
-                            KademliaEvent::OutboundQueryProgressed {
-                                id,
-                                result:
-                                    QueryResult::PutRecord(Err(PutRecordError::QuorumFailed {
-                                        key,
-                                        success,
-                                        quorum,
-                                    })),
-                                stats,
-                                step,
-                            } if Some(id) == addr_query_id && publish_retry > 0 => {
-                                publish_retry -= 1;
-                                warn!(
-                                    "Failed to PutRecord in DHT, retry again, attempt number \
-                                     {publish_retry}"
-                                );
-                                warn!(
-                                    "QuorumFailure on DHT addr publication: key: {key:?}, \
-                                     success: {success:?}, quorum: {quorum:?}, stats: {stats:?}"
-                                );
-                                let key = Key::new(&self.local_peer_id.to_string());
-                                if let Ok(query_id_record) =
-                                    self.swarm.behaviour_mut().discovery.inner.put_record(
-                                        Record::new(key, dht_address.clone()),
-                                        Quorum::Majority,
-                                    )
-                                {
-                                    addr_query_id = Some(query_id_record);
-                                } else {
-                                    return Err(Box::new(P2PError::BootstrapError(
-                                        "Unable to send the addr Record to DHT",
-                                    )));
-                                }
-                            }
-                            KademliaEvent::OutboundQueryProgressed {
-                                id,
-                                result: QueryResult::PutRecord(Ok(_)),
-                                ..
-                            } if Some(id) == addr_query_id => {
-                                info!(
-                                    "Bootstrap finished and MultiAddr published on DHT for {}",
-                                    self.local_peer_id
-                                );
-
-                                break;
-                            }
-                            KademliaEvent::OutboundQueryProgressed {
-                                result: QueryResult::Bootstrap(Ok(BootstrapOk { .. })),
-                                ..
-                            } => {}
-
-                            KademliaEvent::OutboundQueryProgressed {
-                                id,
-                                result,
-                                stats,
-                                step,
-                            } => {
-                                debug!(
-                                    "OutboundQueryProgressed: {id:?}, {result:?}, {stats:?}, \
-                                     {step:?}"
-                                );
-                            }
-
-                            KademliaEvent::InboundRequest { .. } => {}
-                            KademliaEvent::RoutingUpdated { .. } => {}
-                            KademliaEvent::RoutablePeer { .. } => {}
-                            KademliaEvent::UnroutablePeer { .. } => {}
-
-                            event => warn!("Unhandle Kademlia event during Bootstrap: {event:?}"),
-                        }
-                    }
-                    SwarmEvent::ConnectionEstablished {
-                        peer_id,
-                        connection_id,
-                        endpoint,
-                        ..
-                    } => {
-                        info!(
-                            "Connection established with peer {peer_id} as {:?} (connection_id \
-                             {connection_id:?})",
-                            endpoint.to_endpoint()
-                        );
-                    }
-                    SwarmEvent::Dialing {
-                        peer_id,
-                        connection_id,
-                    } => debug!("Dialing {peer_id:?} | {connection_id}"),
-                    SwarmEvent::IncomingConnection {
-                        connection_id,
-                        local_addr,
-                        send_back_addr,
-                    } => debug!(
-                        "IncomingConnection {local_addr} | {connection_id} | {send_back_addr}"
-                    ),
-                    SwarmEvent::NewListenAddr {
-                        listener_id,
-                        address,
-                    } => {
-                        info!(
-                            "Local node is listening on {:?}",
-                            address.with(Protocol::P2p(self.local_peer_id)),
-                        );
-                    }
-                    SwarmEvent::Behaviour(ComposedEvent::Gossipsub(_)) => {}
-
-                    SwarmEvent::IncomingConnectionError {
-                        local_addr,
-                        send_back_addr,
-                        error,
-                        ..
-                    } => {
-                        warn!(
-                            "IncomingConnectionError: local_addr: {local_addr:?}, send_back_addr: \
-                             {send_back_addr:?}, error: {error:?}"
-                        );
-                    }
-                    event => warn!("Unhandle event during Bootstrap: {event:?}"),
+        if !self.peer_set.is_empty() {
+            // Sending the first `bootstrap` query to the bootnodes
+            match self.swarm.behaviour_mut().discovery.inner.bootstrap() {
+                Ok(query_id) => {
+                    info!("Started kademlia bootstrap with query_id: {query_id:?}");
+                    self.current_bootstrap_id = Some(query_id);
+                }
+                Err(error) => {
+                    error!("Unable to start kademlia bootstrap: {error:?}");
+                    return Err(Box::new(P2PError::BootstrapError(
+                        "Unable to start kademlia bootstrap",
+                    )));
                 }
             }
         }
-
-        warn!("Network bootstrap finished");
 
         let gossipsub = &mut self.swarm.behaviour_mut().gossipsub;
 
         gossipsub.subscribe()?;
 
-        Ok(self)
+        Ok(())
     }
 
     /// Run p2p runtime

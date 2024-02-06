@@ -21,7 +21,7 @@ async fn put_value_in_dht() {
 
     let (_client, _, join) = peer_1.bootstrap(&[], None).await.unwrap();
 
-    let (_, _, runtime) = crate::network::builder()
+    let (_, _, mut runtime) = crate::network::builder()
         .peer_key(peer_2.keypair.clone())
         .known_peers(&[(peer_1.peer_id(), peer_1.addr.clone())])
         .public_addresses(vec![peer_2.addr.clone()])
@@ -34,7 +34,7 @@ async fn put_value_in_dht() {
         .await
         .expect("Unable to create p2p network");
 
-    let mut runtime = runtime.bootstrap().await.unwrap();
+    runtime.bootstrap().await.unwrap();
     let kad = &mut runtime.swarm.behaviour_mut().discovery;
 
     let input_key = Key::new(&runtime.local_peer_id.to_string());

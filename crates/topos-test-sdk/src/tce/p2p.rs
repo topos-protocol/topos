@@ -54,7 +54,6 @@ pub async fn create_network_worker(
         .listen_addresses(addr)
         .minimum_cluster_size(minimum_cluster_size)
         .grpc_context(grpc_context)
-        .is_bootnode(seed == 1)
         .build()
         .await
 }
@@ -74,10 +73,10 @@ pub async fn bootstrap_network(
     ),
     Box<dyn Error>,
 > {
-    let (network_client, network_stream, runtime) =
+    let (network_client, network_stream, mut runtime) =
         create_network_worker(seed, port, vec![addr], peers, minimum_cluster_size, router).await?;
 
-    let runtime = runtime.bootstrap().await?;
+    runtime.bootstrap().await?;
 
     let runtime_join_handle = spawn(runtime.run());
     Ok((network_client, network_stream, runtime_join_handle))

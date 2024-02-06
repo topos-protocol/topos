@@ -55,12 +55,6 @@ impl<'a> NetworkBuilder<'a> {
         self
     }
 
-    pub fn publish_retry(mut self, retry: usize) -> Self {
-        self.config.publish_retry = retry;
-
-        self
-    }
-
     pub fn minimum_cluster_size(mut self, size: usize) -> Self {
         self.config.minimum_cluster_size = size;
 
@@ -197,24 +191,17 @@ impl<'a> NetworkBuilder<'a> {
             ReceiverStream::new(event_receiver),
             Runtime {
                 swarm,
-                config: self.config,
                 peer_set: self.known_peers.iter().map(|(p, _)| *p).collect(),
                 command_receiver,
                 event_sender,
                 local_peer_id: peer_id,
                 listening_on: listen_addr,
                 public_addresses,
-                bootstrapped: false,
                 active_listeners: HashSet::new(),
                 pending_record_requests: HashMap::new(),
                 shutdown,
+                current_bootstrap_id: None,
             },
         ))
-    }
-
-    pub fn is_bootnode(mut self, is_bootnode: bool) -> Self {
-        self.config.is_bootnode = is_bootnode;
-
-        self
     }
 }

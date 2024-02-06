@@ -13,18 +13,17 @@ use crate::error::P2PError;
 async fn no_random_peer() {
     let local = NodeConfig::from_seed(1);
 
-    let (client, _, runtime) = crate::network::builder()
+    let (client, _, mut runtime) = crate::network::builder()
         .peer_key(local.keypair.clone())
         .public_addresses(&[local.addr.clone()])
         .listen_addresses(&[local.addr.clone()])
         .public_addresses(vec![local.addr.clone()])
         .listen_addresses(vec![local.addr.clone()])
-        .is_bootnode(true)
         .build()
         .await
         .expect("Unable to create p2p network");
 
-    let runtime = runtime.bootstrap().await.unwrap();
+    runtime.bootstrap().await.unwrap();
 
     spawn(runtime.run());
 
@@ -47,16 +46,15 @@ async fn return_a_peer() {
     let expected = NodeConfig::from_seed(2);
     let expected_peer_id = expected.keypair.public().to_peer_id();
 
-    let (client, _, runtime) = crate::network::builder()
+    let (client, _, mut runtime) = crate::network::builder()
         .peer_key(local.keypair.clone())
         .public_addresses(vec![local.addr.clone()])
         .listen_addresses(vec![local.addr.clone()])
-        .is_bootnode(true)
         .build()
         .await
         .expect("Unable to create p2p network");
 
-    let mut runtime = runtime.bootstrap().await.unwrap();
+    runtime.bootstrap().await.unwrap();
 
     runtime.peer_set.insert(expected_peer_id);
 
@@ -77,16 +75,15 @@ async fn return_a_peer() {
 async fn return_a_random_peer_among_100() {
     let local = NodeConfig::from_seed(1);
 
-    let (client, _, runtime) = crate::network::builder()
+    let (client, _, mut runtime) = crate::network::builder()
         .peer_key(local.keypair.clone())
         .public_addresses(vec![local.addr.clone()])
         .listen_addresses(vec![local.addr.clone()])
-        .is_bootnode(true)
         .build()
         .await
         .expect("Unable to create p2p network");
 
-    let mut runtime = runtime.bootstrap().await.unwrap();
+    runtime.bootstrap().await.unwrap();
 
     for i in 2..=100 {
         let peer = NodeConfig::from_seed(i);

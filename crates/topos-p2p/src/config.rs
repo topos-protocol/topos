@@ -1,7 +1,6 @@
 use std::{num::NonZeroUsize, time::Duration};
 
 pub struct NetworkConfig {
-    pub publish_retry: usize,
     pub minimum_cluster_size: usize,
     pub client_retry_ttl: u64,
     pub discovery: DiscoveryConfig,
@@ -13,7 +12,6 @@ pub struct NetworkConfig {
 impl Default for NetworkConfig {
     fn default() -> Self {
         Self {
-            publish_retry: Self::PUBLISH_RETRY,
             minimum_cluster_size: Self::MINIMUM_CLUSTER_SIZE,
             client_retry_ttl: Self::CLIENT_RETRY_TTL,
             discovery: Default::default(),
@@ -26,7 +24,6 @@ impl Default for NetworkConfig {
 
 impl NetworkConfig {
     pub const MINIMUM_CLUSTER_SIZE: usize = 5;
-    pub const PUBLISH_RETRY: usize = 10;
     pub const CLIENT_RETRY_TTL: u64 = 200;
 }
 

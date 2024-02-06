@@ -1,7 +1,6 @@
 use futures::StreamExt;
 use opentelemetry::global;
 use std::process::ExitStatus;
-use std::time::Duration;
 use std::{future::IntoFuture, sync::Arc};
 use tokio::{
     spawn,
@@ -104,14 +103,6 @@ pub async fn run(
     let validator_store = ValidatorStore::open(path.clone(), fullnode_store.clone())
         .expect("Unable to create validator store");
 
-    let grpc_context = GrpcContext::default().with_router(
-        GrpcRouter::new(tonic::transport::Server::builder()).add_service(
-            SynchronizerServiceServer::new(SynchronizerService {
-                validator_store: validator_store.clone(),
-            }),
-        ),
-    );
-
     let certificates_synced = fullnode_store
         .count_certificates_delivered()
         .map_err(|error| format!("Unable to count certificates delivered: {error}"))
@@ -133,23 +124,26 @@ pub async fn run(
         certificates_synced, pending_certificates, precedence_pool_certificates
     );
 
-    let (network_client, event_stream, unbootstrapped_runtime) = topos_p2p::network::builder()
+    let grpc_context = GrpcContext::default().with_router(
+        GrpcRouter::new(tonic::transport::Server::builder()).add_service(
+            SynchronizerServiceServer::new(SynchronizerService {
+                validator_store: validator_store.clone(),
+            }),
+        ),
+    );
+
+    let (network_client, event_stream, mut network_runtime) = topos_p2p::network::builder()
         .peer_key(key)
         .listen_addresses(config.p2p.listen_addresses.clone())
         .minimum_cluster_size(config.minimum_tce_cluster_size)
         .public_addresses(config.p2p.public_addresses.clone())
         .known_peers(&boot_peers)
         .grpc_context(grpc_context)
-        .is_bootnode(config.p2p.is_bootnode)
         .build()
         .await?;
 
     debug!("Starting the p2p network");
-    let network_runtime = tokio::time::timeout(
-        Duration::from_secs(config.network_bootstrap_timeout),
-        unbootstrapped_runtime.bootstrap(),
-    )
-    .await??;
+    network_runtime.bootstrap().await?;
     let _network_handler = spawn(network_runtime.run());
     debug!("p2p network started");
 
