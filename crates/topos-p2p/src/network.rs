@@ -12,11 +12,13 @@ use crate::{
 };
 use futures::Stream;
 use libp2p::{
-    identity::Keypair, kad::store::MemoryStore, noise, tcp::Config, Multiaddr, PeerId, SwarmBuilder,
+    core::upgrade, dns, identity::Keypair, kad::store::MemoryStore, noise, swarm, tcp::Config,
+    Multiaddr, PeerId, Swarm, Transport,
 };
 use std::{
     borrow::Cow,
     collections::{HashMap, HashSet},
+    time::Duration,
 };
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
@@ -24,6 +26,8 @@ use tokio_stream::wrappers::ReceiverStream;
 pub fn builder<'a>() -> NetworkBuilder<'a> {
     NetworkBuilder::default()
 }
+
+const TWO_HOURS: Duration = Duration::from_secs(60 * 60 * 2);
 
 #[derive(Default)]
 pub struct NetworkBuilder<'a> {
@@ -135,26 +139,32 @@ impl<'a> NetworkBuilder<'a> {
             grpc,
         };
 
-        let noise = noise::Config::new(&peer_key).expect("Failed to create noise config");
+        let transport = {
+            let tcp = libp2p::tcp::tokio::Transport::new(Config::default().nodelay(true));
+            let dns_tcp = dns::tokio::Transport::system(tcp).unwrap();
+
+            let tcp = libp2p::tcp::tokio::Transport::new(Config::default().nodelay(true));
+            dns_tcp.or_transport(tcp)
+        };
 
         let mut multiplex_config = libp2p::yamux::Config::default();
         multiplex_config.set_window_update_mode(libp2p::yamux::WindowUpdateMode::on_read());
         multiplex_config.set_max_buffer_size(1024 * 1024 * 16);
 
-        let swarm = SwarmBuilder::with_existing_identity(peer_key)
-            .with_tokio()
-            .with_tcp(Config::default().nodelay(true), noise::Config::new, || {
-                multiplex_config
-            })
-            .expect("Failed to build TCP transport")
-            .with_dns()
-            .expect("Failed to build DNS transport")
-            .with_behaviour(|_key| behaviour)
-            .expect("Failed to build behaviour")
-            .with_swarm_config(|config| {
-                config.with_idle_connection_timeout(constants::IDLE_CONNECTION_TIMEOUT)
-            })
-            .build();
+        let transport = transport
+            .upgrade(upgrade::Version::V1)
+            .authenticate(noise::Config::new(&peer_key)?)
+            .multiplex(multiplex_config)
+            .timeout(TWO_HOURS)
+            .boxed();
+
+        let swarm = Swarm::new(
+            transport,
+            behaviour,
+            peer_id,
+            swarm::Config::with_tokio_executor()
+                .with_idle_connection_timeout(constants::IDLE_CONNECTION_TIMEOUT),
+        );
 
         let (shutdown_channel, shutdown) = mpsc::channel::<oneshot::Sender<()>>(1);
 

@@ -37,7 +37,7 @@ use topos_tce::{events::Events, AppContext};
 use topos_tce_api::RuntimeContext;
 use topos_tce_storage::StorageClient;
 use topos_tce_synchronizer::SynchronizerService;
-use tracing::{info, warn};
+use tracing::info;
 
 use self::gatekeeper::create_gatekeeper;
 use self::p2p::{bootstrap_network, create_network_worker};
@@ -386,6 +386,6 @@ pub async fn create_network(
             .map(|r: tonic::Response<_>| r.into_inner().has_active_sample))
         .any(|r| r.is_err() || !r.unwrap()));
 
-    warn!("GRPC status received and ok");
+    tracing::error!("GRPC status received and ok");
     peers_context
 }
