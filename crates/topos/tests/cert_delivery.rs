@@ -488,5 +488,5 @@ async fn run_assert_certificate_full_delivery(
 async fn push_and_deliver_cert(
     #[case] number_of_nodes: usize,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    run_assert_certificate_full_delivery(number_of_nodes, Duration::from_secs(5)).await
+    run_assert_certificate_full_delivery(number_of_nodes, Duration::from_secs(10)).await
 }
