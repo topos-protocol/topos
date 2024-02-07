@@ -205,14 +205,14 @@ pub async fn run(
     let target_nodes = if args.benchmark {
         if let (Some(dns), Some(number)) = (args.dns, args.number) {
             if dns.replace("{N}", &0.to_string()).parse::<Uri>().is_err() {
-                return Err(Error::BenchmarkConfigError("Invalid DNS pattern".into()));
+                return Err(Error::BenchmarkConfig("Invalid DNS pattern".into()));
             }
 
             (0..number)
                 .map(|n| dns.replace("{N}", &n.to_string()))
                 .collect::<Vec<String>>()
         } else {
-            return Err(Error::BenchmarkConfigError(
+            return Err(Error::BenchmarkConfig(
                 "DNS pattern or number of nodes not specified".into(),
             ));
         }

@@ -17,5 +17,5 @@ pub enum Error {
     #[error("Certificate signing error: {0}")]
     CertificateSigning(topos_core::uci::Error),
     #[error("BenchmkarkConfigError config error: {0}")]
-    BenchmarkConfigError(String),
+    BenchmarkConfig(String),
 }
