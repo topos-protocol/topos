@@ -31,7 +31,7 @@ pub(crate) async fn handle_command(
                 batch_interval: cmd.batch_interval,
                 target_subnets: cmd.target_subnets,
                 benchmark: cmd.benchmark,
-                dns: cmd.dns,
+                hosts: cmd.hosts,
                 number: cmd.number,
             };
 

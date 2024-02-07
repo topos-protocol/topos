@@ -203,17 +203,20 @@ pub async fn run(
     // Is list of nodes is specified in the command line use them otherwise use
     // config file provided nodes
     let target_nodes = if args.benchmark {
-        if let (Some(dns), Some(number)) = (args.dns, args.number) {
-            if dns.replace("{N}", &0.to_string()).parse::<Uri>().is_err() {
-                return Err(Error::BenchmarkConfig("Invalid DNS pattern".into()));
+        if let (Some(hosts), Some(number)) = (args.hosts, args.number) {
+            if hosts.replace("{N}", &0.to_string()).parse::<Uri>().is_err() {
+                return Err(Error::BenchmarkConfig(
+                    "Invalid hosts pattern. Has to be in the format of http://validator-1:9090"
+                        .into(),
+                ));
             }
 
             (0..number)
-                .map(|n| dns.replace("{N}", &n.to_string()))
+                .map(|n| hosts.replace("{N}", &n.to_string()))
                 .collect::<Vec<String>>()
         } else {
             return Err(Error::BenchmarkConfig(
-                "DNS pattern or number of nodes not specified".into(),
+                "hosts pattern or number of nodes not specified".into(),
             ));
         }
     } else if let Some(nodes) = args.target_nodes {

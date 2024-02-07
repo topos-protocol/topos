@@ -35,8 +35,8 @@ Options:
           Otlp service name. If not provided open telemetry will not be used [env: TOPOS_OTLP_SERVICE_NAME=]
       --benchmark
           Flag to indicate usage of Kubernetes [env: TOPOS_NETWORK_SPAMMER_BENCHMARK=]
-      --dns <DNS>
-          DNS template for generating target node addresses. e.g. `--dns="http://validator-{N}:1340"` [env: TOPOS_NETWORK_SPAMMER_DNS=]
+      --hosts <HOSTS>
+          DNS template for generating target node addresses. e.g. `--hosts="http://validator-{N}:1340"` [env: TOPOS_NETWORK_SPAMMER_HOSTS=]
       --number <NUMBER>
           Number of nodes to generate based on the DNS template [env: TOPOS_NETWORK_SPAMMER_NUMBER=]
   -h, --help
