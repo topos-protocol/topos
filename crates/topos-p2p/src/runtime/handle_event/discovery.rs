@@ -1,5 +1,5 @@
 use libp2p::{
-    kad::{GetRecordOk, KademliaEvent, QueryResult},
+    kad::{Event, GetRecordOk, QueryResult},
     Multiaddr,
 };
 use tracing::{debug, error, warn};
@@ -9,31 +9,31 @@ use crate::{error::CommandExecutionError, Runtime};
 use super::EventHandler;
 
 #[async_trait::async_trait]
-impl EventHandler<Box<KademliaEvent>> for Runtime {
-    async fn handle(&mut self, event: Box<KademliaEvent>) {
+impl EventHandler<Box<Event>> for Runtime {
+    async fn handle(&mut self, event: Box<Event>) {
         match *event {
-            KademliaEvent::InboundRequest { request } => {
+            Event::InboundRequest { request } => {
                 // warn!("InboundRequest {:?}", request);
             }
 
-            KademliaEvent::RoutingUpdated {
+            Event::RoutingUpdated {
                 peer, addresses, ..
             } => {
                 debug!("DHT -> RoutingUpdated {:?} {:?}", peer, addresses);
             }
 
-            KademliaEvent::RoutablePeer { peer, address } => {
+            Event::RoutablePeer { peer, address } => {
                 debug!("DHT -> RoutablePeer {:?}, {:?}", peer, address);
             }
 
-            KademliaEvent::PendingRoutablePeer { peer, address } => {
+            Event::PendingRoutablePeer { peer, address } => {
                 debug!("DHT -> PendingRoutablePeer {:?}, {:?}", peer, address);
             }
 
-            KademliaEvent::UnroutablePeer { peer } => {
+            Event::UnroutablePeer { peer } => {
                 // Ignored
             }
-            KademliaEvent::OutboundQueryProgressed {
+            Event::OutboundQueryProgressed {
                 result: QueryResult::Bootstrap(res),
                 id,
                 ..
@@ -41,7 +41,7 @@ impl EventHandler<Box<KademliaEvent>> for Runtime {
                 debug!("BootstrapResult query: {id:?},  {res:?}");
             }
 
-            KademliaEvent::OutboundQueryProgressed {
+            Event::OutboundQueryProgressed {
                 result: QueryResult::PutRecord(Err(e)),
                 id,
                 ..
@@ -49,7 +49,7 @@ impl EventHandler<Box<KademliaEvent>> for Runtime {
                 error!("PutRecord Failed query_id: {id:?}, error: {e:?}");
             }
 
-            KademliaEvent::OutboundQueryProgressed {
+            Event::OutboundQueryProgressed {
                 result: QueryResult::GetRecord(res),
                 id,
                 ..
@@ -99,7 +99,7 @@ impl EventHandler<Box<KademliaEvent>> for Runtime {
                 }
             },
 
-            KademliaEvent::OutboundQueryProgressed {
+            Event::OutboundQueryProgressed {
                 id, result, stats, ..
             } => {}
         }

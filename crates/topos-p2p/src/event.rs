@@ -1,4 +1,4 @@
-use libp2p::{identify, kad::KademliaEvent, PeerId};
+use libp2p::{identify, kad, PeerId};
 
 use crate::behaviour::grpc;
 
@@ -11,7 +11,7 @@ pub struct GossipEvent {
 
 #[derive(Debug)]
 pub enum ComposedEvent {
-    Kademlia(Box<KademliaEvent>),
+    Kademlia(Box<kad::Event>),
     PeerInfo(Box<identify::Event>),
     Gossipsub(GossipEvent),
     Grpc(grpc::Event),
@@ -23,8 +23,8 @@ impl From<grpc::Event> for ComposedEvent {
     }
 }
 
-impl From<KademliaEvent> for ComposedEvent {
-    fn from(event: KademliaEvent) -> Self {
+impl From<kad::Event> for ComposedEvent {
+    fn from(event: kad::Event) -> Self {
         ComposedEvent::Kademlia(Box::new(event))
     }
 }

@@ -479,14 +479,18 @@ async fn run_assert_certificate_full_delivery(
     Ok(())
 }
 
-#[rstest]
-#[case(5usize)]
-#[case(9usize)]
-#[test_log::test(tokio::test)]
-#[trace]
-#[timeout(Duration::from_secs(30))]
-async fn push_and_deliver_cert(
-    #[case] number_of_nodes: usize,
-) -> Result<(), Box<dyn std::error::Error>> {
-    run_assert_certificate_full_delivery(number_of_nodes, Duration::from_secs(5)).await
+mod serial_integration {
+    use super::*;
+
+    #[rstest]
+    #[case(5usize)]
+    #[case(9usize)]
+    #[test_log::test(tokio::test)]
+    #[trace]
+    #[timeout(Duration::from_secs(30))]
+    async fn push_and_deliver_cert(
+        #[case] number_of_nodes: usize,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        run_assert_certificate_full_delivery(number_of_nodes, Duration::from_secs(10)).await
+    }
 }

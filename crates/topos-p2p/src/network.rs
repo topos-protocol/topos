@@ -12,14 +12,8 @@ use crate::{
 };
 use futures::Stream;
 use libp2p::{
-    core::upgrade,
-    dns::TokioDnsConfig,
-    identity::Keypair,
-    kad::store::MemoryStore,
-    noise,
-    swarm::SwarmBuilder,
-    tcp::{tokio::Transport, Config},
-    Multiaddr, PeerId, Transport as TransportTrait,
+    core::upgrade, dns, identity::Keypair, kad::store::MemoryStore, noise, swarm, tcp::Config,
+    Multiaddr, PeerId, Swarm, Transport,
 };
 use std::{
     borrow::Cow,
@@ -146,10 +140,10 @@ impl<'a> NetworkBuilder<'a> {
         };
 
         let transport = {
-            let dns_tcp =
-                TokioDnsConfig::system(Transport::new(Config::new().nodelay(true))).unwrap();
+            let tcp = libp2p::tcp::tokio::Transport::new(Config::default().nodelay(true));
+            let dns_tcp = dns::tokio::Transport::system(tcp).unwrap();
 
-            let tcp = Transport::new(Config::default().nodelay(true));
+            let tcp = libp2p::tcp::tokio::Transport::new(Config::default().nodelay(true));
             dns_tcp.or_transport(tcp)
         };
 
@@ -164,9 +158,14 @@ impl<'a> NetworkBuilder<'a> {
             .timeout(TWO_HOURS)
             .boxed();
 
-        let swarm = SwarmBuilder::with_tokio_executor(transport, behaviour, peer_id)
-            .idle_connection_timeout(constants::IDLE_CONNECTION_TIMEOUT)
-            .build();
+        let swarm = Swarm::new(
+            transport,
+            behaviour,
+            peer_id,
+            swarm::Config::with_tokio_executor()
+                .with_idle_connection_timeout(constants::IDLE_CONNECTION_TIMEOUT),
+        );
+
         let (shutdown_channel, shutdown) = mpsc::channel::<oneshot::Sender<()>>(1);
 
         let grpc_over_p2p = GrpcOverP2P::new(command_sender.clone());

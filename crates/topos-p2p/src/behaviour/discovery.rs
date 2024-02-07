@@ -1,10 +1,10 @@
 use std::borrow::Cow;
 
 use crate::{config::DiscoveryConfig, error::CommandExecutionError};
-use libp2p::kad::KademliaEvent;
+use libp2p::kad::Event;
 use libp2p::{
     identity::Keypair,
-    kad::{store::MemoryStore, Kademlia, KademliaBucketInserts, KademliaConfig},
+    kad::{store::MemoryStore, Behaviour, BucketInserts, Config},
     swarm::NetworkBehaviour,
     Multiaddr, PeerId,
 };
@@ -15,9 +15,9 @@ pub type PendingRecordRequest = oneshot::Sender<Result<Vec<Multiaddr>, CommandEx
 
 /// DiscoveryBehaviour is responsible to discover and manage connections with peers
 #[derive(NetworkBehaviour)]
-#[behaviour(to_swarm = "KademliaEvent")]
+#[behaviour(to_swarm = "Event")]
 pub(crate) struct DiscoveryBehaviour {
-    pub(crate) inner: Kademlia<MemoryStore>,
+    pub(crate) inner: Behaviour<MemoryStore>,
 }
 
 impl DiscoveryBehaviour {
@@ -29,15 +29,15 @@ impl DiscoveryBehaviour {
         _with_mdns: bool,
     ) -> Self {
         let local_peer_id = peer_key.public().to_peer_id();
-        let kademlia_config = KademliaConfig::default()
+        let kademlia_config = Config::default()
             .set_replication_factor(config.replication_factor)
-            .set_kbucket_inserts(KademliaBucketInserts::Manual)
+            .set_kbucket_inserts(BucketInserts::Manual)
             .set_replication_interval(config.replication_interval)
             .set_publication_interval(config.publication_interval)
             .set_provider_publication_interval(config.provider_publication_interval)
             .to_owned();
 
-        let mut kademlia = Kademlia::with_config(
+        let mut kademlia = Behaviour::with_config(
             local_peer_id,
             MemoryStore::new(local_peer_id),
             kademlia_config,
