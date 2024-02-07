@@ -862,21 +862,17 @@ async fn test_tce_client_submit_and_get_certificate_delivered(
     info!("Waiting for certificates to be received on the target subnet");
     let mut received_certs = HashSet::new();
     loop {
-        match target_receiving_certificate_stream.next().await {
-            Some((certificate, target_position)) => {
-                info!(
-                    "Delivered certificate cert id {}, position {:?}",
-                    &certificate.id, target_position
-                );
-                received_certs.insert(certificate.id);
-                if received_certs.len() == expected_certs.len() && received_certs == expected_certs
-                {
-                    info!("All certificates successfully received");
-                    break;
-                }
-            }
-            None => {
-                error!("Certificate not received!")
+        if let Some((certificate, target_position)) =
+            target_receiving_certificate_stream.next().await
+        {
+            info!(
+                "Delivered certificate cert id {}, position {:?}",
+                &certificate.id, target_position
+            );
+            received_certs.insert(certificate.id);
+            if received_certs.len() == expected_certs.len() && received_certs == expected_certs {
+                info!("All certificates successfully received");
+                break;
             }
         }
     }

@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    behaviour::discovery::PendingRecordRequest, error::P2PError,
+    behaviour::discovery::PendingRecordRequest, config::NetworkConfig,
     runtime::handle_event::EventHandler, Behaviour, Command, Event,
 };
 use libp2p::{core::transport::ListenerId, kad::QueryId, Multiaddr, PeerId, Swarm};
@@ -10,6 +10,7 @@ use tokio_stream::StreamExt;
 use tracing::{debug, error, info};
 
 pub struct Runtime {
+    pub(crate) config: NetworkConfig,
     // TODO: check if needed
     pub(crate) peer_set: HashSet<PeerId>,
     pub(crate) swarm: Swarm<Behaviour>,
@@ -27,14 +28,16 @@ pub struct Runtime {
 
     /// Shutdown signal receiver from the client
     pub(crate) shutdown: mpsc::Receiver<oneshot::Sender<()>>,
-
-    pub(crate) current_bootstrap_id: Option<QueryId>,
 }
 
 mod handle_command;
 mod handle_event;
 
 impl Runtime {
+    /// Bootstrap the p2p layer runtime with the given configuration.
+    /// This method will configure, launch and start queries.
+    /// The result of this call is a p2p layer bootstrap but it doesn't mean it is
+    /// ready.
     pub async fn bootstrap(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         debug!("Added public addresses: {:?}", self.public_addresses);
         for address in &self.public_addresses {
@@ -51,18 +54,18 @@ impl Runtime {
         }
 
         if !self.peer_set.is_empty() {
-            // Sending the first `bootstrap` query to the bootnodes
-            match self.swarm.behaviour_mut().discovery.inner.bootstrap() {
-                Ok(query_id) => {
-                    info!("Started kademlia bootstrap with query_id: {query_id:?}");
-                    self.current_bootstrap_id = Some(query_id);
-                }
-                Err(error) => {
-                    error!("Unable to start kademlia bootstrap: {error:?}");
-                    return Err(Box::new(P2PError::BootstrapError(
-                        "Unable to start kademlia bootstrap",
-                    )));
-                }
+            debug!(
+                "{} Connected to some peers, start a bootstrap query",
+                self.local_peer_id
+            );
+            self.swarm.behaviour_mut().discovery.bootstrap()?;
+        }
+
+        while let Some(event) = self.swarm.next().await {
+            self.handle(event).await;
+
+            if self.swarm.connected_peers().count() >= self.config.minimum_cluster_size {
+                break;
             }
         }
 

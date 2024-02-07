@@ -1,4 +1,4 @@
-use futures::StreamExt;
+use futures::{Future, StreamExt};
 use opentelemetry::global;
 use std::process::ExitStatus;
 use std::{future::IntoFuture, sync::Arc};
@@ -39,10 +39,35 @@ use topos_config::tce::{AuthKey, StorageConfiguration};
 // TODO: Estimate on the max broadcast throughput, could need to be override by config
 const BROADCAST_CHANNEL_SIZE: usize = 10_000;
 
-pub async fn run(
+pub async fn launch(
     config: &TceConfig,
     shutdown: (CancellationToken, mpsc::Sender<()>),
 ) -> Result<ExitStatus, Box<dyn std::error::Error>> {
+    let cancel = shutdown.0.clone();
+    let run_fut = run(config, shutdown);
+    let app_context_run = tokio::select! {
+            _ = cancel.cancelled() => {
+                return Err(Box::from("Killed before readiness".to_string()));
+            }
+
+            result = run_fut => {
+                match result {
+                    Ok(app_context_run)=> app_context_run,
+                    Err(error) => return Err(error)
+                }
+            }
+    };
+
+    app_context_run.await;
+
+    global::shutdown_tracer_provider();
+    Ok(ExitStatus::default())
+}
+
+pub async fn run(
+    config: &TceConfig,
+    shutdown: (CancellationToken, mpsc::Sender<()>),
+) -> Result<impl Future<Output = ()>, Box<dyn std::error::Error>> {
     topos_metrics::init_metrics();
 
     let key = match config.auth_key.as_ref() {
@@ -106,17 +131,17 @@ pub async fn run(
     let certificates_synced = fullnode_store
         .count_certificates_delivered()
         .map_err(|error| format!("Unable to count certificates delivered: {error}"))
-        .unwrap();
+        .expect("Unable to count certificates delivered");
 
     let pending_certificates = validator_store
         .count_pending_certificates()
         .map_err(|error| format!("Unable to count pending certificates: {error}"))
-        .unwrap();
+        .expect("Unable to count pending certificates");
 
     let precedence_pool_certificates = validator_store
         .count_precedence_pool_certificates()
         .map_err(|error| format!("Unable to count precedence pool certificates: {error}"))
-        .unwrap();
+        .expect("Unable to count precedence pool certificates");
 
     info!(
         "Storage initialized with {} certificates delivered, {} pending certificates and {} \
@@ -210,17 +235,12 @@ pub async fn run(
         validator_store,
     );
 
-    app_context
-        .run(
-            event_stream,
-            tce_stream,
-            api_stream,
-            synchronizer_stream,
-            BroadcastStream::new(broadcast_receiver).filter_map(|v| futures::future::ready(v.ok())),
-            shutdown,
-        )
-        .await;
-
-    global::shutdown_tracer_provider();
-    Ok(ExitStatus::default())
+    Ok(app_context.run(
+        event_stream,
+        tce_stream,
+        api_stream,
+        synchronizer_stream,
+        BroadcastStream::new(broadcast_receiver).filter_map(|v| futures::future::ready(v.ok())),
+        shutdown,
+    ))
 }

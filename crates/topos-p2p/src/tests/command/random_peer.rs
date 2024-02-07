@@ -14,6 +14,7 @@ async fn no_random_peer() {
     let local = NodeConfig::from_seed(1);
 
     let (client, _, mut runtime) = crate::network::builder()
+        .minimum_cluster_size(0)
         .peer_key(local.keypair.clone())
         .public_addresses(&[local.addr.clone()])
         .listen_addresses(&[local.addr.clone()])
@@ -47,6 +48,7 @@ async fn return_a_peer() {
     let expected_peer_id = expected.keypair.public().to_peer_id();
 
     let (client, _, mut runtime) = crate::network::builder()
+        .minimum_cluster_size(0)
         .peer_key(local.keypair.clone())
         .public_addresses(vec![local.addr.clone()])
         .listen_addresses(vec![local.addr.clone()])
@@ -76,6 +78,7 @@ async fn return_a_random_peer_among_100() {
     let local = NodeConfig::from_seed(1);
 
     let (client, _, mut runtime) = crate::network::builder()
+        .minimum_cluster_size(0)
         .peer_key(local.keypair.clone())
         .public_addresses(vec![local.addr.clone()])
         .listen_addresses(vec![local.addr.clone()])

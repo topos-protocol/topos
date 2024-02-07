@@ -33,6 +33,7 @@ impl EventHandler<Box<Event>> for Runtime {
             Event::UnroutablePeer { peer } => {
                 // Ignored
             }
+
             Event::OutboundQueryProgressed {
                 result: QueryResult::Bootstrap(res),
                 id,

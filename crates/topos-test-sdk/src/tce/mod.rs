@@ -117,7 +117,7 @@ impl NodeConfig {
             port,
             keypair,
             addr,
-            minimum_cluster_size: 1,
+            minimum_cluster_size: 0,
         }
     }
 

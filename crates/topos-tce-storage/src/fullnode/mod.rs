@@ -97,17 +97,19 @@ impl WriteStore for FullNodeStore {
         if let Some(delivered_at_position) =
             self.perpetual_tables.streams.get(&expected_position)?
         {
-            error!(
-                "Expected position {} already taken by {}",
-                expected_position, delivered_at_position
-            );
+            if delivered_at_position != certificate_id {
+                error!(
+                    "Expected position {} already taken by {}",
+                    expected_position, delivered_at_position
+                );
 
-            return Err(StorageError::InternalStorage(
-                InternalStorageError::CertificateAlreadyExistsAtPosition(
-                    *expected_position.position,
-                    expected_position.subnet_id,
-                ),
-            ));
+                return Err(StorageError::InternalStorage(
+                    InternalStorageError::CertificateAlreadyExistsAtPosition(
+                        *expected_position.position,
+                        expected_position.subnet_id,
+                    ),
+                ));
+            }
         }
 
         let update_stream_position = self

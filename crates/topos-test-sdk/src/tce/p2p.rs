@@ -78,6 +78,8 @@ pub async fn bootstrap_network(
 
     runtime.bootstrap().await?;
 
+    println!("Network bootstrap done.");
+
     let runtime_join_handle = spawn(runtime.run());
     Ok((network_client, network_stream, runtime_join_handle))
 }

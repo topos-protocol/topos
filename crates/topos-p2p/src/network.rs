@@ -191,6 +191,7 @@ impl<'a> NetworkBuilder<'a> {
             ReceiverStream::new(event_receiver),
             Runtime {
                 swarm,
+                config: self.config,
                 peer_set: self.known_peers.iter().map(|(p, _)| *p).collect(),
                 command_receiver,
                 event_sender,
@@ -200,7 +201,6 @@ impl<'a> NetworkBuilder<'a> {
                 active_listeners: HashSet::new(),
                 pending_record_requests: HashMap::new(),
                 shutdown,
-                current_bootstrap_id: None,
             },
         ))
     }
