@@ -15,7 +15,7 @@ use tracing::{debug, error, info, info_span, Instrument, Span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 mod config;
-mod error;
+pub mod error;
 mod utils;
 
 use error::Error;
@@ -195,11 +195,7 @@ pub async fn run(
     args: CertificateSpammerConfig,
     mut shutdown: mpsc::Receiver<oneshot::Sender<()>>,
 ) -> Result<(), Error> {
-    info!(
-        "Starting topos certificate spammer with the following arguments: {:#?}",
-        args
-    );
-
+    let opts = args.clone();
     // Is list of nodes is specified in the command line use them otherwise use
     // config file provided nodes
     let target_nodes = if args.benchmark {
@@ -216,7 +212,7 @@ pub async fn run(
                 .collect::<Vec<String>>()
         } else {
             return Err(Error::BenchmarkConfig(
-                "hosts pattern or number of nodes not specified".into(),
+                "The --benchmark flag needs two additional flags being passed to it:\n--hosts http://validator-{N}\n--number 10".into(),
             ));
         }
     } else if let Some(nodes) = args.target_nodes {
@@ -278,6 +274,11 @@ pub async fn run(
     let number_of_peer_nodes = target_nodes.len();
     let mut batch_interval = time::interval(Duration::from_millis(args.batch_interval));
     let mut batch_number: u64 = 0;
+
+    info!(
+        "Starting topos certificate spammer with the following arguments: {:#?}",
+        opts
+    );
 
     let shutdown_sender = loop {
         let should_send_batch = tokio::select! {

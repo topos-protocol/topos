@@ -5,7 +5,7 @@ use tokio::{
     spawn,
     sync::{mpsc, oneshot},
 };
-use topos_certificate_spammer::CertificateSpammerConfig;
+use topos_certificate_spammer::{error::Error, CertificateSpammerConfig};
 use tracing::{error, info};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
@@ -65,7 +65,12 @@ pub(crate) async fn handle_command(
                             }
                         }
 
+                        if let Ok(Err(Error::BenchmarkConfig(ref msg))) = result {
+                            println!("Benchmark configuration error:\n{}", msg);
+                        }
+
                         if let Err(ref error) = result {
+
                             error!("Unable to execute network spam command due to: {error}");
                             std::process::exit(1);
                         }
