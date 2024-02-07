@@ -193,7 +193,10 @@ impl CheckpointSynchronizer {
             let len = proofs.len();
             let unverified_certs = self.store.insert_unverified_proofs(proofs)?;
 
-            debug!("Persist {} unverified proofs for {}", len, subnet);
+            debug!(
+                "Persist {} unverified proof of delivery for {}",
+                len, subnet
+            );
             certs.extend(&unverified_certs[..]);
         }
 

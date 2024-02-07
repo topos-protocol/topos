@@ -54,7 +54,7 @@ async fn get_checkpoint_diff_with_no_input(store: Arc<ValidatorStore>) {
     }
 
     let checkpoint = store
-        .get_checkpoint_diff(vec![])
+        .get_checkpoint_diff(&[])
         .unwrap()
         .into_iter()
         .map(|(subnet, proofs)| {
@@ -97,7 +97,7 @@ async fn get_checkpoint_diff_with_input(store: Arc<ValidatorStore>) {
     }
 
     let checkpoint = store
-        .get_checkpoint_diff(vec![checkpoint])
+        .get_checkpoint_diff(&[checkpoint])
         .unwrap()
         .into_iter()
         .map(|(subnet, proofs)| {
