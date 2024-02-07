@@ -7,8 +7,8 @@ use crate::{
 use libp2p::{
     core::transport::ListenerId,
     kad::{
-        record::Key, BootstrapOk, KademliaEvent, PutRecordError, QueryId, QueryResult, Quorum,
-        Record,
+        record::Key, BootstrapOk, Event as KademliaEvent, PutRecordError, QueryId, QueryResult,
+        Quorum, Record,
     },
     multiaddr::Protocol,
     swarm::SwarmEvent,

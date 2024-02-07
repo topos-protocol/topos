@@ -2,7 +2,7 @@ use std::{num::NonZeroUsize, time::Duration};
 
 use futures::StreamExt;
 use libp2p::{
-    kad::{record::Key, KademliaEvent, PutRecordOk, QueryResult, Record},
+    kad::{record::Key, Event, PutRecordOk, QueryResult, Record},
     swarm::SwarmEvent,
     Multiaddr,
 };
@@ -57,7 +57,7 @@ async fn put_value_in_dht() {
 
     wait_for_event!(
         swarm,
-        matches: SwarmEvent::Behaviour(ComposedEvent::Kademlia(kademlia_event)) if matches!(&*kademlia_event, KademliaEvent::OutboundQueryProgressed { result: QueryResult::PutRecord(Ok(PutRecordOk { key: input_key })), .. })
+        matches: SwarmEvent::Behaviour(ComposedEvent::Kademlia(kademlia_event)) if matches!(&*kademlia_event, Event::OutboundQueryProgressed { result: QueryResult::PutRecord(Ok(PutRecordOk { key: input_key })), .. })
     );
 
     join.abort();

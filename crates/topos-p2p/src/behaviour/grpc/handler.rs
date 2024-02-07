@@ -146,7 +146,7 @@ impl ConnectionHandler for Handler {
             | ConnectionEvent::RemoteProtocolsChange(_) => (),
         }
     }
-
+    #[allow(deprecated)]
     fn poll(
         &mut self,
         cx: &mut std::task::Context<'_>,
