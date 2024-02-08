@@ -18,9 +18,8 @@ use tracing::{error, info};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 use self::commands::{NodeCommand, NodeCommands};
-use crate::edge::BINARY_NAME;
 use crate::tracing::setup_tracing;
-use topos_config::{genesis::Genesis, Config};
+use topos_config::{edge::command::BINARY_NAME, genesis::Genesis, Config};
 use topos_config::{node::NodeConfig, node::NodeRole};
 use topos_core::api::grpc::tce::v1::console_service_client::ConsoleServiceClient;
 use topos_wallet::SecretManager;
@@ -74,7 +73,7 @@ pub(crate) async fn handle_command(
                 println!("Init the node without polygon-edge process...");
             } else {
                 // Generate the Edge configuration
-                match services::process::generate_edge_config(
+                match topos_config::edge::generate_edge_config(
                     edge_path.join(BINARY_NAME),
                     node_path.clone(),
                 )

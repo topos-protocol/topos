@@ -1,10 +1,16 @@
-use crate::Config;
+use crate::{edge::command::CommandConfig, Config};
 use figment::{
     providers::{Format, Toml},
     Figment,
 };
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, path::Path};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+    process::ExitStatus,
+};
+use tokio::{spawn, task::JoinHandle};
+use tracing::{error, info};
 
 // TODO: Provides the default arguments here
 // Serde `flatten` and `default` doesn't work together yet
@@ -36,4 +42,25 @@ impl Config for EdgeConfig {
     fn profile() -> String {
         "edge".to_string()
     }
+}
+
+pub mod command;
+
+pub fn generate_edge_config(
+    edge_path: PathBuf,
+    config_path: PathBuf,
+) -> JoinHandle<Result<ExitStatus, std::io::Error>> {
+    // Create the Polygon Edge config
+    info!("Generating the configuration at {config_path:?}");
+    info!("Polygon-edge binary located at: {edge_path:?}");
+    spawn(async move {
+        CommandConfig::new(edge_path)
+            .init(&config_path)
+            .spawn()
+            .await
+            .map_err(|e| {
+                error!("Failed to generate the edge configuration: {e:?}");
+                e
+            })
+    })
 }
