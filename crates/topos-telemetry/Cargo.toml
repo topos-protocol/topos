@@ -12,4 +12,10 @@ tracing-opentelemetry.workspace = true
 tracing.workspace = true
 tonic.workspace = true
 
+tracing-subscriber = { optional = true, workspace = true, features = ["env-filter", "json", "ansi", "fmt"] }
+opentelemetry-otlp = { optional = true, workspace = true, features = ["grpc-tonic", "metrics", "tls-roots"] }
+
 serde = { workspace = true, features = ["derive", "std"] }
+
+[features]
+tracing = ["tracing-subscriber", "opentelemetry-otlp"]

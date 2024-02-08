@@ -2,7 +2,6 @@ use clap::Parser;
 
 pub(crate) mod components;
 pub(crate) mod options;
-mod tracing;
 
 use crate::options::ToposCommand;
 use tracing_log::LogTracer;

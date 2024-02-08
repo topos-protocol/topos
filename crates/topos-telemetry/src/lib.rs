@@ -1,5 +1,6 @@
 use std::{collections::HashMap, str::FromStr};
 
+use ::tracing::warn;
 use opentelemetry::{
     global,
     propagation::{Extractor, Injector},
@@ -7,6 +8,9 @@ use opentelemetry::{
 };
 use serde::{Deserialize, Serialize};
 use tonic::metadata::MetadataKey;
+
+#[cfg(feature = "tracing")]
+pub mod tracing;
 
 pub struct TonicMetaInjector<'a>(pub &'a mut tonic::metadata::MetadataMap);
 pub struct TonicMetaExtractor<'a>(pub &'a tonic::metadata::MetadataMap);
@@ -32,10 +36,10 @@ impl<'a> Injector for TonicMetaInjector<'a> {
             if let Ok(val) = value.parse() {
                 self.0.insert(key, val);
             } else {
-                tracing::warn!("Invalid value: {}", value);
+                warn!("Invalid value: {}", value);
             }
         } else {
-            tracing::warn!("Invalid key: {}", key);
+            warn!("Invalid key: {}", key);
         }
     }
 }
