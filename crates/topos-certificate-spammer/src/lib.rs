@@ -200,7 +200,12 @@ pub async fn run(
     // config file provided nodes
     let target_nodes = if args.benchmark {
         if let (Some(hosts), Some(number)) = (args.hosts, args.number) {
-            if hosts.replace("{N}", &0.to_string()).parse::<Uri>().is_err() {
+            let uri = hosts
+                .replace("{N}", &0.to_string())
+                .parse::<Uri>()
+                .map_err(|e| Error::BenchmarkConfig(e.to_string()))?;
+
+            if uri.host().is_none() || uri.path().is_empty() || uri.port_u16().is_none() {
                 return Err(Error::BenchmarkConfig(
                     "Invalid hosts pattern. Has to be in the format of http://validator-1:9090"
                         .into(),
@@ -212,7 +217,7 @@ pub async fn run(
                 .collect::<Vec<String>>()
         } else {
             return Err(Error::BenchmarkConfig(
-                "The --benchmark flag needs two additional flags being passed to it:\n--hosts http://validator-{N}\n--number 10".into(),
+                "The --benchmark flag needs the following two additional flags being passed to it:\n--hosts http://validator-{N}\n--number 10".into(),
             ));
         }
     } else if let Some(nodes) = args.target_nodes {

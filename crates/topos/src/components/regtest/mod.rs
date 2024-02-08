@@ -70,7 +70,8 @@ pub(crate) async fn handle_command(
                         }
 
                         if let Ok(Err(Error::BenchmarkConfig(ref msg))) = result {
-                            println!("Benchmark configuration error:\n{}", msg);
+                            error!("Benchmark configuration error:\n{}", msg);
+                            std::process::exit(1);
                         }
 
                         if let Err(ref error) = result {
