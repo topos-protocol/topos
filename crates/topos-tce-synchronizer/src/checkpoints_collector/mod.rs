@@ -26,7 +26,7 @@ use topos_core::{
 
 use topos_p2p::{error::P2PError, NetworkClient, PeerId};
 use topos_tce_storage::{errors::StorageError, store::ReadStore, validator::ValidatorStore};
-use tracing::{debug, error, warn};
+use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
 mod config;
@@ -128,7 +128,7 @@ impl CheckpointSynchronizer {
         &self,
         peer: PeerId,
     ) -> Result<HashMap<SubnetId, Vec<ProofOfDelivery>>, SyncError> {
-        let request_id: APIUuid = Uuid::new_v4().into();
+        let request_id = Uuid::new_v4();
 
         let checkpoint: Vec<grpc::tce::v1::ProofOfDelivery> = {
             let certificate_ids = self
@@ -148,12 +148,16 @@ impl CheckpointSynchronizer {
                 .collect()
         };
 
+        debug!(
+            "Asking {} for latest checkpoint (request_id: {}), with local checkpoint: {:?}",
+            peer, request_id, checkpoint
+        );
+
         let req = CheckpointRequest {
-            request_id: Some(request_id),
+            request_id: Some(request_id.into()),
             checkpoint,
         };
 
-        debug!("Asking {} for latest checkpoint", peer);
         let mut client: SynchronizerServiceClient<_> = self
             .network
             .new_grpc_client::<SynchronizerServiceClient<_>, SynchronizerServiceServer<SynchronizerService>>(peer)
@@ -167,6 +171,7 @@ impl CheckpointSynchronizer {
             .map(|v| {
                 let subnet =
                     SubnetId::from_str(&v.key[..]).map_err(|_| SyncError::UnableToParseSubnetId)?;
+
                 let proofs = v
                     .value
                     .into_iter()
@@ -184,11 +189,14 @@ impl CheckpointSynchronizer {
         diff: HashMap<SubnetId, Vec<ProofOfDelivery>>,
     ) -> Result<Vec<Vec<CertificateId>>, SyncError> {
         let mut certs: HashSet<CertificateId> = HashSet::new();
-        for (_subnet, proofs) in diff {
+        for (subnet, proofs) in diff {
             let len = proofs.len();
             let unverified_certs = self.store.insert_unverified_proofs(proofs)?;
 
-            debug!("Persist {} unverified proofs", len);
+            debug!(
+                "Persist {} unverified proof of delivery for {}",
+                len, subnet
+            );
             certs.extend(&unverified_certs[..]);
         }
 
@@ -254,6 +262,7 @@ impl CheckpointSynchronizer {
         let diff = self.ask_for_checkpoint(target_peer).await?;
 
         let certificates_to_catchup = self.insert_unverified_proofs(diff)?;
+        info!("Certificates to catchup: {}", certificates_to_catchup.len());
 
         for certificates in certificates_to_catchup {
             let certificates = self.fetch_certificates(certificates).await?;
@@ -267,6 +276,7 @@ impl CheckpointSynchronizer {
                     let certificate_id = certificate.id;
                     match store.synchronize_certificate(certificate).await {
                         Ok(_) => debug!("Certificate {} synchronized", certificate_id),
+                        Err(StorageError::InternalStorage(topos_tce_storage::errors::InternalStorageError::CertificateAlreadyExists)) => {}
                         Err(e) => error!("Failed to sync because of: {:?}", e),
                     }
                 });

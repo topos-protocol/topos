@@ -17,6 +17,7 @@ where
     fn iter_at<I: Serialize>(&'a self, index: &I) -> Result<Self::Iterator, InternalStorageError>;
 
     /// Returns an Iterator over the whole CF with mode configured
+    #[allow(dead_code)]
     fn iter_with_mode(
         &'a self,
         mode: IteratorMode<'_>,
@@ -29,6 +30,7 @@ where
     ) -> Result<Self::Iterator, InternalStorageError>;
 
     /// Returns a prefixed Iterator over the CF starting from index
+    #[allow(dead_code)]
     fn prefix_iter_at<P: Serialize, I: Serialize>(
         &'a self,
         prefix: &P,

@@ -29,7 +29,7 @@ use topos_core::{
     },
     uci::{Certificate, CertificateId, SubnetId, INITIAL_CERTIFICATE_ID},
 };
-use tracing::{debug, info, instrument};
+use tracing::{debug, error, info, instrument};
 
 use crate::{
     errors::{InternalStorageError, StorageError},
@@ -334,15 +334,24 @@ impl ValidatorStore {
             .get(certificate_id)?)
     }
 
+    /// Returns the difference between the `from` list of [ProofOfDelivery] and the local head
+    /// checkpoint. This is used to define the list of certificates that are missing between the
+    /// `from` and the local head checkpoint.
+    /// The maximum number of [ProofOfDelivery] returned per [SubnetId] is 100.
+    /// If the `from` is missing a local subnet, the list of [ProofOfDelivery] for this subnet will
+    /// start from [Position] `0`.
     pub fn get_checkpoint_diff(
         &self,
-        from: Vec<ProofOfDelivery>,
+        from: &[ProofOfDelivery],
     ) -> Result<HashMap<SubnetId, Vec<ProofOfDelivery>>, StorageError> {
         // Parse the from in order to extract the different position per subnets
-        let mut from_positions: HashMap<SubnetId, Vec<ProofOfDelivery>> = from
-            .into_iter()
-            .map(|v| (v.delivery_position.subnet_id, vec![v]))
+        let from_positions: HashMap<SubnetId, &ProofOfDelivery> = from
+            .iter()
+            .map(|v| (v.delivery_position.subnet_id, v))
             .collect();
+
+        let mut output: HashMap<SubnetId, Vec<ProofOfDelivery>> =
+            from_positions.keys().map(|s| (*s, vec![])).collect();
 
         // Request the local head checkpoint
         let subnets: HashMap<SubnetId, Position> = self
@@ -356,16 +365,16 @@ impl ValidatorStore {
         // For every local known subnets we want to iterate and check if there
         // is a delta between the from_position and our head position.
         for (subnet, local_position) in subnets {
-            let entry = from_positions.entry(subnet).or_default();
-
-            let certs: Vec<_> = if let Some(position) = entry.pop() {
+            let certs: Vec<_> = if let Some(position) = from_positions.get(&subnet) {
                 if local_position <= position.delivery_position.position {
                     continue;
                 }
+
                 self.fullnode_store
                     .perpetual_tables
                     .streams
-                    .prefix_iter_at(&subnet, &position)?
+                    .prefix_iter(&(&subnet, &position.delivery_position.position))?
+                    .skip(1)
                     .take(100)
                     .map(|(_, v)| v)
                     .collect()
@@ -373,7 +382,7 @@ impl ValidatorStore {
                 self.fullnode_store
                     .perpetual_tables
                     .streams
-                    .prefix_iter(&subnet)?
+                    .prefix_iter(&(&subnet, Position::ZERO))?
                     .take(100)
                     .map(|(_, v)| v)
                     .collect()
@@ -391,10 +400,17 @@ impl ValidatorStore {
                 subnet,
                 proofs.len()
             );
-            entry.extend_from_slice(&proofs[..]);
+
+            if let Some(old_value) = output.insert(subnet, proofs) {
+                error!(
+                    "Certificate Sync: This should not happen, we are overwriting a value during \
+                     sync of {subnet}. Overwriting {}",
+                    old_value.len()
+                );
+            }
         }
 
-        Ok(from_positions)
+        Ok(output)
     }
 
     #[cfg(test)]
