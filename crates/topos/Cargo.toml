@@ -15,6 +15,7 @@ topos-core = { workspace = true, features = ["api"] }
 topos-certificate-spammer = { path = "../topos-certificate-spammer" }
 topos-tce-broadcast = { path = "../topos-tce-broadcast", optional = true }
 topos-wallet = { path = "../topos-wallet" }
+topos-telemetry = { path = "../topos-telemetry/", features = ["tracing"] }
 
 async-stream.workspace = true
 async-trait.workspace = true

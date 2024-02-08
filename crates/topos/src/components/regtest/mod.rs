@@ -6,10 +6,9 @@ use tokio::{
     sync::{mpsc, oneshot},
 };
 use topos_certificate_spammer::{error::Error, CertificateSpammerConfig};
+use topos_telemetry::tracing::setup_tracing;
 use tracing::{error, info};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
-
-use crate::tracing::setup_tracing;
 
 pub(crate) mod commands;
 
@@ -37,8 +36,13 @@ pub(crate) async fn handle_command(
 
             // Setup instrumentation if both otlp agent and otlp service name
             // are provided as arguments
-            let basic_controller =
-                setup_tracing(verbose, false, cmd.otlp_agent, cmd.otlp_service_name)?;
+            let basic_controller = setup_tracing(
+                verbose,
+                false,
+                cmd.otlp_agent,
+                cmd.otlp_service_name,
+                env!("TOPOS_VERSION"),
+            )?;
 
             let (shutdown_sender, shutdown_receiver) = mpsc::channel::<oneshot::Sender<()>>(1);
             let mut runtime = spawn(topos_certificate_spammer::run(config, shutdown_receiver));

@@ -20,11 +20,11 @@ fn verbose_to_level(verbose: u8) -> Level {
     }
 }
 
-fn build_resources(otlp_service_name: String) -> Vec<KeyValue> {
+fn build_resources(otlp_service_name: String, version: &'static str) -> Vec<KeyValue> {
     let mut resources = Vec::new();
 
     resources.push(KeyValue::new("service.name", otlp_service_name));
-    resources.push(KeyValue::new("service.version", env!("TOPOS_VERSION")));
+    resources.push(KeyValue::new("service.version", version));
 
     let custom_resources: Vec<_> = std::env::var("TOPOS_OTLP_TAGS")
         .unwrap_or_default()
@@ -60,11 +60,12 @@ fn create_filter(verbose: u8) -> EnvFilter {
 
 // Setup tracing
 // If otlp agent and otlp service name are provided, opentelemetry collection will be used
-pub(crate) fn setup_tracing(
+pub fn setup_tracing(
     verbose: u8,
     no_color: bool,
     otlp_agent: Option<String>,
     otlp_service_name: Option<String>,
+    version: &'static str,
 ) -> Result<Option<BasicController>, Box<dyn std::error::Error>> {
     let mut layers = Vec::new();
 
@@ -98,7 +99,7 @@ pub(crate) fn setup_tracing(
     let metrics: Option<_> = if let (Some(otlp_agent), Some(otlp_service_name)) =
         (otlp_agent, otlp_service_name)
     {
-        let resources = build_resources(otlp_service_name);
+        let resources = build_resources(otlp_service_name, version);
 
         let mut trace_config = opentelemetry::sdk::trace::config();
 

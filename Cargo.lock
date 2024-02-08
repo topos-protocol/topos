@@ -7719,6 +7719,7 @@ dependencies = [
  "topos-tce-gatekeeper",
  "topos-tce-storage",
  "topos-tce-synchronizer",
+ "topos-telemetry",
  "topos-test-sdk",
  "topos-wallet",
  "tower",
@@ -8220,10 +8221,12 @@ name = "topos-telemetry"
 version = "0.1.0"
 dependencies = [
  "opentelemetry",
+ "opentelemetry-otlp",
  "serde",
  "tonic 0.10.2",
  "tracing",
  "tracing-opentelemetry",
+ "tracing-subscriber",
 ]
 
 [[package]]

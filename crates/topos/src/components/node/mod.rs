@@ -13,12 +13,12 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 use tonic::transport::{Channel, Endpoint};
+use topos_telemetry::tracing::setup_tracing;
 use tower::Service;
 use tracing::{error, info};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 use self::commands::{NodeCommand, NodeCommands};
-use crate::tracing::setup_tracing;
 use topos_config::{edge::command::BINARY_NAME, genesis::Genesis, Config};
 use topos_config::{node::NodeConfig, node::NodeRole};
 use topos_core::api::grpc::tce::v1::console_service_client::ConsoleServiceClient;
@@ -200,6 +200,7 @@ pub(crate) async fn handle_command(
                 no_color,
                 cmd_cloned.otlp_agent,
                 cmd_cloned.otlp_service_name,
+                env!("TOPOS_VERSION"),
             )?;
 
             let (shutdown_sender, shutdown_receiver) = mpsc::channel(1);
