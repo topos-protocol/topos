@@ -1,21 +1,12 @@
-use tce_transport::ProtocolEvents;
 use topos_core::api::grpc::tce::v1::{double_echo_request, DoubleEchoRequest, Echo, Gossip, Ready};
+use topos_tce_broadcast::event::ProtocolEvents;
 use tracing::{error, info, warn};
 
-use crate::events::Events;
 use crate::AppContext;
 
 impl AppContext {
     pub async fn on_protocol_event(&mut self, evt: ProtocolEvents) {
         match evt {
-            ProtocolEvents::StableSample => {
-                info!("Stable Sample detected");
-                self.api_client.set_active_sample(true).await;
-                if self.events.send(Events::StableSample).await.is_err() {
-                    error!("Unable to send StableSample event");
-                }
-            }
-
             ProtocolEvents::Broadcast { certificate_id } => {
                 info!("Broadcasting certificate {}", certificate_id);
             }

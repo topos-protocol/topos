@@ -10,7 +10,6 @@ workspace = true
 topos-config = { path = "../topos-config/" }
 topos-tce = { path = "../topos-tce/" }
 topos-p2p = { path = "../topos-p2p" }
-topos-tce-transport = { path = "../topos-tce-transport" }
 topos-sequencer = { path = "../topos-sequencer" }
 topos-core = { workspace = true, features = ["api"] }
 topos-certificate-spammer = { path = "../topos-certificate-spammer" }
@@ -50,7 +49,6 @@ openssl = { version = "0.10.61", features = ["vendored"] }
 [dev-dependencies]
 toml = "0.7.4"
 topos-tce-broadcast = { path = "../topos-tce-broadcast" }
-topos-tce-transport = { path = "../topos-tce-transport" }
 topos-tce-synchronizer = { path = "../topos-tce-synchronizer" }
 topos-tce-gatekeeper = { path = "../topos-tce-gatekeeper" }
 topos-tce-api = { path = "../topos-tce-api" }

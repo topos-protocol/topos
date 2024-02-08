@@ -25,7 +25,7 @@ async fn can_start(#[future] create_validator_store: Arc<ValidatorStore>) {
     let (broadcast_sender, _) = broadcast::channel(1);
     let shutdown = CancellationToken::new();
     let validator_id = ValidatorId::default();
-    let thresholds = tce_transport::ReliableBroadcastParams {
+    let thresholds = topos_config::tce::broadcast::ReliableBroadcastParams {
         echo_threshold: 1,
         ready_threshold: 1,
         delivery_threshold: 1,

@@ -10,6 +10,7 @@ workspace = true
 [dependencies]
 topos-core = { workspace = true, features = ["uci", "api"] }
 topos-crypto = { path = "../topos-crypto/" }
+topos-config = { path = "../topos-config/" }
 topos-p2p = { path = "../topos-p2p/" }
 topos-tce = { path = "../topos-tce/" }
 topos-tce-api = { path = "../topos-tce-api/" }
@@ -17,7 +18,6 @@ topos-tce-broadcast = { path = "../topos-tce-broadcast/" }
 topos-tce-gatekeeper = { path = "../topos-tce-gatekeeper/" }
 topos-tce-storage = { path = "../topos-tce-storage/" }
 topos-tce-synchronizer = { path = "../topos-tce-synchronizer/" }
-topos-tce-transport = { path = "../topos-tce-transport/" }
 
 hex.workspace = true
 ethers.workspace = true

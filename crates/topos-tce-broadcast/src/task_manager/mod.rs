@@ -1,3 +1,4 @@
+use crate::event::ProtocolEvents;
 use futures::stream::FuturesUnordered;
 use futures::Future;
 use futures::StreamExt;
@@ -6,10 +7,10 @@ use std::future::IntoFuture;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
-use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
 use tokio::sync::broadcast;
 use tokio::{spawn, sync::mpsc};
 use tokio_util::sync::CancellationToken;
+use topos_config::tce::broadcast::ReliableBroadcastParams;
 use topos_core::types::ValidatorId;
 use topos_core::uci::Certificate;
 use topos_core::uci::CertificateId;

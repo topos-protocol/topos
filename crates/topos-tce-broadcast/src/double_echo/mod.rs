@@ -13,12 +13,13 @@
 //! be ignored by others. `fullnode` still consumes Echo and Ready coming from
 //! validators and use those messages to build their state.
 
+use crate::event::ProtocolEvents;
 use crate::{DoubleEchoCommand, SubscriptionsView};
 use std::collections::HashSet;
 use std::sync::Arc;
-use tce_transport::{ProtocolEvents, ReliableBroadcastParams};
 use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
+use topos_config::tce::broadcast::ReliableBroadcastParams;
 use topos_core::{
     types::ValidatorId,
     uci::{Certificate, CertificateId},

@@ -9,10 +9,15 @@ use figment::{
 use serde::{Deserialize, Serialize};
 use topos_core::types::ValidatorId;
 use topos_p2p::config::NetworkConfig;
-use topos_tce_transport::ReliableBroadcastParams;
 
 use crate::Config;
 use topos_p2p::{Multiaddr, PeerId};
+
+use self::broadcast::ReliableBroadcastParams;
+use self::p2p::P2PConfig;
+
+pub mod broadcast;
+pub mod p2p;
 
 const DEFAULT_IP: std::net::Ipv4Addr = std::net::Ipv4Addr::new(0, 0, 0, 0);
 
@@ -83,72 +88,13 @@ pub struct TceConfig {
     pub network_bootstrap_timeout: u64,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "kebab-case")]
-pub struct P2PConfig {
-    /// List of multiaddresses to listen for incoming connections
-    #[serde(default = "default_listen_addresses")]
-    pub listen_addresses: Vec<Multiaddr>,
-    /// List of multiaddresses to advertise to the network
-    #[serde(default = "default_public_addresses")]
-    pub public_addresses: Vec<Multiaddr>,
-
-    #[serde(skip)]
-    pub is_bootnode: bool,
-}
-
-impl Default for P2PConfig {
-    fn default() -> Self {
-        Self {
-            listen_addresses: default_listen_addresses(),
-            public_addresses: default_public_addresses(),
-            is_bootnode: false,
-        }
-    }
+const fn default_network_bootstrap_timeout() -> u64 {
+    90
 }
 
 fn default_db_path() -> PathBuf {
     PathBuf::from("./tce_rocksdb")
 }
-
-const fn default_network_bootstrap_timeout() -> u64 {
-    90
-}
-
-const fn default_libp2p_api_addr() -> SocketAddr {
-    SocketAddr::V4(std::net::SocketAddrV4::new(DEFAULT_IP, 9090))
-}
-
-fn default_listen_addresses() -> Vec<Multiaddr> {
-    vec![format!(
-        "/ip4/{}/tcp/{}",
-        default_libp2p_api_addr().ip(),
-        default_libp2p_api_addr().port()
-    )
-    .parse()
-    .expect(
-        r#"
-        Listen multiaddresses generation failure.
-        This is a critical bug that need to be report on `https://github.com/topos-protocol/topos/issues`
-    "#,
-    )]
-}
-
-fn default_public_addresses() -> Vec<Multiaddr> {
-    vec![format!(
-        "/ip4/{}/tcp/{}",
-        default_libp2p_api_addr().ip(),
-        default_libp2p_api_addr().port()
-    )
-    .parse()
-    .expect(
-        r#"
-        Public multiaddresses generation failure.
-        This is a critical bug that need to be report on `https://github.com/topos-protocol/topos/issues`
-    "#,
-    )]
-}
-
 const fn default_minimum_tce_cluster_size() -> usize {
     NetworkConfig::MINIMUM_CLUSTER_SIZE
 }
