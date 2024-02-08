@@ -334,6 +334,12 @@ impl ValidatorStore {
             .get(certificate_id)?)
     }
 
+    /// Returns the difference between the `from` list of [ProofOfDelivery] and the local head
+    /// checkpoint. This is used to define the list of certificates that are missing between the
+    /// `from` and the local head checkpoint.
+    /// The maximum number of [ProofOfDelivery] returned per [SubnetId] is 100.
+    /// If the `from` is missing a local subnet, the list of [ProofOfDelivery] for this subnet will
+    /// start from [Position] `0`.
     pub fn get_checkpoint_diff(
         &self,
         from: &[ProofOfDelivery],
