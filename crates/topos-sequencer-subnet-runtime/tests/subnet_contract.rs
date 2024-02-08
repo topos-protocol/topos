@@ -337,7 +337,7 @@ async fn deploy_test_token(
             info!("Token deployed: {:?}", r);
         }
         Err(e) => {
-            error!("Unable to deploy token: {e}");
+            panic!("Error deploying token: {e}");
         }
     }
 
