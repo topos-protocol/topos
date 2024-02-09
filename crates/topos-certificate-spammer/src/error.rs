@@ -16,4 +16,6 @@ pub enum Error {
     TCENodeConnection(topos_tce_proxy::Error),
     #[error("Certificate signing error: {0}")]
     CertificateSigning(topos_core::uci::Error),
+    #[error("BenchmkarkConfigError config error: {0}")]
+    BenchmarkConfig(String),
 }

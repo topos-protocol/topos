@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct CertificateSpammerConfig {
     pub target_nodes: Option<Vec<String>>,
     pub target_nodes_path: Option<String>,
@@ -8,4 +8,7 @@ pub struct CertificateSpammerConfig {
     pub nb_batches: Option<u64>,
     pub batch_interval: u64,
     pub target_subnets: Option<Vec<String>>,
+    pub benchmark: bool,
+    pub target_hosts: Option<String>,
+    pub number: Option<u32>,
 }

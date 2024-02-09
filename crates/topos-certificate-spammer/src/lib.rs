@@ -1,5 +1,6 @@
 //! Utility to spam dummy certificates
 
+use http::Uri;
 use opentelemetry::trace::FutureExt;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -14,7 +15,7 @@ use tracing::{debug, error, info, info_span, Instrument, Span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 mod config;
-mod error;
+pub mod error;
 mod utils;
 
 use error::Error;
@@ -194,14 +195,31 @@ pub async fn run(
     args: CertificateSpammerConfig,
     mut shutdown: mpsc::Receiver<oneshot::Sender<()>>,
 ) -> Result<(), Error> {
-    info!(
-        "Starting topos certificate spammer with the following arguments: {:#?}",
-        args
-    );
-
     // Is list of nodes is specified in the command line use them otherwise use
     // config file provided nodes
-    let target_nodes = if let Some(nodes) = args.target_nodes {
+    let target_nodes = if args.benchmark {
+        if let (Some(target_hosts), Some(number)) = (args.target_hosts, args.number) {
+            let uri = target_hosts
+                .replace("{N}", &0.to_string())
+                .parse::<Uri>()
+                .map_err(|e| Error::BenchmarkConfig(e.to_string()))?;
+
+            if uri.host().is_none() || uri.path().is_empty() || uri.port_u16().is_none() {
+                return Err(Error::BenchmarkConfig(
+                    "Invalid target-hosts pattern. Has to be in the format of http://validator-1:9090"
+                        .into(),
+                ));
+            }
+
+            (0..number)
+                .map(|n| target_hosts.replace("{N}", &n.to_string()))
+                .collect::<Vec<String>>()
+        } else {
+            return Err(Error::BenchmarkConfig(
+                "The --benchmark flag needs the following two additional flags being passed to it:\n--target-hosts http://validator-{N}\n--number 10".into(),
+            ));
+        }
+    } else if let Some(nodes) = args.target_nodes {
         nodes
     } else if let Some(target_nodes_path) = args.target_nodes_path {
         let json_str = std::fs::read_to_string(target_nodes_path)

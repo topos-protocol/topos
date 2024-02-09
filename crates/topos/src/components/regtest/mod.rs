@@ -5,7 +5,7 @@ use tokio::{
     spawn,
     sync::{mpsc, oneshot},
 };
-use topos_certificate_spammer::CertificateSpammerConfig;
+use topos_certificate_spammer::{error::Error, CertificateSpammerConfig};
 use topos_telemetry::tracing::setup_tracing;
 use tracing::{error, info};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
@@ -29,6 +29,9 @@ pub(crate) async fn handle_command(
                 nb_batches: cmd.nb_batches,
                 batch_interval: cmd.batch_interval,
                 target_subnets: cmd.target_subnets,
+                benchmark: cmd.benchmark,
+                target_hosts: cmd.target_hosts,
+                number: cmd.number,
             };
 
             // Setup instrumentation if both otlp agent and otlp service name
@@ -66,7 +69,13 @@ pub(crate) async fn handle_command(
                             }
                         }
 
+                        if let Ok(Err(Error::BenchmarkConfig(ref msg))) = result {
+                            error!("Benchmark configuration error:\n{}", msg);
+                            std::process::exit(1);
+                        }
+
                         if let Err(ref error) = result {
+
                             error!("Unable to execute network spam command due to: {error}");
                             std::process::exit(1);
                         }
