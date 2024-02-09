@@ -71,14 +71,18 @@ pub struct Spam {
     #[arg(
         long,
         env = "TOPOS_NETWORK_SPAMMER_BENCHMARK",
-        requires = "hosts",
+        requires = "target_hosts",
         requires = "number"
     )]
     pub benchmark: bool,
     /// Template for generating target node entrypoints.
     /// e.g. `--hosts="http://validator-{N}:1340"`
-    #[arg(long, env = "TOPOS_NETWORK_SPAMMER_HOSTS", requires = "benchmark")]
-    pub hosts: Option<String>,
+    #[arg(
+        long,
+        env = "TOPOS_NETWORK_SPAMMER_TARGET_HOSTS",
+        requires = "benchmark"
+    )]
+    pub target_hosts: Option<String>,
     /// Number of nodes to generate based on the DNS template.
     #[arg(long, env = "TOPOS_NETWORK_SPAMMER_NUMBER", requires = "benchmark")]
     pub number: Option<u32>,

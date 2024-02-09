@@ -24,7 +24,7 @@ fn regtest_spam_invalid_hosts() -> Result<(), Box<dyn std::error::Error>> {
     cmd.arg("regtest")
         .arg("spam")
         .arg("--benchmark")
-        .arg("--hosts")
+        .arg("--target-hosts")
         .arg("asd")
         .arg("--number")
         .arg("1");
@@ -33,8 +33,9 @@ fn regtest_spam_invalid_hosts() -> Result<(), Box<dyn std::error::Error>> {
 
     let result: &str = std::str::from_utf8(&output.get_output().stdout)?;
 
-    assert!(result
-        .contains("Invalid hosts pattern. Has to be in the format of http://validator-1:9090"));
+    assert!(result.contains(
+        "Invalid target-hosts pattern. Has to be in the format of http://validator-1:9090"
+    ));
 
     Ok(())
 }
@@ -45,7 +46,7 @@ fn regtest_spam_invalid_number() -> Result<(), Box<dyn std::error::Error>> {
     cmd.arg("regtest")
         .arg("spam")
         .arg("--benchmark")
-        .arg("--hosts")
+        .arg("--target-hosts")
         .arg(" http://validator-{N}:9090")
         .arg("--number")
         .arg("dasd");

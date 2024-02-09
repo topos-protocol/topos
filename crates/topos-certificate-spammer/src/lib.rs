@@ -195,29 +195,28 @@ pub async fn run(
     args: CertificateSpammerConfig,
     mut shutdown: mpsc::Receiver<oneshot::Sender<()>>,
 ) -> Result<(), Error> {
-    let opts = args.clone();
     // Is list of nodes is specified in the command line use them otherwise use
     // config file provided nodes
     let target_nodes = if args.benchmark {
-        if let (Some(hosts), Some(number)) = (args.hosts, args.number) {
-            let uri = hosts
+        if let (Some(target_hosts), Some(number)) = (args.target_hosts, args.number) {
+            let uri = target_hosts
                 .replace("{N}", &0.to_string())
                 .parse::<Uri>()
                 .map_err(|e| Error::BenchmarkConfig(e.to_string()))?;
 
             if uri.host().is_none() || uri.path().is_empty() || uri.port_u16().is_none() {
                 return Err(Error::BenchmarkConfig(
-                    "Invalid hosts pattern. Has to be in the format of http://validator-1:9090"
+                    "Invalid target-hosts pattern. Has to be in the format of http://validator-1:9090"
                         .into(),
                 ));
             }
 
             (0..number)
-                .map(|n| hosts.replace("{N}", &n.to_string()))
+                .map(|n| target_hosts.replace("{N}", &n.to_string()))
                 .collect::<Vec<String>>()
         } else {
             return Err(Error::BenchmarkConfig(
-                "The --benchmark flag needs the following two additional flags being passed to it:\n--hosts http://validator-{N}\n--number 10".into(),
+                "The --benchmark flag needs the following two additional flags being passed to it:\n--target-hosts http://validator-{N}\n--number 10".into(),
             ));
         }
     } else if let Some(nodes) = args.target_nodes {
@@ -279,11 +278,6 @@ pub async fn run(
     let number_of_peer_nodes = target_nodes.len();
     let mut batch_interval = time::interval(Duration::from_millis(args.batch_interval));
     let mut batch_number: u64 = 0;
-
-    info!(
-        "Starting topos certificate spammer with the following arguments: {:#?}",
-        opts
-    );
 
     let shutdown_sender = loop {
         let should_send_batch = tokio::select! {
