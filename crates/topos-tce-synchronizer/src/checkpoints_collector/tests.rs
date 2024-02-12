@@ -30,6 +30,7 @@ fn encode() {
     let req = CheckpointRequest {
         request_id: Some(request_id),
         checkpoint: vec![],
+        limit_per_subnet: 100,
     };
 
     let x: Vec<u8> = req.clone().into();

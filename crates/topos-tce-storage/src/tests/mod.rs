@@ -98,6 +98,110 @@ async fn can_persist_a_delivered_certificate(store: Arc<ValidatorStore>) {
 
 #[rstest]
 #[test(tokio::test)]
+async fn cannot_persist_a_delivered_certificate_twice(store: Arc<ValidatorStore>) {
+    let certificate = Certificate::new_with_default_fields(
+        PREV_CERTIFICATE_ID,
+        SOURCE_SUBNET_ID_1,
+        &[TARGET_SUBNET_ID_1],
+    )
+    .unwrap();
+
+    let certificate_id = certificate.id;
+    let certificate = CertificateDelivered {
+        certificate,
+        proof_of_delivery: ProofOfDelivery {
+            delivery_position: CertificateSourceStreamPosition::new(
+                SOURCE_SUBNET_ID_1,
+                Position::ZERO,
+            ),
+            readies: vec![],
+            threshold: 0,
+            certificate_id,
+        },
+    };
+
+    store
+        .insert_certificate_delivered(&certificate)
+        .await
+        .unwrap();
+
+    let result = store.insert_certificate_delivered(&certificate).await;
+
+    assert!(result.is_err());
+    assert!(matches!(
+        result,
+        Err(StorageError::InternalStorage(
+            crate::errors::InternalStorageError::CertificateAlreadyExists
+        ))
+    ));
+}
+
+#[rstest]
+#[test(tokio::test)]
+async fn cannot_persist_a_delivered_certificate_at_same_position(store: Arc<ValidatorStore>) {
+    let certificate = Certificate::new_with_default_fields(
+        PREV_CERTIFICATE_ID,
+        SOURCE_SUBNET_ID_1,
+        &[TARGET_SUBNET_ID_1],
+    )
+    .unwrap();
+
+    let certificate_2 = Certificate::new_with_default_fields(
+        PREV_CERTIFICATE_ID,
+        SOURCE_SUBNET_ID_1,
+        &[TARGET_SUBNET_ID_1, TARGET_SUBNET_ID_2],
+    )
+    .unwrap();
+
+    let certificate_id = certificate.id;
+    let certificate_id_2 = certificate_2.id;
+
+    assert_ne!(certificate_id, certificate_id_2);
+
+    let certificate = CertificateDelivered {
+        certificate,
+        proof_of_delivery: ProofOfDelivery {
+            delivery_position: CertificateSourceStreamPosition::new(
+                SOURCE_SUBNET_ID_1,
+                Position::ZERO,
+            ),
+            readies: vec![],
+            threshold: 0,
+            certificate_id,
+        },
+    };
+
+    let certificate_2 = CertificateDelivered {
+        certificate: certificate_2,
+        proof_of_delivery: ProofOfDelivery {
+            delivery_position: CertificateSourceStreamPosition::new(
+                SOURCE_SUBNET_ID_1,
+                Position::ZERO,
+            ),
+            readies: vec![],
+            threshold: 0,
+            certificate_id: certificate_id_2,
+        },
+    };
+
+    store
+        .insert_certificate_delivered(&certificate)
+        .await
+        .unwrap();
+
+    let result = store.insert_certificate_delivered(&certificate_2).await;
+
+    assert!(result.is_err());
+    assert!(matches!(
+        result,
+        Err(StorageError::InternalStorage(
+            crate::errors::InternalStorageError::CertificateAlreadyExistsAtPosition(_, _)
+        ))
+    ));
+}
+
+#[rstest]
+#[test(tokio::test)]
 async fn delivered_certificate_are_added_to_target_stream(store: Arc<ValidatorStore>) {
     let certificates_column = store.fullnode_store.perpetual_tables.certificates.clone();
     let source_streams_column = store.fullnode_store.perpetual_tables.streams.clone();

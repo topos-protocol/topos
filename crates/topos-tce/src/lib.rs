@@ -184,6 +184,7 @@ pub async fn run(
 
     let (synchronizer_runtime, synchronizer_stream) =
         topos_tce_synchronizer::Synchronizer::builder()
+            .with_config(config.synchronization.clone())
             .with_shutdown(shutdown.0.child_token())
             .with_store(validator_store.clone())
             .with_network_client(network_client.clone())
