@@ -109,6 +109,10 @@ impl WriteStore for FullNodeStore {
                         expected_position.subnet_id,
                     ),
                 ));
+            } else {
+                return Err(StorageError::InternalStorage(
+                    InternalStorageError::CertificateAlreadyExists,
+                ));
             }
         }
 
