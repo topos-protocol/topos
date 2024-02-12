@@ -111,11 +111,11 @@ pub async fn run(
     let perpetual_tables = Arc::new(ValidatorPerpetualTables::open(path.clone()));
     let index_tables = Arc::new(IndexTables::open(path.clone()));
 
-    let validators_store =
-        EpochValidatorsStore::new(path.clone()).expect("Unable to create EpochValidators store");
+    let validators_store = EpochValidatorsStore::new(path.clone())
+        .map_err(|error| format!("Unable to create EpochValidators store: {error}"))?;
 
-    let epoch_store =
-        ValidatorPerEpochStore::new(0, path.clone()).expect("Unable to create Per epoch store");
+    let epoch_store = ValidatorPerEpochStore::new(0, path.clone())
+        .map_err(|error| format!("Unable to create Per epoch store: {error}"))?;
 
     let fullnode_store = FullNodeStore::open(
         epoch_store,
@@ -123,25 +123,22 @@ pub async fn run(
         perpetual_tables,
         index_tables,
     )
-    .expect("Unable to create full node store");
+    .map_err(|error| format!("Unable to create Fullnode store: {error}"))?;
 
     let validator_store = ValidatorStore::open(path.clone(), fullnode_store.clone())
-        .expect("Unable to create validator store");
+        .map_err(|error| format!("Unable to create validator store: {error}"))?;
 
     let certificates_synced = fullnode_store
         .count_certificates_delivered()
-        .map_err(|error| format!("Unable to count certificates delivered: {error}"))
-        .expect("Unable to count certificates delivered");
+        .map_err(|error| format!("Unable to count certificates delivered: {error}"))?;
 
     let pending_certificates = validator_store
         .count_pending_certificates()
-        .map_err(|error| format!("Unable to count pending certificates: {error}"))
-        .expect("Unable to count pending certificates");
+        .map_err(|error| format!("Unable to count pending certificates: {error}"))?;
 
     let precedence_pool_certificates = validator_store
         .count_precedence_pool_certificates()
-        .map_err(|error| format!("Unable to count precedence pool certificates: {error}"))
-        .expect("Unable to count precedence pool certificates");
+        .map_err(|error| format!("Unable to count precedence pool certificates: {error}"))?;
 
     info!(
         "Storage initialized with {} certificates delivered, {} pending certificates and {} \
