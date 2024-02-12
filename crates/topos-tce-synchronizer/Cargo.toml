@@ -19,6 +19,7 @@ tracing.workspace = true
 uuid = { workspace = true, features = ["v4", "serde"] }
 
 topos-core = { workspace = true, features = ["api"] }
+topos-config = { path = "../topos-config/" }
 topos-p2p = { path = "../topos-p2p" }
 topos-tce-gatekeeper = { path = "../topos-tce-gatekeeper/" }
 topos-tce-storage = { path = "../topos-tce-storage/" }

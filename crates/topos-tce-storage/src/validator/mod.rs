@@ -343,6 +343,7 @@ impl ValidatorStore {
     pub fn get_checkpoint_diff(
         &self,
         from: &[ProofOfDelivery],
+        limit_per_subnet: usize,
     ) -> Result<HashMap<SubnetId, Vec<ProofOfDelivery>>, StorageError> {
         // Parse the from in order to extract the different position per subnets
         let from_positions: HashMap<SubnetId, &ProofOfDelivery> = from
@@ -374,7 +375,7 @@ impl ValidatorStore {
                     .streams
                     .prefix_iter(&(&subnet, &position.delivery_position.position))?
                     .skip(1)
-                    .take(100)
+                    .take(limit_per_subnet)
                     .map(|(_, v)| v)
                     .collect()
             } else {
@@ -382,7 +383,7 @@ impl ValidatorStore {
                     .perpetual_tables
                     .streams
                     .prefix_iter(&(&subnet, Position::ZERO))?
-                    .take(100)
+                    .take(limit_per_subnet)
                     .map(|(_, v)| v)
                     .collect()
             };

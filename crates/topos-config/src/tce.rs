@@ -68,6 +68,9 @@ pub struct TceConfig {
     #[serde(default)]
     pub p2p: P2PConfig,
 
+    #[serde(default)]
+    pub synchronization: SynchronizationConfig,
+
     /// gRPC API Addr
     #[serde(default = "default_grpc_api_addr")]
     pub grpc_api_addr: SocketAddr,
@@ -90,6 +93,40 @@ pub struct TceConfig {
 
 const fn default_network_bootstrap_timeout() -> u64 {
     90
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "kebab-case")]
+pub struct SynchronizationConfig {
+    /// Interval in seconds to synchronize the TCE
+    #[serde(default = "SynchronizationConfig::default_interval_seconds")]
+    pub interval_seconds: u64,
+
+    /// Maximum number of Proof of delivery per query per subnet
+    #[serde(default = "SynchronizationConfig::default_limit_per_subnet")]
+    pub limit_per_subnet: usize,
+}
+
+impl Default for SynchronizationConfig {
+    fn default() -> Self {
+        Self {
+            interval_seconds: SynchronizationConfig::INTERVAL_SECONDS,
+            limit_per_subnet: SynchronizationConfig::LIMIT_PER_SUBNET,
+        }
+    }
+}
+
+impl SynchronizationConfig {
+    pub const INTERVAL_SECONDS: u64 = 10;
+    pub const LIMIT_PER_SUBNET: usize = 100;
+
+    const fn default_interval_seconds() -> u64 {
+        Self::INTERVAL_SECONDS
+    }
+
+    const fn default_limit_per_subnet() -> usize {
+        Self::LIMIT_PER_SUBNET
+    }
 }
 
 fn default_db_path() -> PathBuf {

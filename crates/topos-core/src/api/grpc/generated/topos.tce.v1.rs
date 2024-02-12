@@ -7,6 +7,8 @@ pub struct CheckpointRequest {
     pub request_id: ::core::option::Option<super::super::shared::v1::Uuid>,
     #[prost(message, repeated, tag = "2")]
     pub checkpoint: ::prost::alloc::vec::Vec<ProofOfDelivery>,
+    #[prost(uint64, tag = "3")]
+    pub limit_per_subnet: u64,
 }
 #[derive(serde::Deserialize, serde::Serialize)]
 #[allow(clippy::derive_partial_eq_without_eq)]
