@@ -212,7 +212,7 @@ pub async fn run(
     debug!("Synchronizer started");
 
     debug!("Starting gRPC api");
-    let (api_client, api_stream, _ctx) = topos_tce_api::Runtime::builder()
+    let (api_client, api_stream, ctx) = topos_tce_api::Runtime::builder()
         .with_peer_id(peer_id.to_string())
         .with_broadcast_stream(broadcast_receiver.resubscribe())
         .serve_grpc_addr(config.grpc_api_addr)
@@ -233,6 +233,7 @@ pub async fn run(
         api_client,
         gatekeeper_client,
         validator_store,
+        ctx,
     );
 
     Ok(app_context.run(

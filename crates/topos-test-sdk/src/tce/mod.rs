@@ -34,7 +34,6 @@ use topos_core::uci::SubnetId;
 use topos_crypto::messages::MessageSigner;
 use topos_p2p::{error::P2PError, Event, GrpcRouter, NetworkClient, Runtime};
 use topos_tce::{events::Events, AppContext};
-use topos_tce_api::RuntimeContext;
 use topos_tce_storage::StorageClient;
 use topos_tce_synchronizer::SynchronizerService;
 use tracing::info;
@@ -61,7 +60,6 @@ pub struct TceContext {
     pub peer_id: PeerId, // P2P ID
     pub api_entrypoint: String,
     pub api_grpc_client: ApiServiceClient<Channel>, // GRPC Client for this peer (tce node)
-    pub api_context: Option<RuntimeContext>,
     pub console_grpc_client: ConsoleServiceClient<Channel>, // Console TCE GRPC Client for this peer (tce node)
     pub runtime_join_handle: JoinHandle<Result<(), ()>>,
     pub app_join_handle: JoinHandle<()>,
@@ -269,6 +267,7 @@ pub async fn start_node(
         api_context.client,
         gatekeeper_client,
         validator_store,
+        api_context.api_context.unwrap(),
     );
 
     let shutdown_token = CancellationToken::new();
@@ -291,7 +290,6 @@ pub async fn start_node(
         peer_id,
         api_entrypoint: api_context.entrypoint,
         api_grpc_client: api_context.api_client,
-        api_context: api_context.api_context,
         console_grpc_client: api_context.console_client,
         runtime_join_handle,
         app_join_handle,

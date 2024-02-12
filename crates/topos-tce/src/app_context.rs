@@ -12,6 +12,7 @@ use topos_core::uci::CertificateId;
 use topos_metrics::CERTIFICATE_DELIVERED_TOTAL;
 use topos_p2p::{Event as NetEvent, NetworkClient};
 use topos_tce_api::RuntimeClient as ApiClient;
+use topos_tce_api::RuntimeContext;
 use topos_tce_api::RuntimeEvent as ApiEvent;
 use topos_tce_broadcast::event::ProtocolEvents;
 use topos_tce_broadcast::ReliableBroadcastClient;
@@ -47,6 +48,7 @@ pub struct AppContext {
     pub delivery_latency: HashMap<CertificateId, HistogramTimer>,
 
     pub validator_store: Arc<ValidatorStore>,
+    pub api_context: RuntimeContext,
 }
 
 impl AppContext {
@@ -56,6 +58,7 @@ impl AppContext {
         CertificateId::from_array([0u8; topos_core::uci::CERTIFICATE_ID_LENGTH]);
 
     /// Factory
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         is_validator: bool,
         pending_storage: StorageClient,
@@ -64,6 +67,7 @@ impl AppContext {
         api_client: ApiClient,
         gatekeeper: GatekeeperClient,
         validator_store: Arc<ValidatorStore>,
+        api_context: RuntimeContext,
     ) -> (Self, mpsc::Receiver<Events>) {
         let (events, receiver) = mpsc::channel(100);
         (
@@ -77,6 +81,7 @@ impl AppContext {
                 gatekeeper,
                 delivery_latency: Default::default(),
                 validator_store,
+                api_context,
             },
             receiver,
         )
