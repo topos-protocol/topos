@@ -25,6 +25,21 @@ fn setup_subnet_install_edge() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+fn setup_with_no_arguments() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = Command::cargo_bin("topos")?;
+    cmd.arg("setup");
+
+    let output = cmd.assert().failure();
+
+    let result: &str = std::str::from_utf8(&output.get_output().stdout)?;
+
+    assert!(result
+        .contains("No subcommand provided. You can use `--help` to see available subcommands."));
+
+    Ok(())
+}
+
+#[test]
 fn setup_subnet_fail_to_install_release() -> Result<(), Box<dyn std::error::Error>> {
     let tmp_home_dir = tempdir()?;
 
