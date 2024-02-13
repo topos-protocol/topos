@@ -15,7 +15,7 @@ pub enum Error {
     Http(reqwest::Error),
     #[error("Json parsing error: {0}")]
     InvalidJson(serde_json::Error),
-    #[error("There are no available release")]
+    #[error("There is no valid Polygon Edge release available")]
     NoValidRelease,
     #[error("Invalid release metadata")]
     InvalidReleaseMetadata,
