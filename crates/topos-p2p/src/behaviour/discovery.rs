@@ -75,8 +75,8 @@ impl DiscoveryBehaviour {
 
     /// Start the kademlia bootstrap process if it is not already in progress.
     /// The bootstrap process is used to discover new peers in the network.
-    /// Starting by sending a `FIND_NODE` query of the local PeerId in the DHT.
-    /// Then random PeerId are forged in order to randomly walk the network.
+    /// The bootstrap process starts by sending a `FIND_NODE` query of the local PeerId in the DHT.
+    /// Then multiple random PeerId are created in order to randomly walk the network.
     pub fn bootstrap(&mut self) -> Result<(), P2PError> {
         if self.current_bootstrap_query_id.is_none() {
             match self.inner.bootstrap() {
