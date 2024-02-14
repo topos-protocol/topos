@@ -8184,6 +8184,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "topos-core",
+ "topos-metrics",
  "topos-test-sdk",
  "tracing",
  "tracing-subscriber",

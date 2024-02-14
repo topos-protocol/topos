@@ -21,6 +21,7 @@ use topos_core::{
     },
     uci::Certificate,
 };
+use topos_metrics::{STORAGE_PENDING_POOL_COUNT, STORAGE_PRECEDENCE_POOL_COUNT};
 use topos_tce_api::{Runtime, RuntimeEvent};
 use topos_tce_storage::types::CertificateDeliveredWithPositions;
 use topos_tce_storage::StorageClient;
@@ -620,4 +621,74 @@ async fn can_query_graphql_endpoint_for_certificates(
         response.data.certificates[0].source_subnet_id,
         graphql_certificate.source_subnet_id
     );
+}
+
+#[rstest]
+#[timeout(Duration::from_secs(4))]
+#[test(tokio::test)]
+async fn check_storage_pool_stats(
+    broadcast_stream: broadcast::Receiver<CertificateDeliveredWithPositions>,
+) {
+    let addr = get_available_addr();
+    let graphql_addr = get_available_addr();
+    let metrics_addr = get_available_addr();
+
+    let fullnode_store = create_fullnode_store::default().await;
+
+    let store =
+        create_validator_store(vec![], futures::future::ready(fullnode_store.clone())).await;
+    STORAGE_PENDING_POOL_COUNT.set(10);
+    STORAGE_PRECEDENCE_POOL_COUNT.set(200);
+
+    let storage_client = StorageClient::new(store.clone());
+
+    let (_runtime_client, _launcher, _ctx) = Runtime::builder()
+        .with_broadcast_stream(broadcast_stream)
+        .storage(storage_client)
+        .store(store)
+        .serve_grpc_addr(addr)
+        .serve_graphql_addr(graphql_addr)
+        .serve_metrics_addr(metrics_addr)
+        .build_and_launch()
+        .await;
+
+    // Wait for server to boot
+    tokio::time::sleep(Duration::from_millis(100)).await;
+
+    let query = "query {getStoragePoolStats}";
+
+    #[derive(Debug, Deserialize)]
+    struct Response {
+        // data: HashMap<String, serde_json::Value>,
+        data: Stats,
+    }
+
+    #[derive(Debug, Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Stats {
+        get_storage_pool_stats: PoolStats,
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct PoolStats {
+        pending_pool: u64,
+        precedence_pool: u64,
+    }
+
+    let client = reqwest::Client::new();
+
+    let response = client
+        .post(format!("http://{}", graphql_addr))
+        .json(&serde_json::json!({
+            "query": query,
+        }))
+        .send()
+        .await
+        .unwrap()
+        .json::<Response>()
+        .await
+        .unwrap();
+
+    assert_eq!(response.data.get_storage_pool_stats.pending_pool, 10);
+    assert_eq!(response.data.get_storage_pool_stats.precedence_pool, 200);
 }
