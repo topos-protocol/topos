@@ -1,4 +1,4 @@
-use std::{future::IntoFuture, sync::Arc};
+use std::{cmp::max, future::IntoFuture, sync::Arc};
 
 use builder::SynchronizerBuilder;
 use checkpoints_collector::{CheckpointsCollectorError, CheckpointsCollectorEvent};
@@ -16,6 +16,7 @@ mod checkpoints_collector;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_util::sync::CancellationToken;
 use tonic::{Request, Response, Status};
+use topos_config::tce::SynchronizationConfig;
 use topos_core::{
     api::grpc::{
         shared::v1::positions::SourceStreamPosition,
@@ -150,6 +151,14 @@ impl GrpcSynchronizerService for SynchronizerService {
             .unwrap_or(Uuid::new_v4());
         debug!("Received request for checkpoint (request_id: {})", id);
 
+        let limit_per_subnet: usize = max(
+            request
+                .limit_per_subnet
+                .try_into()
+                .unwrap_or(SynchronizationConfig::LIMIT_PER_SUBNET),
+            SynchronizationConfig::LIMIT_PER_SUBNET,
+        );
+
         let res: Result<Vec<_>, _> = request
             .checkpoint
             .into_iter()
@@ -166,7 +175,10 @@ impl GrpcSynchronizerService for SynchronizerService {
 
         debug!("Request {} contains {} proof_of_delivery", id, res.len());
         trace!("Request {} contains {:?}", id, res);
-        let diff = match self.validator_store.get_checkpoint_diff(&res) {
+        let diff = match self
+            .validator_store
+            .get_checkpoint_diff(&res, limit_per_subnet)
+        {
             Ok(diff) => {
                 debug!(
                     "Fetched checkpoint diff from storage for request {}, got {:?}",

@@ -18,6 +18,8 @@ message CheckpointRequest {
   topos.shared.v1.UUID request_id = 1;
 
   repeated ProofOfDelivery checkpoint = 2;
+
+  uint64 limit_per_subnet = 3;
 }
 
 message CheckpointResponse {
