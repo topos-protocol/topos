@@ -6,8 +6,8 @@ use std::path::Path;
 #[cfg(test)]
 use rocksdb::ColumnFamilyDescriptor;
 use rocksdb::{
-    BoundColumnFamily, DBRawIteratorWithThreadMode, DBWithThreadMode, Direction, IteratorMode,
-    MultiThreaded, ReadOptions, WriteBatch,
+    BoundColumnFamily, CStrLike, DBRawIteratorWithThreadMode, DBWithThreadMode, Direction,
+    IteratorMode, MultiThreaded, ReadOptions, WriteBatch,
 };
 
 use bincode::Options;
@@ -66,7 +66,7 @@ impl<K, V> DBColumn<K, V> {
     }
 
     /// Returns the CF of the DBColumn, used to build queries.
-    fn cf(&self) -> Result<Arc<BoundColumnFamily<'_>>, InternalStorageError> {
+    pub(crate) fn cf(&self) -> Result<Arc<BoundColumnFamily<'_>>, InternalStorageError> {
         self.rocksdb
             .cf_handle(self.cf)
             .ok_or(InternalStorageError::InvalidColumnFamily(self.cf))
@@ -78,6 +78,17 @@ where
     K: DeserializeOwned + Serialize + std::fmt::Debug,
     V: DeserializeOwned + Serialize + std::fmt::Debug,
 {
+    pub(crate) fn property_int_value(
+        &self,
+        property: impl CStrLike,
+    ) -> Result<u64, InternalStorageError> {
+        self.rocksdb
+            .property_int_value_cf(&self.cf()?, property)?
+            .ok_or(InternalStorageError::UnexpectedDBState(
+                "Property not found",
+            ))
+    }
+
     /// Insert a record into the storage by passing a Key and a Value.
     ///
     /// Key are fixed length bincode serialized.

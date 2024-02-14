@@ -321,7 +321,7 @@ async fn deploy_test_token(
         "Deploying new token {} with symbol {}",
         token_name, token_symbol
     );
-    match ierc20_messaging
+    let deploy_outcome = ierc20_messaging
         .deploy_token(token_encoded_params)
         .legacy()
         .gas(DEFAULT_GAS)
@@ -331,8 +331,9 @@ async fn deploy_test_token(
             error!("Unable deploy token: {e}");
             e
         })?
-        .await
-    {
+        .await;
+
+    match deploy_outcome {
         Ok(r) => {
             info!("Token deployed: {:?}", r);
         }

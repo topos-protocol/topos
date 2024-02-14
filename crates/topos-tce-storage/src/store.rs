@@ -43,7 +43,7 @@ pub trait WriteStore: Send {
 /// [`FullNodeStore`](struct@super::fullnode::FullNodeStore) to read data.
 pub trait ReadStore: Send {
     /// Returns the number of certificates delivered
-    fn count_certificates_delivered(&self) -> Result<usize, StorageError>;
+    fn count_certificates_delivered(&self) -> Result<u64, StorageError>;
 
     /// Try to get a SourceHead of a subnet
     ///

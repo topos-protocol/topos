@@ -3,6 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use arc_swap::ArcSwap;
 use async_trait::async_trait;
 
+use rocksdb::properties::ESTIMATE_NUM_KEYS;
 use topos_core::{
     types::{
         stream::{CertificateSourceStreamPosition, CertificateTargetStreamPosition, Position},
@@ -232,8 +233,11 @@ impl WriteStore for FullNodeStore {
 }
 
 impl ReadStore for FullNodeStore {
-    fn count_certificates_delivered(&self) -> Result<usize, StorageError> {
-        Ok(self.perpetual_tables.certificates.iter()?.count())
+    fn count_certificates_delivered(&self) -> Result<u64, StorageError> {
+        Ok(self
+            .perpetual_tables
+            .certificates
+            .property_int_value(ESTIMATE_NUM_KEYS)?)
     }
 
     fn get_source_head(&self, subnet_id: &SubnetId) -> Result<Option<SourceHead>, StorageError> {

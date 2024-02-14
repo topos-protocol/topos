@@ -485,7 +485,7 @@ async fn get_source_head_for_subnet(store: Arc<ValidatorStore>) {
         create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_2], 10);
 
     store
-        .insert_certificates_delivered(&expected_certificates_for_source_subnet_1)
+        .insert_certificates_delivered(&expected_certificates_for_source_subnet_1[..])
         .await
         .unwrap();
 
@@ -493,7 +493,7 @@ async fn get_source_head_for_subnet(store: Arc<ValidatorStore>) {
         create_certificate_chain(SOURCE_SUBNET_ID_2, &[TARGET_SUBNET_ID_2], 10);
 
     store
-        .insert_certificates_delivered(&expected_certificates_for_source_subnet_2)
+        .insert_certificates_delivered(&expected_certificates_for_source_subnet_2[..])
         .await
         .unwrap();
 
