@@ -24,7 +24,7 @@ use topos_core::{
     uci::{Certificate, CertificateId, SubnetId},
 };
 
-use topos_config::tce::SynchronizationConfig;
+use topos_config::tce::synchronization::SynchronizationConfig;
 use topos_p2p::{error::P2PError, NetworkClient, PeerId};
 use topos_tce_storage::{errors::StorageError, store::ReadStore, validator::ValidatorStore};
 use tracing::{debug, error, info, warn};

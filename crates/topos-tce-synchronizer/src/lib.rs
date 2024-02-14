@@ -16,7 +16,7 @@ mod checkpoints_collector;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_util::sync::CancellationToken;
 use tonic::{Request, Response, Status};
-use topos_config::tce::SynchronizationConfig;
+use topos_config::tce::synchronization::SynchronizationConfig;
 use topos_core::{
     api::grpc::{
         shared::v1::positions::SourceStreamPosition,

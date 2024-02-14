@@ -3,7 +3,6 @@ use std::{future::IntoFuture, sync::Arc};
 use tokio::{spawn, sync::mpsc};
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_util::sync::CancellationToken;
-use topos_config::tce::SynchronizationConfig;
 use topos_p2p::NetworkClient;
 use topos_tce_storage::validator::ValidatorStore;
 
@@ -11,6 +10,7 @@ use crate::{
     checkpoints_collector::{CheckpointSynchronizer, CheckpointsCollectorError},
     Synchronizer, SynchronizerError, SynchronizerEvent,
 };
+use topos_config::tce::synchronization::SynchronizationConfig;
 
 pub struct SynchronizerBuilder {
     network_client: Option<NetworkClient>,
