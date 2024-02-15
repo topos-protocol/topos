@@ -20,10 +20,7 @@ use std::sync::Arc;
 use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
 use topos_config::tce::broadcast::ReliableBroadcastParams;
-use topos_core::{
-    types::ValidatorId,
-    uci::{Certificate, CertificateId},
-};
+use topos_core::{types::ValidatorId, uci::CertificateId};
 use topos_crypto::messages::{MessageSigner, Signature};
 use topos_tce_storage::store::ReadStore;
 use topos_tce_storage::types::CertificateDeliveredWithPositions;
@@ -138,8 +135,6 @@ impl DoubleEcho {
                 Some(command) = self.command_receiver.recv() => {
                     match command {
 
-                        DoubleEchoCommand::Broadcast { need_gossip, cert } => self.broadcast(cert, need_gossip).await,
-
                         command if self.subscriptions.is_some() => {
                             match command {
                                 DoubleEchoCommand::Echo { certificate_id, validator_id, signature } => {
@@ -201,92 +196,6 @@ impl DoubleEcho {
         } else {
             warn!("Shutting down p2p double echo due to error...");
         }
-    }
-}
-
-impl DoubleEcho {
-    /// Called to process new certificate submitted from the API or received on
-    /// the gossip p2p layer
-    pub async fn broadcast(&mut self, cert: Certificate, origin: bool) {
-        info!("🙌 Starting broadcasting the Certificate {}", &cert.id);
-        if self.cert_pre_broadcast_check(&cert).is_err() {
-            error!("Failure on the pre-check for the Certificate {}", &cert.id);
-            self.event_sender
-                .try_send(ProtocolEvents::BroadcastFailed {
-                    certificate_id: cert.id,
-                })
-                .unwrap();
-            return;
-        }
-
-        match self.validator_store.get_certificate(&cert.id) {
-            Ok(Some(_)) => {
-                _ = self
-                    .event_sender
-                    .send(ProtocolEvents::AlreadyDelivered {
-                        certificate_id: cert.id,
-                    })
-                    .await;
-            }
-            Ok(None) => {
-                if self
-                    .delivery_state_for_new_cert(cert, origin)
-                    .await
-                    .is_none()
-                {
-                    error!("Ill-formed samples");
-                    _ = self.event_sender.try_send(ProtocolEvents::Die);
-                }
-            }
-            Err(storage_error) => {
-                error!(
-                    "Unable to broadcast the Certificate {} due to {:?}",
-                    &cert.id, storage_error
-                );
-            }
-        }
-    }
-
-    /// Build initial delivery state
-    async fn delivery_state_for_new_cert(
-        &mut self,
-        certificate: Certificate,
-        origin: bool,
-    ) -> Option<bool> {
-        let subscriptions = self.subscriptions.clone();
-
-        // Check whether inbound sets are empty
-        if subscriptions.echo.is_empty() || subscriptions.ready.is_empty() {
-            error!(
-                "One Subscription sample is empty: Echo({}), Ready({})",
-                subscriptions.echo.is_empty(),
-                subscriptions.ready.is_empty(),
-            );
-            None
-        } else {
-            _ = self
-                .task_manager_message_sender
-                .send(DoubleEchoCommand::Broadcast {
-                    need_gossip: origin,
-                    cert: certificate,
-                })
-                .await;
-
-            Some(true)
-        }
-    }
-
-    /// Checks done before starting to broadcast
-    fn cert_pre_broadcast_check(&self, cert: &Certificate) -> Result<(), ()> {
-        if cert.check_signature().is_err() {
-            error!("Error on the signature");
-        }
-
-        if cert.check_proof().is_err() {
-            error!("Error on the proof");
-        }
-
-        Ok(())
     }
 }
 

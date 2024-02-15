@@ -34,6 +34,4 @@ pub enum ProtocolEvents {
         signature: Signature,
         validator_id: ValidatorId,
     },
-    /// For simulation purpose, for now only caused by ill-formed sampling
-    Die,
 }

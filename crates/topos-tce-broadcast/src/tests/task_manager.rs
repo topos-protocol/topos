@@ -7,6 +7,7 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 use topos_crypto::{messages::MessageSigner, validator_id::ValidatorId};
+use topos_metrics::DOUBLE_ECHO_ACTIVE_TASKS_COUNT;
 use topos_tce_storage::validator::ValidatorStore;
 use topos_test_sdk::{
     certificates::create_certificate_chain,
@@ -80,4 +81,6 @@ async fn can_start(#[future] create_validator_store: Arc<ValidatorStore>) {
             cert: parent.certificate.clone(),
         })
         .await;
+
+    assert_eq!(DOUBLE_ECHO_ACTIVE_TASKS_COUNT.get(), 1);
 }
