@@ -28,13 +28,19 @@ pub(crate) async fn handle_command(
                         "Starting installation of Polygon Edge binary to target path: {}",
                         &cmd.path.display()
                     );
+                    println!(
+                        "Starting installation of Polygon Edge binary to target path: {}",
+                        &cmd.path.display()
+                    );
                     if let Err(e) =
                         install_polygon_edge(cmd.repository, cmd.release, cmd.path.as_path()).await
                     {
                         error!("Error installing Polygon Edge: {e}");
+                        eprintln!("Error installing Polygon Edge: {e}");
                         std::process::exit(1);
                     } else {
                         info!("Polygon Edge installation successful");
+                        println!("Polygon Edge installation successful");
                         std::process::exit(0);
                     }
                 }
@@ -46,6 +52,10 @@ pub(crate) async fn handle_command(
 
             Ok(())
         }
-        None => Ok(()),
+        None => {
+            error!("No subcommand provided. You can use `--help` to see available subcommands.");
+            eprintln!("No subcommand provided. You can use `--help` to see available subcommands.");
+            std::process::exit(1);
+        }
     }
 }
