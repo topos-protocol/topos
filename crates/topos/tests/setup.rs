@@ -31,7 +31,7 @@ fn setup_with_no_arguments() -> Result<(), Box<dyn std::error::Error>> {
 
     let output = cmd.assert().failure();
 
-    let result: &str = std::str::from_utf8(&output.get_output().stdout)?;
+    let result: &str = std::str::from_utf8(&output.get_output().stderr)?;
 
     assert!(result
         .contains("No subcommand provided. You can use `--help` to see available subcommands."));
