@@ -140,6 +140,7 @@ pub async fn setup_test(
         api_client,
         gatekeeper_client,
         validator_store,
+        api_context.api_context.unwrap(),
     );
 
     (context, p2p_receiver, message_signer)

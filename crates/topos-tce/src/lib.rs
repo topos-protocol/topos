@@ -1,7 +1,6 @@
-use futures::StreamExt;
+use futures::{Future, StreamExt};
 use opentelemetry::global;
 use std::process::ExitStatus;
-use std::time::Duration;
 use std::{future::IntoFuture, sync::Arc};
 use tokio::{
     spawn,
@@ -40,10 +39,35 @@ use topos_config::tce::{AuthKey, StorageConfiguration};
 // TODO: Estimate on the max broadcast throughput, could need to be override by config
 const BROADCAST_CHANNEL_SIZE: usize = 10_000;
 
-pub async fn run(
+pub async fn launch(
     config: &TceConfig,
     shutdown: (CancellationToken, mpsc::Sender<()>),
 ) -> Result<ExitStatus, Box<dyn std::error::Error>> {
+    let cancel = shutdown.0.clone();
+    let run_fut = run(config, shutdown);
+    let app_context_run = tokio::select! {
+            _ = cancel.cancelled() => {
+                return Err(Box::from("Killed before readiness".to_string()));
+            }
+
+            result = run_fut => {
+                match result {
+                    Ok(app_context_run)=> app_context_run,
+                    Err(error) => return Err(error)
+                }
+            }
+    };
+
+    app_context_run.await;
+
+    global::shutdown_tracer_provider();
+    Ok(ExitStatus::default())
+}
+
+pub async fn run(
+    config: &TceConfig,
+    shutdown: (CancellationToken, mpsc::Sender<()>),
+) -> Result<impl Future<Output = ()>, Box<dyn std::error::Error>> {
     topos_metrics::init_metrics();
 
     let key = match config.auth_key.as_ref() {
@@ -87,11 +111,11 @@ pub async fn run(
     let perpetual_tables = Arc::new(ValidatorPerpetualTables::open(path.clone()));
     let index_tables = Arc::new(IndexTables::open(path.clone()));
 
-    let validators_store =
-        EpochValidatorsStore::new(path.clone()).expect("Unable to create EpochValidators store");
+    let validators_store = EpochValidatorsStore::new(path.clone())
+        .map_err(|error| format!("Unable to create EpochValidators store: {error}"))?;
 
-    let epoch_store =
-        ValidatorPerEpochStore::new(0, path.clone()).expect("Unable to create Per epoch store");
+    let epoch_store = ValidatorPerEpochStore::new(0, path.clone())
+        .map_err(|error| format!("Unable to create Per epoch store: {error}"))?;
 
     let fullnode_store = FullNodeStore::open(
         epoch_store,
@@ -99,10 +123,28 @@ pub async fn run(
         perpetual_tables,
         index_tables,
     )
-    .expect("Unable to create full node store");
+    .map_err(|error| format!("Unable to create Fullnode store: {error}"))?;
 
     let validator_store = ValidatorStore::open(path.clone(), fullnode_store.clone())
-        .expect("Unable to create validator store");
+        .map_err(|error| format!("Unable to create validator store: {error}"))?;
+
+    let certificates_synced = fullnode_store
+        .count_certificates_delivered()
+        .map_err(|error| format!("Unable to count certificates delivered: {error}"))?;
+
+    let pending_certificates = validator_store
+        .count_pending_certificates()
+        .map_err(|error| format!("Unable to count pending certificates: {error}"))?;
+
+    let precedence_pool_certificates = validator_store
+        .count_precedence_pool_certificates()
+        .map_err(|error| format!("Unable to count precedence pool certificates: {error}"))?;
+
+    info!(
+        "Storage initialized with {} certificates delivered, {} pending certificates and {} \
+         certificates in the precedence pool",
+        certificates_synced, pending_certificates, precedence_pool_certificates
+    );
 
     let grpc_context = GrpcContext::default().with_router(
         GrpcRouter::new(tonic::transport::Server::builder()).add_service(
@@ -112,44 +154,18 @@ pub async fn run(
         ),
     );
 
-    let certificates_synced = fullnode_store
-        .count_certificates_delivered()
-        .map_err(|error| format!("Unable to count certificates delivered: {error}"))
-        .unwrap();
-
-    let pending_certificates = validator_store
-        .count_pending_certificates()
-        .map_err(|error| format!("Unable to count pending certificates: {error}"))
-        .unwrap();
-
-    let precedence_pool_certificates = validator_store
-        .count_precedence_pool_certificates()
-        .map_err(|error| format!("Unable to count precedence pool certificates: {error}"))
-        .unwrap();
-
-    info!(
-        "Storage initialized with {} certificates delivered, {} pending certificates and {} \
-         certificates in the precedence pool",
-        certificates_synced, pending_certificates, precedence_pool_certificates
-    );
-
-    let (network_client, event_stream, unbootstrapped_runtime) = topos_p2p::network::builder()
+    let (network_client, event_stream, mut network_runtime) = topos_p2p::network::builder()
         .peer_key(key)
         .listen_addresses(config.p2p.listen_addresses.clone())
         .minimum_cluster_size(config.minimum_tce_cluster_size)
         .public_addresses(config.p2p.public_addresses.clone())
         .known_peers(&boot_peers)
         .grpc_context(grpc_context)
-        .is_bootnode(config.p2p.is_bootnode)
         .build()
         .await?;
 
     debug!("Starting the p2p network");
-    let network_runtime = tokio::time::timeout(
-        Duration::from_secs(config.network_bootstrap_timeout),
-        unbootstrapped_runtime.bootstrap(),
-    )
-    .await??;
+    network_runtime.bootstrap().await?;
     let _network_handler = spawn(network_runtime.run());
     debug!("p2p network started");
 
@@ -193,7 +209,7 @@ pub async fn run(
     debug!("Synchronizer started");
 
     debug!("Starting gRPC api");
-    let (api_client, api_stream, _ctx) = topos_tce_api::Runtime::builder()
+    let (api_client, api_stream, ctx) = topos_tce_api::Runtime::builder()
         .with_peer_id(peer_id.to_string())
         .with_broadcast_stream(broadcast_receiver.resubscribe())
         .serve_grpc_addr(config.grpc_api_addr)
@@ -214,19 +230,15 @@ pub async fn run(
         api_client,
         gatekeeper_client,
         validator_store,
+        ctx,
     );
 
-    app_context
-        .run(
-            event_stream,
-            tce_stream,
-            api_stream,
-            synchronizer_stream,
-            BroadcastStream::new(broadcast_receiver).filter_map(|v| futures::future::ready(v.ok())),
-            shutdown,
-        )
-        .await;
-
-    global::shutdown_tracer_provider();
-    Ok(ExitStatus::default())
+    Ok(app_context.run(
+        event_stream,
+        tce_stream,
+        api_stream,
+        synchronizer_stream,
+        BroadcastStream::new(broadcast_receiver).filter_map(|v| futures::future::ready(v.ok())),
+        shutdown,
+    ))
 }

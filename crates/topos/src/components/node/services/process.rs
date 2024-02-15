@@ -97,7 +97,7 @@ pub(crate) fn spawn_tce_process(
 
     debug!("TCE args: {config:?}");
     spawn(async move {
-        topos_tce::run(&config, shutdown).await.map_err(|e| {
+        topos_tce::launch(&config, shutdown).await.map_err(|e| {
             error!("TCE process terminated: {e:?}");
             Errors::TceFailure
         })

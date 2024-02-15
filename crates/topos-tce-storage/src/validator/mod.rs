@@ -350,8 +350,7 @@ impl ValidatorStore {
             .map(|v| (v.delivery_position.subnet_id, v))
             .collect();
 
-        let mut output: HashMap<SubnetId, Vec<ProofOfDelivery>> =
-            from_positions.keys().map(|s| (*s, vec![])).collect();
+        let mut output: HashMap<SubnetId, Vec<ProofOfDelivery>> = HashMap::new();
 
         // Request the local head checkpoint
         let subnets: HashMap<SubnetId, Position> = self
