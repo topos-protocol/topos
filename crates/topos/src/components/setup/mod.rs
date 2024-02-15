@@ -1,5 +1,6 @@
 use self::commands::{SetupCommand, SetupCommands};
 use tokio::{signal, spawn};
+use tracing::{error, info};
 
 use topos::{install_polygon_edge, list_polygon_edge_releases};
 
@@ -12,12 +13,12 @@ pub(crate) async fn handle_command(
         Some(SetupCommands::Subnet(cmd)) => {
             spawn(async move {
                 if cmd.list_releases {
-                    println!(
+                    info!(
                         "Retrieving release version list from repository: {}",
                         &cmd.repository
                     );
                     if let Err(e) = list_polygon_edge_releases(cmd.repository).await {
-                        eprintln!("Error listing Polygon Edge release versions: {e}");
+                        error!("Error listing Polygon Edge release versions: {e}");
                         std::process::exit(1);
                     } else {
                         std::process::exit(0);
