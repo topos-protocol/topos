@@ -76,6 +76,21 @@ impl ValidatorStore {
             fullnode_store,
         });
 
+        store.pending_tables.pending_pool.rocksdb.compact_range_cf(
+            &store.pending_tables.pending_pool.cf()?,
+            None::<&[u8]>,
+            None::<&[u8]>,
+        );
+        store
+            .pending_tables
+            .precedence_pool
+            .rocksdb
+            .compact_range_cf(
+                &store.pending_tables.precedence_pool.cf()?,
+                None::<&[u8]>,
+                None::<&[u8]>,
+            );
+
         let pending_count: i64 =
             store
                 .count_pending_certificates()?
