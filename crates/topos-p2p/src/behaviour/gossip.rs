@@ -76,7 +76,7 @@ impl Behaviour {
                 // Content based id
                 let mut s = DefaultHasher::new();
                 msg_id.data.hash(&mut s);
-                gossipsub::MessageId::from(s.finish().to_string())
+                gossipsub::MessageId::from(s.finish().to_be_bytes())
             })
             .build()
             .unwrap();
