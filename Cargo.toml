@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-default-members = ["crates/topos"]
+default-members = ["crates/topos", "crates/topos-node"]
 members = [
     "crates/*"
 ]
