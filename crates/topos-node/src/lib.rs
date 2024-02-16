@@ -1,5 +1,5 @@
 //! Temporary lib exposition for backward topos CLI compatibility
-use std::{path::PathBuf, process::ExitStatus};
+use std::process::ExitStatus;
 
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
@@ -18,53 +18,43 @@ use topos_config::{
 };
 use topos_telemetry::tracing::setup_tracing;
 use topos_wallet::SecretManager;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
+use tracing_subscriber::util::TryInitError;
 
 mod process;
 
-#[allow(clippy::too_many_arguments)]
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error(transparent)]
+    GenesisFile(#[from] topos_config::genesis::Error),
+
+    #[error("Unable to setup tracing logger: {0}")]
+    Tracing(#[from] TryInitError),
+
+    #[error(transparent)]
+    IO(#[from] std::io::Error),
+
+    #[error(
+        "The role in the config file expect to have a sequencer config defined, none was found"
+    )]
+    MissingSequencerConfig,
+
+    #[error("An Edge config was expected to be found in the config file")]
+    MissingEdgeConfig,
+
+    #[error("A TCE config was expected to be found in the config file")]
+    MissingTCEConfig,
+}
+
 pub async fn start(
     verbose: u8,
     no_color: bool,
     otlp_agent: Option<String>,
     otlp_service_name: Option<String>,
     no_edge_process: bool,
-    node_path: PathBuf,
-    home: PathBuf,
     config: NodeConfig,
-) -> Result<(), Box<dyn std::error::Error>> {
-    println!(
-        "⚙️ Reading the configuration from {}/config.toml",
-        node_path.display()
-    );
-
-    // Load genesis pointed by the local config
-    let genesis_file_path = home
-        .join("subnet")
-        .join(config.base.subnet.clone())
-        .join("genesis.json");
-
-    let genesis = match Genesis::new(genesis_file_path.clone()) {
-        Ok(genesis) => genesis,
-        Err(_) => {
-            println!(
-                "Could not load genesis.json file on path {} \n Please make sure to have a valid \
-                 genesis.json file for your subnet in the {}/subnet/{} folder.",
-                genesis_file_path.display(),
-                home.display(),
-                &config.base.subnet
-            );
-            std::process::exit(1);
-        }
-    };
-
-    // Get secrets
-    let keys = match &config.base.secrets_config {
-        Some(secrets_config) => SecretManager::from_aws(secrets_config),
-        None => SecretManager::from_fs(node_path.clone()),
-    };
-
+) -> Result<(), Error> {
     // Setup instrumentation if both otlp agent and otlp service name
     // are provided as arguments
     let basic_controller = setup_tracing(
@@ -74,6 +64,28 @@ pub async fn start(
         otlp_service_name,
         env!("TOPOS_VERSION"),
     )?;
+
+    info!(
+        "⚙️ Read the configuration from {}/config.toml",
+        config.node_path.display()
+    );
+
+    debug!("TceConfig: {:?}", config);
+
+    let genesis: Genesis = config.as_ref().try_into().map_err(|error| {
+        info!(
+            "Could not load genesis.json file on path {} \n Please make sure to have a valid \
+             genesis.json file for your subnet in the {}/subnet/{} folder.",
+            config.edge_path.display(),
+            config.home_path.display(),
+            &config.base.subnet
+        );
+
+        error
+    })?;
+
+    // Get secrets
+    let keys: SecretManager = config.as_ref().into();
 
     info!(
         "🧢 New joiner: {} for the \"{}\" subnet as {:?}",
@@ -88,13 +100,11 @@ pub async fn start(
     let mut processes = spawn_processes(
         no_edge_process,
         config,
-        node_path,
-        home,
         genesis,
         shutdown_sender,
         keys,
         shutdown_token,
-    );
+    )?;
 
     let mut sigterm_stream = signal::unix::signal(SignalKind::terminate())?;
 
@@ -130,51 +140,51 @@ pub async fn start(
             }
         }
     };
+
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
 fn spawn_processes(
     no_edge_process: bool,
-    config: NodeConfig,
-    node_path: PathBuf,
-    edge_path: PathBuf,
+    mut config: NodeConfig,
     genesis: Genesis,
     shutdown_sender: mpsc::Sender<()>,
     keys: SecretManager,
     shutdown_token: CancellationToken,
-) -> FuturesUnordered<JoinHandle<Result<ExitStatus, Errors>>> {
+) -> Result<FuturesUnordered<JoinHandle<Result<ExitStatus, Errors>>>, Error> {
     let processes = FuturesUnordered::new();
 
     // Edge node
     if no_edge_process {
         info!("Using external edge node, skip running of local edge instance...")
-    } else if let Some(edge_config) = config.edge {
-        let data_dir = node_path.clone();
+    } else {
+        let edge_config = config.edge.take().ok_or(Error::MissingEdgeConfig)?;
+
+        let data_dir = config.node_path.clone();
+
         info!(
             "Spawning edge process with genesis file: {}, data directory: {}, additional edge \
              arguments: {:?}",
-            genesis.path.display(),
+            config.edge_path.display(),
             data_dir.display(),
             edge_config.args
         );
+
         processes.push(process::spawn_edge_process(
-            edge_path.join(BINARY_NAME),
+            config.home_path.join(BINARY_NAME),
             data_dir,
-            genesis.path.clone(),
+            config.edge_path.clone(),
             edge_config.args,
         ));
-    } else {
-        error!("Missing edge configuration, could not run edge node!");
-        std::process::exit(1);
     }
 
     // Sequencer
     if matches!(config.base.role, NodeRole::Sequencer) {
         let sequencer_config = config
             .sequencer
-            .clone()
-            .expect("valid sequencer configuration");
+            .take()
+            .ok_or(Error::MissingSequencerConfig)?;
+
         info!(
             "Running sequencer with configuration {:?}",
             sequencer_config
@@ -188,9 +198,11 @@ fn spawn_processes(
 
     // TCE
     if config.base.subnet == "topos" {
+        let tce_config = config.tce.ok_or(Error::MissingTCEConfig)?;
         info!("Running topos TCE service...",);
+
         processes.push(process::spawn_tce_process(
-            config.tce.unwrap(),
+            tce_config,
             keys,
             genesis,
             (shutdown_token.clone(), shutdown_sender.clone()),
@@ -198,7 +210,7 @@ fn spawn_processes(
     }
 
     drop(shutdown_sender);
-    processes
+    Ok(processes)
 }
 
 async fn shutdown(

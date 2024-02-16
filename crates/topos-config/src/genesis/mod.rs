@@ -8,12 +8,13 @@ use topos_core::types::ValidatorId;
 use topos_p2p::{Multiaddr, PeerId};
 use tracing::info;
 
+use crate::node::NodeConfig;
+
 #[cfg(test)]
 pub(crate) mod tests;
 
 /// From the Edge format
 pub struct Genesis {
-    pub path: PathBuf,
     pub json: Value,
 }
 
@@ -21,19 +22,20 @@ pub struct Genesis {
 pub enum Error {
     #[error("Failed to parse validators")]
     ParseValidators,
+
     #[error("Invalid genesis file on path {0}: {1}")]
     InvalidGenesisFile(String, String),
 }
 
 impl Genesis {
-    pub fn new(path: PathBuf) -> Result<Self, Error> {
+    pub fn new(path: &PathBuf) -> Result<Self, Error> {
         info!("Reading subnet genesis file {}", path.display());
-        let genesis_file = fs::File::open(&path)
+        let genesis_file = fs::File::open(path)
             .map_err(|e| Error::InvalidGenesisFile(path.display().to_string(), e.to_string()))?;
 
         let json: Value = serde_json::from_reader(genesis_file).expect("genesis json parsed");
 
-        Ok(Self { path, json })
+        Ok(Self { json })
     }
 
     // TODO: parse directly with serde
@@ -101,5 +103,13 @@ impl Genesis {
                 Ok(validator_public_keys)
             },
         )
+    }
+}
+
+impl TryFrom<&NodeConfig> for Genesis {
+    type Error = Error;
+
+    fn try_from(config: &NodeConfig) -> Result<Self, Self::Error> {
+        Genesis::new(&config.edge_path)
     }
 }
