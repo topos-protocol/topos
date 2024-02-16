@@ -1,3 +1,5 @@
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     env,
@@ -35,7 +37,9 @@ impl Behaviour {
     ) -> Result<usize, &'static str> {
         match topic {
             TOPOS_GOSSIP => {
-                _ = self.gossipsub.publish(IdentTopic::new(topic), message);
+                if let Ok(msg_id) = self.gossipsub.publish(IdentTopic::new(topic), message) {
+                    debug!("Published on topos_gossip: {:?}", msg_id);
+                }
             }
             TOPOS_ECHO | TOPOS_READY => self.pending.entry(topic).or_default().push_back(message),
             _ => return Err("Invalid topic"),
@@ -68,6 +72,12 @@ impl Behaviour {
         let gossipsub = gossipsub::ConfigBuilder::default()
             .max_transmit_size(2 * 1024 * 1024)
             .validation_mode(gossipsub::ValidationMode::Strict)
+            .message_id_fn(|msg_id| {
+                // Content based id
+                let mut s = DefaultHasher::new();
+                msg_id.data.hash(&mut s);
+                gossipsub::MessageId::from(s.finish().to_be_bytes())
+            })
             .build()
             .unwrap();
 
