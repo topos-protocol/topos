@@ -70,8 +70,8 @@ impl CommandConfig {
 
         let mut child = command
             .stderr(Stdio::piped())
-            .stdout(Stdio::inherit())
-            .stdin(Stdio::inherit())
+            .stdout(Stdio::piped())
+            .stdin(Stdio::piped())
             .spawn()?;
 
         if let Some(pid) = child.id() {

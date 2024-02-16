@@ -1,13 +1,12 @@
 [package]
-name = "topos"
-version = "0.0.11"
+name = "topos-node"
+version = "0.1.0"
 edition = "2021"
 
 [lints]
 workspace = true
 
 [dependencies]
-topos-node = { path = "../topos-node/" }
 topos-config = { path = "../topos-config/" }
 topos-tce = { path = "../topos-tce/" }
 topos-p2p = { path = "../topos-p2p" }
