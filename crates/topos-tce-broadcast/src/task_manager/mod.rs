@@ -87,6 +87,32 @@ impl TaskManager {
         }
     }
 
+    /// Fetch the next pending certificates from the storage and create tasks for them.
+    /// This method is called periodically to check for new pending certificates and when
+    /// a task has finished.
+    fn next_pending_certificate(&mut self) {
+        debug!("Checking for next pending_certificates");
+        match self.validator_store.get_next_pending_certificates(
+            &self.latest_pending_id,
+            *PENDING_LIMIT_PER_REQUEST_TO_STORAGE,
+        ) {
+            Ok(pendings) => {
+                debug!("Received {} pending certificates", pendings.len());
+                for (pending_id, certificate) in pendings {
+                    debug!(
+                        "Creating task for pending certificate {} at position {} if needed",
+                        certificate.id, pending_id
+                    );
+                    self.create_task(&certificate, true);
+                    self.latest_pending_id = pending_id;
+                }
+            }
+            Err(error) => {
+                error!("Error while fetching pending certificates: {:?}", error);
+            }
+        }
+    }
+
     pub async fn run(mut self, shutdown_receiver: CancellationToken) {
         let mut interval = tokio::time::interval(Duration::from_secs(1));
 
@@ -95,20 +121,7 @@ impl TaskManager {
                 biased;
 
                 _ = interval.tick() => {
-                    debug!("Checking for next pending_certificates");
-                    match self.validator_store.get_next_pending_certificates(&self.latest_pending_id, *PENDING_LIMIT_PER_REQUEST_TO_STORAGE) {
-                        Ok(pendings) => {
-                            debug!("Received {} pending certificates", pendings.len());
-                            for (pending_id, certificate) in pendings {
-                                debug!("Creating task for pending certificate {} at position {} if needed", certificate.id, pending_id);
-                                self.create_task(&certificate, true);
-                                self.latest_pending_id = pending_id;
-                            }
-                        }
-                        Err(error) => {
-                            error!("Error while fetching pending certificates: {:?}", error);
-                        }
-                    }
+                    self.next_pending_certificate();
                 }
                 Some(msg) = self.message_receiver.recv() => {
                     match msg {
@@ -136,9 +149,12 @@ impl TaskManager {
                         debug!("Task for certificate {} finished successfully", certificate_id);
                         self.tasks.remove(&certificate_id);
                         DOUBLE_ECHO_ACTIVE_TASKS_COUNT.dec();
+
                     } else {
                         debug!("Task for certificate {} finished unsuccessfully", certificate_id);
                     }
+
+                    self.next_pending_certificate();
                 }
 
                 _ = shutdown_receiver.cancelled() => {
@@ -186,6 +202,9 @@ impl TaskManager {
         }
     }
 
+    /// Create a new task for the given certificate and add it to the running tasks.
+    /// If the previous certificate is not available yet, the task will be created but not started.
+    /// This method is called when a pending certificate is fetched from the storage.
     fn create_task(&mut self, cert: &Certificate, need_gossip: bool) {
         match self.tasks.entry(cert.id) {
             std::collections::hash_map::Entry::Vacant(entry) => {

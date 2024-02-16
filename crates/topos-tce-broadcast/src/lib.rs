@@ -46,10 +46,9 @@ use topos_config::tce::broadcast::ReliableBroadcastParams;
 use topos_core::types::ValidatorId;
 use topos_core::uci::{Certificate, CertificateId};
 use topos_crypto::messages::{MessageSigner, Signature};
-use topos_metrics::DOUBLE_ECHO_COMMAND_CHANNEL_CAPACITY_TOTAL;
 use topos_tce_storage::types::CertificateDeliveredWithPositions;
 use topos_tce_storage::validator::ValidatorStore;
-use tracing::{debug, error, info};
+use tracing::{debug, error};
 
 pub use topos_core::uci;
 
@@ -157,33 +156,6 @@ impl ReliableBroadcastClient {
 
     pub fn get_double_echo_channel(&self) -> Sender<DoubleEchoCommand> {
         self.command_sender.clone()
-    }
-
-    /// Use to broadcast new certificate to the TCE network
-    pub async fn broadcast_new_certificate(
-        &self,
-        certificate: Certificate,
-        origin: bool,
-    ) -> Result<(), ()> {
-        let broadcast_commands = self.command_sender.clone();
-
-        if broadcast_commands.capacity() <= *constant::COMMAND_CHANNEL_CAPACITY {
-            DOUBLE_ECHO_COMMAND_CHANNEL_CAPACITY_TOTAL.inc();
-        }
-
-        info!("Send certificate to be broadcast");
-        if broadcast_commands
-            .send(DoubleEchoCommand::Broadcast {
-                cert: certificate,
-                need_gossip: origin,
-            })
-            .await
-            .is_err()
-        {
-            error!("Unable to send broadcast_new_certificate command, Receiver was dropped");
-        }
-
-        Ok(())
     }
 
     pub async fn shutdown(&self) -> Result<(), Errors> {

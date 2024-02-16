@@ -80,9 +80,6 @@ impl AppContext {
             ProtocolEvents::AlreadyDelivered { certificate_id } => {
                 info!("Certificate {certificate_id} already delivered")
             }
-            ProtocolEvents::Die => {
-                error!("The DoubleEcho unexpectedly died, this is unrecoverable")
-            }
             _ => {}
         }
     }

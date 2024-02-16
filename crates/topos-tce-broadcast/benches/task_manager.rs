@@ -56,7 +56,7 @@ pub async fn processing_double_echo(n: u64, validator_store: Arc<ValidatorStore>
         cmd_receiver,
         event_sender,
         double_echo_shutdown_receiver,
-        validator_store,
+        validator_store.clone(),
         broadcast_sender,
     );
 
@@ -82,7 +82,9 @@ pub async fn processing_double_echo(n: u64, validator_store: Arc<ValidatorStore>
         .collect::<Vec<_>>();
 
     for cert in &certificates {
-        double_echo.broadcast(cert.certificate.clone(), true).await;
+        _ = validator_store
+            .insert_pending_certificate(&cert.certificate)
+            .unwrap();
     }
 
     for cert in &certificates {

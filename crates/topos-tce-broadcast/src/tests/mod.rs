@@ -48,6 +48,7 @@ struct TceParams {
 struct Context {
     event_receiver: Receiver<ProtocolEvents>,
     broadcast_receiver: broadcast::Receiver<CertificateDeliveredWithPositions>,
+    validator_store: Arc<ValidatorStore>,
 }
 
 async fn create_context(params: TceParams) -> (DoubleEcho, Context) {
@@ -80,7 +81,7 @@ async fn create_context(params: TceParams) -> (DoubleEcho, Context) {
         cmd_receiver,
         event_sender,
         double_echo_shutdown_receiver,
-        validator_store,
+        validator_store.clone(),
         broadcast_sender,
     );
 
@@ -91,6 +92,7 @@ async fn create_context(params: TceParams) -> (DoubleEcho, Context) {
         Context {
             event_receiver,
             broadcast_receiver,
+            validator_store,
         },
     )
 }
@@ -178,8 +180,10 @@ async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams)
         Certificate::new_with_default_fields(PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID_1, &[])
             .expect("Dummy certificate");
 
-    // Trigger Echo upon dispatching
-    double_echo.broadcast(dummy_cert.clone(), true).await;
+    _ = ctx
+        .validator_store
+        .insert_pending_certificate(&dummy_cert)
+        .unwrap();
 
     assert!(matches!(
         ctx.event_receiver.recv().await,
@@ -230,8 +234,10 @@ async fn trigger_ready_when_reached_enough_ready(#[case] params: TceParams) {
         Certificate::new_with_default_fields(PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID_1, &[])
             .expect("Dummy certificate");
 
-    // Trigger Echo upon dispatching
-    double_echo.broadcast(dummy_cert.clone(), true).await;
+    _ = ctx
+        .validator_store
+        .insert_pending_certificate(&dummy_cert)
+        .unwrap();
 
     assert!(matches!(
         ctx.event_receiver.recv().await,
