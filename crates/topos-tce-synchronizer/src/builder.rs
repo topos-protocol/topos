@@ -7,16 +7,15 @@ use topos_p2p::NetworkClient;
 use topos_tce_storage::validator::ValidatorStore;
 
 use crate::{
-    checkpoints_collector::{
-        CheckpointSynchronizer, CheckpointsCollectorConfig, CheckpointsCollectorError,
-    },
+    checkpoints_collector::{CheckpointSynchronizer, CheckpointsCollectorError},
     Synchronizer, SynchronizerError, SynchronizerEvent,
 };
+use topos_config::tce::synchronization::SynchronizationConfig;
 
 pub struct SynchronizerBuilder {
     network_client: Option<NetworkClient>,
     store: Option<Arc<ValidatorStore>>,
-    sync_interval_seconds: u64,
+    config: SynchronizationConfig,
     /// Size of the channel producing events (default: 100)
     event_channel_size: usize,
     /// CancellationToken used to trigger shutdown of the Synchronizer
@@ -28,7 +27,7 @@ impl Default for SynchronizerBuilder {
         Self {
             network_client: None,
             store: None,
-            sync_interval_seconds: 1,
+            config: SynchronizationConfig::default(),
             event_channel_size: 100,
             shutdown: None,
         }
@@ -53,7 +52,7 @@ impl SynchronizerBuilder {
 
         spawn(
             CheckpointSynchronizer {
-                config: CheckpointsCollectorConfig::default(),
+                config: self.config,
                 network: if let Some(network) = self.network_client {
                     network
                 } else {
@@ -100,8 +99,8 @@ impl SynchronizerBuilder {
         self
     }
 
-    pub fn with_sync_interval_seconds(mut self, sync_interval_seconds: u64) -> Self {
-        self.sync_interval_seconds = sync_interval_seconds;
+    pub fn with_config(mut self, config: SynchronizationConfig) -> Self {
+        self.config = config;
 
         self
     }

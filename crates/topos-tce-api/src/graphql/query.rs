@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use async_graphql::{Context, EmptyMutation, Object, Schema, Subscription};
@@ -13,6 +14,7 @@ use topos_core::api::graphql::{
     query::CertificateQuery,
 };
 use topos_core::types::stream::CertificateSourceStreamPosition;
+use topos_metrics::{STORAGE_PENDING_POOL_COUNT, STORAGE_PRECEDENCE_POOL_COUNT};
 use topos_tce_storage::fullnode::FullNodeStore;
 use topos_tce_storage::store::ReadStore;
 
@@ -112,6 +114,20 @@ impl QueryRoot {
         certificate_id: CertificateId,
     ) -> Result<Certificate, GraphQLServerError> {
         Self::certificate_by_id(ctx, certificate_id).await
+    }
+
+    /// This endpoint is used to get the current storage pool stats.
+    /// It returns the number of certificates in the pending and precedence pools.
+    /// The values are estimated as having a precise count is costly.
+    async fn get_storage_pool_stats(
+        &self,
+        _ctx: &Context<'_>,
+    ) -> Result<HashMap<&str, i64>, GraphQLServerError> {
+        let mut stats = HashMap::new();
+        stats.insert("pending_pool", STORAGE_PENDING_POOL_COUNT.get());
+        stats.insert("precedence_pool", STORAGE_PRECEDENCE_POOL_COUNT.get());
+
+        Ok(stats)
     }
 
     /// This endpoint is used to get the current checkpoint of the source streams.

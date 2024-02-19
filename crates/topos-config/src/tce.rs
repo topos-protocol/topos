@@ -15,9 +15,11 @@ use topos_p2p::{Multiaddr, PeerId};
 
 use self::broadcast::ReliableBroadcastParams;
 use self::p2p::P2PConfig;
+use self::synchronization::SynchronizationConfig;
 
 pub mod broadcast;
 pub mod p2p;
+pub mod synchronization;
 
 const DEFAULT_IP: std::net::Ipv4Addr = std::net::Ipv4Addr::new(0, 0, 0, 0);
 
@@ -67,6 +69,10 @@ pub struct TceConfig {
     /// P2P configuration
     #[serde(default)]
     pub p2p: P2PConfig,
+
+    /// Synchronization configuration
+    #[serde(default)]
+    pub synchronization: SynchronizationConfig,
 
     /// gRPC API Addr
     #[serde(default = "default_grpc_api_addr")]

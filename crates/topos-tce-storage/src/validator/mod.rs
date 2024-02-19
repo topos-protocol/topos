@@ -22,6 +22,7 @@ use std::{
 
 use async_trait::async_trait;
 
+use rocksdb::properties::ESTIMATE_NUM_KEYS;
 use topos_core::{
     types::{
         stream::{CertificateSourceStreamPosition, Position},
@@ -29,7 +30,8 @@ use topos_core::{
     },
     uci::{Certificate, CertificateId, SubnetId, INITIAL_CERTIFICATE_ID},
 };
-use tracing::{debug, error, info, instrument};
+use topos_metrics::{STORAGE_PENDING_POOL_COUNT, STORAGE_PRECEDENCE_POOL_COUNT};
+use tracing::{debug, error, info, instrument, warn};
 
 use crate::{
     errors::{InternalStorageError, StorageError},
@@ -68,10 +70,50 @@ impl ValidatorStore {
         fullnode_store: Arc<FullNodeStore>,
     ) -> Result<Arc<Self>, StorageError> {
         let pending_tables: ValidatorPendingTables = ValidatorPendingTables::open(path);
+
         let store = Arc::new(Self {
             pending_tables,
             fullnode_store,
         });
+
+        store.pending_tables.pending_pool.rocksdb.compact_range_cf(
+            &store.pending_tables.pending_pool.cf()?,
+            None::<&[u8]>,
+            None::<&[u8]>,
+        );
+        store
+            .pending_tables
+            .precedence_pool
+            .rocksdb
+            .compact_range_cf(
+                &store.pending_tables.precedence_pool.cf()?,
+                None::<&[u8]>,
+                None::<&[u8]>,
+            );
+
+        let pending_count: i64 =
+            store
+                .count_pending_certificates()?
+                .try_into()
+                .map_err(|error| {
+                    warn!("Failed to convert estimate-num-keys to i64: {}", error);
+                    StorageError::InternalStorage(InternalStorageError::UnexpectedDBState(
+                        "Failed to convert estimate-num-keys to i64",
+                    ))
+                })?;
+
+        let precedence_count: i64 = store
+            .count_precedence_pool_certificates()?
+            .try_into()
+            .map_err(|error| {
+                warn!("Failed to convert estimate-num-keys to i64: {}", error);
+                StorageError::InternalStorage(InternalStorageError::UnexpectedDBState(
+                    "Failed to convert estimate-num-keys to i64",
+                ))
+            })?;
+
+        STORAGE_PENDING_POOL_COUNT.set(pending_count);
+        STORAGE_PRECEDENCE_POOL_COUNT.set(precedence_count);
 
         Ok(store)
     }
@@ -82,13 +124,19 @@ impl ValidatorStore {
     }
 
     /// Returns the number of certificates in the pending pool
-    pub fn count_pending_certificates(&self) -> Result<usize, StorageError> {
-        Ok(self.pending_tables.pending_pool.iter()?.count())
+    pub fn count_pending_certificates(&self) -> Result<u64, StorageError> {
+        Ok(self
+            .pending_tables
+            .pending_pool
+            .property_int_value(ESTIMATE_NUM_KEYS)?)
     }
 
     /// Returns the number of certificates in the precedence pool
-    pub fn count_precedence_pool_certificates(&self) -> Result<usize, StorageError> {
-        Ok(self.pending_tables.precedence_pool.iter()?.count())
+    pub fn count_precedence_pool_certificates(&self) -> Result<u64, StorageError> {
+        Ok(self
+            .pending_tables
+            .precedence_pool
+            .property_int_value(ESTIMATE_NUM_KEYS)?)
     }
 
     /// Try to return the [`PendingCertificateId`] for a [`CertificateId`]
@@ -171,7 +219,8 @@ impl ValidatorStore {
         Ok(result)
     }
 
-    pub fn insert_pending_certificates(
+    #[cfg(test)]
+    pub(crate) fn insert_pending_certificates(
         &self,
         certificates: &[Certificate],
     ) -> Result<Vec<PendingCertificateId>, StorageError> {
@@ -199,6 +248,8 @@ impl ValidatorStore {
         batch = batch.insert_batch(&self.pending_tables.pending_pool_index, index)?;
 
         batch.write()?;
+
+        STORAGE_PENDING_POOL_COUNT.add(ids.len() as i64);
 
         Ok(ids)
     }
@@ -243,6 +294,7 @@ impl ValidatorStore {
                 .pending_pool_index
                 .insert(&certificate.id, &id)?;
 
+            STORAGE_PENDING_POOL_COUNT.inc();
             debug!(
                 "Certificate {} is now in the pending pool at index: {}",
                 certificate.id, id
@@ -252,6 +304,8 @@ impl ValidatorStore {
             self.pending_tables
                 .precedence_pool
                 .insert(&certificate.prev_id, certificate)?;
+
+            STORAGE_PRECEDENCE_POOL_COUNT.inc();
             debug!(
                 "Certificate {} is now in the precedence pool, because the previous certificate \
                  {} isn't delivered yet",
@@ -343,6 +397,7 @@ impl ValidatorStore {
     pub fn get_checkpoint_diff(
         &self,
         from: &[ProofOfDelivery],
+        limit_per_subnet: usize,
     ) -> Result<HashMap<SubnetId, Vec<ProofOfDelivery>>, StorageError> {
         // Parse the from in order to extract the different position per subnets
         let from_positions: HashMap<SubnetId, &ProofOfDelivery> = from
@@ -374,7 +429,7 @@ impl ValidatorStore {
                     .streams
                     .prefix_iter(&(&subnet, &position.delivery_position.position))?
                     .skip(1)
-                    .take(100)
+                    .take(limit_per_subnet)
                     .map(|(_, v)| v)
                     .collect()
             } else {
@@ -382,7 +437,7 @@ impl ValidatorStore {
                     .perpetual_tables
                     .streams
                     .prefix_iter(&(&subnet, Position::ZERO))?
-                    .take(100)
+                    .take(limit_per_subnet)
                     .map(|(_, v)| v)
                     .collect()
             };
@@ -423,6 +478,7 @@ impl ValidatorStore {
                 .pending_pool_index
                 .delete(&certificate.id)?;
 
+            STORAGE_PENDING_POOL_COUNT.dec();
             Ok(certificate)
         } else {
             Err(StorageError::InternalStorage(
@@ -434,7 +490,7 @@ impl ValidatorStore {
     }
 }
 impl ReadStore for ValidatorStore {
-    fn count_certificates_delivered(&self) -> Result<usize, StorageError> {
+    fn count_certificates_delivered(&self) -> Result<u64, StorageError> {
         self.fullnode_store.count_certificates_delivered()
     }
 
@@ -519,6 +575,12 @@ impl WriteStore for ValidatorStore {
             .get(&certificate.certificate.id)
         {
             _ = self.pending_tables.pending_pool.delete(&pending_id);
+            _ = self
+                .pending_tables
+                .pending_pool_index
+                .delete(&certificate.certificate.id);
+
+            STORAGE_PENDING_POOL_COUNT.dec();
         }
 
         if let Ok(Some(next_certificate)) = self
@@ -534,6 +596,9 @@ impl WriteStore for ValidatorStore {
             self.pending_tables
                 .precedence_pool
                 .delete(&certificate.certificate.id)?;
+
+            STORAGE_PRECEDENCE_POOL_COUNT.dec();
+            STORAGE_PENDING_POOL_COUNT.inc();
         }
 
         Ok(position)

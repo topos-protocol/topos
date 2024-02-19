@@ -18,6 +18,7 @@ strip = true
 [workspace.dependencies]
 topos-core = { path = "./crates/topos-core", default-features = false }
 topos-crypto = { path = "./crates/topos-crypto", default-features = false }
+topos-metrics = { path = "./crates/topos-metrics/", default-features = false }
 
 # Various utility crates
 clap = { version = "4.0", features = ["derive", "env", "string"] }

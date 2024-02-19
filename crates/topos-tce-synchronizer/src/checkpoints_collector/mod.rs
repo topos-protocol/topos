@@ -24,23 +24,22 @@ use topos_core::{
     uci::{Certificate, CertificateId, SubnetId},
 };
 
+use topos_config::tce::synchronization::SynchronizationConfig;
 use topos_p2p::{error::P2PError, NetworkClient, PeerId};
 use topos_tce_storage::{errors::StorageError, store::ReadStore, validator::ValidatorStore};
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
-mod config;
 mod error;
 #[cfg(test)]
 mod tests;
 
-pub use config::CheckpointsCollectorConfig;
 pub use error::CheckpointsCollectorError;
 
 use crate::SynchronizerService;
 
 pub struct CheckpointSynchronizer {
-    pub(crate) config: CheckpointsCollectorConfig,
+    pub(crate) config: SynchronizationConfig,
 
     pub(crate) network: NetworkClient,
     #[allow(unused)]
@@ -62,7 +61,7 @@ impl IntoFuture for CheckpointSynchronizer {
     fn into_future(mut self) -> Self::IntoFuture {
         async move {
             let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(
-                self.config.sync_interval_seconds,
+                self.config.interval_seconds,
             ));
 
             loop {
@@ -156,6 +155,11 @@ impl CheckpointSynchronizer {
         let req = CheckpointRequest {
             request_id: Some(request_id.into()),
             checkpoint,
+            limit_per_subnet: self
+                .config
+                .limit_per_subnet
+                .try_into()
+                .unwrap_or(SynchronizationConfig::LIMIT_PER_SUBNET as u64),
         };
 
         let mut client: SynchronizerServiceClient<_> = self

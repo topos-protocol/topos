@@ -1,6 +1,6 @@
 use prometheus::{
-    self, register_histogram_with_registry, register_int_counter_with_registry, Histogram,
-    IntCounter,
+    self, register_histogram_with_registry, register_int_counter_with_registry,
+    register_int_gauge_with_registry, Histogram, IntCounter, IntGauge,
 };
 
 use lazy_static::lazy_static;
@@ -31,4 +31,16 @@ lazy_static! {
             TOPOS_METRIC_REGISTRY
         )
         .unwrap();
+    pub static ref STORAGE_PENDING_POOL_COUNT: IntGauge = register_int_gauge_with_registry!(
+        "storage_pending_pool_count",
+        "Number of certificates in the pending pool.",
+        TOPOS_METRIC_REGISTRY
+    )
+    .unwrap();
+    pub static ref STORAGE_PRECEDENCE_POOL_COUNT: IntGauge = register_int_gauge_with_registry!(
+        "storage_precedence_pool_count",
+        "Number of certificates in the precedence pool.",
+        TOPOS_METRIC_REGISTRY
+    )
+    .unwrap();
 }
