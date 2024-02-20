@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::Path;
 use std::sync::Arc;
 use std::{collections::HashMap, sync::RwLock};
 
@@ -23,7 +23,7 @@ pub struct ValidatorPerEpochStore {
 }
 
 impl ValidatorPerEpochStore {
-    pub fn new(epoch_id: EpochId, path: PathBuf) -> Result<ArcSwap<Self>, StorageError> {
+    pub fn new(epoch_id: EpochId, path: &Path) -> Result<ArcSwap<Self>, StorageError> {
         let tables: ValidatorPerEpochTables = ValidatorPerEpochTables::open(epoch_id, path);
         let store = ArcSwap::from(Arc::new(Self {
             epoch_id,
@@ -42,7 +42,7 @@ pub struct EpochValidatorsStore {
 }
 
 impl EpochValidatorsStore {
-    pub fn new(path: PathBuf) -> Result<Arc<Self>, StorageError> {
+    pub fn new(path: &Path) -> Result<Arc<Self>, StorageError> {
         let tables = EpochValidatorsTables::open(path);
         let store = Arc::new(Self {
             tables,

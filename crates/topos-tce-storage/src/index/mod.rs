@@ -1,4 +1,4 @@
-use std::{fs::create_dir_all, path::PathBuf};
+use std::{fs::create_dir_all, path::Path};
 
 use rocksdb::ColumnFamilyDescriptor;
 use topos_core::{
@@ -27,8 +27,8 @@ pub struct IndexTables {
 }
 
 impl IndexTables {
-    pub fn open(mut path: PathBuf) -> Self {
-        path.push("index");
+    pub fn open(path: &Path) -> Self {
+        let path = path.join("index");
         if !path.exists() {
             warn!("Path {:?} does not exist, creating it", path);
             create_dir_all(&path).expect("Cannot create IndexTables directory");

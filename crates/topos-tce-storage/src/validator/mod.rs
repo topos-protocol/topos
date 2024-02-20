@@ -16,7 +16,7 @@
 //!
 use std::{
     collections::HashMap,
-    path::PathBuf,
+    path::Path,
     sync::{atomic::Ordering, Arc},
 };
 
@@ -64,9 +64,16 @@ pub struct ValidatorStore {
 }
 
 impl ValidatorStore {
+    /// Try to create a new instance of [`ValidatorStore`] based on the given path
+    pub fn new(path: &Path) -> Result<Arc<Self>, StorageError> {
+        let fullnode_store = FullNodeStore::new(path)?;
+
+        Self::open(path, fullnode_store)
+    }
+
     /// Open a [`ValidatorStore`] at the given `path` and using the given [`FullNodeStore`]
     pub fn open(
-        path: PathBuf,
+        path: &Path,
         fullnode_store: Arc<FullNodeStore>,
     ) -> Result<Arc<Self>, StorageError> {
         let pending_tables: ValidatorPendingTables = ValidatorPendingTables::open(path);

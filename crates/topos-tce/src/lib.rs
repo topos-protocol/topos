@@ -16,14 +16,7 @@ use topos_p2p::{
     GrpcContext, GrpcRouter,
 };
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
-use topos_tce_storage::{
-    epoch::{EpochValidatorsStore, ValidatorPerEpochStore},
-    fullnode::FullNodeStore,
-    index::IndexTables,
-    store::ReadStore,
-    validator::{ValidatorPerpetualTables, ValidatorStore},
-    StorageClient,
-};
+use topos_tce_storage::{store::ReadStore, validator::ValidatorStore, StorageClient};
 use topos_tce_synchronizer::SynchronizerService;
 use tracing::{debug, info, warn};
 
@@ -108,25 +101,10 @@ pub async fn run(
         )));
     };
 
-    let perpetual_tables = Arc::new(ValidatorPerpetualTables::open(path.clone()));
-    let index_tables = Arc::new(IndexTables::open(path.clone()));
-
-    let validators_store = EpochValidatorsStore::new(path.clone())
-        .map_err(|error| format!("Unable to create EpochValidators store: {error}"))?;
-
-    let epoch_store = ValidatorPerEpochStore::new(0, path.clone())
-        .map_err(|error| format!("Unable to create Per epoch store: {error}"))?;
-
-    let fullnode_store = FullNodeStore::open(
-        epoch_store,
-        validators_store,
-        perpetual_tables,
-        index_tables,
-    )
-    .map_err(|error| format!("Unable to create Fullnode store: {error}"))?;
-
-    let validator_store = ValidatorStore::open(path.clone(), fullnode_store.clone())
+    let validator_store = ValidatorStore::new(path)
         .map_err(|error| format!("Unable to create validator store: {error}"))?;
+
+    let fullnode_store = validator_store.get_fullnode_store();
 
     let certificates_synced = fullnode_store
         .count_certificates_delivered()
