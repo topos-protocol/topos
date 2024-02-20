@@ -3,7 +3,7 @@ use std::process::Command;
 const DEFAULT_VERSION: &str = "detached";
 
 fn main() {
-    // Set TOPOS_VERSION to HEAD short commit hash if None
+    // Set TOPOS_VERSION to HEAD short commit hash unless it's already set
     if std::option_env!("TOPOS_VERSION").is_none() {
         let output = Command::new("git")
             .args(["rev-parse", "--short", "HEAD"])

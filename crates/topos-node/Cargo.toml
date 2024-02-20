@@ -3,6 +3,8 @@ name = "topos-node"
 version = "0.1.0"
 edition = "2021"
 
+description = "Runtime crate of a topos-node"
+
 [lints]
 workspace = true
 
