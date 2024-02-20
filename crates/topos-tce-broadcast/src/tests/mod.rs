@@ -1,6 +1,7 @@
 use crate::double_echo::*;
 use crate::event::ProtocolEvents;
 use rstest::*;
+use std::collections::HashSet;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;

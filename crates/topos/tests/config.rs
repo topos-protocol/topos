@@ -21,8 +21,9 @@ mod serial_integration {
 
     #[rstest]
     #[tokio::test]
-    async fn handle_command_init(create_folder: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
-        let home = create_folder;
+    async fn handle_command_init(
+        #[from(create_folder)] home: PathBuf,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let path = setup_polygon_edge(home.to_str().unwrap()).await;
 
         let mut cmd = Command::cargo_bin("topos")?;
@@ -249,9 +250,9 @@ mod serial_integration {
     /// Test node up running from config file
     #[rstest]
     #[test_log::test(tokio::test)]
-    async fn command_node_up(create_folder: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
-        let tmp_home_dir = create_folder;
-
+    async fn command_node_up(
+        #[from(create_folder)] tmp_home_dir: PathBuf,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         // Create config file
         let node_up_home_env = tmp_home_dir.to_str().unwrap();
         let node_edge_path_env = setup_polygon_edge(node_up_home_env).await;
@@ -334,10 +335,8 @@ mod serial_integration {
     #[rstest::rstest]
     #[test_log::test(tokio::test)]
     async fn command_node_up_with_old_config(
-        create_folder: PathBuf,
+        #[from(create_folder)] tmp_home_dir: PathBuf,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let tmp_home_dir = create_folder;
-
         // Create config file
         let node_up_home_env = tmp_home_dir.to_str().unwrap();
         let node_edge_path_env = setup_polygon_edge(node_up_home_env).await;
@@ -438,7 +437,7 @@ mod serial_integration {
                 Regex::new(r#"Local node is listening on "\/ip4\/.*\/tcp\/9091\/p2p\/"#).unwrap();
             assert!(reg.is_match(&stdout));
         } else {
-            panic!("Failed to gracefull shutdown");
+            panic!("Failed to shutdown gracefully");
         }
         // Cleanup
         std::fs::remove_dir_all(node_up_home_env)?;
