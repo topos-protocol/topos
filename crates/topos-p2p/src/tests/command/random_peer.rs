@@ -13,7 +13,7 @@ use crate::error::P2PError;
 async fn no_random_peer() {
     let local = NodeConfig::from_seed(1);
 
-    let (client, _, mut runtime) = crate::network::builder()
+    let (client, stream, runtime) = crate::network::builder()
         .minimum_cluster_size(0)
         .peer_key(local.keypair.clone())
         .public_addresses(&[local.addr.clone()])
@@ -24,9 +24,7 @@ async fn no_random_peer() {
         .await
         .expect("Unable to create p2p network");
 
-    runtime.bootstrap().await.unwrap();
-
-    spawn(runtime.run());
+    tokio::spawn(runtime.run());
 
     let result = client.random_known_peer().await;
 
@@ -47,7 +45,7 @@ async fn return_a_peer() {
     let expected = NodeConfig::from_seed(2);
     let expected_peer_id = expected.keypair.public().to_peer_id();
 
-    let (client, _, mut runtime) = crate::network::builder()
+    let (client, stream, mut runtime) = crate::network::builder()
         .minimum_cluster_size(0)
         .peer_key(local.keypair.clone())
         .public_addresses(vec![local.addr.clone()])
@@ -56,10 +54,7 @@ async fn return_a_peer() {
         .await
         .expect("Unable to create p2p network");
 
-    runtime.bootstrap().await.unwrap();
-
     runtime.peer_set.insert(expected_peer_id);
-
     spawn(runtime.run());
 
     let result = client.random_known_peer().await;
@@ -77,7 +72,7 @@ async fn return_a_peer() {
 async fn return_a_random_peer_among_100() {
     let local = NodeConfig::from_seed(1);
 
-    let (client, _, mut runtime) = crate::network::builder()
+    let (client, stream, mut runtime) = crate::network::builder()
         .minimum_cluster_size(0)
         .peer_key(local.keypair.clone())
         .public_addresses(vec![local.addr.clone()])
@@ -85,8 +80,6 @@ async fn return_a_random_peer_among_100() {
         .build()
         .await
         .expect("Unable to create p2p network");
-
-    runtime.bootstrap().await.unwrap();
 
     for i in 2..=100 {
         let peer = NodeConfig::from_seed(i);

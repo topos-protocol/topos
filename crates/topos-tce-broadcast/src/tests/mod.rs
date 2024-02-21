@@ -58,7 +58,7 @@ struct Context {
 }
 
 async fn create_context(params: TceParams) -> (DoubleEcho, Context) {
-    let validator_store = create_validator_store::partial_1(vec![]).await;
+    let validator_store = create_validator_store::default().await;
     let (_cmd_sender, cmd_receiver) = mpsc::channel(CHANNEL_SIZE);
     let (event_sender, event_receiver) = mpsc::channel(CHANNEL_SIZE);
     let (_double_echo_shutdown_sender, double_echo_shutdown_receiver) =

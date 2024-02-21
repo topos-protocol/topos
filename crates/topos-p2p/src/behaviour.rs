@@ -8,6 +8,17 @@ pub(crate) mod grpc;
 pub(crate) mod peer_info;
 pub(crate) mod topos;
 
+/// Represents the health status of a behaviour inside the p2p layer
+#[derive(Default, PartialEq, Eq)]
+pub(crate) enum HealthStatus {
+    #[default]
+    Initializing,
+    Healthy,
+    Unhealthy,
+    #[allow(unused)]
+    Recovering,
+}
+
 #[derive(NetworkBehaviour)]
 #[behaviour(to_swarm = "ComposedEvent")]
 pub(crate) struct Behaviour {

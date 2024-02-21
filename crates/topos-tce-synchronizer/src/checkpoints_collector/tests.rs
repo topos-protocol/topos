@@ -65,7 +65,7 @@ async fn check_fetch_certificates() {
         create_certificate_chain(subnet, &[topos_test_sdk::constants::TARGET_SUBNET_ID_1], 1);
 
     let boot_node = NodeConfig::from_seed(1);
-    let cluster = create_network(5, certificates.clone()).await;
+    let cluster = create_network(5, &certificates[..]).await;
     let boot_node = cluster
         .get(&boot_node.keypair.public().to_peer_id())
         .unwrap()
@@ -78,9 +78,9 @@ async fn check_fetch_certificates() {
         ..Default::default()
     };
 
-    let fullnode_store = create_fullnode_store(vec![]).await;
+    let fullnode_store = create_fullnode_store(&[]).await;
     let validator_store =
-        create_validator_store(vec![], futures::future::ready(fullnode_store.clone())).await;
+        create_validator_store(&[], futures::future::ready(fullnode_store.clone())).await;
 
     let router = GrpcRouter::new(tonic::transport::Server::builder()).add_service(
         SynchronizerServiceServer::new(SynchronizerService {
@@ -89,7 +89,7 @@ async fn check_fetch_certificates() {
     );
 
     let (client, _, _) = cfg
-        .bootstrap(&[boot_node.clone()], Some(router))
+        .bootstrap(&[cfg.clone(), boot_node.clone()], Some(router))
         .await
         .unwrap();
 

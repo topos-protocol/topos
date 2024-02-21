@@ -32,6 +32,9 @@ pub struct DiscoveryConfig {
     pub provider_publication_interval: Option<Duration>,
     /// Interval at which the node will send bootstrap query to the network
     pub bootstrap_interval: Duration,
+    /// Interval at which the node will send fast bootstrap query to the network
+    /// Mostly used when the node is bootstrapping and failed to connect to boot peers
+    pub fast_bootstrap_interval: Duration,
 }
 
 impl Default for DiscoveryConfig {
@@ -42,6 +45,7 @@ impl Default for DiscoveryConfig {
             publication_interval: Some(Duration::from_secs(10)),
             provider_publication_interval: Some(Duration::from_secs(10)),
             bootstrap_interval: Duration::from_secs(Self::BOOTSTRAP_INTERVAL),
+            fast_bootstrap_interval: Duration::from_secs(Self::FAST_BOOTSTRAP_INTERVAL),
         }
     }
 }
@@ -49,6 +53,8 @@ impl Default for DiscoveryConfig {
 impl DiscoveryConfig {
     /// Default bootstrap interval in seconds
     pub const BOOTSTRAP_INTERVAL: u64 = 60;
+    /// Default fast bootstrap interval in seconds
+    pub const FAST_BOOTSTRAP_INTERVAL: u64 = 5;
 
     pub fn with_replication_factor(mut self, replication_factor: NonZeroUsize) -> Self {
         self.replication_factor = replication_factor;

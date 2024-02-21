@@ -3,9 +3,10 @@ use crate::{
     protocol_name, Command, Runtime,
 };
 use libp2p::{kad::RecordKey, PeerId};
+
 use rand::{thread_rng, Rng};
 use topos_metrics::P2P_MESSAGE_SENT_ON_GOSSIPSUB_TOTAL;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, warn};
 
 impl Runtime {
     pub(crate) async fn handle_command(&mut self, command: Command) {
@@ -58,57 +59,6 @@ impl Runtime {
                     .is_err()
                 {
                     warn!("Unable to notify RandomKnownPeer response: initiator is dropped");
-                }
-            }
-
-            Command::Disconnect { sender } if self.swarm.listeners().count() == 0 => {
-                if sender.send(Err(P2PError::AlreadyDisconnected)).is_err() {
-                    warn!(
-                        reason = %P2PError::AlreadyDisconnected,
-                        "Unable to notify Disconnection failure: initiator is dropped",
-                    );
-                }
-            }
-
-            Command::Disconnect { sender } => {
-                // TODO: Listeners must be handled by topos behaviour not discovery
-                let listeners = self.active_listeners.iter().cloned().collect::<Vec<_>>();
-
-                listeners.iter().for_each(|listener| {
-                    self.swarm.remove_listener(*listener);
-                });
-
-                let peers: Vec<PeerId> = self.swarm.connected_peers().cloned().collect();
-
-                for peer_id in peers {
-                    if self.swarm.disconnect_peer_id(peer_id).is_err() {
-                        info!("Peer {peer_id} wasn't connected during Disconnection command");
-                    }
-                }
-
-                if sender.send(Ok(())).is_err() {
-                    warn!("Unable to notify Disconnection: initiator is dropped",);
-                }
-            }
-
-            Command::Discover { to, sender } => {
-                let behaviour = self.swarm.behaviour_mut();
-                let addr = behaviour.discovery.get_addresses_of_peer(&to);
-
-                info!("Checking if we know {to} -> KAD {:?}", addr);
-                if addr.is_empty() {
-                    info!("We don't know {to}, fetching its Multiaddr from DHT");
-                    let query_id = behaviour
-                        .discovery
-                        .inner
-                        .get_record(RecordKey::new(&to.to_string()));
-
-                    debug!("Created a get_record query {query_id:?} for discovering {to}");
-                    if let Some(id) = self.pending_record_requests.insert(query_id, sender) {
-                        warn!("Discover request {id:?} was overwritten by {query_id:?}");
-                    }
-                } else {
-                    _ = sender.send(Ok(addr));
                 }
             }
 

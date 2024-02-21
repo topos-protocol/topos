@@ -20,14 +20,14 @@ use crate::SynchronizerService;
 
 #[rstest]
 #[test(tokio::test)]
-#[timeout(Duration::from_secs(5))]
+#[timeout(Duration::from_secs(10))]
 async fn network_test() {
     let subnet = topos_test_sdk::constants::SOURCE_SUBNET_ID_1;
     let certificates: Vec<CertificateDelivered> =
         create_certificate_chain(subnet, &[topos_test_sdk::constants::TARGET_SUBNET_ID_1], 1);
 
     let boot_node = NodeConfig::from_seed(1);
-    let cluster = create_network(5, certificates.clone()).await;
+    let cluster = create_network(5, &certificates[..]).await;
     let boot_node = cluster
         .get(&boot_node.keypair.public().to_peer_id())
         .unwrap()
@@ -40,7 +40,10 @@ async fn network_test() {
         ..Default::default()
     };
 
-    let (client, _, _) = cfg.bootstrap(&[boot_node.clone()], None).await.unwrap();
+    let (client, _, _) = cfg
+        .bootstrap(&[cfg.clone(), boot_node.clone()], None)
+        .await
+        .unwrap();
 
     use topos_core::api::grpc::shared::v1::Uuid as APIUuid;
 

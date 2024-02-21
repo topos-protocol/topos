@@ -1,12 +1,16 @@
 use libp2p::{identify, kad, PeerId};
 
-use crate::behaviour::grpc;
+use crate::behaviour::{grpc, HealthStatus};
 
+/// Represents the events that the Gossip protocol can emit
 #[derive(Debug)]
-pub struct GossipEvent {
-    pub source: Option<PeerId>,
-    pub topic: &'static str,
-    pub message: Vec<u8>,
+pub enum GossipEvent {
+    /// A message has been received from a peer on one of the subscribed topics
+    Message {
+        source: Option<PeerId>,
+        topic: &'static str,
+        message: Vec<u8>,
+    },
 }
 
 #[derive(Debug)]
@@ -42,7 +46,22 @@ impl From<void::Void> for ComposedEvent {
     }
 }
 
+/// Represents the events that the p2p layer can emit
 #[derive(Debug)]
 pub enum Event {
+    /// An event emitted when a gossip message is received
     Gossip { from: PeerId, data: Vec<u8> },
+    /// An event emitted when the p2p layer becomes healthy
+    Healthy,
+    /// An event emitted when the p2p layer becomes unhealthy
+    Unhealthy,
+}
+
+impl From<&HealthStatus> for Event {
+    fn from(value: &HealthStatus) -> Self {
+        match value {
+            HealthStatus::Healthy => Event::Healthy,
+            _ => Event::Unhealthy,
+        }
+    }
 }

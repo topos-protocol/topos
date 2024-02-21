@@ -120,7 +120,7 @@ async fn can_catchup_with_old_certs(
     #[from(create_certificate_chain)]
     certificates: Vec<CertificateDelivered>,
 ) {
-    let storage_client = storage_client::partial_1(certificates.clone());
+    let storage_client = storage_client::partial_1(&certificates[..]);
     let (mut api_context, _) = create_public_api::partial_1(storage_client).await;
 
     let mut client = api_context.api_client;
@@ -214,7 +214,7 @@ async fn can_catchup_with_old_certs_with_position(
 
     let fullnode_store = create_fullnode_store::default().await;
     let store = create_validator_store(
-        certificates.clone(),
+        &certificates[..],
         futures::future::ready(fullnode_store.clone()),
     )
     .await;
@@ -337,7 +337,7 @@ async fn boots_healthy_graphql_server(
 
     let fullnode_store = create_fullnode_store::default().await;
     let store = create_validator_store(
-        certificates.clone(),
+        &certificates[..],
         futures::future::ready(fullnode_store.clone()),
     )
     .await;
@@ -380,7 +380,7 @@ async fn graphql_server_enables_cors(
 
     let fullnode_store = create_fullnode_store::default().await;
     let store = create_validator_store(
-        certificates.clone(),
+        &certificates[..],
         futures::future::ready(fullnode_store.clone()),
     )
     .await;
@@ -450,7 +450,7 @@ async fn can_query_graphql_endpoint_for_certificates(
     let fullnode_store = create_fullnode_store::default().await;
 
     let store = create_validator_store(
-        certificates.clone(),
+        &certificates[..],
         futures::future::ready(fullnode_store.clone()),
     )
     .await;
@@ -635,8 +635,7 @@ async fn check_storage_pool_stats(
 
     let fullnode_store = create_fullnode_store::default().await;
 
-    let store =
-        create_validator_store(vec![], futures::future::ready(fullnode_store.clone())).await;
+    let store = create_validator_store(&[], futures::future::ready(fullnode_store.clone())).await;
     STORAGE_PENDING_POOL_COUNT.set(10);
     STORAGE_PRECEDENCE_POOL_COUNT.set(200);
 

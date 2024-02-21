@@ -1,6 +1,8 @@
 use super::{Behaviour, Event, NetworkClient, Runtime};
 use crate::{
-    behaviour::{discovery::DiscoveryBehaviour, gossip, grpc, peer_info::PeerInfoBehaviour},
+    behaviour::{
+        discovery::DiscoveryBehaviour, gossip, grpc, peer_info::PeerInfoBehaviour, HealthStatus,
+    },
     config::{DiscoveryConfig, NetworkConfig},
     constants::{
         self, COMMAND_STREAM_BUFFER_SIZE, DISCOVERY_PROTOCOL, EVENT_STREAM_BUFFER,
@@ -191,6 +193,7 @@ impl<'a> NetworkBuilder<'a> {
                 swarm,
                 config: self.config,
                 peer_set: self.known_peers.iter().map(|(p, _)| *p).collect(),
+                boot_peers: self.known_peers.iter().map(|(p, _)| *p).collect(),
                 command_receiver,
                 event_sender,
                 local_peer_id: peer_id,
@@ -199,6 +202,11 @@ impl<'a> NetworkBuilder<'a> {
                 active_listeners: HashSet::new(),
                 pending_record_requests: HashMap::new(),
                 shutdown,
+                state_machine: crate::runtime::StateMachine {
+                    connected_to_bootpeer_retry_count: 3,
+                    ..Default::default()
+                },
+                health_status: HealthStatus::Initializing,
             },
         ))
     }

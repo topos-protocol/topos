@@ -64,6 +64,7 @@ impl CommandConfig {
     }
 
     pub async fn spawn(self) -> Result<ExitStatus, std::io::Error> {
+        info!("Spawning Polygon Edge with args: {:?}", self.binary_path);
         let mut command = Command::new(self.binary_path);
         command.kill_on_drop(true);
         command.args(self.args);

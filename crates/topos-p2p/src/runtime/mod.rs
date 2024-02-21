@@ -1,13 +1,22 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    behaviour::discovery::PendingRecordRequest, config::NetworkConfig,
-    runtime::handle_event::EventHandler, Behaviour, Command, Event,
+    behaviour::{discovery::PendingRecordRequest, HealthStatus},
+    config::NetworkConfig,
+    error::P2PError,
+    runtime::handle_event::EventHandler,
+    Behaviour, Command, Event,
 };
-use libp2p::{core::transport::ListenerId, kad::QueryId, Multiaddr, PeerId, Swarm};
-use tokio::sync::{mpsc, oneshot};
-use tokio_stream::StreamExt;
-use tracing::{debug, error, info};
+use libp2p::{
+    core::transport::ListenerId, kad::QueryId, swarm::ConnectionId, Multiaddr, PeerId, Swarm,
+};
+use tokio::{
+    spawn,
+    sync::{mpsc, oneshot},
+    task::JoinHandle,
+};
+use tokio_stream::{Stream, StreamExt};
+use tracing::{debug, error, info, Instrument};
 
 pub struct Runtime {
     pub(crate) config: NetworkConfig,
@@ -20,6 +29,9 @@ pub struct Runtime {
     pub(crate) listening_on: Vec<Multiaddr>,
     pub(crate) public_addresses: Vec<Multiaddr>,
 
+    /// Boot peers to connect used to bootstrap the p2p layer
+    pub(crate) boot_peers: Vec<PeerId>,
+
     /// Contains current listenerId of the swarm
     pub active_listeners: HashSet<ListenerId>,
 
@@ -28,60 +40,99 @@ pub struct Runtime {
 
     /// Shutdown signal receiver from the client
     pub(crate) shutdown: mpsc::Receiver<oneshot::Sender<()>>,
+
+    /// Internal state machine of the p2p layer
+    pub(crate) state_machine: StateMachine,
+
+    pub(crate) health_status: HealthStatus,
 }
 
 mod handle_command;
 mod handle_event;
+
+/// Internal state machine of the p2p layer
+///
+/// This struct may change in the future to be more flexible and to handle more
+/// complex state transitions/representation.
+#[derive(Default)]
+pub(crate) struct StateMachine {
+    /// Indicates if the node has external addresses configured
+    pub(crate) has_external_addresses: bool,
+    /// Indicates if the node is listening on any address
+    pub(crate) is_listening: bool,
+    /// List the boot peers that the node has tried to connect to
+    pub(crate) dialed_bootpeer: HashSet<ConnectionId>,
+    /// Indicates if the node has successfully connected to a boot peer
+    pub(crate) successfully_connect_to_bootpeer: Option<ConnectionId>,
+    /// Track the number of retries to connect to boot peers
+    pub(crate) connected_to_bootpeer_retry_count: usize,
+}
 
 impl Runtime {
     /// Bootstrap the p2p layer runtime with the given configuration.
     /// This method will configure, launch and start queries.
     /// The result of this call is a p2p layer bootstrap but it doesn't mean it is
     /// ready.
-    pub async fn bootstrap(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn bootstrap<S: Stream<Item = Event> + Unpin + Send>(
+        mut self,
+        event_stream: &mut S,
+    ) -> Result<JoinHandle<Result<(), P2PError>>, P2PError> {
         debug!("Added public addresses: {:?}", self.public_addresses);
         for address in &self.public_addresses {
             self.swarm.add_external_address(address.clone());
+            self.state_machine.has_external_addresses = true;
         }
-
         debug!("Starting to listen on {:?}", self.listening_on);
+
         for addr in &self.listening_on {
             if let Err(error) = self.swarm.listen_on(addr.clone()) {
                 error!("Couldn't start listening on {} because of {error:?}", addr);
 
-                return Err(Box::new(error));
+                return Err(P2PError::TransportError(error));
+            }
+
+            self.state_machine.is_listening = true;
+        }
+
+        let mut handle = spawn(self.run().in_current_span());
+
+        // Wait for first healthy
+        loop {
+            tokio::select! {
+                result = &mut handle => {
+                    match result {
+                        Ok(Ok(_)) => info!("P2P layer has been shutdown"),
+                        Ok(Err(error)) => {
+                            error!("P2P layer has failed with error: {:?}", error);
+
+                            return Err(error);
+                        }
+                        Err(_) => {
+                            error!("P2P layer has failed in an unexpected way.");
+                            return Err(P2PError::JoinHandleFailure);
+                        }
+                    }
+                }
+                Some(event) = event_stream.next() => {
+                    if let Event::Healthy = event {
+                        info!("P2P layer is healthy");
+                        break;
+                    }
+                }
             }
         }
 
-        if !self.peer_set.is_empty() {
-            debug!(
-                "{} Connected to some peers, start a bootstrap query",
-                self.local_peer_id
-            );
-            self.swarm.behaviour_mut().discovery.bootstrap()?;
-        }
-
-        while let Some(event) = self.swarm.next().await {
-            self.handle(event).await;
-
-            if self.swarm.connected_peers().count() >= self.config.minimum_cluster_size {
-                break;
-            }
-        }
-
-        let gossipsub = &mut self.swarm.behaviour_mut().gossipsub;
-
-        gossipsub.subscribe()?;
-
-        Ok(())
+        Ok(handle)
     }
 
     /// Run p2p runtime
-    pub async fn run(mut self) -> Result<(), ()> {
+    pub async fn run(mut self) -> Result<(), P2PError> {
         let shutdowned: Option<oneshot::Sender<()>> = loop {
             tokio::select! {
-                Some(event) = self.swarm.next() => self.handle(event).await,
-                Some(command) = self.command_receiver.recv() => self.handle_command(command).await,
+                Some(event) = self.swarm.next() => {
+                    self.handle(event).in_current_span().await?
+                },
+                Some(command) = self.command_receiver.recv() => self.handle_command(command).in_current_span().await,
                 shutdown = self.shutdown.recv() => {
                     break shutdown;
                 }
@@ -94,5 +145,30 @@ impl Runtime {
         }
 
         Ok(())
+    }
+
+    pub(crate) fn healthy_status_changed(&mut self) -> Option<Event> {
+        let behaviours = self.swarm.behaviour();
+        let gossipsub = &behaviours.gossipsub.health_status;
+        let discovery = &behaviours.discovery.health_status;
+
+        let new_status = match (discovery, gossipsub) {
+            (HealthStatus::Initializing, _) | (_, HealthStatus::Initializing) => {
+                HealthStatus::Initializing
+            }
+            (HealthStatus::Unhealthy, _) | (_, HealthStatus::Unhealthy) => HealthStatus::Unhealthy,
+            (HealthStatus::Recovering, _) | (_, HealthStatus::Recovering) => {
+                HealthStatus::Recovering
+            }
+            (HealthStatus::Healthy, HealthStatus::Healthy) => HealthStatus::Healthy,
+        };
+
+        if self.health_status != new_status {
+            self.health_status = new_status;
+
+            Some((&self.health_status).into())
+        } else {
+            None
+        }
     }
 }

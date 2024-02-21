@@ -1,16 +1,13 @@
-use libp2p::{
-    kad::{Event, GetRecordOk, QueryResult},
-    Multiaddr,
-};
+use libp2p::kad::{BootstrapOk, BootstrapResult, Event, QueryResult};
 use tracing::{debug, error, warn};
 
-use crate::{error::CommandExecutionError, Runtime};
+use crate::{behaviour::HealthStatus, error::P2PError, Runtime};
 
-use super::EventHandler;
+use super::{EventHandler, EventResult};
 
 #[async_trait::async_trait]
 impl EventHandler<Box<Event>> for Runtime {
-    async fn handle(&mut self, event: Box<Event>) {
+    async fn handle(&mut self, event: Box<Event>) -> EventResult {
         match *event {
             Event::InboundRequest { request } => {
                 // warn!("InboundRequest {:?}", request);
@@ -35,6 +32,94 @@ impl EventHandler<Box<Event>> for Runtime {
             }
 
             Event::OutboundQueryProgressed {
+                id,
+                result:
+                    QueryResult::Bootstrap(BootstrapResult::Ok(BootstrapOk {
+                        peer,
+                        num_remaining,
+                    })),
+                stats,
+                step,
+            } if num_remaining == 0
+                && self.swarm.behaviour().discovery.health_status == HealthStatus::Initializing =>
+            {
+                warn!(
+                    "Bootstrap query finished but unable to connect to bootnode {:?} {:?}",
+                    stats, step
+                );
+
+                let behaviour = self.swarm.behaviour_mut();
+
+                behaviour.discovery.health_status = HealthStatus::Unhealthy;
+                _ = behaviour
+                    .discovery
+                    .change_interval(self.config.discovery.fast_bootstrap_interval);
+            }
+
+            Event::OutboundQueryProgressed {
+                id,
+                result:
+                    QueryResult::Bootstrap(BootstrapResult::Ok(BootstrapOk {
+                        peer,
+                        num_remaining,
+                    })),
+                stats,
+                step,
+            } if num_remaining == 0
+                && self
+                    .state_machine
+                    .successfully_connect_to_bootpeer
+                    .is_none()
+                && self.swarm.behaviour().discovery.health_status == HealthStatus::Unhealthy =>
+            {
+                warn!(
+                    "Bootstrap query finished but unable to connect to bootnode {:?} {:?}",
+                    stats, step
+                );
+                match self
+                    .state_machine
+                    .connected_to_bootpeer_retry_count
+                    .checked_sub(1)
+                {
+                    None => {
+                        error!("Unable to connect to bootnode, stopping");
+
+                        return Err(P2PError::UnableToReachBootnode);
+                    }
+                    Some(new) => {
+                        self.state_machine.connected_to_bootpeer_retry_count = new;
+                    }
+                }
+            }
+            Event::OutboundQueryProgressed {
+                id,
+                result:
+                    QueryResult::Bootstrap(BootstrapResult::Ok(BootstrapOk {
+                        peer,
+                        num_remaining,
+                    })),
+                stats,
+                step,
+            } if num_remaining == 0
+                && self
+                    .state_machine
+                    .successfully_connect_to_bootpeer
+                    .is_some()
+                && self.swarm.behaviour().discovery.health_status == HealthStatus::Unhealthy =>
+            {
+                warn!(
+                    "Bootstrap query finished with bootnode {:?} {:?}",
+                    stats, step
+                );
+
+                let behaviour = self.swarm.behaviour_mut();
+                behaviour.discovery.health_status = HealthStatus::Healthy;
+                _ = behaviour
+                    .discovery
+                    .change_interval(self.config.discovery.bootstrap_interval);
+            }
+
+            Event::OutboundQueryProgressed {
                 result: QueryResult::Bootstrap(res),
                 id,
                 ..
@@ -43,67 +128,11 @@ impl EventHandler<Box<Event>> for Runtime {
             }
 
             Event::OutboundQueryProgressed {
-                result: QueryResult::PutRecord(Err(e)),
-                id,
-                ..
-            } => {
-                error!("PutRecord Failed query_id: {id:?}, error: {e:?}");
-            }
-
-            Event::OutboundQueryProgressed {
-                result: QueryResult::GetRecord(res),
-                id,
-                ..
-            } => match res {
-                Ok(GetRecordOk::FoundRecord(result)) => {
-                    debug!("GetRecordOk query: {id:?}, {result:?}");
-                    if let Some(sender) = self.pending_record_requests.remove(&id) {
-                        if let Ok(addr) = Multiaddr::try_from(result.record.value.clone()) {
-                            if let Some(peer_id) = result.record.publisher {
-                                if !sender.is_closed() {
-                                    debug!("Adding {peer_id:?} address {addr:?} to DHT");
-                                    self.swarm
-                                        .behaviour_mut()
-                                        .discovery
-                                        .inner
-                                        .add_address(&peer_id, addr.clone());
-
-                                    if sender.send(Ok(vec![addr.clone()])).is_err() {
-                                        // TODO: Hash the QueryId
-                                        warn!(
-                                            "Could not notify Record query ({id:?}) response \
-                                             because initiator is dropped"
-                                        );
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Ok(GetRecordOk::FinishedWithNoAdditionalRecord { cache_candidates }) => {}
-
-                Err(error) => {
-                    if let Some(sender) = self.pending_record_requests.remove(&id) {
-                        if sender
-                            .send(Err(CommandExecutionError::DHTGetRecordFailed))
-                            .is_err()
-                        {
-                            // TODO: Hash the QueryId
-                            warn!(
-                                "Could not notify Record query ({id:?}) response because \
-                                 initiator is dropped"
-                            );
-                        }
-                    }
-                    warn!("GetRecordError query_id: {id:?}, error: {error:?}");
-                }
-            },
-
-            Event::OutboundQueryProgressed {
                 id, result, stats, ..
             } => {}
             Event::ModeChanged { new_mode } => {}
         }
+
+        Ok(())
     }
 }

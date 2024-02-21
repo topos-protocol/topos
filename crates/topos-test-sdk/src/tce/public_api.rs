@@ -16,6 +16,7 @@ use topos_tce_storage::types::CertificateDeliveredWithPositions;
 use topos_tce_storage::validator::ValidatorStore;
 use topos_tce_storage::StorageClient;
 use tracing::warn;
+use tracing::Instrument;
 
 use crate::networking::get_available_addr;
 use crate::storage::create_validator_store;
@@ -65,6 +66,7 @@ pub async fn create_public_api(
         .store(store)
         .storage(storage_client)
         .build_and_launch()
+        .in_current_span()
         .await;
 
     let api_channel = channel::Endpoint::from_str(&api_endpoint)
