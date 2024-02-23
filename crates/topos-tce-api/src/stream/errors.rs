@@ -50,7 +50,6 @@ pub(crate) enum HandshakeError {
 mod tests {
     use test_log::test;
     use tokio::sync::oneshot;
-    use uuid::Uuid;
 
     use super::*;
 
