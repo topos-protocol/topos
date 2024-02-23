@@ -82,7 +82,7 @@ pub struct Stream {
     pub(crate) outbound_stream: Sender<Result<(Option<Uuid>, OutboundMessage), Status>>,
     /// gRPC inbound stream
     pub(crate) inbound_stream:
-        BoxStream<'static, Result<(Option<Uuid>, InboundMessage), StreamError>>,
+    BoxStream<'static, Result<(Option<Uuid>, InboundMessage), StreamError>>,
 }
 
 impl Debug for Stream {
@@ -150,12 +150,22 @@ impl Stream {
                     }
                 }
 
-                Some(_stream_packet) = self.inbound_stream.next() => {
-
+                stream_packet = self.inbound_stream.next() => {
+                      if let Some(stream_packet) = stream_packet {
+                          match stream_packet {
+                                Ok((request_id, _message)) => {
+                                    debug!("Received message for stream: {request_id:?}");
+                                }
+                                Err(error) => {
+                                    error!("Stream error: {error:?}");
+                                    break;
+                                }
+                        }
+                      } else {
+                          debug!("Stream is closed, exiting");
+                          break;
+                      }
                 }
-
-                // For graceful shutdown in case streams are closed
-                else => break,
             }
         }
         Ok(self.stream_id)
@@ -202,11 +212,11 @@ impl Stream {
     async fn pre_start(&mut self) -> Result<(Option<Uuid>, TargetCheckpoint), StreamError> {
         let waiting_for_open_stream = async {
             if let Ok(Some((
-                request_id,
-                InboundMessage::OpenStream(OpenStream {
-                    target_checkpoint, ..
-                }),
-            ))) = self.inbound_stream.try_next().await
+                               request_id,
+                               InboundMessage::OpenStream(OpenStream {
+                                                              target_checkpoint, ..
+                                                          }),
+                           ))) = self.inbound_stream.try_next().await
             {
                 Ok((request_id, target_checkpoint))
             } else {
