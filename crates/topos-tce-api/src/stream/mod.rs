@@ -150,6 +150,8 @@ impl Stream {
                     }
                 }
 
+                // We currently open the stream, but no other message from the client is getting processed.
+                // We are using this open connection to communicate `delivered_certificates` to the client.
                 stream_packet = self.inbound_stream.next() => {
                       if let Some(stream_packet) = stream_packet {
                           match stream_packet {
@@ -157,6 +159,7 @@ impl Stream {
                                     debug!("Received message for stream: {request_id:?}");
                                 }
                                 Err(error) => {
+                                    // In case the stream is getting closed from the client side for example
                                     error!("Stream error: {error:?}");
                                     break;
                                 }
