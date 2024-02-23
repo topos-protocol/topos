@@ -82,7 +82,7 @@ pub struct Stream {
     pub(crate) outbound_stream: Sender<Result<(Option<Uuid>, OutboundMessage), Status>>,
     /// gRPC inbound stream
     pub(crate) inbound_stream:
-    BoxStream<'static, Result<(Option<Uuid>, InboundMessage), StreamError>>,
+        BoxStream<'static, Result<(Option<Uuid>, InboundMessage), StreamError>>,
 }
 
 impl Debug for Stream {
@@ -215,11 +215,11 @@ impl Stream {
     async fn pre_start(&mut self) -> Result<(Option<Uuid>, TargetCheckpoint), StreamError> {
         let waiting_for_open_stream = async {
             if let Ok(Some((
-                               request_id,
-                               InboundMessage::OpenStream(OpenStream {
-                                                              target_checkpoint, ..
-                                                          }),
-                           ))) = self.inbound_stream.try_next().await
+                request_id,
+                InboundMessage::OpenStream(OpenStream {
+                    target_checkpoint, ..
+                }),
+            ))) = self.inbound_stream.try_next().await
             {
                 Ok((request_id, target_checkpoint))
             } else {
