@@ -64,7 +64,7 @@ pub(crate) async fn get_block_events(
                 nonce: f.nonce.as_u64(),
             })
         } else {
-            // Ignored for now other events Upgraded, CertStored
+            // Ignored other events until we need them
         }
     }
 
