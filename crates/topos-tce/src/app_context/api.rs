@@ -4,6 +4,7 @@ use topos_core::uci::{Certificate, SubnetId};
 use topos_metrics::CERTIFICATE_DELIVERY_LATENCY;
 use topos_tce_api::RuntimeError;
 use topos_tce_api::RuntimeEvent as ApiEvent;
+use topos_tce_broadcast::DoubleEchoCommand;
 use topos_tce_storage::errors::{InternalStorageError, StorageError};
 use topos_tce_storage::types::PendingResult;
 use tracing::debug;
@@ -28,6 +29,16 @@ impl AppContext {
                             "Certificate {} from subnet {} has been inserted into pending pool",
                             certificate.id, certificate.source_subnet_id
                         );
+
+                        _ = self
+                            .tce_cli
+                            .get_double_echo_channel()
+                            .send(DoubleEchoCommand::Broadcast {
+                                need_gossip: true,
+                                cert: *certificate,
+                                pending_id,
+                            })
+                            .await;
 
                         sender.send(Ok(PendingResult::InPending(pending_id)))
                     }

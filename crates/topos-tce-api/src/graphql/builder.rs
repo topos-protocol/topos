@@ -14,13 +14,13 @@ use crate::{
     },
     runtime::InternalRuntimeCommand,
 };
-use topos_tce_storage::fullnode::FullNodeStore;
+use topos_tce_storage::validator::ValidatorStore;
 
 use super::query::SubscriptionRoot;
 
 #[derive(Default)]
 pub struct ServerBuilder {
-    store: Option<Arc<FullNodeStore>>,
+    store: Option<Arc<ValidatorStore>>,
     serve_addr: Option<SocketAddr>,
     runtime: Option<mpsc::Sender<InternalRuntimeCommand>>,
 }
@@ -34,7 +34,7 @@ impl ServerBuilder {
 
         self
     }
-    pub(crate) fn store(mut self, store: Arc<FullNodeStore>) -> Self {
+    pub(crate) fn store(mut self, store: Arc<ValidatorStore>) -> Self {
         self.store = Some(store);
 
         self
@@ -62,6 +62,7 @@ impl ServerBuilder {
             .take()
             .expect("Cannot build GraphQL server without a FullNode store");
 
+        let fulltnode_store = store.get_fullnode_store();
         let runtime = self
             .runtime
             .take()
@@ -69,6 +70,7 @@ impl ServerBuilder {
 
         let schema: ServiceSchema = Schema::build(QueryRoot, EmptyMutation, SubscriptionRoot)
             .data(store)
+            .data(fulltnode_store)
             .data(runtime)
             .finish();
 

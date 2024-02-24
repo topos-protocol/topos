@@ -118,7 +118,6 @@ impl RuntimeBuilder {
                 .store(
                     self.store
                         .take()
-                        .map(|store| store.get_fullnode_store())
                         .expect("Unable to build GraphQL Server, Store is missing"),
                 )
                 .runtime(internal_runtime_command_sender.clone())

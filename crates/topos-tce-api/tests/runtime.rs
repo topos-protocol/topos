@@ -583,6 +583,7 @@ async fn can_query_graphql_endpoint_for_certificates(
                   source {{
                     sourceSubnetId
                     position
+                    certificateId
                   }}
                 }}
             }}

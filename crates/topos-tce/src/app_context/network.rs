@@ -43,11 +43,21 @@ impl AppContext {
                             );
 
                             match self.validator_store.insert_pending_certificate(&cert) {
-                                Ok(Some(_)) => {
+                                Ok(Some(pending_id)) => {
                                     debug!(
                                         "Certificate {} has been inserted into pending pool",
                                         cert.id
                                     );
+
+                                    _ = self
+                                        .tce_cli
+                                        .get_double_echo_channel()
+                                        .send(DoubleEchoCommand::Broadcast {
+                                            need_gossip: false,
+                                            cert,
+                                            pending_id,
+                                        })
+                                        .await;
                                 }
                                 Ok(None) => {
                                     debug!(

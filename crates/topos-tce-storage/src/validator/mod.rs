@@ -138,12 +138,34 @@ impl ValidatorStore {
             .property_int_value(ESTIMATE_NUM_KEYS)?)
     }
 
+    /// Returns the number of certificates in the pending pool (by iterating)
+    pub fn iter_count_pending_certificates(&self) -> Result<u64, StorageError> {
+        Ok(self
+            .pending_tables
+            .pending_pool
+            .iter()?
+            .count()
+            .try_into()
+            .unwrap_or(u64::MAX))
+    }
+
     /// Returns the number of certificates in the precedence pool
     pub fn count_precedence_pool_certificates(&self) -> Result<u64, StorageError> {
         Ok(self
             .pending_tables
             .precedence_pool
             .property_int_value(ESTIMATE_NUM_KEYS)?)
+    }
+
+    /// Returns the number of certificates in the precedence pool (by iterating)
+    pub fn iter_count_precedence_pool_certificates(&self) -> Result<u64, StorageError> {
+        Ok(self
+            .pending_tables
+            .precedence_pool
+            .iter()?
+            .count()
+            .try_into()
+            .unwrap_or(u64::MAX))
     }
 
     /// Try to return the [`PendingCertificateId`] for a [`CertificateId`]
@@ -188,6 +210,13 @@ impl ValidatorStore {
             .iter_at(from)?
             .take(number)
             .collect())
+    }
+
+    pub fn check_precedence(
+        &self,
+        certificate_id: &CertificateId,
+    ) -> Result<Option<Certificate>, StorageError> {
+        Ok(self.pending_tables.precedence_pool.get(certificate_id)?)
     }
 
     // TODO: Performance issue on this one as we iter over all the pending certificates
