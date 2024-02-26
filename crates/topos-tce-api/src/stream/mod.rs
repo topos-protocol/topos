@@ -159,17 +159,11 @@ impl Stream {
                         }
                         Err(error) => {
                             // In case the stream is getting closed from the client side for example
-                            error!("Stream error: {error:?}");
+                            error!("Stream closed! StreamId: {}", error.stream_id);
                             break;
                         }
                     }
                 }
-
-
-
-                // Some(_stream_packet) = self.inbound_stream.next() => {
-                //
-                // }
 
                 else => break,
             }
