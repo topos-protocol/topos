@@ -189,6 +189,7 @@ async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams)
     _ = ctx
         .validator_store
         .insert_pending_certificate(&dummy_cert)
+        .await
         .unwrap();
 
     assert!(matches!(
@@ -243,6 +244,7 @@ async fn trigger_ready_when_reached_enough_ready(#[case] params: TceParams) {
     _ = ctx
         .validator_store
         .insert_pending_certificate(&dummy_cert)
+        .await
         .unwrap();
 
     assert!(matches!(

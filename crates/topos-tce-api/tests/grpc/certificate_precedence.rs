@@ -33,11 +33,13 @@ async fn fetch_latest_pending_certificates() {
 
     assert!(validator_store
         .insert_pending_certificate(&certificates[1].certificate)
+        .await
         .unwrap()
         .is_none());
 
     assert!(validator_store
         .insert_pending_certificate(&certificates[0].certificate)
+        .await
         .unwrap()
         .is_some());
 
@@ -82,12 +84,14 @@ async fn fetch_latest_pending_certificates_with_conflicts() {
     for certificate in certificates.iter().skip(1) {
         assert!(validator_store
             .insert_pending_certificate(&certificate.certificate)
+            .await
             .unwrap()
             .is_none());
     }
 
     assert!(validator_store
         .insert_pending_certificate(&certificates[0].certificate)
+        .await
         .unwrap()
         .is_some());
 

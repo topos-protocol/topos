@@ -84,6 +84,7 @@ pub async fn processing_double_echo(n: u64, validator_store: Arc<ValidatorStore>
     for cert in &certificates {
         _ = validator_store
             .insert_pending_certificate(&cert.certificate)
+            .await
             .unwrap();
     }
 

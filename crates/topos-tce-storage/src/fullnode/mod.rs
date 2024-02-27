@@ -4,6 +4,7 @@ use arc_swap::ArcSwap;
 use async_trait::async_trait;
 
 use rocksdb::properties::ESTIMATE_NUM_KEYS;
+use tokio::sync::OwnedMutexGuard;
 use topos_core::{
     types::{
         stream::{CertificateSourceStreamPosition, CertificateTargetStreamPosition, Position},
@@ -82,6 +83,25 @@ impl FullNodeStore {
             index_tables,
         }))
     }
+
+    pub(crate) async fn get_certificate_lock_guard(
+        &self,
+        certificate_id: CertificateId,
+    ) -> OwnedMutexGuard<()> {
+        self.certificate_lock_guards
+            .get_lock(certificate_id)
+            .await
+            .lock_owned()
+            .await
+    }
+
+    pub(crate) async fn get_subnet_lock_guard(&self, subnet_id: SubnetId) -> OwnedMutexGuard<()> {
+        self.subnet_lock_guards
+            .get_lock(subnet_id)
+            .await
+            .lock_owned()
+            .await
+    }
 }
 
 #[async_trait]
@@ -92,15 +112,11 @@ impl WriteStore for FullNodeStore {
     ) -> Result<CertificatePositions, StorageError> {
         // Lock resources for concurrency issues
         let _cert_guard = self
-            .certificate_lock_guards
-            .get_lock(certificate.certificate.id)
-            .await
-            .lock_owned()
+            .get_certificate_lock_guard(certificate.certificate.id)
             .await;
 
         let _subnet_guard = self
-            .subnet_lock_guards
-            .get_lock(certificate.certificate.source_subnet_id)
+            .get_subnet_lock_guard(certificate.certificate.source_subnet_id)
             .await;
 
         let subnet_id = certificate.certificate.source_subnet_id;

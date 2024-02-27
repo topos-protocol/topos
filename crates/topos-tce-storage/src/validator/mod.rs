@@ -286,10 +286,18 @@ impl ValidatorStore {
         Ok(ids)
     }
 
-    pub fn insert_pending_certificate(
+    pub async fn insert_pending_certificate(
         &self,
         certificate: &Certificate,
     ) -> Result<Option<PendingCertificateId>, StorageError> {
+        // A lock guard is asked during the insertion of a pending certificate
+        // to avoid race condition when a certificate is being inserted and added
+        // to the pending pool at the same time
+        let _ = self
+            .fullnode_store
+            .get_certificate_lock_guard(certificate.id)
+            .await;
+
         if self.get_certificate(&certificate.id)?.is_some() {
             debug!("Certificate {} is already delivered", certificate.id);
             return Err(StorageError::InternalStorage(
@@ -311,6 +319,14 @@ impl ValidatorStore {
                 InternalStorageError::CertificateAlreadyPending,
             ));
         }
+
+        // A lock guard is asked during the insertion of a pending certificate
+        // to avoid race condition when a certificate is being added to the
+        // pending pool while its parent is currently being inserted as delivered
+        let _ = self
+            .fullnode_store
+            .get_certificate_lock_guard(certificate.prev_id)
+            .await;
 
         let prev_delivered = certificate.prev_id == INITIAL_CERTIFICATE_ID
             || self.get_certificate(&certificate.prev_id)?.is_some();
@@ -624,7 +640,7 @@ impl WriteStore for ValidatorStore {
                 "Delivered certificate {} unlocks {} for broadcast",
                 certificate.certificate.id, next_certificate.id
             );
-            self.insert_pending_certificate(&next_certificate)?;
+            self.insert_pending_certificate(&next_certificate).await?;
             self.pending_tables
                 .precedence_pool
                 .delete(&certificate.certificate.id)?;
