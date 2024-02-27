@@ -155,7 +155,7 @@ impl Stream {
                 Some(stream_packet) = self.inbound_stream.next() => {
                     match stream_packet {
                         Ok((request_id, _message)) => {
-                            debug!("Received message for stream: {request_id:?}");
+                            debug!("Received message from stream_id: {request_id:?}");
                         }
                         Err(error) => {
                             // In case the stream is getting closed from the client side for example
