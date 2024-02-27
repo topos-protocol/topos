@@ -7,7 +7,7 @@ use tokio::spawn;
 use topos_metrics::CERTIFICATE_DELIVERY_LATENCY;
 use topos_p2p::Event as NetEvent;
 use topos_tce_broadcast::DoubleEchoCommand;
-use tracing::{debug, error, trace};
+use tracing::{debug, error, info, trace};
 
 use topos_core::api::grpc::tce::v1::{double_echo_request, DoubleEchoRequest, Echo, Gossip, Ready};
 use topos_core::uci;
@@ -36,8 +36,8 @@ impl AppContext {
                         {
                             entry.insert(CERTIFICATE_DELIVERY_LATENCY.start_timer());
                         }
-                        debug!(
-                            "Received certificate {} from Gossip message from {}",
+                        info!(
+                            "Received certificate {} from GossipSub from {}",
                             cert.id, from
                         );
 
@@ -81,7 +81,7 @@ impl AppContext {
                         }
                     }
                     Err(e) => {
-                        error!("Error converting received certificate {e}");
+                        error!("Failed to parse the received Certificate: {e}");
                     }
                 },
                 double_echo_request::Request::Echo(Echo {
@@ -93,25 +93,21 @@ impl AppContext {
                     spawn(async move {
                         let certificate_id = certificate_id.clone().try_into().map_err(|e| {
                             error!(
-                                "Invalid certificate id, could not process Echo message: {e}, \
-                                 certificate_id: {certificate_id}"
+                                "Failed to parse the CertificateId {certificate_id} from Echo: {e}"
                             );
                             e
                         });
                         let validator_id = validator_id.clone().try_into().map_err(|e| {
-                            error!(
-                                "Invalid validator id, could not process Echo message: {e}, \
-                                 validator_id: {validator_id}"
-                            );
+                            error!("Failed to parse the ValidatorId {validator_id} from Echo: {e}");
                             e
                         });
 
                         if let (Ok(certificate_id), Ok(validator_id)) =
                             (certificate_id, validator_id)
                         {
-                            debug!(
+                            trace!(
                                 "Received Echo message, certificate_id: {certificate_id}, \
-                                 validator_id: {validator_id} from {from}",
+                                 validator_id: {validator_id} from: {from}",
                                 certificate_id = certificate_id,
                                 validator_id = validator_id
                             );
@@ -123,7 +119,7 @@ impl AppContext {
                                 })
                                 .await
                             {
-                                error!("Unable to pass received Echo message, {:?}", e);
+                                error!("Unable to pass received Echo message: {:?}", e);
                             }
                         } else {
                             error!("Unable to process Echo message due to invalid data");
@@ -139,24 +135,23 @@ impl AppContext {
                     spawn(async move {
                         let certificate_id = certificate_id.clone().try_into().map_err(|e| {
                             error!(
-                                "Invalid certificate id, could not process Ready message: {e}, \
-                                 certificate_id: {certificate_id}"
+                                "Failed to parse the CertificateId {certificate_id} from Ready: \
+                                 {e}"
                             );
                             e
                         });
                         let validator_id = validator_id.clone().try_into().map_err(|e| {
                             error!(
-                                "Invalid validator id, could not process Ready message: {e}, \
-                                 validator_id: {validator_id}"
+                                "Failed to parse the ValidatorId {validator_id} from Ready: {e}"
                             );
                             e
                         });
                         if let (Ok(certificate_id), Ok(validator_id)) =
                             (certificate_id, validator_id)
                         {
-                            debug!(
+                            trace!(
                                 "Received Ready message, certificate_id: {certificate_id}, \
-                                 validator_id: {validator_id} from {from}",
+                                 validator_id: {validator_id} from: {from}",
                                 certificate_id = certificate_id,
                                 validator_id = validator_id
                             );

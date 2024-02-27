@@ -107,7 +107,7 @@ impl AppContext {
 
                     if let Some(timer) = self.delivery_latency.remove(&certificate_id) {
                         let duration = timer.stop_and_record();
-                        warn!("Certificate delivered {} in {}s", certificate_id, duration);
+                        info!("Certificate {} delivered with total latency: {}s", certificate_id, duration);
                     }
                 }
 
@@ -135,7 +135,7 @@ impl AppContext {
                     info!("Shutting down TCE app context...");
 
                     if let Err(e) = self.shutdown().await {
-                        error!("Error shutting down TCE app context: {e}");
+                        error!("Failed to shutdown the TCE app context: {e}");
                     }
                     // Drop the sender to notify the TCE termination
                     drop(shutdown.1);

@@ -9,7 +9,7 @@ use topos_tce_storage::errors::StorageError;
 use topos_tce_storage::store::{ReadStore, WriteStore};
 use topos_tce_storage::types::CertificateDeliveredWithPositions;
 use topos_tce_storage::validator::ValidatorStore;
-use tracing::warn;
+use tracing::{debug, error};
 
 use crate::double_echo::broadcast_state::{BroadcastState, Status};
 use crate::{DoubleEchoCommand, TaskStatus};
@@ -88,9 +88,11 @@ impl IntoFuture for Task {
                 Err(_) => return (self.certificate_id, TaskStatus::Failure),
             };
 
-            warn!(
-                "Expected position for {} is {:?}",
-                self.certificate_id, expected_position
+            debug!(
+                "Expected position for Certificate {} is {:?} for the subnet {}",
+                self.certificate_id,
+                expected_position,
+                self.broadcast_state.certificate.source_subnet_id
             );
             self.broadcast_state.expected_position = Some(expected_position);
 
@@ -107,7 +109,7 @@ impl IntoFuture for Task {
                                             return (self.certificate_id, TaskStatus::Success);
                                         }
                                         Err(error) => {
-                                            tracing::error!("Unable to persist one delivered certificate: {:?}", error);
+                                            error!("Unable to persist one delivered certificate: {:?}", error);
                                             return (self.certificate_id, TaskStatus::Failure);
                                         }
                                     }
@@ -123,7 +125,7 @@ impl IntoFuture for Task {
                                             return (self.certificate_id, TaskStatus::Success);
                                         }
                                         Err(error) => {
-                                            tracing::error!("Unable to persist one delivered certificate: {:?}", error);
+                                            error!("Unable to persist one delivered certificate: {:?}", error);
                                             return (self.certificate_id, TaskStatus::Failure);
                                         }
                                     }
@@ -133,7 +135,7 @@ impl IntoFuture for Task {
                         }
                     }
                     _ = self.shutdown_receiver.recv() => {
-                        warn!("Received shutdown, shutting down task {:?}", self.certificate_id);
+                        debug!("Received shutdown, shutting down task {:?}", self.certificate_id);
                         return (self.certificate_id, TaskStatus::Failure)
                     }
                 }

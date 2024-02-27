@@ -12,7 +12,7 @@ use topos_core::{
 };
 use topos_crypto::messages::MessageSigner;
 use topos_metrics::DOUBLE_ECHO_BROADCAST_FINISHED_TOTAL;
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, trace};
 mod status;
 
 pub use status::Status;
@@ -66,7 +66,7 @@ impl BroadcastState {
         });
 
         if need_gossip {
-            warn!("📣 Gossiping the Certificate {}", &state.certificate.id);
+            debug!("📣 Gossiping the Certificate {}", &state.certificate.id);
             let _ = state.event_sender.try_send(ProtocolEvents::Gossip {
                 cert: state.certificate.clone(),
             });
@@ -118,7 +118,7 @@ impl BroadcastState {
     }
 
     fn update_status(&mut self) -> Option<Status> {
-        // Nothing happened yet, we're in the initial state and didn't Procced
+        // Nothing happened yet, we're in the initial state and didn't process
         // any Echo or Ready messages
         // Sending our Echo message
         if let Status::Pending = self.status {
@@ -133,9 +133,10 @@ impl BroadcastState {
             });
 
             self.status = Status::EchoSent;
-            debug!(
-                "📝 Certificate {} is now {}",
-                &self.certificate.id, self.status
+            trace!(
+                "Certificate {} is now {}",
+                &self.certificate.id,
+                self.status
             );
             return Some(self.status);
         }
@@ -156,14 +157,15 @@ impl BroadcastState {
                 validator_id: self.validator_id,
             };
             if let Err(e) = self.event_sender.try_send(event) {
-                warn!("Error sending Ready message: {}", e);
+                error!("Failed to send the Ready message: {}", e);
             }
 
             self.status = self.status.ready_sent();
 
-            debug!(
-                "📝 Certificate {} is now {}",
-                &self.certificate.id, self.status
+            trace!(
+                "Certificate {} is now {}",
+                &self.certificate.id,
+                self.status
             );
             return Some(self.status);
         }
@@ -173,9 +175,10 @@ impl BroadcastState {
         if !self.status.is_delivered() && self.reached_delivery_threshold() {
             self.status = self.status.delivered();
 
-            debug!(
-                "📝 Certificate {} is now {}",
-                &self.certificate.id, self.status
+            trace!(
+                "Certificate {} is now {}",
+                &self.certificate.id,
+                self.status
             );
             // Calculate delivery time
             let from = self.delivery_time;
@@ -183,13 +186,8 @@ impl BroadcastState {
             let d = duration;
 
             info!(
-                "Certificate {} got delivered in {:?}",
+                "📝 Certificate {} delivered with broadcast duration: {:?}",
                 self.certificate.id, d
-            );
-
-            debug!(
-                "📝 Accepted[{}]\t Delivery time: {:?}",
-                &self.certificate.id, d
             );
 
             DOUBLE_ECHO_BROADCAST_FINISHED_TOTAL.inc();
@@ -220,9 +218,11 @@ impl BroadcastState {
             None => false,
         };
 
-        debug!(
-            "📝 Certificate {} reached Echo threshold: {} and Ready threshold: {}",
-            &self.certificate.id, reached_echo_threshold, reached_ready_threshold
+        trace!(
+            "Certificate {} reached Echo threshold: {} and Ready threshold: {}",
+            &self.certificate.id,
+            reached_echo_threshold,
+            reached_ready_threshold
         );
         // If reached any of the Echo or Ready thresholds, I send the Ready
         reached_echo_threshold || reached_ready_threshold
@@ -239,9 +239,10 @@ impl BroadcastState {
             None => false,
         };
 
-        debug!(
-            "📝 Certificate {} reached Delivery threshold: {}",
-            &self.certificate.id, delivery_threshold
+        trace!(
+            "Certificate {} reached Delivery threshold: {}",
+            &self.certificate.id,
+            delivery_threshold
         );
 
         delivery_threshold

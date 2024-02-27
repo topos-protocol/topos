@@ -12,7 +12,7 @@
 //! different pending pools and to manage them but also to access the [`FullNodeStore`] in order to
 //! persist or update [`Certificate`] or `streams`.
 //!
-//! Pending pools and their behavior is decribed in the [`ValidatorPendingTables`] documentation.
+//! Pending pools and their behavior are described in the [`ValidatorPendingTables`] documentation.
 //!
 use std::{
     collections::HashMap,
@@ -56,7 +56,7 @@ mod tables;
 ///
 /// The key point is that the [`ValidatorStore`] is managing the different pending pools using a [`ValidatorPendingTables`].
 ///
-/// Pending pools and how they behave is decribed in the [`ValidatorPendingTables`] documentation.
+/// Pending pools and how they behave are described in the [`ValidatorPendingTables`] documentation.
 ///
 pub struct ValidatorStore {
     pub(crate) pending_tables: ValidatorPendingTables,
@@ -96,7 +96,7 @@ impl ValidatorStore {
                 .count_pending_certificates()?
                 .try_into()
                 .map_err(|error| {
-                    warn!("Failed to convert estimate-num-keys to i64: {}", error);
+                    error!("Failed to convert estimate-num-keys to i64: {}", error);
                     StorageError::InternalStorage(InternalStorageError::UnexpectedDBState(
                         "Failed to convert estimate-num-keys to i64",
                     ))
@@ -106,7 +106,7 @@ impl ValidatorStore {
             .count_precedence_pool_certificates()?
             .try_into()
             .map_err(|error| {
-                warn!("Failed to convert estimate-num-keys to i64: {}", error);
+                error!("Failed to convert estimate-num-keys to i64: {}", error);
                 StorageError::InternalStorage(InternalStorageError::UnexpectedDBState(
                     "Failed to convert estimate-num-keys to i64",
                 ))
@@ -360,7 +360,7 @@ impl ValidatorStore {
             .await?;
 
             debug!(
-                "Certificate Sync: unverified proof as been removed for {}",
+                "Certificate Sync: unverified proof has been removed for {}",
                 certificate_id
             );
             self.fullnode_store
