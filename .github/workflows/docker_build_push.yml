@@ -35,7 +35,7 @@ jobs:
           repo: e2e-tests
           github_token: ${{ secrets.ROBOT_PAT_TRIGGER_E2E_WORKFLOWS }}
           workflow_file_name: topos:integration-tests.yml
-          ref: main
+          ref: chore/debug-ci-1
           wait_interval: 60
           client_payload: '{ "topos-docker-tag": "${{ env.docker_tag }}", "local-erc20-messaging-infra-ref": "chore/debug-ci-1" }'
 
