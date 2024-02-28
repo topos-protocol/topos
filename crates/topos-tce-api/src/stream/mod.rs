@@ -154,8 +154,8 @@ impl Stream {
                 // We are using this open connection to communicate `delivered_certificates` to the client.
                 Some(stream_packet) = self.inbound_stream.next() => {
                     match stream_packet {
-                        Ok((request_id, _message)) => {
-                            debug!("Received message from stream_id: {request_id:?}");
+                        Ok((_request_id, _message)) => {
+                            debug!("Received message from stream_id: {:?}", self.stream_id);
                         }
                         Err(error) => {
                             // In case the stream is getting closed from the client side for example
