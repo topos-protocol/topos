@@ -223,6 +223,7 @@ impl SubnetClientListener {
         stream: &mut SubscriptionStream<'_, Ws, ethers::types::Block<ethers::types::H256>>,
     ) -> Result<BlockInfo, Error> {
         if let Some(block) = stream.next().await {
+            info!(">>>>>>>>>>>>> New block event received: {:#?}", block);
             let block_number = block.number.ok_or(Error::BlockNumberNotAvailable)?;
             let events = match get_block_events(&self.contract, block_number).await {
                 Ok(events) => events,
