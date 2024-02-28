@@ -65,9 +65,7 @@ pub(crate) async fn get_block_events(
             })
         } else {
             // Ignored other events until we need them
-            info!(
-                "Received OTHEREVENT event: {:?}",event.0
-            );
+            info!("Received OTHEREVENT event: {:?}", event.0);
         }
     }
 

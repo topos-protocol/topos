@@ -246,6 +246,8 @@ impl SubnetRuntimeProxy {
 
                 info!("Block subscription stream opened, listening for new blocks...");
 
+                info!(">>>>>>>>>>>>> CHECKPOINT 0");
+
                 // Go to standard mode of listening for new blocks
                 let shutdowned: Option<oneshot::Sender<()>> = loop {
                     tokio::select! {

@@ -222,6 +222,7 @@ impl SubnetClientListener {
         &self,
         stream: &mut SubscriptionStream<'_, Ws, ethers::types::Block<ethers::types::H256>>,
     ) -> Result<BlockInfo, Error> {
+        info!(">>>>>>>>>>>>> Checkpoint 1 wait for new block");
         if let Some(block) = stream.next().await {
             info!(">>>>>>>>>>>>> New block event received: {:#?}", block);
             let block_number = block.number.ok_or(Error::BlockNumberNotAvailable)?;
