@@ -18,6 +18,8 @@ pub mod proxy;
 
 use crate::proxy::{SubnetRuntimeProxyCommand, SubnetRuntimeProxyEvent};
 
+const EVENT_SUBSCRIBER_CHANNEL_SIZE: usize = 64;
+
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("Peers error: {err}")]
@@ -103,7 +105,8 @@ impl SubnetRuntimeProxyWorker {
         signing_key: Vec<u8>,
     ) -> Result<Self, Error> {
         let runtime_proxy = SubnetRuntimeProxy::spawn_new(config, signing_key)?;
-        let (events_sender, events_rcv) = mpsc::channel::<SubnetRuntimeProxyEvent>(256);
+        let (events_sender, events_rcv) =
+            mpsc::channel::<SubnetRuntimeProxyEvent>(EVENT_SUBSCRIBER_CHANNEL_SIZE);
         let commands;
         {
             let mut runtime_proxy = runtime_proxy.lock().await;
