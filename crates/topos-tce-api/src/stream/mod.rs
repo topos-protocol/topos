@@ -155,15 +155,20 @@ impl Stream {
                 Some(stream_packet) = self.inbound_stream.next() => {
                     match stream_packet {
                         Ok((_request_id, _message)) => {
-                            debug!("Received message from stream_id: {:?}", self.stream_id);
+                            trace!("Received message from stream_id: {:?}", self.stream_id);
                         }
                         Err(error) => {
                             match error.kind {
                                 StreamErrorKind::StreamClosed => {
+                                    // Currently, when the client is closing the connection,
+                                    // we don't receive a StreamClosed error. Further investigation is needed.
                                     warn!("Stream {} closed", self.stream_id);
                                     break;
                                 }
                                 _ => {
+                                    // We are not handling specific errors for now.
+                                    // If the sequencer is closing the connection, we are receiving a
+                                    // StreamErrorKind::TransportError.
                                     error!( "Stream error: {:?}", error);
                                     break;
                                 }
