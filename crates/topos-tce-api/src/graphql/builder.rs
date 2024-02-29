@@ -4,7 +4,6 @@ use async_graphql::{EmptyMutation, Schema};
 use async_graphql_axum::GraphQLSubscription;
 use axum::{extract::Extension, routing::get, Router, Server};
 use http::{header, Method};
-use hyper;
 use tokio::sync::mpsc;
 use tower_http::cors::{Any, CorsLayer};
 

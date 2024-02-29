@@ -11,7 +11,7 @@ use tokio::sync::{mpsc, oneshot};
 use tokio::time::Duration;
 use topos_core::api::grpc::checkpoints::TargetStreamPosition;
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
-use topos_sequencer_subnet_client::{self, BlockInfo, SubnetClient, SubnetClientListener};
+use topos_sequencer_subnet_client::{BlockInfo, SubnetClient, SubnetClientListener};
 use tracing::{debug, error, field, info, info_span, instrument, warn, Instrument, Span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
