@@ -36,11 +36,7 @@ pub type Hash = String;
 /// Event collected from the sending subnet
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SubnetEvent {
-    CrossSubnetMessageSent {
-        target_subnet_id: SubnetId,
-        source_subnet_id: SubnetId,
-        nonce: u64,
-    },
+    CrossSubnetMessageSent { target_subnet_id: SubnetId },
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]

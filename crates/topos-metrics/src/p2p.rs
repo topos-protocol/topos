@@ -1,5 +1,5 @@
 use prometheus::{
-    register_histogram_with_registry, register_int_counter_vec_with_registry,
+    self, register_histogram_with_registry, register_int_counter_vec_with_registry,
     register_int_counter_with_registry, Histogram, IntCounter, IntCounterVec,
 };
 

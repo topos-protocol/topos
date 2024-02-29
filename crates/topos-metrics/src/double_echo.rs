@@ -1,5 +1,6 @@
 use prometheus::{
-    register_int_counter_with_registry, register_int_gauge_with_registry, IntCounter, IntGauge,
+    self, register_int_counter_with_registry, register_int_gauge_with_registry, IntCounter,
+    IntGauge,
 };
 
 use lazy_static::lazy_static;

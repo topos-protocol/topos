@@ -1,4 +1,4 @@
-use prometheus::{register_int_counter_with_registry, IntCounter};
+use prometheus::{self, register_int_counter_with_registry, IntCounter};
 
 use lazy_static::lazy_static;
 
