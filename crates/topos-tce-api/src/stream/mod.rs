@@ -158,9 +158,17 @@ impl Stream {
                             debug!("Received message from stream_id: {:?}", self.stream_id);
                         }
                         Err(error) => {
-                            // In case the stream is getting closed from the client side for example
-                            error!("Stream closed! StreamId: {}", error.stream_id);
-                            break;
+                            match error.kind {
+                                StreamErrorKind::StreamClosed => {
+                                    warn!("Stream {} closed", self.stream_id);
+                                    break;
+                                }
+                                _ => {
+                                    error!( "Stream error: {:?}", error);
+                                    break;
+                                }
+
+                            }
                         }
                     }
                 }
