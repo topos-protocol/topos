@@ -95,11 +95,9 @@ impl Certification {
                 proof,
             )
             .map_err(|e| Error::CertificateGenerationError(e.to_string()))?;
-
             certificate
                 .update_signature(self.get_signing_key())
                 .map_err(Error::CertificateSigningError)?;
-
             generated_certificates.push(certificate);
             processed_blocks.push(block_info.number);
         }
