@@ -2,7 +2,6 @@ use assert_cmd::prelude::*;
 use regex::Regex;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
-use std::time::Duration;
 use tempfile::tempdir;
 use tokio::fs::OpenOptions;
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
@@ -15,12 +14,17 @@ use crate::utils::setup_polygon_edge;
 mod utils;
 
 mod serial_integration {
+    use rstest::rstest;
+    use sysinfo::{Pid, PidExt, ProcessExt, Signal, System, SystemExt};
+
     use super::*;
 
+    #[rstest]
     #[tokio::test]
-    async fn handle_command_init() -> Result<(), Box<dyn std::error::Error>> {
-        let tmp_home_dir = tempdir()?;
-        let path = setup_polygon_edge(tmp_home_dir.path().to_str().unwrap()).await;
+    async fn handle_command_init(
+        #[from(create_folder)] home: PathBuf,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let path = setup_polygon_edge(home.to_str().unwrap()).await;
 
         let mut cmd = Command::cargo_bin("topos")?;
         cmd.arg("node")
@@ -28,14 +32,12 @@ mod serial_integration {
             .arg(path)
             .arg("init")
             .arg("--home")
-            .arg(tmp_home_dir.path().to_str().unwrap());
+            .arg(home.to_str().unwrap());
 
         let output = cmd.assert().success();
         let result: &str = std::str::from_utf8(&output.get_output().stdout)?;
 
         assert!(result.contains("Created node config file"));
-
-        let home = PathBuf::from(tmp_home_dir.path());
 
         // Verification: check that the config file was created
         let config_path = home.join("node").join("default").join("config.toml");
@@ -246,12 +248,13 @@ mod serial_integration {
         Ok(())
     }
     /// Test node up running from config file
+    #[rstest]
     #[test_log::test(tokio::test)]
-    async fn command_node_up() -> Result<(), Box<dyn std::error::Error>> {
-        let tmp_home_dir = tempdir()?;
-
+    async fn command_node_up(
+        #[from(create_folder)] tmp_home_dir: PathBuf,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         // Create config file
-        let node_up_home_env = tmp_home_dir.path().to_str().unwrap();
+        let node_up_home_env = tmp_home_dir.to_str().unwrap();
         let node_edge_path_env = setup_polygon_edge(node_up_home_env).await;
         let node_up_name_env = "TEST_NODE_UP";
         let node_up_role_env = "full-node";
@@ -330,13 +333,10 @@ mod serial_integration {
 
     /// Test node up running from config file
     #[rstest::rstest]
-    #[timeout(Duration::from_secs(30))]
     #[test_log::test(tokio::test)]
     async fn command_node_up_with_old_config(
-        create_folder: PathBuf,
+        #[from(create_folder)] tmp_home_dir: PathBuf,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let tmp_home_dir = create_folder;
-
         // Create config file
         let node_up_home_env = tmp_home_dir.to_str().unwrap();
         let node_edge_path_env = setup_polygon_edge(node_up_home_env).await;
@@ -418,14 +418,27 @@ mod serial_integration {
             .stdout(Stdio::piped());
 
         let cmd = tokio::process::Command::from(cmd).spawn().unwrap();
-        let output = tokio::time::timeout(Duration::from_secs(10), cmd.wait_with_output()).await;
-        let stdout = output??.stdout;
-        let stdout = String::from_utf8_lossy(&stdout);
+        let pid = cmd.id().unwrap();
+        let _ = tokio::time::sleep(std::time::Duration::from_secs(10)).await;
 
-        println!("STDOUT: {}", stdout);
-        let reg = Regex::new(r#"Local node is listening on "\/ip4\/.*\/tcp\/9091\/p2p\/"#).unwrap();
-        assert!(reg.is_match(&stdout));
+        let s = System::new_all();
+        if let Some(process) = s.process(Pid::from_u32(pid)) {
+            if process.kill_with(Signal::Term).is_none() {
+                eprintln!("This signal isn't supported on this platform");
+            }
+        }
 
+        if let Ok(output) = cmd.wait_with_output().await {
+            assert!(output.status.success());
+            let stdout = output.unwrap().unwrap().stdout;
+            let stdout = String::from_utf8_lossy(&stdout);
+
+            let reg =
+                Regex::new(r#"Local node is listening on "\/ip4\/.*\/tcp\/9091\/p2p\/"#).unwrap();
+            assert!(reg.is_match(&stdout));
+        } else {
+            panic!("Failed to shutdown gracefully");
+        }
         // Cleanup
         std::fs::remove_dir_all(node_up_home_env)?;
 
