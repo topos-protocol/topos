@@ -5,6 +5,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
 use topos_sequencer_subnet_client::{BlockInfo, SubnetEvent};
+use tracing::debug;
 
 pub struct Certification {
     /// Last known certificate id for subnet
@@ -133,20 +134,22 @@ impl Certification {
 
         // Remove processed blocks
         for processed_block_number in processed_blocks {
-            let mut front_number = None;
+            let mut front_block_number = None;
             if let Some(front) = self.finalized_blocks.front() {
-                front_number = Some(front.number);
+                front_block_number = Some(front.number);
             }
 
-            if front_number.is_some() {
-                if Some(processed_block_number) == front_number {
-                    
+            if front_block_number.is_some() {
+                if Some(processed_block_number) == front_block_number {
+                    debug!(
+                        "Block {processed_block_number} processed and removed from the block list"
+                    );
                     self.finalized_blocks.pop_front();
                 } else {
                     panic!(
                         "Block history is inconsistent, this should not happen! \
-                         processed_block_number: {processed_block_number}, front_number: \
-                         {front_number}"
+                         processed_block_number: {processed_block_number}, front_number: {:?}",
+                        front_block_number
                     );
                 }
             }
