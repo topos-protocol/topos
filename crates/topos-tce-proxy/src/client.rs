@@ -381,6 +381,7 @@ impl TceClientBuilder {
                                 let tce_endpoint = tce_endpoint.clone();
                                 let tce_grpc_client = tce_grpc_client.clone();
                                 let context_backoff = context.clone();
+                                // TODO: Push certificates to the TCE one by one
                                 certificate_to_send.push_back(async move {
                                     debug!("Submitting certificate {} to the TCE using backoff strategy...", &tce_endpoint);
                                     let cert = cert.clone();

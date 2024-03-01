@@ -342,8 +342,7 @@ impl SubnetRuntimeProxy {
 
                 let mut certification = certification.lock().await;
 
-                // Update certificate block history. If block history is full,
-                // it will block until some of the blocks are processed
+                // Update certificate block history
                 certification.append_blocks(vec![block_info]);
 
                 let new_certificates = match certification.generate_certificates().await {
