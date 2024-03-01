@@ -293,7 +293,7 @@ impl ValidatorStore {
         // A lock guard is asked during the insertion of a pending certificate
         // to avoid race condition when a certificate is being inserted and added
         // to the pending pool at the same time
-        let _ = self
+        let _certificate_guard = self
             .fullnode_store
             .get_certificate_lock_guard(certificate.id)
             .await;
@@ -323,7 +323,7 @@ impl ValidatorStore {
         // A lock guard is asked during the insertion of a pending certificate
         // to avoid race condition when a certificate is being added to the
         // pending pool while its parent is currently being inserted as delivered
-        let _ = self
+        let _prev_certificate_guard = self
             .fullnode_store
             .get_certificate_lock_guard(certificate.prev_id)
             .await;
