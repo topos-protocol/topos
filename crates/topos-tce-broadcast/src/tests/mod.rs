@@ -16,6 +16,7 @@ use topos_tce_storage::validator::ValidatorStore;
 use topos_test_sdk::constants::*;
 use topos_test_sdk::storage::create_validator_store;
 
+mod task;
 mod task_manager;
 
 const CHANNEL_SIZE: usize = 10;

@@ -19,8 +19,11 @@ use crate::{sampler::SubscriptionsView, task_manager::TaskManager};
 
 #[rstest]
 #[tokio::test]
-async fn can_start(#[future] create_validator_store: Arc<ValidatorStore>) {
-    let validator_store = create_validator_store.await;
+async fn can_start(
+    #[future(awt)]
+    #[from(create_validator_store)]
+    validator_store: Arc<ValidatorStore>,
+) {
     let (message_sender, message_receiver) = mpsc::channel(1);
     let (event_sender, _) = mpsc::channel(1);
     let (broadcast_sender, _) = broadcast::channel(1);
