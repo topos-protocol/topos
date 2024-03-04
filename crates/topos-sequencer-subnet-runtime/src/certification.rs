@@ -132,11 +132,7 @@ impl Certification {
 
         // Remove processed blocks
         for processed_block_number in processed_blocks {
-            let front_block_number = if let Some(front) = self.finalized_blocks.front() {
-                Some(front.number)
-            } else {
-                None
-            };
+            let front_block_number = self.finalized_blocks.front().map(|front| front.number);
 
             if front_block_number.is_some() {
                 if Some(processed_block_number) == front_block_number {
