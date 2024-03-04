@@ -132,7 +132,7 @@ impl Certification {
 
         // Remove processed blocks
         for processed_block_number in processed_blocks {
-            let mut front_block_number = if let Some(front) = self.finalized_blocks.front() {
+            let front_block_number = if let Some(front) = self.finalized_blocks.front() {
                 Some(front.number)
             } else {
                 None
