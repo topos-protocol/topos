@@ -147,7 +147,7 @@ async fn close_target_node_connections(
     {
         info!("Closing connection to target node {}", target_node.address);
         if let Err(e) = target_node.shutdown().await {
-            error!("Failed to close stream: {e}");
+            error!("Failed to close stream with {}: {e}", target_node.address);
         }
     }
 }

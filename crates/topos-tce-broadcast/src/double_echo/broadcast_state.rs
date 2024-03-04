@@ -66,7 +66,10 @@ impl BroadcastState {
         });
 
         if need_gossip {
-            debug!("📣 Gossiping the Certificate {}", &state.certificate.id);
+            debug!(
+                "📣 Gossiping the Certificate {} from the source subnet {}",
+                &state.certificate.id, &state.certificate.source_subnet_id
+            );
             let _ = state.event_sender.try_send(ProtocolEvents::Gossip {
                 cert: state.certificate.clone(),
             });

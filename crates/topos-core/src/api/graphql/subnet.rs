@@ -30,7 +30,7 @@ impl PartialEq<crate::uci::SubnetId> for SubnetId {
         if let Ok(current) = crate::uci::SubnetId::from_str(&self.0) {
             other.as_array().eq(current.as_array())
         } else {
-            error!("Failed to parse the subnet id during comparison");
+            error!("Failed to parse the subnet id {} during comparison", self.0);
             false
         }
     }
