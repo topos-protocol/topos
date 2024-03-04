@@ -160,17 +160,16 @@ impl Stream {
                         Err(error) => {
                             match error.kind {
                                 StreamErrorKind::StreamClosed => {
-                                    // Currently, when the client is closing the connection,
-                                    // we don't receive a StreamClosed error. Further investigation is needed.
                                     warn!("Stream {} closed", self.stream_id);
-                                    break;
+                                    return Err(StreamError::new(self.stream_id, StreamErrorKind::StreamClosed));
                                 }
                                 _ => {
                                     // We are not handling specific errors for now.
                                     // If the sequencer is closing the connection, we are receiving a
                                     // StreamErrorKind::TransportError.
                                     error!( "Stream error: {:?}", error);
-                                    break;
+                                    return Err(StreamError::new(self.stream_id, error.kind));
+
                                 }
 
                             }
