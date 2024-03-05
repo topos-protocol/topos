@@ -1,4 +1,4 @@
-use std::{fs::create_dir_all, path::PathBuf};
+use std::{fs::create_dir_all, path::Path};
 
 use rocksdb::ColumnFamilyDescriptor;
 use topos_core::uci::CertificateId;
@@ -19,8 +19,8 @@ pub struct EpochValidatorsTables {
 }
 
 impl EpochValidatorsTables {
-    pub(crate) fn open(mut path: PathBuf) -> Self {
-        path.push("validators");
+    pub(crate) fn open(path: &Path) -> Self {
+        let path = path.join("validators");
         let mut options = rocksdb::Options::default();
         options.create_if_missing(true);
         let db = init_db(&path, options).unwrap_or_else(|_| panic!("Cannot open DB at {:?}", path));
@@ -42,9 +42,8 @@ pub struct ValidatorPerEpochTables {
 }
 
 impl ValidatorPerEpochTables {
-    pub(crate) fn open(epoch_id: EpochId, mut path: PathBuf) -> Self {
-        path.push("epochs");
-        path.push(epoch_id.to_string());
+    pub(crate) fn open(epoch_id: EpochId, path: &Path) -> Self {
+        let path = path.join("epochs").join(epoch_id.to_string());
         if !path.exists() {
             warn!("Path {:?} does not exist, creating it", path);
             create_dir_all(&path).expect("Cannot create ValidatorPerEpochTables directory");

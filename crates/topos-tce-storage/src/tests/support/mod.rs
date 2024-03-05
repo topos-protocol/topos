@@ -40,14 +40,14 @@ pub(crate) fn database_name() -> &'static str {
 #[fixture]
 pub(crate) fn store() -> Arc<ValidatorStore> {
     let temp_dir = create_folder::default();
-    let perpetual_tables = Arc::new(ValidatorPerpetualTables::open(temp_dir.clone()));
-    let index_tables = Arc::new(IndexTables::open(temp_dir.clone()));
+    let perpetual_tables = Arc::new(ValidatorPerpetualTables::open(&temp_dir));
+    let index_tables = Arc::new(IndexTables::open(&temp_dir));
 
     let participants_store =
-        EpochValidatorsStore::new(temp_dir.clone()).expect("Unable to create Participant store");
+        EpochValidatorsStore::new(&temp_dir).expect("Unable to create Participant store");
 
     let epoch_store =
-        ValidatorPerEpochStore::new(0, temp_dir.clone()).expect("Unable to create Per epoch store");
+        ValidatorPerEpochStore::new(0, &temp_dir).expect("Unable to create Per epoch store");
 
     let store = FullNodeStore::open(
         epoch_store,
@@ -57,7 +57,7 @@ pub(crate) fn store() -> Arc<ValidatorStore> {
     )
     .expect("Unable to create full node store");
 
-    ValidatorStore::open(temp_dir, store).unwrap()
+    ValidatorStore::open(&temp_dir, store).unwrap()
 }
 
 #[fixture]

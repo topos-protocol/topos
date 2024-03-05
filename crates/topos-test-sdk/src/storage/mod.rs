@@ -36,7 +36,7 @@ pub async fn create_validator_store(
     let fullnode_store = create_fullnode_store.await;
 
     let store =
-        ValidatorStore::open(temp_dir, fullnode_store).expect("Unable to create validator store");
+        ValidatorStore::open(&temp_dir, fullnode_store).expect("Unable to create validator store");
 
     store
         .insert_certificates_delivered(&certificates)
@@ -49,21 +49,22 @@ pub async fn create_validator_store(
 pub async fn create_validator_store_with_fullnode(
     fullnode_store: Arc<FullNodeStore>,
 ) -> Arc<ValidatorStore> {
-    ValidatorStore::open(create_folder::default(), fullnode_store)
+    ValidatorStore::open(&create_folder::default(), fullnode_store)
         .expect("Unable to create validator store")
 }
+
 #[fixture(certificates = Vec::new())]
 pub async fn create_fullnode_store(certificates: Vec<CertificateDelivered>) -> Arc<FullNodeStore> {
     let temp_dir = create_folder::default();
 
-    let perpetual_tables = Arc::new(ValidatorPerpetualTables::open(temp_dir.clone()));
-    let index_tables = Arc::new(IndexTables::open(temp_dir.clone()));
+    let perpetual_tables = Arc::new(ValidatorPerpetualTables::open(&temp_dir));
+    let index_tables = Arc::new(IndexTables::open(&temp_dir));
 
-    let validators_store = EpochValidatorsStore::new(temp_dir.clone())
-        .expect("Unable to create EpochValidators store");
+    let validators_store =
+        EpochValidatorsStore::new(&temp_dir).expect("Unable to create EpochValidators store");
 
     let epoch_store =
-        ValidatorPerEpochStore::new(0, temp_dir).expect("Unable to create Per epoch store");
+        ValidatorPerEpochStore::new(0, &temp_dir).expect("Unable to create Per epoch store");
 
     let store = FullNodeStore::open(
         epoch_store,
