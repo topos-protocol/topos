@@ -14,7 +14,7 @@ macro_rules! test_case {
 #[fixture]
 #[once]
 pub fn genesis() -> Genesis {
-    Genesis::new(test_case!("genesis-example.json").into())
+    Genesis::new(&test_case!("genesis-example.json").into())
         .expect("Expected valid test genesis file")
 }
 

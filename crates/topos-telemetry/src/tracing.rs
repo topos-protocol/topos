@@ -6,6 +6,7 @@ use opentelemetry::{global, KeyValue};
 use opentelemetry_otlp::{SpanExporterBuilder, WithExportConfig};
 use std::time::Duration;
 use tracing::Level;
+use tracing_subscriber::util::TryInitError;
 use tracing_subscriber::{
     prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer,
 };
@@ -66,7 +67,7 @@ pub fn setup_tracing(
     otlp_agent: Option<String>,
     otlp_service_name: Option<String>,
     version: &'static str,
-) -> Result<Option<BasicController>, Box<dyn std::error::Error>> {
+) -> Result<Option<BasicController>, TryInitError> {
     let mut layers = Vec::new();
 
     let ansi = !no_color;
