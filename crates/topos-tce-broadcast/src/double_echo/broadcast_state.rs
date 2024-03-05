@@ -189,7 +189,7 @@ impl BroadcastState {
             let d = duration;
 
             info!(
-                "📝 Certificate {} delivered with broadcast duration: {:?}",
+                "📝 Certificate delivered {} with broadcast duration: {:?}",
                 self.certificate.id, d
             );
 
