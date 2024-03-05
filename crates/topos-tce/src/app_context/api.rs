@@ -43,7 +43,7 @@ impl AppContext {
                         InternalStorageError::CertificateAlreadyPending,
                     )) => {
                         debug!(
-                            "Certificate {} has been already added to the pending pool, skipping",
+                            "Certificate {} has already been added to the pending pool, skipping",
                             certificate.id
                         );
                         sender.send(Ok(PendingResult::AlreadyPending))
@@ -52,7 +52,7 @@ impl AppContext {
                         InternalStorageError::CertificateAlreadyExists,
                     )) => {
                         debug!(
-                            "Certificate {} has been already delivered, skipping",
+                            "Certificate {} has already been delivered, skipping",
                             certificate.id
                         );
                         sender.send(Ok(PendingResult::AlreadyDelivered))

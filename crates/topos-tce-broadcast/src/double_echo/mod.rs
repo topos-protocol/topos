@@ -184,7 +184,7 @@ impl DoubleEcho {
                 }
 
                 else => {
-                    warn!("Break the tokio loop for the double echo");
+                    debug!("Break the tokio loop for the double echo");
                     break None;
                 }
             }
@@ -194,7 +194,7 @@ impl DoubleEcho {
             info!("Shutting down p2p double echo...");
             _ = sender.send(());
         } else {
-            warn!("Shutting down p2p double echo due to error...");
+            debug!("Shutting down p2p double echo due to error...");
         }
     }
 }

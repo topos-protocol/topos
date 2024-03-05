@@ -22,9 +22,7 @@ use topos_tce_storage::store::ReadStore;
 use topos_tce_storage::types::CertificateDeliveredWithPositions;
 use topos_tce_storage::validator::ValidatorStore;
 use topos_tce_storage::PendingCertificateId;
-use tracing::debug;
-use tracing::error;
-use tracing::warn;
+use tracing::{debug, error, info, trace, warn};
 
 pub mod task;
 
@@ -55,7 +53,6 @@ pub struct TaskManager {
     pub validator_id: ValidatorId,
     pub validator_store: Arc<ValidatorStore>,
     pub broadcast_sender: broadcast::Sender<CertificateDeliveredWithPositions>,
-
     pub latest_pending_id: PendingCertificateId,
 }
 
@@ -108,7 +105,7 @@ impl TaskManager {
                 }
             }
             Err(error) => {
-                error!("Error while fetching pending certificates: {:?}", error);
+                error!("Failed to fetch the pending certificates: {:?}", error);
             }
         }
     }
@@ -136,7 +133,7 @@ impl TaskManager {
                             };
                         }
                         DoubleEchoCommand::Broadcast { ref cert, need_gossip } => {
-                            debug!("Received broadcast message for certificate {} ", cert.id);
+                            trace!("Received broadcast message for certificate {} ", cert.id);
 
                             self.create_task(cert, need_gossip)
                         }
@@ -146,25 +143,25 @@ impl TaskManager {
 
                 Some((certificate_id, status)) = self.running_tasks.next() => {
                     if let TaskStatus::Success = status {
-                        debug!("Task for certificate {} finished successfully", certificate_id);
+                        trace!("Task for certificate {} finished successfully", certificate_id);
                         self.tasks.remove(&certificate_id);
                         DOUBLE_ECHO_ACTIVE_TASKS_COUNT.dec();
 
                     } else {
-                        debug!("Task for certificate {} finished unsuccessfully", certificate_id);
+                        error!("Task for certificate {} finished unsuccessfully", certificate_id);
                     }
 
                     self.next_pending_certificate();
                 }
 
                 _ = shutdown_receiver.cancelled() => {
-                    warn!("Task Manager shutting down");
+                    info!("Task Manager shutting down");
 
-                    warn!("There are still {} active tasks", self.tasks.len());
+                    debug!("Remaining active tasks: {:?}", self.tasks.len());
                     if !self.tasks.is_empty() {
                         debug!("Certificates still in broadcast: {:?}", self.tasks.keys());
                     }
-                    warn!("There are still {} buffered messages", self.buffered_messages.len());
+                    warn!("Remaining buffered messages: {}", self.buffered_messages.len());
                     for task in self.tasks.iter() {
                         task.1.shutdown_sender.send(()).await.unwrap();
                     }

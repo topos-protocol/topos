@@ -26,7 +26,7 @@ impl AppContext {
                     .publish(topos_p2p::TOPOS_GOSSIP, request)
                     .await
                 {
-                    error!("Unable to send Gossip due to error: {e}");
+                    error!("Unable to send Gossip: {e}");
                 }
             }
 
@@ -49,7 +49,7 @@ impl AppContext {
                     .publish(topos_p2p::TOPOS_ECHO, request)
                     .await
                 {
-                    error!("Unable to send Echo due to error: {e}");
+                    error!("Unable to send Echo: {e}");
                 }
             }
 
@@ -71,7 +71,7 @@ impl AppContext {
                     .publish(topos_p2p::TOPOS_READY, request)
                     .await
                 {
-                    error!("Unable to send Ready due to error: {e}");
+                    error!("Unable to send Ready: {e}");
                 }
             }
             ProtocolEvents::BroadcastFailed { certificate_id } => {

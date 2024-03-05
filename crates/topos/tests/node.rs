@@ -91,7 +91,7 @@ mod serial_integration {
         if let Ok(code) = cmd.wait().await {
             assert!(code.success());
         } else {
-            panic!("Failed to gracefull shutdown");
+            panic!("Failed to shutdown gracefully");
         }
 
         // Cleanup
