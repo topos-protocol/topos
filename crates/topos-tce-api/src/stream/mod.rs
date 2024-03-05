@@ -150,14 +150,37 @@ impl Stream {
                     }
                 }
 
-                Some(_stream_packet) = self.inbound_stream.next() => {
+                // We currently open the stream, but no other message from the client is getting processed.
+                // We are using this open connection to communicate `delivered_certificates` to the client.
+                Some(stream_packet) = self.inbound_stream.next() => {
+                    match stream_packet {
+                        Ok((_request_id, _message)) => {
+                            trace!("Received message from stream_id: {:?}", self.stream_id);
+                        }
+                        Err(error) => {
+                            match error.kind {
+                                StreamErrorKind::StreamClosed => {
+                                    warn!("Stream {} closed", self.stream_id);
+                                    return Err(StreamError::new(self.stream_id, StreamErrorKind::StreamClosed));
+                                }
+                                _ => {
+                                    // We are not handling specific errors for now.
+                                    // If the sequencer is closing the connection, we are receiving a
+                                    // StreamErrorKind::TransportError.
+                                    error!( "Stream error: {:?}", error);
+                                    return Err(StreamError::new(self.stream_id, error.kind));
 
+                                }
+
+                            }
+                        }
+                    }
                 }
 
-                // For graceful shutdown in case streams are closed
                 else => break,
             }
         }
+
         Ok(self.stream_id)
     }
 }
