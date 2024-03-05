@@ -154,7 +154,9 @@ mod serial_integration {
     ) -> Result<(), Box<dyn std::error::Error>> {
         let tmp_home_directory = create_folder;
         // Test node init with env variables
-        let node_init_home_env = tmp_home_directory.to_str().unwrap();
+        let node_init_home_env = tmp_home_directory
+            .to_str()
+            .expect("path names are valid utf-8");
         let node_edge_path_env = setup_polygon_edge(node_init_home_env).await;
         let node_init_name_env = "TEST_NODE_ENV";
         let node_init_role_env = "full-node";

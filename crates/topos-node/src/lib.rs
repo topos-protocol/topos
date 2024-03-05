@@ -72,7 +72,8 @@ pub async fn start(
 
     debug!("TceConfig: {:?}", config);
 
-    let genesis: Genesis = config.as_ref().try_into().map_err(|error| {
+    let config_ref = &config;
+    let genesis: Genesis = config_ref.try_into().map_err(|error| {
         info!(
             "Could not load genesis.json file on path {} \n Please make sure to have a valid \
              genesis.json file for your subnet in the {}/subnet/{} folder.",
@@ -85,7 +86,7 @@ pub async fn start(
     })?;
 
     // Get secrets
-    let keys: SecretManager = config.as_ref().into();
+    let keys: SecretManager = config_ref.into();
 
     info!(
         "🧢 New joiner: {} for the \"{}\" subnet as {:?}",
