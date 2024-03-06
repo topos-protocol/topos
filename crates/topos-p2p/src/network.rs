@@ -14,7 +14,13 @@ use crate::{
 };
 use futures::Stream;
 use libp2p::{
-    core::upgrade, dns, identity::Keypair, kad::store::MemoryStore, noise, swarm, tcp::Config,
+    core::upgrade,
+    dns,
+    identity::Keypair,
+    kad::store::MemoryStore,
+    noise,
+    swarm::{self, ConnectionId},
+    tcp::Config,
     Multiaddr, PeerId, Swarm, Transport,
 };
 use std::{
@@ -204,6 +210,12 @@ impl<'a> NetworkBuilder<'a> {
                 shutdown,
                 state_machine: crate::runtime::StateMachine {
                     connected_to_bootpeer_retry_count: 3,
+                    successfully_connect_to_bootpeer: if self.known_peers.is_empty() {
+                        // Node seems to be a boot node
+                        Some(ConnectionId::new_unchecked(0))
+                    } else {
+                        None
+                    },
                     ..Default::default()
                 },
                 health_status: HealthStatus::Initializing,

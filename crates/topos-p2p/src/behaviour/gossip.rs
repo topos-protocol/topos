@@ -256,7 +256,9 @@ impl NetworkBehaviour for Behaviour {
                 },
                 gossipsub::Event::Subscribed { peer_id, topic } => {
                     debug!("Subscribed to {:?} with {peer_id}", topic);
-                    self.health_status = HealthStatus::Healthy;
+                    if self.health_status != HealthStatus::Healthy {
+                        self.health_status = HealthStatus::Healthy;
+                    }
                 }
                 gossipsub::Event::Unsubscribed { peer_id, topic } => {
                     debug!("Unsubscribed from {:?} with {peer_id}", topic);

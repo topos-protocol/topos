@@ -26,19 +26,14 @@ use topos_tce_proxy::{TceProxyCommand, TceProxyConfig, TceProxyEvent};
 use topos_test_sdk::tce::{start_node, NodeConfig};
 use tracing::{debug, error, info, warn};
 
-use topos_test_sdk::{
-    certificates::create_certificate_chain,
-    constants::*,
-    tce::{create_network, TceContext},
-};
+use topos_test_sdk::{certificates::create_certificate_chain, constants::*, tce::TceContext};
 
 pub const SOURCE_SUBNET_ID_1_NUMBER_OF_PREFILLED_CERTIFICATES: usize = 15;
 pub const SOURCE_SUBNET_ID_2_NUMBER_OF_PREFILLED_CERTIFICATES: usize = 10;
 
 #[test(tokio::test)]
 async fn test_tce_submit_certificate() -> Result<(), Box<dyn std::error::Error>> {
-    let mut network = create_network(3, &[]).await;
-    let context = network.values_mut().last().unwrap();
+    let mut context = start_node::partial_2(&[], NodeConfig::standalone()).await;
 
     let source_subnet_id: SubnetId = SOURCE_SUBNET_ID_1.into();
     let prev_certificate_id: CertificateId = CERTIFICATE_ID_1.into();
@@ -78,8 +73,7 @@ async fn test_tce_submit_certificate() -> Result<(), Box<dyn std::error::Error>>
 
 #[test(tokio::test)]
 async fn test_tce_watch_certificates() -> Result<(), Box<dyn std::error::Error>> {
-    let mut network = create_network(3, &[]).await;
-    let context = network.values_mut().last().unwrap();
+    let mut context = start_node::partial_2(&[], NodeConfig::standalone()).await;
 
     let source_subnet_id: SubnetId = SubnetId {
         value: [1u8; SUBNET_ID_LENGTH].to_vec(),
@@ -142,8 +136,7 @@ async fn test_tce_watch_certificates() -> Result<(), Box<dyn std::error::Error>>
 
 #[test(tokio::test)]
 async fn test_tce_get_source_head_certificate() -> Result<(), Box<dyn std::error::Error>> {
-    let mut network = create_network(3, &[]).await;
-    let context = network.values_mut().last().unwrap();
+    let mut context = start_node::partial_2(&[], NodeConfig::standalone()).await;
 
     let source_subnet_id: SubnetId = SOURCE_SUBNET_ID_1.into();
     let default_cert_id: CertificateId = PREV_CERTIFICATE_ID.into();
@@ -243,8 +236,7 @@ async fn test_tce_get_source_head_certificate() -> Result<(), Box<dyn std::error
 
 #[test(tokio::test)]
 async fn test_tce_get_last_pending_certificates() -> Result<(), Box<dyn std::error::Error>> {
-    let mut network = create_network(3, &[]).await;
-    let context = network.values_mut().last().unwrap();
+    let mut context = start_node::partial_2(&[], NodeConfig::standalone()).await;
 
     let source_subnet_id: SubnetId = SOURCE_SUBNET_ID_1.into();
     let certificates = create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], 10);
@@ -339,9 +331,8 @@ async fn test_tce_get_last_pending_certificates() -> Result<(), Box<dyn std::err
 async fn test_tce_open_stream_with_checkpoint(
     input_certificates: Vec<CertificateDelivered>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut network = create_network(3, &input_certificates[..]).await;
-
-    let context = network.values_mut().last().unwrap();
+    let mut context =
+        start_node::partial_2(&input_certificates[..], NodeConfig::standalone()).await;
 
     let source_subnet_id_1: SubnetId = SubnetId {
         value: SOURCE_SUBNET_ID_1.into(),
@@ -739,8 +730,8 @@ async fn test_tce_client_get_empty_history_source_head() -> Result<(), Box<dyn s
 async fn test_tce_client_get_source_head(
     input_certificates: Vec<CertificateDelivered>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut network = create_network(3, &input_certificates[..]).await;
-    let context = network.values_mut().last().unwrap();
+    let mut context =
+        start_node::partial_2(&input_certificates[..], NodeConfig::standalone()).await;
 
     // Tce is prefilled with delivered certificates
     let source_subnet_id_1_prefilled_certificates =

@@ -74,8 +74,16 @@ impl DiscoveryBehaviour {
         Self {
             inner: kademlia,
             current_bootstrap_query_id: None,
-            next_bootstrap_query: Some(Box::pin(tokio::time::interval(config.bootstrap_interval))),
-            health_status: Default::default(),
+            next_bootstrap_query: if known_peers.is_empty() {
+                None
+            } else {
+                Some(Box::pin(tokio::time::interval(config.bootstrap_interval)))
+            },
+            health_status: if known_peers.is_empty() {
+                HealthStatus::Healthy
+            } else {
+                HealthStatus::default()
+            },
         }
     }
 

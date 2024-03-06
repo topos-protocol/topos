@@ -169,7 +169,6 @@ impl NodeConfig {
             peers,
             self.minimum_cluster_size,
             router,
-            self.dummy,
         )
         .await
     }

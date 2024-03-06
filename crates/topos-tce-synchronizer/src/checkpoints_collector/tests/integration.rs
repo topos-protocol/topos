@@ -20,7 +20,7 @@ use crate::SynchronizerService;
 
 #[rstest]
 #[test(tokio::test)]
-#[timeout(Duration::from_secs(10))]
+#[timeout(Duration::from_secs(5))]
 async fn network_test() {
     let subnet = topos_test_sdk::constants::SOURCE_SUBNET_ID_1;
     let certificates: Vec<CertificateDelivered> =

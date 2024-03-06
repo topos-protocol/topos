@@ -17,7 +17,6 @@ pub async fn create_network_worker(
     peers: &[NodeConfig],
     minimum_cluster_size: usize,
     router: Option<GrpcRouter>,
-    dummy: bool,
 ) -> Result<
     (
         NetworkClient,
@@ -26,26 +25,11 @@ pub async fn create_network_worker(
     ),
     P2PError,
 > {
-    if !dummy && peers.len() < 2 {
-        println!("peers {:?}", peers);
-        return Err(P2PError::UnableToReachBootnode);
-    }
-
     let key = keypair_from_seed(seed);
     let _peer_id = key.public().to_peer_id();
 
-    let known_peers = if dummy {
+    let known_peers = if seed == 1 {
         vec![]
-    } else if seed == 1 {
-        vec![(
-            peers[1].keypair.public().to_peer_id(),
-            peers[1].addr.clone(),
-        )]
-    } else if seed == 2 {
-        vec![(
-            peers[0].keypair.public().to_peer_id(),
-            peers[0].addr.clone(),
-        )]
     } else {
         peers
             .iter()
@@ -92,17 +76,10 @@ pub async fn bootstrap_network(
     ),
     Box<dyn Error>,
 > {
-    let (network_client, mut network_stream, runtime) = create_network_worker(
-        seed,
-        port,
-        vec![addr],
-        peers,
-        minimum_cluster_size,
-        router,
-        dummy,
-    )
-    .in_current_span()
-    .await?;
+    let (network_client, mut network_stream, runtime) =
+        create_network_worker(seed, port, vec![addr], peers, minimum_cluster_size, router)
+            .in_current_span()
+            .await?;
 
     let runtime_join_handle = if dummy {
         spawn(runtime.run().in_current_span())

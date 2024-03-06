@@ -138,6 +138,7 @@ impl EventHandler<SwarmEvent<ComposedEvent>> for Runtime {
                      {connection_id} | send_back_addr: {send_back_addr}"
                 )
             }
+
             SwarmEvent::ListenerClosed {
                 listener_id,
                 addresses,
