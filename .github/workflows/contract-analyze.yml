@@ -1,0 +1,18 @@
+name: Analyze
+
+on:
+  push:
+    branches: 'main'
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  lint:
+    name: Analyze
+    runs-on: ubuntu-latest-16-core
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: crytic/slither-action@v0.3.0
+        with:
+          node-version: 16

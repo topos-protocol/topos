@@ -1,0 +1,20 @@
+name: Release Pipeline
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  notification:
+    runs-on: ubuntu-latest-16-core
+    steps:
+      - name: Send Slack notification
+        uses: slackapi/slack-github-action@v1.23.0
+        with:
+          payload: |
+            {
+              "repository": "${{ github.repository }}",
+              "version": "${{ github.ref }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ vars.RELEASE_PIPELINE_SLACK_WEBHOOK_URL }}
