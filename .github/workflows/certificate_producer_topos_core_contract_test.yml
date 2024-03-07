@@ -1,4 +1,4 @@
-name: Sequencer Topos Core Contract interaction test
+name: Certificate Producer Topos Core Contract interaction test
 
 on:
   push:
@@ -16,7 +16,8 @@ jobs:
           owner: topos-protocol
           repo: e2e-tests
           github_token: ${{ secrets.ROBOT_PAT_TRIGGER_E2E_WORKFLOWS }}
-          workflow_file_name: topos:sequencer-contracts.yml
+          # This file is part of https://github.com/topos-protocol/e2e-tests/blob/main/.github/workflows/topos%3Asequencer-contracts.yml
+          workflow_file_name: topos:certificate-producer-contracts.yml
           ref: main
           wait_interval: 60
           client_payload: '{ "topos-ref": "${{ github.head_ref }}" }'

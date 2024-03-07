@@ -7708,12 +7708,12 @@ dependencies = [
  "tokio-util",
  "toml 0.7.8",
  "tonic 0.10.2",
+ "topos-certificate-producer",
  "topos-certificate-spammer",
  "topos-config",
  "topos-core",
  "topos-node",
  "topos-p2p",
- "topos-sequencer",
  "topos-tce",
  "topos-tce-api",
  "topos-tce-broadcast",
@@ -7730,6 +7730,73 @@ dependencies = [
  "tracing-subscriber",
  "url",
  "uuid 1.7.0",
+]
+
+[[package]]
+name = "topos-certificate-producer"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "opentelemetry",
+ "serde",
+ "tokio",
+ "tokio-util",
+ "topos-certificate-producer-subnet-runtime",
+ "topos-core",
+ "topos-crypto",
+ "topos-tce-proxy",
+ "topos-wallet",
+ "tracing",
+ "tracing-opentelemetry",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "topos-certificate-producer-subnet-client"
+version = "0.1.0"
+dependencies = [
+ "backoff",
+ "ethers",
+ "ethers-providers",
+ "hex",
+ "rustc-hex",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tiny-keccak 1.5.0",
+ "tokio",
+ "topos-core",
+ "tracing",
+]
+
+[[package]]
+name = "topos-certificate-producer-subnet-runtime"
+version = "0.1.0"
+dependencies = [
+ "byteorder",
+ "env_logger 0.10.2",
+ "ethers",
+ "fs_extra",
+ "hex",
+ "opentelemetry",
+ "rand",
+ "rand_core",
+ "rstest",
+ "secp256k1",
+ "serde",
+ "serde_json",
+ "serial_test",
+ "test-log",
+ "thiserror",
+ "tiny-keccak 1.5.0",
+ "tokio",
+ "topos-certificate-producer-subnet-client",
+ "topos-core",
+ "topos-crypto",
+ "topos-test-sdk",
+ "tracing",
+ "tracing-opentelemetry",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -7978,73 +8045,6 @@ dependencies = [
  "tracing-subscriber",
  "uuid 1.7.0",
  "void",
-]
-
-[[package]]
-name = "topos-sequencer"
-version = "0.1.0"
-dependencies = [
- "hex",
- "opentelemetry",
- "serde",
- "tokio",
- "tokio-util",
- "topos-core",
- "topos-crypto",
- "topos-sequencer-subnet-runtime",
- "topos-tce-proxy",
- "topos-wallet",
- "tracing",
- "tracing-opentelemetry",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "topos-sequencer-subnet-client"
-version = "0.1.0"
-dependencies = [
- "backoff",
- "ethers",
- "ethers-providers",
- "hex",
- "rustc-hex",
- "serde",
- "serde_json",
- "thiserror",
- "tiny-keccak 1.5.0",
- "tokio",
- "topos-core",
- "tracing",
-]
-
-[[package]]
-name = "topos-sequencer-subnet-runtime"
-version = "0.1.0"
-dependencies = [
- "byteorder",
- "env_logger 0.10.2",
- "ethers",
- "fs_extra",
- "hex",
- "opentelemetry",
- "rand",
- "rand_core",
- "rstest",
- "secp256k1",
- "serde",
- "serde_json",
- "serial_test",
- "test-log",
- "thiserror",
- "tiny-keccak 1.5.0",
- "tokio",
- "topos-core",
- "topos-crypto",
- "topos-sequencer-subnet-client",
- "topos-test-sdk",
- "tracing",
- "tracing-opentelemetry",
- "tracing-subscriber",
 ]
 
 [[package]]

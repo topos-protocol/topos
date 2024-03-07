@@ -15,7 +15,7 @@ use crate::{
 };
 
 #[derive(clap::ValueEnum, Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "kebab-case")]
 pub enum NodeRole {
     Validator,
     CertificateProducer,
