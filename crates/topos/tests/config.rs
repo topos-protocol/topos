@@ -187,7 +187,7 @@ mod serial_integration {
         // Check if config file params are according to env params
         let config_contents = std::fs::read_to_string(&config_path).unwrap();
         assert!(config_contents.contains("name = \"TEST_NODE_ENV\""));
-        assert!(config_contents.contains("role = \"fullnode\""));
+        assert!(config_contents.contains("role = \"full-node\""));
         assert!(config_contents.contains("subnet = \"topos-env\""));
 
         Ok(())
@@ -422,12 +422,13 @@ mod serial_integration {
         let pid = cmd.id().unwrap();
         let _ = tokio::time::sleep(std::time::Duration::from_secs(10)).await;
 
-        let s = System::new_all();
-        if let Some(process) = s.process(Pid::from_u32(pid)) {
-            if process.kill_with(Signal::Term).is_none() {
-                eprintln!("This signal isn't supported on this platform");
-            }
-        }
+        println!("STDOUT: {}", stdout);
+        let reg = Regex::new(r#"Local node is listening on "\/ip4\/.*\/tcp\/9091\/p2p\/"#).unwrap();
+        assert!(
+            reg.is_match(&stdout),
+            "Expected node 'Local node is listening on…' but instead got:\n----\n{}\n----\n",
+            stdout
+        );
 
         if let Ok(output) = cmd.wait_with_output().await {
             assert!(output.status.success());
