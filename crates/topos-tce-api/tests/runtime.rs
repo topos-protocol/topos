@@ -734,11 +734,7 @@ async fn get_pending_pool(
     // Wait for server to boot
     tokio::time::sleep(Duration::from_millis(100)).await;
 
-    let query = format!(
-        r#"
-        query {{ getPendingPool }}
-        "#
-    );
+    let query = "query { getPendingPool }".to_string();
 
     #[derive(Debug, Deserialize)]
     struct Response {
@@ -777,4 +773,87 @@ async fn get_pending_pool(
         .unwrap();
 
     assert_eq!(first, certificates[0].certificate.id);
+}
+
+#[rstest]
+#[timeout(Duration::from_secs(4))]
+#[test(tokio::test)]
+async fn check_precedence(
+    broadcast_stream: broadcast::Receiver<CertificateDeliveredWithPositions>,
+) {
+    let addr = get_available_addr();
+    let graphql_addr = get_available_addr();
+    let metrics_addr = get_available_addr();
+
+    // launch data store
+    let certificates = create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], 15);
+
+    let fullnode_store = create_fullnode_store::default().await;
+
+    let store: Arc<ValidatorStore> =
+        create_validator_store(vec![], futures::future::ready(fullnode_store.clone())).await;
+
+    for certificate in &certificates {
+        _ = store.insert_pending_certificate(&certificate.certificate);
+    }
+
+    let storage_client = StorageClient::new(store.clone());
+
+    let (_runtime_client, _launcher, _ctx) = Runtime::builder()
+        .with_broadcast_stream(broadcast_stream)
+        .storage(storage_client)
+        .store(store)
+        .serve_grpc_addr(addr)
+        .serve_graphql_addr(graphql_addr)
+        .serve_metrics_addr(metrics_addr)
+        .build_and_launch()
+        .await;
+
+    // Wait for server to boot
+    tokio::time::sleep(Duration::from_millis(100)).await;
+
+    let certificate_one = certificates[0].certificate.id;
+
+    let query = format!(
+        r#"
+        query {{ checkPrecedence(certificateId: "{}") {{ id }} }}
+        "#,
+        certificate_one
+    );
+
+    #[derive(Debug, Deserialize)]
+    struct Response {
+        data: CheckPrecedenceResponse,
+    }
+
+    #[derive(Debug, Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct CheckPrecedenceResponse {
+        check_precedence: CheckPrecedence,
+    }
+
+    #[derive(Debug, Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct CheckPrecedence {
+        id: String,
+    }
+
+    let client = reqwest::Client::new();
+
+    let response = client
+        .post(format!("http://{}", graphql_addr))
+        .json(&serde_json::json!({
+            "query": query,
+        }))
+        .send()
+        .await
+        .unwrap()
+        .json::<Response>()
+        .await
+        .unwrap();
+
+    assert_eq!(
+        TryInto::<CertificateId>::try_into(response.data.check_precedence.id.as_bytes()).unwrap(),
+        certificates[1].certificate.id
+    );
 }

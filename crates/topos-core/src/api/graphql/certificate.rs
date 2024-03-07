@@ -20,6 +20,7 @@ pub struct CertificatePositions {
     source: SourceStreamPosition,
 }
 
+/// A certificate that has been delivered
 #[derive(Debug, Serialize, Deserialize, SimpleObject)]
 #[serde(rename_all = "camelCase")]
 pub struct Certificate {
@@ -36,6 +37,7 @@ pub struct Certificate {
     pub positions: CertificatePositions,
 }
 
+/// A certificate that has not been delivered yet
 #[derive(Debug, Serialize, Deserialize, SimpleObject)]
 #[serde(rename_all = "camelCase")]
 pub struct UndeliveredCertificate {

@@ -212,6 +212,7 @@ impl ValidatorStore {
             .collect())
     }
 
+    /// Returns the [Certificate] (if any) that is currently in the precedence pool for the given [CertificateId]
     pub fn check_precedence(
         &self,
         certificate_id: &CertificateId,
