@@ -31,9 +31,13 @@ pub struct DiscoveryConfig {
     pub publication_interval: Option<Duration>,
     pub provider_publication_interval: Option<Duration>,
     /// Interval at which the node will send bootstrap query to the network
+    ///
+    /// Defaults to [DiscoveryConfig::BOOTSTRAP_INTERVAL]
     pub bootstrap_interval: Duration,
     /// Interval at which the node will send fast bootstrap query to the network
     /// Mostly used when the node is bootstrapping and failed to connect to boot peers
+    ///
+    /// Defaults to [DiscoveryConfig::FAST_BOOTSTRAP_INTERVAL]
     pub fast_bootstrap_interval: Duration,
 }
 

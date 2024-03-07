@@ -1,5 +1,5 @@
 use libp2p::kad::{BootstrapOk, BootstrapResult, Event, QueryResult};
-use tracing::{debug, error, warn};
+use tracing::{debug, error, info, warn};
 
 use crate::{behaviour::HealthStatus, error::P2PError, Runtime};
 
@@ -44,8 +44,8 @@ impl EventHandler<Box<Event>> for Runtime {
                 && self.swarm.behaviour().discovery.health_status == HealthStatus::Initializing =>
             {
                 warn!(
-                    "Bootstrap query finished but unable to connect to bootnode {:?} {:?}",
-                    stats, step
+                    "Bootstrap query finished but unable to connect to bootnode during \
+                     initialization, switching to unhealthy and fast bootstrap mode",
                 );
 
                 let behaviour = self.swarm.behaviour_mut();
@@ -67,27 +67,26 @@ impl EventHandler<Box<Event>> for Runtime {
                 step,
             } if num_remaining == 0
                 && self
-                    .state_machine
-                    .successfully_connect_to_bootpeer
+                    .health_state
+                    .successfully_connected_to_bootpeer
                     .is_none()
                 && self.swarm.behaviour().discovery.health_status == HealthStatus::Unhealthy =>
             {
-                warn!(
-                    "Bootstrap query finished but unable to connect to bootnode {:?} {:?}",
-                    stats, step
-                );
-                match self
-                    .state_machine
-                    .connected_to_bootpeer_retry_count
-                    .checked_sub(1)
-                {
+                match self.health_state.bootpeer_connection_retries.checked_sub(1) {
                     None => {
-                        error!("Unable to connect to bootnode, stopping");
+                        error!(
+                            "Bootstrap query finished but unable to connect to bootnode, stopping"
+                        );
 
                         return Err(P2PError::UnableToReachBootnode);
                     }
                     Some(new) => {
-                        self.state_machine.connected_to_bootpeer_retry_count = new;
+                        warn!(
+                            "Bootstrap query finished but unable to connect to bootnode, retrying \
+                             {} more times",
+                            new
+                        );
+                        self.health_state.bootpeer_connection_retries = new;
                     }
                 }
             }
@@ -102,14 +101,14 @@ impl EventHandler<Box<Event>> for Runtime {
                 step,
             } if num_remaining == 0
                 && self
-                    .state_machine
-                    .successfully_connect_to_bootpeer
+                    .health_state
+                    .successfully_connected_to_bootpeer
                     .is_some()
                 && self.swarm.behaviour().discovery.health_status == HealthStatus::Unhealthy =>
             {
-                warn!(
-                    "Bootstrap query finished with bootnode {:?} {:?}",
-                    stats, step
+                info!(
+                    "Bootstrap query finished with bootnode, switching to healthy and normal \
+                     bootstrap mode",
                 );
 
                 let behaviour = self.swarm.behaviour_mut();

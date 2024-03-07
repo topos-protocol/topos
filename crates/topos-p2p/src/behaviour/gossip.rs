@@ -32,7 +32,7 @@ pub struct Behaviour {
     gossipsub: gossipsub::Behaviour,
     pending: HashMap<&'static str, VecDeque<Vec<u8>>>,
     tick: tokio::time::Interval,
-    /// List of connected peers per topics
+    /// List of connected peers per topic.
     connected_peer: HashMap<&'static str, HashSet<PeerId>>,
     /// The health status of the gossip behaviour
     pub(crate) health_status: HealthStatus,

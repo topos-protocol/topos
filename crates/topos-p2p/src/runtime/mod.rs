@@ -41,8 +41,8 @@ pub struct Runtime {
     /// Shutdown signal receiver from the client
     pub(crate) shutdown: mpsc::Receiver<oneshot::Sender<()>>,
 
-    /// Internal state machine of the p2p layer
-    pub(crate) state_machine: StateMachine,
+    /// Internal health state of the p2p layer
+    pub(crate) health_state: HealthState,
 
     pub(crate) health_status: HealthStatus,
 }
@@ -50,22 +50,22 @@ pub struct Runtime {
 mod handle_command;
 mod handle_event;
 
-/// Internal state machine of the p2p layer
+/// Internal health state of the p2p layer
 ///
 /// This struct may change in the future to be more flexible and to handle more
 /// complex state transitions/representation.
 #[derive(Default)]
-pub(crate) struct StateMachine {
+pub(crate) struct HealthState {
     /// Indicates if the node has external addresses configured
     pub(crate) has_external_addresses: bool,
     /// Indicates if the node is listening on any address
     pub(crate) is_listening: bool,
-    /// List the boot peers that the node has tried to connect to
+    /// List the bootnodes that the node has tried to connect to
     pub(crate) dialed_bootpeer: HashSet<ConnectionId>,
-    /// Indicates if the node has successfully connected to a boot peer
-    pub(crate) successfully_connect_to_bootpeer: Option<ConnectionId>,
-    /// Track the number of retries to connect to boot peers
-    pub(crate) connected_to_bootpeer_retry_count: usize,
+    /// Indicates if the node has successfully connected to a bootnode
+    pub(crate) successfully_connected_to_bootpeer: Option<ConnectionId>,
+    /// Track the number of remaining retries to connect to any bootnode
+    pub(crate) bootpeer_connection_retries: usize,
 }
 
 impl Runtime {
@@ -80,7 +80,7 @@ impl Runtime {
         debug!("Added public addresses: {:?}", self.public_addresses);
         for address in &self.public_addresses {
             self.swarm.add_external_address(address.clone());
-            self.state_machine.has_external_addresses = true;
+            self.health_state.has_external_addresses = true;
         }
         debug!("Starting to listen on {:?}", self.listening_on);
 
@@ -91,12 +91,12 @@ impl Runtime {
                 return Err(P2PError::TransportError(error));
             }
 
-            self.state_machine.is_listening = true;
+            self.health_state.is_listening = true;
         }
 
         let mut handle = spawn(self.run().in_current_span());
 
-        // Wait for first healthy
+        // Await the Event::Healthy coming from freshly started p2p layer
         loop {
             tokio::select! {
                 result = &mut handle => {

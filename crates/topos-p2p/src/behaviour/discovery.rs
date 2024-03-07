@@ -82,7 +82,7 @@ impl DiscoveryBehaviour {
             health_status: if known_peers.is_empty() {
                 HealthStatus::Healthy
             } else {
-                HealthStatus::default()
+                HealthStatus::Initializing
             },
         }
     }

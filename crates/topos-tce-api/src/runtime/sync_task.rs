@@ -72,7 +72,7 @@ impl SyncTask {
     pub(crate) fn new(
         stream_id: Uuid,
         target_subnet_stream_positions: TargetSubnetStreamPositions,
-        storage: StorageClient,
+        store: StorageClient,
         notifier: Sender<StreamCommand>,
         cancel_token: CancellationToken,
     ) -> Self {
@@ -80,7 +80,7 @@ impl SyncTask {
             status: SyncTaskStatus::Running,
             stream_id,
             target_subnet_stream_positions,
-            store: storage,
+            store,
             notifier,
             cancel_token,
         }

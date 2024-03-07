@@ -61,14 +61,14 @@ impl EventHandler<SwarmEvent<ComposedEvent>> for Runtime {
                 peer_id: Some(peer_id),
                 error,
             } if self
-                .state_machine
-                .successfully_connect_to_bootpeer
+                .health_state
+                .successfully_connected_to_bootpeer
                 .is_none()
-                && self.state_machine.dialed_bootpeer.contains(&connection_id) =>
+                && self.health_state.dialed_bootpeer.contains(&connection_id) =>
             {
                 warn!("Unable to connect to bootpeer {peer_id}: {error:?}");
-                self.state_machine.dialed_bootpeer.remove(&connection_id);
-                if self.state_machine.dialed_bootpeer.is_empty() {
+                self.health_state.dialed_bootpeer.remove(&connection_id);
+                if self.health_state.dialed_bootpeer.is_empty() {
                     // We tried to connect to all bootnode without success
                     error!("Unable to connect to any bootnode");
                 }
@@ -96,15 +96,15 @@ impl EventHandler<SwarmEvent<ComposedEvent>> for Runtime {
                 num_established,
                 concurrent_dial_errors,
                 established_in,
-            } if self.state_machine.dialed_bootpeer.contains(&connection_id) => {
-                info!("Successfully connect to bootpeer {peer_id}");
+            } if self.health_state.dialed_bootpeer.contains(&connection_id) => {
+                info!("Successfully connected to bootpeer {peer_id}");
                 if self
-                    .state_machine
-                    .successfully_connect_to_bootpeer
+                    .health_state
+                    .successfully_connected_to_bootpeer
                     .is_none()
                 {
-                    self.state_machine.successfully_connect_to_bootpeer = Some(connection_id);
-                    _ = self.state_machine.dialed_bootpeer.remove(&connection_id);
+                    self.health_state.successfully_connected_to_bootpeer = Some(connection_id);
+                    _ = self.health_state.dialed_bootpeer.remove(&connection_id);
                 }
             }
 
@@ -160,7 +160,7 @@ impl EventHandler<SwarmEvent<ComposedEvent>> for Runtime {
                 connection_id,
             } if self.boot_peers.contains(peer_id) => {
                 info!("Dialing bootpeer {peer_id} on connection: {connection_id}");
-                self.state_machine.dialed_bootpeer.insert(connection_id);
+                self.health_state.dialed_bootpeer.insert(connection_id);
             }
 
             SwarmEvent::Dialing {
@@ -188,7 +188,7 @@ impl EventHandler<SwarmEvent<ComposedEvent>> for Runtime {
         let behaviour = self.swarm.behaviour();
 
         if let Some(event) = self.healthy_status_changed() {
-            _ = self.event_sender.send(Event::Healthy).await;
+            _ = self.event_sender.send(event).await;
         }
 
         Ok(())
