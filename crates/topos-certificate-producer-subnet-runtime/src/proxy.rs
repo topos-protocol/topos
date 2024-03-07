@@ -9,9 +9,6 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::sync::{mpsc, oneshot};
 use tokio::time::Duration;
-use topos_certificate_producer_subnet_client::{
-    self, BlockInfo, SubnetClient, SubnetClientListener,
-};
 use topos_certificate_producer_subnet_client::{BlockInfo, SubnetClient, SubnetClientListener};
 use topos_core::api::grpc::checkpoints::TargetStreamPosition;
 use topos_core::uci::{Certificate, CertificateId, SubnetId};

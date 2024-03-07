@@ -92,7 +92,7 @@ impl NodeConfig {
             base: base.clone(),
             certificate_producer: base
                 .need_certificate_producer()
-                .then(|| load_config::<CertificateProducerConfig, ()>(home, None)),
+                .then(|| load_config::<CertificateProducerConfig, ()>(node_folder, None)),
             tce: base
                 .need_tce()
                 .then(|| load_config::<TceConfig, ()>(node_folder, None)),

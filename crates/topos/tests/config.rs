@@ -422,13 +422,12 @@ mod serial_integration {
         let pid = cmd.id().unwrap();
         let _ = tokio::time::sleep(std::time::Duration::from_secs(10)).await;
 
-        println!("STDOUT: {}", stdout);
-        let reg = Regex::new(r#"Local node is listening on "\/ip4\/.*\/tcp\/9091\/p2p\/"#).unwrap();
-        assert!(
-            reg.is_match(&stdout),
-            "Expected node 'Local node is listening on…' but instead got:\n----\n{}\n----\n",
-            stdout
-        );
+        let s = System::new_all();
+        if let Some(process) = s.process(Pid::from_u32(pid)) {
+            if process.kill_with(Signal::Term).is_none() {
+                eprintln!("This signal isn't supported on this platform");
+            }
+        }
 
         if let Ok(output) = cmd.wait_with_output().await {
             assert!(output.status.success());

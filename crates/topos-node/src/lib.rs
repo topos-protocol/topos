@@ -36,9 +36,10 @@ pub enum Error {
     IO(#[from] std::io::Error),
 
     #[error(
-        "The role in the config file expect to have a sequencer config defined, none was found"
+        "The role in the config file expects to have a Certificate Producer config defined, none \
+         was found"
     )]
-    MissingSequencerConfig,
+    MissingCertificateProducerConfig,
 
     #[error("An Edge config was expected to be found in the config file")]
     MissingEdgeConfig,
@@ -179,19 +180,19 @@ fn spawn_processes(
         ));
     }
 
-    // Sequencer
-    if matches!(config.base.role, NodeRole::Sequencer) {
-        let sequencer_config = config
-            .sequencer
+    // Certificate Producer
+    if matches!(config.base.role, NodeRole::CertificateProducer) {
+        let cert_prod_config = config
+            .certificate_producer
             .take()
-            .ok_or(Error::MissingSequencerConfig)?;
+            .ok_or(Error::MissingCertificateProducerConfig)?;
 
         info!(
-            "Running sequencer with configuration {:?}",
-            sequencer_config
+            "Running Certificate Producer with configuration {:?}",
+            cert_prod_config
         );
-        processes.push(process::spawn_sequencer_process(
-            sequencer_config,
+        processes.push(process::spawn_certificate_producer_process(
+            cert_prod_config,
             &keys,
             (shutdown_token.clone(), shutdown_sender.clone()),
         ));

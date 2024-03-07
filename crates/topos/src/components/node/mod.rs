@@ -169,26 +169,3 @@ fn setup_console_tce_grpc(endpoint: &str) -> Arc<Mutex<ConsoleServiceClient<Chan
         }
     }
 }
-
-pub async fn shutdown(
-    basic_controller: Option<BasicController>,
-    trigger: CancellationToken,
-    mut termination: mpsc::Receiver<()>,
-) {
-    trigger.cancel();
-    info!("Waiting for all components to stop");
-    // let _ = termination.recv().await;
-    match termination.recv().await {
-        Some(x) => info!("All good in the hood? {:?}", x),
-        None => tracing::warn!("Odd, got a None. What does that mean?"),
-    }
-    info!("Shutdown complete, exiting.");
-
-    // Shutdown tracing
-    global::shutdown_tracer_provider();
-    if let Some(basic_controller) = basic_controller {
-        if let Err(e) = basic_controller.stop(&tracing::Span::current().context()) {
-            error!("Error stopping tracing: {e}");
-        }
-    }
-}
