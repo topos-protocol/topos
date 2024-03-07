@@ -77,9 +77,9 @@ pub enum TceProxyEvent {
         certificates: Vec<(Certificate, u64)>,
         ctx: Context,
     },
-    /// Failed watching certificates channel. Requires a restart of the sequencer tce proxy to recover.
+    /// Failed watching certificates channel. Requires a restart of the certificate producer tce proxy to recover.
     WatchCertificatesChannelFailed,
-    /// Failure in communication with the TCE grpc service. Sequencer needs to be restarted
+    /// Failure in communication with the TCE grpc service. Certificate Producer needs to be restarted
     TceServiceFailure,
 }
 
@@ -87,7 +87,7 @@ pub enum TceProxyEvent {
 pub struct TceProxyConfig {
     /// The [`SubnetId`] this config handles certificate proxying for.
     pub subnet_id: SubnetId,
-    /// The GRPC endpoint where the Sequencer is expecting to find a TCE node.
+    /// The GRPC endpoint where the Certificate Producer is expecting to find a TCE node.
     pub tce_endpoint: String,
     /// The positions in the index of the known Certificates.
     pub positions: Vec<TargetStreamPosition>,

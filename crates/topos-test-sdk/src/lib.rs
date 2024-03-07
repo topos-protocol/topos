@@ -1,8 +1,8 @@
 pub mod certificates;
 
+pub mod certificate_producer;
 pub mod networking;
 pub mod p2p;
-pub mod sequencer;
 pub mod storage;
 pub mod tce;
 

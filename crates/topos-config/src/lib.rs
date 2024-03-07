@@ -1,8 +1,8 @@
 pub(crate) mod base;
+pub mod certificate_producer;
 pub mod edge;
 pub mod genesis;
 pub mod node;
-pub mod sequencer;
 pub mod tce;
 
 use std::path::Path;

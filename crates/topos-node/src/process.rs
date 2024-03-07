@@ -4,12 +4,12 @@ use std::process::ExitStatus;
 use thiserror::Error;
 use tokio::{spawn, sync::mpsc, task::JoinHandle};
 use tokio_util::sync::CancellationToken;
+use topos_certificate_producer::CertificateProducerConfiguration;
+use topos_config::certificate_producer::CertificateProducerConfig;
 use topos_config::edge::command::CommandConfig;
-use topos_config::sequencer::SequencerConfig;
 use topos_config::tce::broadcast::ReliableBroadcastParams;
 use topos_config::tce::{AuthKey, StorageConfiguration, TceConfig};
 use topos_p2p::Multiaddr;
-use topos_sequencer::SequencerConfiguration;
 use topos_wallet::SecretManager;
 use tracing::{debug, error, warn};
 
@@ -19,18 +19,18 @@ use topos_config::genesis::Genesis;
 pub enum Errors {
     #[error("TCE error")]
     TceFailure,
-    #[error("Sequencer error")]
-    SequencerFailure,
+    #[error("CertificateProducer error")]
+    CertificateProducerFailure,
     #[error("Edge error: {0}")]
     EdgeTerminated(#[from] std::io::Error),
 }
 
-pub(crate) fn spawn_sequencer_process(
-    config: SequencerConfig,
+pub(crate) fn spawn_certificate_producer_process(
+    config: CertificateProducerConfig,
     keys: &SecretManager,
     shutdown: (CancellationToken, mpsc::Sender<()>),
 ) -> JoinHandle<Result<ExitStatus, Errors>> {
-    let config = SequencerConfiguration {
+    let config = CertificateProducerConfiguration {
         subnet_id: config.subnet_id,
         public_key: keys.validator_pubkey(),
         subnet_jsonrpc_http: config.subnet_jsonrpc_http,
@@ -42,12 +42,14 @@ pub(crate) fn spawn_sequencer_process(
         start_block: config.start_block,
     };
 
-    debug!("Sequencer args: {config:?}");
+    debug!("Certificate Producer args: {config:?}");
     spawn(async move {
-        topos_sequencer::run(config, shutdown).await.map_err(|e| {
-            error!("Sequencer failure: {e:?}");
-            Errors::SequencerFailure
-        })
+        topos_certificate_producer::run(config, shutdown)
+            .await
+            .map_err(|e| {
+                error!("Certificate Producer failure: {e:?}");
+                Errors::CertificateProducerFailure
+            })
     })
 }
 

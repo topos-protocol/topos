@@ -1,5 +1,5 @@
 [package]
-name = "topos-sequencer"
+name = "topos-certificate-producer"
 description = "Implementation of the Topos protocol"
 version = "0.1.0"
 edition = "2021"
@@ -20,6 +20,5 @@ opentelemetry.workspace = true
 topos-crypto.workspace = true
 topos-wallet = { path = "../topos-wallet" }
 topos-core = { workspace = true, features = ["uci"] }
-topos-sequencer-subnet-runtime = { package = "topos-sequencer-subnet-runtime", path = "../topos-sequencer-subnet-runtime" }
+topos-certificate-producer-subnet-runtime = { package = "topos-certificate-producer-subnet-runtime", path = "../topos-certificate-producer-subnet-runtime" }
 topos-tce-proxy = { package = "topos-tce-proxy", path = "../topos-tce-proxy" }
-

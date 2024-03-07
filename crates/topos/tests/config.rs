@@ -209,7 +209,7 @@ mod serial_integration {
         let node_init_home_cli = tmp_home_dir_cli.to_str().unwrap();
         let node_edge_path_cli = node_edge_path_env.clone();
         let node_init_name_cli = "TEST_NODE_CLI";
-        let node_init_role_cli = "sequencer";
+        let node_init_role_cli = "certificate-producer";
         let node_init_subnet_cli = "topos-cli";
 
         let mut cmd = Command::cargo_bin("topos")?;
@@ -245,7 +245,7 @@ mod serial_integration {
         // Check if config file params are according to cli params
         let config_contents = std::fs::read_to_string(&config_path).unwrap();
         assert!(config_contents.contains("name = \"TEST_NODE_CLI\""));
-        assert!(config_contents.contains("role = \"sequencer\""));
+        assert!(config_contents.contains("role = \"certificate-producer\""));
         assert!(config_contents.contains("subnet = \"topos-cli\""));
 
         Ok(())

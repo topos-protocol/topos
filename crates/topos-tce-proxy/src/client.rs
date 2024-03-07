@@ -348,8 +348,8 @@ impl TceClientBuilder {
                                 continue;
                             }
                             Err(e) => {
-                                // Backoff maximum period timeout. We need to restart sequencer.
-                                error!("Failed to submit certificate to the tce network, backoff timeout with error: {e}. Restarting sequencer...");
+                                // Backoff maximum period timeout. We need to restart the certificate producer.
+                                error!("Failed to submit certificate to the tce network, backoff timeout with error: {e}. Restarting the certificate producer...");
                                 if let Some(tce_proxy_event_sender) = tce_proxy_event_sender.clone() {
                                     if let Err(e) = tce_proxy_event_sender.send(TceProxyEvent::TceServiceFailure).await {
                                           error!("Unable to send tce communication failure signal: {e}");
@@ -529,7 +529,7 @@ impl TceClientBuilder {
                                 };
                             }
                             None => {
-                                error!("Unexpected termination of the TCE proxy service of the Sequencer");
+                                error!("Unexpected termination of the TCE proxy service of the Certificate Producer");
                                 break;
                             }
                         }

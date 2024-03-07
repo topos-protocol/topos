@@ -3,8 +3,8 @@ use std::collections::{HashSet, LinkedList};
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use topos_certificate_producer_subnet_client::{BlockInfo, SubnetEvent};
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
-use topos_sequencer_subnet_client::{BlockInfo, SubnetEvent};
 
 pub struct Certification {
     /// Last known certificate id for subnet

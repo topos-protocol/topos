@@ -10,15 +10,15 @@ use topos_wallet::SecretManager;
 use tracing::{debug, error};
 
 use crate::{
-    base::BaseConfig, edge::EdgeConfig, load_config, sequencer::SequencerConfig, tce::TceConfig,
-    Config,
+    base::BaseConfig, certificate_producer::CertificateProducerConfig, edge::EdgeConfig,
+    load_config, tce::TceConfig, Config,
 };
 
 #[derive(clap::ValueEnum, Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum NodeRole {
     Validator,
-    Sequencer,
+    CertificateProducer,
     FullNode,
 }
 
@@ -26,7 +26,7 @@ pub enum NodeRole {
 pub struct NodeConfig {
     pub base: BaseConfig,
     pub tce: Option<TceConfig>,
-    pub sequencer: Option<SequencerConfig>,
+    pub certificate_producer: Option<CertificateProducerConfig>,
     pub edge: Option<EdgeConfig>,
 
     #[serde(skip)]
@@ -90,9 +90,9 @@ impl NodeConfig {
             edge_path,
             home_path: home_path.to_path_buf(),
             base: base.clone(),
-            sequencer: base
-                .need_sequencer()
-                .then(|| load_config::<SequencerConfig, ()>(node_folder, None)),
+            certificate_producer: base
+                .need_certificate_producer()
+                .then(|| load_config::<CertificateProducerConfig, ()>(home, None)),
             tce: base
                 .need_tce()
                 .then(|| load_config::<TceConfig, ()>(node_folder, None)),

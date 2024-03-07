@@ -96,7 +96,7 @@ impl TceProxyWorker {
                     Some(cmd) = command_rcv.recv() => {
                         match cmd {
                             TceProxyCommand::SubmitCertificate{cert, ctx} => {
-                                let span = info_span!("Sequencer TCE Proxy");
+                                let span = info_span!("Certificate Producer TCE Proxy");
                                 span.set_parent(ctx);
                                 async {
                                     info!("Submitting new certificate to the TCE network: {}", &cert.id);

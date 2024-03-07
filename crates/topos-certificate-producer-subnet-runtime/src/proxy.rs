@@ -9,9 +9,12 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::sync::{mpsc, oneshot};
 use tokio::time::Duration;
+use topos_certificate_producer_subnet_client::{
+    self, BlockInfo, SubnetClient, SubnetClientListener,
+};
+use topos_certificate_producer_subnet_client::{BlockInfo, SubnetClient, SubnetClientListener};
 use topos_core::api::grpc::checkpoints::TargetStreamPosition;
 use topos_core::uci::{Certificate, CertificateId, SubnetId};
-use topos_sequencer_subnet_client::{BlockInfo, SubnetClient, SubnetClientListener};
 use tracing::{debug, error, field, info, info_span, instrument, warn, Instrument, Span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
@@ -102,7 +105,7 @@ impl SubnetRuntimeProxy {
             let runtime_proxy = runtime_proxy.clone();
             let subnet_contract_address = subnet_contract_address.clone();
             tokio::spawn(async move {
-                // If the `start_block` sequencer parameter is provided, first block retrieved from blockchain (for genesis certificate)
+                // If the `start_block` CP parameter is provided, first block retrieved from blockchain (for genesis certificate)
                 // will be `start_block`. `default_block_sync_start` is hence `start_block`-1
                 // as first block retrieved from subnet node is `latest_acquired_subnet_block_number` + 1
                 let default_block_sync_start: i128 = config
@@ -128,7 +131,7 @@ impl SubnetRuntimeProxy {
                                     certificate_and_position
                                 );
                                 // If tce source head position is provided, continue synchronizing from it
-                                // If the `start_block` sequencer parameter is provided and tce source head is missing,
+                                // If the `start_block` CP parameter is provided and tce source head is missing,
                                 // we should start synchronizing from that block instead of genesis
                                 // If neither tce source head position nor start_block parameters are provided,
                                 // sync should start form -1, so that first fetched is subnet genesis block
@@ -155,7 +158,7 @@ impl SubnetRuntimeProxy {
                 // Establish the connection with the Subnet
                 let subnet_listener: Option<SubnetClientListener> = tokio::select! {
                         // Create subnet client
-                        Ok(client) = topos_sequencer_subnet_client::connect_to_subnet_listener_with_retry(
+                        Ok(client) = topos_certificate_producer_subnet_client::connect_to_subnet_listener_with_retry(
                             ws_runtime_endpoint.as_str(),
                             subnet_contract_address.as_str(),
                         ) => {
@@ -290,7 +293,7 @@ impl SubnetRuntimeProxy {
             // Establish the connection with the Subnet
             let mut subnet_client: Option<SubnetClient> = tokio::select! {
                     // Create subnet client
-                    Ok(client) = topos_sequencer_subnet_client::connect_to_subnet_with_retry(
+                    Ok(client) = topos_certificate_producer_subnet_client::connect_to_subnet_with_retry(
                         http_runtime_endpoint.as_ref(),
                         Some(signing_key.clone()),
                         subnet_contract_address.as_str(),
@@ -361,10 +364,14 @@ impl SubnetRuntimeProxy {
                 info!("Block {} processed", next_block);
                 Ok(())
             }
-            Err(topos_sequencer_subnet_client::Error::BlockNotAvailable(block_number)) => {
+            Err(topos_certificate_producer_subnet_client::Error::BlockNotAvailable(
+                block_number,
+            )) => {
                 warn!("New block {block_number} not yet available, trying again soon");
                 Err(Error::SubnetError {
-                    source: topos_sequencer_subnet_client::Error::BlockNotAvailable(block_number),
+                    source: topos_certificate_producer_subnet_client::Error::BlockNotAvailable(
+                        block_number,
+                    ),
                 })
             }
             Err(e) => {
@@ -568,25 +575,26 @@ impl SubnetRuntimeProxy {
         info!("Connecting to subnet to query for checkpoints...");
         let http_runtime_endpoint = self.config.http_endpoint.as_ref();
         // Create subnet client
-        let subnet_client = match topos_sequencer_subnet_client::connect_to_subnet_with_retry(
-            http_runtime_endpoint,
-            None, // We do not need actual key here as we are just reading state
-            self.config.subnet_contract_address.as_str(),
-        )
-        .await
-        {
-            Ok(subnet_client) => {
-                info!(
-                    "Connected to subnet node to acquire checkpoints {}",
-                    http_runtime_endpoint
-                );
-                subnet_client
-            }
-            Err(e) => {
-                error!("Unable to connect to the subnet node to get checkpoints: {e}");
-                return Err(Error::SubnetError { source: e });
-            }
-        };
+        let subnet_client =
+            match topos_certificate_producer_subnet_client::connect_to_subnet_with_retry(
+                http_runtime_endpoint,
+                None, // We do not need actual key here as we are just reading state
+                self.config.subnet_contract_address.as_str(),
+            )
+            .await
+            {
+                Ok(subnet_client) => {
+                    info!(
+                        "Connected to subnet node to acquire checkpoints {}",
+                        http_runtime_endpoint
+                    );
+                    subnet_client
+                }
+                Err(e) => {
+                    error!("Unable to connect to the subnet node to get checkpoints: {e}");
+                    return Err(Error::SubnetError { source: e });
+                }
+            };
 
         match subnet_client.get_checkpoints(&self.config.subnet_id).await {
             Ok(checkpoints) => {
@@ -611,25 +619,26 @@ impl SubnetRuntimeProxy {
     ) -> Result<SubnetId, Error> {
         info!("Connecting to subnet to query for subnet id...");
         // Create subnet client
-        let subnet_client = match topos_sequencer_subnet_client::connect_to_subnet_with_retry(
-            http_endpoint,
-            None, // We do not need actual key here as we are just reading state
-            contract_address,
-        )
-        .await
-        {
-            Ok(subnet_client) => {
-                info!(
-                    "Connected to subnet node to acquire subnet id {}",
-                    http_endpoint
-                );
-                subnet_client
-            }
-            Err(e) => {
-                error!("Unable to connect to the subnet node to get subnet id: {e}");
-                return Err(Error::SubnetError { source: e });
-            }
-        };
+        let subnet_client =
+            match topos_certificate_producer_subnet_client::connect_to_subnet_with_retry(
+                http_endpoint,
+                None, // We do not need actual key here as we are just reading state
+                contract_address,
+            )
+            .await
+            {
+                Ok(subnet_client) => {
+                    info!(
+                        "Connected to subnet node to acquire subnet id {}",
+                        http_endpoint
+                    );
+                    subnet_client
+                }
+                Err(e) => {
+                    error!("Unable to connect to the subnet node to get subnet id: {e}");
+                    return Err(Error::SubnetError { source: e });
+                }
+            };
 
         match subnet_client.get_subnet_id().await {
             Ok(subnet_id) => {

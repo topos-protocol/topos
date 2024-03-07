@@ -6,24 +6,29 @@ use ethers::{
     middleware::SignerMiddleware,
     providers::{Http, Middleware, Provider},
     signers::{LocalWallet, Signer},
-    types::{Block, H256},
+    types::{Block, H160, H256},
 };
 use rstest::*;
 use serial_test::serial;
 use std::collections::HashSet;
 use std::process::{Child, Command};
+use std::str::FromStr;
 use std::sync::Arc;
 use test_log::test;
 use tokio::sync::Mutex;
+use topos_certificate_producer_subnet_runtime::proxy::{
+    SubnetRuntimeProxyCommand, SubnetRuntimeProxyEvent,
+};
 use topos_core::uci::{Certificate, CertificateId, SubnetId, SUBNET_ID_LENGTH};
-use topos_sequencer_subnet_runtime::proxy::{SubnetRuntimeProxyCommand, SubnetRuntimeProxyEvent};
 use tracing::{error, info, warn, Span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 mod common;
 use crate::common::subnet_test_data::generate_test_private_key;
+use topos_certificate_producer_subnet_runtime::{
+    SubnetRuntimeProxyConfig, SubnetRuntimeProxyWorker,
+};
 use topos_core::api::grpc::checkpoints::TargetStreamPosition;
-use topos_sequencer_subnet_runtime::{SubnetRuntimeProxyConfig, SubnetRuntimeProxyWorker};
 
 use topos_test_sdk::constants::*;
 
@@ -498,7 +503,7 @@ async fn test_subnet_node_get_block_info(
 ) -> Result<(), Box<dyn std::error::Error>> {
     //Context with subnet
     let context = context_running_subnet_node.await;
-    match topos_sequencer_subnet_client::SubnetClientListener::new(
+    match topos_certificate_producer_subnet_client::SubnetClientListener::new(
         &context.jsonrpc_ws(),
         &("0x".to_string() + &hex::encode(context.i_topos_core.address())),
     )
@@ -546,7 +551,8 @@ async fn test_create_runtime() -> Result<(), Box<dyn std::error::Error>> {
         test_private_key,
     )
     .await?;
-    let runtime_proxy = topos_sequencer_subnet_runtime::testing::get_runtime(&runtime_proxy_worker);
+    let runtime_proxy =
+        topos_certificate_producer_subnet_runtime::testing::get_runtime(&runtime_proxy_worker);
     let runtime_proxy = runtime_proxy.lock().await;
     info!("New runtime proxy created:{:?}", &runtime_proxy);
     Ok(())
@@ -688,7 +694,7 @@ async fn test_subnet_certificate_get_checkpoints_call(
     let subnet_jsonrpc_http = context.jsonrpc();
 
     // Get checkpoints when contract is empty
-    let subnet_client = topos_sequencer_subnet_client::SubnetClient::new(
+    let subnet_client = topos_certificate_producer_subnet_client::SubnetClient::new(
         &subnet_jsonrpc_http,
         Some(hex::decode(TEST_SECRET_ETHEREUM_KEY).unwrap()),
         &subnet_smart_contract_address,
@@ -806,7 +812,7 @@ async fn test_subnet_id_call(
     let subnet_jsonrpc_http = context.jsonrpc();
 
     // Create subnet client
-    let subnet_client = topos_sequencer_subnet_client::SubnetClient::new(
+    let subnet_client = topos_certificate_producer_subnet_client::SubnetClient::new(
         &subnet_jsonrpc_http,
         Some(hex::decode(TEST_SECRET_ETHEREUM_KEY).unwrap()),
         &subnet_smart_contract_address,
@@ -903,7 +909,7 @@ async fn test_subnet_send_token_processing(
         .i_erc20_messaging
         .send_token(
             TARGET_SUBNET_ID_2.into(),
-            TOKEN_SYMBOL.into(),
+            H160::from_str(TOKEN_SYMBOL).unwrap(),
             "00000000000000000000000000000000000000AA".parse()?,
             U256::from(2),
         )
@@ -1409,7 +1415,7 @@ async fn test_subnet_multiple_send_token_in_a_block(
             if let Err(e) = i_erc20_messaging
                 .send_token(
                     target_subnet.into(),
-                    TOKEN_SYMBOL.into(),
+                    H160::from_str(TOKEN_SYMBOL).unwrap(),
                     "00000000000000000000000000000000000000AA".parse().unwrap(),
                     U256::from(i),
                 )

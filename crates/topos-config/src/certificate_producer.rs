@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "kebab-case")]
-pub struct SequencerConfig {
-    /// SubnetId of your Sequencer, hex encoded 32 bytes prefixed with 0x
+pub struct CertificateProducerConfig {
+    /// SubnetId of your Certificate Producer, hex encoded 32 bytes prefixed with 0x
     pub subnet_id: Option<String>,
 
     /// JSON-RPC endpoint of the Edge node, websocket and http support expected
@@ -54,17 +54,17 @@ fn default_tce_grpc_endpoint() -> String {
     "http://[::1]:1340".to_string()
 }
 
-impl Config for SequencerConfig {
+impl Config for CertificateProducerConfig {
     type Output = Self;
 
     fn load_from_file(figment: Figment, home: &Path) -> Figment {
         let home = home.join("config.toml");
 
-        let sequencer = Figment::new()
+        let certificate_producer = Figment::new()
             .merge(Toml::file(home).nested())
-            .select("sequencer");
+            .select("certificate_producer");
 
-        figment.merge(sequencer)
+        figment.merge(certificate_producer)
     }
 
     fn load_context(figment: Figment) -> Result<Self::Output, figment::Error> {
@@ -72,6 +72,6 @@ impl Config for SequencerConfig {
     }
 
     fn profile() -> String {
-        "sequencer".to_string()
+        "certificate_producer".to_string()
     }
 }

@@ -24,7 +24,7 @@ pub struct Init {
     pub secrets_config: Option<String>,
 
     /// For certain use cases, we manually provide private keys to a running node, and don't want to
-    /// rely on polygon-edge during runtime. Example: A sequencer which runs for an external EVM chain
+    /// rely on polygon-edge during runtime. Example: A Certificate Producer which runs for an external EVM chain
     #[arg(long, env = "TOPOS_NO_EDGE_PROCESS", action)]
     pub no_edge_process: bool,
 }
