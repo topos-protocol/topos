@@ -17,6 +17,13 @@ pub enum ComposedEvent {
     Grpc(grpc::Event),
     Void,
 }
+
+impl From<libp2p::gossipsub::Event> for ComposedEvent {
+    fn from(value: libp2p::gossipsub::Event) -> Self {
+        todo!()
+    }
+}
+
 impl From<grpc::Event> for ComposedEvent {
     fn from(event: grpc::Event) -> Self {
         ComposedEvent::Grpc(event)

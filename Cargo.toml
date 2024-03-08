@@ -43,13 +43,15 @@ tiny-keccak = {version = "1.5"}
 ethers = {version = "2.0.9", features = ["legacy", "abigen-online"]}
 
 # Log, Tracing & telemetry
-opentelemetry = { version = "0.19", features = ["rt-tokio", "metrics"] }
-opentelemetry-otlp = { version = "0.12", features = ["grpc-tonic", "metrics", "tls-roots"] }
+opentelemetry = { version = "0.22", features = ["metrics"] }
+opentelemetry-otlp = { version = "0.15", features = ["grpc-tonic", "metrics", "tls-roots"] }
+opentelemetry_sdk = { version = "0.22" }
+
 prometheus = "0.13.3"
-prometheus-client = "0.21"
+prometheus-client = "0.22"
 tracing = { version = "0.1", default-features = false }
 tracing-attributes = "0.1"
-tracing-opentelemetry = "0.19"
+tracing-opentelemetry = "0.23"
 tracing-subscriber = { version = "0.3", default-features = false }
 
 # gRPC
@@ -67,7 +69,7 @@ http = "0.2.9"
 tower-http = { version = "0.4", features = ["cors"] }
 
 # P2P related
-libp2p = { version = "0.52", default-features = false, features = ["noise"]}
+libp2p = { version = "0.53", default-features = false, features = ["noise"]}
 
 # Serialization & Deserialization
 bincode = { version = "1.3", default-features = false }

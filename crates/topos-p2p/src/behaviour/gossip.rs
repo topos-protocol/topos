@@ -15,7 +15,7 @@ use libp2p::{
 use prost::Message as ProstMessage;
 use topos_core::api::grpc::tce::v1::Batch;
 use topos_metrics::{P2P_DUPLICATE_MESSAGE_ID_RECEIVED_TOTAL, P2P_GOSSIP_BATCH_SIZE};
-use tracing::{debug, error};
+use tracing::{debug, error, warn};
 
 use crate::{constants, event::ComposedEvent, TOPOS_ECHO, TOPOS_GOSSIP, TOPOS_READY};
 
@@ -147,7 +147,7 @@ impl NetworkBehaviour for Behaviour {
         )
     }
 
-    fn on_swarm_event(&mut self, event: libp2p::swarm::FromSwarm<Self::ConnectionHandler>) {
+    fn on_swarm_event(&mut self, event: libp2p::swarm::FromSwarm) {
         self.gossipsub.on_swarm_event(event)
     }
 
@@ -164,7 +164,6 @@ impl NetworkBehaviour for Behaviour {
     fn poll(
         &mut self,
         cx: &mut std::task::Context<'_>,
-        params: &mut impl libp2p::swarm::PollParameters,
     ) -> Poll<ToSwarm<Self::ToSwarm, THandlerInEvent<Self>>> {
         if self.tick.poll_tick(cx).is_ready() {
             // Publish batch
@@ -186,7 +185,7 @@ impl NetworkBehaviour for Behaviour {
             }
         }
 
-        let event = match self.gossipsub.poll(cx, params) {
+        let event = match self.gossipsub.poll(cx) {
             Poll::Pending => return Poll::Pending,
             Poll::Ready(ToSwarm::GenerateEvent(event)) => Some(event),
             Poll::Ready(ToSwarm::ListenOn { opts }) => {
@@ -224,6 +223,10 @@ impl NetworkBehaviour for Behaviour {
             }
             Poll::Ready(ToSwarm::NewExternalAddrCandidate(addr)) => {
                 return Poll::Ready(ToSwarm::NewExternalAddrCandidate(addr))
+            }
+            Poll::Ready(event) => {
+                warn!("Unhandled event in gossip behaviour: {:?}", event);
+                None
             }
         };
 

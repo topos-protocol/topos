@@ -141,9 +141,7 @@ impl<'a> NetworkBuilder<'a> {
             dns_tcp.or_transport(tcp)
         };
 
-        let mut multiplex_config = libp2p::yamux::Config::default();
-        multiplex_config.set_window_update_mode(libp2p::yamux::WindowUpdateMode::on_read());
-        multiplex_config.set_max_buffer_size(1024 * 1024 * 16);
+        let multiplex_config = libp2p::yamux::Config::default();
 
         let transport = transport
             .upgrade(upgrade::Version::V1)

@@ -1,7 +1,4 @@
-use libp2p::{
-    multiaddr::Protocol,
-    swarm::{derive_prelude::Either, SwarmEvent},
-};
+use libp2p::{multiaddr::Protocol, swarm::SwarmEvent};
 use tracing::{debug, error, info, warn};
 
 use crate::{event::ComposedEvent, Event, Runtime};
@@ -39,21 +36,8 @@ impl EventHandler<ComposedEvent> for Runtime {
 }
 
 #[async_trait::async_trait]
-impl
-    EventHandler<
-        SwarmEvent<
-            ComposedEvent,
-            Either<Either<Either<std::io::Error, std::io::Error>, void::Void>, void::Void>,
-        >,
-    > for Runtime
-{
-    async fn handle(
-        &mut self,
-        event: SwarmEvent<
-            ComposedEvent,
-            Either<Either<Either<std::io::Error, std::io::Error>, void::Void>, void::Void>,
-        >,
-    ) {
+impl EventHandler<SwarmEvent<ComposedEvent>> for Runtime {
+    async fn handle(&mut self, event: SwarmEvent<ComposedEvent>) {
         match event {
             SwarmEvent::NewListenAddr {
                 listener_id,
@@ -127,6 +111,9 @@ impl
 
             SwarmEvent::ListenerError { listener_id, error } => {
                 error!("Unhandled ListenerError {listener_id:?} | {error}")
+            }
+            event => {
+                warn!("Unhandled SwarmEvent: {:?}", event);
             }
         }
     }
