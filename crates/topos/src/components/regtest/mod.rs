@@ -35,7 +35,7 @@ pub(crate) async fn handle_command(
 
             // Setup instrumentation if both otlp agent and otlp service name
             // are provided as arguments
-            _ = setup_tracing(
+            setup_tracing(
                 verbose,
                 false,
                 cmd.otlp_agent,

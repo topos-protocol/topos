@@ -51,9 +51,21 @@ impl EventHandler<SwarmEvent<ComposedEvent>> for Runtime {
 
                 self.active_listeners.insert(listener_id);
             }
-            SwarmEvent::OutgoingConnectionError { peer_id, error, .. } => {
-                if let Some(_peer_id) = peer_id {
-                    error!("OutgoingConnectionError {error:?}");
+            SwarmEvent::OutgoingConnectionError {
+                peer_id,
+                error,
+                connection_id,
+            } => {
+                if let Some(peer_id) = peer_id {
+                    error!(
+                        "OutgoingConnectionError peer_id: {peer_id} | error: {error:?} | \
+                         connection_id: {connection_id}"
+                    );
+                } else {
+                    error!(
+                        "OutgoingConnectionError for unknown peer | error: {error:?} | \
+                         connection_id: {connection_id}"
+                    );
                 }
             }
 
@@ -75,7 +87,10 @@ impl EventHandler<SwarmEvent<ComposedEvent>> for Runtime {
                 connection_id,
                 send_back_addr,
             } => {
-                debug!("IncomingConnection {local_addr} | {connection_id} | {send_back_addr}")
+                debug!(
+                    "IncomingConnection | local_addr: {local_addr} | connection_id: \
+                     {connection_id} | send_back_addr: {send_back_addr}"
+                )
             }
             SwarmEvent::ListenerClosed {
                 listener_id,
@@ -97,7 +112,7 @@ impl EventHandler<SwarmEvent<ComposedEvent>> for Runtime {
                 peer_id,
                 connection_id,
             } => {
-                debug!("Dialing {peer_id:?} | {connection_id}");
+                debug!("Dialing peer_id: {peer_id:?} | connection_id: {connection_id}");
             }
 
             SwarmEvent::Behaviour(event) => {

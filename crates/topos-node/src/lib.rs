@@ -56,7 +56,7 @@ pub async fn start(
 ) -> Result<(), Error> {
     // Setup instrumentation if both otlp agent and otlp service name
     // are provided as arguments
-    _ = setup_tracing(
+    setup_tracing(
         verbose,
         no_color,
         otlp_agent,

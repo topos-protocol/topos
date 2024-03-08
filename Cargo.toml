@@ -56,8 +56,8 @@ tracing-subscriber = { version = "0.3", default-features = false }
 
 # gRPC
 prost = {version = "0.12"}
-tonic = { version = "0.10", default-features = false }
-tonic-build = { version = "0.10", default-features = false, features = [
+tonic = { version = "0.11", default-features = false }
+tonic-build = { version = "0.11", default-features = false, features = [
     "prost", "transport"
 ] }
 

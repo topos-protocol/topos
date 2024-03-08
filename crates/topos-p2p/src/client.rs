@@ -4,7 +4,7 @@ use tokio::sync::{
     mpsc::{self, error::SendError},
     oneshot,
 };
-use tonic::transport::NamedService;
+use tonic::server::NamedService;
 use topos_core::api::grpc::GrpcClient;
 
 use crate::{
