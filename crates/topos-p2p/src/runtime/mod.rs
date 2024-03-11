@@ -29,7 +29,7 @@ pub struct Runtime {
     pub(crate) listening_on: Vec<Multiaddr>,
     pub(crate) public_addresses: Vec<Multiaddr>,
 
-    /// Boot peers to connect used to bootstrap the p2p layer
+    /// Well-known or pre-configured bootnodes to connect to in order to bootstrap the p2p layer
     pub(crate) boot_peers: Vec<PeerId>,
 
     /// Contains current listenerId of the swarm
@@ -44,6 +44,7 @@ pub struct Runtime {
     /// Internal health state of the p2p layer
     pub(crate) health_state: HealthState,
 
+    /// Health status of the p2p layer
     pub(crate) health_status: HealthStatus,
 }
 
@@ -153,6 +154,7 @@ impl Runtime {
         let discovery = &behaviours.discovery.health_status;
 
         let new_status = match (discovery, gossipsub) {
+            (HealthStatus::Killing, _) | (_, HealthStatus::Killing) => HealthStatus::Killing,
             (HealthStatus::Initializing, _) | (_, HealthStatus::Initializing) => {
                 HealthStatus::Initializing
             }

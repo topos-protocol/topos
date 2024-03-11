@@ -46,6 +46,9 @@ pub enum P2PError {
 
     #[error("Unable to create gRPC client")]
     UnableToCreateGrpcClient(#[from] OutboundConnectionError),
+
+    #[error("Gossip topics subscription failed")]
+    GossipTopicSubscriptionFailure,
 }
 
 #[derive(Error, Debug)]

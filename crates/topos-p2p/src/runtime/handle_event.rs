@@ -41,7 +41,7 @@ impl EventHandler<ComposedEvent> for Runtime {
 
 #[async_trait::async_trait]
 impl EventHandler<SwarmEvent<ComposedEvent>> for Runtime {
-    async fn handle(&mut self, event: SwarmEvent<ComposedEvent>) {
+    async fn handle(&mut self, event: SwarmEvent<ComposedEvent>) -> EventResult {
         match event {
             SwarmEvent::NewListenAddr {
                 listener_id,
@@ -74,7 +74,11 @@ impl EventHandler<SwarmEvent<ComposedEvent>> for Runtime {
                 }
             }
 
-            SwarmEvent::OutgoingConnectionError { peer_id, error, .. } => {
+            SwarmEvent::OutgoingConnectionError {
+                peer_id,
+                error,
+                connection_id,
+            } => {
                 if let Some(peer_id) = peer_id {
                     error!(
                         "OutgoingConnectionError peer_id: {peer_id} | error: {error:?} | \
@@ -119,7 +123,8 @@ impl EventHandler<SwarmEvent<ComposedEvent>> for Runtime {
                 if self.swarm.connected_peers().count() >= self.config.minimum_cluster_size {
                     if let Err(error) = self.swarm.behaviour_mut().gossipsub.subscribe() {
                         error!("Unable to subscribe to gossipsub topic: {}", error);
-                        // TODO: Deal with initial subscribe error
+
+                        return Err(P2PError::GossipTopicSubscriptionFailure);
                     }
                 }
             }

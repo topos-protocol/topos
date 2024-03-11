@@ -2,7 +2,6 @@ use crate::{
     error::{CommandExecutionError, P2PError},
     protocol_name, Command, Runtime,
 };
-use libp2p::{kad::RecordKey, PeerId};
 
 use rand::{thread_rng, Rng};
 use topos_metrics::P2P_MESSAGE_SENT_ON_GOSSIPSUB_TOTAL;

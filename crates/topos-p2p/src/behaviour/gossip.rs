@@ -18,7 +18,7 @@ use libp2p::{
 use prost::Message as ProstMessage;
 use topos_core::api::grpc::tce::v1::Batch;
 use topos_metrics::P2P_GOSSIP_BATCH_SIZE;
-use tracing::{debug, error};
+use tracing::{debug, error, warn};
 
 use crate::error::P2PError;
 use crate::{constants, event::ComposedEvent, TOPOS_ECHO, TOPOS_GOSSIP, TOPOS_READY};
@@ -256,7 +256,14 @@ impl NetworkBehaviour for Behaviour {
                 },
                 gossipsub::Event::Subscribed { peer_id, topic } => {
                     debug!("Subscribed to {:?} with {peer_id}", topic);
-                    if self.health_status != HealthStatus::Healthy {
+
+                    // If the behaviour isn't already healthy we check if this event
+                    // triggers a switch to healthy
+                    if self.health_status != HealthStatus::Healthy
+                        && self.gossipsub.topics().all(|topic| {
+                            self.gossipsub.mesh_peers(topic).peekable().peek().is_some()
+                        })
+                    {
                         self.health_status = HealthStatus::Healthy;
                     }
                 }

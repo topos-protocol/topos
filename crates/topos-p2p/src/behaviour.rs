@@ -15,6 +15,7 @@ pub(crate) enum HealthStatus {
     Initializing,
     Healthy,
     Unhealthy,
+    Killing,
     #[allow(unused)]
     Recovering,
 }

@@ -55,12 +55,15 @@ pub enum Event {
     Healthy,
     /// An event emitted when the p2p layer becomes unhealthy
     Unhealthy,
+    /// An event emitted when the p2p layer is shutting down
+    Killing,
 }
 
 impl From<&HealthStatus> for Event {
     fn from(value: &HealthStatus) -> Self {
         match value {
             HealthStatus::Healthy => Event::Healthy,
+            HealthStatus::Killing => Event::Killing,
             _ => Event::Unhealthy,
         }
     }

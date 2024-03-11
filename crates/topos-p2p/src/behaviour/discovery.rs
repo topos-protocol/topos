@@ -74,6 +74,9 @@ impl DiscoveryBehaviour {
         Self {
             inner: kademlia,
             current_bootstrap_query_id: None,
+            // If the `discovery` behaviour is created without known_peers
+            // The bootstrap query interval is disabled only when the local
+            // node is a lonely bootnode, other nodes will join it.
             next_bootstrap_query: if known_peers.is_empty() {
                 None
             } else {
