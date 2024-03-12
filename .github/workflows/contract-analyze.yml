@@ -2,7 +2,7 @@ name: Contracts - Analyze
 
 on:
   push:
-    branches: 'main'
+    branches: 'feat/TP-888'
   pull_request:
   workflow_dispatch:
 
