@@ -17,3 +17,4 @@ jobs:
         with:
           node-version: 16
           target: ./contracts
+          slither-config: ./contracts/slither.config.json
