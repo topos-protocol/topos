@@ -44,12 +44,13 @@ impl AppContext {
 
                             match self.validator_store.insert_pending_certificate(&cert) {
                                 Ok(Some(pending_id)) => {
+                                    let certificate_id = cert.id;
                                     debug!(
                                         "Certificate {} has been inserted into pending pool",
-                                        cert.id
+                                        certificate_id
                                     );
 
-                                    _ = self
+                                    if self
                                         .tce_cli
                                         .get_double_echo_channel()
                                         .send(DoubleEchoCommand::Broadcast {
@@ -57,8 +58,17 @@ impl AppContext {
                                             cert,
                                             pending_id,
                                         })
-                                        .await;
+                                        .await
+                                        .is_err()
+                                    {
+                                        error!(
+                                            "Unable to send DoubleEchoCommand::Broadcast command \
+                                             to double echo for {}",
+                                            certificate_id
+                                        );
+                                    }
                                 }
+
                                 Ok(None) => {
                                     debug!(
                                         "Certificate {} from subnet {} has been inserted into \

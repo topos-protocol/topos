@@ -116,11 +116,11 @@ pub async fn run(
         .map_err(|error| format!("Unable to count certificates delivered: {error}"))?;
 
     let pending_certificates = validator_store
-        .count_pending_certificates()
+        .pending_pool_size()
         .map_err(|error| format!("Unable to count pending certificates: {error}"))?;
 
     let precedence_pool_certificates = validator_store
-        .count_precedence_pool_certificates()
+        .precedence_pool_size()
         .map_err(|error| format!("Unable to count precedence pool certificates: {error}"))?;
 
     info!(

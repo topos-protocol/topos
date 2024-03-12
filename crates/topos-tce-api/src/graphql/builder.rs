@@ -62,7 +62,7 @@ impl ServerBuilder {
             .take()
             .expect("Cannot build GraphQL server without a FullNode store");
 
-        let fulltnode_store = store.get_fullnode_store();
+        let fullnode_store = store.get_fullnode_store();
         let runtime = self
             .runtime
             .take()
@@ -70,7 +70,7 @@ impl ServerBuilder {
 
         let schema: ServiceSchema = Schema::build(QueryRoot, EmptyMutation, SubscriptionRoot)
             .data(store)
-            .data(fulltnode_store)
+            .data(fullnode_store)
             .data(runtime)
             .finish();
 

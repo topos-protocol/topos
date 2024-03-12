@@ -98,26 +98,19 @@ impl ValidatorStore {
                 None::<&[u8]>,
             );
 
-        let pending_count: i64 =
-            store
-                .count_pending_certificates()?
-                .try_into()
-                .map_err(|error| {
-                    error!("Failed to convert estimate-num-keys to i64: {}", error);
-                    StorageError::InternalStorage(InternalStorageError::UnexpectedDBState(
-                        "Failed to convert estimate-num-keys to i64",
-                    ))
-                })?;
+        let pending_count: i64 = store.pending_pool_size()?.try_into().map_err(|error| {
+            error!("Failed to convert estimate-num-keys to i64: {}", error);
+            StorageError::InternalStorage(InternalStorageError::UnexpectedDBState(
+                "Failed to convert estimate-num-keys to i64",
+            ))
+        })?;
 
-        let precedence_count: i64 = store
-            .count_precedence_pool_certificates()?
-            .try_into()
-            .map_err(|error| {
-                error!("Failed to convert estimate-num-keys to i64: {}", error);
-                StorageError::InternalStorage(InternalStorageError::UnexpectedDBState(
-                    "Failed to convert estimate-num-keys to i64",
-                ))
-            })?;
+        let precedence_count: i64 = store.precedence_pool_size()?.try_into().map_err(|error| {
+            error!("Failed to convert estimate-num-keys to i64: {}", error);
+            StorageError::InternalStorage(InternalStorageError::UnexpectedDBState(
+                "Failed to convert estimate-num-keys to i64",
+            ))
+        })?;
 
         STORAGE_PENDING_POOL_COUNT.set(pending_count);
         STORAGE_PRECEDENCE_POOL_COUNT.set(precedence_count);
@@ -131,41 +124,19 @@ impl ValidatorStore {
     }
 
     /// Returns the number of certificates in the pending pool
-    pub fn count_pending_certificates(&self) -> Result<u64, StorageError> {
+    pub fn pending_pool_size(&self) -> Result<u64, StorageError> {
         Ok(self
             .pending_tables
             .pending_pool
             .property_int_value(ESTIMATE_NUM_KEYS)?)
-    }
-
-    /// Returns the number of certificates in the pending pool (by iterating)
-    pub fn iter_count_pending_certificates(&self) -> Result<u64, StorageError> {
-        Ok(self
-            .pending_tables
-            .pending_pool
-            .iter()?
-            .count()
-            .try_into()
-            .unwrap_or(u64::MAX))
     }
 
     /// Returns the number of certificates in the precedence pool
-    pub fn count_precedence_pool_certificates(&self) -> Result<u64, StorageError> {
+    pub fn precedence_pool_size(&self) -> Result<u64, StorageError> {
         Ok(self
             .pending_tables
             .precedence_pool
             .property_int_value(ESTIMATE_NUM_KEYS)?)
-    }
-
-    /// Returns the number of certificates in the precedence pool (by iterating)
-    pub fn iter_count_precedence_pool_certificates(&self) -> Result<u64, StorageError> {
-        Ok(self
-            .pending_tables
-            .precedence_pool
-            .iter()?
-            .count()
-            .try_into()
-            .unwrap_or(u64::MAX))
     }
 
     /// Try to return the [`PendingCertificateId`] for a [`CertificateId`]
@@ -188,11 +159,35 @@ impl ValidatorStore {
         Ok(self.pending_tables.pending_pool.get(pending_id)?)
     }
 
-    /// Returns the entire pending_pool
-    pub fn get_pending_certificates(
+    /// Returns an iterator over the pending pool
+    ///
+    /// Note: this can be slow on large datasets.
+    #[doc(hidden)]
+    pub fn iter_pending_pool(
         &self,
-    ) -> Result<Vec<(PendingCertificateId, Certificate)>, StorageError> {
-        Ok(self.pending_tables.pending_pool.iter()?.collect())
+    ) -> Result<impl Iterator<Item = (PendingCertificateId, Certificate)> + '_, StorageError> {
+        Ok(self.pending_tables.pending_pool.iter()?)
+    }
+
+    /// Returns an iterator over the pending pool starting at a given `PendingCertificateId`
+    ///
+    /// Note: this can be slow on large datasets.
+    #[doc(hidden)]
+    pub fn iter_pending_pool_at(
+        &self,
+        pending_id: &PendingCertificateId,
+    ) -> Result<impl Iterator<Item = (PendingCertificateId, Certificate)> + '_, StorageError> {
+        Ok(self.pending_tables.pending_pool.iter_at(pending_id)?)
+    }
+
+    /// Returns an iterator over the precedence pool
+    ///
+    /// Note: this can be slow on large datasets.
+    #[doc(hidden)]
+    pub fn iter_precedence_pool(
+        &self,
+    ) -> Result<impl Iterator<Item = (CertificateId, Certificate)> + '_, StorageError> {
+        Ok(self.pending_tables.precedence_pool.iter()?)
     }
 
     pub fn get_next_pending_certificates(

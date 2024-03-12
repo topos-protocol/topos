@@ -675,8 +675,8 @@ async fn check_storage_pool_stats(
 
     #[derive(Debug, Deserialize)]
     struct PoolStats {
-        pending_pool: u64,
-        precedence_pool: u64,
+        metrics_pending_pool: u64,
+        metrics_precedence_pool: u64,
     }
 
     let client = reqwest::Client::new();
@@ -693,8 +693,14 @@ async fn check_storage_pool_stats(
         .await
         .unwrap();
 
-    assert_eq!(response.data.get_storage_pool_stats.pending_pool, 10);
-    assert_eq!(response.data.get_storage_pool_stats.precedence_pool, 200);
+    assert_eq!(
+        response.data.get_storage_pool_stats.metrics_pending_pool,
+        10
+    );
+    assert_eq!(
+        response.data.get_storage_pool_stats.metrics_precedence_pool,
+        200
+    );
 }
 
 #[rstest]
@@ -713,7 +719,7 @@ async fn get_pending_pool(
     let fullnode_store = create_fullnode_store::default().await;
 
     let store: Arc<ValidatorStore> =
-        create_validator_store(vec![], futures::future::ready(fullnode_store.clone())).await;
+        create_validator_store(&[], futures::future::ready(fullnode_store.clone())).await;
 
     for certificate in &certificates {
         _ = store.insert_pending_certificate(&certificate.certificate);
@@ -791,7 +797,7 @@ async fn check_precedence(
     let fullnode_store = create_fullnode_store::default().await;
 
     let store: Arc<ValidatorStore> =
-        create_validator_store(vec![], futures::future::ready(fullnode_store.clone())).await;
+        create_validator_store(&[], futures::future::ready(fullnode_store.clone())).await;
 
     for certificate in &certificates {
         _ = store.insert_pending_certificate(&certificate.certificate);

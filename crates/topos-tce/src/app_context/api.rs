@@ -25,12 +25,13 @@ impl AppContext {
                     .insert_pending_certificate(&certificate)
                 {
                     Ok(Some(pending_id)) => {
+                        let certificate_id = certificate.id;
                         debug!(
                             "Certificate {} from subnet {} has been inserted into pending pool",
-                            certificate.id, certificate.source_subnet_id
+                            certificate_id, certificate.source_subnet_id
                         );
 
-                        _ = self
+                        if self
                             .tce_cli
                             .get_double_echo_channel()
                             .send(DoubleEchoCommand::Broadcast {
@@ -38,9 +39,23 @@ impl AppContext {
                                 cert: *certificate,
                                 pending_id,
                             })
-                            .await;
+                            .await
+                            .is_err()
+                        {
+                            error!(
+                                "Unable to send DoubleEchoCommand::Broadcast command to double \
+                                 echo for {}",
+                                certificate_id
+                            );
 
-                        sender.send(Ok(PendingResult::InPending(pending_id)))
+                            sender.send(Err(RuntimeError::CommunicationError(
+                                "Unable to send DoubleEchoCommand::Broadcast command to double \
+                                 echo"
+                                    .to_string(),
+                            )))
+                        } else {
+                            sender.send(Ok(PendingResult::InPending(pending_id)))
+                        }
                     }
                     Ok(None) => {
                         debug!(

@@ -126,8 +126,11 @@ impl QueryRoot {
         ctx: &Context<'_>,
     ) -> Result<HashMap<&str, i64>, GraphQLServerError> {
         let mut stats = HashMap::new();
-        stats.insert("pending_pool", STORAGE_PENDING_POOL_COUNT.get());
-        stats.insert("precedence_pool", STORAGE_PRECEDENCE_POOL_COUNT.get());
+        stats.insert("metrics_pending_pool", STORAGE_PENDING_POOL_COUNT.get());
+        stats.insert(
+            "metrics_precedence_pool",
+            STORAGE_PRECEDENCE_POOL_COUNT.get(),
+        );
 
         let store = ctx.data::<Arc<ValidatorStore>>().map_err(|_| {
             tracing::error!("Failed to get store from context");
@@ -136,26 +139,38 @@ impl QueryRoot {
         })?;
 
         stats.insert(
-            "pending_certificate_iter",
+            "count_pending_certificates",
             store
-                .get_pending_certificates()
+                .iter_pending_pool()
                 .map_err(|_| GraphQLServerError::StorageError)?
-                .len() as i64,
+                .count()
+                .try_into()
+                .unwrap_or(i64::MAX),
         );
 
         stats.insert(
-            "iter_pending_certificate",
+            "count_precedence_certificates",
             store
-                .iter_count_pending_certificates()
+                .iter_precedence_pool()
+                .map_err(|_| GraphQLServerError::StorageError)?
+                .count()
+                .try_into()
+                .unwrap_or(i64::MAX),
+        );
+
+        stats.insert(
+            "pending_pool_size",
+            store
+                .pending_pool_size()
                 .map_err(|_| GraphQLServerError::StorageError)?
                 .try_into()
                 .unwrap_or(i64::MAX),
         );
 
         stats.insert(
-            "iter_precedence_certificate",
+            "precedence_pool_size",
             store
-                .iter_count_precedence_pool_certificates()
+                .precedence_pool_size()
                 .map_err(|_| GraphQLServerError::StorageError)?
                 .try_into()
                 .unwrap_or(i64::MAX),
@@ -203,10 +218,9 @@ impl QueryRoot {
         })?;
 
         Ok(store
-            .get_pending_certificates()
+            .iter_pending_pool()
             .map_err(|_| GraphQLServerError::StorageError)?
-            .iter()
-            .map(|(id, certificate)| (*id, certificate.id.into()))
+            .map(|(id, certificate)| (id, certificate.id.into()))
             .collect())
     }
 

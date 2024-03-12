@@ -53,7 +53,7 @@ pub struct UndeliveredCertificate {
     pub verifier: u32,
 }
 
-impl From<&crate::uci::Certificate> for UndeliveredCertificate {
+impl From<&uci::Certificate> for UndeliveredCertificate {
     fn from(value: &crate::uci::Certificate) -> Self {
         Self {
             id: CertificateId(value.id.to_string()),
