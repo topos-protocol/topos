@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   docker:
-    uses: ./.github/workflows/docker_utils.yml
+    uses: ./.github/workflows/contract-docker-utils.yml
   e2e:
     needs: docker
     if: ${{ github.event_name == 'pull_request' }}
