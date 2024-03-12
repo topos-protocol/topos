@@ -1,12 +1,9 @@
 use std::fmt::Display;
 
-use libp2p::{Multiaddr, PeerId};
+use libp2p::PeerId;
 use tokio::sync::oneshot;
 
-use crate::{
-    behaviour::grpc::connection::OutboundConnection,
-    error::{CommandExecutionError, P2PError},
-};
+use crate::{behaviour::grpc::connection::OutboundConnection, error::P2PError};
 
 #[derive(Debug)]
 pub enum Command {
@@ -15,16 +12,6 @@ pub enum Command {
         sender: oneshot::Sender<Result<Vec<PeerId>, P2PError>>,
     },
 
-    /// Disconnect the node
-    Disconnect {
-        sender: oneshot::Sender<Result<(), P2PError>>,
-    },
-
-    /// Try to discover a peer based on its PeerId
-    Discover {
-        to: PeerId,
-        sender: oneshot::Sender<Result<Vec<Multiaddr>, CommandExecutionError>>,
-    },
     Gossip {
         topic: &'static str,
         data: Vec<u8>,
@@ -52,10 +39,8 @@ impl Display for Command {
         match self {
             Command::ConnectedPeers { .. } => write!(f, "ConnectedPeers"),
             Command::RandomKnownPeer { .. } => write!(f, "RandomKnownPeer"),
-            Command::Disconnect { .. } => write!(f, "Disconnect"),
             Command::Gossip { .. } => write!(f, "GossipMessage"),
             Command::NewProxiedQuery { .. } => write!(f, "NewProxiedQuery"),
-            Command::Discover { to, .. } => write!(f, "Discover(to: {to})"),
         }
     }
 }

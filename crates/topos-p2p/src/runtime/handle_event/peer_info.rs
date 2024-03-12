@@ -3,11 +3,11 @@ use tracing::info;
 
 use crate::{constants::PEER_INFO_PROTOCOL, Runtime};
 
-use super::EventHandler;
+use super::{EventHandler, EventResult};
 
 #[async_trait::async_trait]
 impl EventHandler<Box<IdentifyEvent>> for Runtime {
-    async fn handle(&mut self, event: Box<IdentifyEvent>) {
+    async fn handle(&mut self, event: Box<IdentifyEvent>) -> EventResult {
         if let IdentifyEvent::Received { peer_id, info, .. } = *event {
             let IdentifyInfo {
                 protocol_version,
@@ -34,5 +34,7 @@ impl EventHandler<Box<IdentifyEvent>> for Runtime {
                 }
             }
         }
+
+        Ok(())
     }
 }

@@ -9,12 +9,12 @@ use crate::{constants, event::GossipEvent, Event, Runtime, TOPOS_ECHO, TOPOS_GOS
 use prost::Message;
 use topos_core::api::grpc::tce::v1::Batch;
 
-use super::EventHandler;
+use super::{EventHandler, EventResult};
 
 #[async_trait::async_trait]
 impl EventHandler<GossipEvent> for Runtime {
-    async fn handle(&mut self, event: GossipEvent) {
-        if let GossipEvent {
+    async fn handle(&mut self, event: GossipEvent) -> EventResult {
+        if let GossipEvent::Message {
             source: Some(source),
             message,
             topic,
@@ -70,5 +70,7 @@ impl EventHandler<GossipEvent> for Runtime {
                 }
             }
         }
+
+        Ok(())
     }
 }

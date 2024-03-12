@@ -9,6 +9,7 @@ rust-version = "1.65"
 workspace = true
 
 [dependencies]
+libp2p.workspace = true
 async-trait.workspace = true
 bincode.workspace = true
 clap.workspace = true
@@ -43,6 +44,7 @@ topos-tce-synchronizer = { path = "../topos-tce-synchronizer" }
 topos-telemetry = { path = "../topos-telemetry" }
 axum = "0.7.4"
 axum-prometheus = "0.6"
+
 
 [dev-dependencies]
 topos-test-sdk = { path = "../topos-test-sdk/" }

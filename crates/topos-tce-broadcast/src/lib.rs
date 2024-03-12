@@ -48,7 +48,7 @@ use topos_core::uci::{Certificate, CertificateId};
 use topos_crypto::messages::{MessageSigner, Signature};
 use topos_tce_storage::types::CertificateDeliveredWithPositions;
 use topos_tce_storage::validator::ValidatorStore;
-use tracing::{debug, error};
+use tracing::{debug, error, Instrument};
 
 pub use topos_core::uci;
 
@@ -143,7 +143,11 @@ impl ReliableBroadcastClient {
             broadcast_sender,
         );
 
-        spawn(double_echo.run(task_manager_message_receiver));
+        spawn(
+            double_echo
+                .run(task_manager_message_receiver)
+                .in_current_span(),
+        );
 
         (
             Self {
