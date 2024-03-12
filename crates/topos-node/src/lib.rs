@@ -3,7 +3,7 @@ use std::process::ExitStatus;
 
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
-use opentelemetry::{global, sdk::metrics::controllers::BasicController};
+use opentelemetry::global;
 use process::Errors;
 use tokio::{
     signal::{self, unix::SignalKind},
@@ -19,7 +19,6 @@ use topos_config::{
 use topos_telemetry::tracing::setup_tracing;
 use topos_wallet::SecretManager;
 use tracing::{debug, error, info};
-use tracing_opentelemetry::OpenTelemetrySpanExt;
 use tracing_subscriber::util::TryInitError;
 
 mod process;
@@ -57,7 +56,7 @@ pub async fn start(
 ) -> Result<(), Error> {
     // Setup instrumentation if both otlp agent and otlp service name
     // are provided as arguments
-    let basic_controller = setup_tracing(
+    setup_tracing(
         verbose,
         no_color,
         otlp_agent,
@@ -112,14 +111,14 @@ pub async fn start(
     tokio::select! {
         _ = sigterm_stream.recv() => {
             info!("Received SIGTERM, shutting down application...");
-            shutdown(basic_controller, shutdown_trigger, shutdown_receiver).await;
+            shutdown(shutdown_trigger, shutdown_receiver).await;
         }
         _ = signal::ctrl_c() => {
             info!("Received ctrl_c, shutting down application...");
-            shutdown(basic_controller, shutdown_trigger, shutdown_receiver).await;
+            shutdown( shutdown_trigger, shutdown_receiver).await;
         }
         Some(result) = processes.next() => {
-            shutdown(basic_controller, shutdown_trigger, shutdown_receiver).await;
+            shutdown(shutdown_trigger, shutdown_receiver).await;
             processes.clear();
             match result {
                 Ok(Ok(status)) => {
@@ -214,11 +213,7 @@ fn spawn_processes(
     Ok(processes)
 }
 
-async fn shutdown(
-    basic_controller: Option<BasicController>,
-    trigger: CancellationToken,
-    mut termination: mpsc::Receiver<()>,
-) {
+async fn shutdown(trigger: CancellationToken, mut termination: mpsc::Receiver<()>) {
     trigger.cancel();
     // Wait that all sender get dropped
     info!("Waiting that all components dropped");
@@ -226,9 +221,4 @@ async fn shutdown(
     info!("Shutdown procedure finished, exiting...");
     // Shutdown tracing
     global::shutdown_tracer_provider();
-    if let Some(basic_controller) = basic_controller {
-        if let Err(e) = basic_controller.stop(&tracing::Span::current().context()) {
-            error!("Error stopping tracing: {e}");
-        }
-    }
 }

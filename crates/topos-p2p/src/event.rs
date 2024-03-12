@@ -17,6 +17,7 @@ pub enum ComposedEvent {
     Grpc(grpc::Event),
     Void,
 }
+
 impl From<grpc::Event> for ComposedEvent {
     fn from(event: grpc::Event) -> Self {
         ComposedEvent::Grpc(event)

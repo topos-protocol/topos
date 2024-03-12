@@ -2,7 +2,7 @@ use crate::{
     error::{CommandExecutionError, P2PError},
     protocol_name, Command, Runtime,
 };
-use libp2p::{kad::record::Key, PeerId};
+use libp2p::{kad::RecordKey, PeerId};
 use rand::{thread_rng, Rng};
 use topos_metrics::P2P_MESSAGE_SENT_ON_GOSSIPSUB_TOTAL;
 use tracing::{debug, error, info, warn};
@@ -101,7 +101,7 @@ impl Runtime {
                     let query_id = behaviour
                         .discovery
                         .inner
-                        .get_record(Key::new(&to.to_string()));
+                        .get_record(RecordKey::new(&to.to_string()));
 
                     debug!("Created a get_record query {query_id:?} for discovering {to}");
                     if let Some(id) = self.pending_record_requests.insert(query_id, sender) {

@@ -313,9 +313,8 @@ impl Behaviour {
             peer_id,
             connection_id,
             endpoint,
-            handler,
             remaining_established,
-        }: ConnectionClosed<<Self as NetworkBehaviour>::ConnectionHandler>,
+        }: ConnectionClosed,
     ) {
         debug!("Connection {connection_id} closed with peer {peer_id}");
         if let Some(connections) = self.connected.get_mut(&peer_id) {
@@ -514,7 +513,7 @@ impl NetworkBehaviour for Behaviour {
         }
     }
 
-    fn on_swarm_event(&mut self, event: FromSwarm<Self::ConnectionHandler>) {
+    fn on_swarm_event(&mut self, event: FromSwarm) {
         match event {
             FromSwarm::ConnectionEstablished(connection_established) => {
                 self.on_connection_established(connection_established)
@@ -535,13 +534,13 @@ impl NetworkBehaviour for Behaviour {
             | FromSwarm::ListenerError(_)
             | FromSwarm::NewExternalAddrCandidate(_)
             | FromSwarm::NewListenAddr(_) => (),
+            event => debug!("Unhandled event from swarm (grpc): {:?}", event),
         }
     }
 
     fn poll(
         &mut self,
         cx: &mut Context<'_>,
-        params: &mut impl libp2p::swarm::PollParameters,
     ) -> Poll<libp2p::swarm::ToSwarm<Self::ToSwarm, libp2p::swarm::THandlerInEvent<Self>>> {
         // Sending event to both `Swarm` and `ConnectionHandler`
         if let Some(ev) = self.pending_events.pop_front() {

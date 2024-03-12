@@ -140,7 +140,7 @@ impl NetworkBehaviour for DiscoveryBehaviour {
             .handle_established_outbound_connection(connection_id, peer, addr, role_override)
     }
 
-    fn on_swarm_event(&mut self, event: libp2p::swarm::FromSwarm<Self::ConnectionHandler>) {
+    fn on_swarm_event(&mut self, event: libp2p::swarm::FromSwarm) {
         self.inner.on_swarm_event(event)
     }
 
@@ -157,7 +157,6 @@ impl NetworkBehaviour for DiscoveryBehaviour {
     fn poll(
         &mut self,
         cx: &mut std::task::Context<'_>,
-        params: &mut impl libp2p::swarm::PollParameters,
     ) -> Poll<libp2p::swarm::ToSwarm<Self::ToSwarm, libp2p::swarm::THandlerInEvent<Self>>> {
         // Poll the kademlia bootstrap interval future in order to define if we need to call the
         // `bootstrap`
@@ -169,7 +168,7 @@ impl NetworkBehaviour for DiscoveryBehaviour {
             }
         }
 
-        if let Poll::Ready(event) = self.inner.poll(cx, params) {
+        if let Poll::Ready(event) = self.inner.poll(cx) {
             match event {
                 // When a Bootstrap query ends, we reset the `query_id`
                 ToSwarm::GenerateEvent(KademliaEvent::OutboundQueryProgressed {

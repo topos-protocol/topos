@@ -16,8 +16,6 @@ use topos_test_sdk::{
 };
 use uuid::Uuid;
 
-mod mock;
-
 use crate::SynchronizerService;
 
 #[rstest]

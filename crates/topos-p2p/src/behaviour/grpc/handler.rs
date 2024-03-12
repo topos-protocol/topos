@@ -9,7 +9,7 @@ use std::{
 
 use libp2p::swarm::{
     handler::{ConnectionEvent, DialUpgradeError, FullyNegotiatedInbound, FullyNegotiatedOutbound},
-    ConnectionHandler, ConnectionHandlerEvent, KeepAlive, SubstreamProtocol,
+    ConnectionHandler, ConnectionHandlerEvent, SubstreamProtocol,
 };
 use tracing::{debug, warn};
 
@@ -36,7 +36,7 @@ pub struct Handler {
     /// Optional outbound request id
     outbound_request_id: Option<ProtocolRequest>,
     protocols: HashSet<String>,
-    keep_alive: KeepAlive,
+    keep_alive: bool,
 }
 
 impl Handler {
@@ -46,7 +46,7 @@ impl Handler {
             pending_events: VecDeque::new(),
             outbound_request_id: None,
             protocols,
-            keep_alive: KeepAlive::Yes,
+            keep_alive: true,
         }
     }
 }
@@ -55,8 +55,6 @@ impl ConnectionHandler for Handler {
     type FromBehaviour = ProtocolRequest;
 
     type ToBehaviour = event::Event;
-
-    type Error = void::Void;
 
     type InboundProtocol = GrpcUpgradeProtocol;
 
@@ -77,7 +75,7 @@ impl ConnectionHandler for Handler {
         )
     }
 
-    fn connection_keep_alive(&self) -> libp2p::swarm::KeepAlive {
+    fn connection_keep_alive(&self) -> bool {
         self.keep_alive
     }
 
@@ -127,7 +125,7 @@ impl ConnectionHandler for Handler {
                 self.pending_events.push_back(Event::OutboundTimeout(info));
 
                 // Closing the connection handler
-                self.keep_alive = KeepAlive::No;
+                self.keep_alive = false;
             }
             ConnectionEvent::DialUpgradeError(DialUpgradeError {
                 info,
@@ -137,13 +135,14 @@ impl ConnectionHandler for Handler {
                     .push_back(Event::UnsupportedProtocol(info.request_id, info.protocol));
 
                 // Closing the connection handler
-                self.keep_alive = KeepAlive::No;
+                self.keep_alive = false;
             }
             ConnectionEvent::DialUpgradeError(_)
             | ConnectionEvent::AddressChange(_)
             | ConnectionEvent::ListenUpgradeError(_)
             | ConnectionEvent::LocalProtocolsChange(_)
             | ConnectionEvent::RemoteProtocolsChange(_) => (),
+            event => warn!("Unhandled connection event: {:?}", event),
         }
     }
     #[allow(deprecated)]
@@ -155,7 +154,6 @@ impl ConnectionHandler for Handler {
             Self::OutboundProtocol,
             Self::OutboundOpenInfo,
             Self::ToBehaviour,
-            Self::Error,
         >,
     > {
         if let Some(event) = self.pending_events.pop_front() {

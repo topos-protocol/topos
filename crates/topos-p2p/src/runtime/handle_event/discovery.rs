@@ -103,6 +103,7 @@ impl EventHandler<Box<Event>> for Runtime {
             Event::OutboundQueryProgressed {
                 id, result, stats, ..
             } => {}
+            Event::ModeChanged { new_mode } => {}
         }
     }
 }

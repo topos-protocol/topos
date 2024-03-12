@@ -18,7 +18,6 @@ http.workspace = true
 lazy_static.workspace = true
 libp2p = { workspace = true, features = ["macros", "gossipsub", "tcp", "dns", "tokio", "request-response", "identify", "kad", "serde", "yamux", "secp256k1"] }
 pin-project = "1.1.3"
-libp2p-swarm-test = "0.2.0"
 prometheus-client.workspace = true
 rand.workspace = true
 serde = { workspace = true, features = ["derive"] }
@@ -39,6 +38,7 @@ prost.workspace = true
 topos-core = { path = "../topos-core/" }
 
 [dev-dependencies]
+libp2p-swarm-test = "0.3.0"
 test-log.workspace = true
 env_logger.workspace = true
 rstest = { workspace = true, features = ["async-timeout"] }

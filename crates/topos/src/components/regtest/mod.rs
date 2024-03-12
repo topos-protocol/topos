@@ -8,7 +8,6 @@ use tokio::{
 use topos_certificate_spammer::{error::Error, CertificateSpammerConfig};
 use topos_telemetry::tracing::setup_tracing;
 use tracing::{error, info};
-use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 pub(crate) mod commands;
 
@@ -36,7 +35,7 @@ pub(crate) async fn handle_command(
 
             // Setup instrumentation if both otlp agent and otlp service name
             // are provided as arguments
-            let basic_controller = setup_tracing(
+            setup_tracing(
                 verbose,
                 false,
                 cmd.otlp_agent,
@@ -63,11 +62,6 @@ pub(crate) async fn handle_command(
                     }
                     result = &mut runtime =>{
                         global::shutdown_tracer_provider();
-                        if let Some(basic_controller) = basic_controller {
-                            if let Err(e) = basic_controller.stop(&tracing::Span::current().context()) {
-                                error!("Error stopping tracing: {e}");
-                            }
-                        }
 
                         if let Ok(Err(Error::BenchmarkConfig(ref msg))) = result {
                             error!("Benchmark configuration error:\n{}", msg);
