@@ -1,4 +1,4 @@
-name: Docker_build_push
+name: Contracts - Docker build and push
 
 on:
   push:

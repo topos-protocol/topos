@@ -1,4 +1,4 @@
-name: Sequencer Topos Core Contract interaction test
+name: Topos - Sequencer Topos Core Contract interaction test
 
 on:
   push:

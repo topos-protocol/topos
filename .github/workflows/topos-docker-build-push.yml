@@ -1,4 +1,4 @@
-name: Docker build and push
+name: Topos - Docker build and push
 
 on:
   push:
@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   docker:
-    uses: ./.github/workflows/docker_utils.yml
+    uses: ./.github/workflows/topos-docker-utils.yml
     secrets: inherit
 
   integration-erc20-e2e:

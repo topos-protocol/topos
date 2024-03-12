@@ -1,4 +1,4 @@
-name: Publish Package to NPM Registry
+name: Contracts - Publish Package to NPM Registry
 on:
   release:
     types: [published]
