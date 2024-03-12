@@ -162,13 +162,13 @@ impl AppContext {
 
         let pending_certificates = self
             .validator_store
-            .count_pending_certificates()
+            .pending_pool_size()
             .map_err(|error| format!("Unable to count pending certificates: {error}"))
             .unwrap();
 
         let precedence_pool_certificates = self
             .validator_store
-            .count_precedence_pool_certificates()
+            .precedence_pool_size()
             .map_err(|error| format!("Unable to count precedence pool certificates: {error}"))
             .unwrap();
 

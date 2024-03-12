@@ -131,6 +131,7 @@ async fn open_watch_certificate_delivered() {
                                   source {
                                     sourceSubnetId
                                     position
+                                    certificateId
                                   }
                                 }
                               }

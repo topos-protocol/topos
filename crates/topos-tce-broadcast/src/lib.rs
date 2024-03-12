@@ -88,6 +88,7 @@ pub enum DoubleEchoCommand {
     Broadcast {
         need_gossip: bool,
         cert: Certificate,
+        pending_id: u64,
     },
 
     /// When echo reply received

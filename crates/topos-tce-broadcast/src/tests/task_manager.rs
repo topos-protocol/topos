@@ -65,6 +65,7 @@ async fn can_start(#[future] create_validator_store: Arc<ValidatorStore>) {
         .send(crate::DoubleEchoCommand::Broadcast {
             need_gossip: false,
             cert: child.certificate.clone(),
+            pending_id: 0,
         })
         .await;
 
@@ -72,6 +73,7 @@ async fn can_start(#[future] create_validator_store: Arc<ValidatorStore>) {
         .send(crate::DoubleEchoCommand::Broadcast {
             need_gossip: false,
             cert: parent.certificate.clone(),
+            pending_id: 0,
         })
         .await;
 
@@ -79,6 +81,7 @@ async fn can_start(#[future] create_validator_store: Arc<ValidatorStore>) {
         .send(crate::DoubleEchoCommand::Broadcast {
             need_gossip: false,
             cert: parent.certificate.clone(),
+            pending_id: 0,
         })
         .await;
 

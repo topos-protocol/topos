@@ -96,11 +96,7 @@ impl TaskManager {
             Ok(pendings) => {
                 debug!("Received {} pending certificates", pendings.len());
                 for (pending_id, certificate) in pendings {
-                    debug!(
-                        "Creating task for pending certificate {} at position {} if needed",
-                        certificate.id, pending_id
-                    );
-                    self.create_task(&certificate, true);
+                    self.create_task(&certificate, true, pending_id);
                     self.latest_pending_id = pending_id;
                 }
             }
@@ -132,10 +128,10 @@ impl TaskManager {
                                     .push(msg);
                             };
                         }
-                        DoubleEchoCommand::Broadcast { ref cert, need_gossip } => {
+                        DoubleEchoCommand::Broadcast { ref cert, need_gossip, pending_id } => {
                             trace!("Received broadcast message for certificate {} ", cert.id);
 
-                            self.create_task(cert, need_gossip)
+                            self.create_task(cert, need_gossip, pending_id)
                         }
                     }
                 }
@@ -202,7 +198,7 @@ impl TaskManager {
     /// Create a new task for the given certificate and add it to the running tasks.
     /// If the previous certificate is not available yet, the task will be created but not started.
     /// This method is called when a pending certificate is fetched from the storage.
-    fn create_task(&mut self, cert: &Certificate, need_gossip: bool) {
+    fn create_task(&mut self, cert: &Certificate, need_gossip: bool, pending_id: u64) {
         match self.tasks.entry(cert.id) {
             std::collections::hash_map::Entry::Vacant(entry) => {
                 let broadcast_state = BroadcastState::new(
@@ -242,10 +238,14 @@ impl TaskManager {
                         cert.id, cert.prev_id
                     );
                 }
+                debug!(
+                    "Creating task for pending certificate {} at position {} if needed",
+                    cert.id, pending_id
+                );
                 entry.insert(task_context);
             }
             std::collections::hash_map::Entry::Occupied(_) => {
-                debug!(
+                trace!(
                     "Received broadcast message for certificate {} but it is already being \
                      processed",
                     cert.id
