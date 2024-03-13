@@ -55,7 +55,7 @@ impl Certification {
 
         // Keep account of blocks with generated certificates so that we can remove them from
         // finalized blocks
-        let mut processed_blocks: Vec<u64> = Vec::with_capacity(self.finalized_blocks.len());
+        let mut certified_blocks: Vec<u64> = Vec::with_capacity(self.finalized_blocks.len());
 
         // For every block, create one certificate
         for block_info in &self.finalized_blocks {
@@ -99,7 +99,7 @@ impl Certification {
                 .update_signature(self.get_signing_key())
                 .map_err(Error::CertificateSigningError)?;
             generated_certificates.push(certificate);
-            processed_blocks.push(block_info.number);
+            certified_blocks.push(block_info.number);
         }
 
         // Check for inconsistencies
@@ -131,7 +131,7 @@ impl Certification {
         }
 
         // Remove processed blocks
-        for processed_block_number in processed_blocks {
+        for processed_block_number in certified_blocks {
             let front_block_number = self.finalized_blocks.front().map(|front| front.number);
 
             if front_block_number.is_some() {
