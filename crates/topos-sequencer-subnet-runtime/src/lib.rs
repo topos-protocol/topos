@@ -18,6 +18,7 @@ pub mod proxy;
 
 use crate::proxy::{SubnetRuntimeProxyCommand, SubnetRuntimeProxyEvent};
 
+// Optimal Size of event channel is yet to be determined. Now just putting a number
 const EVENT_SUBSCRIBER_CHANNEL_SIZE: usize = 64;
 
 #[derive(Debug, Error)]

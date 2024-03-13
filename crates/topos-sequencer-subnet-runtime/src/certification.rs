@@ -18,7 +18,9 @@ pub struct Certification {
     signing_key: Vec<u8>,
     /// Optional synchronization from particular block number
     pub start_block: Option<u64>,
-    /// Latest BLOCK_HISTORY_LENGTH blocks kept in memory
+    /// Blocks received from subnet, not yet certified. We keep them in memory until we can
+    /// generate certificate for them. They are kept as linked list to maintain
+    /// order of blocks, latest received blocks are at the end of the list
     finalized_blocks: LinkedList<BlockInfo>,
 }
 
