@@ -84,6 +84,7 @@ impl FullNodeStore {
         }))
     }
 
+    /// Await for a [`LockGuards`] for the given certificate id
     pub(crate) async fn get_certificate_lock_guard(
         &self,
         certificate_id: CertificateId,
@@ -95,6 +96,7 @@ impl FullNodeStore {
             .await
     }
 
+    /// Await for a [`LockGuards`] for the given subnet id
     pub(crate) async fn get_subnet_lock_guard(&self, subnet_id: SubnetId) -> OwnedMutexGuard<()> {
         self.subnet_lock_guards
             .get_lock(subnet_id)
