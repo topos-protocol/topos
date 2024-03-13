@@ -1,4 +1,16 @@
 ARG RUSTUP_TOOLCHAIN=stable
+
+FROM node:18.15.0-slim as topos-contracts
+
+WORKDIR /usr/src/app
+
+COPY ./contracts/package*.json .
+RUN npm install
+
+COPY ./contracts .
+
+RUN npm run build
+
 FROM --platform=${BUILDPLATFORM:-linux/amd64} ghcr.io/topos-protocol/rust_builder:bullseye-${RUSTUP_TOOLCHAIN} AS base
 
 ARG FEATURES
@@ -13,6 +25,9 @@ WORKDIR /usr/src/app
 
 FROM --platform=${BUILDPLATFORM:-linux/amd64} base AS build
 COPY . .
+
+COPY --from=topos-contracts /usr/src/app/artifacts ./contracts/artifacts
+
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     --mount=type=cache,id=sccache,target=/root/.cache/sccache \
   cargo build --release --no-default-features --features=${FEATURES} \
