@@ -1,11 +1,11 @@
-use opentelemetry::sdk::metrics::controllers::BasicController;
-use opentelemetry::sdk::trace::{BatchConfig, BatchSpanProcessor, SpanLimits};
-use opentelemetry::sdk::{propagation::TraceContextPropagator, trace::Sampler, Resource};
 use opentelemetry::trace::TracerProvider;
 use opentelemetry::{global, KeyValue};
 use opentelemetry_otlp::{SpanExporterBuilder, WithExportConfig};
+use opentelemetry_sdk::trace::{BatchConfigBuilder, BatchSpanProcessor, SpanLimits};
+use opentelemetry_sdk::{propagation::TraceContextPropagator, trace::Sampler, Resource};
 use std::time::Duration;
 use tracing::Level;
+use tracing_subscriber::util::TryInitError;
 use tracing_subscriber::{
     prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer,
 };
@@ -66,7 +66,7 @@ pub fn setup_tracing(
     otlp_agent: Option<String>,
     otlp_service_name: Option<String>,
     version: &'static str,
-) -> Result<Option<BasicController>, Box<dyn std::error::Error>> {
+) -> Result<(), TryInitError> {
     let mut layers = Vec::new();
 
     let ansi = !no_color;
@@ -96,12 +96,10 @@ pub fn setup_tracing(
     );
 
     // Setup instrumentation if both otlp agent and otlp service name are provided as arguments
-    let metrics: Option<_> = if let (Some(otlp_agent), Some(otlp_service_name)) =
-        (otlp_agent, otlp_service_name)
-    {
+    if let (Some(otlp_agent), Some(otlp_service_name)) = (otlp_agent, otlp_service_name) {
         let resources = build_resources(otlp_service_name, version);
 
-        let mut trace_config = opentelemetry::sdk::trace::config();
+        let mut trace_config = opentelemetry_sdk::trace::config();
 
         trace_config = trace_config.with_sampler(Sampler::AlwaysOn);
         trace_config = trace_config.with_max_events_per_span(
@@ -149,10 +147,9 @@ pub fn setup_tracing(
 
         let exporter = opentelemetry_otlp::new_exporter()
             .tonic()
-            .with_env()
             .with_endpoint(otlp_agent);
 
-        let batch_processor_config = BatchConfig::default()
+        let batch_processor_config = BatchConfigBuilder::default()
             .with_scheduled_delay(match std::env::var("OTLP_BATCH_SCHEDULED_DELAY") {
                 Ok(v) => Duration::from_millis(v.parse::<u64>().unwrap_or(5_000)),
                 _ => Duration::from_millis(5_000),
@@ -177,21 +174,25 @@ pub fn setup_tracing(
             );
 
         let span_exporter: SpanExporterBuilder = exporter.into();
-        let mut provider_builder = opentelemetry::sdk::trace::TracerProvider::builder()
+        let mut provider_builder = opentelemetry_sdk::trace::TracerProvider::builder()
             .with_span_processor(
                 BatchSpanProcessor::builder(
                     span_exporter.build_span_exporter().unwrap(),
-                    opentelemetry::runtime::Tokio,
+                    opentelemetry_sdk::runtime::Tokio,
                 )
-                .with_batch_config(batch_processor_config)
+                .with_batch_config(batch_processor_config.build())
                 .build(),
             );
 
         provider_builder = provider_builder.with_config(trace_config);
         let provider = provider_builder.build();
 
-        let tracer =
-            provider.versioned_tracer("opentelemetry-otlp", Some(env!("CARGO_PKG_VERSION")), None);
+        let tracer = provider.versioned_tracer(
+            "opentelemetry-otlp",
+            Some(env!("CARGO_PKG_VERSION")),
+            None::<&str>,
+            None,
+        );
 
         let _ = global::set_tracer_provider(provider);
 
@@ -205,13 +206,9 @@ pub fn setup_tracing(
         opentelemetry::global::set_text_map_propagator(TraceContextPropagator::new());
 
         global::set_text_map_propagator(TraceContextPropagator::new());
-
-        None
-    } else {
-        None
-    };
+    }
 
     tracing_subscriber::registry().with(layers).try_init()?;
 
-    Ok(metrics)
+    Ok(())
 }

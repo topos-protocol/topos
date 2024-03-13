@@ -80,7 +80,7 @@ async fn open_target_node_connection(
             Ok(value) => value,
             Err(e) => {
                 error!(
-                    "Unable to create TCE client for node {}, error details: {}",
+                    "Unable to create TCE client for node {}: {}",
                     &tce_address, e
                 );
                 return Err(Error::TCENodeConnection(e));
@@ -90,10 +90,7 @@ async fn open_target_node_connection(
         match tce_client.open_stream(Vec::new()).await {
             Ok(_) => {}
             Err(e) => {
-                error!(
-                    "Unable to connect to node {}, error details: {}",
-                    &tce_address, e
-                );
+                error!("Unable to connect to node {}: {}", &tce_address, e);
                 return Err(Error::TCENodeConnection(e));
             }
         }
@@ -150,7 +147,7 @@ async fn close_target_node_connections(
     {
         info!("Closing connection to target node {}", target_node.address);
         if let Err(e) = target_node.shutdown().await {
-            error!("Error shutting down connection {e}");
+            error!("Failed to close stream with {}: {e}", target_node.address);
         }
     }
 }
@@ -176,10 +173,7 @@ async fn send_new_certificate(tce_client: &mut TceClient, cert: Certificate) {
         .instrument(Span::current())
         .await
     {
-        error!(
-            "failed to pass certificate to tce client, error details: {}",
-            e
-        );
+        error!("Failed to send the Certificate to the TCE client: {}", e);
     }
 }
 

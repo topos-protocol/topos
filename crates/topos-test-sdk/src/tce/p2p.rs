@@ -3,6 +3,7 @@ use std::error::Error;
 use futures::Stream;
 use libp2p::Multiaddr;
 use tokio::{spawn, task::JoinHandle};
+use tracing::Instrument;
 
 use crate::p2p::keypair_from_seed;
 use topos_p2p::{error::P2PError, Event, GrpcContext, GrpcRouter, NetworkClient, Runtime};
@@ -55,6 +56,7 @@ pub async fn create_network_worker(
         .minimum_cluster_size(minimum_cluster_size)
         .grpc_context(grpc_context)
         .build()
+        .in_current_span()
         .await
 }
 
@@ -65,21 +67,30 @@ pub async fn bootstrap_network(
     peers: &[NodeConfig],
     minimum_cluster_size: usize,
     router: Option<GrpcRouter>,
+    dummy: bool,
 ) -> Result<
     (
         NetworkClient,
         impl Stream<Item = Event> + Unpin + Send,
-        JoinHandle<Result<(), ()>>,
+        JoinHandle<Result<(), P2PError>>,
     ),
     Box<dyn Error>,
 > {
-    let (network_client, network_stream, mut runtime) =
-        create_network_worker(seed, port, vec![addr], peers, minimum_cluster_size, router).await?;
+    let (network_client, mut network_stream, runtime) =
+        create_network_worker(seed, port, vec![addr], peers, minimum_cluster_size, router)
+            .in_current_span()
+            .await?;
 
-    runtime.bootstrap().await?;
+    let runtime_join_handle = if dummy {
+        spawn(runtime.run().in_current_span())
+    } else {
+        runtime
+            .bootstrap(&mut network_stream)
+            .in_current_span()
+            .await?
+    };
 
     println!("Network bootstrap done.");
 
-    let runtime_join_handle = spawn(runtime.run());
     Ok((network_client, network_stream, runtime_join_handle))
 }

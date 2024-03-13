@@ -137,6 +137,12 @@ impl DoubleEcho {
 
                         command if self.subscriptions.is_some() => {
                             match command {
+                                DoubleEchoCommand::Broadcast { cert, need_gossip, pending_id } => {
+                                    _ = self
+                                        .task_manager_message_sender
+                                        .send(DoubleEchoCommand::Broadcast { need_gossip, cert, pending_id })
+                                        .await;
+                                    }
                                 DoubleEchoCommand::Echo { certificate_id, validator_id, signature } => {
                                     // Check if source is part of known_validators
                                     if !self.validators.contains(&validator_id) {
@@ -173,7 +179,6 @@ impl DoubleEcho {
 
                                     self.handle_ready(certificate_id, validator_id, signature).await
                                 },
-                                _ => {}
                             }
 
                         },
@@ -184,7 +189,7 @@ impl DoubleEcho {
                 }
 
                 else => {
-                    warn!("Break the tokio loop for the double echo");
+                    debug!("Break the tokio loop for the double echo");
                     break None;
                 }
             }
@@ -194,7 +199,7 @@ impl DoubleEcho {
             info!("Shutting down p2p double echo...");
             _ = sender.send(());
         } else {
-            warn!("Shutting down p2p double echo due to error...");
+            debug!("Shutting down p2p double echo due to error...");
         }
     }
 }

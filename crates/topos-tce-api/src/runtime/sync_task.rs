@@ -60,7 +60,7 @@ pub(crate) struct SyncTask {
     /// last certificate id delivered to the stream
     pub(crate) target_subnet_stream_positions: TargetSubnetStreamPositions,
     /// The connection to the database layer through a StorageClient
-    pub(crate) storage: StorageClient,
+    pub(crate) store: StorageClient,
     /// The notifier is used to send certificates to the stream
     pub(crate) notifier: Sender<StreamCommand>,
     /// If a new stream is registered with the same Uuid, the sync task will be cancelled
@@ -72,7 +72,7 @@ impl SyncTask {
     pub(crate) fn new(
         stream_id: Uuid,
         target_subnet_stream_positions: TargetSubnetStreamPositions,
-        storage: StorageClient,
+        store: StorageClient,
         notifier: Sender<StreamCommand>,
         cancel_token: CancellationToken,
     ) -> Self {
@@ -80,7 +80,7 @@ impl SyncTask {
             status: SyncTaskStatus::Running,
             stream_id,
             target_subnet_stream_positions,
-            storage,
+            store,
             notifier,
             cancel_token,
         }
@@ -103,7 +103,7 @@ impl IntoFuture for SyncTask {
                     return (self.stream_id, self.status);
                 }
                 let source_subnet_list = self
-                    .storage
+                    .store
                     .get_target_source_subnet_list(*target_subnet_id)
                     .await;
 
@@ -136,7 +136,7 @@ impl IntoFuture for SyncTask {
                         return (self.stream_id, self.status);
                     }
                     if let Ok(certificates_with_positions) = self
-                        .storage
+                        .store
                         .fetch_certificates(FetchCertificatesFilter::Target {
                             target_stream_position: CertificateTargetStreamPosition {
                                 target_subnet_id: *target_subnet_id,

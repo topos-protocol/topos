@@ -26,8 +26,8 @@ pub use runtime::Runtime;
 
 use hyper::Body;
 use tonic::body::BoxBody;
+use tonic::server::NamedService;
 use tonic::transport::server::Router;
-use tonic::transport::NamedService;
 use topos_core::api::grpc::p2p::info_service_server::InfoService;
 use topos_core::api::grpc::p2p::info_service_server::InfoServiceServer;
 use tower::Service;
@@ -89,7 +89,7 @@ pub mod utils {
 
     use libp2p::{identity, PeerId};
     use tokio::{sync::mpsc, sync::oneshot};
-    use tonic::transport::NamedService;
+    use tonic::server::NamedService;
     use topos_core::api::grpc::GrpcClient;
 
     use tracing::debug;

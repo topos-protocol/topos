@@ -64,14 +64,14 @@ impl AppContext {
                     match tce_evt {
                         TceProxyEvent::TceServiceFailure | TceProxyEvent::WatchCertificatesChannelFailed => {
                             // Unrecoverable failure in interaction with the TCE. Sequencer needs to be restarted
-                            warn!(
+                            error!(
                                 "Unrecoverable failure in sequencer <-> tce interaction. Shutting down sequencer \
                                  sequencer..."
                             );
                             if let Err(e) = self.shutdown().await {
-                                warn!("Error happened during shutdown: {e:?}");
+                                warn!("Failed to shutdown: {e:?}");
                             }
-                            warn!("Shutdown finished, restarting sequencer...");
+                            info!("Shutdown finished, restarting sequencer...");
                             return AppContextStatus::Restarting;
                         },
                         _ => self.on_tce_proxy_event(tce_evt).await,
@@ -82,7 +82,7 @@ impl AppContext {
                 _ = shutdown.0.cancelled() => {
                     info!("Shutting down Sequencer app context...");
                     if let Err(e) = self.shutdown().await {
-                        error!("Error shutting down Sequencer app context: {e}");
+                        error!("Failed to shutdown the Sequencer app context: {e}");
                     }
                     // Drop the sender to notify the Sequencer termination
                     drop(shutdown.1);

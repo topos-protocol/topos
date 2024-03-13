@@ -200,9 +200,54 @@ async fn resuming_one_subscription() {}
 #[ignore = "not yet implemented"]
 async fn resuming_all_subscription() {}
 
+#[rstest]
 #[test(tokio::test)]
-#[ignore = "not yet implemented"]
-async fn closing_client_stream() {}
+async fn closing_client_stream() -> Result<(), Box<dyn std::error::Error>> {
+    let (mut tx, stream, mut context) = StreamBuilder::default().build();
+
+    let join = spawn(stream.run());
+
+    let msg: WatchCertificatesRequest = GrpcOpenStream {
+        target_checkpoint: Some(TargetCheckpoint {
+            target_subnet_ids: vec![TARGET_SUBNET_ID_1.into()],
+            positions: vec![],
+        }),
+        source_checkpoint: None,
+    }
+    .into();
+
+    _ = tx.send_data(encode(&msg)?).await;
+
+    let expected_stream_id = context.stream_id;
+
+    wait_for_command!(
+        context.runtime_receiver,
+        matches: InternalRuntimeCommand::Register { stream_id, sender, .. } if stream_id == expected_stream_id => {
+            sender.send(Ok(()))
+        }
+    );
+
+    let msg = context.stream_receiver.recv().await;
+
+    assert!(
+        matches!(
+            msg,
+            Some(Ok((_, OutboundMessage::StreamOpened(StreamOpened { ref subnet_ids })))) if subnet_ids == &[TARGET_SUBNET_ID_1],
+        ),
+        "Expected StreamOpened, received: {msg:?}"
+    );
+
+    tx.abort();
+
+    let result = join.await?;
+
+    assert!(
+        matches!(result, Err(StreamError { stream_id, kind: StreamErrorKind::Transport(_)}) if stream_id == context.stream_id),
+        "Doesn't match {result:?}",
+    );
+
+    Ok(())
+}
 
 #[test(tokio::test)]
 #[ignore = "not yet implemented"]

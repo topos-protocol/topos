@@ -22,9 +22,7 @@ use topos_tce_storage::store::ReadStore;
 use topos_tce_storage::types::CertificateDeliveredWithPositions;
 use topos_tce_storage::validator::ValidatorStore;
 use topos_tce_storage::PendingCertificateId;
-use tracing::debug;
-use tracing::error;
-use tracing::warn;
+use tracing::{debug, error, info, trace, warn};
 
 pub mod task;
 
@@ -55,7 +53,6 @@ pub struct TaskManager {
     pub validator_id: ValidatorId,
     pub validator_store: Arc<ValidatorStore>,
     pub broadcast_sender: broadcast::Sender<CertificateDeliveredWithPositions>,
-
     pub latest_pending_id: PendingCertificateId,
 }
 
@@ -99,16 +96,12 @@ impl TaskManager {
             Ok(pendings) => {
                 debug!("Received {} pending certificates", pendings.len());
                 for (pending_id, certificate) in pendings {
-                    debug!(
-                        "Creating task for pending certificate {} at position {} if needed",
-                        certificate.id, pending_id
-                    );
-                    self.create_task(&certificate, true);
+                    self.create_task(&certificate, true, pending_id);
                     self.latest_pending_id = pending_id;
                 }
             }
             Err(error) => {
-                error!("Error while fetching pending certificates: {:?}", error);
+                error!("Failed to fetch the pending certificates: {:?}", error);
             }
         }
     }
@@ -135,10 +128,10 @@ impl TaskManager {
                                     .push(msg);
                             };
                         }
-                        DoubleEchoCommand::Broadcast { ref cert, need_gossip } => {
-                            debug!("Received broadcast message for certificate {} ", cert.id);
+                        DoubleEchoCommand::Broadcast { ref cert, need_gossip, pending_id } => {
+                            trace!("Received broadcast message for certificate {} ", cert.id);
 
-                            self.create_task(cert, need_gossip)
+                            self.create_task(cert, need_gossip, pending_id)
                         }
                     }
                 }
@@ -146,25 +139,25 @@ impl TaskManager {
 
                 Some((certificate_id, status)) = self.running_tasks.next() => {
                     if let TaskStatus::Success = status {
-                        debug!("Task for certificate {} finished successfully", certificate_id);
+                        trace!("Task for certificate {} finished successfully", certificate_id);
                         self.tasks.remove(&certificate_id);
                         DOUBLE_ECHO_ACTIVE_TASKS_COUNT.dec();
 
                     } else {
-                        debug!("Task for certificate {} finished unsuccessfully", certificate_id);
+                        error!("Task for certificate {} finished unsuccessfully", certificate_id);
                     }
 
                     self.next_pending_certificate();
                 }
 
                 _ = shutdown_receiver.cancelled() => {
-                    warn!("Task Manager shutting down");
+                    info!("Task Manager shutting down");
 
-                    warn!("There are still {} active tasks", self.tasks.len());
+                    debug!("Remaining active tasks: {:?}", self.tasks.len());
                     if !self.tasks.is_empty() {
                         debug!("Certificates still in broadcast: {:?}", self.tasks.keys());
                     }
-                    warn!("There are still {} buffered messages", self.buffered_messages.len());
+                    warn!("Remaining buffered messages: {}", self.buffered_messages.len());
                     for task in self.tasks.iter() {
                         task.1.shutdown_sender.send(()).await.unwrap();
                     }
@@ -205,7 +198,7 @@ impl TaskManager {
     /// Create a new task for the given certificate and add it to the running tasks.
     /// If the previous certificate is not available yet, the task will be created but not started.
     /// This method is called when a pending certificate is fetched from the storage.
-    fn create_task(&mut self, cert: &Certificate, need_gossip: bool) {
+    fn create_task(&mut self, cert: &Certificate, need_gossip: bool, pending_id: u64) {
         match self.tasks.entry(cert.id) {
             std::collections::hash_map::Entry::Vacant(entry) => {
                 let broadcast_state = BroadcastState::new(
@@ -245,10 +238,14 @@ impl TaskManager {
                         cert.id, cert.prev_id
                     );
                 }
+                debug!(
+                    "Creating task for pending certificate {} at position {} if needed",
+                    cert.id, pending_id
+                );
                 entry.insert(task_context);
             }
             std::collections::hash_map::Entry::Occupied(_) => {
-                debug!(
+                trace!(
                     "Received broadcast message for certificate {} but it is already being \
                      processed",
                     cert.id

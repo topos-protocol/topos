@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, path::Path, sync::Arc};
 
 use arc_swap::ArcSwap;
 use async_trait::async_trait;
@@ -51,6 +51,22 @@ pub struct FullNodeStore {
 }
 
 impl FullNodeStore {
+    /// Try to create a new instance of [`FullNodeStore`] based on the given path
+    pub fn new(path: &Path) -> Result<Arc<Self>, StorageError> {
+        let perpetual_tables = Arc::new(ValidatorPerpetualTables::open(path));
+        let index_tables = Arc::new(IndexTables::open(path));
+
+        let validators_store = EpochValidatorsStore::new(path)?;
+
+        let epoch_store = ValidatorPerEpochStore::new(0, path)?;
+
+        FullNodeStore::open(
+            epoch_store,
+            validators_store,
+            perpetual_tables,
+            index_tables,
+        )
+    }
     pub fn open(
         epoch_store: ArcSwap<ValidatorPerEpochStore>,
         validators_store: Arc<EpochValidatorsStore>,

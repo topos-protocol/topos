@@ -16,14 +16,7 @@ use topos_p2p::{
     GrpcContext, GrpcRouter,
 };
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
-use topos_tce_storage::{
-    epoch::{EpochValidatorsStore, ValidatorPerEpochStore},
-    fullnode::FullNodeStore,
-    index::IndexTables,
-    store::ReadStore,
-    validator::{ValidatorPerpetualTables, ValidatorStore},
-    StorageClient,
-};
+use topos_tce_storage::{store::ReadStore, validator::ValidatorStore, StorageClient};
 use topos_tce_synchronizer::SynchronizerService;
 use tracing::{debug, info, warn};
 
@@ -68,6 +61,7 @@ pub async fn run(
     config: &TceConfig,
     shutdown: (CancellationToken, mpsc::Sender<()>),
 ) -> Result<impl Future<Output = ()>, Box<dyn std::error::Error>> {
+    // Preboot phase - start
     topos_metrics::init_metrics();
 
     let key = match config.auth_key.as_ref() {
@@ -98,6 +92,8 @@ pub async fn run(
     boot_peers.retain(|(p, _)| *p != peer_id);
     let is_validator = config.validators.contains(&validator_id);
 
+    // Preboot phase - stop
+    // Healthiness phase - start
     debug!("Starting the Storage");
     let path = if let StorageConfiguration::RocksDB(Some(ref path)) = config.storage {
         path
@@ -108,36 +104,23 @@ pub async fn run(
         )));
     };
 
-    let perpetual_tables = Arc::new(ValidatorPerpetualTables::open(path.clone()));
-    let index_tables = Arc::new(IndexTables::open(path.clone()));
-
-    let validators_store = EpochValidatorsStore::new(path.clone())
-        .map_err(|error| format!("Unable to create EpochValidators store: {error}"))?;
-
-    let epoch_store = ValidatorPerEpochStore::new(0, path.clone())
-        .map_err(|error| format!("Unable to create Per epoch store: {error}"))?;
-
-    let fullnode_store = FullNodeStore::open(
-        epoch_store,
-        validators_store,
-        perpetual_tables,
-        index_tables,
-    )
-    .map_err(|error| format!("Unable to create Fullnode store: {error}"))?;
-
-    let validator_store = ValidatorStore::open(path.clone(), fullnode_store.clone())
+    let validator_store = ValidatorStore::new(path)
         .map_err(|error| format!("Unable to create validator store: {error}"))?;
+
+    let fullnode_store = validator_store.get_fullnode_store();
+
+    let storage_client = StorageClient::new(validator_store.clone());
 
     let certificates_synced = fullnode_store
         .count_certificates_delivered()
         .map_err(|error| format!("Unable to count certificates delivered: {error}"))?;
 
     let pending_certificates = validator_store
-        .count_pending_certificates()
+        .pending_pool_size()
         .map_err(|error| format!("Unable to count pending certificates: {error}"))?;
 
     let precedence_pool_certificates = validator_store
-        .count_precedence_pool_certificates()
+        .precedence_pool_size()
         .map_err(|error| format!("Unable to count precedence pool certificates: {error}"))?;
 
     info!(
@@ -154,7 +137,7 @@ pub async fn run(
         ),
     );
 
-    let (network_client, event_stream, mut network_runtime) = topos_p2p::network::builder()
+    let (network_client, mut event_stream, network_runtime) = topos_p2p::network::builder()
         .peer_key(key)
         .listen_addresses(config.p2p.listen_addresses.clone())
         .minimum_cluster_size(config.minimum_tce_cluster_size)
@@ -165,9 +148,37 @@ pub async fn run(
         .await?;
 
     debug!("Starting the p2p network");
-    network_runtime.bootstrap().await?;
-    let _network_handler = spawn(network_runtime.run());
-    debug!("p2p network started");
+    let _network_handle = network_runtime.bootstrap(&mut event_stream).await?;
+    debug!("P2P layer bootstrapped");
+
+    debug!("Creating the Synchronizer");
+
+    let (synchronizer_runtime, synchronizer_stream) =
+        topos_tce_synchronizer::Synchronizer::builder()
+            .with_config(config.synchronization.clone())
+            .with_shutdown(shutdown.0.child_token())
+            .with_store(validator_store.clone())
+            .with_network_client(network_client.clone())
+            .build()?;
+
+    debug!("Synchronizer created");
+
+    debug!("Starting gRPC api");
+    let (broadcast_sender, broadcast_receiver) = broadcast::channel(BROADCAST_CHANNEL_SIZE);
+
+    let (api_client, api_stream, ctx) = topos_tce_api::Runtime::builder()
+        .with_peer_id(peer_id.to_string())
+        .with_broadcast_stream(broadcast_receiver.resubscribe())
+        .serve_grpc_addr(config.grpc_api_addr)
+        .serve_graphql_addr(config.graphql_api_addr)
+        .serve_metrics_addr(config.metrics_api_addr)
+        .store(validator_store.clone())
+        .storage(storage_client.clone())
+        .build_and_launch()
+        .await;
+    debug!("gRPC api started");
+
+    // Healthiness phase - stop
 
     debug!("Starting the gatekeeper");
     let (gatekeeper_client, gatekeeper_runtime) =
@@ -175,10 +186,6 @@ pub async fn run(
 
     spawn(gatekeeper_runtime.into_future());
     debug!("Gatekeeper started");
-
-    let (broadcast_sender, broadcast_receiver) = broadcast::channel(BROADCAST_CHANNEL_SIZE);
-
-    let storage_client = StorageClient::new(validator_store.clone());
 
     debug!("Starting reliable broadcast");
 
@@ -196,32 +203,7 @@ pub async fn run(
 
     debug!("Reliable broadcast started");
 
-    debug!("Starting the Synchronizer");
-
-    let (synchronizer_runtime, synchronizer_stream) =
-        topos_tce_synchronizer::Synchronizer::builder()
-            .with_config(config.synchronization.clone())
-            .with_shutdown(shutdown.0.child_token())
-            .with_store(validator_store.clone())
-            .with_network_client(network_client.clone())
-            .build()?;
-
     spawn(synchronizer_runtime.into_future());
-    debug!("Synchronizer started");
-
-    debug!("Starting gRPC api");
-    let (api_client, api_stream, ctx) = topos_tce_api::Runtime::builder()
-        .with_peer_id(peer_id.to_string())
-        .with_broadcast_stream(broadcast_receiver.resubscribe())
-        .serve_grpc_addr(config.grpc_api_addr)
-        .serve_graphql_addr(config.graphql_api_addr)
-        .serve_metrics_addr(config.metrics_api_addr)
-        .store(validator_store.clone())
-        .storage(storage_client.clone())
-        .build_and_launch()
-        .await;
-    debug!("gRPC api started");
-
     // setup transport-tce-storage-api connector
     let (app_context, _tce_stream) = AppContext::new(
         is_validator,

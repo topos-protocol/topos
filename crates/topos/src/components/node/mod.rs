@@ -5,6 +5,7 @@ use std::{
 use std::{path::Path, sync::Arc};
 use tokio::sync::Mutex;
 use tonic::transport::{Channel, Endpoint};
+use topos_telemetry::tracing::setup_tracing;
 use tower::Service;
 use tracing::error;
 
@@ -40,12 +41,13 @@ pub(crate) async fn handle_command(
     match subcommands {
         Some(NodeCommands::Init(cmd)) => {
             let cmd = *cmd;
-            let name = cmd.name.as_ref().expect("No name or default was given");
+            let name = cmd.name.clone().expect("No name or default was given");
 
+            _ = setup_tracing(verbose, no_color, None, None, env!("TOPOS_VERSION"));
             // Construct path to node config
             // will be $TOPOS_HOME/node/default/ with no given name
             // and $TOPOS_HOME/node/<name>/ with a given name
-            let node_path = home.join("node").join(name);
+            let node_path = home.join("node").join(&name);
 
             // If the folders don't exist yet, create it
             create_dir_all(&node_path).expect("failed to create node folder");
@@ -93,7 +95,7 @@ pub(crate) async fn handle_command(
                 }
             }
 
-            let node_config = NodeConfig::new(&node_path, Some(cmd));
+            let node_config = NodeConfig::create(&home, &name, Some(cmd));
 
             // Creating the TOML output
             let config_toml = match node_config.to_toml() {
@@ -132,27 +134,15 @@ pub(crate) async fn handle_command(
                 .name
                 .as_ref()
                 .expect("No name or default was given for node");
-            let node_path = home.join("node").join(name);
-            let config_path = node_path.join("config.toml");
 
-            // TODO: Move this to `topos-node` when migrated
-            if !Path::new(&config_path).exists() {
-                println!(
-                    "Please run 'topos node init --name {name}' to create a config file first for \
-                     {name}."
-                );
-                std::process::exit(1);
-            }
+            let config = NodeConfig::try_from(&home, name, Some(command))?;
 
-            let config = NodeConfig::new(&node_path, Some(command));
             topos_node::start(
                 verbose,
                 no_color,
                 cmd_cloned.otlp_agent,
                 cmd_cloned.otlp_service_name,
                 cmd_cloned.no_edge_process,
-                node_path,
-                home,
                 config,
             )
             .await?;

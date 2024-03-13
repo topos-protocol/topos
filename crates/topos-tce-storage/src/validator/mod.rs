@@ -12,11 +12,11 @@
 //! different pending pools and to manage them but also to access the [`FullNodeStore`] in order to
 //! persist or update [`Certificate`] or `streams`.
 //!
-//! Pending pools and their behavior is decribed in the [`ValidatorPendingTables`] documentation.
+//! Pending pools and their behavior are described in the [`ValidatorPendingTables`] documentation.
 //!
 use std::{
     collections::HashMap,
-    path::PathBuf,
+    path::Path,
     sync::{atomic::Ordering, Arc},
 };
 
@@ -56,7 +56,7 @@ mod tables;
 ///
 /// The key point is that the [`ValidatorStore`] is managing the different pending pools using a [`ValidatorPendingTables`].
 ///
-/// Pending pools and how they behave is decribed in the [`ValidatorPendingTables`] documentation.
+/// Pending pools and how they behave are described in the [`ValidatorPendingTables`] documentation.
 ///
 pub struct ValidatorStore {
     pub(crate) pending_tables: ValidatorPendingTables,
@@ -64,9 +64,16 @@ pub struct ValidatorStore {
 }
 
 impl ValidatorStore {
+    /// Try to create a new instance of [`ValidatorStore`] based on the given path
+    pub fn new(path: &Path) -> Result<Arc<Self>, StorageError> {
+        let fullnode_store = FullNodeStore::new(path)?;
+
+        Self::open(path, fullnode_store)
+    }
+
     /// Open a [`ValidatorStore`] at the given `path` and using the given [`FullNodeStore`]
     pub fn open(
-        path: PathBuf,
+        path: &Path,
         fullnode_store: Arc<FullNodeStore>,
     ) -> Result<Arc<Self>, StorageError> {
         let pending_tables: ValidatorPendingTables = ValidatorPendingTables::open(path);
@@ -91,26 +98,19 @@ impl ValidatorStore {
                 None::<&[u8]>,
             );
 
-        let pending_count: i64 =
-            store
-                .count_pending_certificates()?
-                .try_into()
-                .map_err(|error| {
-                    warn!("Failed to convert estimate-num-keys to i64: {}", error);
-                    StorageError::InternalStorage(InternalStorageError::UnexpectedDBState(
-                        "Failed to convert estimate-num-keys to i64",
-                    ))
-                })?;
+        let pending_count: i64 = store.pending_pool_size()?.try_into().map_err(|error| {
+            error!("Failed to convert estimate-num-keys to i64: {}", error);
+            StorageError::InternalStorage(InternalStorageError::UnexpectedDBState(
+                "Failed to convert estimate-num-keys to i64",
+            ))
+        })?;
 
-        let precedence_count: i64 = store
-            .count_precedence_pool_certificates()?
-            .try_into()
-            .map_err(|error| {
-                warn!("Failed to convert estimate-num-keys to i64: {}", error);
-                StorageError::InternalStorage(InternalStorageError::UnexpectedDBState(
-                    "Failed to convert estimate-num-keys to i64",
-                ))
-            })?;
+        let precedence_count: i64 = store.precedence_pool_size()?.try_into().map_err(|error| {
+            error!("Failed to convert estimate-num-keys to i64: {}", error);
+            StorageError::InternalStorage(InternalStorageError::UnexpectedDBState(
+                "Failed to convert estimate-num-keys to i64",
+            ))
+        })?;
 
         STORAGE_PENDING_POOL_COUNT.set(pending_count);
         STORAGE_PRECEDENCE_POOL_COUNT.set(precedence_count);
@@ -124,7 +124,7 @@ impl ValidatorStore {
     }
 
     /// Returns the number of certificates in the pending pool
-    pub fn count_pending_certificates(&self) -> Result<u64, StorageError> {
+    pub fn pending_pool_size(&self) -> Result<u64, StorageError> {
         Ok(self
             .pending_tables
             .pending_pool
@@ -132,7 +132,7 @@ impl ValidatorStore {
     }
 
     /// Returns the number of certificates in the precedence pool
-    pub fn count_precedence_pool_certificates(&self) -> Result<u64, StorageError> {
+    pub fn precedence_pool_size(&self) -> Result<u64, StorageError> {
         Ok(self
             .pending_tables
             .precedence_pool
@@ -159,11 +159,35 @@ impl ValidatorStore {
         Ok(self.pending_tables.pending_pool.get(pending_id)?)
     }
 
-    /// Returns the entire pending_pool
-    pub fn get_pending_certificates(
+    /// Returns an iterator over the pending pool
+    ///
+    /// Note: this can be slow on large datasets.
+    #[doc(hidden)]
+    pub fn iter_pending_pool(
         &self,
-    ) -> Result<Vec<(PendingCertificateId, Certificate)>, StorageError> {
-        Ok(self.pending_tables.pending_pool.iter()?.collect())
+    ) -> Result<impl Iterator<Item = (PendingCertificateId, Certificate)> + '_, StorageError> {
+        Ok(self.pending_tables.pending_pool.iter()?)
+    }
+
+    /// Returns an iterator over the pending pool starting at a given `PendingCertificateId`
+    ///
+    /// Note: this can be slow on large datasets.
+    #[doc(hidden)]
+    pub fn iter_pending_pool_at(
+        &self,
+        pending_id: &PendingCertificateId,
+    ) -> Result<impl Iterator<Item = (PendingCertificateId, Certificate)> + '_, StorageError> {
+        Ok(self.pending_tables.pending_pool.iter_at(pending_id)?)
+    }
+
+    /// Returns an iterator over the precedence pool
+    ///
+    /// Note: this can be slow on large datasets.
+    #[doc(hidden)]
+    pub fn iter_precedence_pool(
+        &self,
+    ) -> Result<impl Iterator<Item = (CertificateId, Certificate)> + '_, StorageError> {
+        Ok(self.pending_tables.precedence_pool.iter()?)
     }
 
     pub fn get_next_pending_certificates(
@@ -181,6 +205,14 @@ impl ValidatorStore {
             .iter_at(from)?
             .take(number)
             .collect())
+    }
+
+    /// Returns the [Certificate] (if any) that is currently in the precedence pool for the given [CertificateId]
+    pub fn check_precedence(
+        &self,
+        certificate_id: &CertificateId,
+    ) -> Result<Option<Certificate>, StorageError> {
+        Ok(self.pending_tables.precedence_pool.get(certificate_id)?)
     }
 
     // TODO: Performance issue on this one as we iter over all the pending certificates
@@ -360,7 +392,7 @@ impl ValidatorStore {
             .await?;
 
             debug!(
-                "Certificate Sync: unverified proof as been removed for {}",
+                "Certificate Sync: unverified proof has been removed for {}",
                 certificate_id
             );
             self.fullnode_store

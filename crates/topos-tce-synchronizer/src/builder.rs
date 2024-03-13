@@ -5,6 +5,7 @@ use tokio_stream::wrappers::ReceiverStream;
 use tokio_util::sync::CancellationToken;
 use topos_p2p::NetworkClient;
 use topos_tce_storage::validator::ValidatorStore;
+use tracing::Instrument;
 
 use crate::{
     checkpoints_collector::{CheckpointSynchronizer, CheckpointsCollectorError},
@@ -72,7 +73,8 @@ impl SynchronizerBuilder {
                 shutdown: shutdown.child_token(),
                 events: sync_events,
             }
-            .into_future(),
+            .into_future()
+            .in_current_span(),
         );
 
         Ok((

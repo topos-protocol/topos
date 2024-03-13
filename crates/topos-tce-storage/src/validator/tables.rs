@@ -1,6 +1,6 @@
 use std::{
     fs::create_dir_all,
-    path::PathBuf,
+    path::Path,
     sync::atomic::{AtomicU64, Ordering},
 };
 
@@ -62,8 +62,8 @@ pub struct ValidatorPendingTables {
 
 impl ValidatorPendingTables {
     /// Open the [`ValidatorPendingTables`] at the given path.
-    pub fn open(mut path: PathBuf) -> Self {
-        path.push("pending");
+    pub fn open(path: &Path) -> Self {
+        let path = path.join("pending");
         if !path.exists() {
             warn!("Path {:?} does not exist, creating it", path);
             create_dir_all(&path).expect("Cannot create ValidatorPendingTables directory");
@@ -125,8 +125,8 @@ pub struct ValidatorPerpetualTables {
 }
 
 impl ValidatorPerpetualTables {
-    pub fn open(mut path: PathBuf) -> Self {
-        path.push("perpetual");
+    pub fn open(path: &Path) -> Self {
+        let path = path.join("perpetual");
         if !path.exists() {
             warn!("Path {:?} does not exist, creating it", path);
             create_dir_all(&path).expect("Cannot create ValidatorPerpetualTables directory");

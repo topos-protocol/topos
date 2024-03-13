@@ -1,6 +1,8 @@
 use super::{Behaviour, Event, NetworkClient, Runtime};
 use crate::{
-    behaviour::{discovery::DiscoveryBehaviour, gossip, grpc, peer_info::PeerInfoBehaviour},
+    behaviour::{
+        discovery::DiscoveryBehaviour, gossip, grpc, peer_info::PeerInfoBehaviour, HealthStatus,
+    },
     config::{DiscoveryConfig, NetworkConfig},
     constants::{
         self, COMMAND_STREAM_BUFFER_SIZE, DISCOVERY_PROTOCOL, EVENT_STREAM_BUFFER,
@@ -12,7 +14,13 @@ use crate::{
 };
 use futures::Stream;
 use libp2p::{
-    core::upgrade, dns, identity::Keypair, kad::store::MemoryStore, noise, swarm, tcp::Config,
+    core::upgrade,
+    dns,
+    identity::Keypair,
+    kad::store::MemoryStore,
+    noise,
+    swarm::{self, ConnectionId},
+    tcp::Config,
     Multiaddr, PeerId, Swarm, Transport,
 };
 use std::{
@@ -141,9 +149,7 @@ impl<'a> NetworkBuilder<'a> {
             dns_tcp.or_transport(tcp)
         };
 
-        let mut multiplex_config = libp2p::yamux::Config::default();
-        multiplex_config.set_window_update_mode(libp2p::yamux::WindowUpdateMode::on_read());
-        multiplex_config.set_max_buffer_size(1024 * 1024 * 16);
+        let multiplex_config = libp2p::yamux::Config::default();
 
         let transport = transport
             .upgrade(upgrade::Version::V1)
@@ -193,6 +199,7 @@ impl<'a> NetworkBuilder<'a> {
                 swarm,
                 config: self.config,
                 peer_set: self.known_peers.iter().map(|(p, _)| *p).collect(),
+                boot_peers: self.known_peers.iter().map(|(p, _)| *p).collect(),
                 command_receiver,
                 event_sender,
                 local_peer_id: peer_id,
@@ -201,6 +208,17 @@ impl<'a> NetworkBuilder<'a> {
                 active_listeners: HashSet::new(),
                 pending_record_requests: HashMap::new(),
                 shutdown,
+                health_state: crate::runtime::HealthState {
+                    bootpeer_connection_retries: 3,
+                    successfully_connected_to_bootpeer: if self.known_peers.is_empty() {
+                        // Node seems to be a boot node
+                        Some(ConnectionId::new_unchecked(0))
+                    } else {
+                        None
+                    },
+                    ..Default::default()
+                },
+                health_status: HealthStatus::Initializing,
             },
         ))
     }

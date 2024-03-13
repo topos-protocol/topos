@@ -42,7 +42,7 @@ fn get_subset_of_subnets(subnets: &[SubnetId], subset_size: usize) -> Vec<Subnet
 #[timeout(Duration::from_secs(10))]
 #[serial]
 async fn start_a_cluster() {
-    let mut peers_context = create_network(5, vec![]).await;
+    let mut peers_context = create_network(5, &[]).await;
 
     let mut status: Vec<bool> = Vec::new();
 
@@ -107,7 +107,7 @@ async fn cert_delivery() {
 
     warn!("Starting the cluster...");
     // List of peers (tce nodes) with their context
-    let mut peers_context = create_network(peer_number, vec![]).await;
+    let mut peers_context = create_network(peer_number, &[]).await;
 
     warn!("Cluster started, starting clients...");
     // Connected tce clients are passing received certificates to this mpsc::Receiver, collect all of them
@@ -438,7 +438,7 @@ async fn run_assert_certificate_full_delivery(
     number_of_nodes: usize,
     timeout_broadcast: Duration,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut peers_context = create_network(number_of_nodes, vec![]).await;
+    let mut peers_context = create_network(number_of_nodes, &[]).await;
 
     for (_peer_id, client) in peers_context.iter_mut() {
         let response = client

@@ -147,12 +147,16 @@ mod serial_integration {
     }
 
     /// Test node init env arguments
+    #[rstest]
     #[tokio::test]
-    async fn command_init_precedence_env() -> Result<(), Box<dyn std::error::Error>> {
-        let tmp_home_directory = tempdir()?;
-
+    async fn command_init_precedence_env(
+        create_folder: PathBuf,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let tmp_home_directory = create_folder;
         // Test node init with env variables
-        let node_init_home_env = tmp_home_directory.path().to_str().unwrap();
+        let node_init_home_env = tmp_home_directory
+            .to_str()
+            .expect("path names are valid utf-8");
         let node_edge_path_env = setup_polygon_edge(node_init_home_env).await;
         let node_init_name_env = "TEST_NODE_ENV";
         let node_init_role_env = "full-node";
@@ -182,7 +186,6 @@ mod serial_integration {
         assert!(config_path.exists());
         // Check if config file params are according to env params
         let config_contents = std::fs::read_to_string(&config_path).unwrap();
-        println!("{:#?}", config_contents);
         assert!(config_contents.contains("name = \"TEST_NODE_ENV\""));
         assert!(config_contents.contains("role = \"fullnode\""));
         assert!(config_contents.contains("subnet = \"topos-env\""));
@@ -193,17 +196,17 @@ mod serial_integration {
     /// Test node cli arguments precedence over env arguments
     #[tokio::test]
     async fn command_init_precedence_cli_env() -> Result<(), Box<dyn std::error::Error>> {
-        let tmp_home_dir_env = tempdir()?;
-        let tmp_home_dir_cli = tempdir()?;
+        let tmp_home_dir_env = create_folder("command_init_precedence_cli_env");
+        let tmp_home_dir_cli = create_folder("command_init_precedence_cli_env");
 
         // Test node init with both cli and env flags
         // Cli arguments should take precedence over env variables
-        let node_init_home_env = tmp_home_dir_env.path().to_str().unwrap();
+        let node_init_home_env = tmp_home_dir_env.to_str().unwrap();
         let node_edge_path_env = setup_polygon_edge(node_init_home_env).await;
         let node_init_name_env = "TEST_NODE_ENV";
         let node_init_role_env = "full-node";
         let node_init_subnet_env = "topos-env";
-        let node_init_home_cli = tmp_home_dir_cli.path().to_str().unwrap();
+        let node_init_home_cli = tmp_home_dir_cli.to_str().unwrap();
         let node_edge_path_cli = node_edge_path_env.clone();
         let node_init_name_cli = "TEST_NODE_CLI";
         let node_init_role_cli = "sequencer";
@@ -258,7 +261,7 @@ mod serial_integration {
         let node_edge_path_env = setup_polygon_edge(node_up_home_env).await;
         let node_up_name_env = "TEST_NODE_UP";
         let node_up_role_env = "full-node";
-        let node_up_subnet_env = "topos-up-env-subnet";
+        let node_up_subnet_env = "topos";
 
         let mut cmd = Command::cargo_bin("topos")?;
         cmd.arg("node")
@@ -299,32 +302,32 @@ mod serial_integration {
             .env("TOPOS_POLYGON_EDGE_BIN_PATH", &node_edge_path_env)
             .env("TOPOS_HOME", node_up_home_env)
             .env("TOPOS_NODE_NAME", node_up_name_env)
-            .arg("up");
-        let mut cmd = tokio::process::Command::from(cmd).spawn().unwrap();
-        let output = tokio::time::timeout(std::time::Duration::from_secs(10), cmd.wait()).await;
+            .env("RUST_LOG", "topos=debug")
+            .arg("up")
+            .stdout(Stdio::piped());
 
-        // Check if node up was successful
-        match output {
-            Ok(Ok(exit_status)) => {
-                if !exit_status.success() {
-                    println!("Exited with error output {:?}", exit_status.code());
-                    cmd.kill().await?;
-                    panic!("Node up failed");
-                }
-            }
-            Ok(Err(e)) => {
-                println!("Node exited with error: {e}");
-                // Kill the subprocess
-                cmd.kill().await?;
-                panic!("Node up failed");
-            }
-            Err(_) => {
-                println!("Node up is running correctly, time-outed");
-                // Kill the subprocess
-                cmd.kill().await?;
+        let cmd = tokio::process::Command::from(cmd).spawn().unwrap();
+        let pid = cmd.id().unwrap();
+        let _ = tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+
+        let s = System::new_all();
+        if let Some(process) = s.process(Pid::from_u32(pid)) {
+            if process.kill_with(Signal::Term).is_none() {
+                eprintln!("This signal isn't supported on this platform");
             }
         }
 
+        if let Ok(output) = cmd.wait_with_output().await {
+            assert!(output.status.success());
+            let stdout = output.stdout;
+            let stdout = String::from_utf8_lossy(&stdout);
+
+            let reg =
+                Regex::new(r#"Local node is listening on "\/ip4\/.*\/tcp\/9090\/p2p\/"#).unwrap();
+            assert!(reg.is_match(&stdout));
+        } else {
+            panic!("Failed to shutdown gracefully");
+        }
         // Cleanup
         std::fs::remove_dir_all(node_up_home_env)?;
 
@@ -359,7 +362,6 @@ mod serial_integration {
         let home = PathBuf::from(node_up_home_env);
         // Verification: check that the config file was created
         let config_path = home.join("node").join(node_up_name_env).join("config.toml");
-        println!("config path {:?}", config_path);
         assert!(config_path.exists());
 
         let mut file = OpenOptions::new()
@@ -394,7 +396,6 @@ mod serial_integration {
 
         // Generate polygon edge genesis file
         let polygon_edge_bin = format!("{}/polygon-edge", node_edge_path_env);
-        println!("polygon_edge_bin {:?}", polygon_edge_bin);
         utils::generate_polygon_edge_genesis_file(
             &polygon_edge_bin,
             node_up_home_env,
@@ -430,7 +431,7 @@ mod serial_integration {
 
         if let Ok(output) = cmd.wait_with_output().await {
             assert!(output.status.success());
-            let stdout = output.unwrap().unwrap().stdout;
+            let stdout = output.stdout;
             let stdout = String::from_utf8_lossy(&stdout);
 
             let reg =

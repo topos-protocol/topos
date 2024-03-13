@@ -8,6 +8,7 @@ workspace = true
 
 [dependencies]
 opentelemetry.workspace = true
+opentelemetry_sdk = { workspace = true, features = ["rt-tokio"] }
 tracing-opentelemetry.workspace = true
 tracing.workspace = true
 tonic.workspace = true

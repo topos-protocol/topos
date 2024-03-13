@@ -1,7 +1,7 @@
 use async_graphql::NewType;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
-use tracing::{error, warn};
+use tracing::error;
 
 use super::errors::GraphQLServerError;
 
@@ -30,7 +30,7 @@ impl PartialEq<crate::uci::SubnetId> for SubnetId {
         if let Ok(current) = crate::uci::SubnetId::from_str(&self.0) {
             other.as_array().eq(current.as_array())
         } else {
-            warn!("Unexpected parsing error for subnet id during comparaison");
+            error!("Failed to parse the subnet id {} during comparison", self.0);
             false
         }
     }

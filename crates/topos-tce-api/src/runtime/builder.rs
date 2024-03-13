@@ -9,6 +9,7 @@ use topos_core::api::grpc::tce::v1::StatusResponse;
 use topos_tce_storage::{
     types::CertificateDeliveredWithPositions, validator::ValidatorStore, StorageClient,
 };
+use tracing::Instrument;
 
 use crate::{
     constants::CHANNEL_SIZE, graphql::builder::ServerBuilder as GraphQLBuilder,
@@ -102,12 +103,13 @@ impl RuntimeBuilder {
             .command_sender(internal_runtime_command_sender.clone())
             .serve_addr(self.grpc_socket_addr)
             .build()
+            .in_current_span()
             .await;
 
         let (command_sender, runtime_command_receiver) = mpsc::channel(CHANNEL_SIZE);
         let (shutdown_channel, shutdown_receiver) = mpsc::channel::<oneshot::Sender<()>>(1);
 
-        let grpc_handler = spawn(grpc);
+        let grpc_handler = spawn(grpc.in_current_span());
 
         let graphql_handler = if let Some(graphql_addr) = self.graphql_socket_addr {
             tracing::info!("Serving GraphQL on {}", graphql_addr);
@@ -116,12 +118,12 @@ impl RuntimeBuilder {
                 .store(
                     self.store
                         .take()
-                        .map(|store| store.get_fullnode_store())
                         .expect("Unable to build GraphQL Server, Store is missing"),
                 )
                 .runtime(internal_runtime_command_sender.clone())
                 .serve_addr(Some(graphql_addr))
-                .build();
+                .build()
+                .in_current_span();
             spawn(graphql.await)
         } else {
             spawn(async move {
@@ -135,7 +137,8 @@ impl RuntimeBuilder {
 
             let metrics_server = MetricsBuilder::default()
                 .serve_addr(Some(metrics_addr))
-                .build();
+                .build()
+                .in_current_span();
             spawn(metrics_server.await)
         } else {
             spawn(async move {

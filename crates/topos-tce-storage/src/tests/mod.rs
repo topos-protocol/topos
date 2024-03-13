@@ -640,7 +640,7 @@ async fn get_pending_certificates(store: Arc<ValidatorStore>) {
         )
         .unwrap();
 
-    let pending_certificates = store.get_pending_certificates().unwrap();
+    let pending_certificates = store.iter_pending_pool().unwrap().collect::<Vec<_>>();
     assert_eq!(
         expected_pending_certificates.len(),
         pending_certificates.len()
@@ -654,7 +654,7 @@ async fn get_pending_certificates(store: Arc<ValidatorStore>) {
     let cert_to_remove = expected_pending_certificates.remove(8);
     store.delete_pending_certificate(&cert_to_remove.0).unwrap();
 
-    let pending_certificates = store.get_pending_certificates().unwrap();
+    let pending_certificates = store.iter_pending_pool().unwrap().collect::<Vec<_>>();
     assert_eq!(
         expected_pending_certificates.len(),
         pending_certificates.len()
