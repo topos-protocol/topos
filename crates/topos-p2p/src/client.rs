@@ -43,16 +43,21 @@ impl NetworkClient {
         &self,
         topic: &'static str,
         message: T,
-    ) -> BoxFuture<'static, Result<(), SendError<Command>>> {
+    ) -> BoxFuture<'static, Result<usize, P2PError>> {
         let network = self.sender.clone();
 
         Box::pin(async move {
+            let (sender, receiver) = oneshot::channel();
             network
                 .send(Command::Gossip {
                     topic,
                     data: message.encode_to_vec(),
+                    sender,
                 })
                 .await
+                .map_err(|e| P2PError::CommandError(CommandExecutionError::SendError(e)))?;
+
+            receiver.await?
         })
     }
 

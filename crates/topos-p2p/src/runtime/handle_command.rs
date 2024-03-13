@@ -5,7 +5,7 @@ use crate::{
 
 use rand::{thread_rng, Rng};
 use topos_metrics::P2P_MESSAGE_SENT_ON_GOSSIPSUB_TOTAL;
-use tracing::{debug, error, warn};
+use tracing::{error, trace, warn};
 
 impl Runtime {
     pub(crate) async fn handle_command(&mut self, command: Command) {
@@ -64,12 +64,21 @@ impl Runtime {
             Command::Gossip {
                 topic,
                 data: message,
+                sender,
             } => match self.swarm.behaviour_mut().gossipsub.publish(topic, message) {
                 Ok(message_id) => {
-                    debug!("Published message to {topic}");
+                    trace!("Published message to {topic}");
                     P2P_MESSAGE_SENT_ON_GOSSIPSUB_TOTAL.inc();
+                    if sender.send(Ok(message_id)).is_err() {
+                        warn!("Unable to notify Gossip response: initiator is dropped");
+                    }
                 }
-                Err(err) => error!("Failed to publish message to {topic}: {err}"),
+                Err(err) => {
+                    error!("Failed to publish message to {topic}: {err}");
+                    if sender.send(Err(err)).is_err() {
+                        warn!("Unable to notify Gossip response: initiator is dropped");
+                    }
+                }
             },
         }
     }

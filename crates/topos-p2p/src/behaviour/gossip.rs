@@ -1,11 +1,12 @@
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
+use std::time::Duration;
 use std::{
-    collections::{HashMap, VecDeque},
-    env,
+    collections::HashMap,
+    // env,
     task::Poll,
-    time::Duration,
+    // time::Duration,
 };
 
 use libp2p::swarm::{ConnectionClosed, FromSwarm};
@@ -15,23 +16,23 @@ use libp2p::{
     identity::Keypair,
     swarm::{NetworkBehaviour, THandlerInEvent, ToSwarm},
 };
-use prost::Message as ProstMessage;
-use topos_core::api::grpc::tce::v1::Batch;
-use topos_metrics::P2P_GOSSIP_BATCH_SIZE;
-use tracing::{debug, error, warn};
+// use prost::Message as ProstMessage;
+// use topos_core::api::grpc::tce::v1::Batch;
+// use topos_metrics::P2P_GOSSIP_BATCH_SIZE;
+use tracing::{debug, warn};
 
 use crate::error::P2PError;
 use crate::{constants, event::ComposedEvent, TOPOS_ECHO, TOPOS_GOSSIP, TOPOS_READY};
 
 use super::HealthStatus;
 
-const MAX_BATCH_SIZE: usize = 10;
+// const MAX_BATCH_SIZE: usize = 10;
 
 pub struct Behaviour {
-    batch_size: usize,
+    // batch_size: usize,
     gossipsub: gossipsub::Behaviour,
-    pending: HashMap<&'static str, VecDeque<Vec<u8>>>,
-    tick: tokio::time::Interval,
+    // pending: HashMap<&'static str, VecDeque<Vec<u8>>>,
+    // tick: tokio::time::Interval,
     /// List of connected peers per topic.
     connected_peer: HashMap<&'static str, HashSet<PeerId>>,
     /// The health status of the gossip behaviour
@@ -39,19 +40,19 @@ pub struct Behaviour {
 }
 
 impl Behaviour {
-    pub fn publish(
-        &mut self,
-        topic: &'static str,
-        message: Vec<u8>,
-    ) -> Result<usize, &'static str> {
+    pub fn publish(&mut self, topic: &'static str, message: Vec<u8>) -> Result<usize, P2PError> {
         match topic {
             TOPOS_GOSSIP => {
+                let msg_id = self.gossipsub.publish(IdentTopic::new(topic), message)?;
+                debug!("Published on topos_gossip: {:?}", msg_id);
+            }
+            // TOPOS_ECHO | TOPOS_READY => self.pending.entry(topic).or_default().push_back(message),
+            TOPOS_ECHO | TOPOS_READY => {
                 if let Ok(msg_id) = self.gossipsub.publish(IdentTopic::new(topic), message) {
-                    debug!("Published on topos_gossip: {:?}", msg_id);
+                    debug!("Published on {}: {:?}", topic, msg_id);
                 }
             }
-            TOPOS_ECHO | TOPOS_READY => self.pending.entry(topic).or_default().push_back(message),
-            _ => return Err("Invalid topic"),
+            _ => return Err(P2PError::UnsupportedGossipTopic(topic)),
         }
 
         Ok(0)
@@ -71,17 +72,20 @@ impl Behaviour {
     }
 
     pub async fn new(peer_key: Keypair) -> Self {
-        let batch_size = env::var("TOPOS_GOSSIP_BATCH_SIZE")
-            .map(|v| v.parse::<usize>())
-            .unwrap_or(Ok(MAX_BATCH_SIZE))
-            .unwrap();
+        // let batch_size = env::var("TOPOS_GOSSIP_BATCH_SIZE")
+        //     .map(|v| v.parse::<usize>())
+        //     .unwrap_or(Ok(MAX_BATCH_SIZE))
+        //     .unwrap();
         let gossipsub = gossipsub::ConfigBuilder::default()
-            .max_transmit_size(2 * 1024 * 1024)
+            .mesh_n(8)
+            .mesh_n_low(6)
+            .heartbeat_interval(Duration::from_millis(700))
+            .max_transmit_size(10 * 2usize.pow(20))
             .validation_mode(gossipsub::ValidationMode::Strict)
-            .message_id_fn(|msg_id| {
+            .message_id_fn(|message| {
                 // Content based id
                 let mut s = DefaultHasher::new();
-                msg_id.data.hash(&mut s);
+                message.data.hash(&mut s);
                 gossipsub::MessageId::from(s.finish().to_be_bytes())
             })
             .build()
@@ -99,21 +103,20 @@ impl Behaviour {
         .unwrap();
 
         Self {
-            batch_size,
+            // batch_size,
             gossipsub,
-            pending: [
-                (TOPOS_ECHO, VecDeque::new()),
-                (TOPOS_READY, VecDeque::new()),
-            ]
-            .into_iter()
-            .collect(),
-            tick: tokio::time::interval(Duration::from_millis(
-                env::var("TOPOS_GOSSIP_INTERVAL")
-                    .map(|v| v.parse::<u64>())
-                    .unwrap_or(Ok(100))
-                    .unwrap(),
-            )),
-
+            // pending: [
+            //     (TOPOS_ECHO, VecDeque::new()),
+            //     (TOPOS_READY, VecDeque::new()),
+            // ]
+            // .into_iter()
+            // .collect(),
+            // tick: tokio::time::interval(Duration::from_millis(
+            //     env::var("TOPOS_GOSSIP_INTERVAL")
+            //         .map(|v| v.parse::<u64>())
+            //         .unwrap_or(Ok(100))
+            //         .unwrap(),
+            // )),
             connected_peer: Default::default(),
             health_status: Default::default(),
         }
@@ -191,25 +194,25 @@ impl NetworkBehaviour for Behaviour {
         &mut self,
         cx: &mut std::task::Context<'_>,
     ) -> Poll<ToSwarm<Self::ToSwarm, THandlerInEvent<Self>>> {
-        if self.tick.poll_tick(cx).is_ready() {
-            // Publish batch
-            for (topic, queue) in self.pending.iter_mut() {
-                if !queue.is_empty() {
-                    let num_of_message = queue.len().min(self.batch_size);
-                    let batch = Batch {
-                        messages: queue.drain(0..num_of_message).collect(),
-                    };
-
-                    debug!("Publishing {} {}", batch.messages.len(), topic);
-                    let msg = batch.encode_to_vec();
-                    P2P_GOSSIP_BATCH_SIZE.observe(batch.messages.len() as f64);
-                    match self.gossipsub.publish(IdentTopic::new(*topic), msg) {
-                        Ok(message_id) => debug!("Published {} {}", topic, message_id),
-                        Err(error) => error!("Failed to publish {}: {}", topic, error),
-                    }
-                }
-            }
-        }
+        // if self.tick.poll_tick(cx).is_ready() {
+        //     // Publish batch
+        //     for (topic, queue) in self.pending.iter_mut() {
+        //         if !queue.is_empty() {
+        //             let num_of_message = queue.len().min(self.batch_size);
+        //             let batch = Batch {
+        //                 messages: queue.drain(0..num_of_message).collect(),
+        //             };
+        //
+        //             debug!("Publishing {} {}", batch.messages.len(), topic);
+        //             let msg = batch.encode_to_vec();
+        //             P2P_GOSSIP_BATCH_SIZE.observe(batch.messages.len() as f64);
+        //             match self.gossipsub.publish(IdentTopic::new(*topic), msg) {
+        //                 Ok(message_id) => debug!("Published {} {}", topic, message_id),
+        //                 Err(error) => error!("Failed to publish {}: {}", topic, error),
+        //             }
+        //         }
+        //     }
+        // }
 
         match self.gossipsub.poll(cx) {
             Poll::Pending => return Poll::Pending,
@@ -231,6 +234,7 @@ impl NetworkBehaviour for Behaviour {
                                 topic: TOPOS_GOSSIP,
                                 message: data,
                                 source,
+                                message_id,
                             },
                         )))
                     }
@@ -240,6 +244,7 @@ impl NetworkBehaviour for Behaviour {
                                 topic: TOPOS_ECHO,
                                 message: data,
                                 source,
+                                message_id,
                             },
                         )))
                     }
@@ -249,6 +254,7 @@ impl NetworkBehaviour for Behaviour {
                                 topic: TOPOS_READY,
                                 message: data,
                                 source,
+                                message_id,
                             },
                         )))
                     }

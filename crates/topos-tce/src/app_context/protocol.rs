@@ -1,6 +1,6 @@
 use topos_core::api::grpc::tce::v1::{double_echo_request, DoubleEchoRequest, Echo, Gossip, Ready};
 use topos_tce_broadcast::event::ProtocolEvents;
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
 use crate::AppContext;
 
@@ -21,12 +21,18 @@ impl AppContext {
                 };
 
                 info!("Sending Gossip for certificate {}", cert_id);
-                if let Err(e) = self
+                match self
                     .network_client
                     .publish(topos_p2p::TOPOS_GOSSIP, request)
                     .await
                 {
-                    error!("Unable to send Gossip: {e}");
+                    Ok(id) => {
+                        debug!(
+                            "Gossip sent for certificate {} (message_id: {})",
+                            cert_id, id
+                        );
+                    }
+                    Err(e) => error!("Unable to send Gossip for {}: {e}", cert_id),
                 }
             }
 
@@ -44,12 +50,16 @@ impl AppContext {
                     })),
                 };
 
-                if let Err(e) = self
+                match self
                     .network_client
                     .publish(topos_p2p::TOPOS_ECHO, request)
                     .await
                 {
-                    error!("Unable to send Echo: {e}");
+                    Ok(id) => debug!(
+                        "Echo sent for certificate {} (message_id: {})",
+                        certificate_id, id
+                    ),
+                    Err(e) => error!("Unable to send Echo for {}: {e}", certificate_id),
                 }
             }
 
@@ -66,12 +76,16 @@ impl AppContext {
                     })),
                 };
 
-                if let Err(e) = self
+                match self
                     .network_client
                     .publish(topos_p2p::TOPOS_READY, request)
                     .await
                 {
-                    error!("Unable to send Ready: {e}");
+                    Ok(id) => debug!(
+                        "Ready sent for certificate {} (message_id: {})",
+                        certificate_id, id
+                    ),
+                    Err(e) => error!("Unable to send Ready: {e}"),
                 }
             }
             ProtocolEvents::BroadcastFailed { certificate_id } => {

@@ -22,7 +22,7 @@ impl AppContext {
             &evt
         );
 
-        if let NetEvent::Gossip { data, from } = evt {
+        if let NetEvent::Gossip { data, from, .. } = evt {
             if let Ok(DoubleEchoRequest {
                 request: Some(double_echo_request),
             }) = DoubleEchoRequest::decode(&data[..])

@@ -15,6 +15,7 @@ pub enum Command {
     Gossip {
         topic: &'static str,
         data: Vec<u8>,
+        sender: oneshot::Sender<Result<usize, P2PError>>,
     },
 
     /// Ask for the creation of a new proxy connection for a gRPC query.

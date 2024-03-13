@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use libp2p::PeerId;
+use libp2p::{gossipsub::MessageId, PeerId};
 use prost::Message;
 use rstest::rstest;
 use test_log::test;
@@ -39,6 +39,7 @@ async fn handle_gossip(
         .on_net_event(topos_p2p::Event::Gossip {
             from: PeerId::random(),
             data: msg.encode_to_vec(),
+            message_id: MessageId::new(&[1]),
         })
         .await;
 }
@@ -68,6 +69,7 @@ async fn handle_echo(
         .on_net_event(topos_p2p::Event::Gossip {
             from: PeerId::random(),
             data: msg.encode_to_vec(),
+            message_id: MessageId::new(&[1]),
         })
         .await;
 }
@@ -97,6 +99,7 @@ async fn handle_ready(
         .on_net_event(topos_p2p::Event::Gossip {
             from: PeerId::random(),
             data: msg.encode_to_vec(),
+            message_id: MessageId::new(&[1]),
         })
         .await;
 }
@@ -130,6 +133,7 @@ async fn handle_already_delivered(
         .on_net_event(topos_p2p::Event::Gossip {
             from: PeerId::random(),
             data: msg.encode_to_vec(),
+            message_id: MessageId::new(&[1]),
         })
         .await;
 }
