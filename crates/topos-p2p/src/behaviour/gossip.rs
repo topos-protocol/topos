@@ -50,7 +50,12 @@ impl Behaviour {
                     debug!("Published on topos_gossip: {:?}", msg_id);
                 }
             }
-            TOPOS_ECHO | TOPOS_READY => self.pending.entry(topic).or_default().push_back(message),
+            // TOPOS_ECHO | TOPOS_READY => self.pending.entry(topic).or_default().push_back(message),
+            TOPOS_ECHO | TOPOS_READY => {
+                if let Ok(msg_id) = self.gossipsub.publish(IdentTopic::new(topic), message) {
+                    debug!("Published on {}: {:?}", topic, msg_id);
+                }
+            }
             _ => return Err("Invalid topic"),
         }
 
