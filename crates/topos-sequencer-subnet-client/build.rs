@@ -3,6 +3,10 @@ use std::process::{exit, Command};
 const CONTRACTS_PATH: &str = "../../contracts";
 
 fn main() {
+    if std::env::var("SKIP_CONTRACT_BUILD").unwrap_or_default() == "true" {
+        return;
+    }
+
     if !CONTRACTS_PATH.is_empty() {
         std::env::set_current_dir(CONTRACTS_PATH).unwrap_or_else(|err| {
             eprintln!("Error changing to subdirectory: {}", err);
