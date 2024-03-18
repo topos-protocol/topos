@@ -2,7 +2,7 @@ name: Contracts - Docker build and push
 
 on:
   push:
-    branches: main
+    branches: feat/TP-888
   pull_request:
   release:
     types: [created]
