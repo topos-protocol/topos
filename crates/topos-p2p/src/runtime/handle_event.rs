@@ -95,30 +95,37 @@ impl EventHandler<SwarmEvent<ComposedEvent>> for Runtime {
 
             SwarmEvent::ConnectionEstablished {
                 peer_id,
-                connection_id,
                 endpoint,
-                num_established,
+                connection_id,
                 concurrent_dial_errors,
-                established_in,
-            } if self.health_state.dialed_bootpeer.contains(&connection_id) => {
-                info!("Successfully connected to bootpeer {peer_id}");
-                if self
-                    .health_state
-                    .successfully_connected_to_bootpeer
-                    .is_none()
-                {
-                    self.health_state.successfully_connected_to_bootpeer = Some(connection_id);
-                    _ = self.health_state.dialed_bootpeer.remove(&connection_id);
-                }
-            }
-
-            SwarmEvent::ConnectionEstablished {
-                peer_id, endpoint, ..
+                ..
             } => {
-                info!(
-                    "Connection established with peer {peer_id} as {:?}",
-                    endpoint.to_endpoint()
-                );
+                if let Some(errors) = concurrent_dial_errors {
+                    info!(
+                        "ConnectionEstablished(id: {connection_id}, on: {}) with {peer_id} as \
+                         {:?} with errors {errors:?}",
+                        endpoint.get_remote_address(),
+                        endpoint.to_endpoint()
+                    );
+                } else {
+                    info!(
+                        "ConnectionEstablished(id: {connection_id}, on: {}) with {peer_id} as {:?}",
+                        endpoint.get_remote_address(),
+                        endpoint.to_endpoint()
+                    );
+                }
+
+                if self.health_state.dialed_bootpeer.contains(&connection_id) {
+                    if self
+                        .health_state
+                        .successfully_connected_to_bootpeer
+                        .is_none()
+                    {
+                        info!("Successfully connected to bootpeer {peer_id}");
+                        self.health_state.successfully_connected_to_bootpeer = Some(connection_id);
+                        _ = self.health_state.dialed_bootpeer.remove(&connection_id);
+                    }
+                }
 
                 if self.swarm.connected_peers().count() >= self.config.minimum_cluster_size {
                     if let Err(error) = self.swarm.behaviour_mut().gossipsub.subscribe() {
