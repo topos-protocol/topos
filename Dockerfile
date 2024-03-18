@@ -26,6 +26,7 @@ WORKDIR /usr/src/app
 
 FROM --platform=${BUILDPLATFORM:-linux/amd64} base AS build
 COPY . .
+COPY --from=topos-contracts /usr/src/app/artifacts ./contracts/artifacts
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     --mount=type=cache,id=sccache,target=/root/.cache/sccache \
   cargo build --release --no-default-features --features=${FEATURES} \
