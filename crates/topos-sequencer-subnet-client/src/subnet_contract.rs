@@ -12,7 +12,7 @@ use tracing::info;
 
 abigen!(
     IToposCore,
-    "npm:@topos-protocol/topos-smart-contracts@3.3.0/artifacts/contracts/interfaces/IToposCore.\
+    "npm:@topos-protocol/topos-smart-contracts@3.4.0-rc.1/artifacts/contracts/interfaces/IToposCore.\
      sol/IToposCore.json"
 );
 
