@@ -1,4 +1,4 @@
-use std::{future::IntoFuture, str::FromStr, sync::Arc, time::Duration};
+use std::{future::IntoFuture, sync::Arc, time::Duration};
 
 use rstest::rstest;
 use tokio::{
@@ -11,6 +11,7 @@ use topos_tce_storage::validator::ValidatorStore;
 use topos_test_sdk::{
     certificates::create_certificate_chain,
     constants::{SOURCE_SUBNET_ID_1, TARGET_SUBNET_ID_1},
+    crypto::message_signer,
     storage::create_validator_store,
 };
 
@@ -26,6 +27,7 @@ async fn start_with_ungossiped_cert(
     #[future(awt)]
     #[from(create_validator_store)]
     validatore_store: Arc<ValidatorStore>,
+    message_signer: Arc<MessageSigner>,
 ) {
     let certificate = create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], 1)
         .pop()
@@ -40,10 +42,6 @@ async fn start_with_ungossiped_cert(
     };
     let (event_sender, mut event_receiver) = mpsc::channel(2);
     let (broadcast_sender, _) = broadcast::channel(1);
-    let message_signer = Arc::new(
-        MessageSigner::from_str("122f3ae6ade1fd136b292cea4f6243c7811160352c8821528547a1fe7c459daf")
-            .unwrap(),
-    );
     let need_gossip = true;
     let subscriptions = SubscriptionsView::default();
 

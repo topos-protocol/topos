@@ -255,7 +255,7 @@ impl NetworkBehaviour for Behaviour {
                     _ => {}
                 },
                 gossipsub::Event::Subscribed { peer_id, topic } => {
-                    debug!("Subscribed to {:?} with {peer_id}", topic);
+                    debug!("{peer_id} subscribed to {:?}", topic);
 
                     // If the behaviour isn't already healthy we check if this event
                     // triggers a switch to healthy
@@ -268,7 +268,7 @@ impl NetworkBehaviour for Behaviour {
                     }
                 }
                 gossipsub::Event::Unsubscribed { peer_id, topic } => {
-                    debug!("Unsubscribed from {:?} with {peer_id}", topic);
+                    debug!("{peer_id} unsubscribed from {:?}", topic);
                 }
                 gossipsub::Event::GossipsubNotSupported { peer_id } => {
                     debug!("Gossipsub not supported by {:?}", peer_id);

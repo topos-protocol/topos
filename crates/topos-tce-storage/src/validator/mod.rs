@@ -119,7 +119,7 @@ impl ValidatorStore {
     }
 
     /// Returns the [`FullNodeStore`] used by the [`ValidatorStore`]
-    pub fn get_fullnode_store(&self) -> Arc<FullNodeStore> {
+    pub fn fullnode_store(&self) -> Arc<FullNodeStore> {
         self.fullnode_store.clone()
     }
 
@@ -290,12 +290,12 @@ impl ValidatorStore {
         &self,
         certificate: &Certificate,
     ) -> Result<Option<PendingCertificateId>, StorageError> {
-        // A lock guard is asked during the insertion of a pending certificate
-        // to avoid race condition when a certificate is being inserted and added
-        // to the pending pool at the same time
+        // A lock guard is taken during the insertion of a pending certificate (C1)
+        // to avoid race condition when this certificate C1 is delivered by the network
+        // and in the process of being inserted into the precedence tables.
         let _certificate_guard = self
             .fullnode_store
-            .get_certificate_lock_guard(certificate.id)
+            .certificate_lock_guard(certificate.id)
             .await;
 
         if self.get_certificate(&certificate.id)?.is_some() {
@@ -320,12 +320,12 @@ impl ValidatorStore {
             ));
         }
 
-        // A lock guard is asked during the insertion of a pending certificate
+        // A lock guard is taken during the insertion of a pending certificate
         // to avoid race condition when a certificate is being added to the
         // pending pool while its parent is currently being inserted as delivered
         let _prev_certificate_guard = self
             .fullnode_store
-            .get_certificate_lock_guard(certificate.prev_id)
+            .certificate_lock_guard(certificate.prev_id)
             .await;
 
         let prev_delivered = certificate.prev_id == INITIAL_CERTIFICATE_ID

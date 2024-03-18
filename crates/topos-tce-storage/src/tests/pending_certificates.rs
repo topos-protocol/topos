@@ -91,7 +91,7 @@ async fn adding_pending_certificate_already_delivered(store: Arc<ValidatorStore>
         .is_err());
 }
 
-/// This test is covering a corner case which involve the delivery of a prev certificate
+/// This test is covering a corner case which involves the delivery of a prev certificate
 /// and a child certificate.
 ///
 /// The scenario is this one:
@@ -123,7 +123,7 @@ mod concurrency {
         // The lock guard simulate the start of the certificate insertion in the table.
         let lock_guard_certificate = store
             .fullnode_store
-            .get_certificate_lock_guard(parent.certificate.id)
+            .certificate_lock_guard(parent.certificate.id)
             .await;
 
         tokio::spawn(async move {
@@ -149,7 +149,7 @@ mod concurrency {
         // The lock guard simulate the start of the certificate insertion in the table.
         let lock_guard_subnet = store
             .fullnode_store
-            .get_subnet_lock_guard(cert.certificate.source_subnet_id)
+            .subnet_lock_guard(cert.certificate.source_subnet_id)
             .await;
 
         tokio::spawn(async move {
@@ -188,7 +188,7 @@ mod concurrency {
         // The lock guard simulate the start of the certificate insertion in the table.
         let lock_guard_subnet = store
             .fullnode_store
-            .get_subnet_lock_guard(cert.certificate.source_subnet_id)
+            .subnet_lock_guard(cert.certificate.source_subnet_id)
             .await;
 
         tokio::spawn(async move {

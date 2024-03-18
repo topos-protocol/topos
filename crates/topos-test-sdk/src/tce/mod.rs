@@ -44,6 +44,7 @@ use self::p2p::{bootstrap_network, create_network_worker};
 use self::protocol::{create_reliable_broadcast_client, create_reliable_broadcast_params};
 use self::public_api::create_public_api;
 use self::synchronizer::create_synchronizer;
+use crate::crypto::message_signer;
 use crate::p2p::local_peer;
 use crate::storage::create_fullnode_store;
 use crate::storage::create_validator_store;
@@ -174,10 +175,6 @@ impl NodeConfig {
     }
 }
 
-fn default_message_signer() -> Arc<MessageSigner> {
-    Arc::new(MessageSigner::new(&[5u8; 32]).unwrap())
-}
-
 #[derive(Clone)]
 struct DummyService {}
 
@@ -207,9 +204,8 @@ pub fn create_dummy_router() -> Router {
     peers = &[],
     certificates = &[],
     validator_id = ValidatorId::default(),
-    validators = HashSet::default(),
-    message_signer = default_message_signer())
-]
+    validators = HashSet::default()
+)]
 pub async fn start_node(
     certificates: &[CertificateDelivered],
     config: NodeConfig,

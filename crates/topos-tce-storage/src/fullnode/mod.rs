@@ -85,7 +85,7 @@ impl FullNodeStore {
     }
 
     /// Await for a [`LockGuards`] for the given certificate id
-    pub(crate) async fn get_certificate_lock_guard(
+    pub(crate) async fn certificate_lock_guard(
         &self,
         certificate_id: CertificateId,
     ) -> OwnedMutexGuard<()> {
@@ -97,7 +97,7 @@ impl FullNodeStore {
     }
 
     /// Await for a [`LockGuards`] for the given subnet id
-    pub(crate) async fn get_subnet_lock_guard(&self, subnet_id: SubnetId) -> OwnedMutexGuard<()> {
+    pub(crate) async fn subnet_lock_guard(&self, subnet_id: SubnetId) -> OwnedMutexGuard<()> {
         self.subnet_lock_guards
             .get_lock(subnet_id)
             .await
@@ -114,11 +114,11 @@ impl WriteStore for FullNodeStore {
     ) -> Result<CertificatePositions, StorageError> {
         // Lock resources for concurrency issues
         let _cert_guard = self
-            .get_certificate_lock_guard(certificate.certificate.id)
+            .certificate_lock_guard(certificate.certificate.id)
             .await;
 
         let _subnet_guard = self
-            .get_subnet_lock_guard(certificate.certificate.source_subnet_id)
+            .subnet_lock_guard(certificate.certificate.source_subnet_id)
             .await;
 
         let subnet_id = certificate.certificate.source_subnet_id;

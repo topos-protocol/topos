@@ -193,6 +193,7 @@ impl EventHandler<SwarmEvent<ComposedEvent>> for Runtime {
         let behaviour = self.swarm.behaviour();
 
         if let Some(event) = self.healthy_status_changed() {
+            debug!("Healthy status changed: {:?}", event);
             _ = self.event_sender.send(event).await;
         }
 

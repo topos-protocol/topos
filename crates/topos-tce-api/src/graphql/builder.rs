@@ -62,7 +62,7 @@ impl ServerBuilder {
             .take()
             .expect("Cannot build GraphQL server without a FullNode store");
 
-        let fullnode_store = store.get_fullnode_store();
+        let fullnode_store = store.fullnode_store();
         let runtime = self
             .runtime
             .take()

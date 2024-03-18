@@ -107,7 +107,7 @@ pub async fn run(
     let validator_store = ValidatorStore::new(path)
         .map_err(|error| format!("Unable to create validator store: {error}"))?;
 
-    let fullnode_store = validator_store.get_fullnode_store();
+    let fullnode_store = validator_store.fullnode_store();
 
     let storage_client = StorageClient::new(validator_store.clone());
 

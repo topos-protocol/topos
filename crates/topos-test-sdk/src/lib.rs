@@ -1,5 +1,6 @@
 pub mod certificates;
 
+pub mod crypto;
 pub mod networking;
 pub mod p2p;
 pub mod sequencer;
