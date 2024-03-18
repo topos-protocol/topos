@@ -55,6 +55,7 @@ pub async fn create_network_worker(
         .listen_addresses(addr)
         .minimum_cluster_size(minimum_cluster_size)
         .grpc_context(grpc_context)
+        .allow_private_ip(true)
         .build()
         .in_current_span()
         .await

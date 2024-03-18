@@ -36,6 +36,7 @@ hyper.workspace = true
 prost.workspace = true
 
 topos-core = { path = "../topos-core/" }
+ip_network = "0.4.1"
 
 [dev-dependencies]
 libp2p-swarm-test = "0.3.0"
