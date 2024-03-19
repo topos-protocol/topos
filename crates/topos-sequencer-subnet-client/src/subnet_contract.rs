@@ -12,8 +12,8 @@ use tracing::info;
 
 abigen!(
     IToposCore,
-    "npm:@topos-protocol/topos-smart-contracts@3.2.0/artifacts/contracts/interfaces/IToposCore.\
-     sol/IToposCore.json"
+    "npm:@topos-protocol/topos-smart-contracts@3.4.0-rc.1/artifacts/contracts/interfaces/\
+     IToposCore.sol/IToposCore.json"
 );
 
 pub(crate) fn create_topos_core_contract_from_json<T: Middleware>(
@@ -60,9 +60,11 @@ pub(crate) async fn get_block_events(
             );
             result.push(SubnetEvent::CrossSubnetMessageSent {
                 target_subnet_id: f.target_subnet_id.into(),
+                source_subnet_id: f.source_subnet_id.into(),
+                nonce: f.nonce.as_u64(),
             })
         } else {
-            // Ignored for now other events Upgraded, CertStored
+            // Ignored other events until we need them
         }
     }
 
