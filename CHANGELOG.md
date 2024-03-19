@@ -1,4 +1,48 @@
 ![topos](./.github/assets/topos_logo_dark.png)
+## [0.1.0](https://github.com/topos-protocol/topos/compare/v0.0.11..0.1.0) - 2024-03-19
+
+### ⛰️  Features
+
+- Add p2p layer health check ([#464](https://github.com/topos-protocol/topos/issues/464)) - ([d2ec941](https://github.com/topos-protocol/topos/commit/d2ec941ec24d3cbc27c11d4fcf6b0495911f85e2))
+- Terminate stream if client is dropping the connection ([#463](https://github.com/topos-protocol/topos/issues/463)) - ([2c73f0b](https://github.com/topos-protocol/topos/commit/2c73f0bae1dc25aad504d45dcc789360cce7dbaa))
+- Introduce topos-node crate ([#459](https://github.com/topos-protocol/topos/issues/459)) - ([d8db631](https://github.com/topos-protocol/topos/commit/d8db631d970d6b855e5a47f0c561abe8bab9832d))
+- Add proper error handling to setup command ([#452](https://github.com/topos-protocol/topos/issues/452)) - ([3335846](https://github.com/topos-protocol/topos/commit/3335846327c9c0f32e85694861f30520a9f2a6c5))
+- Remove dht publication ([#449](https://github.com/topos-protocol/topos/issues/449)) - ([7030341](https://github.com/topos-protocol/topos/commit/70303412f139c7fe5ca0d4775f367d27543ac791))
+- Add benchmark dns option to spam subcommand ([#448](https://github.com/topos-protocol/topos/issues/448)) - ([90405f3](https://github.com/topos-protocol/topos/commit/90405f3f4bd468c33685158ddddb793b109e3f22))
+- Move telemetry-otlp setup into telemetry crate ([#446](https://github.com/topos-protocol/topos/issues/446)) - ([8a15fc4](https://github.com/topos-protocol/topos/commit/8a15fc4c0aa07ba71ca8376f21056949d71e92c5))
+
+### 🐛 Bug Fixes
+
+- Bump smart contract version ([#478](https://github.com/topos-protocol/topos/issues/478)) - ([642203c](https://github.com/topos-protocol/topos/commit/642203c962ede91d821af2b54e5f7bc0d845d407))
+- Concurrency insert between pending and delivered ([#467](https://github.com/topos-protocol/topos/issues/467)) - ([bd5e3f5](https://github.com/topos-protocol/topos/commit/bd5e3f52ba00bafa25e0f3ce8b42b326e4fb5ef0))
+- Block handling during certificate generation ([#471](https://github.com/topos-protocol/topos/issues/471)) - ([a5299c8](https://github.com/topos-protocol/topos/commit/a5299c80068d6612d1aba162556f9ccd3dd3d0a8))
+- Update mio ([#473](https://github.com/topos-protocol/topos/issues/473)) - ([8291740](https://github.com/topos-protocol/topos/commit/82917405e7bf102c06194caadc973f57ac735649))
+- Revert update smart contract event ([#470](https://github.com/topos-protocol/topos/issues/470)) - ([c41a51a](https://github.com/topos-protocol/topos/commit/c41a51a2ff86198f44dd6b24ff534507a17cf519))
+- Update smart contract event ([#462](https://github.com/topos-protocol/topos/issues/462)) - ([f995859](https://github.com/topos-protocol/topos/commit/f9958599a1da31d7c92a8e8a0e925e79ce6140cb))
+- Remove duplicated certificate push on gossipsub ([#458](https://github.com/topos-protocol/topos/issues/458)) - ([b0e88dc](https://github.com/topos-protocol/topos/commit/b0e88dce2b7ea060ce34377b40a10e54edd16e02))
+- Add next_pending_certificate on end task ([#455](https://github.com/topos-protocol/topos/issues/455)) - ([2aaa500](https://github.com/topos-protocol/topos/commit/2aaa50071ca14415bb0284930c404659b6c463d8))
+
+### 🚜 Refactor
+
+- Improve delivery timing ([#466](https://github.com/topos-protocol/topos/issues/466)) - ([96e862f](https://github.com/topos-protocol/topos/commit/96e862f5b886a38a5c67590d1e152ab9894d6f15))
+- Store instantiation ([#461](https://github.com/topos-protocol/topos/issues/461)) - ([213b8d4](https://github.com/topos-protocol/topos/commit/213b8d482cf6e08ec0f1cae0e9dfd981b156a98d))
+- Update error management and config/process ([#460](https://github.com/topos-protocol/topos/issues/460)) - ([cc0c7b5](https://github.com/topos-protocol/topos/commit/cc0c7b538d9f6b91c184db10eedd9d94c4f368fb))
+- Move edge config to config crate ([#445](https://github.com/topos-protocol/topos/issues/445)) - ([23cc558](https://github.com/topos-protocol/topos/commit/23cc55887703bac01b7ec26486f47b03316046c1))
+- Tce-broadcast config ([#444](https://github.com/topos-protocol/topos/issues/444)) - ([10c3879](https://github.com/topos-protocol/topos/commit/10c3879cd30bf0172996cfbf48ab5c991e767eaf))
+
+### ⚙️ Miscellaneous Tasks
+
+- Creating CHANGELOG.md for 0.0.11 - ([463f52f](https://github.com/topos-protocol/topos/commit/463f52feb73f10d2a194cf44863842a9f0cf13a0))
+- Bumping version 0.1.0 - ([16de6a6](https://github.com/topos-protocol/topos/commit/16de6a675b0fe44afd20526202a2e5178b40994d))
+- Update deps ([#474](https://github.com/topos-protocol/topos/issues/474)) - ([264c569](https://github.com/topos-protocol/topos/commit/264c5694980fded79ea0749d03f54a345d90c741))
+- Refactor logs and fix typo ([#465](https://github.com/topos-protocol/topos/issues/465)) - ([8044310](https://github.com/topos-protocol/topos/commit/8044310b8ee330d5a14d509137dc4243cb2c2372))
+- Removing cache_size ([#472](https://github.com/topos-protocol/topos/issues/472)) - ([b2e4cf8](https://github.com/topos-protocol/topos/commit/b2e4cf88ac0c0b2ee92b7ef120a4c4e97493150c))
+- Backport fix of 0.0.11 ([#453](https://github.com/topos-protocol/topos/issues/453)) - ([53328ac](https://github.com/topos-protocol/topos/commit/53328acc813816757c57f3279cbd5f2aa738d2f0))
+
+### Build
+
+- Ignore pr checking name for release ([#480](https://github.com/topos-protocol/topos/issues/480)) - ([cfd8890](https://github.com/topos-protocol/topos/commit/cfd8890a0cb03f25fdaae8b181ab9c33f785e34e))
+
 ## [0.0.11](https://github.com/topos-protocol/topos/compare/v0.0.10..v0.0.11) - 2024-02-08
 
 ### ⛰️  Features
