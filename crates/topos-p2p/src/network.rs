@@ -87,6 +87,13 @@ impl<'a> NetworkBuilder<'a> {
         self
     }
 
+    #[doc(hidden)]
+    pub fn allow_private_ip(mut self, allow_private_ip: bool) -> Self {
+        self.config.allow_private_ip = allow_private_ip;
+
+        self
+    }
+
     pub fn store(mut self, store: MemoryStore) -> Self {
         self.store = Some(store);
 

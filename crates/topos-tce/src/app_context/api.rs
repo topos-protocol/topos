@@ -23,6 +23,7 @@ impl AppContext {
                 _ = match self
                     .validator_store
                     .insert_pending_certificate(&certificate)
+                    .await
                 {
                     Ok(Some(pending_id)) => {
                         let certificate_id = certificate.id;

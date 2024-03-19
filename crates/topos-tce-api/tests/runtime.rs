@@ -722,7 +722,9 @@ async fn get_pending_pool(
         create_validator_store(&[], futures::future::ready(fullnode_store.clone())).await;
 
     for certificate in &certificates {
-        _ = store.insert_pending_certificate(&certificate.certificate);
+        _ = store
+            .insert_pending_certificate(&certificate.certificate)
+            .await;
     }
 
     let storage_client = StorageClient::new(store.clone());
@@ -800,7 +802,9 @@ async fn check_precedence(
         create_validator_store(&[], futures::future::ready(fullnode_store.clone())).await;
 
     for certificate in &certificates {
-        _ = store.insert_pending_certificate(&certificate.certificate);
+        _ = store
+            .insert_pending_certificate(&certificate.certificate)
+            .await;
     }
 
     let storage_client = StorageClient::new(store.clone());

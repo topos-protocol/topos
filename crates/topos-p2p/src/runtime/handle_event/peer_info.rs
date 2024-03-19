@@ -1,4 +1,9 @@
-use libp2p::identify::{Event as IdentifyEvent, Info as IdentifyInfo};
+use ip_network::IpNetwork;
+use libp2p::{
+    identify::{Event as IdentifyEvent, Info as IdentifyInfo},
+    multiaddr::Protocol,
+    Multiaddr,
+};
 use tracing::info;
 
 use crate::{constants::PEER_INFO_PROTOCOL, Runtime};
@@ -22,19 +27,30 @@ impl EventHandler<Box<IdentifyEvent>> for Runtime {
             {
                 self.peer_set.insert(peer_id);
                 for addr in listen_addrs {
-                    info!(
-                        "Adding self-reported address {} from {} to Kademlia DHT.",
-                        addr, peer_id
-                    );
-                    self.swarm
-                        .behaviour_mut()
-                        .discovery
-                        .inner
-                        .add_address(&peer_id, addr);
+                    if self.config.allow_private_ip || is_global_addr(&addr) {
+                        info!(
+                            "Adding self-reported address {} from {} to Kademlia DHT.",
+                            addr, peer_id
+                        );
+                        self.swarm
+                            .behaviour_mut()
+                            .discovery
+                            .inner
+                            .add_address(&peer_id, addr);
+                    }
                 }
             }
         }
 
         Ok(())
+    }
+}
+
+pub fn is_global_addr(addr: &Multiaddr) -> bool {
+    match addr.iter().next() {
+        Some(Protocol::Dns(_)) | Some(Protocol::Dns4(_)) | Some(Protocol::Dns6(_)) => true,
+        Some(Protocol::Ip4(ip)) => IpNetwork::from(ip).is_global(),
+        Some(Protocol::Ip6(ip)) => IpNetwork::from(ip).is_global(),
+        _ => false,
     }
 }
