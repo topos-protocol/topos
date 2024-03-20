@@ -61,7 +61,7 @@ impl IntoFuture for CheckpointSynchronizer {
     fn into_future(mut self) -> Self::IntoFuture {
         async move {
             let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(
-                self.config.interval_seconds,
+                self.config.interval_milliseconds,
             ));
 
             loop {
