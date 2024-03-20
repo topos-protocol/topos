@@ -151,17 +151,17 @@ pub async fn run(
     let _network_handle = network_runtime.bootstrap(&mut event_stream).await?;
     debug!("P2P layer bootstrapped");
 
-    // debug!("Creating the Synchronizer");
-    //
-    // let (synchronizer_runtime, synchronizer_stream) =
-    //     topos_tce_synchronizer::Synchronizer::builder()
-    //         .with_config(config.synchronization.clone())
-    //         .with_shutdown(shutdown.0.child_token())
-    //         .with_store(validator_store.clone())
-    //         .with_network_client(network_client.clone())
-    //         .build()?;
-    //
-    // debug!("Synchronizer created");
+    debug!("Creating the Synchronizer");
+
+    let (synchronizer_runtime, synchronizer_stream) =
+        topos_tce_synchronizer::Synchronizer::builder()
+            .with_config(config.synchronization.clone())
+            .with_shutdown(shutdown.0.child_token())
+            .with_store(validator_store.clone())
+            .with_network_client(network_client.clone())
+            .build()?;
+
+    debug!("Synchronizer created");
 
     debug!("Starting gRPC api");
     let (broadcast_sender, broadcast_receiver) = broadcast::channel(BROADCAST_CHANNEL_SIZE);
@@ -203,7 +203,7 @@ pub async fn run(
 
     debug!("Reliable broadcast started");
 
-    // spawn(synchronizer_runtime.into_future());
+    spawn(synchronizer_runtime.into_future());
     // setup transport-tce-storage-api connector
     let (app_context, _tce_stream) = AppContext::new(
         is_validator,
@@ -220,6 +220,7 @@ pub async fn run(
         event_stream,
         tce_stream,
         api_stream,
+        synchronizer_stream,
         BroadcastStream::new(broadcast_receiver).filter_map(|v| futures::future::ready(v.ok())),
         shutdown,
     ))
