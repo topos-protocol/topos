@@ -25,7 +25,7 @@ use crate::{constants, event::ComposedEvent, TOPOS_ECHO, TOPOS_GOSSIP, TOPOS_REA
 
 use super::HealthStatus;
 
-const MAX_BATCH_SIZE: usize = 10;
+const MAX_BATCH_SIZE: usize = 10_000;
 
 pub struct Behaviour {
     batch_size: usize,
@@ -110,7 +110,7 @@ impl Behaviour {
             tick: tokio::time::interval(Duration::from_millis(
                 env::var("TOPOS_GOSSIP_INTERVAL")
                     .map(|v| v.parse::<u64>())
-                    .unwrap_or(Ok(100))
+                    .unwrap_or(Ok(10))
                     .unwrap(),
             )),
 
