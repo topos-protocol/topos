@@ -12,7 +12,6 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 use topos_config::{
-    edge::command::BINARY_NAME,
     genesis::Genesis,
     node::{NodeConfig, NodeRole},
 };
@@ -76,7 +75,7 @@ pub async fn start(
         info!(
             "Could not load genesis.json file on path {} \n Please make sure to have a valid \
              genesis.json file for your subnet in the {}/subnet/{} folder.",
-            config.edge_path.display(),
+            config.genesis_path.display(),
             config.home_path.display(),
             &config.base.subnet
         );
@@ -159,21 +158,22 @@ fn spawn_processes(
         info!("Using external edge node, skip running of local edge instance...")
     } else {
         let edge_config = config.edge.take().ok_or(Error::MissingEdgeConfig)?;
+        let edge_bin_config = config.edge_bin.take().ok_or(Error::MissingEdgeConfig)?;
 
         let data_dir = config.node_path.clone();
 
         info!(
             "Spawning edge process with genesis file: {}, data directory: {}, additional edge \
              arguments: {:?}",
-            config.edge_path.display(),
+            config.genesis_path.display(),
             data_dir.display(),
             edge_config.args
         );
 
         processes.push(process::spawn_edge_process(
-            config.home_path.join(BINARY_NAME),
+            edge_bin_config.binary_path(),
             data_dir,
-            config.edge_path.clone(),
+            config.genesis_path.clone(),
             edge_config.args,
         ));
     }

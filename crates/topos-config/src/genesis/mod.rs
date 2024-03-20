@@ -110,6 +110,6 @@ impl TryFrom<&NodeConfig> for Genesis {
     type Error = Error;
 
     fn try_from(config: &NodeConfig) -> Result<Self, Self::Error> {
-        Genesis::new(&config.edge_path)
+        Genesis::new(&config.genesis_path)
     }
 }
