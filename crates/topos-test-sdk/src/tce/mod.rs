@@ -266,7 +266,7 @@ pub async fn start_node(
 
     let (gatekeeper_client, gatekeeper_join_handle) = create_gatekeeper().await.unwrap();
 
-    let (synchronizer_stream, synchronizer_join_handle) = create_synchronizer(
+    let (_synchronizer_stream, synchronizer_join_handle) = create_synchronizer(
         gatekeeper_client.clone(),
         network_client.clone(),
         validator_store.clone(),
@@ -295,7 +295,7 @@ pub async fn start_node(
             network_stream,
             tce_stream,
             api_stream,
-            synchronizer_stream,
+            // synchronizer_stream,
             BroadcastStream::new(receiver).filter_map(|v| futures::future::ready(v.ok())),
             (shutdown_token, shutdown_sender),
         )
