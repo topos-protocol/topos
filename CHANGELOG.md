@@ -1,8 +1,9 @@
 ![topos](./.github/assets/topos_logo_dark.png)
-## [0.1.0](https://github.com/topos-protocol/topos/compare/v0.0.11..0.1.0) - 2024-03-19
+## [0.1.0](https://github.com/topos-protocol/topos/compare/v0.0.11..0.1.0) - 2024-03-20
 
 ### ⛰️  Features
 
+- Update smart-contracts to 3.4.0 stable - ([a714493](https://github.com/topos-protocol/topos/commit/a714493dd5aaf235d99f4b903f49a355e0c38d14))
 - Add p2p layer health check ([#464](https://github.com/topos-protocol/topos/issues/464)) - ([d2ec941](https://github.com/topos-protocol/topos/commit/d2ec941ec24d3cbc27c11d4fcf6b0495911f85e2))
 - Terminate stream if client is dropping the connection ([#463](https://github.com/topos-protocol/topos/issues/463)) - ([2c73f0b](https://github.com/topos-protocol/topos/commit/2c73f0bae1dc25aad504d45dcc789360cce7dbaa))
 - Introduce topos-node crate ([#459](https://github.com/topos-protocol/topos/issues/459)) - ([d8db631](https://github.com/topos-protocol/topos/commit/d8db631d970d6b855e5a47f0c561abe8bab9832d))
@@ -13,6 +14,7 @@
 
 ### 🐛 Bug Fixes
 
+- *(config)* Fix the parse of edge_path ENV var ([#482](https://github.com/topos-protocol/topos/issues/482)) - ([b2a1af0](https://github.com/topos-protocol/topos/commit/b2a1af06dfa6987261a08ccbc8f05ed1bdc0d0b8))
 - Bump smart contract version ([#478](https://github.com/topos-protocol/topos/issues/478)) - ([642203c](https://github.com/topos-protocol/topos/commit/642203c962ede91d821af2b54e5f7bc0d845d407))
 - Concurrency insert between pending and delivered ([#467](https://github.com/topos-protocol/topos/issues/467)) - ([bd5e3f5](https://github.com/topos-protocol/topos/commit/bd5e3f52ba00bafa25e0f3ce8b42b326e4fb5ef0))
 - Block handling during certificate generation ([#471](https://github.com/topos-protocol/topos/issues/471)) - ([a5299c8](https://github.com/topos-protocol/topos/commit/a5299c80068d6612d1aba162556f9ccd3dd3d0a8))
@@ -32,6 +34,10 @@
 
 ### ⚙️ Miscellaneous Tasks
 
+- Disable coverage report on release branch (push) - ([09f3663](https://github.com/topos-protocol/topos/commit/09f36639ef62a02a2a84bde8f36a98ce6274ea6f))
+- Disable coverage report on release branch (push) - ([e909e22](https://github.com/topos-protocol/topos/commit/e909e22d6dac251e4026816cd8dd5c84851e9db5))
+- Disable coverage report on release branch ([#481](https://github.com/topos-protocol/topos/issues/481)) - ([8f10090](https://github.com/topos-protocol/topos/commit/8f10090094bf110670137f73a115bda54f64aba5))
+- Update changelog for 0.1.0 - ([c68798e](https://github.com/topos-protocol/topos/commit/c68798eeed366a421a076cc1908aaca8013d80cf))
 - Creating CHANGELOG.md for 0.0.11 - ([463f52f](https://github.com/topos-protocol/topos/commit/463f52feb73f10d2a194cf44863842a9f0cf13a0))
 - Bumping version 0.1.0 - ([16de6a6](https://github.com/topos-protocol/topos/commit/16de6a675b0fe44afd20526202a2e5178b40994d))
 - Update deps ([#474](https://github.com/topos-protocol/topos/issues/474)) - ([264c569](https://github.com/topos-protocol/topos/commit/264c5694980fded79ea0749d03f54a345d90c741))
