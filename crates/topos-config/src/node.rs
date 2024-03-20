@@ -10,7 +10,11 @@ use topos_wallet::SecretManager;
 use tracing::{debug, error};
 
 use crate::{
-    base::BaseConfig, edge::EdgeConfig, load_config, sequencer::SequencerConfig, tce::TceConfig,
+    base::BaseConfig,
+    edge::{EdgeBinConfig, EdgeConfig},
+    load_config,
+    sequencer::SequencerConfig,
+    tce::TceConfig,
     Config,
 };
 
@@ -36,7 +40,10 @@ pub struct NodeConfig {
     pub node_path: PathBuf,
 
     #[serde(skip)]
-    pub edge_path: PathBuf,
+    pub genesis_path: PathBuf,
+
+    #[serde(skip)]
+    pub edge_bin: Option<EdgeBinConfig>,
 }
 
 impl NodeConfig {
@@ -47,7 +54,7 @@ impl NodeConfig {
     pub fn try_from<S: Serialize>(
         home_path: &Path,
         node_name: &str,
-        config: Option<S>,
+        config: Option<&S>,
     ) -> Result<Self, std::io::Error> {
         let node_path = home_path.join("node").join(node_name);
         let config_path = node_path.join("config.toml");
@@ -68,26 +75,30 @@ impl NodeConfig {
     ///
     /// It doesn't check the existence of the config file.
     /// It's useful for creating a config file for a new node, relying on the default values.
-    pub fn create<S: Serialize>(home_path: &Path, node_name: &str, config: Option<S>) -> Self {
+    pub fn create<S: Serialize>(home_path: &Path, node_name: &str, config: Option<&S>) -> Self {
         let node_path = home_path.join("node").join(node_name);
 
         Self::build_config(node_path, home_path, config)
     }
 
     /// Common function to build a node config struct from the given home path and node name.
-    fn build_config<S: Serialize>(node_path: PathBuf, home_path: &Path, config: Option<S>) -> Self {
+    fn build_config<S: Serialize>(
+        node_path: PathBuf,
+        home_path: &Path,
+        config: Option<&S>,
+    ) -> Self {
         let node_folder = node_path.as_path();
         let base = load_config::<BaseConfig, _>(node_folder, config);
 
         // Load genesis pointed by the local config
-        let edge_path = home_path
+        let genesis_path = home_path
             .join("subnet")
             .join(base.subnet.clone())
             .join("genesis.json");
 
         let mut config = NodeConfig {
             node_path: node_path.to_path_buf(),
-            edge_path,
+            genesis_path,
             home_path: home_path.to_path_buf(),
             base: base.clone(),
             sequencer: base
@@ -96,6 +107,9 @@ impl NodeConfig {
             tce: base
                 .need_tce()
                 .then(|| load_config::<TceConfig, ()>(node_folder, None)),
+            edge_bin: base
+                .need_edge()
+                .then(|| load_config::<EdgeBinConfig, _>(node_folder, config)),
             edge: base
                 .need_edge()
                 .then(|| load_config::<EdgeConfig, ()>(node_folder, None)),

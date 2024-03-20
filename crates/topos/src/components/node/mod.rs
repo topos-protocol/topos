@@ -95,7 +95,7 @@ pub(crate) async fn handle_command(
                 }
             }
 
-            let node_config = NodeConfig::create(&home, &name, Some(cmd));
+            let node_config = NodeConfig::create(&home, &name, Some(&cmd));
 
             // Creating the TOML output
             let config_toml = match node_config.to_toml() {
@@ -135,7 +135,7 @@ pub(crate) async fn handle_command(
                 .as_ref()
                 .expect("No name or default was given for node");
 
-            let config = NodeConfig::try_from(&home, name, Some(command))?;
+            let config = NodeConfig::try_from(&home, name, Some(&command))?;
 
             topos_node::start(
                 verbose,

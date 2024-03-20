@@ -1,6 +1,6 @@
 mod utils;
 
-use std::process::Command;
+use std::{fs, process::Command};
 
 use assert_cmd::prelude::*;
 use tempfile::tempdir;
@@ -58,6 +58,72 @@ fn setup_subnet_fail_to_install_release() -> Result<(), Box<dyn std::error::Erro
     assert!(result.contains(
         "Error installing Polygon Edge: There is no valid Polygon Edge release available"
     ));
+
+    Ok(())
+}
+
+#[test]
+fn setup_subnet_install_edge_custom_path() -> Result<(), Box<dyn std::error::Error>> {
+    let tmp_home_dir = tempdir()?;
+    let custom_path = tmp_home_dir.path().join("custom_path");
+
+    fs::create_dir(&custom_path).unwrap();
+
+    let mut cmd = Command::cargo_bin("topos")?;
+    cmd.arg("setup")
+        .arg("subnet")
+        .arg("--path")
+        .arg(&custom_path);
+
+    let output = cmd.assert().success();
+
+    let result: &str = std::str::from_utf8(&output.get_output().stdout)?;
+
+    assert!(result.contains("Polygon Edge installation successful"));
+
+    let file = fs::read_dir(&custom_path)
+        .unwrap()
+        .filter_map(|x| match x.ok() {
+            Some(f) if f.path().ends_with("polygon-edge") => Some(f),
+            _ => None,
+        })
+        .last()
+        .unwrap();
+
+    assert!(file.path().starts_with(&custom_path));
+
+    Ok(())
+}
+
+#[test]
+fn setup_subnet_install_edge_custom_path_env() -> Result<(), Box<dyn std::error::Error>> {
+    let tmp_home_dir = tempdir()?;
+    let custom_path = tmp_home_dir.path().join("custom_path");
+
+    fs::create_dir(&custom_path).unwrap();
+
+    let mut cmd = Command::cargo_bin("topos")?;
+
+    cmd.env("TOPOS_SETUP_POLYGON_EDGE_DIR", &custom_path)
+        .arg("setup")
+        .arg("subnet");
+
+    let output = cmd.assert().success();
+
+    let result: &str = std::str::from_utf8(&output.get_output().stdout)?;
+
+    assert!(result.contains("Polygon Edge installation successful"));
+
+    let file = fs::read_dir(&custom_path)
+        .unwrap()
+        .filter_map(|x| match x.ok() {
+            Some(f) if f.path().ends_with("polygon-edge") => Some(f),
+            _ => None,
+        })
+        .last()
+        .unwrap();
+
+    assert!(file.path().starts_with(&custom_path));
 
     Ok(())
 }

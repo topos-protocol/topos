@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use clap::Args;
 use serde::Serialize;
 use topos_config::node::NodeRole;
@@ -27,4 +29,8 @@ pub struct Init {
     /// rely on polygon-edge during runtime. Example: A sequencer which runs for an external EVM chain
     #[arg(long, env = "TOPOS_NO_EDGE_PROCESS", action)]
     pub no_edge_process: bool,
+
+    /// Installation directory path for Polygon Edge binary
+    #[clap(from_global)]
+    pub(crate) edge_path: PathBuf,
 }

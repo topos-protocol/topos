@@ -12,6 +12,8 @@ use std::{
 use tokio::{spawn, task::JoinHandle};
 use tracing::{error, info};
 
+use self::command::BINARY_NAME;
+
 // TODO: Provides the default arguments here
 // Serde `flatten` and `default` doesn't work together yet
 // https://github.com/serde-rs/serde/issues/1626
@@ -44,6 +46,39 @@ impl Config for EdgeConfig {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "kebab-case")]
+pub struct EdgeBinConfig {
+    pub edge_path: PathBuf,
+}
+
+impl EdgeBinConfig {
+    pub fn binary_path(&self) -> PathBuf {
+        self.edge_path.join(BINARY_NAME)
+    }
+}
+
+impl Config for EdgeBinConfig {
+    type Output = EdgeBinConfig;
+
+    fn load_from_file(figment: Figment, home: &Path) -> Figment {
+        let home = home.join("config.toml");
+
+        let edge = Figment::new()
+            .merge(Toml::file(home).nested())
+            .select("edge");
+
+        figment.merge(edge)
+    }
+
+    fn load_context(figment: Figment) -> Result<Self::Output, figment::Error> {
+        figment.extract()
+    }
+
+    fn profile() -> String {
+        "edge".to_string()
+    }
+}
 pub mod command;
 
 pub fn generate_edge_config(
