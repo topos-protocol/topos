@@ -1,5 +1,5 @@
 ![topos](./.github/assets/topos_logo_dark.png)
-## [0.1.0](https://github.com/topos-protocol/topos/compare/v0.0.11..0.1.0) - 2024-03-20
+## [0.1.0](https://github.com/topos-protocol/topos/compare/v0.0.11..0.1.0) - 2024-03-21
 
 ### ⛰️  Features
 
@@ -15,6 +15,7 @@
 ### 🐛 Bug Fixes
 
 - *(config)* Fix the parse of edge_path ENV var ([#482](https://github.com/topos-protocol/topos/issues/482)) - ([b2a1af0](https://github.com/topos-protocol/topos/commit/b2a1af06dfa6987261a08ccbc8f05ed1bdc0d0b8))
+- *(p2p)* Rework ticks of bootstrap query interval ([#483](https://github.com/topos-protocol/topos/issues/483)) - ([5b6ddb8](https://github.com/topos-protocol/topos/commit/5b6ddb80ded50525a27617ca5f7c911525752619))
 - Bump smart contract version ([#478](https://github.com/topos-protocol/topos/issues/478)) - ([642203c](https://github.com/topos-protocol/topos/commit/642203c962ede91d821af2b54e5f7bc0d845d407))
 - Concurrency insert between pending and delivered ([#467](https://github.com/topos-protocol/topos/issues/467)) - ([bd5e3f5](https://github.com/topos-protocol/topos/commit/bd5e3f52ba00bafa25e0f3ce8b42b326e4fb5ef0))
 - Block handling during certificate generation ([#471](https://github.com/topos-protocol/topos/issues/471)) - ([a5299c8](https://github.com/topos-protocol/topos/commit/a5299c80068d6612d1aba162556f9ccd3dd3d0a8))
@@ -34,6 +35,7 @@
 
 ### ⚙️ Miscellaneous Tasks
 
+- Update changelog for 0.1.0 - ([a82617a](https://github.com/topos-protocol/topos/commit/a82617a6c653f02a00fc9565f2c5abb42c9b6c26))
 - Disable coverage report on release branch (push) - ([09f3663](https://github.com/topos-protocol/topos/commit/09f36639ef62a02a2a84bde8f36a98ce6274ea6f))
 - Disable coverage report on release branch (push) - ([e909e22](https://github.com/topos-protocol/topos/commit/e909e22d6dac251e4026816cd8dd5c84851e9db5))
 - Disable coverage report on release branch ([#481](https://github.com/topos-protocol/topos/issues/481)) - ([8f10090](https://github.com/topos-protocol/topos/commit/8f10090094bf110670137f73a115bda54f64aba5))
