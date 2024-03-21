@@ -23,7 +23,7 @@ impl Default for NetworkConfig {
 }
 
 impl NetworkConfig {
-    pub const MINIMUM_CLUSTER_SIZE: usize = 5;
+    pub const MINIMUM_CLUSTER_SIZE: usize = 13;
     pub const CLIENT_RETRY_TTL: u64 = 200;
 }
 
