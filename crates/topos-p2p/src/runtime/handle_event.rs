@@ -197,6 +197,7 @@ impl EventHandler<SwarmEvent<ComposedEvent>> for Runtime {
             _ = self.event_sender.send(event).await;
         }
 
+        info!("Healthystatus: {:?}", self.health_status);
         Ok(())
     }
 }
