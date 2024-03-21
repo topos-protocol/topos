@@ -32,5 +32,5 @@ lazy_static! {
         std::env::var("TOPOS_PENDING_LIMIT_PER_REQUEST_TO_STORAGE")
         .ok()
         .and_then(|s| s.parse().ok())
-        .unwrap_or(1000);
+        .unwrap_or(50_000);
 }
