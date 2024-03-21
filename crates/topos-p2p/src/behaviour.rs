@@ -9,7 +9,7 @@ pub(crate) mod peer_info;
 pub(crate) mod topos;
 
 /// Represents the health status of a behaviour inside the p2p layer
-#[derive(Default, PartialEq, Eq)]
+#[derive(Debug, Default, PartialEq, Eq)]
 pub(crate) enum HealthStatus {
     #[default]
     Initializing,

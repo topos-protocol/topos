@@ -43,17 +43,34 @@ impl EventHandler<Box<Event>> for Runtime {
             } if num_remaining == 0
                 && self.swarm.behaviour().discovery.health_status == HealthStatus::Initializing =>
             {
-                warn!(
-                    "Bootstrap query finished but unable to connect to bootnode during \
-                     initialization, switching to unhealthy and fast bootstrap mode",
-                );
+                if self
+                    .health_state
+                    .successfully_connected_to_bootpeer
+                    .is_none()
+                {
+                    warn!(
+                        "Bootstrap query finished but unable to connect to bootnode during \
+                         initialization, switching from discovery(initializing) -> \
+                         discover(unhealthy) and fast bootstrap mode",
+                    );
 
-                let behaviour = self.swarm.behaviour_mut();
+                    let behaviour = self.swarm.behaviour_mut();
 
-                behaviour.discovery.health_status = HealthStatus::Unhealthy;
-                _ = behaviour
-                    .discovery
-                    .change_interval(self.config.discovery.fast_bootstrap_interval);
+                    behaviour.discovery.health_status = HealthStatus::Unhealthy;
+                    _ = behaviour
+                        .discovery
+                        .change_interval(self.config.discovery.fast_bootstrap_interval)
+                        .await;
+                } else {
+                    warn!(
+                        "Bootstrap query finished with bootnode, switching from \
+                         discovery(initializing) -> discovery(healthy)",
+                    );
+
+                    let behaviour = self.swarm.behaviour_mut();
+
+                    behaviour.discovery.health_status = HealthStatus::Healthy;
+                }
             }
 
             Event::OutboundQueryProgressed {
@@ -107,15 +124,16 @@ impl EventHandler<Box<Event>> for Runtime {
                 && self.swarm.behaviour().discovery.health_status == HealthStatus::Unhealthy =>
             {
                 info!(
-                    "Bootstrap query finished with bootnode, switching to healthy and normal \
-                     bootstrap mode",
+                    "Bootstrap query finished with bootnode, switching discover(unhealthy) -> \
+                     discover(healthy) and normal bootstrap mode",
                 );
 
                 let behaviour = self.swarm.behaviour_mut();
                 behaviour.discovery.health_status = HealthStatus::Healthy;
                 _ = behaviour
                     .discovery
-                    .change_interval(self.config.discovery.bootstrap_interval);
+                    .change_interval(self.config.discovery.bootstrap_interval)
+                    .await;
             }
 
             Event::OutboundQueryProgressed {

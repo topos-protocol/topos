@@ -80,7 +80,10 @@ impl DiscoveryBehaviour {
             next_bootstrap_query: if known_peers.is_empty() {
                 None
             } else {
-                Some(Box::pin(tokio::time::interval(config.bootstrap_interval)))
+                let mut interval = tokio::time::interval(config.bootstrap_interval);
+                interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+
+                Some(Box::pin(interval))
             },
             health_status: if known_peers.is_empty() {
                 HealthStatus::Healthy
@@ -105,9 +108,14 @@ impl DiscoveryBehaviour {
     }
 
     /// Change the interval of the next bootstrap queries
-    pub fn change_interval(&mut self, duration: Duration) -> Result<(), P2PError> {
+    pub async fn change_interval(&mut self, duration: Duration) -> Result<(), P2PError> {
         if let Some(interval) = self.next_bootstrap_query.as_mut() {
-            interval.set(tokio::time::interval(duration));
+            let mut new_interval = tokio::time::interval(duration);
+            // Delay the next tick
+            new_interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+            // ignore first tick
+            _ = new_interval.tick().await;
+            interval.set(new_interval);
         }
 
         Ok(())
