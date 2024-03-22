@@ -67,10 +67,6 @@ impl AppContext {
                 }
 
                 let message_id = receiver.await.unwrap();
-                println!(
-                    "Send ECHO for certificate {} with message id {}",
-                    certificate_id, message_id
-                );
                 debug!(
                     "Send ECHO for certificate {} with message id {}",
                     certificate_id, message_id
@@ -103,7 +99,7 @@ impl AppContext {
                 let message_id = receiver.await.unwrap();
 
                 debug!(
-                    "Send ECHO for certificate {} with message id {}",
+                    "Send READY for certificate {} with message id {}",
                     certificate_id, message_id
                 );
             }
