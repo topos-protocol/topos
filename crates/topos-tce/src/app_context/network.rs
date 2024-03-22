@@ -22,7 +22,12 @@ impl AppContext {
             &evt
         );
 
-        if let NetEvent::Gossip { data, from } = evt {
+        if let NetEvent::Gossip {
+            data,
+            from,
+            message_id,
+        } = evt
+        {
             if let Ok(DoubleEchoRequest {
                 request: Some(double_echo_request),
             }) = DoubleEchoRequest::decode(&data[..])
@@ -38,8 +43,8 @@ impl AppContext {
                                 entry.insert(CERTIFICATE_DELIVERY_LATENCY.start_timer());
                             }
                             info!(
-                                "Received certificate {} from GossipSub from {}",
-                                cert.id, from
+                                "Received certificate {} from GossipSub from {} with message id: {}",
+                                cert.id, from, message_id,
                             );
 
                             match self.validator_store.insert_pending_certificate(&cert).await {
@@ -110,6 +115,10 @@ impl AppContext {
                         signature: Some(signature),
                         validator_id: Some(validator_id),
                     }) => {
+                        debug!(
+                            "Received Echo message, certificate_id: {} with message id: {}",
+                            certificate_id, message_id
+                        );
                         let channel = self.tce_cli.get_double_echo_channel();
                         spawn(async move {
                             let certificate_id = certificate_id.clone().try_into().map_err(|e| {
@@ -156,6 +165,10 @@ impl AppContext {
                         signature: Some(signature),
                         validator_id: Some(validator_id),
                     }) => {
+                        debug!(
+                            "Received Ready message, certificate_id: {} with message id: {}",
+                            certificate_id, message_id
+                        );
                         let channel = self.tce_cli.get_double_echo_channel();
                         spawn(async move {
                             let certificate_id = certificate_id.clone().try_into().map_err(|e| {

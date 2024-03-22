@@ -258,6 +258,7 @@ impl NetworkBehaviour for Behaviour {
                                 topic: TOPOS_GOSSIP,
                                 message: data,
                                 source,
+                                message_id,
                             },
                         )))
                     }
@@ -267,6 +268,7 @@ impl NetworkBehaviour for Behaviour {
                                 topic: TOPOS_ECHO,
                                 message: data,
                                 source,
+                                message_id,
                             },
                         )))
                     }
@@ -276,6 +278,7 @@ impl NetworkBehaviour for Behaviour {
                                 topic: TOPOS_READY,
                                 message: data,
                                 source,
+                                message_id,
                             },
                         )))
                     }

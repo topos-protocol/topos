@@ -1,3 +1,4 @@
+use libp2p::gossipsub::MessageId;
 use libp2p::{identify, kad, PeerId};
 
 use crate::behaviour::{grpc, HealthStatus};
@@ -10,6 +11,7 @@ pub enum GossipEvent {
         source: Option<PeerId>,
         topic: &'static str,
         message: Vec<u8>,
+        message_id: MessageId,
     },
 }
 
@@ -50,7 +52,11 @@ impl From<void::Void> for ComposedEvent {
 #[derive(Debug)]
 pub enum Event {
     /// An event emitted when a gossip message is received
-    Gossip { from: PeerId, data: Vec<u8> },
+    Gossip {
+        from: PeerId,
+        data: Vec<u8>,
+        message_id: MessageId,
+    },
     /// An event emitted when the p2p layer becomes healthy
     Healthy,
     /// An event emitted when the p2p layer becomes unhealthy
