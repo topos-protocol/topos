@@ -1,3 +1,4 @@
+use libp2p::gossipsub::MessageId;
 use std::sync::Arc;
 
 use libp2p::PeerId;
@@ -39,6 +40,7 @@ async fn handle_gossip(
         .on_net_event(topos_p2p::Event::Gossip {
             from: PeerId::random(),
             data: msg.encode_to_vec(),
+            message_id: MessageId::new(&[0]),
         })
         .await;
 }
@@ -68,6 +70,7 @@ async fn handle_echo(
         .on_net_event(topos_p2p::Event::Gossip {
             from: PeerId::random(),
             data: msg.encode_to_vec(),
+            message_id: MessageId::new(&[0]),
         })
         .await;
 }
@@ -97,6 +100,7 @@ async fn handle_ready(
         .on_net_event(topos_p2p::Event::Gossip {
             from: PeerId::random(),
             data: msg.encode_to_vec(),
+            message_id: MessageId::new(&[0]),
         })
         .await;
 }
@@ -130,6 +134,7 @@ async fn handle_already_delivered(
         .on_net_event(topos_p2p::Event::Gossip {
             from: PeerId::random(),
             data: msg.encode_to_vec(),
+            message_id: MessageId::new(&[0]),
         })
         .await;
 }
