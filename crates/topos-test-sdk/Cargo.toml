@@ -24,7 +24,7 @@ ethers.workspace = true
 async-trait.workspace = true
 futures.workspace = true
 lazy_static = { version = "1.4.0" }
-libp2p.workspace = true
+libp2p = { workspace = true, features = ["macros"] }
 proc_macro_sdk = { path = "./proc_macro_sdk/" }
 rand.workspace = true
 rstest.workspace = true
