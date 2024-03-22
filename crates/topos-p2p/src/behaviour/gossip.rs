@@ -45,9 +45,31 @@ impl Behaviour {
         topic: &'static str,
         message: Vec<u8>,
     ) -> Result<MessageId, PublishError> {
+        println!("Publishing {} {}", message.len(), topic);
         debug!("Publishing {} {}", message.len(), topic);
-        self.gossipsub.publish(IdentTopic::new(topic), message)
-        // let mut messag_id = MessageId::new(&[0]);
+        match topic {
+            TOPOS_GOSSIP => {
+                if let Ok(msg_id) = self.gossipsub.publish(IdentTopic::new(topic), message) {
+                    debug!("Published on topos_gossip: {:?}", msg_id);
+                    return Ok(msg_id);
+                }
+            }
+            TOPOS_ECHO | TOPOS_READY => {
+                let batch = Batch {
+                    messages: vec![message],
+                };
+                if let Ok(msg_id) = self
+                    .gossipsub
+                    .publish(IdentTopic::new(topic), batch.encode_to_vec())
+                {
+                    debug!("Published on topos_gossip: {:?}", msg_id);
+                    return Ok(msg_id);
+                }
+            }
+            _ => {}
+        }
+
+        let messag_id = MessageId::new(&[0]);
         // match topic {
         //     TOPOS_GOSSIP => {
         //         if let Ok(msg_id) = self.gossipsub.publish(IdentTopic::new(topic), message) {
@@ -56,10 +78,10 @@ impl Behaviour {
         //         }
         //     }
         //     TOPOS_ECHO | TOPOS_READY => self.pending.entry(topic).or_default().push_back(message),
-        //     _ => return Err("Invalid topic"),
+        //     _ => (),
         // }
-        //
-        // Ok(messag_id)
+
+        Ok(messag_id)
     }
 
     pub fn subscribe(&mut self) -> Result<(), P2PError> {
@@ -204,7 +226,7 @@ impl NetworkBehaviour for Behaviour {
                     let batch = Batch {
                         messages: queue.drain(0..num_of_message).collect(),
                     };
-
+                    println!("Publishing {} {}", batch.messages.len(), topic);
                     debug!("Publishing {} {}", batch.messages.len(), topic);
                     let msg = batch.encode_to_vec();
                     P2P_GOSSIP_BATCH_SIZE.observe(batch.messages.len() as f64);

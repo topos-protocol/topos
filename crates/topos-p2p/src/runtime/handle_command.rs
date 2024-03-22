@@ -61,19 +61,22 @@ impl Runtime {
                 }
             }
 
-            //TODO: Return `MessageId` to the caller here
             Command::Gossip {
                 topic,
                 data: message,
                 sender,
-            } => match self.swarm.behaviour_mut().gossipsub.publish(topic, message) {
-                Ok(message_id) => {
-                    debug!("Published message to {topic}");
-                    P2P_MESSAGE_SENT_ON_GOSSIPSUB_TOTAL.inc();
-                    let _ = sender.send(message_id);
+            } => {
+                println!("Send to GossipSub: {topic}");
+                match self.swarm.behaviour_mut().gossipsub.publish(topic, message) {
+                    Ok(message_id) => {
+                        println!("Published message to {topic}");
+                        debug!("Published message to {topic}");
+                        P2P_MESSAGE_SENT_ON_GOSSIPSUB_TOTAL.inc();
+                        let _ = sender.send(message_id);
+                    }
+                    Err(err) => error!("Failed to publish message to {topic}: {err}"),
                 }
-                Err(err) => error!("Failed to publish message to {topic}: {err}"),
-            },
+            }
         }
     }
 }
