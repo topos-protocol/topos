@@ -1,6 +1,7 @@
+use tokio::sync::oneshot;
 use topos_core::api::grpc::tce::v1::{double_echo_request, DoubleEchoRequest, Echo, Gossip, Ready};
 use topos_tce_broadcast::event::ProtocolEvents;
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
 use crate::AppContext;
 
@@ -21,13 +22,23 @@ impl AppContext {
                 };
 
                 info!("Sending Gossip for certificate {}", cert_id);
+
+                let (sender, receiver) = oneshot::channel();
+
                 if let Err(e) = self
                     .network_client
-                    .publish(topos_p2p::TOPOS_GOSSIP, request)
+                    .publish(topos_p2p::TOPOS_GOSSIP, request, sender)
                     .await
                 {
                     error!("Unable to send Gossip: {e}");
                 }
+
+                let message_id = receiver.await.unwrap();
+
+                debug!(
+                    "Send Gossip for certificate {} with message id {}",
+                    cert_id, message_id
+                );
             }
 
             ProtocolEvents::Echo {
@@ -44,13 +55,22 @@ impl AppContext {
                     })),
                 };
 
+                let (sender, receiver) = oneshot::channel();
+
                 if let Err(e) = self
                     .network_client
-                    .publish(topos_p2p::TOPOS_ECHO, request)
+                    .publish(topos_p2p::TOPOS_ECHO, request, sender)
                     .await
                 {
                     error!("Unable to send Echo: {e}");
                 }
+
+                let message_id = receiver.await.unwrap();
+
+                debug!(
+                    "Send ECHO for certificate {} with message id {}",
+                    certificate_id, message_id
+                );
             }
 
             ProtocolEvents::Ready {
@@ -66,13 +86,22 @@ impl AppContext {
                     })),
                 };
 
+                let (sender, receiver) = oneshot::channel();
+
                 if let Err(e) = self
                     .network_client
-                    .publish(topos_p2p::TOPOS_READY, request)
+                    .publish(topos_p2p::TOPOS_READY, request, sender)
                     .await
                 {
                     error!("Unable to send Ready: {e}");
                 }
+
+                let message_id = receiver.await.unwrap();
+
+                debug!(
+                    "Send ECHO for certificate {} with message id {}",
+                    certificate_id, message_id
+                );
             }
             ProtocolEvents::BroadcastFailed { certificate_id } => {
                 warn!("Broadcast failed for certificate {certificate_id}")

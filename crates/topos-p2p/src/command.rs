@@ -1,3 +1,4 @@
+use libp2p::gossipsub::MessageId;
 use std::fmt::Display;
 
 use libp2p::PeerId;
@@ -15,6 +16,7 @@ pub enum Command {
     Gossip {
         topic: &'static str,
         data: Vec<u8>,
+        sender: oneshot::Sender<MessageId>,
     },
 
     /// Ask for the creation of a new proxy connection for a gRPC query.

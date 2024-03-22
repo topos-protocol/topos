@@ -1,4 +1,5 @@
 use futures::future::BoxFuture;
+use libp2p::gossipsub::MessageId;
 use libp2p::PeerId;
 use tokio::sync::{
     mpsc::{self, error::SendError},
@@ -43,6 +44,7 @@ impl NetworkClient {
         &self,
         topic: &'static str,
         message: T,
+        sender: oneshot::Sender<MessageId>,
     ) -> BoxFuture<'static, Result<(), SendError<Command>>> {
         let network = self.sender.clone();
 
@@ -51,6 +53,7 @@ impl NetworkClient {
                 .send(Command::Gossip {
                     topic,
                     data: message.encode_to_vec(),
+                    sender,
                 })
                 .await
         })
