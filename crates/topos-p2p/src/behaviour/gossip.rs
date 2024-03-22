@@ -8,7 +8,7 @@ use std::{
     time::Duration,
 };
 
-use libp2p::gossipsub::{MessageId, PublishError};
+use libp2p::gossipsub::MessageId;
 use libp2p::swarm::{ConnectionClosed, FromSwarm};
 use libp2p::PeerId;
 use libp2p::{
@@ -44,7 +44,7 @@ impl Behaviour {
         &mut self,
         topic: &'static str,
         message: Vec<u8>,
-    ) -> Result<MessageId, PublishError> {
+    ) -> Result<MessageId, &'static str> {
         println!("Publishing {} {}", message.len(), topic);
         debug!("Publishing {} {}", message.len(), topic);
         match topic {
@@ -66,22 +66,12 @@ impl Behaviour {
                     return Ok(msg_id);
                 }
             }
-            _ => {}
+            _ => {
+                return Err("Unknown topic");
+            }
         }
 
-        let messag_id = MessageId::new(&[0]);
-        // match topic {
-        //     TOPOS_GOSSIP => {
-        //         if let Ok(msg_id) = self.gossipsub.publish(IdentTopic::new(topic), message) {
-        //             messag_id = msg_id.clone();
-        //             debug!("Published on topos_gossip: {:?}", msg_id);
-        //         }
-        //     }
-        //     TOPOS_ECHO | TOPOS_READY => self.pending.entry(topic).or_default().push_back(message),
-        //     _ => (),
-        // }
-
-        Ok(messag_id)
+        Err("Failed to publish")
     }
 
     pub fn subscribe(&mut self) -> Result<(), P2PError> {

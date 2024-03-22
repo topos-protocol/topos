@@ -1,3 +1,4 @@
+use libp2p::gossipsub::MessageId;
 use tokio::sync::oneshot;
 use topos_core::api::grpc::tce::v1::{double_echo_request, DoubleEchoRequest, Echo, Gossip, Ready};
 use topos_tce_broadcast::event::ProtocolEvents;
@@ -33,7 +34,7 @@ impl AppContext {
                     error!("Unable to send Gossip: {e}");
                 }
 
-                let message_id = receiver.await.unwrap();
+                let message_id = receiver.await.unwrap_or(MessageId::from([0; 32]));
 
                 debug!(
                     "Send Gossip for certificate {} with message id {}",
