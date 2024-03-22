@@ -45,7 +45,21 @@ impl Behaviour {
         topic: &'static str,
         message: Vec<u8>,
     ) -> Result<MessageId, PublishError> {
+        debug!("Publishing {} {}", message.len(), topic);
         self.gossipsub.publish(IdentTopic::new(topic), message)
+        // let mut messag_id = MessageId::new(&[0]);
+        // match topic {
+        //     TOPOS_GOSSIP => {
+        //         if let Ok(msg_id) = self.gossipsub.publish(IdentTopic::new(topic), message) {
+        //             messag_id = msg_id.clone();
+        //             debug!("Published on topos_gossip: {:?}", msg_id);
+        //         }
+        //     }
+        //     TOPOS_ECHO | TOPOS_READY => self.pending.entry(topic).or_default().push_back(message),
+        //     _ => return Err("Invalid topic"),
+        // }
+        //
+        // Ok(messag_id)
     }
 
     pub fn subscribe(&mut self) -> Result<(), P2PError> {
