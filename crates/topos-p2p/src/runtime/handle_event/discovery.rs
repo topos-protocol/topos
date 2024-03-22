@@ -45,7 +45,7 @@ impl EventHandler<Box<Event>> for Runtime {
             {
                 if self
                     .health_state
-                    .successfully_connected_to_bootpeer
+                    .successfully_connected_to_bootnode
                     .is_none()
                 {
                     warn!(
@@ -85,11 +85,11 @@ impl EventHandler<Box<Event>> for Runtime {
             } if num_remaining == 0
                 && self
                     .health_state
-                    .successfully_connected_to_bootpeer
+                    .successfully_connected_to_bootnode
                     .is_none()
                 && self.swarm.behaviour().discovery.health_status == HealthStatus::Unhealthy =>
             {
-                match self.health_state.bootpeer_connection_retries.checked_sub(1) {
+                match self.health_state.bootnode_connection_retries.checked_sub(1) {
                     None => {
                         error!(
                             "Bootstrap query finished but unable to connect to bootnode, stopping"
@@ -103,7 +103,7 @@ impl EventHandler<Box<Event>> for Runtime {
                              {} more times",
                             new
                         );
-                        self.health_state.bootpeer_connection_retries = new;
+                        self.health_state.bootnode_connection_retries = new;
                     }
                 }
             }
@@ -119,7 +119,7 @@ impl EventHandler<Box<Event>> for Runtime {
             } if num_remaining == 0
                 && self
                     .health_state
-                    .successfully_connected_to_bootpeer
+                    .successfully_connected_to_bootnode
                     .is_some()
                 && self.swarm.behaviour().discovery.health_status == HealthStatus::Unhealthy =>
             {

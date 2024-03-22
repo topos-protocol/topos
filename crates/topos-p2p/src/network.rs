@@ -216,8 +216,8 @@ impl<'a> NetworkBuilder<'a> {
                 pending_record_requests: HashMap::new(),
                 shutdown,
                 health_state: crate::runtime::HealthState {
-                    bootpeer_connection_retries: 3,
-                    successfully_connected_to_bootpeer: if self.known_peers.is_empty() {
+                    bootnode_connection_retries: 3,
+                    successfully_connected_to_bootnode: if self.known_peers.is_empty() {
                         // Node seems to be a boot node
                         Some(ConnectionId::new_unchecked(0))
                     } else {

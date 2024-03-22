@@ -62,11 +62,11 @@ pub(crate) struct HealthState {
     /// Indicates if the node is listening on any address
     pub(crate) is_listening: bool,
     /// List the bootnodes that the node has tried to connect to
-    pub(crate) dialed_bootpeer: HashSet<ConnectionId>,
+    pub(crate) dialed_bootnode: HashSet<ConnectionId>,
     /// Indicates if the node has successfully connected to a bootnode
-    pub(crate) successfully_connected_to_bootpeer: Option<ConnectionId>,
+    pub(crate) successfully_connected_to_bootnode: Option<ConnectionId>,
     /// Track the number of remaining retries to connect to any bootnode
-    pub(crate) bootpeer_connection_retries: usize,
+    pub(crate) bootnode_connection_retries: usize,
 }
 
 impl Runtime {
