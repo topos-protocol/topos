@@ -1,4 +1,4 @@
-use libp2p::{multiaddr::Protocol, swarm::SwarmEvent};
+use libp2p::{core::Endpoint, multiaddr::Protocol, swarm::SwarmEvent};
 use tracing::{debug, error, info, warn};
 
 use crate::{error::P2PError, event::ComposedEvent, Event, Runtime};
@@ -62,13 +62,13 @@ impl EventHandler<SwarmEvent<ComposedEvent>> for Runtime {
                 error,
             } if self
                 .health_state
-                .successfully_connected_to_bootpeer
+                .successfully_connected_to_bootnode
                 .is_none()
-                && self.health_state.dialed_bootpeer.contains(&connection_id) =>
+                && self.health_state.dialed_bootnode.contains(&connection_id) =>
             {
-                warn!("Unable to connect to bootpeer {peer_id}: {error:?}");
-                self.health_state.dialed_bootpeer.remove(&connection_id);
-                if self.health_state.dialed_bootpeer.is_empty() {
+                warn!("Unable to connect to bootnode {peer_id}: {error:?}");
+                self.health_state.dialed_bootnode.remove(&connection_id);
+                if self.health_state.dialed_bootnode.is_empty() {
                     // We tried to connect to all bootnode without success
                     error!("Unable to connect to any bootnode");
                 }
@@ -100,25 +100,49 @@ impl EventHandler<SwarmEvent<ComposedEvent>> for Runtime {
                 num_established,
                 concurrent_dial_errors,
                 established_in,
-            } if self.health_state.dialed_bootpeer.contains(&connection_id) => {
-                info!("Successfully connected to bootpeer {peer_id}");
+            } if self.health_state.dialed_bootnode.contains(&connection_id) => {
+                info!("Successfully connected to bootnode {peer_id}");
                 if self
                     .health_state
-                    .successfully_connected_to_bootpeer
+                    .successfully_connected_to_bootnode
                     .is_none()
                 {
-                    self.health_state.successfully_connected_to_bootpeer = Some(connection_id);
-                    _ = self.health_state.dialed_bootpeer.remove(&connection_id);
+                    self.health_state.successfully_connected_to_bootnode = Some(connection_id);
+                    _ = self.health_state.dialed_bootnode.remove(&connection_id);
                 }
             }
 
             SwarmEvent::ConnectionEstablished {
-                peer_id, endpoint, ..
+                peer_id,
+                endpoint,
+                connection_id,
+                ..
             } => {
-                info!(
-                    "Connection established with peer {peer_id} as {:?}",
-                    endpoint.to_endpoint()
-                );
+                if self
+                    .health_state
+                    .successfully_connected_to_bootnode
+                    .is_none()
+                    && self.boot_peers.contains(&peer_id)
+                {
+                    info!(
+                        "Connection established with bootnode {peer_id} as {:?}",
+                        endpoint.to_endpoint()
+                    );
+
+                    if endpoint.to_endpoint() == Endpoint::Listener {
+                        if let Err(error) = self.swarm.dial(peer_id) {
+                            error!(
+                                "Unable to dial bootnode {peer_id} after incoming connection: \
+                                 {error}"
+                            );
+                        }
+                    }
+                } else {
+                    info!(
+                        "Connection established with peer {peer_id} as {:?}",
+                        endpoint.to_endpoint()
+                    );
+                }
 
                 if self.swarm.connected_peers().count() >= self.config.minimum_cluster_size {
                     if let Err(error) = self.swarm.behaviour_mut().gossipsub.subscribe() {
@@ -164,8 +188,8 @@ impl EventHandler<SwarmEvent<ComposedEvent>> for Runtime {
                 peer_id: Some(ref peer_id),
                 connection_id,
             } if self.boot_peers.contains(peer_id) => {
-                info!("Dialing bootpeer {peer_id} on connection: {connection_id}");
-                self.health_state.dialed_bootpeer.insert(connection_id);
+                info!("Dialing bootnode {peer_id} on connection: {connection_id}");
+                self.health_state.dialed_bootnode.insert(connection_id);
             }
 
             SwarmEvent::Dialing {
@@ -185,6 +209,7 @@ impl EventHandler<SwarmEvent<ComposedEvent>> for Runtime {
             SwarmEvent::ListenerError { listener_id, error } => {
                 error!("Unhandled ListenerError {listener_id:?} | {error}")
             }
+
             event => {
                 warn!("Unhandled SwarmEvent: {:?}", event);
             }

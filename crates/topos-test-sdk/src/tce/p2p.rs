@@ -12,7 +12,6 @@ use super::NodeConfig;
 
 pub async fn create_network_worker(
     seed: u8,
-    _port: u16,
     addr: Vec<Multiaddr>,
     peers: &[NodeConfig],
     minimum_cluster_size: usize,
@@ -63,7 +62,6 @@ pub async fn create_network_worker(
 
 pub async fn bootstrap_network(
     seed: u8,
-    port: u16,
     addr: Multiaddr,
     peers: &[NodeConfig],
     minimum_cluster_size: usize,
@@ -78,7 +76,7 @@ pub async fn bootstrap_network(
     Box<dyn Error>,
 > {
     let (network_client, mut network_stream, runtime) =
-        create_network_worker(seed, port, vec![addr], peers, minimum_cluster_size, router)
+        create_network_worker(seed, vec![addr], peers, minimum_cluster_size, router)
             .in_current_span()
             .await?;
 
