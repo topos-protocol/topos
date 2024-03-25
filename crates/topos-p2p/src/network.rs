@@ -14,7 +14,7 @@ use crate::{
 };
 use futures::Stream;
 use libp2p::{
-    core::upgrade,
+    core::{transport::MemoryTransport, upgrade},
     dns,
     identity::Keypair,
     kad::store::MemoryStore,
@@ -30,6 +30,7 @@ use std::{
 };
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
+use tracing::debug;
 
 pub fn builder<'a>() -> NetworkBuilder<'a> {
     NetworkBuilder::default()
@@ -48,9 +49,16 @@ pub struct NetworkBuilder<'a> {
     local_port: Option<u8>,
     config: NetworkConfig,
     grpc_context: GrpcContext,
+    memory_transport: bool,
 }
 
 impl<'a> NetworkBuilder<'a> {
+    #[cfg(test)]
+    pub(crate) fn memory(mut self) -> Self {
+        self.memory_transport = true;
+
+        self
+    }
     pub fn grpc_context(mut self, grpc_context: GrpcContext) -> Self {
         self.grpc_context = grpc_context;
 
@@ -131,6 +139,7 @@ impl<'a> NetworkBuilder<'a> {
 
         let grpc = grpc::Behaviour::new(self.grpc_context);
 
+        debug!("Known peers: {:?}", self.known_peers);
         let behaviour = Behaviour {
             gossipsub,
             peer_info: PeerInfoBehaviour::new(PEER_INFO_PROTOCOL, &peer_key),
@@ -148,22 +157,28 @@ impl<'a> NetworkBuilder<'a> {
             grpc,
         };
 
-        let transport = {
+        let multiplex_config = libp2p::yamux::Config::default();
+
+        let transport = if self.memory_transport {
+            MemoryTransport::new()
+                .upgrade(upgrade::Version::V1)
+                .authenticate(noise::Config::new(&peer_key)?)
+                .multiplex(multiplex_config)
+                .timeout(TWO_HOURS)
+                .boxed()
+        } else {
             let tcp = libp2p::tcp::tokio::Transport::new(Config::default().nodelay(true));
             let dns_tcp = dns::tokio::Transport::system(tcp).unwrap();
 
             let tcp = libp2p::tcp::tokio::Transport::new(Config::default().nodelay(true));
-            dns_tcp.or_transport(tcp)
+            dns_tcp
+                .or_transport(tcp)
+                .upgrade(upgrade::Version::V1)
+                .authenticate(noise::Config::new(&peer_key)?)
+                .multiplex(multiplex_config)
+                .timeout(TWO_HOURS)
+                .boxed()
         };
-
-        let multiplex_config = libp2p::yamux::Config::default();
-
-        let transport = transport
-            .upgrade(upgrade::Version::V1)
-            .authenticate(noise::Config::new(&peer_key)?)
-            .multiplex(multiplex_config)
-            .timeout(TWO_HOURS)
-            .boxed();
 
         let swarm = Swarm::new(
             transport,
@@ -216,8 +231,8 @@ impl<'a> NetworkBuilder<'a> {
                 pending_record_requests: HashMap::new(),
                 shutdown,
                 health_state: crate::runtime::HealthState {
-                    bootpeer_connection_retries: 3,
-                    successfully_connected_to_bootpeer: if self.known_peers.is_empty() {
+                    bootnode_connection_retries: 3,
+                    successfully_connected_to_bootnode: if self.known_peers.is_empty() {
                         // Node seems to be a boot node
                         Some(ConnectionId::new_unchecked(0))
                     } else {

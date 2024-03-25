@@ -14,6 +14,7 @@ pub enum Event {
     OutboundSuccess {
         peer_id: PeerId,
         request_id: RequestId,
+        #[allow(unused)]
         channel: Channel,
     },
 

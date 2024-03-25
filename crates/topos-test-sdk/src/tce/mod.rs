@@ -96,7 +96,6 @@ impl TceContext {
 #[derive(Debug, Clone)]
 pub struct NodeConfig {
     pub seed: u8,
-    pub port: u16,
     pub keypair: Keypair,
     pub addr: Multiaddr,
     pub minimum_cluster_size: usize,
@@ -117,12 +116,23 @@ impl NodeConfig {
         }
     }
 
-    pub fn from_seed(seed: u8) -> Self {
-        let (keypair, port, addr) = local_peer(seed);
+    pub fn memory(seed: u8) -> Self {
+        let (keypair, addr) = local_peer(seed, true);
 
         Self {
             seed,
-            port,
+            keypair,
+            addr,
+            minimum_cluster_size: 0,
+            dummy: false,
+        }
+    }
+
+    pub fn from_seed(seed: u8) -> Self {
+        let (keypair, addr) = local_peer(seed, false);
+
+        Self {
+            seed,
             keypair,
             addr,
             minimum_cluster_size: 0,
@@ -148,7 +158,6 @@ impl NodeConfig {
     > {
         bootstrap_network(
             self.seed,
-            self.port,
             self.addr.clone(),
             peers,
             self.minimum_cluster_size,
@@ -165,7 +174,6 @@ impl NodeConfig {
     ) -> Result<(NetworkClient, impl Stream<Item = Event>, Runtime), P2PError> {
         create_network_worker(
             self.seed,
-            self.port,
             vec![self.addr.clone()],
             peers,
             self.minimum_cluster_size,
@@ -230,7 +238,6 @@ pub async fn start_node(
 
     let (network_client, network_stream, runtime_join_handle) = bootstrap_network(
         config.seed,
-        config.port,
         config.addr.clone(),
         peers,
         config.minimum_cluster_size,
