@@ -30,7 +30,7 @@ use std::{
 };
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
-use tracing::warn;
+use tracing::debug;
 
 pub fn builder<'a>() -> NetworkBuilder<'a> {
     NetworkBuilder::default()
