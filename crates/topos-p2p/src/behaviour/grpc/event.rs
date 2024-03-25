@@ -3,7 +3,6 @@ use tonic::transport::Channel;
 
 use super::{OutboundError, RequestId};
 
-#[allow(unused)]
 #[derive(Debug)]
 pub enum Event {
     OutboundFailure {
@@ -15,6 +14,7 @@ pub enum Event {
     OutboundSuccess {
         peer_id: PeerId,
         request_id: RequestId,
+        #[allow(unused)]
         channel: Channel,
     },
 
