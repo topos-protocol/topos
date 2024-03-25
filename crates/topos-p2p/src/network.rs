@@ -139,7 +139,7 @@ impl<'a> NetworkBuilder<'a> {
 
         let grpc = grpc::Behaviour::new(self.grpc_context);
 
-        warn!("Known peers: {:?}", self.known_peers);
+        debug!("Known peers: {:?}", self.known_peers);
         let behaviour = Behaviour {
             gossipsub,
             peer_info: PeerInfoBehaviour::new(PEER_INFO_PROTOCOL, &peer_key),
