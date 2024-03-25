@@ -43,7 +43,7 @@ use self::gatekeeper::create_gatekeeper;
 use self::p2p::{bootstrap_network, create_network_worker};
 use self::protocol::{create_reliable_broadcast_client, create_reliable_broadcast_params};
 use self::public_api::create_public_api;
-use self::synchronizer::create_synchronizer;
+// use self::synchronizer::create_synchronizer;
 use crate::crypto::message_signer;
 use crate::p2p::local_peer;
 use crate::storage::create_fullnode_store;
@@ -66,7 +66,7 @@ pub struct TceContext {
     pub runtime_join_handle: JoinHandle<Result<(), P2PError>>,
     pub app_join_handle: JoinHandle<()>,
     pub gatekeeper_join_handle: JoinHandle<Result<(), topos_tce_gatekeeper::GatekeeperError>>,
-    pub synchronizer_join_handle: JoinHandle<Result<(), topos_tce_synchronizer::SynchronizerError>>,
+    // pub synchronizer_join_handle: JoinHandle<Result<(), topos_tce_synchronizer::SynchronizerError>>,
     pub connected_subnets: Option<Vec<SubnetId>>, // Particular subnet clients (topos nodes) connected to this tce node
     pub shutdown: (CancellationToken, mpsc::Receiver<()>),
 }
@@ -76,7 +76,7 @@ impl Drop for TceContext {
         self.app_join_handle.abort();
         self.runtime_join_handle.abort();
         self.gatekeeper_join_handle.abort();
-        self.synchronizer_join_handle.abort();
+        // self.synchronizer_join_handle.abort();
     }
 }
 
@@ -266,13 +266,13 @@ pub async fn start_node(
 
     let (gatekeeper_client, gatekeeper_join_handle) = create_gatekeeper().await.unwrap();
 
-    let (synchronizer_stream, synchronizer_join_handle) = create_synchronizer(
-        gatekeeper_client.clone(),
-        network_client.clone(),
-        validator_store.clone(),
-    )
-    .in_current_span()
-    .await;
+    // let (synchronizer_stream, synchronizer_join_handle) = create_synchronizer(
+    //     gatekeeper_client.clone(),
+    //     network_client.clone(),
+    //     validator_store.clone(),
+    // )
+    // .in_current_span()
+    // .await;
 
     let (app, event_stream) = AppContext::new(
         is_validator,
@@ -295,7 +295,7 @@ pub async fn start_node(
             network_stream,
             tce_stream,
             api_stream,
-            synchronizer_stream,
+            // synchronizer_stream,
             BroadcastStream::new(receiver).filter_map(|v| futures::future::ready(v.ok())),
             (shutdown_token, shutdown_sender),
         )
@@ -312,7 +312,7 @@ pub async fn start_node(
         runtime_join_handle,
         app_join_handle,
         gatekeeper_join_handle,
-        synchronizer_join_handle,
+        // synchronizer_join_handle,
         connected_subnets: None,
         shutdown: (shutdown_cloned, shutdown_receiver),
     }

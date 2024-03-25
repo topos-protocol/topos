@@ -21,7 +21,7 @@ use topos_tce_storage::store::ReadStore;
 use topos_tce_storage::types::CertificateDeliveredWithPositions;
 use topos_tce_storage::validator::ValidatorStore;
 use topos_tce_storage::StorageClient;
-use topos_tce_synchronizer::SynchronizerEvent;
+// use topos_tce_synchronizer::SynchronizerEvent;
 use tracing::{error, info, warn};
 
 mod api;
@@ -94,7 +94,7 @@ impl AppContext {
         mut network_stream: impl Stream<Item = NetEvent> + Unpin,
         mut tce_stream: impl Stream<Item = ProtocolEvents> + Unpin,
         mut api_stream: impl Stream<Item = ApiEvent> + Unpin,
-        mut synchronizer_stream: impl Stream<Item = SynchronizerEvent> + Unpin,
+        // mut synchronizer_stream: impl Stream<Item = SynchronizerEvent> + Unpin,
         mut broadcast_stream: impl Stream<Item = CertificateDeliveredWithPositions> + Unpin,
         shutdown: (CancellationToken, mpsc::Sender<()>),
     ) {
@@ -127,8 +127,8 @@ impl AppContext {
                 }
 
                 // Synchronizer events
-                Some(_event) = synchronizer_stream.next() => {
-                }
+                // Some(_event) = synchronizer_stream.next() => {
+                // }
 
                 // Shutdown signal
                 _ = shutdown.0.cancelled() => {

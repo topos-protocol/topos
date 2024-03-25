@@ -45,7 +45,6 @@ impl Behaviour {
         topic: &'static str,
         message: Vec<u8>,
     ) -> Result<MessageId, &'static str> {
-        println!("Publishing {} {}", message.len(), topic);
         debug!("Publishing {} {}", message.len(), topic);
         match topic {
             TOPOS_GOSSIP => {
@@ -216,7 +215,7 @@ impl NetworkBehaviour for Behaviour {
                     let batch = Batch {
                         messages: queue.drain(0..num_of_message).collect(),
                     };
-                    println!("Publishing {} {}", batch.messages.len(), topic);
+
                     debug!("Publishing {} {}", batch.messages.len(), topic);
                     let msg = batch.encode_to_vec();
                     P2P_GOSSIP_BATCH_SIZE.observe(batch.messages.len() as f64);

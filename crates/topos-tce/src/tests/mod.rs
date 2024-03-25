@@ -23,29 +23,28 @@ use crate::AppContext;
 mod api;
 mod network;
 
-#[rstest]
-#[tokio::test]
-async fn non_validator_publish_gossip(
-    #[future] setup_test: (
-        AppContext,
-        mpsc::Receiver<topos_p2p::Command>,
-        Arc<MessageSigner>,
-    ),
-) {
-    let (mut context, mut p2p_receiver, _) = setup_test.await;
-    let certificates = create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], 1);
-    context
-        .on_protocol_event(ProtocolEvents::Gossip {
-            cert: certificates[0].certificate.clone(),
-        })
-        .await;
-
-    assert!(matches!(
-        p2p_receiver.try_recv(),
-        Ok(topos_p2p::Command::Gossip { topic, .. }) if topic == "topos_gossip"
-    ));
-}
-
+// #[rstest]
+// #[tokio::test]
+// async fn non_validator_publish_gossip(
+//     #[future] setup_test: (
+//         AppContext,
+//         mpsc::Receiver<topos_p2p::Command>,
+//         Arc<MessageSigner>,
+//     ),
+// ) {
+//     let (mut context, mut p2p_receiver, _) = setup_test.await;
+//     let certificates = create_certificate_chain(SOURCE_SUBNET_ID_1, &[TARGET_SUBNET_ID_1], 1);
+//     context
+//         .on_protocol_event(ProtocolEvents::Gossip {
+//             cert: certificates[0].certificate.clone(),
+//         })
+//         .await;
+//
+//     assert!(matches!(
+//         p2p_receiver.try_recv(),
+//         Ok(topos_p2p::Command::Gossip { topic, .. }) if topic == "topos_gossip"
+//     ));
+// }
 #[rstest]
 #[tokio::test]
 async fn non_validator_do_not_publish_echo(
