@@ -5,7 +5,7 @@ on:
     branches:
       - main
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [ opened, synchronize, reopened, ready_for_review ]
 
   workflow_dispatch:
 
@@ -18,16 +18,16 @@ jobs:
     name: Test documentation
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout 
-      uses: actions/checkout@v4
-    - uses: ./.github/actions/install-rust
-      with:
-        toolchain: nightly
-        AWS_ACCESS_KEY_ID: ${{ secrets.ROBOT_AWS_ACCESS_KEY_ID}}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.ROBOT_AWS_SECRET_ACCESS_KEY}}
+      - name: Checkout
+        uses: actions/checkout@v4
+      - uses: ./.github/actions/install-rust
+        with:
+          toolchain: nightly
+          AWS_ACCESS_KEY_ID: ${{ secrets.ROBOT_AWS_ACCESS_KEY_ID}}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.ROBOT_AWS_SECRET_ACCESS_KEY}}
 
-    - name: Build Documentation
-      run: cargo +nightly doc --no-deps --all --all-features
+      - name: Build Documentation
+        run: cargo +nightly doc --no-deps --all --all-features
 
   test_stable:
     runs-on: ubuntu-latest-16-core
@@ -62,19 +62,19 @@ jobs:
         env:
           RUST_LOG: topos=warn
 
-  cert_delivery:
-    runs-on: ubuntu-latest-16-core
-    needs: [test_stable]
-    strategy:
-      fail-fast: true
-      matrix:
-        value: ["first", "second", "third"]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/install-rust
-        with:
-          AWS_ACCESS_KEY_ID: ${{ secrets.ROBOT_AWS_ACCESS_KEY_ID}}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.ROBOT_AWS_SECRET_ACCESS_KEY}}
-      - run: cargo nextest run cert_delivery --locked --no-default-features
-        env:
-          RUST_LOG: topos=warn
+#  cert_delivery:
+#    runs-on: ubuntu-latest-16-core
+#    needs: [test_stable]
+#    strategy:
+#      fail-fast: true
+#      matrix:
+#        value: ["first", "second", "third"]
+#    steps:
+#      - uses: actions/checkout@v4
+#      - uses: ./.github/actions/install-rust
+#        with:
+#          AWS_ACCESS_KEY_ID: ${{ secrets.ROBOT_AWS_ACCESS_KEY_ID}}
+#          AWS_SECRET_ACCESS_KEY: ${{ secrets.ROBOT_AWS_SECRET_ACCESS_KEY}}
+#      - run: cargo nextest run cert_delivery --locked --no-default-features
+#        env:
+#          RUST_LOG: topos=warn

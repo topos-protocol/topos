@@ -8,6 +8,7 @@ use std::{
     time::Duration,
 };
 
+use libp2p::gossipsub::MessageId;
 use libp2p::swarm::{ConnectionClosed, FromSwarm};
 use libp2p::PeerId;
 use libp2p::{
@@ -43,18 +44,33 @@ impl Behaviour {
         &mut self,
         topic: &'static str,
         message: Vec<u8>,
-    ) -> Result<usize, &'static str> {
+    ) -> Result<MessageId, &'static str> {
+        debug!("Publishing {} {}", message.len(), topic);
         match topic {
             TOPOS_GOSSIP => {
                 if let Ok(msg_id) = self.gossipsub.publish(IdentTopic::new(topic), message) {
                     debug!("Published on topos_gossip: {:?}", msg_id);
+                    return Ok(msg_id);
                 }
             }
-            TOPOS_ECHO | TOPOS_READY => self.pending.entry(topic).or_default().push_back(message),
-            _ => return Err("Invalid topic"),
+            TOPOS_ECHO | TOPOS_READY => {
+                let batch = Batch {
+                    messages: vec![message],
+                };
+                if let Ok(msg_id) = self
+                    .gossipsub
+                    .publish(IdentTopic::new(topic), batch.encode_to_vec())
+                {
+                    debug!("Published on topos_gossip: {:?}", msg_id);
+                    return Ok(msg_id);
+                }
+            }
+            _ => {
+                return Err("Unknown topic");
+            }
         }
 
-        Ok(0)
+        Err("Failed to publish")
     }
 
     pub fn subscribe(&mut self) -> Result<(), P2PError> {
@@ -231,6 +247,7 @@ impl NetworkBehaviour for Behaviour {
                                 topic: TOPOS_GOSSIP,
                                 message: data,
                                 source,
+                                message_id,
                             },
                         )))
                     }
@@ -240,6 +257,7 @@ impl NetworkBehaviour for Behaviour {
                                 topic: TOPOS_ECHO,
                                 message: data,
                                 source,
+                                message_id,
                             },
                         )))
                     }
@@ -249,6 +267,7 @@ impl NetworkBehaviour for Behaviour {
                                 topic: TOPOS_READY,
                                 message: data,
                                 source,
+                                message_id,
                             },
                         )))
                     }

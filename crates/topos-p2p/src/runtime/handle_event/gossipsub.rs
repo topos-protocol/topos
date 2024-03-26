@@ -18,6 +18,7 @@ impl EventHandler<GossipEvent> for Runtime {
             source: Some(source),
             message,
             topic,
+            message_id,
         } = event
         {
             if self.event_sender.capacity() < *constants::CAPACITY_EVENT_STREAM_BUFFER {
@@ -34,6 +35,7 @@ impl EventHandler<GossipEvent> for Runtime {
                         .send(Event::Gossip {
                             from: source,
                             data: message,
+                            message_id: message_id.clone(),
                         })
                         .await
                     {
@@ -53,6 +55,7 @@ impl EventHandler<GossipEvent> for Runtime {
                                 .send(Event::Gossip {
                                     from: source,
                                     data: message,
+                                    message_id: message_id.clone(),
                                 })
                                 .await
                             {
