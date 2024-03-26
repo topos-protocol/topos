@@ -8,7 +8,7 @@ lazy_static::lazy_static! {
         std::env::var("TOPOS_PROOF_SIZE_BYTES")
             .ok()
             .and_then(|s| s.parse().ok())
-            .unwrap_or(1000);
+            .unwrap_or(1);
 
     /// Dummy proof with specified size
     static ref STARK_BLOB: Vec<u8> =
