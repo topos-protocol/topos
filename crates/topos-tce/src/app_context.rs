@@ -94,7 +94,7 @@ impl AppContext {
         mut network_stream: impl Stream<Item = NetEvent> + Unpin,
         mut tce_stream: impl Stream<Item = ProtocolEvents> + Unpin,
         mut api_stream: impl Stream<Item = ApiEvent> + Unpin,
-        mut synchronizer_stream: impl Stream<Item = SynchronizerEvent> + Unpin,
+        // mut synchronizer_stream: impl Stream<Item = SynchronizerEvent> + Unpin,
         mut broadcast_stream: impl Stream<Item = CertificateDeliveredWithPositions> + Unpin,
         shutdown: (CancellationToken, mpsc::Sender<()>),
     ) {
