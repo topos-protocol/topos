@@ -341,6 +341,7 @@ pub async fn run(
                     batch.push(new_cert);
                 }
 
+                info!("Target Node Connections: {target_node_connections:#?}");
                 // Dispatch certs in this batch
                 // Dispatch certs in this batch
                 for cert in batch {
@@ -349,12 +350,10 @@ pub async fn run(
                     //     [rand::random::<usize>() % target_nodes.len()];
 
                     for connection in &target_node_connections[&cert.source_subnet_id] {
-                        if !connection.address.is_empty() {
-                            dispatch(cert.clone(), connection)
-                                .instrument(Span::current())
-                                .with_current_context()
-                                .await;
-                        }
+                        dispatch(cert.clone(), connection)
+                            .instrument(Span::current())
+                            .with_current_context()
+                            .await;
                     }
                 }
             }
