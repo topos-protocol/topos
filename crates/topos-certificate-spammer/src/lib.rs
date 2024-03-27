@@ -329,16 +329,14 @@ pub async fn run(
                         target_subnets
                     };
 
-                    let new_cert = match generate_test_certificate(
-                        source_subnet,
-                        target_subnet_ids.as_slice(),
-                    ) {
-                        Ok(cert) => cert,
-                        Err(e) => {
-                            error!("Unable to generate certificate: {e}");
-                            continue;
-                        }
-                    };
+                    let new_cert =
+                        match generate_test_certificate(source_subnet, target_subnets.as_slice()) {
+                            Ok(cert) => cert,
+                            Err(e) => {
+                                error!("Unable to generate certificate: {e}");
+                                continue;
+                            }
+                        };
                     debug!("New cert number {b} in batch {batch_number} generated");
                     batch.push(new_cert);
                 }
