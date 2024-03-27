@@ -3,8 +3,8 @@
 <br />
 <div align="center">
 
-  <img src="./.github/assets/topos_logo.png#gh-light-mode-only" alt="Logo" width="200">
-  <img src="./.github/assets/topos_logo_dark.png#gh-dark-mode-only" alt="Logo" width="200">
+  <img src="../.github/assets/topos_logo.png#gh-light-mode-only" alt="Logo" width="200">
+  <img src="../.github/assets/topos_logo_dark.png#gh-dark-mode-only" alt="Logo" width="200">
 
   <h3 align="center">Topos Smart Contracts</h3>
 
@@ -15,15 +15,14 @@
 
 <div align="center">
 
-![analyze](https://github.com/topos-protocol/topos-smart-contracts/actions/workflows/analyze.yml/badge.svg)
-![build](https://github.com/topos-protocol/topos-smart-contracts/actions/workflows/build.yml/badge.svg)
-![docker-build](https://github.com/topos-protocol/topos-smart-contracts/actions/workflows/docker_build_push.yml/badge.svg)
-![format](https://github.com/topos-protocol/topos-smart-contracts/actions/workflows/format.yml/badge.svg)
-![lint](https://github.com/topos-protocol/topos-smart-contracts/actions/workflows/lint.yml/badge.svg)
-![sequencer-e2e](https://github.com/topos-protocol/topos-smart-contracts/actions/workflows/sequencer-e2e.yml/badge.svg)
-![test](https://github.com/topos-protocol/topos-smart-contracts/actions/workflows/test.yml/badge.svg)
-![npm](https://img.shields.io/npm/v/@topos-protocol/topos-smart-contracts.svg)
-![release](https://img.shields.io/github/v/release/topos-protocol/topos-smart-contracts)
+![analyze](https://github.com/topos-protocol/topos/actions/workflows/contract-analyze.yml/badge.svg)
+![build](https://github.com/topos-protocol/topos/actions/workflows/contract-build.yml/badge.svg)
+![docker-build](https://github.com/topos-protocol/topos/actions/workflows/contract-docker-build-push.yml/badge.svg)
+![format](https://github.com/topos-protocol/topos/actions/workflows/contract-format.yml/badge.svg)
+![lint](https://github.com/topos-protocol/topos/actions/workflows/contract-lint.yml/badge.svg)
+![test](https://github.com/topos-protocol/topos/actions/workflows/contract-test.yml/badge.svg)
+![npm](https://img.shields.io/npm/v/@topos-protocol/topos.svg) <!-- TODO: update -->
+![release](https://img.shields.io/github/v/release/topos-protocol/topos) <!-- TODO: update -->
 [![](https://dcbadge.vercel.app/api/server/7HZ8F8ykBT?style=flat)](https://discord.gg/7HZ8F8ykBT)
 
 </div>
