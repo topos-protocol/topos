@@ -1,17 +1,19 @@
 //!
 //! Application logic glue
 //!
-use crate::SequencerConfiguration;
+use crate::CertificateProducerConfiguration;
 use opentelemetry::trace::FutureExt;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
-use topos_sequencer_subnet_runtime::proxy::{SubnetRuntimeProxyCommand, SubnetRuntimeProxyEvent};
-use topos_sequencer_subnet_runtime::SubnetRuntimeProxyWorker;
+use topos_certificate_producer_subnet_runtime::proxy::{
+    SubnetRuntimeProxyCommand, SubnetRuntimeProxyEvent,
+};
+use topos_certificate_producer_subnet_runtime::SubnetRuntimeProxyWorker;
 use topos_tce_proxy::{worker::TceProxyWorker, TceProxyCommand, TceProxyEvent};
 use tracing::{debug, error, info, info_span, warn, Instrument, Span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
-/// Top-level transducer sequencer app context & driver (alike)
+/// Top-level transducer certificate producer app context & driver (alike)
 ///
 /// Implements <...Host> traits for network and Api, listens for protocol events in events
 /// (store is not active component).
@@ -20,7 +22,7 @@ use tracing_opentelemetry::OpenTelemetrySpanExt;
 /// config+data as input and runs app returning data as output
 ///
 pub struct AppContext {
-    pub config: SequencerConfiguration,
+    pub config: CertificateProducerConfiguration,
     pub subnet_runtime_proxy_worker: SubnetRuntimeProxyWorker,
     pub tce_proxy_worker: TceProxyWorker,
 }
@@ -33,7 +35,7 @@ pub enum AppContextStatus {
 impl AppContext {
     /// Factory
     pub fn new(
-        config: SequencerConfiguration,
+        config: CertificateProducerConfiguration,
         runtime_proxy_worker: SubnetRuntimeProxyWorker,
         tce_proxy_worker: TceProxyWorker,
     ) -> Self {
@@ -63,15 +65,14 @@ impl AppContext {
                     debug!("tce_proxy_worker.next_event(): {:?}", &tce_evt);
                     match tce_evt {
                         TceProxyEvent::TceServiceFailure | TceProxyEvent::WatchCertificatesChannelFailed => {
-                            // Unrecoverable failure in interaction with the TCE. Sequencer needs to be restarted
+                            // Unrecoverable failure in interaction with the TCE. Certificate Producer needs to be restarted
                             error!(
-                                "Unrecoverable failure in sequencer <-> tce interaction. Shutting down sequencer \
-                                 sequencer..."
+                                "Unrecoverable failure in Certificate Producer <-> TCE interaction. Shutting down Certificate Producer."
                             );
                             if let Err(e) = self.shutdown().await {
                                 warn!("Failed to shutdown: {e:?}");
                             }
-                            info!("Shutdown finished, restarting sequencer...");
+                            info!("Shutdown finished, restarting Certificate Producer...");
                             return AppContextStatus::Restarting;
                         },
                         _ => self.on_tce_proxy_event(tce_evt).await,
@@ -80,11 +81,11 @@ impl AppContext {
 
                 // Shutdown signal
                 _ = shutdown.0.cancelled() => {
-                    info!("Shutting down Sequencer app context...");
+                    info!("Shutting down Certificate Producer app context...");
                     if let Err(e) = self.shutdown().await {
-                        error!("Failed to shutdown the Sequencer app context: {e}");
+                        error!("Error shutting down Certificate Producer app context: {e}");
                     }
-                    // Drop the sender to notify the Sequencer termination
+                    // Drop the sender to notify the Certificate Producer termination
                     drop(shutdown.1);
                     return AppContextStatus::Finished;
                 }
@@ -100,7 +101,7 @@ impl AppContext {
                 block_number: _,
                 ctx,
             } => {
-                let span = info_span!("Sequencer app context");
+                let span = info_span!("Certificate Producer app context");
                 span.set_parent(ctx);
                 if let Err(e) = self
                     .tce_proxy_worker
@@ -123,7 +124,7 @@ impl AppContext {
 
     async fn on_tce_proxy_event(&mut self, evt: TceProxyEvent) {
         if let TceProxyEvent::NewDeliveredCerts { certificates, ctx } = evt {
-            let span = info_span!("Sequencer app context");
+            let span = info_span!("Certificate Producer app context");
             span.set_parent(ctx);
             async {
                 // New certificates acquired from TCE

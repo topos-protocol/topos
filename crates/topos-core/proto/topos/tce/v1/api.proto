@@ -88,7 +88,7 @@ message WatchCertificatesResponse {
     repeated topos.shared.v1.SubnetId subnet_ids = 1;
   }
 
-  // Target Certificate pushed from the TCE to the sequencer
+  // Target Certificate pushed from the TCE to the certificate producer
   message CertificatePushed {
     topos.uci.v1.Certificate certificate = 1;
     repeated topos.shared.v1.Positions.TargetStreamPosition positions = 2;

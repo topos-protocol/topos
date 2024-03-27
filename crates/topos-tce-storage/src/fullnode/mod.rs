@@ -185,7 +185,7 @@ impl WriteStore for FullNodeStore {
         };
 
         // Return list of new target stream positions of certificate that will be persisted
-        // Information is needed by sequencer/subnet contract to know from
+        // Information is needed by certificate producer/subnet contract to know from
         // where to continue with streaming on restart
         let mut target_subnet_stream_positions: HashMap<SubnetId, CertificateTargetStreamPosition> =
             HashMap::new();

@@ -41,7 +41,7 @@ pub enum Error {
     #[error("subnet client error: {source}")]
     SubnetError {
         #[from]
-        source: topos_sequencer_subnet_client::Error,
+        source: topos_certificate_producer_subnet_client::Error,
     },
 
     #[error("Unable to retrieve key error: {source}")]

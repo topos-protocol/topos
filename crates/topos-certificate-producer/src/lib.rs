@@ -9,8 +9,10 @@ use tokio::{
     },
 };
 use tokio_util::sync::CancellationToken;
+use topos_certificate_producer_subnet_runtime::{
+    SubnetRuntimeProxyConfig, SubnetRuntimeProxyWorker,
+};
 use topos_core::uci::{CertificateId, SubnetId};
-use topos_sequencer_subnet_runtime::{SubnetRuntimeProxyConfig, SubnetRuntimeProxyWorker};
 use topos_tce_proxy::{worker::TceProxyWorker, TceProxyConfig};
 use topos_wallet::SecretKey;
 use tracing::{debug, info, warn};
@@ -18,7 +20,7 @@ use tracing::{debug, info, warn};
 mod app_context;
 
 #[derive(Debug, Clone)]
-pub struct SequencerConfiguration {
+pub struct CertificateProducerConfiguration {
     pub subnet_id: Option<String>,
     pub public_key: Option<Vec<u8>>,
     pub subnet_jsonrpc_http: String,
@@ -31,12 +33,12 @@ pub struct SequencerConfiguration {
 }
 
 async fn launch_workers(
-    config: SequencerConfiguration,
+    config: CertificateProducerConfiguration,
     ctx_send: Sender<AppContext>,
     subnet_id: SubnetId,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let (http_endpoint, mut ws_endpoint) =
-        topos_sequencer_subnet_runtime::derive_endpoints(&config.subnet_jsonrpc_http)?;
+        topos_certificate_producer_subnet_runtime::derive_endpoints(&config.subnet_jsonrpc_http)?;
 
     if let Some(config_ws_endpoint) = config.subnet_jsonrpc_ws.as_ref() {
         // Use explicitly provided websocket subnet endpoint
@@ -72,9 +74,9 @@ async fn launch_workers(
         }
     };
 
-    // Launch Tce proxy worker for handling interaction with TCE node
-    // For initialization it will retry using backoff algorithm, but if it fails we can not proceed and we restart sequencer
-    // Once it is initialized, TCE proxy will try reconnecting in the loop (with backoff) if TCE becomes unavailable
+    // Launch Tce proxy worker for handling interaction with the TCE node
+    // For initialization it will retry using backoff algorithm, but if it fails we can not proceed and we restart the certificate producer
+    // Once it is initialized, the TCE proxy will try to reconnect in a loop (with backoff) if TCE becomes unavailable
     let (tce_proxy_worker, source_head_certificate_id) = match TceProxyWorker::new(TceProxyConfig {
         subnet_id,
         tce_endpoint: config.tce_grpc_endpoint.clone(),
@@ -127,10 +129,10 @@ async fn launch_workers(
 }
 
 pub async fn launch(
-    config: SequencerConfiguration,
+    config: CertificateProducerConfiguration,
     ctx_send: Sender<AppContext>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    debug!("Starting topos-sequencer application");
+    debug!("Starting topos-certificate-producer application");
 
     // If subnetID is specified as command line argument, use it
     let subnet_id: SubnetId = if let Some(pk) = &config.public_key {
@@ -147,15 +149,16 @@ pub async fn launch(
     // Get subnet id from the subnet node if not provided via the command line argument
     // It will retry using backoff algorithm, but if it fails (default max backoff elapsed time is 15 min) we can not proceed
     else {
-        let http_endpoint =
-            topos_sequencer_subnet_runtime::derive_endpoints(&config.subnet_jsonrpc_http)
-                .map_err(|e| {
-                    Box::new(std::io::Error::new(
-                        InvalidInput,
-                        format!("Invalid subnet endpoint: {e}"),
-                    ))
-                })?
-                .0;
+        let http_endpoint = topos_certificate_producer_subnet_runtime::derive_endpoints(
+            &config.subnet_jsonrpc_http,
+        )
+        .map_err(|e| {
+            Box::new(std::io::Error::new(
+                InvalidInput,
+                format!("Invalid subnet endpoint: {e}"),
+            ))
+        })?
+        .0;
         match SubnetRuntimeProxyWorker::get_subnet_id(
             &http_endpoint,
             config.subnet_contract_address.as_str(),
@@ -176,7 +179,7 @@ pub async fn launch(
 }
 
 pub async fn run(
-    config: SequencerConfiguration,
+    config: CertificateProducerConfiguration,
     shutdown: (CancellationToken, mpsc::Sender<()>),
 ) -> Result<ExitStatus, Box<dyn std::error::Error>> {
     loop {
@@ -202,7 +205,7 @@ pub async fn run(
 
             // Shutdown signal
             _ = shutdown.0.cancelled() => {
-                info!("Stopping Sequencer launch...");
+                info!("Stopping Certificate Producer...");
                 drop(shutdown.1);
                 launching.abort();
                 return Ok(ExitStatus::default());
@@ -212,18 +215,22 @@ pub async fn run(
         if let Some(mut app) = app_context {
             match app.run(shutdown_appcontext).await {
                 AppContextStatus::Restarting => {
-                    // We finish the loop, restarting sequencer here
-                    warn!("Restarting sequencer...");
+                    // We finish the loop, restarting the CP here
+                    warn!("Restarting Certificate Producer...");
                     tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
                 }
                 AppContextStatus::Finished => {
-                    info!("Sequencer app finished, exiting...");
+                    info!("Certificate Producer done, exiting...");
                     return Ok(ExitStatus::default());
                 }
             }
         } else {
-            warn!("Sequencer startup sequencer failed, restarting sequencer...");
-            tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+            let retry = 10;
+            warn!(
+                "Certificate Producer startup sequence failed, retrying in {}s...",
+                retry
+            );
+            tokio::time::sleep(tokio::time::Duration::from_secs(retry)).await;
         }
     }
 }

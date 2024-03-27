@@ -46,8 +46,8 @@ impl BaseConfig {
         self.subnet == "topos"
     }
 
-    pub fn need_sequencer(&self) -> bool {
-        matches!(self.role, NodeRole::Sequencer)
+    pub fn need_certificate_producer(&self) -> bool {
+        matches!(self.role, NodeRole::CertificateProducer)
     }
 
     pub fn need_edge(&self) -> bool {

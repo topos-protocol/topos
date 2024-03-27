@@ -11,7 +11,7 @@ topos-node = { path = "../topos-node/" }
 topos-config = { path = "../topos-config/" }
 topos-tce = { path = "../topos-tce/" }
 topos-p2p = { path = "../topos-p2p" }
-topos-sequencer = { path = "../topos-sequencer" }
+topos-certificate-producer = { path = "../topos-certificate-producer" }
 topos-core = { workspace = true, features = ["api"] }
 topos-certificate-spammer = { path = "../topos-certificate-spammer" }
 topos-tce-broadcast = { path = "../topos-tce-broadcast", optional = true }

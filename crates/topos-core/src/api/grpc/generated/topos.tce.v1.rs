@@ -564,7 +564,7 @@ pub mod watch_certificates_response {
             super::super::super::shared::v1::SubnetId,
         >,
     }
-    /// Target Certificate pushed from the TCE to the sequencer
+    /// Target Certificate pushed from the TCE to the certificate producer
     #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct CertificatePushed {

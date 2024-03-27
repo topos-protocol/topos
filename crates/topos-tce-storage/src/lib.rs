@@ -136,7 +136,7 @@ pub struct CertificatePositions {
 
 /// Uniquely identify the source certificate stream head of one subnet.
 /// The head represent the internal state of the TCE regarding a source subnet stream for
-/// certificates that it receives from local sequencer
+/// certificates that it receives from the local certificate producer
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SourceHead {
     /// Certificate id of the head

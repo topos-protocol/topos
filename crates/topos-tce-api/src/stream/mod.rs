@@ -165,7 +165,7 @@ impl Stream {
                                 }
                                 _ => {
                                     // We are not handling specific errors for now.
-                                    // If the sequencer is closing the connection, we are receiving a
+                                    // If the Certificate Producer is closing the connection, we are receiving a
                                     // StreamErrorKind::TransportError.
                                     error!( "Stream error: {:?}", error);
                                     return Err(StreamError::new(self.stream_id, error.kind));
