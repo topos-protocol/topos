@@ -312,31 +312,33 @@ pub async fn run(
                     let source_subnet =
                         &mut source_subnets[rand::random::<usize>() % args.nb_subnets as usize];
                     // Randomize number of target subnets if target subnet list cli argument is provided
-                    let target_subnets: Vec<SubnetId> = if target_subnet_ids.is_empty() {
-                        // Empty list of target subnets in certificate
-                        Vec::new()
-                    } else {
-                        // Generate random list in size of 0..len(target_subnet_ids) as target subnets
-                        let number_of_target_subnets =
-                            rand::random::<usize>() % (target_subnet_ids.len() + 1);
-                        let mut target_subnets = Vec::new();
-                        for _ in 0..number_of_target_subnets {
-                            target_subnets.push(
-                                target_subnet_ids
-                                    [rand::random::<usize>() % target_subnet_ids.len()],
-                            );
-                        }
-                        target_subnets
-                    };
+                    // let target_subnets: Vec<SubnetId> = if target_subnet_ids.is_empty() {
+                    //     // Empty list of target subnets in certificate
+                    //     Vec::new()
+                    // } else {
+                    //     // Generate random list in size of 0..len(target_subnet_ids) as target subnets
+                    //     let number_of_target_subnets =
+                    //         rand::random::<usize>() % (target_subnet_ids.len() + 1);
+                    //     let mut target_subnets = Vec::new();
+                    //     for _ in 0..number_of_target_subnets {
+                    //         target_subnets.push(
+                    //             target_subnet_ids
+                    //                 [rand::random::<usize>() % target_subnet_ids.len()],
+                    //         );
+                    //     }
+                    //     target_subnets
+                    // };
 
-                    let new_cert =
-                        match generate_test_certificate(source_subnet, target_subnets.as_slice()) {
-                            Ok(cert) => cert,
-                            Err(e) => {
-                                error!("Unable to generate certificate: {e}");
-                                continue;
-                            }
-                        };
+                    let new_cert = match generate_test_certificate(
+                        source_subnet,
+                        target_subnet_ids.as_slice(),
+                    ) {
+                        Ok(cert) => cert,
+                        Err(e) => {
+                            error!("Unable to generate certificate: {e}");
+                            continue;
+                        }
+                    };
                     debug!("New cert number {b} in batch {batch_number} generated");
                     batch.push(new_cert);
                 }
