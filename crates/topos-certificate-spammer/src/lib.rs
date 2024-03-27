@@ -230,12 +230,9 @@ pub async fn run(
     let mut source_subnets = generate_source_subnets(args.local_key_seed, args.nb_subnets)?;
     info!("Generated source subnets: {source_subnets:#?}");
 
-    info!("Target hosts: {:?}", args.target_hosts);
-    info!("Target subnets: {:?}", args.target_subnets);
-
     // Target subnets (randomly assigned to every generated certificate)
     let target_subnet_ids: Vec<SubnetId> = args
-        .target_hosts
+        .target_subnets
         .iter()
         .flat_map(|id| {
             id.iter().map(|id| {
