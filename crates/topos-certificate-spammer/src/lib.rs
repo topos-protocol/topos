@@ -315,22 +315,22 @@ pub async fn run(
                     let source_subnet =
                         &mut source_subnets[rand::random::<usize>() % args.nb_subnets as usize];
                     // Randomize number of target subnets if target subnet list cli argument is provided
-                    // let target_subnets: Vec<SubnetId> = if target_subnet_ids.is_empty() {
-                    //     // Empty list of target subnets in certificate
-                    //     Vec::new()
-                    // } else {
-                    //     // Generate random list in size of 0..len(target_subnet_ids) as target subnets
-                    //     let number_of_target_subnets =
-                    //         rand::random::<usize>() % (target_subnet_ids.len() + 1);
-                    //     let mut target_subnets = Vec::new();
-                    //     for _ in 0..number_of_target_subnets {
-                    //         target_subnets.push(
-                    //             target_subnet_ids
-                    //                 [rand::random::<usize>() % target_subnet_ids.len()],
-                    //         );
-                    //     }
-                    //     target_subnets
-                    // };
+                    let target_subnets: Vec<SubnetId> = if target_subnet_ids.is_empty() {
+                        // Empty list of target subnets in certificate
+                        Vec::new()
+                    } else {
+                        // Generate random list in size of 0..len(target_subnet_ids) as target subnets
+                        let number_of_target_subnets =
+                            rand::random::<usize>() % (target_subnet_ids.len() + 1);
+                        let mut target_subnets = Vec::new();
+                        for _ in 0..number_of_target_subnets {
+                            target_subnets.push(
+                                target_subnet_ids
+                                    [rand::random::<usize>() % target_subnet_ids.len()],
+                            );
+                        }
+                        target_subnets
+                    };
 
                     let new_cert = match generate_test_certificate(
                         source_subnet,
@@ -347,14 +347,20 @@ pub async fn run(
                 }
 
                 // Dispatch certs in this batch
+                // Dispatch certs in this batch
                 for cert in batch {
                     // Randomly choose target tce node for every certificate from related source_subnet_id connection list
-                    let target_node_connection = &target_node_connections[&cert.source_subnet_id]
-                        [rand::random::<usize>() % target_nodes.len()];
-                    dispatch(cert, target_node_connection)
-                        .instrument(Span::current())
-                        .with_current_context()
-                        .await;
+                    // let target_node_connection = &target_node_connections[&cert.source_subnet_id]
+                    //     [rand::random::<usize>() % target_nodes.len()];
+
+                    for connection in &target_node_connections[&cert.source_subnet_id] {
+                        if !connection.address.is_empty() {
+                            dispatch(cert.clone(), connection)
+                                .instrument(Span::current())
+                                .with_current_context()
+                                .await;
+                        }
+                    }
                 }
             }
             .instrument(span)
