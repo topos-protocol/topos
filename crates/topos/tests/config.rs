@@ -261,7 +261,7 @@ mod serial_integration {
         let node_edge_path_env = setup_polygon_edge(node_up_home_env).await;
         let node_up_name_env = "TEST_NODE_UP";
         let node_up_role_env = "full-node";
-        let node_up_subnet_env = "topos-up-env-subnet";
+        let node_up_subnet_env = "topos";
 
         let mut cmd = Command::cargo_bin("topos")?;
         cmd.arg("node")
@@ -302,32 +302,32 @@ mod serial_integration {
             .env("TOPOS_POLYGON_EDGE_BIN_PATH", &node_edge_path_env)
             .env("TOPOS_HOME", node_up_home_env)
             .env("TOPOS_NODE_NAME", node_up_name_env)
-            .arg("up");
-        let mut cmd = tokio::process::Command::from(cmd).spawn().unwrap();
-        let output = tokio::time::timeout(std::time::Duration::from_secs(10), cmd.wait()).await;
+            .env("RUST_LOG", "topos=debug")
+            .arg("up")
+            .stdout(Stdio::piped());
 
-        // Check if node up was successful
-        match output {
-            Ok(Ok(exit_status)) => {
-                if !exit_status.success() {
-                    println!("Exited with error output {:?}", exit_status.code());
-                    cmd.kill().await?;
-                    panic!("Node up failed");
-                }
-            }
-            Ok(Err(e)) => {
-                println!("Node exited with error: {e}");
-                // Kill the subprocess
-                cmd.kill().await?;
-                panic!("Node up failed");
-            }
-            Err(_) => {
-                println!("Node up is running correctly, time-outed");
-                // Kill the subprocess
-                cmd.kill().await?;
+        let cmd = tokio::process::Command::from(cmd).spawn().unwrap();
+        let pid = cmd.id().unwrap();
+        let _ = tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+
+        let s = System::new_all();
+        if let Some(process) = s.process(Pid::from_u32(pid)) {
+            if process.kill_with(Signal::Term).is_none() {
+                eprintln!("This signal isn't supported on this platform");
             }
         }
 
+        if let Ok(output) = cmd.wait_with_output().await {
+            assert!(output.status.success());
+            let stdout = output.stdout;
+            let stdout = String::from_utf8_lossy(&stdout);
+
+            let reg =
+                Regex::new(r#"Local node is listening on "\/ip4\/.*\/tcp\/9090\/p2p\/"#).unwrap();
+            assert!(reg.is_match(&stdout));
+        } else {
+            panic!("Failed to shutdown gracefully");
+        }
         // Cleanup
         std::fs::remove_dir_all(node_up_home_env)?;
 

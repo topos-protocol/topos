@@ -1,4 +1,4 @@
-use std::{str::FromStr, sync::Arc};
+use std::sync::Arc;
 
 use rstest::rstest;
 use tokio::{
@@ -12,6 +12,7 @@ use topos_tce_storage::validator::ValidatorStore;
 use topos_test_sdk::{
     certificates::create_certificate_chain,
     constants::{SOURCE_SUBNET_ID_1, TARGET_SUBNET_ID_1},
+    crypto::message_signer,
     storage::create_validator_store,
 };
 
@@ -19,8 +20,12 @@ use crate::{sampler::SubscriptionsView, task_manager::TaskManager};
 
 #[rstest]
 #[tokio::test]
-async fn can_start(#[future] create_validator_store: Arc<ValidatorStore>) {
-    let validator_store = create_validator_store.await;
+async fn can_start(
+    #[future(awt)]
+    #[from(create_validator_store)]
+    validator_store: Arc<ValidatorStore>,
+    message_signer: Arc<MessageSigner>,
+) {
     let (message_sender, message_receiver) = mpsc::channel(1);
     let (event_sender, _) = mpsc::channel(1);
     let (broadcast_sender, _) = broadcast::channel(1);
@@ -31,11 +36,6 @@ async fn can_start(#[future] create_validator_store: Arc<ValidatorStore>) {
         ready_threshold: 1,
         delivery_threshold: 1,
     };
-
-    let message_signer = Arc::new(
-        MessageSigner::from_str("122f3ae6ade1fd136b292cea4f6243c7811160352c8821528547a1fe7c459daf")
-            .unwrap(),
-    );
 
     let manager = TaskManager::new(
         message_receiver,
@@ -65,6 +65,7 @@ async fn can_start(#[future] create_validator_store: Arc<ValidatorStore>) {
         .send(crate::DoubleEchoCommand::Broadcast {
             need_gossip: false,
             cert: child.certificate.clone(),
+            pending_id: 0,
         })
         .await;
 
@@ -72,6 +73,7 @@ async fn can_start(#[future] create_validator_store: Arc<ValidatorStore>) {
         .send(crate::DoubleEchoCommand::Broadcast {
             need_gossip: false,
             cert: parent.certificate.clone(),
+            pending_id: 0,
         })
         .await;
 
@@ -79,6 +81,7 @@ async fn can_start(#[future] create_validator_store: Arc<ValidatorStore>) {
         .send(crate::DoubleEchoCommand::Broadcast {
             need_gossip: false,
             cert: parent.certificate.clone(),
+            pending_id: 0,
         })
         .await;
 

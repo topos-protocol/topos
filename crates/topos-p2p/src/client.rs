@@ -4,7 +4,7 @@ use tokio::sync::{
     mpsc::{self, error::SendError},
     oneshot,
 };
-use tonic::transport::NamedService;
+use tonic::server::NamedService;
 use topos_core::api::grpc::GrpcClient;
 
 use crate::{
@@ -37,13 +37,6 @@ impl NetworkClient {
             receiver,
         )
         .await
-    }
-
-    pub async fn disconnect(&self) -> Result<(), P2PError> {
-        let (sender, receiver) = oneshot::channel();
-        let command = Command::Disconnect { sender };
-
-        Self::send_command_with_receiver(&self.sender, command, receiver).await
     }
 
     pub fn publish<T: std::fmt::Debug + prost::Message + 'static>(

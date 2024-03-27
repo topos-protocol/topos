@@ -11,8 +11,8 @@ use topos_tce_storage::{
 
 use crate::folder_name;
 
-#[fixture(certificates = Vec::new())]
-pub async fn storage_client(certificates: Vec<CertificateDelivered>) -> StorageClient {
+#[fixture(certificates = &[])]
+pub async fn storage_client(certificates: &[CertificateDelivered]) -> StorageClient {
     let store = create_validator_store::partial_1(certificates).await;
 
     StorageClient::new(store)
@@ -27,9 +27,9 @@ pub fn create_folder(folder_name: &str) -> PathBuf {
     path
 }
 
-#[fixture(certificates = Vec::new())]
+#[fixture(certificates = &[])]
 pub async fn create_validator_store(
-    certificates: Vec<CertificateDelivered>,
+    certificates: &[CertificateDelivered],
     #[future] create_fullnode_store: Arc<FullNodeStore>,
 ) -> Arc<ValidatorStore> {
     let temp_dir = create_folder::default();
@@ -39,7 +39,7 @@ pub async fn create_validator_store(
         ValidatorStore::open(&temp_dir, fullnode_store).expect("Unable to create validator store");
 
     store
-        .insert_certificates_delivered(&certificates)
+        .insert_certificates_delivered(certificates)
         .await
         .expect("Unable to insert predefined certificates");
 
@@ -53,8 +53,8 @@ pub async fn create_validator_store_with_fullnode(
         .expect("Unable to create validator store")
 }
 
-#[fixture(certificates = Vec::new())]
-pub async fn create_fullnode_store(certificates: Vec<CertificateDelivered>) -> Arc<FullNodeStore> {
+#[fixture(certificates = &[])]
+pub async fn create_fullnode_store(certificates: &[CertificateDelivered]) -> Arc<FullNodeStore> {
     let temp_dir = create_folder::default();
 
     let perpetual_tables = Arc::new(ValidatorPerpetualTables::open(&temp_dir));
@@ -75,7 +75,7 @@ pub async fn create_fullnode_store(certificates: Vec<CertificateDelivered>) -> A
     .expect("Unable to create full node store");
 
     store
-        .insert_certificates_delivered(&certificates[..])
+        .insert_certificates_delivered(certificates)
         .await
         .unwrap();
 

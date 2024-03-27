@@ -1,6 +1,7 @@
 pub mod certificates;
 
 pub mod certificate_producer;
+pub mod crypto;
 pub mod networking;
 pub mod p2p;
 pub mod storage;

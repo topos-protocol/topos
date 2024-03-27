@@ -3,6 +3,7 @@ use std::future::IntoFuture;
 use std::sync::Arc;
 use tokio::{spawn, task::JoinHandle};
 use tokio_util::sync::CancellationToken;
+use tracing::Instrument;
 
 use topos_p2p::NetworkClient;
 use topos_tce_gatekeeper::GatekeeperClient;
@@ -27,7 +28,7 @@ pub async fn create_synchronizer(
             .build()
             .expect("Can't create the Synchronizer");
 
-    let synchronizer_join_handle = spawn(synchronizer_runtime.into_future());
+    let synchronizer_join_handle = spawn(synchronizer_runtime.into_future().in_current_span());
 
     (synchronizer_stream, synchronizer_join_handle)
 }

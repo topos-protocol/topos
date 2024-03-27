@@ -39,6 +39,7 @@ opentelemetry.workspace = true
 base64ct.workspace = true
 
 [dev-dependencies]
+libp2p.workspace = true
 topos-tce = { path = "../topos-tce" }
 rstest = { workspace = true, features = ["async-timeout"] }
 test-log.workspace = true

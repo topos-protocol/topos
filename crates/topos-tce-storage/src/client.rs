@@ -35,7 +35,7 @@ impl StorageClient {
     pub async fn get_pending_certificates(
         &self,
     ) -> Result<Vec<(PendingCertificateId, Certificate)>, StorageError> {
-        self.store.get_pending_certificates()
+        Ok(self.store.iter_pending_pool()?.collect())
     }
 
     pub async fn fetch_certificates(

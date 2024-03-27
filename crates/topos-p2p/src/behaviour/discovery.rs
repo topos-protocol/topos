@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::pin::Pin;
 use std::task::Poll;
+use std::time::Duration;
 
 use crate::error::P2PError;
 use crate::{config::DiscoveryConfig, error::CommandExecutionError};
@@ -18,6 +19,8 @@ use libp2p::{
 use tokio::sync::oneshot;
 use tracing::{debug, error, info};
 
+use super::HealthStatus;
+
 pub type PendingRecordRequest = oneshot::Sender<Result<Vec<Multiaddr>, CommandExecutionError>>;
 
 /// DiscoveryBehaviour is responsible to discover and manage connections with peers
@@ -29,6 +32,8 @@ pub(crate) struct DiscoveryBehaviour {
     pub(crate) current_bootstrap_query_id: Option<QueryId>,
     /// The next bootstrap query interval used to schedule the next bootstrap query
     pub(crate) next_bootstrap_query: Option<Pin<Box<tokio::time::Interval>>>,
+    /// The health status of the discovery behaviour
+    pub(crate) health_status: HealthStatus,
 }
 
 impl DiscoveryBehaviour {
@@ -69,7 +74,22 @@ impl DiscoveryBehaviour {
         Self {
             inner: kademlia,
             current_bootstrap_query_id: None,
-            next_bootstrap_query: Some(Box::pin(tokio::time::interval(config.bootstrap_interval))),
+            // If the `discovery` behaviour is created without known_peers
+            // The bootstrap query interval is disabled only when the local
+            // node is a lonely bootnode, other nodes will join it.
+            next_bootstrap_query: if known_peers.is_empty() {
+                None
+            } else {
+                let mut interval = tokio::time::interval(config.bootstrap_interval);
+                interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+
+                Some(Box::pin(interval))
+            },
+            health_status: if known_peers.is_empty() {
+                HealthStatus::Healthy
+            } else {
+                HealthStatus::Initializing
+            },
         }
     }
 
@@ -79,33 +99,26 @@ impl DiscoveryBehaviour {
     /// Then multiple random PeerId are created in order to randomly walk the network.
     pub fn bootstrap(&mut self) -> Result<(), P2PError> {
         if self.current_bootstrap_query_id.is_none() {
-            match self.inner.bootstrap() {
-                Ok(query_id) => {
-                    info!("Started kademlia bootstrap with query_id: {query_id:?}");
-                    self.current_bootstrap_query_id = Some(query_id);
-                }
-                Err(error) => {
-                    error!("Unable to start kademlia bootstrap: {error:?}");
-                    return Err(P2PError::BootstrapError(
-                        "Unable to start kademlia bootstrap",
-                    ));
-                }
-            }
+            let query_id = self.inner.bootstrap()?;
+            debug!("Started kademlia bootstrap query with query_id: {query_id:?}");
+            self.current_bootstrap_query_id = Some(query_id);
         }
 
         Ok(())
     }
 
-    pub fn get_addresses_of_peer(&mut self, peer_id: &PeerId) -> Vec<Multiaddr> {
-        if let Some(key_ref) = self.inner.kbucket(*peer_id) {
-            key_ref
-                .iter()
-                .filter(|e| e.node.key.preimage() == peer_id)
-                .map(|e| e.node.value.first().clone())
-                .collect()
-        } else {
-            Vec::new()
+    /// Change the interval of the next bootstrap queries
+    pub async fn change_interval(&mut self, duration: Duration) -> Result<(), P2PError> {
+        if let Some(interval) = self.next_bootstrap_query.as_mut() {
+            let mut new_interval = tokio::time::interval(duration);
+            // Delay the next tick
+            new_interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+            // ignore first tick
+            _ = new_interval.tick().await;
+            interval.set(new_interval);
         }
+
+        Ok(())
     }
 }
 
@@ -140,7 +153,7 @@ impl NetworkBehaviour for DiscoveryBehaviour {
             .handle_established_outbound_connection(connection_id, peer, addr, role_override)
     }
 
-    fn on_swarm_event(&mut self, event: libp2p::swarm::FromSwarm<Self::ConnectionHandler>) {
+    fn on_swarm_event(&mut self, event: libp2p::swarm::FromSwarm) {
         self.inner.on_swarm_event(event)
     }
 
@@ -157,7 +170,6 @@ impl NetworkBehaviour for DiscoveryBehaviour {
     fn poll(
         &mut self,
         cx: &mut std::task::Context<'_>,
-        params: &mut impl libp2p::swarm::PollParameters,
     ) -> Poll<libp2p::swarm::ToSwarm<Self::ToSwarm, libp2p::swarm::THandlerInEvent<Self>>> {
         // Poll the kademlia bootstrap interval future in order to define if we need to call the
         // `bootstrap`
@@ -169,7 +181,7 @@ impl NetworkBehaviour for DiscoveryBehaviour {
             }
         }
 
-        if let Poll::Ready(event) = self.inner.poll(cx, params) {
+        if let Poll::Ready(event) = self.inner.poll(cx) {
             match event {
                 // When a Bootstrap query ends, we reset the `query_id`
                 ToSwarm::GenerateEvent(KademliaEvent::OutboundQueryProgressed {

@@ -1,7 +1,8 @@
 use std::io;
 
 use libp2p::{
-    noise::Error as NoiseError, request_response::OutboundFailure, PeerId, TransportError,
+    gossipsub::SubscriptionError, kad::NoKnownPeers, noise::Error as NoiseError,
+    request_response::OutboundFailure, TransportError,
 };
 use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
@@ -10,22 +11,23 @@ use crate::{behaviour::grpc::error::OutboundConnectionError, command::Command};
 
 #[derive(Error, Debug)]
 pub enum P2PError {
-    #[error("Can't dial on self")]
-    CantDialSelf,
-    #[error("Already dialed {0}")]
-    AlreadyDialed(PeerId),
-    #[error("Already disconnected")]
-    AlreadyDisconnected,
-    #[error("Error during dialling")]
-    DialError,
     #[error("Unable build a network: peer_key missing")]
     MissingPeerKey,
+
+    #[error("Unable to reach any bootnode")]
+    UnableToReachBootnode,
+
+    #[error("The handle on the runtime failed")]
+    JoinHandleFailure,
 
     #[error(transparent)]
     CommandError(#[from] CommandExecutionError),
 
     #[error("An error occurred on the Transport layer: {0}")]
     TransportError(#[from] TransportError<io::Error>),
+
+    #[error("An error occured trying to subscribe to gossip topic: {0}")]
+    SubscriptionError(#[from] SubscriptionError),
 
     #[error("Unable to receive expected response of a oneshot channel")]
     OneshotReceiveError(#[from] oneshot::error::RecvError),
@@ -36,14 +38,17 @@ pub enum P2PError {
     #[error("Error during bootstrap phase: {0}")]
     BootstrapError(&'static str),
 
+    #[error("Kademlia bootstrap query error: {0}")]
+    KademliaBootstrapError(#[from] NoKnownPeers),
+
     #[error("Unable to execute shutdown on the p2p runtime: {0}")]
     ShutdownCommunication(mpsc::error::SendError<oneshot::Sender<()>>),
 
     #[error("Unable to create gRPC client")]
     UnableToCreateGrpcClient(#[from] OutboundConnectionError),
 
-    #[error("Public addresses is empty")]
-    MissingPublicAddresses,
+    #[error("Gossip topics subscription failed")]
+    GossipTopicSubscriptionFailure,
 }
 
 #[derive(Error, Debug)]

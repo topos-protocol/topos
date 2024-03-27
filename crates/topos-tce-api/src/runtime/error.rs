@@ -16,4 +16,7 @@ pub enum RuntimeError {
 
     #[error("Unexpected store error: {0}")]
     Store(#[from] StorageError),
+
+    #[error("Communication error: {0}")]
+    CommunicationError(String),
 }

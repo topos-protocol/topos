@@ -16,6 +16,7 @@ use tonic::transport::Channel;
 use tonic::Request;
 use tonic::Response;
 use tonic::Status;
+use tracing::Instrument;
 
 use tonic::transport::server::Router;
 use tonic::transport::Server;
@@ -43,6 +44,7 @@ use self::p2p::{bootstrap_network, create_network_worker};
 use self::protocol::{create_reliable_broadcast_client, create_reliable_broadcast_params};
 use self::public_api::create_public_api;
 use self::synchronizer::create_synchronizer;
+use crate::crypto::message_signer;
 use crate::p2p::local_peer;
 use crate::storage::create_fullnode_store;
 use crate::storage::create_validator_store;
@@ -61,7 +63,7 @@ pub struct TceContext {
     pub api_entrypoint: String,
     pub api_grpc_client: ApiServiceClient<Channel>, // GRPC Client for this peer (tce node)
     pub console_grpc_client: ConsoleServiceClient<Channel>, // Console TCE GRPC Client for this peer (tce node)
-    pub runtime_join_handle: JoinHandle<Result<(), ()>>,
+    pub runtime_join_handle: JoinHandle<Result<(), P2PError>>,
     pub app_join_handle: JoinHandle<()>,
     pub gatekeeper_join_handle: JoinHandle<Result<(), topos_tce_gatekeeper::GatekeeperError>>,
     pub synchronizer_join_handle: JoinHandle<Result<(), topos_tce_synchronizer::SynchronizerError>>,
@@ -94,10 +96,10 @@ impl TceContext {
 #[derive(Debug, Clone)]
 pub struct NodeConfig {
     pub seed: u8,
-    pub port: u16,
     pub keypair: Keypair,
     pub addr: Multiaddr,
     pub minimum_cluster_size: usize,
+    pub dummy: bool,
 }
 
 impl Default for NodeConfig {
@@ -107,15 +109,34 @@ impl Default for NodeConfig {
 }
 
 impl NodeConfig {
-    pub fn from_seed(seed: u8) -> Self {
-        let (keypair, port, addr) = local_peer(seed);
+    pub fn standalone() -> Self {
+        Self {
+            dummy: true,
+            ..Default::default()
+        }
+    }
+
+    pub fn memory(seed: u8) -> Self {
+        let (keypair, addr) = local_peer(seed, true);
 
         Self {
             seed,
-            port,
             keypair,
             addr,
             minimum_cluster_size: 0,
+            dummy: false,
+        }
+    }
+
+    pub fn from_seed(seed: u8) -> Self {
+        let (keypair, addr) = local_peer(seed, false);
+
+        Self {
+            seed,
+            keypair,
+            addr,
+            minimum_cluster_size: 0,
+            dummy: false,
         }
     }
 
@@ -131,17 +152,17 @@ impl NodeConfig {
         (
             NetworkClient,
             impl Stream<Item = Event> + Unpin + Send,
-            JoinHandle<Result<(), ()>>,
+            JoinHandle<Result<(), P2PError>>,
         ),
         Box<dyn Error>,
     > {
         bootstrap_network(
             self.seed,
-            self.port,
             self.addr.clone(),
             peers,
             self.minimum_cluster_size,
             router,
+            self.dummy,
         )
         .await
     }
@@ -153,7 +174,6 @@ impl NodeConfig {
     ) -> Result<(NetworkClient, impl Stream<Item = Event>, Runtime), P2PError> {
         create_network_worker(
             self.seed,
-            self.port,
             vec![self.addr.clone()],
             peers,
             self.minimum_cluster_size,
@@ -161,10 +181,6 @@ impl NodeConfig {
         )
         .await
     }
-}
-
-fn default_message_signer() -> Arc<MessageSigner> {
-    Arc::new(MessageSigner::new(&[5u8; 32]).unwrap())
 }
 
 #[derive(Clone)]
@@ -193,13 +209,13 @@ pub fn create_dummy_router() -> Router {
 
 #[fixture(
     config = NodeConfig::default(),
-    peers = &[], certificates = Vec::new(),
+    peers = &[],
+    certificates = &[],
     validator_id = ValidatorId::default(),
-    validators = HashSet::default(),
-    message_signer = default_message_signer())
-]
+    validators = HashSet::default()
+)]
 pub async fn start_node(
-    certificates: Vec<CertificateDelivered>,
+    certificates: &[CertificateDelivered],
     config: NodeConfig,
     peers: &[NodeConfig],
     validator_id: ValidatorId,
@@ -208,9 +224,11 @@ pub async fn start_node(
 ) -> TceContext {
     let is_validator = validators.contains(&validator_id);
     let peer_id = config.keypair.public().to_peer_id();
-    let fullnode_store = create_fullnode_store(vec![]).await;
+    let fullnode_store = create_fullnode_store(&[]).in_current_span().await;
     let validator_store =
-        create_validator_store(certificates, futures::future::ready(fullnode_store.clone())).await;
+        create_validator_store(certificates, futures::future::ready(fullnode_store.clone()))
+            .in_current_span()
+            .await;
 
     let router = GrpcRouter::new(tonic::transport::Server::builder()).add_service(
         SynchronizerServiceServer::new(SynchronizerService {
@@ -220,12 +238,13 @@ pub async fn start_node(
 
     let (network_client, network_stream, runtime_join_handle) = bootstrap_network(
         config.seed,
-        config.port,
         config.addr.clone(),
         peers,
         config.minimum_cluster_size,
         Some(router),
+        config.dummy,
     )
+    .in_current_span()
     .await
     .expect("Unable to bootstrap tce network");
 
@@ -239,6 +258,7 @@ pub async fn start_node(
         validator_store.clone(),
         sender,
     )
+    .in_current_span()
     .await;
 
     let api_storage_client = storage_client.clone();
@@ -248,6 +268,7 @@ pub async fn start_node(
         receiver.resubscribe(),
         futures::future::ready(validator_store.clone()),
     )
+    .in_current_span()
     .await;
 
     let (gatekeeper_client, gatekeeper_join_handle) = create_gatekeeper().await.unwrap();
@@ -257,6 +278,7 @@ pub async fn start_node(
         network_client.clone(),
         validator_store.clone(),
     )
+    .in_current_span()
     .await;
 
     let (app, event_stream) = AppContext::new(
@@ -275,14 +297,17 @@ pub async fn start_node(
 
     let (shutdown_sender, shutdown_receiver) = mpsc::channel(1);
 
-    let app_join_handle = spawn(app.run(
-        network_stream,
-        tce_stream,
-        api_stream,
-        synchronizer_stream,
-        BroadcastStream::new(receiver).filter_map(|v| futures::future::ready(v.ok())),
-        (shutdown_token, shutdown_sender),
-    ));
+    let app_join_handle = spawn(
+        app.run(
+            network_stream,
+            tce_stream,
+            api_stream,
+            synchronizer_stream,
+            BroadcastStream::new(receiver).filter_map(|v| futures::future::ready(v.ok())),
+            (shutdown_token, shutdown_sender),
+        )
+        .in_current_span(),
+    );
 
     TceContext {
         node_config: config,
@@ -312,11 +337,10 @@ fn build_peer_config_pool(peer_number: u8) -> Vec<NodeConfig> {
 
 pub async fn start_pool(
     peer_number: u8,
-    certificates: Vec<CertificateDelivered>,
+    certificates: &[CertificateDelivered],
 ) -> HashMap<PeerId, TceContext> {
     let mut clients = HashMap::new();
     let peers = build_peer_config_pool(peer_number);
-    println!("Peer configs: {:?}", peers);
 
     let mut validators = Vec::new();
     let mut message_signers = Vec::new();
@@ -335,13 +359,16 @@ pub async fn start_pool(
         let validator_id = validators[i];
         let signer = message_signers[i].clone();
         let config_cloned = config.clone();
-        let certificates_cloned = certificates.clone();
         let peers_cloned = peers.clone();
         let validators_cloned = validators.clone();
 
+        let context = tracing::info_span!(
+            "start_node",
+            "peer_id" = config_cloned.peer_id().to_string()
+        );
         let fut = async move {
             let client = start_node(
-                certificates_cloned,
+                certificates,
                 config_cloned,
                 &peers_cloned,
                 validator_id,
@@ -350,6 +377,7 @@ pub async fn start_pool(
                     .collect::<HashSet<ValidatorId>>(),
                 signer,
             )
+            .instrument(context)
             .await;
 
             (client.peer_id, client)
@@ -364,9 +392,13 @@ pub async fn start_pool(
     clients
 }
 
+#[fixture(
+    peer_number = 2,
+    certificates = &[]
+)]
 pub async fn create_network(
     peer_number: usize,
-    certificates: Vec<CertificateDelivered>,
+    certificates: &[CertificateDelivered],
 ) -> HashMap<PeerId, TceContext> {
     // List of peers (tce nodes) with their context
     let mut peers_context = start_pool(peer_number as u8, certificates).await;

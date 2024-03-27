@@ -16,6 +16,7 @@ use topos_tce_storage::validator::ValidatorStore;
 use topos_test_sdk::constants::*;
 use topos_test_sdk::storage::create_validator_store;
 
+mod task;
 mod task_manager;
 
 const CHANNEL_SIZE: usize = 10;
@@ -58,7 +59,7 @@ struct Context {
 }
 
 async fn create_context(params: TceParams) -> (DoubleEcho, Context) {
-    let validator_store = create_validator_store::partial_1(vec![]).await;
+    let validator_store = create_validator_store::default().await;
     let (_cmd_sender, cmd_receiver) = mpsc::channel(CHANNEL_SIZE);
     let (event_sender, event_receiver) = mpsc::channel(CHANNEL_SIZE);
     let (_double_echo_shutdown_sender, double_echo_shutdown_receiver) =
@@ -189,6 +190,7 @@ async fn trigger_success_path_upon_reaching_threshold(#[case] params: TceParams)
     _ = ctx
         .validator_store
         .insert_pending_certificate(&dummy_cert)
+        .await
         .unwrap();
 
     assert!(matches!(
@@ -243,6 +245,7 @@ async fn trigger_ready_when_reached_enough_ready(#[case] params: TceParams) {
     _ = ctx
         .validator_store
         .insert_pending_certificate(&dummy_cert)
+        .await
         .unwrap();
 
     assert!(matches!(

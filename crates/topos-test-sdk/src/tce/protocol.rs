@@ -9,6 +9,7 @@ use topos_tce_broadcast::event::ProtocolEvents;
 use topos_tce_broadcast::{ReliableBroadcastClient, ReliableBroadcastConfig};
 use topos_tce_storage::types::CertificateDeliveredWithPositions;
 use topos_tce_storage::validator::ValidatorStore;
+use tracing::Instrument;
 
 pub async fn create_reliable_broadcast_client(
     validator_id: ValidatorId,
@@ -28,7 +29,9 @@ pub async fn create_reliable_broadcast_client(
         message_signer,
     };
 
-    ReliableBroadcastClient::new(config, storage, sender).await
+    ReliableBroadcastClient::new(config, storage, sender)
+        .in_current_span()
+        .await
 }
 
 pub fn create_reliable_broadcast_params(number_of_nodes: usize) -> ReliableBroadcastParams {

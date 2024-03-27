@@ -1,6 +1,8 @@
 use super::{Behaviour, Event, NetworkClient, Runtime};
 use crate::{
-    behaviour::{discovery::DiscoveryBehaviour, gossip, grpc, peer_info::PeerInfoBehaviour},
+    behaviour::{
+        discovery::DiscoveryBehaviour, gossip, grpc, peer_info::PeerInfoBehaviour, HealthStatus,
+    },
     config::{DiscoveryConfig, NetworkConfig},
     constants::{
         self, COMMAND_STREAM_BUFFER_SIZE, DISCOVERY_PROTOCOL, EVENT_STREAM_BUFFER,
@@ -12,7 +14,13 @@ use crate::{
 };
 use futures::Stream;
 use libp2p::{
-    core::upgrade, dns, identity::Keypair, kad::store::MemoryStore, noise, swarm, tcp::Config,
+    core::{transport::MemoryTransport, upgrade},
+    dns,
+    identity::Keypair,
+    kad::store::MemoryStore,
+    noise,
+    swarm::{self, ConnectionId},
+    tcp::Config,
     Multiaddr, PeerId, Swarm, Transport,
 };
 use std::{
@@ -22,6 +30,7 @@ use std::{
 };
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
+use tracing::debug;
 
 pub fn builder<'a>() -> NetworkBuilder<'a> {
     NetworkBuilder::default()
@@ -40,9 +49,16 @@ pub struct NetworkBuilder<'a> {
     local_port: Option<u8>,
     config: NetworkConfig,
     grpc_context: GrpcContext,
+    memory_transport: bool,
 }
 
 impl<'a> NetworkBuilder<'a> {
+    #[cfg(test)]
+    pub(crate) fn memory(mut self) -> Self {
+        self.memory_transport = true;
+
+        self
+    }
     pub fn grpc_context(mut self, grpc_context: GrpcContext) -> Self {
         self.grpc_context = grpc_context;
 
@@ -75,6 +91,13 @@ impl<'a> NetworkBuilder<'a> {
 
     pub fn listen_addresses<M: Into<Vec<Multiaddr>>>(mut self, addresses: M) -> Self {
         self.listen_addresses = Some(addresses.into());
+
+        self
+    }
+
+    #[doc(hidden)]
+    pub fn allow_private_ip(mut self, allow_private_ip: bool) -> Self {
+        self.config.allow_private_ip = allow_private_ip;
 
         self
     }
@@ -116,6 +139,7 @@ impl<'a> NetworkBuilder<'a> {
 
         let grpc = grpc::Behaviour::new(self.grpc_context);
 
+        debug!("Known peers: {:?}", self.known_peers);
         let behaviour = Behaviour {
             gossipsub,
             peer_info: PeerInfoBehaviour::new(PEER_INFO_PROTOCOL, &peer_key),
@@ -133,24 +157,28 @@ impl<'a> NetworkBuilder<'a> {
             grpc,
         };
 
-        let transport = {
+        let multiplex_config = libp2p::yamux::Config::default();
+
+        let transport = if self.memory_transport {
+            MemoryTransport::new()
+                .upgrade(upgrade::Version::V1)
+                .authenticate(noise::Config::new(&peer_key)?)
+                .multiplex(multiplex_config)
+                .timeout(TWO_HOURS)
+                .boxed()
+        } else {
             let tcp = libp2p::tcp::tokio::Transport::new(Config::default().nodelay(true));
             let dns_tcp = dns::tokio::Transport::system(tcp).unwrap();
 
             let tcp = libp2p::tcp::tokio::Transport::new(Config::default().nodelay(true));
-            dns_tcp.or_transport(tcp)
+            dns_tcp
+                .or_transport(tcp)
+                .upgrade(upgrade::Version::V1)
+                .authenticate(noise::Config::new(&peer_key)?)
+                .multiplex(multiplex_config)
+                .timeout(TWO_HOURS)
+                .boxed()
         };
-
-        let mut multiplex_config = libp2p::yamux::Config::default();
-        multiplex_config.set_window_update_mode(libp2p::yamux::WindowUpdateMode::on_read());
-        multiplex_config.set_max_buffer_size(1024 * 1024 * 16);
-
-        let transport = transport
-            .upgrade(upgrade::Version::V1)
-            .authenticate(noise::Config::new(&peer_key)?)
-            .multiplex(multiplex_config)
-            .timeout(TWO_HOURS)
-            .boxed();
 
         let swarm = Swarm::new(
             transport,
@@ -193,6 +221,7 @@ impl<'a> NetworkBuilder<'a> {
                 swarm,
                 config: self.config,
                 peer_set: self.known_peers.iter().map(|(p, _)| *p).collect(),
+                boot_peers: self.known_peers.iter().map(|(p, _)| *p).collect(),
                 command_receiver,
                 event_sender,
                 local_peer_id: peer_id,
@@ -201,6 +230,17 @@ impl<'a> NetworkBuilder<'a> {
                 active_listeners: HashSet::new(),
                 pending_record_requests: HashMap::new(),
                 shutdown,
+                health_state: crate::runtime::HealthState {
+                    bootnode_connection_retries: 3,
+                    successfully_connected_to_bootnode: if self.known_peers.is_empty() {
+                        // Node seems to be a boot node
+                        Some(ConnectionId::new_unchecked(0))
+                    } else {
+                        None
+                    },
+                    ..Default::default()
+                },
+                health_status: HealthStatus::Initializing,
             },
         ))
     }

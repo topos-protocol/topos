@@ -4,6 +4,7 @@ use topos_core::uci::{Certificate, SubnetId};
 use topos_metrics::CERTIFICATE_DELIVERY_LATENCY;
 use topos_tce_api::RuntimeError;
 use topos_tce_api::RuntimeEvent as ApiEvent;
+use topos_tce_broadcast::DoubleEchoCommand;
 use topos_tce_storage::errors::{InternalStorageError, StorageError};
 use topos_tce_storage::types::PendingResult;
 use tracing::debug;
@@ -22,14 +23,40 @@ impl AppContext {
                 _ = match self
                     .validator_store
                     .insert_pending_certificate(&certificate)
+                    .await
                 {
                     Ok(Some(pending_id)) => {
+                        let certificate_id = certificate.id;
                         debug!(
                             "Certificate {} from subnet {} has been inserted into pending pool",
-                            certificate.id, certificate.source_subnet_id
+                            certificate_id, certificate.source_subnet_id
                         );
 
-                        sender.send(Ok(PendingResult::InPending(pending_id)))
+                        if self
+                            .tce_cli
+                            .get_double_echo_channel()
+                            .send(DoubleEchoCommand::Broadcast {
+                                need_gossip: true,
+                                cert: *certificate,
+                                pending_id,
+                            })
+                            .await
+                            .is_err()
+                        {
+                            error!(
+                                "Unable to send DoubleEchoCommand::Broadcast command to double \
+                                 echo for {}",
+                                certificate_id
+                            );
+
+                            sender.send(Err(RuntimeError::CommunicationError(
+                                "Unable to send DoubleEchoCommand::Broadcast command to double \
+                                 echo"
+                                    .to_string(),
+                            )))
+                        } else {
+                            sender.send(Ok(PendingResult::InPending(pending_id)))
+                        }
                     }
                     Ok(None) => {
                         debug!(

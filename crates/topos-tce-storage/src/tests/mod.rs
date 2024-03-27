@@ -33,12 +33,12 @@ const TARGET_STORAGE_SUBNET_ID_1: SubnetId = TARGET_SUBNET_ID_1;
 const TARGET_STORAGE_SUBNET_ID_2: SubnetId = TARGET_SUBNET_ID_2;
 
 #[rstest]
-#[test]
-fn can_persist_a_pending_certificate(store: Arc<ValidatorStore>) {
+#[tokio::test]
+async fn can_persist_a_pending_certificate(store: Arc<ValidatorStore>) {
     let certificate =
         Certificate::new_with_default_fields(PREV_CERTIFICATE_ID, SOURCE_SUBNET_ID_1, &[]).unwrap();
 
-    assert!(store.insert_pending_certificate(&certificate).is_ok());
+    assert!(store.insert_pending_certificate(&certificate).await.is_ok());
 }
 
 #[rstest]
@@ -285,6 +285,7 @@ async fn pending_certificate_are_removed_during_persist_action(store: Arc<Valida
     let certificate_id = certificate.id;
     let pending_id = store
         .insert_pending_certificate(&certificate)
+        .await
         .unwrap()
         .unwrap();
 
@@ -452,6 +453,7 @@ async fn pending_certificate_can_be_removed(store: Arc<ValidatorStore>) {
 
     let pending_id = store
         .insert_pending_certificate(&certificate)
+        .await
         .unwrap()
         .unwrap();
 
@@ -462,11 +464,12 @@ async fn pending_certificate_can_be_removed(store: Arc<ValidatorStore>) {
 
     let pending_id = store
         .insert_pending_certificate(&certificate)
+        .await
         .unwrap()
         .unwrap();
 
     assert!(matches!(
-        store.insert_pending_certificate(&certificate),
+        store.insert_pending_certificate(&certificate).await,
         Err(StorageError::InternalStorage(
             crate::errors::InternalStorageError::CertificateAlreadyPending
         ))
@@ -640,7 +643,7 @@ async fn get_pending_certificates(store: Arc<ValidatorStore>) {
         )
         .unwrap();
 
-    let pending_certificates = store.get_pending_certificates().unwrap();
+    let pending_certificates = store.iter_pending_pool().unwrap().collect::<Vec<_>>();
     assert_eq!(
         expected_pending_certificates.len(),
         pending_certificates.len()
@@ -654,7 +657,7 @@ async fn get_pending_certificates(store: Arc<ValidatorStore>) {
     let cert_to_remove = expected_pending_certificates.remove(8);
     store.delete_pending_certificate(&cert_to_remove.0).unwrap();
 
-    let pending_certificates = store.get_pending_certificates().unwrap();
+    let pending_certificates = store.iter_pending_pool().unwrap().collect::<Vec<_>>();
     assert_eq!(
         expected_pending_certificates.len(),
         pending_certificates.len()

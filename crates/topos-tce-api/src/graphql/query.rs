@@ -5,6 +5,7 @@ use async_graphql::{Context, EmptyMutation, Object, Schema, Subscription};
 use async_trait::async_trait;
 use futures::{Stream, StreamExt};
 use tokio::sync::{mpsc, oneshot};
+use topos_core::api::graphql::certificate::UndeliveredCertificate;
 use topos_core::api::graphql::checkpoint::SourceStreamPosition;
 use topos_core::api::graphql::errors::GraphQLServerError;
 use topos_core::api::graphql::filter::SubnetFilter;
@@ -18,6 +19,7 @@ use topos_metrics::{STORAGE_PENDING_POOL_COUNT, STORAGE_PRECEDENCE_POOL_COUNT};
 use topos_tce_storage::fullnode::FullNodeStore;
 use topos_tce_storage::store::ReadStore;
 
+use topos_tce_storage::validator::ValidatorStore;
 use tracing::debug;
 
 use crate::runtime::InternalRuntimeCommand;
@@ -121,11 +123,58 @@ impl QueryRoot {
     /// The values are estimated as having a precise count is costly.
     async fn get_storage_pool_stats(
         &self,
-        _ctx: &Context<'_>,
+        ctx: &Context<'_>,
     ) -> Result<HashMap<&str, i64>, GraphQLServerError> {
         let mut stats = HashMap::new();
-        stats.insert("pending_pool", STORAGE_PENDING_POOL_COUNT.get());
-        stats.insert("precedence_pool", STORAGE_PRECEDENCE_POOL_COUNT.get());
+        stats.insert("metrics_pending_pool", STORAGE_PENDING_POOL_COUNT.get());
+        stats.insert(
+            "metrics_precedence_pool",
+            STORAGE_PRECEDENCE_POOL_COUNT.get(),
+        );
+
+        let store = ctx.data::<Arc<ValidatorStore>>().map_err(|_| {
+            tracing::error!("Failed to get store from context");
+
+            GraphQLServerError::ParseDataConnector
+        })?;
+
+        stats.insert(
+            "count_pending_certificates",
+            store
+                .iter_pending_pool()
+                .map_err(|_| GraphQLServerError::StorageError)?
+                .count()
+                .try_into()
+                .unwrap_or(i64::MAX),
+        );
+
+        stats.insert(
+            "count_precedence_certificates",
+            store
+                .iter_precedence_pool()
+                .map_err(|_| GraphQLServerError::StorageError)?
+                .count()
+                .try_into()
+                .unwrap_or(i64::MAX),
+        );
+
+        stats.insert(
+            "pending_pool_size",
+            store
+                .pending_pool_size()
+                .map_err(|_| GraphQLServerError::StorageError)?
+                .try_into()
+                .unwrap_or(i64::MAX),
+        );
+
+        stats.insert(
+            "precedence_pool_size",
+            store
+                .precedence_pool_size()
+                .map_err(|_| GraphQLServerError::StorageError)?
+                .try_into()
+                .unwrap_or(i64::MAX),
+        );
 
         Ok(stats)
     }
@@ -151,8 +200,50 @@ impl QueryRoot {
             .map(|(subnet_id, head)| SourceStreamPosition {
                 source_subnet_id: subnet_id.into(),
                 position: *head.position,
+                certificate_id: head.certificate_id.into(),
             })
             .collect())
+    }
+
+    /// This endpoint is used to get the current pending pool.
+    /// It returns [`CertificateId`] and the [`PendingCertificateId`]
+    async fn get_pending_pool(
+        &self,
+        ctx: &Context<'_>,
+    ) -> Result<HashMap<u64, CertificateId>, GraphQLServerError> {
+        let store = ctx.data::<Arc<ValidatorStore>>().map_err(|_| {
+            tracing::error!("Failed to get store from context");
+
+            GraphQLServerError::ParseDataConnector
+        })?;
+
+        Ok(store
+            .iter_pending_pool()
+            .map_err(|_| GraphQLServerError::StorageError)?
+            .map(|(id, certificate)| (id, certificate.id.into()))
+            .collect())
+    }
+
+    /// This endpoint is used to check if a certificate has any child certificate in the precedence pool.
+    async fn check_precedence(
+        &self,
+        ctx: &Context<'_>,
+        certificate_id: CertificateId,
+    ) -> Result<Option<UndeliveredCertificate>, GraphQLServerError> {
+        let store = ctx.data::<Arc<ValidatorStore>>().map_err(|_| {
+            tracing::error!("Failed to get store from context");
+
+            GraphQLServerError::ParseDataConnector
+        })?;
+
+        store
+            .check_precedence(
+                &certificate_id
+                    .try_into()
+                    .map_err(|_| GraphQLServerError::ParseCertificateId)?,
+            )
+            .map_err(|_| GraphQLServerError::StorageError)
+            .map(|certificate| certificate.as_ref().map(Into::into))
     }
 }
 

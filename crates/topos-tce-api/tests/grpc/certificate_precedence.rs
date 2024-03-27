@@ -16,12 +16,12 @@ use topos_tce_storage::validator::ValidatorStore;
 #[rstest]
 #[test(tokio::test)]
 async fn fetch_latest_pending_certificates() {
-    let fullnode_store = create_fullnode_store(vec![]).await;
+    let fullnode_store = create_fullnode_store(&[]).await;
     let validator_store: Arc<ValidatorStore> =
-        create_validator_store(vec![], futures::future::ready(fullnode_store.clone())).await;
+        create_validator_store(&[], futures::future::ready(fullnode_store.clone())).await;
 
     let (api_context, _) = create_public_api(
-        storage_client(vec![]),
+        storage_client(&[]),
         broadcast_stream(),
         futures::future::ready(validator_store.clone()),
     )
@@ -33,11 +33,13 @@ async fn fetch_latest_pending_certificates() {
 
     assert!(validator_store
         .insert_pending_certificate(&certificates[1].certificate)
+        .await
         .unwrap()
         .is_none());
 
     assert!(validator_store
         .insert_pending_certificate(&certificates[0].certificate)
+        .await
         .unwrap()
         .is_some());
 
@@ -62,12 +64,12 @@ async fn fetch_latest_pending_certificates() {
 #[rstest]
 #[test(tokio::test)]
 async fn fetch_latest_pending_certificates_with_conflicts() {
-    let fullnode_store = create_fullnode_store(vec![]).await;
+    let fullnode_store = create_fullnode_store(&[]).await;
     let validator_store: Arc<ValidatorStore> =
-        create_validator_store(vec![], futures::future::ready(fullnode_store.clone())).await;
+        create_validator_store(&[], futures::future::ready(fullnode_store.clone())).await;
 
     let (api_context, _) = create_public_api(
-        storage_client(vec![]),
+        storage_client(&[]),
         broadcast_stream(),
         futures::future::ready(validator_store.clone()),
     )
@@ -82,12 +84,14 @@ async fn fetch_latest_pending_certificates_with_conflicts() {
     for certificate in certificates.iter().skip(1) {
         assert!(validator_store
             .insert_pending_certificate(&certificate.certificate)
+            .await
             .unwrap()
             .is_none());
     }
 
     assert!(validator_store
         .insert_pending_certificate(&certificates[0].certificate)
+        .await
         .unwrap()
         .is_some());
 

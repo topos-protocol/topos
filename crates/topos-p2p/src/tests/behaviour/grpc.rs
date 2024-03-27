@@ -6,7 +6,8 @@ use rstest::rstest;
 use test_log::test;
 use tokio::spawn;
 use tokio_util::sync::CancellationToken;
-use tonic::transport::{NamedService, Server};
+use tonic::server::NamedService;
+use tonic::transport::Server;
 use topos_test_sdk::grpc::{
     behaviour::{
         helloworld::{
@@ -178,10 +179,13 @@ async fn execute_query() {
     let mut client_swarm = Swarm::new_ephemeral(|_| grpc::Behaviour::new(GrpcContext::default()));
     let mut server_swarm = Swarm::new_ephemeral(|_| grpc::Behaviour::new(router));
 
+    let (multiaddr, _) = server_swarm.listen().await;
     let server_peer_id = *server_swarm.local_peer_id();
 
-    server_swarm.listen().await;
-    client_swarm.connect(&mut server_swarm).await;
+    client_swarm
+        .behaviour_mut()
+        .add_address(&server_peer_id, multiaddr);
+
     let outbound_connection = client_swarm.behaviour_mut().open_outbound_connection(
         &server_peer_id,
         protocol_name!(GreeterServer::<DummyServer>::NAME),
@@ -273,8 +277,10 @@ async fn incompatible_protocol() {
 
     let server_peer_id = *server_swarm.local_peer_id();
 
-    server_swarm.listen().await;
-    client_swarm.connect(&mut server_swarm).await;
+    let (multiaddr, _) = server_swarm.listen().await;
+    client_swarm
+        .behaviour_mut()
+        .add_address(&server_peer_id, multiaddr);
 
     let outbound_connection = client_swarm.behaviour_mut().open_outbound_connection(
         &server_peer_id,

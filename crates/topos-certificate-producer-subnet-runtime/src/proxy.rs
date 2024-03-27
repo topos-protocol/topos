@@ -259,7 +259,7 @@ impl SubnetRuntimeProxy {
                                         certification.clone(),
                                         block
                                     ).await {
-                                        error!("Failed to process next block: {}", e);
+                                        error!("Failed to process next block: {}, exit block production!", e);
                                         break None;
                                     }
                                 }

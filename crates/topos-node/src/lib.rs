@@ -3,7 +3,7 @@ use std::process::ExitStatus;
 
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
-use opentelemetry::{global, sdk::metrics::controllers::BasicController};
+use opentelemetry::global;
 use process::Errors;
 use tokio::{
     signal::{self, unix::SignalKind},
@@ -12,14 +12,12 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 use topos_config::{
-    edge::command::BINARY_NAME,
     genesis::Genesis,
     node::{NodeConfig, NodeRole},
 };
 use topos_telemetry::tracing::setup_tracing;
 use topos_wallet::SecretManager;
 use tracing::{debug, error, info};
-use tracing_opentelemetry::OpenTelemetrySpanExt;
 use tracing_subscriber::util::TryInitError;
 
 mod process;
@@ -58,7 +56,7 @@ pub async fn start(
 ) -> Result<(), Error> {
     // Setup instrumentation if both otlp agent and otlp service name
     // are provided as arguments
-    let basic_controller = setup_tracing(
+    setup_tracing(
         verbose,
         no_color,
         otlp_agent,
@@ -78,7 +76,7 @@ pub async fn start(
         info!(
             "Could not load genesis.json file on path {} \n Please make sure to have a valid \
              genesis.json file for your subnet in the {}/subnet/{} folder.",
-            config.edge_path.display(),
+            config.genesis_path.display(),
             config.home_path.display(),
             &config.base.subnet
         );
@@ -113,14 +111,14 @@ pub async fn start(
     tokio::select! {
         _ = sigterm_stream.recv() => {
             info!("Received SIGTERM, shutting down application...");
-            shutdown(basic_controller, shutdown_trigger, shutdown_receiver).await;
+            shutdown(shutdown_trigger, shutdown_receiver).await;
         }
         _ = signal::ctrl_c() => {
             info!("Received ctrl_c, shutting down application...");
-            shutdown(basic_controller, shutdown_trigger, shutdown_receiver).await;
+            shutdown( shutdown_trigger, shutdown_receiver).await;
         }
         Some(result) = processes.next() => {
-            shutdown(basic_controller, shutdown_trigger, shutdown_receiver).await;
+            shutdown(shutdown_trigger, shutdown_receiver).await;
             processes.clear();
             match result {
                 Ok(Ok(status)) => {
@@ -161,21 +159,22 @@ fn spawn_processes(
         info!("Using external edge node, skip running of local edge instance...")
     } else {
         let edge_config = config.edge.take().ok_or(Error::MissingEdgeConfig)?;
+        let edge_bin_config = config.edge_bin.take().ok_or(Error::MissingEdgeConfig)?;
 
         let data_dir = config.node_path.clone();
 
         info!(
             "Spawning edge process with genesis file: {}, data directory: {}, additional edge \
              arguments: {:?}",
-            config.edge_path.display(),
+            config.genesis_path.display(),
             data_dir.display(),
             edge_config.args
         );
 
         processes.push(process::spawn_edge_process(
-            config.home_path.join(BINARY_NAME),
+            edge_bin_config.binary_path(),
             data_dir,
-            config.edge_path.clone(),
+            config.genesis_path.clone(),
             edge_config.args,
         ));
     }
@@ -215,11 +214,7 @@ fn spawn_processes(
     Ok(processes)
 }
 
-async fn shutdown(
-    basic_controller: Option<BasicController>,
-    trigger: CancellationToken,
-    mut termination: mpsc::Receiver<()>,
-) {
+async fn shutdown(trigger: CancellationToken, mut termination: mpsc::Receiver<()>) {
     trigger.cancel();
     // Wait that all sender get dropped
     info!("Waiting that all components dropped");
@@ -227,9 +222,4 @@ async fn shutdown(
     info!("Shutdown procedure finished, exiting...");
     // Shutdown tracing
     global::shutdown_tracer_provider();
-    if let Some(basic_controller) = basic_controller {
-        if let Err(e) = basic_controller.stop(&tracing::Span::current().context()) {
-            error!("Error stopping tracing: {e}");
-        }
-    }
 }

@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use clap::Args;
 use serde::Serialize;
 
@@ -26,4 +28,8 @@ pub struct Up {
     /// If not provided open telemetry will not be used
     #[arg(long, env = "TOPOS_OTLP_SERVICE_NAME")]
     pub otlp_service_name: Option<String>,
+
+    /// Installation directory path for Polygon Edge binary
+    #[clap(from_global)]
+    pub(crate) edge_path: PathBuf,
 }

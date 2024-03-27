@@ -46,7 +46,7 @@ pub trait Config: Serialize {
     /// It will load the configuration from the file and an optional existing struct (if any)
     /// and then extract the configuration from the context in order to build the Config.
     /// The Config is then returned or an error if the configuration is not valid.
-    fn load<S: Serialize>(home: &Path, config: Option<S>) -> Result<Self::Output, figment::Error> {
+    fn load<S: Serialize>(home: &Path, config: Option<&S>) -> Result<Self::Output, figment::Error> {
         let mut figment = Figment::new();
 
         figment = Self::load_from_file(figment, home);
@@ -61,7 +61,7 @@ pub trait Config: Serialize {
 
 pub(crate) fn load_config<T: Config, S: Serialize>(
     node_path: &Path,
-    config: Option<S>,
+    config: Option<&S>,
 ) -> T::Output {
     match T::load(node_path, config) {
         Ok(config) => config,
