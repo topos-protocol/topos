@@ -9,7 +9,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: topos-smart-contracts
+  IMAGE_NAME: topos-contracts
 
 jobs:
   docker:
