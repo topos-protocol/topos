@@ -1,4 +1,5 @@
 FROM node:18.15.0-slim as base
+LABEL org.opencontainers.image.source=https://github.com/topos-protocol/topos
 WORKDIR /usr/src/app
 COPY package*.json .
 RUN npm install
