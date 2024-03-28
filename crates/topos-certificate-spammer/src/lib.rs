@@ -340,16 +340,20 @@ pub async fn run(
                     debug!("New cert number {b} in batch {batch_number} generated");
                     batch.push(new_cert);
                 }
-
+                
+                // Dispatch certs in this batch
                 // Dispatch certs in this batch
                 for cert in batch {
                     // Randomly choose target tce node for every certificate from related source_subnet_id connection list
-                    let target_node_connection = &target_node_connections[&cert.source_subnet_id]
-                        [rand::random::<usize>() % target_nodes.len()];
-                    dispatch(cert, target_node_connection)
-                        .instrument(Span::current())
-                        .with_current_context()
-                        .await;
+                    // let target_node_connection = &target_node_connections[&cert.source_subnet_id]
+                    //     [rand::random::<usize>() % target_nodes.len()];
+
+                    for connection in &target_node_connections[&cert.source_subnet_id] {
+                        dispatch(cert.clone(), connection)
+                            .instrument(Span::current())
+                            .with_current_context()
+                            .await;
+                    }
                 }
             }
             .instrument(span)
