@@ -340,8 +340,7 @@ pub async fn run(
                     debug!("New cert number {b} in batch {batch_number} generated");
                     batch.push(new_cert);
                 }
-
-                info!("Target Node Connections: {target_node_connections:#?}");
+                
                 // Dispatch certs in this batch
                 // Dispatch certs in this batch
                 for cert in batch {
